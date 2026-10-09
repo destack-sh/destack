@@ -1,3 +1,4 @@
+import type { ImageMetadata } from "@destack/view/media";
 import { loadContent, type RenderedContent } from "../load";
 
 /** One generated blog post record. */
@@ -7,7 +8,7 @@ export type Post = {
     /** The static rendered HTML route. */
     contentRoute: string;
     /** The post's first figure image, shown on its directory entry. */
-    cover: { source: string; alt: string } | null;
+    cover: { image: ImageMetadata; alt: string } | null;
     /** The publication date. */
     date: string;
     /** The authored Markdown route. */
@@ -53,9 +54,42 @@ export const posts = [
     {
         author: "Florian",
         contentRoute:
-            "/_content/tree/1821d251cf091e2b1edcad5e2e9d5d666a1fcf88b2cbb3b21c8666c734840145.json",
+            "/_content/tree/bdde7211423cf80bc014bd13de537552d89c631d6e9656dd91fcef92ded8802c.json",
         cover: {
-            source: "/_content/assets/aade6fe26c510ace.jpg",
+            image: {
+                src: "/_content/assets/aade6fe26c510ace.jpg",
+                width: 673,
+                height: 600,
+                format: "jpeg",
+                srcSet: [
+                    {
+                        width: 640,
+                        format: "avif",
+                        src: "/_content/assets/aade6fe26c510ace-640.avif",
+                    },
+                    {
+                        width: 640,
+                        format: "webp",
+                        src: "/_content/assets/aade6fe26c510ace-640.webp",
+                    },
+                    {
+                        width: 640,
+                        format: "jpeg",
+                        src: "/_content/assets/aade6fe26c510ace-640.jpeg",
+                    },
+                    {
+                        width: 673,
+                        format: "avif",
+                        src: "/_content/assets/aade6fe26c510ace-673.avif",
+                    },
+                    {
+                        width: 673,
+                        format: "webp",
+                        src: "/_content/assets/aade6fe26c510ace-673.webp",
+                    },
+                    { width: 673, format: "jpeg", src: "/_content/assets/aade6fe26c510ace.jpg" },
+                ],
+            },
             alt: "Illustration of Cambrian marine life, with Opabinia swimming above trilobites, spiny animals, and sponges.",
         },
         date: "2026-10-14",
@@ -70,7 +104,7 @@ export const posts = [
         ],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 2500,
+        tokens: 2499,
     },
 ] as const satisfies readonly Post[];
 

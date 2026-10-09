@@ -1,4 +1,5 @@
 import { schema } from "@destack/schema";
+import { ImageMetadata } from "@destack/view/media/asset";
 
 /** One navigable item, shared by generated indexes and archives. */
 export const ContentEntry = schema.object({
@@ -10,11 +11,8 @@ export const ContentEntry = schema.object({
     summary: schema.string().exactOptional(),
     /** The publication date, as an ISO date. */
     date: schema.string().exactOptional(),
-    /** The cover image, or null for an entry without one. */
-    image: schema
-        .object({ source: schema.string(), alt: schema.string() })
-        .nullable()
-        .exactOptional(),
+    /** The cover image the build published, or null for an entry without one. */
+    cover: schema.object({ image: ImageMetadata, alt: schema.string() }).nullable().exactOptional(),
 });
 /** One linked entry of a content list. */
 export type ContentEntry = schema.Infer<typeof ContentEntry>;

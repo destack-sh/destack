@@ -27,7 +27,7 @@ The familiar features that make modern software "modern" - cloud based, SaaS, is
 Our new class of machine user requires the broadest possible access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
 
 So, half a century after the last software crisis, our computing stack is once again buckling under the weight, volume and speed of a more powerful machine.
-Once more, we get to retrace from the beginning, reconsider what programming even means now, and reshape what the shape of 21st century software should be.
+Once more, we get to retrace from the beginning, reconsider what programming even means, and reshape what the shape of 21st century software should be.
 
 # Higher Order Programming
 
@@ -88,7 +88,7 @@ The correctness of any complex software systems spans many granularities, and ma
 The only way to ensure correctness for general purpose software - that is: does it do what it should? - is to look, to see the software in motion under many different angles and granularities.
 Notably, this is not an intelligence problem at all - it's a human problem, and a real world integration problem; I just don't know what I want until I see it.
 
-:::figure width="600" src="./tiny-glade.gif" alt="Reshaping walls, gates and buildings in Tiny Glade."
+:::figure width="600" src="./tiny-glade.mp4" poster="./tiny-glade.webp" alt="Reshaping walls, gates and buildings in Tiny Glade."
 [Building in Tiny Glade](https://store.steampowered.com/app/2198150/Tiny_Glade/) — Pounce Light, release date trailer excerpt.
 :::
 

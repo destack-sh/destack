@@ -17,12 +17,12 @@ export const collections: readonly Collection[] = [
     {
         title: "Documentation",
         route: "/docs/",
-        sources: [{ directory: "@platform/docs", path: "", hierarchy: [] }],
+        sources: [{ directory: "@platform/site/content/docs", path: "", hierarchy: [] }],
     },
     {
         title: "Blog",
         route: "/blog/",
-        sources: [{ directory: "@platform/blog", path: "", hierarchy: [] }],
+        sources: [{ directory: "@platform/site/content/blog", path: "", hierarchy: [] }],
     },
 ];
 

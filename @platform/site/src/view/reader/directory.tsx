@@ -24,6 +24,10 @@ import { type ContentEntry, formatDate } from "../content/presentation";
 import { PageHeader } from "./header";
 import { publicationStyles } from "./publication.stylex";
 import { screen } from "../layout/screen.stylex";
+import { Picture } from "@destack/view/media";
+
+/** The width a cover takes: the column on phones, a third of it on wider screens. */
+const COVER_SIZES = "(min-width: 768px) 33vw, 100vw";
 
 /** The archive value that stands for every year. */
 const ALL_YEARS = "all";
@@ -182,14 +186,14 @@ function DirectoryList(properties: { label: string; entries: readonly ContentEnt
                             role="listitem"
                             {...style.attrs(style.defaultMarker(), itemVariants({}), styles.entry)}
                         >
-                            <Show when={entry.image}>
-                                {(image) => (
+                            <Show when={entry.cover}>
+                                {(cover) => (
                                     <ItemHeader>
-                                        <img
-                                            src={image().source}
-                                            alt={image().alt}
-                                            loading="lazy"
-                                            {...style.attrs(styles.cover)}
+                                        <Picture
+                                            src={cover().image}
+                                            alt={cover().alt}
+                                            sizes={COVER_SIZES}
+                                            xstyle={styles.cover}
                                         />
                                     </ItemHeader>
                                 )}

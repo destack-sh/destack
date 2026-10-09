@@ -306,19 +306,23 @@ function shapeDirective(
         children: caption,
     };
 
-    // carry an image's source and description, resolved
+    // carry an image, or a video file as a looping animation with its poster frame
     if (node.name === "figure") {
-        const source = resolveLink(
-            requireAttribute(attributes, "src", context.slug, node.name),
-            context,
-        );
+        const source = requireAttribute(attributes, "src", context.slug, node.name);
+        const isAnimation = VIDEO_EXTENSIONS.has(extname(pathOf(source)).toLowerCase());
         node.data = {
             hName: "figure",
             hProperties: {
-                dataKind: "image",
+                dataKind: isAnimation ? "animation" : "image",
                 dataWidth: width,
-                dataSrc: source,
+                dataSrc: resolveLink(source, context),
                 dataAlt: requireAttribute(attributes, "alt", context.slug, node.name),
+                ...(isAnimation && {
+                    dataPoster: resolveLink(
+                        requireAttribute(attributes, "poster", context.slug, node.name),
+                        context,
+                    ),
+                }),
             },
         };
         node.children = [figcaption];
@@ -368,7 +372,9 @@ function shapeHtml(
         // number image and video figures
         if (
             node.tagName === "figure" &&
-            (node.properties["dataKind"] === "image" || node.properties["dataKind"] === "video")
+            (node.properties["dataKind"] === "image" ||
+                node.properties["dataKind"] === "animation" ||
+                node.properties["dataKind"] === "video")
         ) {
             counters.figure += 1;
             node.properties["dataLabel"] = `Figure ${counters.figure}`;

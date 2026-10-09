@@ -6,7 +6,6 @@ import { buildNavigation } from "./navigation.ts";
 import { collections } from "../content.ts";
 import { createHash } from "node:crypto";
 import {
-    copyFileSync,
     existsSync,
     mkdirSync,
     readdirSync,
@@ -29,6 +28,8 @@ import {
 import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.ts";
 import { writePageSources } from "./sources.ts";
 import { withLock } from "./lock.ts";
+import { imageFiles, type TransformedImage, transformImage } from "@destack/view/build";
+import type { ImageMetadata } from "@destack/view/media";
 
 /** A public documentation path: lowercase hyphenated segments ending in a Markdown file. */
 const DOCUMENT_PATH_PATTERN = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.md$/u;
@@ -85,6 +86,9 @@ const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
 /** The generated rendered-body loader module. */
 const generatedAssetFile = join(generatedDirectory, "assets.ts");
 
+/** The raster images published in several widths and formats, by extension, animated GIFs keeping only their original. */
+const RASTER_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".avif"]);
+
 /** Whether this run checks the generated files instead of writing them. */
 const isCheck = process.argv.includes("--check");
 
@@ -102,12 +106,15 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
     const searchEntries = searchEntriesFor(posts, documents);
     if (!isCheck) {
         await writePageSources(pages, publicDirectory);
-        writePageContent(pages);
+        await writePageContent(pages);
         removeObsoletePages(pages);
         writeGeneratedFile(publicSearchFile, `${JSON.stringify(searchEntries)}\n`);
     }
     generateDocumentMetadata(documents);
-    const postSource = await formatSource(generatedPostFile, renderPostModule(posts, blogIndex));
+    const covered = await Promise.all(
+        posts.map(async (post) => ({ ...post, cover: await coverOf(post.coverSource) })),
+    );
+    const postSource = await formatSource(generatedPostFile, renderPostModule(covered, blogIndex));
     const routeSource = await formatSource(generatedRouteFile, renderRouteModule(posts, documents));
     const assetSource = await formatSource(generatedAssetFile, renderAssetModule(pages));
 
@@ -198,45 +205,138 @@ function appendChapterContents(documents: DocumentationPage[]) {
     }
 }
 
-/** Write rendered page bodies and their content-addressed assets. */
-function writePageContent(pages: RenderedPage[]) {
+/** Write rendered page bodies and their content-addressed assets, raster images in several widths and formats. */
+async function writePageContent(pages: RenderedPage[]) {
+    // hold the routes and images published so far, each written once
     mkdirSync(publicContentDirectory, { recursive: true });
     const assetRoutes = new Map<string, string>();
+    const images = new Map<string, ImageMetadata>();
 
     // resolve every page against one deduplicated asset collection
     for (const page of pages) {
-        const assets = Object.fromEntries(
-            page.assets.map((asset) => {
-                let route = assetRoutes.get(asset.path);
+        const assets: Record<string, string> = {};
+        const pageImages = new Map<string, ImageMetadata>();
+        for (const asset of page.assets) {
+            // copy each source asset once under its content hash
+            let route = assetRoutes.get(asset.path);
+            if (route === undefined) {
+                route = assetRouteFor(asset.path);
+                publishFile(route, readFileSync(asset.path));
+                assetRoutes.set(asset.path, route);
+            }
+            assets[asset.placeholder] = route;
 
-                // copy each source asset once under its content hash
-                if (route == undefined) {
-                    route = assetRouteFor(asset.path);
-                    const file = join(publicDirectory, route.slice(1));
-                    mkdirSync(dirname(file), { recursive: true });
-                    if (!existsSync(file)) {
-                        const temporaryFile = `${file}.${process.pid}.tmp`;
-                        copyFileSync(asset.path, temporaryFile);
-                        renameSync(temporaryFile, file);
-                    }
-                    assetRoutes.set(asset.path, route);
+            // render each raster image's files once, beside its original
+            if (isRaster(asset.path)) {
+                let image = images.get(asset.path);
+                if (image === undefined) {
+                    image = await publishImage(asset.path);
+                    images.set(asset.path, image);
                 }
-
-                return [asset.placeholder, route];
-            }),
-        );
-        const tree = resolveAssets(JSON.stringify(page.tree), assets);
+                pageImages.set(asset.placeholder, image);
+            }
+        }
+        // write the page with its published images, its route hashing its source tree
+        const published = structuredClone(page.tree);
+        attachImages(published, pageImages);
+        const tree = resolveAssets(JSON.stringify(published), assets);
         const file = join(publicDirectory, contentRouteFor(page).slice(1));
         mkdirSync(dirname(file), { recursive: true });
         writeGeneratedFile(file, tree);
     }
 }
 
+/** Write a published file under its route unless a previous run wrote it, its content address keeping it current. */
+function publishFile(route: string, bytes: Uint8Array) {
+    // keep a file a previous run wrote
+    const file = join(publicDirectory, route.slice(1));
+    if (existsSync(file)) {
+        return;
+    }
+
+    // write it beside its route, then move it in place
+    mkdirSync(dirname(file), { recursive: true });
+    const temporaryFile = `${file}.${process.pid}.tmp`;
+    writeFileSync(temporaryFile, bytes);
+    renameSync(temporaryFile, file);
+}
+
+/** Render and publish a raster image's files, returning its metadata with its blurred rendition. */
+async function publishImage(path: string): Promise<ImageMetadata> {
+    // write each file but the original's own format at its own width, which the original serves
+    const rendered = await transformImage(readFileSync(path));
+    for (const file of rendered.files) {
+        if (file.width !== rendered.width || file.format !== rendered.format) {
+            publishFile(fileRouteFor(path, file.width, file.format), file.data);
+        }
+    }
+
+    return describeImage(path, rendered);
+}
+
+/** Describe a raster image by its published routes: its original and each planned file. */
+function describeImage(
+    path: string,
+    image: Pick<TransformedImage, "width" | "height" | "format"> & {
+        readonly blurDataURL?: string;
+    },
+): ImageMetadata {
+    const original = assetRouteFor(path);
+
+    return {
+        src: original,
+        width: image.width,
+        height: image.height,
+        format: image.format,
+        srcSet: imageFiles(image.width, image.format).map((file) => ({
+            ...file,
+            src:
+                file.width === image.width && file.format === image.format
+                    ? original
+                    : fileRouteFor(path, file.width, file.format),
+        })),
+        ...(image.blurDataURL === undefined ? {} : { blurDataURL: image.blurDataURL }),
+    };
+}
+
+/** Give each image figure its published source, and each animation its published poster frame, by placeholder. */
+function attachImages(node: Root | ElementContent, images: ReadonlyMap<string, ImageMetadata>) {
+    // attach an image figure's published source, or an animation's published poster frame
+    if (node.type === "element") {
+        const kind = node.properties["dataKind"];
+        const key = kind === "image" ? "dataSrc" : kind === "animation" ? "dataPoster" : undefined;
+        const image = key === undefined ? undefined : images.get(String(node.properties[key]));
+        if (image !== undefined) {
+            node.properties["dataImage"] = JSON.stringify(image);
+        }
+    }
+
+    // descend into the children
+    for (const child of "children" in node ? node.children : []) {
+        if (child.type !== "doctype") {
+            attachImages(child, images);
+        }
+    }
+}
+
+/** Report whether an asset is a raster image published in several widths and formats. */
+function isRaster(path: string) {
+    return RASTER_EXTENSIONS.has(extname(path).toLowerCase());
+}
+
+/** Return the content-addressed route of one file of a raster image. */
+function fileRouteFor(path: string, width: number, format: string) {
+    return `/_content/assets/${digestOf(path)}-${String(width)}.${format}`;
+}
+
 /** Return the content-addressed route an asset is published under. */
 function assetRouteFor(path: string) {
-    const digest = createHash("sha256").update(readFileSync(path)).digest("hex").slice(0, 16);
+    return `/_content/assets/${digestOf(path)}${extname(path)}`;
+}
 
-    return `/_content/assets/${digest}${extname(path)}`;
+/** Return the short content hash an asset's routes start with. */
+function digestOf(path: string) {
+    return createHash("sha256").update(readFileSync(path)).digest("hex").slice(0, 16);
 }
 
 /** Generate or check the metadata for every documentation page. */
@@ -630,7 +730,7 @@ function renderPosts(sources: ReturnType<typeof readPostSources>) {
         return {
             ...source,
             assets: context.assets,
-            cover: coverFor(tree, context.assets),
+            coverSource: coverFor(tree, context.assets),
             tree,
             searchSections: searchSectionsFor(source.markdown),
             searchText: searchTextFor(source.markdown),
@@ -640,17 +740,38 @@ function renderPosts(sources: ReturnType<typeof readPostSources>) {
 }
 
 /** Return the first image of a rendered post at its published route, if it has one. */
-function coverFor(tree: Root, assets: MarkdownContext["assets"]) {
+function coverFor(
+    tree: Root,
+    assets: MarkdownContext["assets"],
+): { path: string; alt: string } | null {
     // read the first image or image figure's source and description
     const image = firstImageOf(tree);
     if (image === undefined) {
         return null;
     }
 
-    // publish a collected asset under its content-addressed route
+    // take a collected raster asset, which publishes in several widths and formats
     const asset = assets.find((candidate) => candidate.placeholder === image.source);
 
-    return { source: asset ? assetRouteFor(asset.path) : image.source, alt: image.alt };
+    return asset !== undefined && isRaster(asset.path)
+        ? { path: asset.path, alt: image.alt }
+        : null;
+}
+
+/** Describe a post's cover by its published routes and size, leaving out the blurred rendition so the record stays reproducible. */
+async function coverOf(source: { readonly path: string; readonly alt: string } | null) {
+    // describe no cover for a post without a raster image
+    if (source === null) {
+        return null;
+    }
+
+    // describe the cover by its size and type, which its routes follow
+    const { width, height, format } = await transformImage(readFileSync(source.path), {
+        widths: [],
+        formats: [],
+    });
+
+    return { image: describeImage(source.path, { width, height, format }), alt: source.alt };
 }
 
 /** Find the first image of a tree, an image element or an image figure, in document order. */
@@ -708,11 +829,18 @@ function renderBlogIndex(posts: ReturnType<typeof renderPosts>): RenderedPage {
     };
 }
 
+/** A rendered post with its published cover. */
+type CoveredPost = ReturnType<typeof renderPosts>[number] & {
+    /** The cover image the build published, none for a post without a raster image. */
+    readonly cover: Awaited<ReturnType<typeof coverOf>>;
+};
+
 /** Generate the blog metadata and rendered-body loader. */
-function renderPostModule(posts: ReturnType<typeof renderPosts>, index: RenderedPage) {
+function renderPostModule(posts: readonly CoveredPost[], index: RenderedPage) {
     const records = posts.map((post) => renderPostRecord(post)).join(",\n");
 
-    return `import { loadContent, type RenderedContent } from "../load";
+    return `import type { ImageMetadata } from "@destack/view/media";
+import { loadContent, type RenderedContent } from "../load";
 
 /** One generated blog post record. */
 export type Post = {
@@ -721,7 +849,7 @@ export type Post = {
     /** The static rendered HTML route. */
     contentRoute: string;
     /** The post's first figure image, shown on its directory entry. */
-    cover: { source: string; alt: string } | null;
+    cover: { image: ImageMetadata; alt: string } | null;
     /** The publication date. */
     date: string;
     /** The authored Markdown route. */
@@ -782,7 +910,7 @@ export async function loadPost(slug: string): Promise<PostContent | undefined> {
 }
 
 /** Generate one blog metadata record. */
-function renderPostRecord(post: ReturnType<typeof renderPosts>[number]) {
+function renderPostRecord(post: CoveredPost) {
     return `    {
         author: ${JSON.stringify(post.author)},
         contentRoute: ${JSON.stringify(contentRouteFor(post))},

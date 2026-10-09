@@ -13,7 +13,7 @@ export function Blog() {
         href: post.route,
         summary: post.subtitle,
         date: post.date,
-        image: post.cover,
+        cover: post.cover,
     }));
     const directory = createDirectory(() => entries);
 

@@ -36,7 +36,7 @@ lint:
     just @app/lint
     just @template/lint
     just @platform/lint
-    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/docs @platform/blog
+    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/site/content
 
 # check formatting
 format-check:

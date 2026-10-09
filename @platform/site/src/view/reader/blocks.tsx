@@ -21,6 +21,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 import { palette } from "../palette.stylex";
 import { media } from "@destack/style/media.stylex";
+import { createEffect, createSignal } from "@destack/view";
+import { ImageMetadata, Picture } from "@destack/view/media";
+import { createReducedMotion } from "@destack/view/motion";
 
 /** The components that stand in for the elements of the site's articles: listings, figures and tables. */
 export const blocks: ContentComponents = {
@@ -105,8 +108,11 @@ function Figure(properties: ContentElementProperties) {
     const captionText =
         caption === undefined ? undefined : <Content tree={rootOf(caption.children)} />;
 
-    // frame an image at its authored width, numbered under its caption
-    if (kind === "image") {
+    // frame an image or a looping animation at its authored width, numbered under its caption
+    if (kind === "image" || kind === "animation") {
+        const image = imageOf(properties);
+        const alt = attribute(properties, "data-alt") ?? "";
+
         return (
             <figure {...style.attrs(styles.figure)}>
                 <div
@@ -115,13 +121,28 @@ function Figure(properties: ContentElementProperties) {
                     }
                     {...style.attrs(styles.frame)}
                 >
-                    <img
-                        src={attribute(properties, "data-src")}
-                        alt={attribute(properties, "data-alt") ?? ""}
-                        loading="lazy"
-                        decoding="async"
-                        {...style.attrs(styles.media)}
-                    />
+                    {kind === "animation" ? (
+                        <Animation
+                            source={attribute(properties, "data-src") ?? ""}
+                            alt={alt}
+                            poster={image}
+                        />
+                    ) : image === undefined ? (
+                        <img
+                            src={attribute(properties, "data-src")}
+                            alt={alt}
+                            loading="lazy"
+                            decoding="async"
+                            {...style.attrs(styles.media)}
+                        />
+                    ) : (
+                        <Picture
+                            src={image}
+                            alt={alt}
+                            sizes={sizesOf(width)}
+                            xstyle={styles.media}
+                        />
+                    )}
                 </div>
                 <figcaption {...style.attrs(text.subheadline, styles.caption)}>
                     <span {...style.attrs(styles.label)}>{label}</span>
@@ -246,6 +267,59 @@ function textOf(node: ElementContent): string {
 /** Wrap nodes as a tree to render on their own. */
 function rootOf(children: readonly ElementContent[]): Root {
     return { type: "root", children: [...children] };
+}
+
+/** Play a video as a silent looping animation, held on its poster frame while motion is reduced. */
+function Animation(properties: { source: string; alt: string; poster: ImageMetadata | undefined }) {
+    // play while motion runs, and hold the poster frame while it is reduced
+    const [video, setVideo] = createSignal<HTMLVideoElement>();
+    const isStill = createReducedMotion(video);
+    createEffect(
+        () => ({ element: video(), still: isStill() }),
+        ({ element, still }) => {
+            if (element === undefined) {
+                return;
+            }
+            if (still) {
+                element.pause();
+            } else {
+                void element.play();
+            }
+        },
+    );
+
+    return (
+        <video
+            ref={setVideo}
+            muted
+            loop
+            playsinline
+            preload="metadata"
+            aria-label={properties.alt}
+            src={properties.source}
+            poster={properties.poster?.src}
+            width={properties.poster?.width}
+            height={properties.poster?.height}
+            {...style.attrs(styles.media)}
+        />
+    );
+}
+
+/** Read the published image a figure carries, its source or its poster frame, none for an external one. */
+function imageOf(properties: ContentElementProperties): ImageMetadata | undefined {
+    // read none for an external image, else the published image's description
+    const serialized = attribute(properties, "data-image");
+    if (serialized === undefined) {
+        return undefined;
+    }
+    const value: unknown = JSON.parse(serialized);
+
+    return ImageMetadata.parse(value);
+}
+
+/** Describe the width an image takes: its authored width, or the column below it. */
+function sizesOf(width: string | undefined): string {
+    return width === undefined ? "100vw" : `(min-width: ${width}px) ${width}px, 100vw`;
 }
 
 /** The styles of the article blocks. */
