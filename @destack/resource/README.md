@@ -1,162 +1,57 @@
 # @destack/resource
 
-Declare, bind, plan and open the resources a package needs.
-
-## Declarations
-
-`defineResourceKind` defines a resource kind by the schemas of its spec and desired state.
+`defineResourceKind` is a Kubernetes CustomResourceDefinition with `spec` and desired `state` schemas, a `Provider` is a Terraform provider that plans, applies, snapshots and fences one kind's resources on a host, and `ResourceContext` holds a workload's clients as a Cloudflare Worker's `env` holds its bindings.
 
 ```ts
-import { defineResourceKind } from "@destack/resource";
-
-const DatabaseKind = defineResourceKind("database", { spec: DatabaseSpec, state: DatabaseState });
-const BucketKind = defineResourceKind("bucket", { spec: BucketSpec });
-const files = BucketKind.description.parse({ name: "files", kind: "bucket", spec: {} });
+const DatabaseKind = defineResourceKind("database", { spec: DatabaseSpec, state: DatabaseState }); // a CRD's spec and status
+const plan = await provider.reconcile.plan(record, desired); // terraform plan
+await provider.reconcile.apply(record, desired, await Plan.digest(plan)); // terraform apply of a saved plan
+Plan.classify(plan); // "safe", "fallible", "backward-incompatible" or "destructive"
+await database.get(new ResourceContext().bind(database, connection)).select().from(note); // env.DATABASE in a Worker
 ```
 
 ## Definitions
 
-`ResourceDefinition` is the declarable schema of a resource of any kind: its package's declaration, retention, placement and tags, an existing resource to adopt, a reference to connect, or a connection of its space lending its credential.
+`ResourceDefinition` is the declarable schema of a resource of any kind: its package's declaration, retention, placement and tags.
 
 ```ts
-import { ResourceDefinition } from "@destack/resource";
-
+const files = BucketKind.description.parse({ name: "files", kind: "bucket", spec: {} });
 const declared = ResourceDefinition.parse({
     declaration: { ...files, package: import.meta.destack.package },
     retention: { within: { days: 30 } },
     placement: { provider: "r2" },
     tags: {},
 });
-const lent = ResourceDefinition.parse({ ...declared, connection: connectionId }); // provider CONNECTION_PROVIDER
-const named = ResourceDefinition.parse({
-    ...declared,
-    placement: { provider: CONNECTION_PROVIDER },
-}); // each call names its connection
-```
-
-## Kind descriptions
-
-`describeResourceKind` returns the JSON Schemas of a kind's spec and state.
-
-```ts
-import { describeResourceKind } from "@destack/resource/inspect";
-
-const { name, spec, state } = describeResourceKind(DatabaseKind);
-```
-
-## Clients
-
-`ResourceContext.bind` sets the client of a declaration for one invocation.
-
-```ts
-import { ResourceContext } from "@destack/resource/context";
-
-const context = new ResourceContext().bind(database, connection);
-await database.get(context).select().from(note);
-```
-
-## Providers
-
-A `Provider` manages one kind's resources on a host.
-
-```ts
-const record = provider.kind.record(row);
-if (provider.reconcile !== undefined) {
-    const desired = provider.kind.states([notes.state(), tasks.state()]);
-    const plan = await provider.reconcile.plan(record, desired);
-    Plan.classify(plan); // "safe", "fallible", "backward-incompatible" or "destructive"
-    await provider.reconcile.apply(record, desired, await Plan.digest(plan));
-}
-```
-
-## Snapshots
-
-`snapshot` copies a resource's content into a content-addressed store.
-
-```ts
-const recipient = await Recipient.generate(); // the restoring host's
-const digest = await provider.snapshot.snapshot(record, desired, store, recipient);
-await target.snapshot.restore(provisioned, desired, digest, store, recipient);
 ```
 
 ## Connectors
 
-`connectors` maps a provider code to the `Connector` that opens its client in a workload.
+`connectors` maps a provider code to the `Connector` that opens a declaration's client in a workload.
 
 ```ts
-const binding = {
-    resource,
-    kind: "database",
-    provider: "sqlite",
-    reference: "file:///spaces/space-…/database-….db",
-};
-const connector = notes.connectors[binding.provider];
-if (connector === undefined) {
-    throw new TypeError(`no connector for provider ${binding.provider}`);
-}
-const connection = await connector.connect(binding, notes);
-```
-
-## Moves
-
-`fence` refuses writes to a resource while a move captures it.
-
-```ts
-await provider.fence?.fence(record);
-const handle = await provider.open.open(record, desired); // { database, migrate, close }
-const recipient = await Recipient.generate(); // from @destack/identity, on the target
-const sealed = await source.rewrap.seal(row, Recipient.of(recipient.key));
-const opened = await target.rewrap.open(sealed, recipient);
+const connection = await main.connectors["sqlite"]?.connect(binding, main);
 ```
 
 ## Plans
 
-A `Plan` lists the `Step`s that change resources.
+A `Plan` lists the `Step`s that change resources, and a plan at or above `backward-incompatible` needs approval.
 
 ```ts
 const plan: Plan = {
     steps: [
-        {
-            action: "create",
-            target: "resource/main/table/note/column/priority",
-            risk: "safe",
-            detail: "add column priority",
-        },
+        { action: "create", target: "resource/main/table/note/column/priority", risk: "safe", detail: "add column priority" },
         { action: "delete", target: "role/viewer", risk: "destructive", detail: "retire" },
     ],
 };
-Plan.classify(plan); // "destructive"
-Plan.isAtLeast(plan, "backward-incompatible"); // true: the plan needs approval
-await Plan.digest(plan); // what an approval holds
+Plan.isAtLeast(plan, "backward-incompatible"); // true
 ```
 
 ## Upgrades
 
-`Upgrade.plan` lists the steps from the latest release to a build.
+`Upgrade.plan` lists the steps from the latest release to a build, and a `Vocabulary` refuses a name reused with another definition.
 
 ```ts
 const history = await History.read(latest.reader, vocabulary);
-const upgrade = Upgrade.plan(history, build.package, declarations, (declaration) =>
-    compares.get(declaration.kind),
-);
-// { from: "2026.9.0", steps: [{ action: "delete", target: "object/note/relation/editor", risk: "backward-incompatible", ... }] }
-```
-
-## Vocabulary
-
-A `Vocabulary` records the release that added and removed each term.
-
-```ts
-Vocabulary.plan(vocabulary, declarations); // PlanError: object/note/relation/editor: removed in 2026.10.0 with another definition; choose a new name
+const upgrade = Upgrade.plan(history, build.package, declarations, (declaration) => compares.get(declaration.kind));
 const advanced = Vocabulary.advance(vocabulary, declarations, "2026.11.0");
-```
-
-## Errors
-
-`PlanError` reports every refusal of a plan at once, which callers receive as a conflict.
-
-```ts
-import { PlanError } from "@destack/resource/error";
-
-new PlanError([{ target: "note", detail: "declare a conversion to version 2" }]).toServiceError(); // { code: "CONFLICT", … }
 ```
