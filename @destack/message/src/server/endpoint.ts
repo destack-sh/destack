@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import * as audit from "@destack/audit";
 import { and, type DatabaseConnection, desc, eq, inArray, ne } from "@destack/db";
-import { type ObjectReconciliation, ObjectWatch, ServerCall } from "@destack/object";
+import { type ObjectReconciliation, ObjectWatch } from "@destack/object";
 import { aligned, Identifier, type JsonValue, present } from "@destack/schema";
 import { EventReader, type EventStore } from "@destack/event";
 import { RequestId } from "@destack/service/request";
@@ -130,9 +130,14 @@ async function deliver(
         );
     const created = new Set<string>(existing.map((entry) => entry.id));
     const messages = described.filter((entry) => !created.has(entry.id));
-    if (messages.length > 0) {
-        await reconciliation.execute(message, "create", messages);
-    }
+    await reconciliation.mutate(
+        messages.map((entry) =>
+            message.call("create", {
+                ...message.target({ scope: entry.scope, id: entry.id }),
+                ...entry.input,
+            }),
+        ),
+    );
 
     // keep the endpoint's place past the page, holding the calls after it
     if (page.sequence > after) {
@@ -162,8 +167,9 @@ async function mark(
     }
 
     // observe the changed condition
-    await reconciliation.execute(endpoint, "observe", [
-        ServerCall.of(row, {
+    await reconciliation.mutate([
+        endpoint.call("observe", {
+            ...endpoint.target(row),
             observedGeneration: row.generation,
             conditions: { Delivered: delivered },
         }),

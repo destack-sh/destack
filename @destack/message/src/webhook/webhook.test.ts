@@ -1,4 +1,3 @@
-import type { CallServer } from "@destack/object";
 import { UNQUERIED } from "../test/index.ts";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
@@ -6,6 +5,7 @@ import { aligned, present, schema } from "@destack/schema";
 import { type ObjectReference, Subject } from "@destack/sync";
 import type { MessageProvider } from "../provider/index.ts";
 import { WebhookSignature, webhookProvider } from "./webhook.ts";
+import type { ObjectStore } from "@destack/object/server";
 
 /** The specification's example signing secret, kept in a vault. */
 const SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
@@ -57,7 +57,7 @@ function postTo(statuses: readonly number[]) {
     const requests: { url: string; headers: Headers; body: string }[] = [];
     const read: [ObjectReference, Subject][] = [];
     const vault = async (
-        _server: Pick<CallServer, "query" | "clock">,
+        _store: Pick<Omit<ObjectStore, "router">, "query" | "clock">,
         secret: ObjectReference,
         reader: Subject,
     ) => {

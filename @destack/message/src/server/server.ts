@@ -1,8 +1,7 @@
-import { ServerCall, type CallServer } from "@destack/object";
 import { count, eq } from "@destack/db";
 import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
-import type { Extension } from "@destack/object/server";
+import type { ObjectExtension, ObjectStore } from "@destack/object/server";
 import { implement, type ServiceContext } from "@destack/service/server";
 import { aligned, Duration, present } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
@@ -49,7 +48,7 @@ export interface MessageOptions {
 }
 
 /** Implement the message service: keep a space's messages and send each through its channel's provider, deliver its endpoints' histories, and answer the key its messages are sealed to and the key each space's browsers subscribe with. */
-export function implementMessages(options: MessageOptions): Extension {
+export function implementMessages(options: MessageOptions): ObjectExtension {
     // route the keys and pushes, the push provider answering the key browsers subscribe with
     const pushes = implement(messageService.router.push).$context<ServiceContext>();
     const keys = implement(messageService.router.key).$context<ServiceContext>();
@@ -135,7 +134,7 @@ async function send(
         if (erasedAt > now) {
             return erasedAt - now;
         }
-        await reconciliation.execute(message, "erase", [ServerCall.of(whole)]);
+        await reconciliation.mutate([message.call("erase", message.target(whole))]);
     }
     // wait for a refused message's next attempt
     else if (whole.retryAt !== null && whole.retryAt > now) {
@@ -143,7 +142,7 @@ async function send(
     }
     // send it and settle it as sent, retried after the policy's interval, or failed once the policy gives up
     else {
-        const outcome = await attempt(options, whole, reconciliation.server);
+        const outcome = await attempt(options, whole, reconciliation.store);
         const attempts = await recordAttempt(reconciliation, whole, outcome);
         await observe(reconciliation, whole, settle(outcome, options.retry, attempts, now));
     }
@@ -157,8 +156,9 @@ async function observe(
     row: Message,
     observed: ReturnType<typeof settle>,
 ): Promise<void> {
-    await reconciliation.execute(message, "observe", [
-        ServerCall.of(row, {
+    await reconciliation.mutate([
+        message.call("observe", {
+            ...message.target(row),
             observedGeneration: row.generation,
             conditions: { Sent: observed.sent },
             fields: observed.fields,
@@ -173,7 +173,7 @@ async function attempt(
         readonly deriver: MessageOptions["deriver"];
     },
     whole: Message,
-    server: CallServer,
+    store: Omit<ObjectStore, "router">,
 ): Promise<Outcome> {
     // fail a message no provider here sends
     const provider = options.providers[whole.to.channel];
@@ -192,7 +192,7 @@ async function attempt(
     const key = await MessageKey.derive(await options.deriver(whole.scope));
     const content = await key.open(sealed, whole.scope);
 
-    return provider.send({ ...whole, content }, server);
+    return provider.send({ ...whole, content }, store);
 }
 
 /** Record a try of a message, returning how many tries it has. */
@@ -202,8 +202,12 @@ async function recordAttempt(
     outcome: Outcome,
 ): Promise<number> {
     // record the try
-    await reconciliation.execute(messageAttempt, "create", [
-        { scope: whole.scope, input: { parentId: whole.id, outcome } },
+    await reconciliation.mutate([
+        messageAttempt.call("create", {
+            ...messageAttempt.target({ scope: whole.scope }),
+            parentId: whole.id,
+            outcome,
+        }),
     ]);
 
     // count the tries so far

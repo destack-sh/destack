@@ -18,7 +18,7 @@ export function pushProvider(
         async applicationServerKey(scope) {
             return (await vapid(scope)).publicKey();
         },
-        async send(message, server): Promise<Outcome> {
+        async send(message, store): Promise<Outcome> {
             // require a push message
             const { to, content } = message;
             if (to.channel !== "push" || content.channel !== "push") {
@@ -32,7 +32,7 @@ export function pushProvider(
                 new Request(to.url, {
                     method: "POST",
                     headers: {
-                        Authorization: await signer.authorization(to.url, server.clock()),
+                        Authorization: await signer.authorization(to.url, store.clock()),
                         "Content-Encoding": "aes128gcm",
                         "Content-Type": "application/octet-stream",
                         TTL: String(content.ttl),
@@ -43,7 +43,7 @@ export function pushProvider(
                 }),
             );
 
-            return Outcome.read(response, server.clock());
+            return Outcome.read(response, store.clock());
         },
     };
 }

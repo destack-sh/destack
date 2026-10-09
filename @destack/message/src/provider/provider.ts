@@ -1,6 +1,6 @@
-import type { CallServer } from "@destack/object";
 import { defineSchema, Duration, schema } from "@destack/schema";
 import { type Content, type Message, MessageError } from "../object/message.ts";
+import type { ObjectStore } from "@destack/object/server";
 
 /** The code of a refusal for good from a recipient that forgot the endpoint (RFC 8030 7.3). */
 export const GONE = "gone";
@@ -56,13 +56,13 @@ export const Outcome = Object.assign(outcome, {
 
 /** A provider sending the messages of one channel, such as a mail transport for email or Standard Webhooks for webhooks. */
 export interface MessageProvider {
-    /** Send one message with its opened content, keyed by its identifier so a repeated send delivers it once, reading what it needs through the space's server. */
+    /** Send one message with its opened content, keyed by its identifier so a repeated send delivers it once, reading what it needs through the space's store. */
     send(
         message: Pick<Message, "id" | "scope" | "createdAt" | "to"> & {
             /** What it says. */
             readonly content: Content;
         },
-        server: Pick<CallServer, "query" | "clock">,
+        store: Pick<Omit<ObjectStore, "router">, "query" | "clock">,
     ): Promise<Outcome>;
 }
 

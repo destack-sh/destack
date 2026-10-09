@@ -1,9 +1,9 @@
-import type { CallServer } from "@destack/object";
 import type { schema } from "@destack/schema";
 import type { Fetch } from "@destack/service";
 import { type ObjectReference, Subject } from "@destack/sync";
 import { encodeBody, WebhookDestination } from "./message.ts";
 import { type MessageProvider, Outcome } from "../provider/index.ts";
+import type { ObjectStore } from "@destack/object/server";
 
 /** The prefix of a Standard Webhooks signing secret. */
 const SECRET_PREFIX = "whsec_";
@@ -21,14 +21,14 @@ const MEDIA_TYPES = {
 /** Send webhook messages as HTTPS posts authenticated with the vault secret of each: signed after the Standard Webhooks specification, or with the secret's value in a header. */
 export function webhookProvider(
     readSecret: (
-        server: Pick<CallServer, "query" | "clock">,
+        store: Pick<Omit<ObjectStore, "router">, "query" | "clock">,
         secret: ObjectReference,
         reader: Subject,
     ) => Promise<string>,
     fetch: Fetch = globalThis.fetch,
 ): MessageProvider {
     return {
-        async send(message, server): Promise<Outcome> {
+        async send(message, store): Promise<Outcome> {
             // require a webhook message
             const { to, content } = message;
             if (to.channel !== "webhook" || content.channel !== "webhook") {
@@ -37,10 +37,10 @@ export function webhookProvider(
 
             // encode the body and read the secret as the message's reader
             const body = encodeBody(message.id, message.createdAt, content);
-            const value = await readSecret(server, to.secret, to.reader);
+            const value = await readSecret(store, to.secret, to.reader);
 
             // sign the body with the secret or put the secret in the endpoint's header
-            const timestamp = String(Math.floor(server.clock() / 1000));
+            const timestamp = String(Math.floor(store.clock() / 1000));
             const authentication = await authenticate(to, value, {
                 id: message.id,
                 timestamp,
@@ -60,7 +60,7 @@ export function webhookProvider(
                 signal: AbortSignal.timeout(TIMEOUT_MILLISECONDS),
             });
             try {
-                return Outcome.read(await fetch(request), server.clock());
+                return Outcome.read(await fetch(request), store.clock());
             } catch (error) {
                 // retry an endpoint the network failed to connect to or that did not answer in time
                 if (isUnreachable(error)) {

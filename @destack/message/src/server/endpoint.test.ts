@@ -1,4 +1,4 @@
-import { Policy, principal } from "@destack/access";
+import { Policy, principal, Caller } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { AuditCall, defineAuditAction } from "@destack/audit";
 import { AuditHistory } from "@destack/audit/history";
@@ -12,7 +12,7 @@ import { Outbox, outbox } from "@destack/service/outbox";
 import { defineDatabase, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Derivation, LocalKeyring } from "@destack/identity";
-import { ObjectServer } from "@destack/object/server";
+import { ObjectStore } from "@destack/object/server";
 import { PackageId } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import { Identifier, present, schema } from "@destack/schema";
@@ -26,6 +26,7 @@ import { messageTables } from "../stack/index.ts";
 import { WebhookSignature, webhookProvider } from "../webhook/index.ts";
 import { EndpointReader, serveEndpoints } from "./endpoint.ts";
 import { serveMessages } from "./server.ts";
+import { RequestId } from "@destack/service/request";
 
 /** The scope type the endpoints and their messages live in, as an organisation is in the universe. */
 const place = new Policy(import.meta.destack.package, {
@@ -176,7 +177,7 @@ async function serveHistory(statuses: readonly number[]) {
     onTestFinished(() => storage.close());
     const store = openEvents(storage.database);
     const history = new AuditHistory(store);
-    const objects = new ObjectServer({
+    const objects = new ObjectStore({
         principal: HOST,
         objects: {
             ...serveMessages({
@@ -426,19 +427,18 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
 
     // disable the endpoint through the space's own settings and keep a second call while it rests
     const update = async (status: "enabled" | "disabled") =>
-        served.objects.execute(
-            HOST,
-            endpoint,
-            "update",
-            [
-                {
-                    scope: SCOPE.id,
-                    target: await readEndpoint(served.database, id),
-                    input: { status },
-                },
-            ],
-            Date.now(),
-            "settings",
+        served.objects.mutate(
+            Caller.of(HOST, Date.now()),
+            {
+                id: RequestId.create(),
+                calls: [
+                    endpoint.call("update", {
+                        ...endpoint.target(await readEndpoint(served.database, id)),
+                        status,
+                    }),
+                ],
+            },
+            { component: "settings" },
         );
     const position = () => served.database.log.slot(EndpointReader.of(id).name);
     const delivered = await position();

@@ -1,10 +1,10 @@
 import { EventFixture } from "@destack/event/test";
 import { call } from "@destack/audit";
-import { Policy, principal } from "@destack/access";
+import { Policy, principal, Caller } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { journal } from "@destack/audit/stack";
 import { Journal } from "@destack/audit/server";
-import { ObjectServer } from "@destack/object/server";
+import { ObjectExtension } from "@destack/object/server";
 import { defineDatabase, type DatabaseConnection, eq, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Derivation } from "@destack/identity";
@@ -18,6 +18,7 @@ import { message, messageAttempt, messageConditions, MessageKey } from "../objec
 import type { MessageProvider, Outcome } from "../provider/index.ts";
 import { messageTables } from "../stack/index.ts";
 import { implementMessages } from "./server.ts";
+import { RequestId } from "@destack/service/request";
 
 /** The scope type the messages live in, as a space runs on a machine. */
 const place = new Policy(import.meta.destack.package, {
@@ -75,7 +76,7 @@ async function serveMessages(answers: readonly Outcome[], retention: Duration = 
     const { provider, sent, texts } = answerInTurn(answers);
     const storage = await TestDatabase.create("sqlite", messageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
-    const { server: messages } = ObjectServer.compose(
+    const { store: messages } = ObjectExtension.compose(
         [
             implementMessages({
                 providers: { email: provider },
@@ -104,26 +105,20 @@ async function serveMessages(answers: readonly Outcome[], retention: Duration = 
     await fixture.copyScope(scope);
     await fixture.copyOwner(scope, SPACE);
     const id = schema.identifier("message").parse(message.generateId());
-    await messages.execute(
-        SPACE,
-        message,
-        "create",
-        [
-            {
-                scope: scope.id,
-                id,
-                input: {
-                    to: { channel: "email", address: "dana@example.com" },
-                    source: scope,
-                    status: "pending",
-                    ciphertext: await (
-                        await MessageKey.derive(ROOT)
-                    ).seal({ channel: "email", subject: "Regressed", text: TEXT }, scope.id),
-                },
-            },
+    await messages.mutate(Caller.of(SPACE, Date.now()), {
+        id: RequestId.create(),
+        calls: [
+            message.call("create", {
+                ...message.target({ scope: scope.id, id }),
+                to: { channel: "email", address: "dana@example.com" },
+                source: scope,
+                status: "pending",
+                ciphertext: await (
+                    await MessageKey.derive(ROOT)
+                ).seal({ channel: "email", subject: "Regressed", text: TEXT }, scope.id),
+            }),
         ],
-        Date.now(),
-    );
+    });
 
     return {
         read: () => readSending(storage.database, id),
