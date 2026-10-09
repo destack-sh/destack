@@ -85,8 +85,8 @@ export const checkout = defineObject({
         create: method.create("create", {
             fields: ["directory"],
             input: schema.object({
-                /** Where the working tree comes from, the directory as it is by default. */
-                source: WorkingTreeSource.default({ kind: "existing" }),
+                /** Where the working tree comes from. */
+                source: WorkingTreeSource,
             }),
             prepared: WorkingTree,
             isPredicted: false,
