@@ -2,7 +2,7 @@ import { check, integer, json, sql, text, type Column } from "@destack/db";
 import { Plan, RISKS } from "@destack/resource";
 import { present } from "@destack/schema";
 import { deletionColumns } from "./recoverable.ts";
-import type { Trait } from "./trait.ts";
+import { traitPermissions, type Trait } from "./trait.ts";
 
 import { approvePlan, finalize, observe } from "../method/controlled.ts";
 import { ConditionMap } from "../object/condition.ts";
@@ -14,7 +14,7 @@ export type ControlledDefinition =
           readonly approval: true;
       };
 
-/** The system methods a controlled object's controller calls. */
+/** The methods a controlled object's controller calls. */
 export type ControlledMethodMap<Controlled> = Controlled extends { readonly approval: true }
     ? {
           readonly observe: typeof observe;
@@ -67,6 +67,8 @@ export const controlled: Trait<ControlledDefinition> = {
             generation: present(columns["generation"], "the generation column"),
             observedGeneration: present(columns["observedGeneration"], "the observed column"),
         }),
+    policy: (options, _object, permissions) =>
+        traitPermissions(permissions, ["control", ...(options === true ? [] : ["approve"])]),
     methods: (options) => ({ observe, finalize, ...(options === true ? {} : { approvePlan }) }),
 };
 

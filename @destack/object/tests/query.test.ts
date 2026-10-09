@@ -651,7 +651,7 @@ function extrasOf<Value>(
     return present(present(extras, "the extras")[id], `the extras of ${id}`);
 }
 
-/** Name each entry of a union by its member and its notebook's name or note's title. */
+/** Label each entry of a union by its member and its notebook's name or note's title. */
 function unionNames(
     entries: readonly (
         | { readonly name: "notebooks"; readonly row: { readonly name: string } }

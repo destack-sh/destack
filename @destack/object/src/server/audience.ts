@@ -8,7 +8,7 @@ import {
     Subject,
     SyncError,
 } from "@destack/sync";
-import { accessRelationship, earliest, type Permission } from "@destack/access";
+import { accessRelationship, earliest, type Permission, Caller } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import {
     and,
@@ -25,22 +25,21 @@ import {
     Snapshot,
 } from "@destack/db";
 import { schema, canonicalize } from "@destack/schema";
-import type { ServiceContext } from "@destack/service/server";
 import type { ObjectStorage, ObjectType } from "../object/object.ts";
 import { ObjectTypeIndex } from "../query/listing.ts";
 import type { Authorization } from "./authorization.ts";
-import type { ObjectServer } from "./server.ts";
+import type { ObjectStore } from "./store.ts";
 
 /** The most identifiers one dependents read lists, well within the parameter budget. */
 const DEPENDENT_IDS = 500;
 
-/** The columns naming a row's parent. */
+/** The columns holding a row's parent. */
 const PARENT_COLUMNS = ["parentPackageId", "parentType", "parentId"] as const;
 
 /** The caller's access to one stream of a scope's objects. */
 export class ObjectAudience implements Audience {
-    /** The server serving the objects. */
-    readonly #server: Omit<ObjectServer, "router">;
+    /** The store serving the objects. */
+    readonly #store: Omit<ObjectStore, "router">;
     /** The scope the stream follows. */
     readonly #scope: string;
     /** Admit the subscriber again, as it resolves access once access changes. */
@@ -68,7 +67,7 @@ export class ObjectAudience implements Audience {
 
     /** Serve a caller of a scope with resolved access. */
     private constructor(
-        server: Omit<ObjectServer, "router">,
+        store: Omit<ObjectStore, "router">,
         scope: string,
         admit: () => Promise<Authorization>,
         authorization: Authorization,
@@ -78,10 +77,10 @@ export class ObjectAudience implements Audience {
         via: readonly Relay[],
     ) {
         // keep the inputs and watch access
-        this.#server = server;
+        this.#store = store;
         this.#scope = scope;
         this.#admit = admit;
-        this.#objects = new ObjectTypeIndex(server.objects);
+        this.#objects = new ObjectTypeIndex(store.objects);
         this.#authorization = authorization;
         this.#until = authorization.access.until;
         this.#storage = storage;
@@ -91,11 +90,11 @@ export class ObjectAudience implements Audience {
         this.watches = this.#watched();
     }
 
-    /** Resolve a reader's access to a scope's objects: an admitted caller, or a principal the kept copies are decided for. */
+    /** Resolve a reader's access to a scope's objects: an admitted remote caller, or a principal the kept copies are decided for. */
     static async of(
-        server: Omit<ObjectServer, "router">,
+        store: Omit<ObjectStore, "router">,
         scope: string,
-        reader: ServiceContext | Subject,
+        reader: Caller,
         options: {
             readonly storage?: ObjectStorage;
             readonly isContained?: boolean;
@@ -106,21 +105,23 @@ export class ObjectAudience implements Audience {
         // decide ephemeral and external objects at the durable position
         const storage = options.storage ?? "durable";
         const isContained = options.isContained ?? false;
-        const decided = storage === "durable" ? undefined : await server.database.log.position();
+        const decided = storage === "durable" ? undefined : await store.database.log.position();
 
         // read the scopes a follower copies chains via
         const via =
             options.via === undefined
                 ? []
-                : await ObjectAudience.#relays(server, options.via, reader);
+                : await ObjectAudience.#relays(store, options.via, reader);
 
         // authorize the reader as a principal, a contained caller or an admitted caller
         const admit = async () => {
-            const authorization = await ("packageId" in reader
-                ? server.authorizeSubject(server.database, scope, reader, options.within)
+            const authorization = await (!Caller.isRemote(reader)
+                ? store.authorize(store.database, scope, reader, {
+                      within: options.within ?? [],
+                  })
                 : isContained
-                  ? server.authorize(server.database, scope, reader)
-                  : server.admit(server.database, scope, reader));
+                  ? store.authorize(store.database, scope, reader)
+                  : store.admit(store.database, scope, reader));
 
             // require the follower to replicate the scopes it copies chains via
             await Promise.all(via.map((relay) => relay.require()));
@@ -129,7 +130,7 @@ export class ObjectAudience implements Audience {
         };
 
         return new ObjectAudience(
-            server,
+            store,
             scope,
             admit,
             await admit(),
@@ -142,12 +143,12 @@ export class ObjectAudience implements Audience {
 
     /** Read the rows deciding whether a follower may replicate the scopes it copies chains via: each scope's own row and the access rows of its chain. */
     static async #relays(
-        server: Omit<ObjectServer, "router">,
+        store: Omit<ObjectStore, "router">,
         via: readonly string[],
-        reader: ServiceContext | Subject,
+        reader: Caller,
     ): Promise<Relay[]> {
         // read the scopes' chains at once
-        const chains = await Scope.chains(Snapshot.live(server.database), via);
+        const chains = await Scope.chains(Snapshot.live(store.database), via);
 
         return via.map((id) => {
             // read the scope's object, refusing an unknown scope
@@ -158,7 +159,7 @@ export class ObjectAudience implements Audience {
             }
 
             // watch the scope's own row where this database maps its type, and the access rows of its chain
-            const mapping = server.authorizer.mappingOf(scope);
+            const mapping = store.authorizer.mappingOf(scope);
             const own: Watch[] =
                 mapping === undefined
                     ? []
@@ -173,8 +174,8 @@ export class ObjectAudience implements Audience {
 
             return {
                 scope: id,
-                watches: [...own, ...server.authorizer.watch(chain)],
-                require: () => server.source.requireReplicateVia(id, reader),
+                watches: [...own, ...store.authorizer.watch(chain)],
+                require: () => store.source.requireReplicateVia(id, reader),
             };
         });
     }
@@ -191,12 +192,12 @@ export class ObjectAudience implements Audience {
         if (listed === "query") {
             return sql`true`;
         }
-        // decide in memory the rows at their home in the scopes below the followed one, each in its own chain
+        // decide in memory the rows at their home in other scopes than the followed one, each in its own chain
         else if (
             listed.object.storage === "durable" &&
             listed.object.inherited === undefined &&
-            !this.#server.database.copies(listed.object.table) &&
-            !this.#authorization.isScopeOf(listed.object)
+            !this.#store.database.copies(listed.object.table) &&
+            !this.#authorization.isHomeOf(listed.object)
         ) {
             return "memory";
         }
@@ -303,7 +304,7 @@ export class ObjectAudience implements Audience {
                 return "everything";
             }
             const row = change.operation === "insert" ? change.after : change.before;
-            const object = this.#server.objects.find(
+            const object = this.#store.objects.find(
                 (entry) =>
                     entry.policy.definition.packageId === row["packageId"] &&
                     entry.policy.definition.name === row["type"],
@@ -341,7 +342,7 @@ export class ObjectAudience implements Audience {
                 keys.push(...listed.map((entry) => ({ table: type.table, key: { id: entry } })));
 
                 // continue to durable children and attachments
-                for (const child of this.#server.objects.filter(
+                for (const child of this.#store.objects.filter(
                     (served) => served.storage === "durable",
                 )) {
                     const isAttached = type.attaches(child);
@@ -369,7 +370,7 @@ export class ObjectAudience implements Audience {
         }
         for (let start = 0; start < ids.length; start += DEPENDENT_IDS) {
             const batch = ids.slice(start, start + DEPENDENT_IDS);
-            const rows = await this.#server.database
+            const rows = await this.#store.database
                 .select({ id: path.descendant })
                 .from(path)
                 .where(
@@ -404,7 +405,7 @@ export class ObjectAudience implements Audience {
         const found: string[] = [];
         for (let start = 0; start < parents.length; start += DEPENDENT_IDS) {
             const batch = parents.slice(start, start + DEPENDENT_IDS);
-            const rows = await this.#server.database
+            const rows = await this.#store.database
                 .select({ id: definition.column("id") })
                 .from(table)
                 .where(
@@ -427,7 +428,7 @@ export class ObjectAudience implements Audience {
         this.#key = undefined;
         this.#until = this.#authorization.access.until;
         if (this.#storage !== "durable") {
-            this.#decided = await this.#server.database.log.position();
+            this.#decided = await this.#store.database.log.position();
         }
         this.#below.clear();
         this.watches = this.#watched();
@@ -441,7 +442,7 @@ export class ObjectAudience implements Audience {
     /** List the access rows deciding what the caller lists: those of the chain and of the scopes below deciding rows, and the relationships of the caller's subjects in every scope. */
     #deciding(): Watch[] {
         return this.#storage === "durable"
-            ? this.#server.authorizer.watch(
+            ? this.#store.authorizer.watch(
                   [...this.chain, ...this.#below],
                   this.#authorization.access.authorities.flatMap((authority) => authority.subjects),
               )
@@ -473,7 +474,7 @@ export class ObjectAudience implements Audience {
 
     /** Share one grant reader among the scope's subscribers at a position. */
     #reader(position: LogPosition) {
-        return this.#server.reader(this.#authorization.access, this.#decided ?? position);
+        return this.#store.reader(this.#authorization.access, this.#decided ?? position);
     }
 }
 
@@ -492,7 +493,7 @@ function identifier(value: unknown): string {
     return schema.string().parse(value);
 }
 
-/** The access of each recipient of a type's rows, deciding every row for the recipient its field names, as a projection's source decides them. */
+/** The access of each recipient of a type's rows, deciding every row for the recipient its field refers to, as a projection's source decides them. */
 export class RecipientAudience implements Audience {
     /** The recipient field of the rows. */
     readonly #field: string;
@@ -507,7 +508,7 @@ export class RecipientAudience implements Audience {
 
     /** Resolve each recipient's access to a scope's objects. */
     static async of(
-        server: Omit<ObjectServer, "router">,
+        store: Omit<ObjectStore, "router">,
         scope: string,
         field: string,
         recipients: readonly string[],
@@ -515,7 +516,11 @@ export class RecipientAudience implements Audience {
         const members = await Promise.all(
             recipients.map(async (recipient): Promise<[string, ObjectAudience]> => [
                 recipient,
-                await ObjectAudience.of(server, scope, Subject.read(recipient)),
+                await ObjectAudience.of(
+                    store,
+                    scope,
+                    Caller.of(Subject.read(recipient), store.clock()),
+                ),
             ]),
         );
 

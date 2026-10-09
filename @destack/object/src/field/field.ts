@@ -68,7 +68,7 @@ export interface StateMachine {
     >;
 }
 
-/** Every state a state machine names. */
+/** Every state a state machine lists. */
 export type StateOf<Machine extends StateMachine> =
     | Machine["initial"]
     | Machine["transitions"][keyof Machine["transitions"]]["from"][number]
@@ -114,7 +114,7 @@ export interface FieldConfiguration {
     readonly written: boolean;
     /** Whether the value is sensitive. */
     readonly sensitive: boolean;
-    /** Whether creation fills the value with the calling principal, outside system creations. */
+    /** Whether creation fills the value with the calling principal, outside internal creations. */
     readonly caller: boolean;
     /** Whether the value is another object's or a principal's identifier, which the object keeps under `<relation>Id`. */
     readonly reference: boolean;
@@ -151,7 +151,7 @@ const WRITTEN = {
     isReference: false,
 } as const;
 
-/** The signature of a required, written, unguarded field a declaration names, each absent flag at its default. */
+/** The signature of a required, written, unguarded field a declaration describes, each absent flag at its default. */
 type FieldConfigurationOf<
     Declared extends Partial<FieldConfiguration> & { readonly value: ColumnValue },
 > = {
@@ -569,7 +569,7 @@ type QualifiedOptions = ReferenceOptions & { readonly qualified: true };
 /** The identifier of an object type's objects. */
 export type IdentifierOf<Target extends ObjectType> = Identifier<IdentityOf<Target>>;
 
-/** The value naming one of an object type's objects: its natural key, or its generated identifier. */
+/** The value identifying one of an object type's objects: its natural key, or its generated identifier. */
 type ReferenceOf<Target extends ObjectType> =
     Select<Target["table"]> extends { readonly id: infer Id extends string }
         ? Id
@@ -580,7 +580,7 @@ function reference<const Target extends ObjectType>(
     target: Target,
     options?: UnqualifiedOptions,
 ): FieldOf<{ value: ReferenceOf<Target>; reference: true }>;
-/** Reference objects of a type declared later, named by its identity. */
+/** Reference objects of a type declared later, by its identity. */
 function reference<const Identity extends string>(
     identity: Identity,
     target: () => ObjectType,
@@ -596,7 +596,7 @@ function reference(target: Policy): FieldOf<{ value: string; reference: true }>;
 /**
  * Reference another object, or a principal of a kind.
  *
- * @construct each form returns the field of the builder its signature names, typed by the values it keeps.
+ * @construct each form returns the field of the builder its signature refers to, typed by the values it keeps.
  */
 function reference(
     target: ObjectType | Policy | (() => ObjectType) | string,
@@ -691,7 +691,7 @@ function referenceLater(
     target: () => ObjectType,
     options: ReferenceOptions,
 ): FieldOf<{ value: string; reference: true }> {
-    // resolve the type, checking the identity the reference names
+    // resolve the type, checking the identity the reference carries
     const resolve = (): ObjectType => {
         const resolved = target();
         if (resolved.identity !== identity) {
@@ -751,7 +751,7 @@ export function keyColumn<Value extends ColumnValue>(table: Table): Column<Colum
 /**
  * Read the identifier column of an object type's table.
  *
- * @construct every object type keys its rows by its identifiers in an `id` column, and a reference resolves only to a type of the identity its values name.
+ * @construct every object type keys its rows by its identifiers in an `id` column, and a reference resolves only to a type of the identity its values carry.
  */
 export function keyColumn(table: Table): Column {
     return table[TABLE].column("id");
@@ -795,7 +795,7 @@ function state<const Machine extends StateMachine>(machine: Machine): StateField
  * @construct the field keeps the machine it follows, which StateField keeps in its type.
  */
 function state(machine: StateMachine): FieldOf<{ value: string; default: true; written: false }> {
-    // list every state the machine names, the initial one first
+    // list every state the machine has, the initial one first
     const others = new Set<string>();
     for (const transition of Object.values(machine.transitions)) {
         transition.from.forEach((name) => others.add(name));

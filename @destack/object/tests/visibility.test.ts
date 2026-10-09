@@ -16,8 +16,8 @@ import { Identifier, schema } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/service/test";
 
@@ -95,8 +95,9 @@ test.each(TEST_DIALECTS)(
             ),
         );
 
-        // serve the documents to the user each call names, through the delegates it names
-        const server = new ObjectServer({
+        // serve the documents to the user each call refers to, through the delegates it lists
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { document },
             database,
             callKey: testCallKey,
@@ -109,23 +110,27 @@ test.each(TEST_DIALECTS)(
         const attempts = () =>
             Promise.all([
                 outcome(
-                    server
-                        .call(document, "get", { spaceId, id: shared }, context)
+                    store
+                        .query(context.caller(), document.call("get", { spaceId, id: shared }))
                         .then((row) => ({ id: row.id, title: row.title })),
                 ),
                 outcome(
-                    server
-                        .call(document, "list", { spaceId }, context)
+                    store
+                        .query(context.caller(), document.call("list", { spaceId }))
                         .then((page) => page.items.map((item) => item.title)),
                 ),
-                outcome(server.query(document, "get", { spaceId, id: other }, context)),
                 outcome(
-                    server.call(
-                        document,
-                        "update",
-                        { spaceId, id: shared, requestId: RequestId.create(), title: "Draft" },
-                        context,
-                    ),
+                    store.query(context.caller(), document.call("get", { spaceId, id: other })),
+                ),
+                outcome(
+                    store
+                        .mutate(context.caller(), {
+                            id: RequestId.create(),
+                            calls: [
+                                document.call("update", { spaceId, id: shared, title: "Draft" }),
+                            ],
+                        })
+                        .then(([written]) => written),
                 ),
             ]);
 
@@ -180,7 +185,8 @@ test.each(TEST_DIALECTS)(
         );
 
         // serve documents and desks to alice, unpinned to any scope
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { document, desk },
             database,
             callKey: testCallKey,
@@ -192,9 +198,9 @@ test.each(TEST_DIALECTS)(
         const context = userContext("alice", undefined);
 
         // list the room's desks and find no documents there
-        const desks = await server.call(desk, "list", { roomId }, context);
+        const desks = await store.query(context.caller(), desk.call("list", { roomId }));
         await expect(
-            server.query(document, "list", { spaceId: roomId }, context),
+            store.query(context.caller(), document.call("list", { spaceId: roomId })),
         ).rejects.toMatchObject({ code: "NOT_FOUND" });
         expect(desks.items).toEqual([]);
     },

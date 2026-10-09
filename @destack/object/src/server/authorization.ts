@@ -1,5 +1,5 @@
 import * as access from "@destack/access";
-import { Replica, Scope, type ObjectReference, type ScopeLink } from "@destack/sync";
+import { Replica, Scope, type ObjectReference } from "@destack/sync";
 import {
     AccessError,
     earliest,
@@ -16,7 +16,6 @@ import {
     Key,
     ne,
     or,
-    sql,
     TABLE,
     type DatabaseConnection,
     type SQL,
@@ -53,11 +52,6 @@ export class Authorization extends access.Authorization {
         if (delegation !== undefined) {
             this.delegation = delegation;
         }
-    }
-
-    /** Whether the system runs the call, admitted to every permission. */
-    get isSystem(): boolean {
-        return false;
     }
 
     /** Match the rows the caller may list. */
@@ -381,8 +375,15 @@ export class Authorization extends access.Authorization {
         const own = this.access.scopes[0];
 
         return this.access.scope === Scope.universe.id
-            ? object.scope === Scope.universe.id
+            ? [object.scope].flat().includes(Scope.universe.id)
             : own?.id === this.access.scope && object.livesIn(own);
+    }
+
+    /** Decide whether the admitted scope holds every row of an object type its copies read: the universe a type living there alone, another scope a type living in its type. */
+    isHomeOf(object: ObjectType): boolean {
+        return this.access.scope === Scope.universe.id
+            ? object.scope === Scope.universe.id
+            : this.isScopeOf(object);
     }
 
     /** Refuse an object type living outside the admitted scope's type. */
@@ -566,113 +567,6 @@ export class Authorization extends access.Authorization {
         return rows.map((row, position) =>
             omit(row, [...object.sensitive, ...aligned(hidden, position)]),
         );
-    }
-}
-
-/** The system's authorization, admitted to every permission. */
-export class SystemAuthorization extends Authorization {
-    /** Authorize the system in one scope of a database at a time. */
-    static async open(
-        authorizer: Authorizer,
-        database: DatabaseConnection,
-        scope: string,
-        now: number,
-        links?: readonly ScopeLink[],
-    ): Promise<SystemAuthorization> {
-        const bind = (): AccessContext => ({ subjects: [], attributes: {}, now });
-        const resolved = await authorizer.resolve(Snapshot.live(database), scope, bind(), links);
-
-        return new SystemAuthorization(authorizer, database, bind, resolved);
-    }
-
-    /** Authorize the system in one scope of a call's database at the call's time. */
-    static of(
-        call: {
-            readonly database: DatabaseConnection;
-            readonly now: number;
-            requireAuthorization(): { readonly authorizer: Authorizer };
-        },
-        scope: string,
-    ): Promise<SystemAuthorization> {
-        return SystemAuthorization.open(
-            call.requireAuthorization().authorizer,
-            call.database,
-            scope,
-            call.now,
-        );
-    }
-
-    /** Authorize the system within a transaction. */
-    override within(transaction: DatabaseConnection): SystemAuthorization {
-        return new SystemAuthorization(
-            this.authorizer,
-            transaction,
-            (scope) => this.context(scope),
-            this.access,
-        );
-    }
-
-    /** Run the call as the system. */
-    override get isSystem(): boolean {
-        return true;
-    }
-
-    /** Admit every permission on every object. */
-    override async check(): Promise<access.Decision> {
-        return { isAllowed: true };
-    }
-
-    /** Admit every grant, including the relations only the system grants. */
-    protected override async authorizeGrant(): Promise<void> {}
-
-    /** Admit every revocation, including the relations only the system grants. */
-    protected override async authorizeRevoke(): Promise<void> {}
-
-    /** Admit every role change, including the roles a declaration manages. */
-    protected override async authorizeRole(): Promise<void> {}
-
-    /** Admit every permission on every row. */
-    override async checkRows(
-        _permission: access.PermissionReference,
-        _scope: string,
-        rows: readonly Row[],
-    ): Promise<access.Admission> {
-        return { permitted: new Set(rows.keys()) };
-    }
-
-    /** Match every row of an object type. */
-    override listable(): SQL {
-        return sql`true`;
-    }
-
-    /** Read one object of the call's scope and refuse a missing one. */
-    override async read(call: Call, id: string): Promise<Row> {
-        // read the row
-        const table = call.object.table;
-        const rows: readonly Row[] = await call.database
-            .select()
-            .from(table)
-            .where(and(eq(table[TABLE].column("id"), id), call.object.inScope(call.scope)));
-        const [row] = rows;
-        if (row === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${id}` });
-        }
-
-        return row;
-    }
-
-    /** See every scope. */
-    override async requireVisible(): Promise<void> {}
-
-    /** Write every guarded field. */
-    override async requireWritable(): Promise<void> {}
-
-    /** Conceal no field. */
-    override async concealed(
-        _object: ObjectType,
-        rows: readonly Row[],
-    ): Promise<{ readonly hidden: string[][] }> {
-        return { hidden: rows.map(() => []) };
     }
 }
 

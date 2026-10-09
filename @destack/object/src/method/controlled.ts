@@ -14,9 +14,9 @@ export const approvalMethod: MethodBuilder<
     TraitTable<{ readonly controlled: { readonly approval: true } }>
 > = method;
 
-/** Record a controller's observation of its target at its generation. */
+/** Record a controller's observation of its target at its generation, as the status a controller elsewhere reports to the rows' home. */
 export const observe = controlledMethod
-    .mutation({ permission: null, isSystem: true, input: Observation })
+    .mutation({ permission: "control", input: Observation })
     .handle(async (call) => {
         // merge the conditions and keep transition times while their status stays
         const { observedGeneration, conditions, fields } = call.input;
@@ -39,8 +39,7 @@ export const observe = controlledMethod
 /** Remove a record with a requested deletion after its controller finishes. */
 export const finalize = controlledMethod
     .mutation({
-        permission: null,
-        isSystem: true,
+        permission: "control",
         output: schema.object({}),
     })
     .handle(async (call) => {
@@ -60,8 +59,8 @@ export const finalize = controlledMethod
 /** Accept a plan digest for the controller to apply once it plans the same steps again. */
 export const approvePlan = approvalMethod
     .mutation({
-        permission: null,
-        isSystem: true,
+        permission: "approve",
+        isInternal: true,
         input: schema.object({
             /** The digest of the approved plan. */
             plan: Digest,

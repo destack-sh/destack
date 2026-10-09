@@ -1,7 +1,8 @@
+import { ObjectExtension } from "@destack/object/server";
 import { outbox } from "@destack/service/outbox";
 import { Scope } from "@destack/sync";
-import { Change, Snapshot, type Dialect } from "@destack/db";
-import { ClaimController, ObjectServer } from "../src/server/index.ts";
+import { Change, Snapshot, type Dialect, type Row } from "@destack/db";
+import { ClaimController } from "../src/server/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import {
     directoryTables,
@@ -14,7 +15,7 @@ import { vi } from "vitest";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { aligned, schema, present } from "@destack/schema";
+import { aligned, Identifier, schema, present } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
 import { Health } from "@destack/service/health";
@@ -22,9 +23,9 @@ import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { v7 } from "uuid";
 import { profile, profilesDatabase, profilesService } from "./fixture/profile.ts";
-import { none, principal } from "@destack/access";
+import { none, principal, universe } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { openSpace } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 
 /** The package serving the profiles. */
@@ -95,7 +96,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "claim the names of writes outside the object server and finish expired reservations on %s",
+    "claim the names of writes outside the object store and finish expired reservations on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, [outbox, ...directoryTables], {
             isMigrated: true,
@@ -127,7 +128,7 @@ test.each(TEST_DIALECTS)(
             const change = aligned(changes, position);
             const image = Change.image(change);
             const owned = await profile.claimsOf(
-                String(change.key.id),
+                schema.string().parse(change.key.id),
                 image,
                 Snapshot.live(east.database),
             );
@@ -190,13 +191,15 @@ async function serveProfiles(dialect: Dialect, directory: Directory) {
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
-    // authenticate each request as the user its bearer credential names
+    // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
-        ...ObjectServer.serve(profilesService, {
+        ...ObjectExtension.compose([ObjectExtension.of(profilesService, [])], {
+            origin: { package: profilesService.package, service: profilesService.name },
+            principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             database: storage.database,
             directory,
-        }),
+        }).services[0],
         audience,
         scope: spaceId,
         resources: new ResourceContext(),
@@ -325,3 +328,52 @@ test.each(TEST_DIALECTS)(
         ]);
     },
 );
+
+test("reserve the names of an object in the trash, activate them on restore, and release them on purge", async () => {
+    // declare tags whose names are unique everywhere and whose purge keeps the record
+    const tag = defineObject({
+        name: "tag",
+        plural: "tags",
+        scope: space,
+        fields: { name: field.string() },
+        indexes: { name: { on: ["name"], unique: true, across: () => universe } },
+        recoverable: { within: { days: 30 }, by: "manage", keep: "record" },
+        permissions: { read: none(), manage: none() },
+    });
+    const storage = await TestDatabase.create("sqlite", directoryTables, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const directory = new DirectoryStore(storage.database);
+    const snapshot = Snapshot.live(storage.database);
+
+    // write the tag's row as it stands, sits in the trash, is restored and is purged
+    const [first, second] = [Identifier.create("tag"), Identifier.create("tag")];
+    const standing = { id: first, scope: "space-1", name: "urgent", deletionRequestedAt: null };
+    const trashed = { ...standing, deletionRequestedAt: 1, purgedAt: null };
+    const purged = { ...trashed, purgedAt: 2 };
+    const other = { ...standing, id: second };
+    const write = async (row: Row & { readonly id: string }, requestId: string) =>
+        directory.replace(await tag.claimsOf(row.id, row, snapshot), requestId);
+    const owner = async () => (await tag.lookup(directory, "name", ["urgent"]))?.id;
+    const states = [];
+    for (const [row, requestId] of [
+        [standing, "request-1"],
+        [trashed, "request-2"],
+        [other, "request-3"],
+        [standing, "request-4"],
+        [purged, "request-5"],
+        [other, "request-6"],
+    ] as const) {
+        states.push([await write(row, requestId), await owner()]);
+    }
+
+    // resolve the name while it stands, hold it in the trash, and free it once purged
+    const refused = aligned(await tag.claims(other, snapshot), 0);
+    expect(states).toEqual([
+        [[], first],
+        [[], undefined],
+        [[refused], undefined],
+        [[], first],
+        [[], undefined],
+        [[], second],
+    ]);
+});

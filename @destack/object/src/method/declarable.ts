@@ -51,6 +51,87 @@ export function detach<const Permission extends string>(
     });
 }
 
+/** The input adopting a record: the declaration taking it over. */
+const AdoptInput = schema.object({
+    /** The declaration taking over the record. */
+    manager: Manager.schema,
+});
+
+/** The manager columns of a declared record. */
+const ManagerColumns = schema.looseObject({
+    /** The installation that applied the declaration. */
+    managerInstallationId: schema.string().nullable(),
+    /** The declaring package. */
+    managerPackageId: schema.string().nullable(),
+    /** The declaration's name. */
+    managerName: schema.string().nullable(),
+});
+
+/** Hand a direct record to a declaration, whose next apply rewrites it with the declared values. */
+export function adopt<const Permission extends string>(
+    permission: Permission,
+): Method<{ kind: "adopt"; permission: Permission; mutates: true }> {
+    return defineMethod<{ kind: "adopt"; permission: Permission; mutates: true }>({
+        kind: "adopt",
+        permission,
+        mutates: true,
+        target: true,
+        result: "object",
+        procedure: (_name, shapes) => ({
+            route: { method: "POST", path: "/{id}/adopt" },
+            input: shapes.target.extend({
+                ...shapes.replay,
+                ...RevisionShape,
+                ...AdoptInput.shape,
+            }),
+            output: shapes.row,
+        }),
+        handler: (call: Call<TraitTable<{ readonly declarable: DeclarableDefinition }>>) => {
+            const { manager } = AdoptInput.parse(call.input);
+
+            return call.update({ ...Manager.values(manager), detachedAt: null });
+        },
+        async execute(call) {
+            await requireAdoptable(call);
+
+            return this.handler(call);
+        },
+    });
+}
+
+/** Require a direct record, or one detached from the adopting declaration, and a declaration declaring no other record of the type in the scope. */
+async function requireAdoptable(call: Call): Promise<void> {
+    // read the adopting declaration and the target's manager
+    const { manager } = AdoptInput.parse(call.input);
+    const target: Row | undefined = call.target;
+    const managed = target === undefined ? null : Manager.read(ManagerColumns.parse(target));
+    const declared = await find(call.database, call.object, call.scope, manager);
+
+    // refuse a managed record, a record of another declaration and a declaration with another record
+    if (isManaging(target)) {
+        throw new ServiceError("CONFLICT", {
+            message: `${call.object.name} is managed by a declaration`,
+        });
+    } else if (managed !== null && !isSameManager(managed, manager)) {
+        throw new ServiceError("CONFLICT", {
+            message: `${call.object.name} is detached from another declaration`,
+        });
+    } else if (declared !== undefined && declared["id"] !== target?.["id"]) {
+        throw new ServiceError("CONFLICT", {
+            message: `declaration ${manager.name} declares another ${call.object.name}`,
+        });
+    }
+}
+
+/** Decide whether two managers refer to the same declaration. */
+function isSameManager(left: Manager, right: Manager): boolean {
+    return (
+        left.installationId === right.installationId &&
+        left.packageId === right.packageId &&
+        left.name === right.name
+    );
+}
+
 /** The input applying a declared record: its manager and the declared values in their JSON form, null once no longer declared. */
 const ApplyInput = schema.object({
     /** The declaration managing the record. */
@@ -62,14 +143,14 @@ const ApplyInput = schema.object({
 /** Apply the record a stack declares where its rows live: create it under the chosen identifier, write it as its next revision, or retire it once no longer declared. */
 export const apply: Method<{
     kind: "apply";
-    permission: null;
+    permission: "declare";
     mutates: true;
-    system: true;
-}> = defineMethod<{ kind: "apply"; permission: null; mutates: true; system: true }>({
+    internal: true;
+}> = defineMethod<{ kind: "apply"; permission: "declare"; mutates: true; internal: true }>({
     kind: "apply",
-    permission: null,
+    permission: "declare",
     mutates: true,
-    isSystem: true,
+    isInternal: true,
     target: false,
     result: "value",
     procedure: (_name, shapes) => ({

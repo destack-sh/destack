@@ -18,9 +18,9 @@ import type { Erasure, Trait } from "./trait.ts";
 /** How an object type orders its objects: among the siblings under one parent, or among those holding one value of a field. */
 export type OrderableDefinition = true | { readonly within: string };
 
-/** The ordering of an object type: the columns naming each object's siblings. */
+/** The ordering of an object type: the columns identifying each object's siblings. */
 export interface Ordering {
-    /** The properties siblings share beside their scope: the parent's for a nested type, the named field's, or none. */
+    /** The properties siblings share beside their scope: the parent's for a nested type, the given field's, or none. */
     readonly within: readonly string[];
 }
 
@@ -54,7 +54,7 @@ export const Orderable = {
         return { ...definition, fields: { ...declared, position: positionField() } };
     },
 
-    /** Resolve a definition's ordering to the properties naming siblings, absent for one ordering nothing. */
+    /** Resolve a definition's ordering to the properties identifying siblings, absent for one ordering nothing. */
     of(
         definition: Pick<ObjectDefinition, "name" | "orderable" | "nested" | "fields">,
     ): Ordering | undefined {
@@ -64,7 +64,7 @@ export const Orderable = {
             return undefined;
         }
 
-        // order within the named field, the parent, or the whole scope
+        // order within the given field, the parent, or the whole scope
         if (orderable !== true) {
             if (!Object.hasOwn(definition.fields ?? {}, orderable.within)) {
                 throw new TypeError(

@@ -10,13 +10,13 @@ export {
     Call,
     type CallOf,
     type Handler,
-    type Invoke,
-    type Invoker,
     type NextOf,
     type Lifecycle,
     type OutboxCall,
     type PreparedCallOf,
     type ResultOf,
+    type ObjectCall,
+    type ResultsOf,
 } from "./call.ts";
 export {
     inputSchemaOf,
@@ -25,8 +25,8 @@ export {
     type CallOutput,
     type MutationName,
     type ObjectProcedures,
+    type OmitEach,
     type RowSchema,
 } from "./procedure.ts";
 export { Step } from "./step.ts";
-export { SystemCall } from "./system.ts";
 export { settlement, SettlementCall } from "./settlement.ts";

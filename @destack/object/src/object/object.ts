@@ -14,6 +14,7 @@ import {
     type TableMapping,
 } from "@destack/access";
 import {
+    Replica,
     Scope,
     type ObjectReference,
     type ObjectTypeReference,
@@ -60,8 +61,9 @@ import {
     type Handler,
     type HandlersOf,
     type Lifecycle,
+    type ObjectCall,
 } from "../method/call.ts";
-import type { Calls, RowSchema } from "../method/procedure.ts";
+import type { CallOutput, Calls, MethodName, RowSchema, TargetInput } from "../method/procedure.ts";
 import { method, Method, type MethodBuilder, type MethodKind } from "../method/method.ts";
 import type { Client, Service } from "@destack/service";
 import { createClient, type ClientOptions } from "@destack/service/client";
@@ -83,10 +85,10 @@ import { compile, compileQueries } from "../query/query.ts";
 import { record } from "../trait/record.ts";
 import {
     declarable,
-    detachable,
+    adoptable,
     type DeclarableDefinition,
     type DeclarableMethodMap,
-    type DetachableMethodMap,
+    type AdoptableMethodMap,
 } from "../trait/declarable.ts";
 import {
     controlled,
@@ -146,7 +148,7 @@ import { Chunk } from "../text/chunk.ts";
 import { chunk, chunkRun } from "../text/table.ts";
 import type { GateOf, Gated, Trait, TraitObject, TraitPolicy } from "../trait/trait.ts";
 import { INTRINSIC, type Intrinsic } from "./intrinsic.ts";
-import { serverTables } from "../stack/db.ts";
+import { storeTables } from "../stack/db.ts";
 import type { ObjectController } from "./controller.ts";
 import type { DeclarationOf, ManagedTable, ObjectDeclaration } from "../server/stack.ts";
 import { camelCase, kebabCase } from "./name.ts";
@@ -158,14 +160,11 @@ const IDENTIFIERS = new Map<string, ReturnType<typeof schema.identifier>>();
 /** The default ephemeral linger, in milliseconds: 10 s spans two 1–3 s reconnects. */
 const LINGER_MILLISECONDS = 10_000;
 
-/** The method kinds writing records. */
-const RECORD_KINDS: ReadonlySet<string> = new Set(["create", "update", "delete", "updateMany"]);
+/** The relation to whichever of its scope types holds an object, which permissions read as `through("scope", permission)`. */
+const SCOPE = "scope";
 
 /** The permission on a scope's own object that shows the scope. */
 export const SCOPE_READ = "read";
-
-/** The permission to act as the principal an object stands for, such as the cell serving a space's zone. */
-export const REPRESENT = "represent";
 
 /** The permission to copy the access rows of the scopes above a scope: on the caller's own object living in it, or on the scope's own object. */
 export const REPLICATE = "replicate";
@@ -187,7 +186,7 @@ const TRAITS: readonly Trait<unknown>[] = [
     versioned,
     controlled,
     declarable,
-    detachable,
+    adoptable,
     shareable,
     suspendable,
     bindable,
@@ -267,19 +266,19 @@ export interface ObjectTraits<Declared = unknown, Permissions extends string = s
     readonly nested?: NestedDefinition;
     /** Deleted objects stay restorable for a window. */
     readonly recoverable?: RecoverableDefinition<Permissions>;
-    /** The rules after which the system removes the objects. */
+    /** The rules after which their store removes the objects. */
     readonly expiring?: readonly ExpiryRule[];
     /** Project another type's rows into the objects, each its own object with its own state. */
     readonly projected?: ProjectedDefinition;
-    /** The types projecting the objects into their recipients' homes, as their `projected` names them. */
+    /** The types projecting the objects into their recipients' homes, as their `projected` refers to them. */
     readonly projections?: () => readonly ObjectType[];
-    /** The objects' natural key, which callers and sources name them by, instead of generated identifiers. */
+    /** The objects' natural key, which callers and sources identify them by, instead of generated identifiers. */
     readonly key?: schema.Schema<string>;
     /** The scopes inside each object's scope copy the objects, those matching the condition when given. */
     readonly inherited?: { readonly where?: Condition };
     /** The objects are immutable, numbered versions of their parent. */
     readonly versioned?: VersionsDefinition;
-    /** A system controller reconciles the objects. */
+    /** A controller reconciles the objects. */
     readonly controlled?: ControlledDefinition;
     /** Installations bind to the objects, becoming their consumers while live deployments capture them, or while the holders of a permission bind them one at a time. */
     readonly bindable?: true | Gated<Permissions>;
@@ -287,8 +286,8 @@ export interface ObjectTraits<Declared = unknown, Permissions extends string = s
     readonly provisioned?: ProvisionedDefinition;
     /** Stacks declare the objects. */
     readonly declarable?: DeclarableDefinition<Declared>;
-    /** Holders of the permission detach a declared record from its declaration. */
-    readonly detachable?: Gated<Permissions>;
+    /** Holders of the permission detach a declared record from its declaration and adopt a direct record into one. */
+    readonly adoptable?: Gated<Permissions>;
     /** Holders of the permission share the objects. */
     readonly shareable?: ShareableDefinition<Permissions>;
     /** Holders of the permission suspend and resume a scope object. */
@@ -329,7 +328,7 @@ export interface ObjectDefinition<
     readonly permissions?: ObjectPermissions<Permissions>;
     /** Permissions only their expressions grant, never roles. */
     readonly reserved?: readonly NoInfer<Granted>[];
-    /** Sensitive permissions that apply only after the authentication each names. */
+    /** Sensitive permissions that apply only after the authentication each requires. */
     readonly elevated?: Readonly<Partial<Record<NoInfer<Granted>, Elevation>>>;
     /** Permissions available while the object's scope is suspended. */
     readonly administration?: readonly NoInfer<Granted>[];
@@ -359,8 +358,12 @@ export interface ObjectDefinition<
     readonly linger?: Duration;
 }
 
-/** Where objects live: durable in the scope's database, ephemeral in instances' memory, or external in immutable files read per scope. */
-export type ObjectStorage = "durable" | "ephemeral" | "external";
+/**
+ * Where objects live: durable in the scope's database, ephemeral in instances' memory, external in immutable files read per scope, or local in the client's own database.
+ *
+ * Local objects never reach a server, and a browser may evict them, so readers fall back to declared defaults.
+ */
+export type ObjectStorage = "durable" | "ephemeral" | "external" | "local";
 
 /** How an object type's objects are declared, deleted, expired, versioned, tracked and converted across releases. */
 export interface ObjectLifecycle<Declared = unknown, Permissions extends string = string> {
@@ -368,7 +371,7 @@ export interface ObjectLifecycle<Declared = unknown, Permissions extends string 
     readonly declarationSchema: schema.Schema<Declared> | undefined;
     /** How deleted objects stay restorable, for recoverable objects. */
     readonly recoverable: RecoverableDefinition<Permissions> | undefined;
-    /** When the system removes the objects, for expiring objects. */
+    /** When their store removes the objects, for expiring objects. */
     readonly expiring: readonly ExpiryRule[] | undefined;
     /** Whether the objects are numbered versions of their parent. */
     readonly versioned: VersionsDefinition | undefined;
@@ -402,7 +405,7 @@ type ObjectTypeDefinition<Configuration extends ObjectConfiguration> = ObjectDef
 export interface ObjectIndex {
     /** The indexed fields, in key order. */
     readonly on: readonly string[];
-    /** Whether each key names at most one object. */
+    /** Whether each key identifies at most one object. */
     readonly unique: true;
     /** The scope type the keys are unique within: the universe or a type enclosing the objects, read lazily as references are. */
     readonly across: () => ObjectType | typeof universe;
@@ -428,7 +431,7 @@ export type InstanceOf<Type extends ObjectType> =
 export interface ObjectConfiguration {
     /** The singular name. */
     readonly name: string;
-    /** The plural name, which names the relation from a parent or referenced type. */
+    /** The plural name, also the name of the relation from a parent or referenced type. */
     readonly plural: string;
     /** The prefix of the objects' identifiers. */
     readonly identity: string;
@@ -479,6 +482,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly scopes: readonly ObjectType[];
     /** The object's relations and permissions, evaluated by access. */
     readonly policy: Policy;
+    /** The principal kind each object stands for, absent for objects standing for none. */
+    readonly represents: Policy | undefined;
     /** The fields each object has, for objects declared by fields. */
     readonly fields: Configuration["fields"];
     /** The fields needing their own read permission. */
@@ -501,7 +506,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly permissions: readonly string[];
     /** The operations callers may execute, keyed by method name. */
     readonly methods: Configuration["methods"];
-    /** The system controller reconciling the objects with work waiting. */
+    /** The controller reconciling the objects with work waiting. */
     readonly controller?: ObjectController;
     /** The roles the objects are shared through, absent for objects shared otherwise or not at all. */
     readonly roles: RolesDefinition | undefined;
@@ -567,6 +572,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.table = definition.table;
         this.scope = definition.scope ?? [];
         this.scopes = ObjectType.#scopeTypes(this.scope);
+        this.represents = definition.represents;
 
         // retain the lifecycle, projection and natural key the definition declares
         this.lifecycle = ObjectType.#lifecycle(definition, owner);
@@ -661,14 +667,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return { permissions: [...names, ...Object.keys(derived)], policy };
     }
 
-    /** List the tables a database needs for the objects: the server's and text chunks beside durable rows. */
+    /** List the tables a database needs for the objects: the store's and text chunks beside durable rows. */
     #databaseTables(): readonly Table[] {
         // keep ephemeral and external rows in their table alone
         if (this.storage !== "durable") {
             return [this.table];
         }
 
-        return [this.table, ...serverTables, ...(this.text.length === 0 ? [] : [chunk, chunkRun])];
+        return [this.table, ...storeTables, ...(this.text.length === 0 ? [] : [chunk, chunkRun])];
     }
 
     /** Require valid methods, fields, aggregates, scopes, indexes and traits. */
@@ -705,7 +711,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         };
     }
 
-    /** Require each conversion up to the package's release, and moved fields naming no current field. */
+    /** Require each conversion up to the package's release, and moved fields matching no current field. */
     static #requireConversions(
         definition: ObjectDefinition<unknown, string, Readonly<Record<string, Method>>>,
         owner: Package,
@@ -719,7 +725,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             );
         }
 
-        // require moved fields to name previous fields only
+        // require moved fields to refer to previous fields only
         for (const [field, previous] of Object.entries(definition.moved?.fields ?? {})) {
             if (previous in (definition.fields ?? {})) {
                 throw new TypeError(
@@ -746,33 +752,44 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             };
         }
 
-        // derive relations from fields permissions read
+        // derive relations from fields permissions read, refusing them on a scope, whose enclosed objects decide through relationships alone
         const decided = new Set(Object.values(permissions).flatMap(relationsOf));
         for (const [property, field] of Object.entries(definition.fields ?? {})) {
             const name = kebabCase(field.relationAt(property));
-            const relation = decided.has(name) ? fieldRelation(field) : undefined;
-            if (relation !== undefined) {
+            const relation =
+                decided.has(name) && relations[name] === undefined
+                    ? fieldRelation(field)
+                    : undefined;
+            if (relation !== undefined && definition.isScope === true) {
+                throw new TypeError(
+                    `scope ${definition.name} reads relation ${name} from a field, which its enclosed objects cannot decide by`,
+                );
+            } else if (relation !== undefined) {
                 relations[name] = relation;
             }
         }
 
-        // relate the objects to their scope when a permission reads through it
+        // relate the objects to their scope when a permission reads through it, by its type or as any scope type it lives in
         const enclosing = this.scopes.filter(
             (scope) => decided.has(scope.name) && relations[scope.name] === undefined,
         );
         for (const scope of enclosing) {
             relations[scope.name] = { subjects: [scope.policy], grantedBy: null, isScope: true };
         }
+        if (decided.has(SCOPE) && relations[SCOPE] === undefined) {
+            const subjects = this.scopes.map((scope) => scope.policy);
+            relations[SCOPE] = { subjects, grantedBy: null, isScope: true };
+        }
 
         return relations;
     }
 
-    /** Require client method names functions lack, declared permissions, and permissions on record writes outside the system. */
+    /** Require client method names functions lack, and declared permissions. */
     #requireMethods(): void {
         // refuse client method names functions have
         const shadowed = Object.entries(methodsOf(this)).find(
             ([name, declared]) =>
-                declared.isSystem !== true &&
+                declared.isInternal !== true &&
                 Object.getOwnPropertyNames(Function.prototype).includes(name),
         )?.[0];
         if (shadowed !== undefined) {
@@ -783,16 +800,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         // require declared permissions and valid methods
         for (const declared of Object.values(methodsOf(this))) {
-            if (declared.permission !== null && !this.permissions.includes(declared.permission)) {
+            if (!this.permissions.includes(declared.permission)) {
                 throw new TypeError(`object ${this.name} has no permission ${declared.permission}`);
-            } else if (
-                declared.permission === null &&
-                RECORD_KINDS.has(declared.kind) &&
-                declared.isSystem !== true
-            ) {
-                throw new TypeError(
-                    `object ${this.name} ${declared.kind}s without a permission outside the system`,
-                );
             }
             declared.validate?.(this);
         }
@@ -840,9 +849,22 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** Require scope types that are readable scopes. */
+    /** Require scope types that are readable scopes, local objects referring to their client's partition by any type, and no containment grant on a type in the universe alone. */
     #requireScopes(): void {
-        for (const scope of this.scopes) {
+        // refuse a containment grant on a type living in the universe alone, which contains no principal
+        const definition = this.policy.definition;
+        const isUniversal = this.scope === Scope.universe.id && definition.scope !== true;
+        const contained = Object.entries(definition.permissions).find(([, expression]) =>
+            grantsContainment(expression),
+        );
+        if (isUniversal && contained !== undefined) {
+            throw new TypeError(
+                `object ${this.name} lives in the universe, which contains no principal, so contained() in its ${contained[0]} permission admits no one`,
+            );
+        }
+
+        // require each scope type to be a readable scope
+        for (const scope of this.storage === "local" ? [] : this.scopes) {
             // refuse a type that is no scope
             if (scope.policy.definition.scope !== true) {
                 throw new TypeError(
@@ -888,7 +910,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** Refuse durable-only declarations on ephemeral and external objects, and their writes or external work. */
+    /** Refuse durable-only declarations on ephemeral, external and local objects, and their writes or work beyond them. */
     #requireStorage(definition: ObjectDefinition, traits: readonly TraitInstance[]): void {
         const durable = durableDeclarations(definition, traits);
 
@@ -919,6 +941,27 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                     `ephemeral object ${this.name} does no external work in method ${external[0]}`,
                 );
             }
+        }
+        // refuse durable declarations, work beyond the client and several scopes on local objects
+        else if (this.storage === "local") {
+            this.#requireLocal(durable);
+        }
+    }
+
+    /** Refuse durable declarations, methods running beyond the client, and anything but one scope type on local objects. */
+    #requireLocal(durable: readonly string[]): void {
+        const remote = Object.entries(methodsOf(this)).find(
+            ([, declared]) =>
+                !declared.isPredicted || declared.prepare !== undefined || Method.settles(declared),
+        );
+        if (durable.length > 0) {
+            throw new TypeError(`local object ${this.name} takes no ${durable[0]}`);
+        } else if (remote !== undefined) {
+            throw new TypeError(
+                `local object ${this.name} runs method ${remote[0]} off the client`,
+            );
+        } else if (ObjectScope.isList(this.scope) || this.scope === Scope.universe.id) {
+            throw new TypeError(`local object ${this.name} lives in one scope type`);
         }
     }
 
@@ -963,14 +1006,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** Derive the audit action `Noun.method` recording one method. */
-    audit(name: string, target: string = this.key): AuditAction {
+    audit(name: string): AuditAction {
         // read the method's audit details
         const declared = methodsOf(this)[name]?.audit;
 
         return {
             package: this.package,
             name: `${this.key}.${name}`,
-            targets: schema.object({ [target]: AuditTarget }),
+            target: AuditTarget,
             details: declared === undefined ? schema.object({}) : declared.details.partial(),
         };
     }
@@ -981,15 +1024,15 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const declared = methodsOf(this)[name];
         if (declared?.target === true) {
             const id = schema.string().parse(input["id"]);
-            const targets = { [this.key]: { type: this.name, id } };
+            const target = { type: this.name, id };
 
-            return { action: this.audit(name), values: { targets, details: {} } };
+            return { action: this.audit(name), values: { target, details: {} } };
         }
 
         // target the scope's collection
-        const targets = { collection: { type: this.plural, id: scope } };
+        const target = { type: this.plural, id: scope };
 
-        return { action: this.audit(name, "collection"), values: { targets, details: {} } };
+        return { action: this.audit(name), values: { target, details: {} } };
     }
 
     /** Accept the members of one of this type's relations as subjects. */
@@ -1012,12 +1055,44 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.policy.reference(scope, id);
     }
 
+    /** Call one of the type's methods as a value, which a store or a call runs as its caller. */
+    call<Self extends ObjectType, Name extends MethodName<Self>>(
+        this: Self,
+        name: Name,
+        input: Readonly<Record<string, unknown>>,
+    ): ObjectCall<CallOutput<Self, Name>>;
+    /**
+     * Call one of the type's methods as a value.
+     *
+     * @construct the result is the method's procedure output, which CallOutput reads from the same method; the method's input schema validates the input when the call runs.
+     */
+    call(name: string, input: Readonly<Record<string, unknown>>): ObjectCall {
+        return { method: `${this.name}.${name}`, input, release: this.package.version };
+    }
+
+    /** Point a call at a row: the row's scope as the type's scope field, and its identifier when it has one. */
+    target<Self extends ObjectType>(
+        this: Self,
+        row: Readonly<Record<string, unknown>>,
+    ): TargetInput<Self>;
+    /**
+     * Point a call at a row.
+     *
+     * @construct the scope field is the type's route field, which TargetInput reads from the same ScopeField.
+     */
+    target(row: Readonly<Record<string, unknown>>): Readonly<Record<string, string>> {
+        const field = this.route.field;
+        const id = row["id"] === undefined ? {} : { id: schema.string().parse(row["id"]) };
+
+        return field === undefined ? id : { [field]: schema.string().parse(row["scope"]), ...id };
+    }
+
     /** Decide whether a value is an object type. */
     static is(value: unknown): value is ObjectType {
         return value instanceof ObjectType;
     }
 
-    /** The package-qualified type of the objects, as access names it. */
+    /** The package-qualified type of the objects, as access refers to it. */
     get typeReference(): ObjectTypeReference {
         return { packageId: this.policy.definition.packageId, type: this.policy.definition.name };
     }
@@ -1041,9 +1116,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             Object.assign(placed, rest);
         }
 
-        // map the self relation to the principal each object stands for under its own identifier
+        // map the self relation to the principal each object stands for under its own identifier, in the universe for a global principal
         if (Object.hasOwn(this.policy.definition.relations, "self")) {
-            relations["self"] = { column: "id" };
+            relations["self"] =
+                this.represents?.definition.isGlobal === true
+                    ? { column: "id", scope: Scope.universe.id }
+                    : { column: "id" };
         }
 
         // assemble the mapping
@@ -1077,7 +1155,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const guard = this.fields[name].access?.read;
         const reads = Object.values(methodsOf(this))
             .filter((declared) => declared.kind === "get" || declared.kind === "list")
-            .flatMap((declared) => (declared.permission === null ? [] : [declared.permission]));
+            .map((declared) => declared.permission);
         const readers = new Set(guard === undefined ? reads : [guard]);
         const listing = measured.listing?.name;
         const link = aggregate.via ?? "parent";
@@ -1151,7 +1229,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
      * @construct the copy shares this type's table, methods and policy, with handlers attached by method name.
      */
     handle(this: ObjectType, handlers: Readonly<Record<string, Handler | Lifecycle>>): ObjectType {
-        // wrap each named method's handler
+        // wrap each given method's handler
         const methods: Record<string, Method> = { ...this.methods };
         for (const [name, handler] of Object.entries(handlers)) {
             const declared = methods[name];
@@ -1174,7 +1252,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.with({ declaration: declaration });
     }
 
-    /** Reconcile or follow the objects with work waiting as the system. */
+    /** Reconcile or follow the objects with work waiting as the store's principal. */
     control<Self extends ObjectType>(this: Self, controller: ObjectController<Self>): Self {
         // keep ephemeral and external objects off the controllers
         if (this.storage !== "durable") {
@@ -1213,7 +1291,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.policy.permission(name);
     }
 
-    /** Where the objects' routes name their scope. */
+    /** Where the objects' routes carry their scope. */
     get route(): ScopeRoute {
         return scopeRoute(this);
     }
@@ -1239,7 +1317,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.traits.some((applied) => applied.trait === controlled);
     }
 
-    /** The object types the relations of plain reference fields name, whose permissions the type's permissions read through them. */
+    /** The object types the relations of plain reference fields refer to, whose permissions the type's permissions read through them. */
     get related(): readonly ObjectType[] {
         return Object.entries(this.fields).flatMap(([property, field]) => {
             const name = kebabCase(field.relationAt(property));
@@ -1276,12 +1354,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return known;
     }
 
-    /** Whether an identifier names one of the type's objects. */
+    /** Whether an identifier identifies one of the type's objects. */
     identifies(id: string): boolean {
         return this.idSchema.safeParse(id).success;
     }
 
-    /** Generate a new object's identifier, refusing a type whose objects are named by their natural key. */
+    /** Generate a new object's identifier, refusing a type whose objects are identified by their natural key. */
     generateId(): Identifier<string> {
         if (this.keyed !== undefined) {
             throw new ServiceError("BAD_REQUEST", {
@@ -1352,20 +1430,23 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return claims;
     }
 
-    /** Describe the names an object claims after a write, none after deletion. */
+    /** Describe the names an object claims after a write: active, reserved while it sits in the trash, none once deleted or purged. */
     async claimsOf(
         objectId: string,
         row: Row | undefined,
         snapshot: Snapshot,
     ): Promise<ObjectClaims> {
+        const isGone = row === undefined || isSet(row, "purgedAt");
+
         return {
             indexes: Object.keys(this.indexes).map((name) => this.index(name)),
             objectId,
-            claims: row === undefined ? [] : await this.claims(row, snapshot),
+            claims: isGone ? [] : await this.claims(row, snapshot),
+            state: row !== undefined && isSet(row, "deletionRequestedAt") ? "held" : "active",
         };
     }
 
-    /** Refuse a write whose names other objects own, naming the index of the first. */
+    /** Refuse a write whose names other objects own, reporting the index of the first. */
     static refuse(objects: readonly ObjectType[], taken: readonly Claim[]): void {
         // refuse the first taken name by its index's declared name
         const [first] = taken;
@@ -1469,6 +1550,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return (
             this.scope !== Scope.universe.id &&
             (this.scopes.length === 0 || this.scopes.some((type) => type.policy.is(scope)))
+        );
+    }
+
+    /** Report whether a database keeps the type's durable rows in a scope as copies from their home: all of them, or the scope's whose copy lists the table. */
+    async isCopy(database: DatabaseConnection, scope: string): Promise<boolean> {
+        return (
+            this.storage === "durable" &&
+            (database.copies(this.table) || (await Replica.isCopied(database, scope, this.table)))
         );
     }
 
@@ -1583,7 +1672,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
-    /** List the types projecting the objects into their recipients' homes, refusing one naming another source. */
+    /** List the types projecting the objects into their recipients' homes, refusing one with another source. */
     get projections(): readonly ObjectType[] {
         // read the declared projections, refusing one projecting another type
         const projecting = this.projecting?.() ?? [];
@@ -1623,7 +1712,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 export type ObjectAggregate = {
     /** The values of the aggregated objects' fields. */
     readonly where?: Readonly<Record<string, string | number | boolean | null>>;
-    /** The reference field naming the holder object, the parent when absent. */
+    /** The reference field pointing at the holder object, the parent when absent. */
     readonly via?: string;
 } & (
     | {
@@ -1694,7 +1783,7 @@ type TypedTrait =
     | "controlled"
     | "declarable"
     | "suspendable"
-    | "detachable"
+    | "adoptable"
     | "tracked"
     | "shareable"
     | "provisioned"
@@ -1727,6 +1816,14 @@ export type TableTraitsOf<Traits> = {
 export type StackDeclarationOf<Traits> =
     TraitOf<Traits, "declarable"> extends DeclarableDefinition<infer Declared> ? Declared : never;
 
+/** The permissions an object's traits derive for the methods they add, which only roles grant unless the type declares them. */
+export type TraitPermissionsOf<Traits> =
+    | ([TraitOf<Traits, "controlled">] extends [undefined] ? never : "control")
+    | (TraitOf<Traits, "controlled"> extends { readonly approval: true } ? "approve" : never)
+    | ([TraitOf<Traits, "declarable">] extends [undefined] ? never : "declare")
+    | ([TraitOf<Traits, "expiring">] extends [undefined] ? never : "expire")
+    | ([TraitOf<Traits, "bindable">] extends [undefined] ? never : "bind");
+
 /** The methods an object's traits derive beside its declared ones. */
 export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
     RecoverableMethodMap<TraitOf<Traits, "recoverable">> &
@@ -1736,7 +1833,7 @@ export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
     SuspendableMethodMap<GateOf<TraitOf<Traits, "suspendable">>> &
     DeclarableMethodMap<TraitOf<Traits, "declarable">> &
     BindableMethodMap<TraitOf<Traits, "bindable">> &
-    DetachableMethodMap<GateOf<TraitOf<Traits, "detachable">>> &
+    AdoptableMethodMap<GateOf<TraitOf<Traits, "adoptable">>> &
     TrackedMethodMap<TraitOf<Traits, "tracked">> &
     TextMethodMap<Fields>;
 
@@ -1756,7 +1853,7 @@ export type ObjectMethods<
 /** The methods whose permissions an object type grants, a method needing another permission typed never. */
 type PermittedMethods<Methods, Granted extends string> = {
     readonly [Name in keyof Methods]: Methods[Name] extends { readonly permission: infer Needed }
-        ? [Needed] extends [Granted | null]
+        ? [Needed] extends [Granted]
             ? Methods[Name]
             : never
         : never;
@@ -1777,7 +1874,7 @@ export function defineObject<
     const Controlled extends ControlledDefinition | undefined = undefined,
     const Declarable extends DeclarableDefinition | undefined = undefined,
     const Suspendable extends Gated<NoInfer<Permissions> | RolePermission> | undefined = undefined,
-    const Detachable extends Gated<NoInfer<Permissions> | RolePermission> | undefined = undefined,
+    const Adoptable extends Gated<NoInfer<Permissions> | RolePermission> | undefined = undefined,
     const Bindable extends true | Gated<NoInfer<Permissions> | RolePermission> | undefined =
         undefined,
     const Tracked extends TrackedDefinition<NoInfer<Permissions> | RolePermission> | undefined =
@@ -1801,7 +1898,7 @@ export function defineObject<
         readonly controlled: Controlled;
         readonly declarable: Declarable;
         readonly suspendable: Suspendable;
-        readonly detachable: Detachable;
+        readonly adoptable: Adoptable;
         readonly bindable: Bindable;
         readonly tracked: Tracked;
     }>,
@@ -1815,7 +1912,10 @@ export function defineObject<
             Scope,
             Identity,
             Storage,
-            Permissions | RolePermissionsOf<Sharing> | ProvisionedPermissionOf<Provisioning>,
+            | Permissions
+            | RolePermissionsOf<Sharing>
+            | ProvisionedPermissionOf<Provisioning>
+            | TraitPermissionsOf<TraitsOf<Traits> & ProvisionedTraitsOf<Provisioning>>,
             Plural
         >,
         "methods"
@@ -1838,7 +1938,10 @@ export function defineObject<
                 Storage
             >,
             Methods,
-            Permissions | RolePermissionsOf<Sharing> | ProvisionedPermissionOf<Provisioning>,
+            | Permissions
+            | RolePermissionsOf<Sharing>
+            | ProvisionedPermissionOf<Provisioning>
+            | TraitPermissionsOf<TraitsOf<Traits> & ProvisionedTraitsOf<Provisioning>>,
             NoInfer<
                 WrittenField<
                     ObjectFields<
@@ -1858,14 +1961,14 @@ export function defineObject<
             readonly recoverable?: Recoverable;
             /** The objects are immutable, numbered versions of their parent. */
             readonly versioned?: Versioned;
-            /** A system controller reconciles the objects. */
+            /** A controller reconciles the objects. */
             readonly controlled?: Controlled;
             /** Stacks declare the objects. */
             readonly declarable?: Declarable;
             /** Holders of the permission suspend and resume a scope object. */
             readonly suspendable?: Suspendable;
-            /** Holders of the permission detach a declared record from its declaration. */
-            readonly detachable?: Detachable;
+            /** Holders of the permission detach a declared record from its declaration and adopt a direct record into one. */
+            readonly adoptable?: Adoptable;
             /** Installations bind to the objects, and the holders of a permission bind one consumer at a time. */
             readonly bindable?: Bindable;
             /** Every change stays in the log, grouped into activities. */
@@ -1882,7 +1985,7 @@ export function defineObject<
             readonly provisioned?: Provisioning;
             /** The attachments the objects take. */
             readonly attachments?: Attachments;
-            /** The objects' natural key, which callers and sources name them by. */
+            /** The objects' natural key, which callers and sources identify them by. */
             readonly key?: Key;
             /** How pickers, mentions and titles show the objects. */
             readonly presentable?: Presenting;
@@ -1926,7 +2029,8 @@ export function defineObject<
     readonly permissions:
         | Permissions
         | RolePermissionsOf<Sharing>
-        | ProvisionedPermissionOf<Provisioning>;
+        | ProvisionedPermissionOf<Provisioning>
+        | TraitPermissionsOf<TraitsOf<Traits> & ProvisionedTraitsOf<Provisioning>>;
     readonly scope: ScopeIdentityOf<Scope>;
     readonly parent: Nested extends { readonly in: infer Parent }
         ? Parent extends ObjectType
@@ -1955,7 +2059,7 @@ export function defineObject<
         | "recoverable"
         | "versioned"
         | "controlled"
-        | "detachable"
+        | "adoptable"
         | "shareable"
         | "suspendable"
         | "tracked"
@@ -2061,7 +2165,7 @@ export type SensitiveField<Fields extends Readonly<Record<string, Field>>> = {
         : never;
 }[keyof Fields & string];
 
-/** The name of a field creation fills with the calling principal, which only system creations write. */
+/** The name of a field creation fills with the calling principal, which only internal creations write. */
 export type CallerField<Fields extends Readonly<Record<string, Field>>> = {
     [Name in keyof Fields & string]: Fields[Name] extends { readonly isCallerFilled: true }
         ? Name
@@ -2132,12 +2236,17 @@ function admits(
     }
 }
 
+/** Decide whether a row holds a value in a column its type may lack, such as a deletion's time. */
+function isSet(row: Row, column: string): boolean {
+    return row[column] !== undefined && row[column] !== null;
+}
+
 /** Read an object type's methods by name, as code reading them by a runtime name sees them. */
 function methodsOf(object: ObjectType): Readonly<Record<string, Method>> {
     return object.methods;
 }
 
-/** Resolve a declared relation subject: an object type's policy, a named subject type of the package, or a subject as is. */
+/** Resolve a declared relation subject: an object type's policy, a subject type of the package by name, or a subject as is. */
 function subjectOf(
     subject: ObjectRelationInput["subjects"][number],
     owner: Package,
@@ -2146,7 +2255,7 @@ function subjectOf(
     if (subject instanceof ObjectType) {
         return subject.policy;
     }
-    // name a subject type of the package
+    // take a subject type of the package by name
     else if (typeof subject === "string") {
         return Policy.subjectType(owner.id, subject);
     }
@@ -2156,7 +2265,29 @@ function subjectOf(
     }
 }
 
-/** Relate a field to the subjects it names, absent for a field naming none. */
+/** Report whether an expression grants a scope's containment set anywhere in it. */
+function grantsContainment(expression: AccessExpression): boolean {
+    switch (expression.kind) {
+        case "contained":
+            return true;
+        case "union":
+        case "intersection":
+            return expression.expressions.some(grantsContainment);
+        case "exclusion":
+            return grantsContainment(expression.include) || grantsContainment(expression.exclude);
+        case "none":
+        case "relation":
+        case "permission":
+        case "resource":
+        case "context":
+        case "through":
+        case "granters":
+        case "readers":
+            return false;
+    }
+}
+
+/** Relate a field to the subjects it refers to, absent for a field referring to none. */
 function fieldRelation(field: Field): RelationInput | undefined {
     // relate a principal reference to its kind
     if (field.type === "reference" && field.principals !== undefined) {
@@ -2336,9 +2467,7 @@ function representedRelations(represented: Policy | undefined): Record<string, R
 function methodPermission(object: ObjectType, kind: MethodKind): Permission | undefined {
     const standard = Object.values(object.methods).find((declared) => declared.kind === kind);
 
-    return standard?.permission === undefined || standard.permission === null
-        ? undefined
-        : object.permission(standard.permission);
+    return standard === undefined ? undefined : object.permission(standard.permission);
 }
 
 /** Describe an object type to its traits. */

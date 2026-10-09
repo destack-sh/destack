@@ -5,11 +5,12 @@ import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { objectDatabase, task, taskVersion } from "./schema.ts";
-import { openSpace } from "./fixture/space.ts";
+import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 import { userContext } from "./fixture/user.ts";
+import { request } from "./fixture/request.ts";
 
 /** The space containing the objects. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -32,7 +33,8 @@ test.each(TEST_DIALECTS)(
         });
 
         // create versions numbered from one, taking the number the runtime assigns
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { task, taskVersion },
             database,
             callKey: testCallKey,
@@ -46,7 +48,8 @@ test.each(TEST_DIALECTS)(
             name: Name,
             input: Record<string, unknown>,
         ): Promise<CallOutput<typeof taskVersion, Name>> =>
-            server.call(
+            request(
+                store,
                 taskVersion,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
@@ -58,12 +61,12 @@ test.each(TEST_DIALECTS)(
 
         // point the task at each version in turn through its own update
         const point = async (id: string, revision: number) =>
-            server.call(
-                task,
-                "update",
-                { spaceId, requestId: RequestId.create(), id: taskId, revision, currentId: id },
-                context,
-            );
+            store
+                .mutate(context.caller(), {
+                    id: RequestId.create(),
+                    calls: [task.call("update", { spaceId, id: taskId, revision, currentId: id })],
+                })
+                .then(([written]) => written);
         const pointed = await point(first.id, 1);
         expect((await point(second.id, pointed.revision)).currentId).toBe(second.id);
     },

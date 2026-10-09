@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
         // refuse input the method's schema rejects, an unknown method and an unknown type
         await expect(client.call("note", "create", { title: 5 })).rejects.toMatchObject({
             code: "BAD_REQUEST",
-            message: "Input validation failed",
+            message: "invalid input: title: invalid input: expected string, received number",
         });
         await expect(client.call("note", "archive", {})).rejects.toMatchObject({
             code: "NOT_FOUND",

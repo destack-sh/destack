@@ -7,12 +7,13 @@ import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { comment, folder, objectDatabase, task, taskVersion, team } from "./schema.ts";
 import { principal } from "@destack/access";
-import { openSpace } from "./fixture/space.ts";
+import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 import { userContext } from "./fixture/user.ts";
+import { request } from "./fixture/request.ts";
 
 /** How long a short grant lasts, in milliseconds. */
 const GRANT_MILLISECONDS = 300;
@@ -46,7 +47,8 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
     const second = await insert("Second");
 
     // serve methods as each user and follow the tasks the second user sees
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { task, team, comment, taskVersion, folder },
         database,
         callKey: testCallKey,
@@ -67,10 +69,10 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         name: Name,
         input: Record<string, unknown>,
     ): Promise<CallOutput<Object, Name>> => {
-        return server.call(object, name, { spaceId, ...input }, userContext(caller, spaceId));
+        return request(store, object, name, { spaceId, ...input }, userContext(caller, spaceId));
     };
-    const pages = server.source.relayed(
-        server.source.queriesShape.subscription({
+    const pages = store.source.relayed(
+        store.source.queriesShape.subscription({
             name: "objects",
             scope: spaceId,
             below: spaceId,

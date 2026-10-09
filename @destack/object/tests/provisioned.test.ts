@@ -1,7 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { journal } from "@destack/audit/stack";
-import { accessRelationship, principal, Relationship } from "@destack/access";
+import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
 import { defineDatabase, eq } from "@destack/db";
 import { DirectoryStore, directoryTables } from "@destack/directory";
 import { TestDatabase } from "@destack/db/test";
@@ -11,9 +11,10 @@ import { PlanError } from "@destack/resource/error";
 import { canonicalize, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 
-import { CONSUMER, defineObject, type ProvisionedRecord, SystemCall } from "../src/index.ts";
-import { DRAINING, ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { CONSUMER, defineObject, type ProvisionedRecord } from "../src/index.ts";
+import { DRAINING, ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { RequestId } from "@destack/service/request";
 
 /** The space with the boxes and links. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
@@ -50,7 +51,7 @@ const link = defineObject({
     fields: {},
 });
 
-/** The boxes and links the scenarios name. */
+/** The boxes and links the scenarios use. */
 const ids = {
     first: box.identifier("box-01996ab0-0000-7000-8000-000000000053"),
     second: box.identifier("box-01996ab0-0000-7000-8000-000000000054"),
@@ -158,7 +159,8 @@ async function serve(boxes: Boxes) {
         typeof LinkKind,
         typeof link
     >;
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { box, link },
         database,
         directory: new DirectoryStore(universe.database),
@@ -170,7 +172,7 @@ async function serve(boxes: Boxes) {
     // reconcile one resource as its kind's control loop does
     const reconcile = async (name: "box" | "link", id: string) => {
         const controller = present(
-            server.controllers().find((each) => each.name === name),
+            store.controllers().find((each) => each.name === name),
             `the ${name} controller`,
         );
 
@@ -189,15 +191,20 @@ async function serve(boxes: Boxes) {
         drainingStates: { size: number }[] = [],
     ) => {
         const row = present(await read(id), `box ${id}`);
-        await server.executeAsSystem(
-            box,
-            "specify",
-            [SystemCall.of(row, { states, drainingStates, approval: declared.approval })],
-            Date.now(),
-        );
+        await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            id: RequestId.create(),
+            calls: [
+                box.call("specify", {
+                    ...box.target(row),
+                    states,
+                    drainingStates,
+                    approval: declared.approval,
+                }),
+            ],
+        });
     };
 
-    return { server, database, reconcile, read, want };
+    return { store, database, reconcile, read, want };
 }
 
 test("provision a box, apply its consumers' growth, and apply a destructive shrink only once its plan is approved", async () => {
@@ -217,7 +224,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     await reconcile("box", ids.first);
     const unset = present(await read(ids.first), "the box without a threshold");
     await want(ids.first, [{ size: 2 }]);
-    await Scope.fence(database, spaceId, "region-elsewhere", now);
+    await Scope.fence(database, spaceId, "machine-elsewhere", now);
     await reconcile("box", ids.first);
     const fenced = present(await read(ids.first), "the fenced box");
 
@@ -468,15 +475,13 @@ test("refuse provisioning through a provider that provisions nothing, and finish
 });
 
 test("name a resource after another kind's resource in its space, refusing a second of its own kind", async () => {
-    const { server } = await serve(new Boxes());
+    const { store } = await serve(new Boxes());
     const { scope, approval: _approval, ...written } = declared;
     const create = (kind: typeof box | typeof link) =>
-        server.executeAsSystem(
-            kind,
-            "create",
-            [{ scope, input: { ...written, name: "main" } }],
-            Date.now(),
-        );
+        store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            id: RequestId.create(),
+            calls: [kind.call("create", { ...kind.target({ scope }), ...written, name: "main" })],
+        });
 
     // create a box and a link named main, and refuse another box of the name
     const [created] = await create(box);

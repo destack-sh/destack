@@ -18,6 +18,7 @@
         "@destack/db": "workspace:*",
         "@destack/directory": "workspace:*",
         "@destack/error": "workspace:*",
+        "@destack/event": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",

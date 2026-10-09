@@ -1,4 +1,4 @@
-import { ObjectServer } from "../../src/server/index.ts";
+import { ObjectExtension } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -13,7 +13,7 @@ import { Server, type ServiceImplementation } from "@destack/service/server";
 import { v7 } from "uuid";
 import { note, notebook, notesDatabase, notesService } from "./note.ts";
 import { principal } from "@destack/access";
-import { openSpace, unmoved } from "./space.ts";
+import { openSpace, spacePrincipal, unmoved } from "./space.ts";
 import { testCallKey } from "@destack/service/test";
 
 /** The space with the notes. */
@@ -25,7 +25,7 @@ const DEVICE_OBJECTS = { notebook, note };
 /** The package serving the notes. */
 const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e238");
 
-/** Serve a space's notes to bearer-named users, returning a client per user. */
+/** Serve a space's notes to bearer-identified users, returning a client per user. */
 export async function serveNotes(dialect: Dialect) {
     // keep the space's notes in memory
     const storage = await TestDatabase.create(dialect, notesDatabase, { isMigrated: true });
@@ -33,12 +33,14 @@ export async function serveNotes(dialect: Dialect) {
     const database = storage.database;
     await openSpace(database, spaceId);
 
-    // serve the notes over HTTP to bearer-named users
+    // serve the notes over HTTP to bearer-identified users
     const served = serveObjects(
-        ObjectServer.serve(notesService, {
+        ObjectExtension.compose([ObjectExtension.of(notesService, [])], {
+            origin: { package: notesService.package, service: notesService.name },
+            principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             database,
-        }),
+        }).services[0],
         spaceId,
     );
 
@@ -47,9 +49,9 @@ export async function serveNotes(dialect: Dialect) {
     return { connect, endpoint: served.endpoint, server: served.server, database };
 }
 
-/** Serve an object service over HTTP to bearer-named users in a space, with each user's endpoint. */
+/** Serve an object service over HTTP to bearer-identified users in a space, with each user's endpoint. */
 export function serveObjects(implementation: ServiceImplementation, scope: string) {
-    // authenticate each request as the user its bearer credential names
+    // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
         ...implementation,
         audience,

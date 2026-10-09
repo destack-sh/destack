@@ -3,7 +3,7 @@ import { and, eq } from "@destack/db";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { defineMethod, method, type Method } from "./method.ts";
-import type { Call } from "./call.ts";
+import { Call } from "./call.ts";
 
 import { CONSUMER } from "../trait/bindable.ts";
 /** The input binding an installation: the installation and every object of the type bound to it in the scope. */
@@ -14,17 +14,17 @@ const BindInput = schema.object({
     ids: schema.array(schema.string().min(1)),
 });
 
-/** Bind exactly some objects of a type in a scope to an installation, a cell or a placed workload as its consumer, where their rows live. */
+/** Bind exactly some objects of a type in a scope to an installation or a machine as its consumer, where their rows live. */
 export const bind: Method<{
     kind: "bind";
-    permission: null;
+    permission: "bind";
     mutates: true;
-    system: true;
-}> = defineMethod<{ kind: "bind"; permission: null; mutates: true; system: true }>({
+    internal: true;
+}> = defineMethod<{ kind: "bind"; permission: "bind"; mutates: true; internal: true }>({
     kind: "bind",
-    permission: null,
+    permission: "bind",
     mutates: true,
-    isSystem: true,
+    isInternal: true,
     target: false,
     result: "value",
     procedure: (_name, shapes) => ({
@@ -33,15 +33,11 @@ export const bind: Method<{
         output: schema.object({}),
     }),
     handler: async (call: Call) => {
-        // require an installation, a cell or a placed workload bound
+        // require an installation or a machine bound
         const { consumer, ids } = BindInput.parse(call.input);
-        if (
-            !principal.installation.is(consumer) &&
-            !principal.cell.is(consumer) &&
-            !principal.workload.is(consumer)
-        ) {
+        if (!principal.installation.is(consumer) && !principal.machine.is(consumer)) {
             throw new TypeError(
-                `${consumer.id} is no installation, cell or workload binding ${call.object.name}`,
+                `${consumer.id} is no installation or machine binding ${call.object.name}`,
             );
         }
 
@@ -67,7 +63,7 @@ export const bind: Method<{
 
 /** The input binding or releasing one consumer of an object. */
 const ConsumerInput = schema.object({
-    /** The consumer: an installation, a cell or a placed workload. */
+    /** The consumer: an installation or a machine. */
     consumer: Subject,
 });
 
@@ -107,11 +103,11 @@ export function consumerMethod<const Permission extends string>(
                     ),
                 );
 
-            // bind exactly them with the target added or removed, as the system binds
+            // bind exactly them with the target added or removed, as the store's own work binds
             const id = call.requireId();
             const kept = rows.map((row) => row.objectId).filter((each) => each !== id);
             const ids = action === "bind" ? [...kept, id] : kept;
-            await call.change(call.object, "bind", { consumer, ids });
+            await call.mutate(call.caller, [Call.record(call.object, "bind", { consumer, ids })]);
 
             return call.target;
         });

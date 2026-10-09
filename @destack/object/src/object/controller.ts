@@ -11,12 +11,12 @@ import {
     type Table,
 } from "@destack/db";
 import type { Controller, Reconciliation } from "@destack/service/control";
+import { Caller } from "@destack/access";
+import { RequestId } from "@destack/service/request";
 import { canonicalize, schema, type JsonValue } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
-import type { ResultOf } from "../method/call.ts";
-import type { MethodName } from "../method/procedure.ts";
-import type { ObjectServer } from "../server/server.ts";
-import { SystemCall } from "../method/system.ts";
+import type { ObjectCall, ResultsOf } from "../method/call.ts";
+import type { MutateOptions, ObjectStore } from "../server/store.ts";
 
 /** The fields of a pending object's key, as its key name keeps them. */
 const KeyFields = schema.record(schema.string(), Scalar);
@@ -67,7 +67,7 @@ export const ObjectWatch = {
     },
 };
 
-/** One key's reconciliation: its pending objects, and the system methods reconciling them. */
+/** One key's reconciliation: its pending objects, and the methods reconciling them as the store's principal. */
 export interface ObjectReconciliation<
     Object extends ObjectType = ObjectType,
 > extends Reconciliation {
@@ -77,20 +77,22 @@ export interface ObjectReconciliation<
     readonly now: number;
     /** The objects' database. */
     readonly database: DatabaseConnection;
-    /** The object server running the controller, without the router its served types type. */
-    readonly server: Omit<ObjectServer, "router">;
-    /** Run one system method of the object type on some objects in one transaction, returning each result. */
-    execute<Name extends MethodName<Object>>(
-        method: Name,
-        rows: readonly RowImage<Object["table"]>[],
-    ): Promise<ResultOf<Object, Name>[]>;
+    /** The object store running the controller, without the router its served types type. */
+    readonly store: Omit<ObjectStore, "router">;
+    /** The caller the reconciliation acts as: the store's own principal. */
+    readonly caller: Caller;
+    /** Run calls in one transaction as the store's principal, under the controller's name, each result in order. */
+    mutate<const Calls extends readonly ObjectCall[]>(
+        calls: Calls,
+        options?: Pick<MutateOptions, "transaction" | "scope">,
+    ): Promise<ResultsOf<Calls>>;
 }
 
 /** Build the controllers object types declare. */
 export const ObjectController = {
     /** Build the controller a type declares, reconciling or following its pending objects by key. */
     control(
-        server: Omit<ObjectServer, "router">,
+        store: Omit<ObjectStore, "router">,
         object: ObjectType,
         declared: ObjectController,
     ): Controller {
@@ -106,7 +108,7 @@ export const ObjectController = {
             // select the keys a watch of the changed table reads
             const watch = watches.get(change.table);
             const watched =
-                watch === undefined ? [] : await watch.keys(Change.image(change), server.database);
+                watch === undefined ? [] : await watch.keys(Change.image(change), store.database);
 
             // add the key of a changed object left pending
             const row = Change.image(change);
@@ -127,19 +129,19 @@ export const ObjectController = {
             keys,
             list: async () => {
                 // list the keys of every pending object
-                const rows = await Snapshot.live(server.database).rows(table, declared.pending);
+                const rows = await Snapshot.live(store.database).rows(table, declared.pending);
 
                 return [...new Set(rows.map((row) => canonicalize(keyOf(row))))];
             },
             reconcile: (key, reconciliation) =>
-                reconcilePending(server, object, declared, key, reconciliation),
+                reconcilePending(store, object, declared, key, reconciliation),
         };
     },
 };
 
 /** Reconcile one key's pending objects, if any are left. */
 async function reconcilePending(
-    server: Omit<ObjectServer, "router">,
+    store: Omit<ObjectStore, "router">,
     object: ObjectType,
     declared: ObjectController,
     key: string,
@@ -149,28 +151,29 @@ async function reconcilePending(
     const pending: Condition = {
         AND: [declared.pending, Condition.equal(KeyFields.parse(JSON.parse(key)))],
     };
-    const rows = await Snapshot.live(server.database).rows(object.table, pending);
+    const rows = await Snapshot.live(store.database).rows(object.table, pending);
     if (rows.length === 0) {
         return undefined;
     }
 
-    // reconcile them, running system methods at one time
-    const now = server.clock();
+    // reconcile them, running methods as the store's principal at one time
+    const now = store.clock();
+    const caller = Caller.of(store.principal, now);
 
     return declared.reconcile({
         rows,
         now,
-        database: server.database,
-        server,
+        database: store.database,
+        store,
+        caller,
         signal: reconciliation.signal,
         ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
         changed: () => reconciliation.changed(),
-        execute: (method, targets) =>
-            server.executeAsSystem(
-                object,
-                method,
-                targets.map((row) => SystemCall.of(row)),
-                now,
+        mutate: (calls, options) =>
+            store.mutate(
+                caller,
+                { id: RequestId.create(now), calls: [...calls] },
+                { ...options, component: object.name },
             ),
     });
 }

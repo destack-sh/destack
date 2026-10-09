@@ -25,7 +25,7 @@ export class ScopeProjector implements Projector {
     readonly #object: ObjectType;
     /** The scope the objects live in. */
     readonly #into: string;
-    /** The source field naming each object's source row. */
+    /** The source field holding each object's source row. */
     readonly #field: string;
     /** The kept fields, each with the source field it copies. */
     readonly #kept: readonly (readonly [string, string])[];

@@ -30,7 +30,7 @@ export type TrackedProcedures<Object extends ObjectType> = {
     >;
 };
 
-/** The input field naming the log position an object is read or reverted at. */
+/** The input field holding the log position an object is read or reverted at. */
 type PositionField = { readonly at: typeof LogPosition };
 
 /** Objects keeping their history, grouped into activities. */

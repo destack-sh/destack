@@ -1,9 +1,8 @@
-import type { Extras } from "@destack/db";
+import type { Extras, Group } from "@destack/db";
 import type { Duration } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import type { OpenQueryOptions, RelationOptions } from "../replica/replica.ts";
-import type { Group } from "@destack/db";
 import type { AggregateOptions, FindOptions, FindResult } from "../query/item.ts";
 import { relate, type NestedItem } from "../query/item.ts";
 import type { LiveQuery } from "./client.ts";

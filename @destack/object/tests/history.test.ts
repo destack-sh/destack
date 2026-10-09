@@ -6,7 +6,6 @@ import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
 import {
     defineObject,
     field,
@@ -14,11 +13,12 @@ import {
     type CallableName,
     type ObjectType,
 } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/service/test";
+import { request } from "./fixture/request.ts";
 
 /** The space containing the pages. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -203,7 +203,8 @@ test("refuse serving history that reads through an object keeping none", async (
     onTestFinished(() => storage.close());
     expect(
         () =>
-            new ObjectServer({
+            new ObjectStore({
+                principal: spacePrincipal(spaceId),
                 objects: { activity, folder, sheet },
                 database: storage.database,
                 callKey: testCallKey,
@@ -232,7 +233,8 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
     // decide every call as the current user at the current time
     let current = "alice";
     let now = 0;
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects,
         database: storage.database,
         callKey: testCallKey,
@@ -240,6 +242,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
             package: activity.package,
             service: "test",
         },
+        clock: () => now,
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
@@ -253,13 +256,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
             object: Object,
             name: Name,
             input: object,
-        ) =>
-            server.call(
-                object,
-                name,
-                { spaceId, requestId: RequestId.create(), ...input },
-                context,
-            ),
+        ) => request(store, object, name, { spaceId, ...input }, context),
         as: (caller: string) => {
             current = caller;
             context = sign();

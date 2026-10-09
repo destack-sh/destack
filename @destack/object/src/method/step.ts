@@ -38,9 +38,9 @@ export const Step = {
         return Call.record(step.object, name, input);
     },
 
-    /** Build the input naming the step's object: the object it created, else its target. */
+    /** Build the input identifying the step's object: the object it created, else its target. */
     target(step: Step): JsonObject {
-        // read the object's identifier and the scope the call named
+        // read the object's identifier and the scope the call carried
         const id = step.after?.["id"] ?? step.input["id"];
         const { field } = step.object.route;
         const scope = field === undefined ? undefined : step.input[field];

@@ -1,4 +1,4 @@
-import type { ServiceContext } from "@destack/service/server";
+import { Caller } from "@destack/access";
 import { found } from "@destack/schema";
 import { TABLE, type DatabaseConnection, type Table, type Channel } from "@destack/db";
 import * as sync from "@destack/sync";
@@ -17,7 +17,7 @@ export class EphemeralStorage implements AsyncDisposable {
     readonly tracker: sync.Tracker;
     /** The feed serving every sync of the ephemeral objects. */
     readonly feed: sync.Feed;
-    /** The open ephemeral streams of each client on this instance. */
+    /** The open ephemeral streams of each writer on this instance. */
     readonly #streams = new Map<string, number>();
     /** The ephemeral object types by table. */
     readonly #byTable: ReadonlyMap<Table, ObjectType>;
@@ -103,21 +103,21 @@ export class EphemeralStorage implements AsyncDisposable {
         return durable.channel(EPHEMERAL_CHANNEL);
     }
 
-    /** Name the owner of a client's rows of one object type. */
-    static owner(client: string, object: ObjectType): string {
-        return `${typeKey(object)}/${client}`;
+    /** Build the owner of a writer's rows of one object type. */
+    static owner(writer: string, object: ObjectType): string {
+        return `${typeKey(object)}/${writer}`;
     }
 
-    /** Write in a memory transaction as a client and publish its rows. */
+    /** Write in a memory transaction as a writer and publish its rows. */
     async write<Value>(
-        client: string,
+        writer: string,
         run: (transaction: DatabaseConnection) => Promise<Value>,
     ): Promise<Value> {
         // record the written rows
         const { value, rows } = await this.database.transaction(async (transaction) => {
             const written = await run(transaction);
             const recorded = await this.tracker.record(transaction, (table) =>
-                EphemeralStorage.owner(client, found(this.#byTable, table)),
+                EphemeralStorage.owner(writer, found(this.#byTable, table)),
             );
 
             return { value: written, rows: recorded };
@@ -134,33 +134,33 @@ export class EphemeralStorage implements AsyncDisposable {
         return value;
     }
 
-    /** Key a client by its caller and identifier. */
-    static clientKey(context: ServiceContext, client: string): string {
-        return JSON.stringify([context.authentication?.id ?? null, client]);
+    /** Key a writer by its caller and identifier. */
+    static writerKey(caller: Caller, writerId: string): string {
+        return JSON.stringify([Caller.key(caller), writerId]);
     }
 
-    /** Track a client's rows while one of its streams is open, returning the release. */
-    track(client: string): () => void {
-        // track the client's owners on the first stream
-        const streams = this.#streams.get(client) ?? 0;
-        this.#streams.set(client, streams + 1);
+    /** Track a writer's rows while one of its streams is open, returning the release. */
+    track(writer: string): () => void {
+        // track the writer's owners on the first stream
+        const streams = this.#streams.get(writer) ?? 0;
+        this.#streams.set(writer, streams + 1);
         if (streams === 0) {
             for (const object of this.objects) {
-                this.tracker.track(EphemeralStorage.owner(client, object));
+                this.tracker.track(EphemeralStorage.owner(writer, object));
             }
         }
 
         return () => {
             // release them on the last stream
-            const left = found(this.#streams, client) - 1;
+            const left = found(this.#streams, writer) - 1;
             if (left > 0) {
-                this.#streams.set(client, left);
+                this.#streams.set(writer, left);
 
                 return;
             }
-            this.#streams.delete(client);
+            this.#streams.delete(writer);
             for (const object of this.objects) {
-                this.tracker.release(EphemeralStorage.owner(client, object));
+                this.tracker.release(EphemeralStorage.owner(writer, object));
             }
         };
     }
@@ -210,7 +210,7 @@ export class EphemeralStorage implements AsyncDisposable {
     }
 }
 
-/** Name an object type within its rows' owners. */
+/** Build the key of an object type within its rows' owners. */
 function typeKey(object: ObjectType): string {
     return `${object.policy.definition.packageId}/${object.name}`;
 }

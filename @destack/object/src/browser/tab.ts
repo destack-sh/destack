@@ -1,4 +1,4 @@
-import { broadcastChannel, type Channel, type Table } from "@destack/db";
+import { broadcastChannel, type Channel } from "@destack/db";
 import type { Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import { connectShared } from "@destack/db/browser";
@@ -46,7 +46,10 @@ export class BrowserTab<
         host: BrowserHost,
         name: string,
         stopping: AbortController,
-        own: { readonly tables: readonly Table[]; readonly report: (error: unknown) => void },
+        own: {
+            readonly objects: Readonly<Record<string, ObjectType>>;
+            readonly report: (error: unknown) => void;
+        },
     ) {
         // take the presence lock
         this.client = client;
@@ -66,7 +69,7 @@ export class BrowserTab<
         const signal = this.#stopping.signal;
         const owner = `destack:${name}:owner`;
         this.#owning = host
-            .request(owner, () => this.#own(own.tables, own.report), signal)
+            .request(owner, () => this.#own(own.objects, own.report), signal)
             .catch((error: unknown) => {
                 // rethrow unless closing
                 if (!signal.aborted) {
@@ -85,10 +88,12 @@ export class BrowserTab<
         readonly scope: string;
         /** The calling principal. */
         readonly caller: Subject;
+        /** The browser's client, whose partition keeps local objects scoped to clients. */
+        readonly client: Subject;
         /** Where and how to reach the service serving the objects. */
         readonly endpoint: ClientOptions;
-        /** Where and how to reach the cell serving a moved scope now. */
-        readonly reconnect: (cell: string) => ClientOptions;
+        /** Where and how to reach the machine serving a moved scope now. */
+        readonly reconnect: (machine: string) => ClientOptions;
         /** The most object rows the shared copy keeps, absent for no limit. */
         readonly storage?: { readonly rows: number };
         /** How long the shared local log keeps changes, a minute by default. */
@@ -101,33 +106,38 @@ export class BrowserTab<
         // connect to the shared database
         const host = options.host ?? BrowserTab.host(options.name);
         const origin = RequestId.create();
-        const tables = ObjectClient.tables(options.objects);
-        const database = connectShared(host.channel, origin, tables);
+        const { objects } = options;
+        const database = connectShared(host.channel, origin, ObjectClient.tables(objects));
         const client = await ObjectClient.open({ ...options, database, origin, isMigrated: true });
 
         // settle once the tables exist
         const stopping = new AbortController();
         const ready = (async () => {
             await database.log.until(
-                async () => (await database.unapplied(tables, { isReplica: true })).length === 0,
+                async () => (await ObjectClient.unapplied(database, objects)).length === 0,
                 stopping.signal,
             );
         })();
 
         return new BrowserTab(client, database, ready, host, options.name, stopping, {
-            tables,
+            objects,
             report: options.report,
         });
     }
 
-    /** Bind the page's Web Locks, broadcast channel and database worker. */
+    /**
+     * Bind the page's Web Locks, broadcast channel and database worker.
+     *
+     * Starting the worker asks the browser to keep the origin's storage, since it evicts best-effort storage under pressure.
+     */
     static host(name: string): BrowserHost {
         return {
             channel: broadcastChannel(`destack:${name}`),
             request: (lock, callback, signal) =>
                 navigator.locks.request(lock, signal === undefined ? {} : { signal }, callback),
             start: async () => {
-                // start the database worker
+                // ask to keep the storage, and start the database worker
+                await navigator.storage.persist();
                 const worker = new Worker(new URL("./database.worker.ts", import.meta.url), {
                     type: "module",
                     name: `destack:${name}`,
@@ -149,8 +159,11 @@ export class BrowserTab<
         await this.#database.close();
     }
 
-    /** Own the database until the tab closes. */
-    async #own(tables: readonly Table[], report: (error: unknown) => void): Promise<void> {
+    /** Own the database until the tab closes, migrating its tables from this tab's build. */
+    async #own(
+        objects: Readonly<Record<string, ObjectType>>,
+        report: (error: unknown) => void,
+    ): Promise<void> {
         // skip a closed tab
         const signal = this.#stopping.signal;
         if (signal.aborted) {
@@ -160,7 +173,7 @@ export class BrowserTab<
         // start the worker and run the loops
         const stop = await this.#host.start();
         try {
-            await this.client.database.migrate(tables, { isReplica: true });
+            await ObjectClient.migrate(this.client.database, objects);
             await Promise.all([
                 this.client.run(signal, report),
                 this.#forgetAbsent(signal, report),
@@ -201,7 +214,7 @@ export class BrowserTab<
         }
     }
 
-    /** Name the lock a party's tab takes while it is open. */
+    /** Build the name of the lock a party's tab takes while it is open. */
     #presence(origin: string): string {
         return `destack:${this.#name}:tab:${origin}`;
     }

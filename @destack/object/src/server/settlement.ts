@@ -6,7 +6,7 @@ import { v7 } from "uuid";
 import type { Call } from "../method/call.ts";
 import { settlement, SettlementCall } from "../method/settlement.ts";
 import { Method } from "../method/method.ts";
-import type { ObjectServer } from "./server.ts";
+import type { ObjectStore } from "./store.ts";
 
 /** The settlement and claim grace, in milliseconds: a minute, above any live server's settling. */
 const SETTLE_GRACE_MILLISECONDS = 60_000;
@@ -101,13 +101,9 @@ export const Settlement = {
     },
 
     /** Settle one claimed settlement as its row records, committing a committed call's work and rolling back any other before forgetting it. */
-    async settle(
-        server: Pick<ObjectServer, "objects" | "database">,
-        row: Settlement,
-        now: number,
-    ): Promise<void> {
+    async settle(store: Omit<ObjectStore, "router">, row: Settlement, now: number): Promise<void> {
         // find the method
-        const object = server.objects.find((served) => served.name === row.object);
+        const object = store.objects.find((served) => served.name === row.object);
         if (object === undefined) {
             throw new TypeError(`settlement ${row.id} names unserved object ${row.object}`);
         }
@@ -126,8 +122,9 @@ export const Settlement = {
             scope: row.scope,
             id: row.target ?? undefined,
             idempotencyKey: row.key,
-            database: server.database,
+            database: store.database,
             now,
+            store,
         });
         const prepared = row.prepared === null ? undefined : declared.parse(row.prepared.value);
 
@@ -140,12 +137,12 @@ export const Settlement = {
         } else {
             await method.rollback?.(call, prepared);
         }
-        await Settlement.forget(server.database, row.id);
+        await Settlement.forget(store.database, row.id);
     },
 
     /** Settle what servers left once the grace passes. */
     controller(
-        server: Pick<ObjectServer, "objects" | "database">,
+        store: Omit<ObjectStore, "router">,
         options: { readonly grace?: Duration } = {},
     ): Controller {
         const grace =
@@ -158,16 +155,16 @@ export const Settlement = {
             watches: [settlement],
             keys: (change) => [schema.string().parse(change.key["id"])],
             list: async () =>
-                (await server.database.select({ id: settlement.id }).from(settlement)).map(
+                (await store.database.select({ id: settlement.id }).from(settlement)).map(
                     (row) => row.id,
                 ),
             reconcile: async (key) => {
                 // wait out the grace
-                const [row] = await server.database
+                const [row] = await store.database
                     .select()
                     .from(settlement)
                     .where(eq(settlement.id, key));
-                const now = Date.now();
+                const now = store.clock();
                 if (row === undefined) {
                     return undefined;
                 } else if (row.createdAt > now - grace) {
@@ -175,11 +172,11 @@ export const Settlement = {
                 }
 
                 // claim and settle
-                const claimed = await Settlement.claim(server.database, key, now, grace);
+                const claimed = await Settlement.claim(store.database, key, now, grace);
                 if (claimed === undefined) {
                     return row.claimedAt === null ? 0 : row.claimedAt + grace - now;
                 }
-                await Settlement.settle(server, claimed, now);
+                await Settlement.settle(store, claimed, now);
 
                 return undefined;
             },

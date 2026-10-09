@@ -1,4 +1,4 @@
-import { earliest } from "@destack/access";
+import { earliest, Caller } from "@destack/access";
 import { Duration, present } from "@destack/schema";
 import {
     Change,
@@ -14,29 +14,30 @@ import {
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { Controller, Reconciliation } from "@destack/service/control";
 import type { Table } from "@destack/db";
-import type { ObjectServer } from "./server.ts";
-import { SystemCall } from "../method/system.ts";
+import type { ObjectStore } from "./store.ts";
 
 import { recoverableType, type RecoverableDefinition } from "../trait/recoverable.ts";
 import type { TraitTable } from "../object/table.ts";
-/** The server a purge reads and removes through. */
-type RecoverableServer = Pick<ObjectServer, "objects" | "database" | "executeAsSystem">;
+import { RequestId } from "@destack/service/request";
+import { Call } from "../method/call.ts";
+/** The component name the purge runs and records its calls under. */
+const PURGE = "purge";
 
 /** Purge deleted objects as their recovery windows end, scheduling the next window's end. */
 export class RecoverableController implements Controller {
     /** The controller's name. */
-    readonly name = "purge";
+    readonly name = PURGE;
     /** The tables of the recoverable objects. */
     readonly watches: readonly Table[];
-    /** The server the purge runs through. */
-    readonly #server: RecoverableServer;
+    /** The store the purge runs through. */
+    readonly #store: Omit<ObjectStore, "router">;
     /** The recoverable object types with their recovery options. */
     readonly #types: ReturnType<typeof recoverables>;
 
-    /** Watch the recoverable objects a server serves. */
-    constructor(server: RecoverableServer) {
-        this.#server = server;
-        this.#types = recoverables(server.objects);
+    /** Watch the recoverable objects a store serves. */
+    constructor(store: Omit<ObjectStore, "router">) {
+        this.#store = store;
+        this.#types = recoverables(store.objects);
         this.watches = this.#types.map(({ object }) => object.table);
     }
 
@@ -58,34 +59,34 @@ export class RecoverableController implements Controller {
     /** Purge what passed its window and schedule the earliest window end. */
     async reconcile(_key: string, _reconciliation: Reconciliation): Promise<number | undefined> {
         // purge and read each type's earliest pending deletion
-        const now = Date.now();
-        await RecoverableController.purge(this.#server, now);
+        const now = this.#store.clock();
+        await RecoverableController.purge(this.#store, now);
         const ends = await Promise.all(
-            this.#types.map(({ object, options }) =>
-                ending(this.#server.database, object, options),
-            ),
+            this.#types.map(({ object, options }) => ending(this.#store.database, object, options)),
         );
         const next = earliest(ends);
 
         return next === undefined ? undefined : Math.max(0, next - now);
     }
 
-    /** Purge expired deleted objects as the system, returning the count. */
-    static async purge(server: RecoverableServer, now: number): Promise<number> {
+    /** Purge expired deleted objects as the store's principal, returning the count. */
+    static async purge(store: Omit<ObjectStore, "router">, now: number): Promise<number> {
         // purge each type in batches until one comes back short
         let purged = 0;
-        for (const { object, options } of recoverables(server.objects)) {
+        for (const { object, options } of recoverables(store.objects)) {
             for (let batch = PURGE_ROWS; batch === PURGE_ROWS;) {
                 // purge one batch
-                const rows = await expired(server.database, object, options, now);
-                if (rows.length > 0) {
-                    await server.executeAsSystem(
-                        object,
-                        purgeMethod(object),
-                        rows.map((row) => SystemCall.of(row)),
-                        now,
-                    );
-                }
+                const rows = await expired(store.database, object, options, now);
+                await store.mutate(
+                    Caller.of(store.principal, now),
+                    {
+                        id: RequestId.create(now),
+                        calls: rows.map((row) =>
+                            Call.record(object, purgeMethod(object), object.target(row)),
+                        ),
+                    },
+                    { component: PURGE },
+                );
                 batch = rows.length;
                 purged += batch;
             }
@@ -156,7 +157,7 @@ function recoverables(objects: readonly ObjectType[]): {
     });
 }
 
-/** Name the purge method a recoverable type takes. */
+/** Find the purge method a recoverable type takes. */
 function purgeMethod(object: ObjectType): string {
     const [name] = present(
         Object.entries(object.methods).find(([, declared]) => declared.kind === "purge"),

@@ -16,11 +16,11 @@ import { RequestId } from "@destack/service/request";
 import { testCallKey } from "@destack/service/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, Field, field, type Step } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectExtension } from "../src/server/index.ts";
 import { found } from "@destack/schema";
 import { Device, serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
-import { openSpace, space, unmoved } from "./fixture/space.ts";
+import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { principal } from "@destack/access";
 
 /** Folders with pages. */
@@ -298,7 +298,12 @@ test("undo an update of an exact integer, restoring its value on the device and 
     await openSpace(storage.database, spaceId);
     const service = defineService("tallies", { objects: { tally } });
     const served = serveObjects(
-        ObjectServer.serve(service, { callKey: testCallKey, database: storage.database }),
+        ObjectExtension.compose([ObjectExtension.of(service, [])], {
+            origin: { package: service.package, service: service.name },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            database: storage.database,
+        }).services[0],
         spaceId,
     );
 
@@ -357,7 +362,12 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     await openSpace(storage.database, spaceId);
     const service = defineService("stamps", { objects: { stamp } });
     const served = serveObjects(
-        ObjectServer.serve(service, { callKey: testCallKey, database: storage.database }),
+        ObjectExtension.compose([ObjectExtension.of(service, [])], {
+            origin: { package: service.package, service: service.name },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            database: storage.database,
+        }).services[0],
         spaceId,
     );
 

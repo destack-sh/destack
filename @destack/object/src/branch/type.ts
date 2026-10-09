@@ -65,7 +65,7 @@ export class BranchType {
         entry: sync.Call,
         scope: string,
     ): ReturnType<typeof Call.resolve> {
-        // resolve the call in the branch's scope, refusing one naming another
+        // resolve the call in the branch's scope, refusing one in another scope
         const type = objects.find((served) => entry.method.startsWith(`${served.name}.`));
         const field = type?.route.field;
         const named = field === undefined ? undefined : entry.input[field];
@@ -75,7 +75,7 @@ export class BranchType {
             });
         }
         const input = field === undefined ? entry.input : { ...entry.input, [field]: scope };
-        const resolved = Call.resolve(objects, { ...entry, input }, true);
+        const resolved = Call.resolve(objects, { ...entry, input }, true, true);
 
         // refuse ephemeral objects and branch bookkeeping, whose writes no branch keeps
         if (resolved.object.storage === "ephemeral" || this.keeps(resolved.object)) {
@@ -135,7 +135,11 @@ export class BranchType {
                 },
             })),
             reconcile: async (reconciliation) => {
-                await reconciliation.execute("rebuild", reconciliation.rows);
+                await reconciliation.mutate(
+                    reconciliation.rows.map((row) =>
+                        Call.record(this.object, "rebuild", this.object.target(row)),
+                    ),
+                );
 
                 return undefined;
             },

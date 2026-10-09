@@ -7,24 +7,24 @@ import { ObjectClient } from "../src/client/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 
-test("send a client's writes on to the cell serving a moved scope", async () => {
-    // serve the space on its source and on the cell it moves to, and fence the source
+test("send a client's writes on to the machine serving a moved scope", async () => {
+    // serve the space on its source and on the machine it moves to, and fence the source
     const source = await serveNotes("sqlite");
     const target = await serveNotes("sqlite");
     await Scope.fence(source.database, spaceId, "host-b", Date.now());
 
-    // push through the source, reconnecting to the cell its refusal refers to
+    // push through the source, reconnecting to the machine its refusal refers to
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, note }));
     onTestFinished(() => storage.close());
-    const cells: string[] = [];
+    const machines: string[] = [];
     const client = await ObjectClient.open({
         database: storage.database,
         objects: { notebook, note },
         scope: spaceId,
         caller: principal.user.reference("universe", "alice"),
         endpoint: source.endpoint("alice"),
-        reconnect: (cell) => {
-            cells.push(cell);
+        reconnect: (machine) => {
+            machines.push(machine);
 
             return target.endpoint("alice");
         },
@@ -37,14 +37,14 @@ test("send a client's writes on to the cell serving a moved scope", async () => 
         await running;
     });
 
-    // confirm the note on the new cell alone, without a reported failure
+    // confirm the note on the new machine alone, without a reported failure
     await client.mutate(note).create({ title: "Ideas" }).confirmed;
-    expect([cells, errors, await titles(source.database), await titles(target.database)]).toEqual([
-        ["host-b"],
-        [],
-        [],
-        ["Ideas"],
-    ]);
+    expect([
+        machines,
+        errors,
+        await titles(source.database),
+        await titles(target.database),
+    ]).toEqual([["host-b"], [], [], ["Ideas"]]);
 });
 
 /** Read the titles of the notes a database keeps. */

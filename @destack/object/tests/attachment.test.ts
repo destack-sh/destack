@@ -8,11 +8,12 @@ import { v7 } from "uuid";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/service/test";
+import { request } from "./fixture/request.ts";
 
 /** The space containing the objects. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -131,7 +132,7 @@ const board = defineObject({
 test.for(TEST_DIALECTS)(
     "attach remarks to articles and photos, counting them and deleting them with their host, on %s",
     async (dialect) => {
-        const { storage, server, context, call, host, as } = await serveObjects(dialect, {
+        const { storage, store, context, call, host, as } = await serveObjects(dialect, {
             remark,
             pin,
             article,
@@ -167,8 +168,8 @@ test.for(TEST_DIALECTS)(
         as("alice");
 
         // include each article's remarks, and only its own, sharing identifiers with no photo
-        const pages = server.source.relayed(
-            server.source.queriesShape.subscription({
+        const pages = store.source.relayed(
+            store.source.queriesShape.subscription({
                 name: "objects",
                 scope: spaceId,
                 below: spaceId,
@@ -278,7 +279,8 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
     await openSpace(storage.database, spaceId);
 
     // decide every call as the current user
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects,
         database: storage.database,
         callKey: testCallKey,
@@ -294,7 +296,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
 
     return {
         storage,
-        server,
+        store,
         /** Read the current caller's request context. */
         context: () => context,
         call: <Object extends ObjectType, Name extends CallableName<Object>>(
@@ -302,7 +304,8 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
             name: Name,
             input: object,
         ) =>
-            server.call(
+            request(
+                store,
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },

@@ -9,8 +9,8 @@ export const provisionedMethod: MethodBuilder<ProvisionedTable<unknown>> = metho
 /** Make an installation the owner of a retained resource it declares again, or release it, cancelling a deletion. */
 export const adopt = provisionedMethod
     .mutation({
-        permission: null,
-        isSystem: true,
+        permission: "declare",
+        isInternal: true,
         input: schema.object({
             /** The installation owning the resource, absent to release it. */
             owner: schema.string().min(1).nullable(),
@@ -21,8 +21,8 @@ export const adopt = provisionedMethod
 /** Write the desired states and approval threshold the resource's owner of intent sets, beside its declared specification. */
 export const specify = provisionedMethod
     .mutation({
-        permission: null,
-        isSystem: true,
+        permission: "declare",
+        isInternal: true,
         input: schema.object({
             /** The desired states the active consumers need. */
             states: schema.array(schema.record(schema.string(), schema.json())),

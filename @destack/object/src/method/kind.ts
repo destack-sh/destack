@@ -20,6 +20,7 @@ export const METHOD_KINDS = [
     "withdraw",
     "explain",
     "detach",
+    "adopt",
     "apply",
     "bind",
     "revert",
@@ -40,4 +41,5 @@ export type TargetKind =
     | "transition"
     | "edit"
     | "detach"
+    | "adopt"
     | "revert";

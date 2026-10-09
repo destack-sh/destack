@@ -36,7 +36,7 @@ export function recordColumns<const Prefix extends string>(prefix: Prefix) {
     };
 }
 
-/** Declare the identifier column of objects named by their natural key. */
+/** Declare the identifier column of objects identified by their natural key. */
 export function keyColumn<Key extends schema.Schema<string>>(key: Key) {
     return validated("id", key).primaryKey();
 }
@@ -49,17 +49,17 @@ export type RecordBuilderMap<Prefix extends string = string, Key = undefined> =
           }
         : ReturnType<typeof recordColumns<Prefix>>;
 
-/** Declare the column naming an ephemeral object's writing client. */
-export function clientColumns() {
+/** Declare the column holding an ephemeral object's writer. */
+export function writerColumns() {
     return {
-        /** The identifier of the client that wrote the object. */
-        client: text("client").notNull(),
+        /** The identifier of the client instance that wrote the object. */
+        writerId: text("writer_id").notNull(),
     };
 }
 
-/** The column naming an ephemeral object's writing client. */
-export type ClientBuilderMap<Storage> = Storage extends "ephemeral"
-    ? ReturnType<typeof clientColumns>
+/** The column holding an ephemeral object's writer. */
+export type WriterBuilderMap<Storage> = Storage extends "ephemeral"
+    ? ReturnType<typeof writerColumns>
     : {};
 
 /** The record trait every object takes. */
@@ -68,7 +68,7 @@ export const record: Trait<true> = {
     columns: (_options, object) => ({
         ...recordColumns(object.identity),
         ...(object.key === undefined ? {} : { id: keyColumn(object.key) }),
-        ...(object.storage === "ephemeral" ? clientColumns() : {}),
+        ...(object.storage === "ephemeral" ? writerColumns() : {}),
     }),
     constraints: () => [],
     // cascade durable objects' relationships

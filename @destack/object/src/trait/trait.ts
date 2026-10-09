@@ -1,4 +1,10 @@
-import type { AccessExpression, Policy, RelationInput, TableMapping } from "@destack/access";
+import {
+    none,
+    type AccessExpression,
+    type Policy,
+    type RelationInput,
+    type TableMapping,
+} from "@destack/access";
 import type { schema } from "@destack/schema";
 import type { Column, ColumnBuilder, Table, TableConstraint, TableOptions } from "@destack/db";
 import type { PackageId } from "@destack/package";
@@ -16,7 +22,7 @@ export interface TraitObject {
     readonly name: string;
     /** The prefix of the object's identifiers. */
     readonly identity: string;
-    /** The package naming the object's policy. */
+    /** The package identifying the object's policy. */
     readonly packageId: PackageId;
     /** The object's table, once derived. */
     readonly table: () => Table;
@@ -51,7 +57,7 @@ export interface Gated<Permission extends string = string> {
     readonly by: Permission;
 }
 
-/** The permission a gated trait's definition names, undefined without the trait. */
+/** The permission a gated trait's definition sets, undefined without the trait. */
 export type GateOf<Definition> =
     Definition extends Gated<infer Permission> ? Permission : undefined;
 
@@ -61,7 +67,7 @@ export type Erasure<Definition, Keys extends keyof ObjectDefinition> = Omit<Defi
 
 /** A capability object types opt into. */
 export interface Trait<Options> {
-    /** The definition key naming the trait, absent for implied traits. */
+    /** The definition key enabling the trait, absent for implied traits. */
     readonly key?: keyof ObjectTraits | "attachments";
     /** Whether only durable objects take the trait. */
     readonly isDurable?: true;
@@ -87,4 +93,14 @@ export interface Trait<Options> {
     methods(options: Options, declared: Readonly<Record<string, Method>>): Record<string, Method>;
     /** Refuse an assembled object type the trait cannot serve. */
     validate?(options: Options, object: ObjectType, definition: ObjectDefinition): void;
+}
+
+/** Derive the permissions a trait's methods require that the type leaves undeclared, which only roles grant. */
+export function traitPermissions(
+    declared: readonly string[],
+    derived: readonly string[],
+): TraitPolicy {
+    const undeclared = derived.filter((name) => !declared.includes(name));
+
+    return { permissions: Object.fromEntries(undeclared.map((name) => [name, none()])) };
 }

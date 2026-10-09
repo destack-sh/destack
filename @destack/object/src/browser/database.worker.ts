@@ -1,7 +1,7 @@
 import { broadcastChannel } from "@destack/db";
 import { serveBrowserDatabase } from "@destack/db/browser";
 
-// serve the named database to every tab on its channel
+// serve the requested database to every tab on its channel
 self.addEventListener(
     "message",
     (event: MessageEvent<{ readonly name: string }>) => {

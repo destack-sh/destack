@@ -29,6 +29,7 @@ import {
     type Scalar,
     Expression,
     DatabaseError,
+    declareState,
     type LogPosition,
     Snapshot,
 } from "@destack/db";
@@ -91,8 +92,11 @@ const STANDARD_KINDS: ReadonlySet<string> = new Set(["create", "update", "delete
 /** The default retry of transient failures: a second, doubling, at most a minute. */
 const RETRY = RetryPolicy.of({ maximumInterval: 60_000 });
 
-/** The hexadecimal digest digits naming a query: 64 bits, safe among a client's queries. */
+/** The hexadecimal digest digits identifying a query: 64 bits, safe among a client's queries. */
 const QUERY_NAME_LENGTH = 16;
+
+/** The storages kept apart from the durable copy: ephemeral and external copies, and local objects. */
+const SEPARATE_STORAGES = ["ephemeral", "external", "local"] as const;
 
 /** The default local log window, in milliseconds: a minute, far above live queries' lag. */
 const LOCAL_LOG_MILLISECONDS = 60_000;
@@ -168,7 +172,7 @@ export interface Mutation {
     call<Object extends ObjectType>(object: Object): MutationCalls<Object>;
 }
 
-/** A mutation that also calls methods by name, as recorded calls name them. */
+/** A mutation that also calls methods by name, as recorded calls refer to them. */
 interface ReplayMutation extends Mutation {
     /** Call an object type's mutating method by name within the mutation, returning its prediction. */
     invoke(object: ObjectType, name: string, input: JsonObject): Promise<unknown>;
@@ -252,6 +256,40 @@ export interface ObjectAccess<Objects extends Readonly<Record<string, ObjectType
     readonly mutate: ObjectMutators<Objects>;
 }
 
+/** How a client keeps one scope's objects in its local database. */
+export interface ObjectClientOptions<Objects extends Readonly<Record<string, ObjectType>>> {
+    /** The local database. */
+    readonly database: DatabaseConnection;
+    /** The object types to keep, by key. */
+    readonly objects: Objects;
+    /** The package serving the objects, required when they span packages. */
+    readonly package?: Package;
+    /** The scope's branch types, among the objects, to check out and edit branches. */
+    readonly branch?: BranchType;
+    /** The scope whose objects to keep. */
+    readonly scope: string;
+    /** The calling principal. */
+    readonly caller: Subject;
+    /** The client the database lives on, whose partition keeps local objects scoped to clients. */
+    readonly client?: Subject;
+    /** Where and how to reach the service serving the objects. */
+    readonly endpoint: ClientOptions;
+    /** Where and how to reach the machine serving a moved scope now. */
+    readonly reconnect: (machine: string) => ClientOptions;
+    /** The party sharing the database, a new one by default. */
+    readonly origin?: string;
+    /** How often merged changes arrive, such as for a background tab. */
+    readonly refresh?: { readonly every: Duration };
+    /** The most object rows the local copy keeps, absent for no limit. */
+    readonly storage?: { readonly rows: number };
+    /** How long the local log keeps changes, a minute by default. */
+    readonly log?: { readonly keep: Duration };
+    /** How transient failures retry, over the defaults. */
+    readonly retry?: Partial<RetryPolicy>;
+    /** The most mutations one push sends, the server's most by default. */
+    readonly push?: { readonly mutations: number };
+}
+
 /** One scope's objects on a client. */
 export class ObjectClient<
     Objects extends Readonly<Record<string, ObjectType>> = Readonly<Record<string, ObjectType>>,
@@ -271,6 +309,8 @@ export class ObjectClient<
     readonly scope: string;
     /** The calling principal. */
     readonly caller: Subject;
+    /** The principals whose partitions of the client's database keep local objects: the caller, and the client once known. */
+    readonly #owners: readonly Subject[];
     /** The copy of the scope's durable objects. */
     readonly replica: sync.Replica;
     /** The copy of the scope's ephemeral objects, absent when the client keeps none. */
@@ -281,8 +321,8 @@ export class ObjectClient<
     readonly access: sync.Replica;
     /** The authorizer deciding the caller's checks over the copies. */
     readonly #authorizer: Authorizer;
-    /** The client's own identifier, owning its ephemeral objects. */
-    readonly clientId: string;
+    /** The identifier of this client instance, the writer owning its ephemeral objects. */
+    readonly writerId: string;
     /** What the copy shows over the server's rows: queued mutations and the checked-out branch. */
     readonly prediction: sync.Prediction;
     /** The scope's branch types, absent for a client without branches. */
@@ -293,14 +333,12 @@ export class ObjectClient<
     readonly #undoStack: UndoStack;
     /** The party sharing the database, such as one browser tab. */
     readonly origin: string;
-    /** The replica procedures of the cell serving the scope now. */
+    /** The replica procedures of the machine serving the scope now. */
     #service: Client<ReplicaProcedures>;
-    /** Connect to the replica procedures of the cell serving a moved scope now. */
-    readonly #reconnect: (cell: string) => Client<ReplicaProcedures>;
-    /** Aborts the streams following the cell that served a moved scope before. */
+    /** Connect to the replica procedures of the machine serving a moved scope now. */
+    readonly #reconnect: (machine: string) => Client<ReplicaProcedures>;
+    /** Aborts the streams following the machine that served a moved scope before. */
     #moves = new AbortController();
-    /** The input field naming the scope. */
-    readonly #field: string | undefined;
     /** The local feed of watched queries. */
     readonly #local: sync.Feed;
     /** The listeners of the events sent to each object, by topic. */
@@ -337,22 +375,7 @@ export class ObjectClient<
     #report: ((error: unknown) => void) | undefined;
 
     /** Keep one scope's objects in a local database with existing tables. */
-    private constructor(options: {
-        readonly database: DatabaseConnection;
-        readonly objects: Objects;
-        readonly package?: Package;
-        readonly branch?: BranchType;
-        readonly scope: string;
-        readonly caller: Subject;
-        readonly endpoint: ClientOptions;
-        readonly reconnect: (cell: string) => ClientOptions;
-        readonly origin: string;
-        readonly refresh?: { readonly every: Duration };
-        readonly storage?: { readonly rows: number };
-        readonly log?: { readonly keep: Duration };
-        readonly retry?: Partial<RetryPolicy>;
-        readonly push?: { readonly mutations: number };
-    }) {
+    private constructor(options: ObjectClientOptions<Objects> & { readonly origin: string }) {
         // keep the options, refusing a push larger than the server takes
         this.database = options.database;
         this.#pushMutations = pushMutationsOf(options.push);
@@ -364,35 +387,30 @@ export class ObjectClient<
                 : Duration.milliseconds(options.log.keep);
         this.#retry = { ...RETRY, ...options.retry };
         this.origin = options.origin;
+        this.writerId = RequestId.create();
         this.#undoStack = new UndoStack(this);
+
+        // keep the objects of the scope for the caller, and the principals keeping local objects
         this.objects = ObjectType.served(Object.values(options.objects));
         this.query = ObjectClient.#queries(this, options.objects);
         this.scope = options.scope;
         this.caller = options.caller;
-        const served = ObjectClient.#served(this.objects, options.package);
-        this.#service = ObjectClient.#replica(served, options.endpoint);
-        this.#reconnect = (cell) => ObjectClient.#replica(served, options.reconnect(cell));
+        this.#owners = [options.caller, ...(options.client === undefined ? [] : [options.client])];
 
-        // require one scope field, and copy durable objects with their predictions
-        this.#field = scopeFieldOf(this.objects);
+        // reach the package serving the copied objects, requiring one scope field among them
+        const copied = this.objects.filter((object) => object.storage !== "local");
+        const served = ObjectClient.#served(copied, options.package);
+        this.#service = ObjectClient.#replica(served, options.endpoint);
+        this.#reconnect = (machine) => ObjectClient.#replica(served, options.reconnect(machine));
+        requireOneScopeField(copied);
+
+        // copy durable objects with their predictions, and ephemeral and external objects apart
         const tables = storedTables(this.objects, "durable");
         this.replica = new sync.Replica({ name: "objects", scope: options.scope, tables });
         this.branch = options.branch;
-        this.prediction = new sync.Prediction({
-            tables,
-            predict: (transaction, pending) => this.#replay(transaction, pending),
-            reads: (call) => this.#reads(call, tables),
-            ...(options.branch === undefined
-                ? {}
-                : { branches: ObjectClient.#branchSource(options.branch, this.objects) }),
-        });
-
-        // copy ephemeral and external objects apart
-        const ephemeral = storedTables(this.objects, "ephemeral");
-        const external = storedTables(this.objects, "external");
-        this.clientId = RequestId.create();
-        this.ephemeral = separateReplica("ephemeral", options.scope, ephemeral);
-        this.external = separateReplica("external", options.scope, external);
+        this.prediction = this.#prediction(tables, options.branch);
+        this.ephemeral = separateReplica("ephemeral", options.scope, this.#stored("ephemeral"));
+        this.external = separateReplica("external", options.scope, this.#stored("external"));
 
         // copy the caller's access rows, and decide its checks over the copies
         this.access = new sync.Replica({
@@ -404,12 +422,28 @@ export class ObjectClient<
             options.database.copies(table),
         );
 
-        // read every copy through one local feed
-        this.#local = new sync.Feed(
-            options.database,
-            [...tables, ...ephemeral, ...external, sync.replicaResult],
-            { upstream: this.#upstream(this.objects) },
-        );
+        // read every copy and the local objects through one local feed
+        const others = SEPARATE_STORAGES.flatMap((storage) => this.#stored(storage));
+        this.#local = new sync.Feed(options.database, [...tables, ...others, sync.replicaResult], {
+            upstream: this.#upstream(this.objects),
+        });
+    }
+
+    /** List the tables of the client's objects of one storage. */
+    #stored(storage: ObjectStorage): Table[] {
+        return storedTables(this.objects, storage);
+    }
+
+    /** Show the server's rows with the queued mutations and the checked-out branch over them. */
+    #prediction(tables: readonly Table[], branch: BranchType | undefined): sync.Prediction {
+        return new sync.Prediction({
+            tables,
+            predict: (transaction, pending) => this.#replay(transaction, pending),
+            reads: (call) => this.#reads(call, tables),
+            ...(branch === undefined
+                ? {}
+                : { branches: ObjectClient.#branchSource(branch, this.objects) }),
+        });
     }
 
     /** Measure each query through the copy with its root. */
@@ -446,8 +480,11 @@ export class ObjectClient<
                     .map((copy) => copy.groupOf(change))
                     .find((group) => group !== undefined),
             isMeasured: (node) => {
-                // measure at the source only nodes within the root's storage
+                // measure here every node of local objects, and at the source only nodes within the root's storage
                 const storage = storages.get(rootOf(node).table);
+                if (storage === "local") {
+                    return false;
+                }
                 for (let at: sync.Node | undefined = node; at !== undefined; at = at.parent) {
                     if (storages.get(at.table) !== storage) {
                         return false;
@@ -460,43 +497,15 @@ export class ObjectClient<
     }
 
     /** Create the local tables and keep one scope's objects in the database. */
-    static async open<const Objects extends Readonly<Record<string, ObjectType>>>(options: {
-        /** The local database. */
-        readonly database: DatabaseConnection;
-        /** The object types to keep, by key. */
-        readonly objects: Objects;
-        /** The package serving the objects, required when they span packages. */
-        readonly package?: Package;
-        /** The scope's branch types, among the objects, to check out and edit branches. */
-        readonly branch?: BranchType;
-        /** The scope whose objects to keep. */
-        readonly scope: string;
-        /** The calling principal. */
-        readonly caller: Subject;
-        /** Where and how to reach the service serving the objects. */
-        readonly endpoint: ClientOptions;
-        /** Where and how to reach the cell serving a moved scope now. */
-        readonly reconnect: (cell: string) => ClientOptions;
-        /** The party sharing the database, a new one by default. */
-        readonly origin?: string;
-        /** Whether another party created the local tables. */
-        readonly isMigrated?: boolean;
-        /** How often merged changes arrive, such as for a background tab. */
-        readonly refresh?: { readonly every: Duration };
-        /** The most object rows the local copy keeps, absent for no limit. */
-        readonly storage?: { readonly rows: number };
-        /** How long the local log keeps changes, a minute by default. */
-        readonly log?: { readonly keep: Duration };
-        /** How transient failures retry, over the defaults. */
-        readonly retry?: Partial<RetryPolicy>;
-        /** The most mutations one push sends, the server's most by default. */
-        readonly push?: { readonly mutations: number };
-    }): Promise<ObjectClient<Objects>> {
+    static async open<const Objects extends Readonly<Record<string, ObjectType>>>(
+        options: ObjectClientOptions<Objects> & {
+            /** Whether another party created the local tables. */
+            readonly isMigrated?: boolean;
+        },
+    ): Promise<ObjectClient<Objects>> {
         // create the local tables
         if (options.isMigrated !== true) {
-            await options.database.migrate(ObjectClient.tables(options.objects), {
-                isReplica: true,
-            });
+            await ObjectClient.migrate(options.database, options.objects);
         }
 
         return new ObjectClient({
@@ -548,7 +557,7 @@ export class ObjectClient<
 
     /** Read the package serving the objects: the one they share, or the one the client sets. */
     static #served(objects: readonly ObjectType[], named: Package | undefined): Package {
-        // take the named package, or require the objects to share one
+        // take the given package, or require the objects to share one
         const packages = new Map(objects.map((object) => [object.package.id, object.package]));
         const [only, ...others] = packages.values();
         if (named !== undefined) {
@@ -596,6 +605,48 @@ export class ObjectClient<
         ];
     }
 
+    /**
+     * Create or migrate the tables a client's local database keeps for some object types.
+     *
+     * Copies migrate as replicas, and local objects' own tables in full, through their package's conversions.
+     */
+    static async migrate(
+        database: DatabaseConnection,
+        objects: Readonly<Record<string, ObjectType>>,
+    ): Promise<void> {
+        const { copied, local } = ObjectClient.#divide(objects);
+        await database.migrate(copied, {
+            isReplica: true,
+            states: [declareState(local, database.dialect)],
+        });
+    }
+
+    /** List the tables of a client's local database with an unapplied declaration, by name. */
+    static async unapplied(
+        database: DatabaseConnection,
+        objects: Readonly<Record<string, ObjectType>>,
+    ): Promise<string[]> {
+        const { copied, local } = ObjectClient.#divide(objects);
+
+        return [
+            ...(await database.unapplied(copied, { isReplica: true })),
+            ...(await database.unapplied(local)),
+        ];
+    }
+
+    /** Split a client's tables into the copies' and the local objects' own. */
+    static #divide(objects: Readonly<Record<string, ObjectType>>): {
+        readonly copied: Table[];
+        readonly local: Table[];
+    } {
+        const local = storedTables(ObjectType.served(Object.values(objects)), "local");
+
+        return {
+            copied: ObjectClient.tables(objects).filter((table) => !local.includes(table)),
+            local,
+        };
+    }
+
     /** Read and change some of the client's object types by key, refusing types the client does not keep. */
     of<const Selected extends Readonly<Record<string, ObjectType>>>(
         objects: Selected,
@@ -618,15 +669,17 @@ export class ObjectClient<
         return this.#methods<Object>(object, true, (name, input) => this.call(object, name, input));
     }
 
-    /** Call an object type's mutating method by name as one mutation, as recorded calls name it. */
+    /** Call an object type's mutating method by name as one mutation, as recorded calls refer to it. */
     call(object: ObjectType, name: string, input: JsonObject): Submission<unknown> {
-        // send an ephemeral call at once
-        if (object.storage === "ephemeral") {
-            const sent = this.#send(this.#recordCall(object, name, input));
-            const confirmed = sent.then(() => {});
+        // send an ephemeral call at once, and write a local one at once in the client's database
+        if (object.storage === "ephemeral" || object.storage === "local") {
+            const call = this.#recordCall(object, name, input);
+            const done =
+                object.storage === "ephemeral" ? this.#send(call) : this.#write(object, name, call);
+            const confirmed = done.then(() => {});
             confirmed.catch(() => {});
 
-            return { predicted: sent, confirmed };
+            return { predicted: done, confirmed };
         }
 
         // predict the call alone, on the main line for a branch's own methods
@@ -665,10 +718,10 @@ export class ObjectClient<
                     ? undefined
                     : await this.prediction.checkedOut(database);
                 const invoke = async (object: ObjectType, name: string, input: JsonObject) => {
-                    // reject ephemeral objects, and branch calls on a branch
-                    if (object.storage === "ephemeral") {
+                    // reject ephemeral and local objects, and branch calls on a branch
+                    if (object.storage === "ephemeral" || object.storage === "local") {
                         throw new TypeError(
-                            `ephemeral object ${object.name} is written one call at a time`,
+                            `${object.storage} object ${object.name} is written one call at a time`,
                         );
                     } else if (checkedOut !== undefined && this.#isBranchType(object)) {
                         throw new TypeError(
@@ -717,8 +770,12 @@ export class ObjectClient<
         }, false);
     }
 
-    /** Call an object type's reading methods on the server. */
+    /** Call an object type's reading methods on the server, refusing local objects no server keeps. */
     read<Object extends ObjectType>(object: Object): Reader<Object> {
+        if (object.storage === "local") {
+            throw new TypeError(`local object ${object.name} is read through its queries`);
+        }
+
         return this.#methods<Object>(object, false, (name, input): Promise<unknown> =>
             this.#call((service) =>
                 service.call({ scope: this.scope, call: this.#recordCall(object, name, input) }),
@@ -922,7 +979,7 @@ export class ObjectClient<
                           shape: EPHEMERAL_SHAPE,
                           parameters: async () => ({
                               queries: await this.#subscribed("ephemeral"),
-                              client: this.clientId,
+                              writerId: this.writerId,
                           }),
                       },
                   ]),
@@ -1128,21 +1185,22 @@ export class ObjectClient<
         query: OpenQueryOptions,
         options: SubscribeOptions,
     ): LiveQuery<readonly sync.AggregateRow[]> {
-        // follow the query, reading its groups through the copy with its predictions
+        // follow the query, reading its groups here for local objects, else through the copy with its predictions
         const followed = this.#followed(object, query, options);
         const { compiled, named } = followed;
-        const replica = this.#replicaOf(object.storage);
         const isDurable = object.storage === "durable";
 
         return {
             ready: followed.ready,
             read: async () =>
-                replica.results(
-                    this.database,
-                    await named,
-                    compiled,
-                    isDurable ? this.prediction : undefined,
-                ),
+                object.storage === "local"
+                    ? (await this.#dataflow(await named, compiled)).results(await named)
+                    : this.#replicaOf(object.storage).results(
+                          this.database,
+                          await named,
+                          compiled,
+                          isDurable ? this.prediction : undefined,
+                      ),
             watch: (signal) => this.#watchResults(named, compiled, signal),
             close: () => followed.close(),
         };
@@ -1242,7 +1300,7 @@ export class ObjectClient<
     async release(object: ObjectType, query: OpenQueryOptions = {}): Promise<void> {
         // find the query's closed subscriptions
         const split = this.#split(object, query);
-        const name = (await Digest.json(split.query)).slice(0, QUERY_NAME_LENGTH);
+        const name = await queryName(split.query);
         const closed = await this.database
             .select({ id: subscription.id })
             .from(subscription)
@@ -1449,8 +1507,9 @@ export class ObjectClient<
 
     /** Count the copy's object rows. */
     async #count(): Promise<number> {
-        // count on from the last count through the log
-        const tables = this.objects.map((object) => object.table);
+        // count on from the last count through the log, leaving out local objects
+        const copied = this.objects.filter((object) => object.storage !== "local");
+        const tables = copied.map((object) => object.table);
         if (this.#counted !== undefined) {
             try {
                 let { sequence, rows } = this.#counted;
@@ -1480,9 +1539,7 @@ export class ObjectClient<
             async (transaction) => {
                 // read sequence and counts together
                 const sequence = (await transaction.log.position()).sequence;
-                const counts = this.objects.map(
-                    (object) => sql`(SELECT count(*) FROM ${object.table})`,
-                );
+                const counts = copied.map((object) => sql`(SELECT count(*) FROM ${object.table})`);
                 const [total] = await transaction.execute(
                     sql`SELECT ${sql.join(counts, sql` + `)} AS rows`,
                     schema.object({
@@ -1530,7 +1587,7 @@ export class ObjectClient<
         );
     }
 
-    /** Keep a live union of several queries in one order and limit, each entry naming its member. */
+    /** Keep a live union of several queries in one order and limit, each entry carrying its member. */
     union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
         members: Members,
         options: UnionOptions<MemberItem<Members>>,
@@ -1630,6 +1687,11 @@ export class ObjectClient<
 
     /** Read a query's items from the local copy. */
     async #items(name: string, query: sync.Query): Promise<readonly Item[]> {
+        return (await this.#dataflow(name, query)).read(name);
+    }
+
+    /** Load a query over the local database through the local feed's upstream. */
+    async #dataflow(name: string, query: sync.Query): Promise<sync.Dataflow> {
         // read through the local feed's upstream
         const upstream = present(this.#local.upstream, "the local feed's upstream");
         const dataflow = new sync.Dataflow(
@@ -1644,7 +1706,7 @@ export class ObjectClient<
         );
         await dataflow.load(await sync.View.latest(this.database));
 
-        return dataflow.read(name);
+        return dataflow;
     }
 
     /** Split a query by storage: the query its own storage follows, and lookups of the other storage's rows by key. */
@@ -1737,18 +1799,24 @@ export class ObjectClient<
 
     /** Follow a storage query and the lookups its rows key. */
     #subscribe(split: StorageQuery, root: string | undefined, signal: AbortSignal): Subscription {
-        // subscribe the storage query
+        // key a local query, or subscribe a copied one
         const id = RequestId.create();
-        const named = this.#insertSubscription(split, id, root);
+        const isLocal = split.object.storage === "local";
+        const named = isLocal ? queryName(split.query) : this.#insertSubscription(split, id, root);
 
-        // wait until the copy subscribes to it
-        const replica = this.#replicaOf(split.object.storage);
+        // read a local query at once, or wait until the copy subscribes to it
         const copied = named.then(async (name) => {
-            await this.database.log.until(
-                async () =>
-                    Object.hasOwn(queriesOf(await replica.subscribed(this.database)) ?? {}, name),
-                signal,
-            );
+            if (!isLocal) {
+                const replica = this.#replicaOf(split.object.storage);
+                await this.database.log.until(
+                    async () =>
+                        Object.hasOwn(
+                            queriesOf(await replica.subscribed(this.database)) ?? {},
+                            name,
+                        ),
+                    signal,
+                );
+            }
         });
         const lookups = new Map<Lookup, LookupSubscription>();
         const ids = () => [id, ...[...lookups.values()].flatMap((entry) => entry.subscribed.ids())];
@@ -1787,7 +1855,7 @@ export class ObjectClient<
         id: string,
         root: string | undefined,
     ): Promise<string> {
-        const name = (await Digest.json(split.query)).slice(0, QUERY_NAME_LENGTH);
+        const name = await queryName(split.query);
         await this.database.insert(subscription).values({
             id,
             origin: this.origin,
@@ -1879,7 +1947,14 @@ export class ObjectClient<
             await transaction.transaction(async (savepoint) => {
                 for (const entry of pending.calls) {
                     const { object, name } = this.method(entry.method);
-                    await this.#predict(savepoint, object, name, Call.upgrade(object, name, entry));
+                    await this.#predict(
+                        savepoint,
+                        object,
+                        name,
+                        schema
+                            .record(schema.string(), schema.json())
+                            .parse(Call.upgrade(object, name, entry)),
+                    );
                 }
             });
         } catch (error) {
@@ -1958,25 +2033,33 @@ export class ObjectClient<
 
         // split off routing fields
         const { id, revision, ...rest } = input;
-        const fields = this.#field === undefined ? rest : omitField(rest, this.#field);
+        const field = object.route.field;
+        const fields = field === undefined ? rest : omitField(rest, field);
         const targetId = id === undefined ? undefined : schema.string().parse(id);
+        const scope = this.#scopeOf(object);
         const call = new Call({
             object,
             name,
             method,
-            scope: this.scope,
-            chain: await this.replica.chain(database),
+            scope,
+            chain: object.storage === "local" ? [scope] : await this.replica.chain(database),
             input: fields,
             ...(targetId === undefined ? {} : { id: targetId }),
             database,
-            caller: this.caller,
+            caller:
+                this.caller === undefined
+                    ? { subjects: [] }
+                    : { subject: this.caller, subjects: [this.caller] },
             now: Date.now(),
             objects: this.objects,
-            run: (invoked, invokedName, invokedInput) =>
-                this.#predict(database, invoked, invokedName, invokedInput),
+            run: (entry, _caller, mutates) => {
+                const nested = Call.resolve(this.objects, entry, mutates, false);
+
+                return this.#predict(database, nested.object, nested.name, nested.input);
+            },
         });
 
-        // load the target at the named revision
+        // load the target at the given revision
         const table = object.table;
         const [target] =
             method.target && targetId !== undefined
@@ -1995,7 +2078,7 @@ export class ObjectClient<
         return method.execute(target === undefined ? call : call.with({ target: target }));
     }
 
-    /** Call the replica procedures, forwarding a call once to the cell serving a moved scope now. */
+    /** Call the replica procedures, forwarding a call once to the machine serving a moved scope now. */
     async #call<Value>(
         send: (service: Client<ReplicaProcedures>) => Promise<Value>,
     ): Promise<Value> {
@@ -2012,7 +2095,7 @@ export class ObjectClient<
         }
     }
 
-    /** Reconnect to the cell serving a moved scope now, returning whether the failure was a move. */
+    /** Reconnect to the machine serving a moved scope now, returning whether the failure was a move. */
     #redirect(error: unknown, service: Client<ReplicaProcedures>): boolean {
         // ignore other failures
         const moved = Moved.of(error);
@@ -2022,7 +2105,7 @@ export class ObjectClient<
 
         // reconnect once per move
         if (service === this.#service) {
-            this.#service = this.#reconnect(moved.cell);
+            this.#service = this.#reconnect(moved.machine);
             this.#moves.abort();
             this.#moves = new AbortController();
         }
@@ -2037,7 +2120,7 @@ export class ObjectClient<
             service.push({
                 scope: this.scope,
                 mutations: [{ id: RequestId.create(), calls: [call] }],
-                client: this.clientId,
+                writerId: this.writerId,
             }),
         );
 
@@ -2051,6 +2134,32 @@ export class ObjectClient<
         return result;
     }
 
+    /** Write one local call in the client's database, returning its result. */
+    #write(object: ObjectType, name: string, call: sync.Call): Promise<unknown> {
+        return this.database.transaction((transaction) =>
+            this.#predict(transaction, object, name, call.input),
+        );
+    }
+
+    /** Read the scope an object type's objects live in here: the client's scope, or a local type's partition. */
+    #scopeOf(object: ObjectType): string {
+        // keep copied objects in the client's scope
+        if (object.storage !== "local") {
+            return this.scope;
+        }
+
+        // keep local objects in the partition of the principal their scope type stands for
+        const type = present(object.scopes[0], `the scope type of local object ${object.name}`);
+        const owner = this.#owners.find((subject) => type.policy.is(subject));
+        if (owner === undefined) {
+            throw new TypeError(
+                `the client has no ${type.name} keeping local object ${object.name}`,
+            );
+        }
+
+        return owner.id;
+    }
+
     /** Record a call with its scope and a generated identifier for creations. */
     #recordCall(object: ObjectType, name: string, input: JsonObject): sync.Call {
         const method = object.method(name);
@@ -2059,15 +2168,17 @@ export class ObjectClient<
                 ? { id: object.generateId() }
                 : {};
 
-        return Call.record(object, name, { ...input, ...generated, ...this.#scoped() });
+        return Call.record(object, name, { ...input, ...generated, ...this.#scoped(object) });
     }
 
-    /** Name the client's scope in its route field. */
-    #scoped(): Record<string, string> {
-        return this.#field === undefined ? {} : { [this.#field]: this.scope };
+    /** Place an object type's scope here in its route field. */
+    #scoped(object: ObjectType): Record<string, string> {
+        const field = object.route.field;
+
+        return field === undefined ? {} : { [field]: this.#scopeOf(object) };
     }
 
-    /** Name the tables a call's prediction may read, by SQL name. */
+    /** List the tables a call's prediction may read, by SQL name. */
     #reads(call: sync.Call, tables: readonly Table[]): readonly string[] {
         // read the object's and parent's tables for a standard method, else every table
         const { object, method } = this.method(call.method);
@@ -2080,7 +2191,7 @@ export class ObjectClient<
         return read.map((table) => table[TABLE].sqlName);
     }
 
-    /** Find the object type and method a recorded call names. */
+    /** Find the object type and method of a recorded call. */
     method(named: string): {
         readonly object: ObjectType;
         readonly name: string;
@@ -2097,25 +2208,29 @@ export class ObjectClient<
         return { object, name, method: object.method(name) };
     }
 
-    /** Pick the copy of a storage's objects, refusing a storage the client keeps none of. */
+    /** Pick the copy of a storage's objects, refusing a storage the client keeps none of, and local objects no copy keeps. */
     #replicaOf(storage: ObjectStorage): sync.Replica {
         // pick the storage's copy
         const replicas = {
             durable: this.replica,
             ephemeral: this.ephemeral,
             external: this.external,
+            local: undefined,
         };
         const replica = replicas[storage];
         if (replica === undefined) {
-            throw new TypeError(`the client keeps no ${storage} objects`);
+            throw new TypeError(`the client keeps no copy of ${storage} objects`);
         }
 
         return replica;
     }
 
-    /** Compile one object query of the client's scope. */
+    /** Compile one object query of the scope its objects live in here. */
     #compile(query: ObjectQuery): sync.Query {
-        const [compiled] = Object.values(ObjectType.queries(this.objects, { query }, [this.scope]));
+        // compile in the scope of the query's object type
+        const object = this.objects.find((type) => type.name === query.object);
+        const chain = [this.#scopeOf(present(object, `the client's object ${query.object}`))];
+        const [compiled] = Object.values(ObjectType.queries(this.objects, { query }, chain));
 
         return present(compiled, `the compiled query of ${query.object}`);
     }
@@ -2141,7 +2256,7 @@ export class ObjectClient<
     /**
      * Expose an object type's mutating or reading methods through one call function.
      *
-     * @construct each key is one of the object's non-system methods of the chosen mutability, calling through the function.
+     * @construct each key is one of the object's routed methods of the chosen mutability, calling through the function.
      */
     #methods(
         object: ObjectType,
@@ -2155,7 +2270,7 @@ export class ObjectClient<
 
         return Object.fromEntries(
             Object.entries(object.methods)
-                .filter(([, method]) => method.mutates === mutates && method.isSystem !== true)
+                .filter(([, method]) => method.mutates === mutates && method.isInternal !== true)
                 .map(([name]) => [name, (input: JsonObject) => call(name, input)]),
         );
     }
@@ -2195,10 +2310,10 @@ interface ClientCopy {
     readonly replica: sync.Replica;
     /** The followed shape. */
     readonly shape: string;
-    /** Read the parameters to subscribe with now: the followed queries, and the writing client of ephemeral objects. */
+    /** Read the parameters to subscribe with now: the followed queries, and the writer of ephemeral objects. */
     parameters(): Promise<{
         readonly queries?: Readonly<Record<string, ObjectQuery>>;
-        readonly client?: string;
+        readonly writerId?: string;
     }>;
     /** The prediction rebased onto the copy, absent for copies nothing predicts. */
     readonly prediction?: sync.Prediction;
@@ -2220,7 +2335,7 @@ interface Lookup {
     readonly path: readonly string[];
     /** The looked-up objects' column with a key. */
     readonly column: string;
-    /** The parent rows' column naming the key. */
+    /** The parent rows' column holding the key. */
     readonly parent: string;
     /** The condition the join adds, such as an attachment's host type. */
     readonly where?: Condition;
@@ -2252,7 +2367,7 @@ interface Subscription {
     ids(): string[];
 }
 
-/** A lookup's subscription to the keys its rows named last. */
+/** A lookup's subscription to the keys its rows held last. */
 interface LookupSubscription {
     /** The canonical keys subscribed. */
     readonly keys: string;
@@ -2272,14 +2387,12 @@ function pushMutationsOf(push: { readonly mutations: number } | undefined): numb
     return mutations;
 }
 
-/** Read the one input field naming the scope of every kept object type. */
-function scopeFieldOf(objects: readonly ObjectType[]): string | undefined {
+/** Require one input field holding the scope of every copied object type, for a client keeping any. */
+function requireOneScopeField(objects: readonly ObjectType[]): void {
     const fields = new Set(objects.map((object) => object.route.field));
-    if (fields.size !== 1) {
+    if (fields.size > 1) {
         throw new TypeError("a client keeps object types that name their scope in one field");
     }
-
-    return [...fields][0];
 }
 
 /** List the tables of the object types kept in one storage. */
@@ -2296,7 +2409,7 @@ function separateReplica(
     return tables.length === 0 ? undefined : new sync.Replica({ name, scope, tables });
 }
 
-/** Read the distinct keys a lookup's parent rows name, in their JSON form, sorted. */
+/** Read the distinct keys a lookup's parent rows hold, in their JSON form, sorted. */
 function keysOf(rows: readonly Item[], lookup: Lookup): Exclude<Scalar, null>[] {
     // follow the include path
     let reached: readonly Item[] = rows;
@@ -2304,7 +2417,7 @@ function keysOf(rows: readonly Item[], lookup: Lookup): Exclude<Scalar, null>[] 
         reached = reached.flatMap((item) => item.with[name] ?? []);
     }
 
-    // collect the distinct keys the parent rows name, in their JSON form
+    // collect the distinct keys the parent rows hold, in their JSON form
     const column = lookup.target.object.table[TABLE].column(lookup.column).definition;
     const keys = new Set<Exclude<Scalar, null>>();
     for (const item of reached) {
@@ -2364,6 +2477,11 @@ function queriesOf(
     const queries = subscribed.parameters["queries"];
 
     return queries === undefined ? {} : SUBSCRIBED_QUERIES.parse(queries);
+}
+
+/** Name a storage query by a prefix of its content's digest. */
+async function queryName(query: ObjectQuery): Promise<string> {
+    return (await Digest.json(query)).slice(0, QUERY_NAME_LENGTH);
 }
 
 /** Decide whether stored queries are the queries given. */

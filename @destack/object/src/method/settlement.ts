@@ -1,3 +1,4 @@
+import type { ObjectStore } from "../server/store.ts";
 import { type DatabaseConnection, defineTable, integer, json, text } from "@destack/db";
 import { schema } from "@destack/schema";
 import type { ObjectType } from "../object/object.ts";
@@ -42,10 +43,12 @@ export class SettlementCall {
     readonly id: string | undefined;
     /** The idempotency key the external work ran under. */
     readonly idempotencyKey: string;
-    /** The database, read and written as the system. */
+    /** The database the store keeps the call's rows in. */
     readonly database: DatabaseConnection;
     /** When the settlement runs, in UTC epoch milliseconds. */
     readonly now: number;
+    /** The store settling the call, which the work's follow-ups run as its principal through. */
+    readonly store: Omit<ObjectStore, "router">;
 
     /** Keep the recorded call. */
     constructor(fields: {
@@ -56,6 +59,7 @@ export class SettlementCall {
         readonly idempotencyKey: string;
         readonly database: DatabaseConnection;
         readonly now: number;
+        readonly store: Omit<ObjectStore, "router">;
     }) {
         // keep the recorded fields
         this.object = fields.object;
@@ -65,6 +69,12 @@ export class SettlementCall {
         this.idempotencyKey = fields.idempotencyKey;
         this.database = fields.database;
         this.now = fields.now;
+        this.store = fields.store;
+    }
+
+    /** Read the store settling the call. */
+    requireStore(): Omit<ObjectStore, "router"> {
+        return this.store;
     }
 
     /** Read the object the call acted on or created, failing for a call without one. */

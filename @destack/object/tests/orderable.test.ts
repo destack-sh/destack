@@ -7,8 +7,8 @@ import { RequestId } from "@destack/service/request";
 import { testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, field, FractionalIndex } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 
 /** The space keeping the items and cards. */
@@ -33,7 +33,7 @@ const item = defineObject({
     }),
 });
 
-/** Cards ordered within the column their status names. */
+/** Cards ordered within the column their status refers to. */
 const card = defineObject({
     name: "card",
     plural: "cards",
@@ -62,7 +62,8 @@ async function serve(dialect: (typeof TEST_DIALECTS)[number]) {
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
-    return new ObjectServer({
+    return new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { item, card },
         database: storage.database,
         callKey: testCallKey,
@@ -73,20 +74,21 @@ async function serve(dialect: (typeof TEST_DIALECTS)[number]) {
 test.for(TEST_DIALECTS)(
     "append %s objects after their last sibling under each parent, list them in order and move one between two others",
     async (dialect) => {
-        const server = await serve(dialect);
+        const store = await serve(dialect);
         const context = userContext("user-1", spaceId);
         const create = (name: string, parentId?: string) =>
-            server.call(
-                item,
-                "create",
-                {
-                    spaceId,
-                    requestId: RequestId.create(),
-                    name,
-                    ...(parentId === undefined ? {} : { parentId }),
-                },
-                context,
-            );
+            store
+                .mutate(context.caller(), {
+                    id: RequestId.create(),
+                    calls: [
+                        item.call("create", {
+                            spaceId,
+                            name,
+                            ...(parentId === undefined ? {} : { parentId }),
+                        }),
+                    ],
+                })
+                .then(([written]) => written);
 
         // append two roots and three children of the first
         const first = await create("first");
@@ -99,20 +101,21 @@ test.for(TEST_DIALECTS)(
 
         // move the last child between the first two
         const [alpha, beta, gamma] = children;
-        await server.call(
-            item,
-            "update",
-            {
-                spaceId,
-                requestId: RequestId.create(),
-                id: present(gamma, "the third child").id,
-                position: FractionalIndex.place(alpha?.position, beta?.position),
-            },
-            context,
-        );
+        await store
+            .mutate(context.caller(), {
+                id: RequestId.create(),
+                calls: [
+                    item.call("update", {
+                        spaceId,
+                        id: present(gamma, "the third child").id,
+                        position: FractionalIndex.place(alpha?.position, beta?.position),
+                    }),
+                ],
+            })
+            .then(([written]) => written);
 
         // read each parent's children in order
-        const listed = await server.call(item, "list", { spaceId }, context);
+        const listed = await store.query(context.caller(), item.call("list", { spaceId }));
         const under = (parentId: string | null) =>
             listed.items
                 .filter((row) => (row.parentId ?? null) === parentId)
@@ -128,22 +131,22 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "append %s objects after the last one holding the same value of their ordering field",
     async (dialect) => {
-        const server = await serve(dialect);
+        const store = await serve(dialect);
         const context = userContext("user-1", spaceId);
         const create = (name: string, status: "todo" | "done") =>
-            server.call(
-                card,
-                "create",
-                { spaceId, requestId: RequestId.create(), name, status },
-                context,
-            );
+            store
+                .mutate(context.caller(), {
+                    id: RequestId.create(),
+                    calls: [card.call("create", { spaceId, name, status })],
+                })
+                .then(([written]) => written);
 
         // fill two columns in turns
         await create("write", "todo");
         await create("ship", "done");
         await create("review", "todo");
         await create("celebrate", "done");
-        const listed = await server.call(card, "list", { spaceId }, context);
+        const listed = await store.query(context.caller(), card.call("list", { spaceId }));
         const column = (status: string) =>
             listed.items.filter((row) => row.status === status).map((row) => row.name);
 

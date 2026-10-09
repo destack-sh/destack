@@ -70,12 +70,12 @@ function copy(party: Party): Sequence {
     return party.pending.reduce((sequence, next) => sequence.apply(next), party.seen);
 }
 
-/** Name an element of the base run. */
+/** Build an element of the base run. */
 function element(offset: number): Element {
     return { run: "base.1", offset };
 }
 
-/** Name an element of the first typed run. */
+/** Build an element of the first typed run. */
 function at(offset: number): Element {
     return { run: "a.1", offset };
 }

@@ -8,10 +8,11 @@ import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 import { userContext } from "./fixture/user.ts";
+import { request } from "./fixture/request.ts";
 
 /** The space containing the chores. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -48,7 +49,8 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, choreDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { chore },
             database: storage.database,
             callKey: testCallKey,
@@ -62,7 +64,13 @@ test.each(TEST_DIALECTS)(
             name: Name,
             input: Record<string, unknown>,
         ) =>
-            server.call(chore, name, { spaceId, requestId: RequestId.create(), ...input }, context);
+            request(
+                store,
+                chore,
+                name,
+                { spaceId, requestId: RequestId.create(), ...input },
+                context,
+            );
 
         // insert two home chores and one work chore of user-1, and one home chore of user-2
         await call("create", { list: "home", done: false });

@@ -18,12 +18,12 @@ import type { FieldColumn } from "../field/field.ts";
 import type { Trait } from "./trait.ts";
 
 import { move } from "../method/nested.ts";
-/** The parent a tree node names, null for a root. */
+/** The parent a tree node refers to, null for a root. */
 export const PARENT = schema.string().nullable();
 
-/** A parent of any type, in the scope of the object naming it. */
+/** A parent of any type, in the scope of the object referring to it. */
 export const ParentReference = defineSchema(ObjectReference.omit({ scope: true }));
-/** A parent of any type, in the scope of the object naming it. */
+/** A parent of any type, in the scope of the object referring to it. */
 export type ParentReference = schema.Infer<typeof ParentReference>;
 
 /** The options of nesting under a parent. */

@@ -112,13 +112,13 @@ export type ShareableMethodMap<Grant> = [Grant] extends [string]
               permission: string;
               mutates: false;
           }>;
-          readonly grant: Method<{ kind: "grant"; permission: null; mutates: true }>;
-          readonly revoke: Method<{ kind: "revoke"; permission: null; mutates: true }>;
+          readonly grant: Method<{ kind: "grant"; permission: string; mutates: true }>;
+          readonly revoke: Method<{ kind: "revoke"; permission: string; mutates: true }>;
           readonly invitations: Method<{ kind: "invitations"; permission: Grant; mutates: false }>;
-          readonly invite: Method<{ kind: "invite"; permission: null; mutates: true }>;
-          readonly accept: Method<{ kind: "accept"; permission: null; mutates: true }>;
-          readonly withdraw: Method<{ kind: "withdraw"; permission: null; mutates: true }>;
-          readonly explain: Method<{ kind: "explain"; permission: null; mutates: false }>;
+          readonly invite: Method<{ kind: "invite"; permission: string; mutates: true }>;
+          readonly accept: Method<{ kind: "accept"; permission: string; mutates: true }>;
+          readonly withdraw: Method<{ kind: "withdraw"; permission: string; mutates: true }>;
+          readonly explain: Method<{ kind: "explain"; permission: string; mutates: false }>;
       }
     : {};
 

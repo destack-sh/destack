@@ -13,9 +13,9 @@ import { RequestId } from "@destack/service/request";
 import { Server } from "@destack/service/server";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
 import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectExtension } from "../src/server/index.ts";
 import { user } from "./schema.ts";
-import { openSpace, space, unmoved } from "./fixture/space.ts";
+import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 import { aligned, present } from "@destack/schema";
 
@@ -58,7 +58,7 @@ const documentsDatabase = defineDatabase({
     tables: [...document.tables, journal],
 });
 
-/** Serve a space's documents to bearer-named users. */
+/** Serve a space's documents to bearer-identified users. */
 async function serveDocuments(dialect: Dialect) {
     // keep the space's documents
     const storage = await TestDatabase.create(dialect, documentsDatabase, { isMigrated: true });
@@ -66,12 +66,14 @@ async function serveDocuments(dialect: Dialect) {
     const database = storage.database;
     await openSpace(database, spaceId);
 
-    // authenticate each request as the user its bearer credential names
+    // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
-        ...ObjectServer.serve(documentsService, {
+        ...ObjectExtension.compose([ObjectExtension.of(documentsService, [])], {
+            origin: { package: documentsService.package, service: documentsService.name },
+            principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             database,
-        }),
+        }).services[0],
         audience,
         scope: spaceId,
         resources: new ResourceContext(),
@@ -247,7 +249,7 @@ test.for(TEST_DIALECTS)(
         });
         expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(text);
 
-        // refuse text in a plain update, and an edit naming a missing element
+        // refuse text in a plain update, and an edit referring to a missing element
         const replaced = {
             spaceId,
             id: created.id,

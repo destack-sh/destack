@@ -63,7 +63,7 @@ export class Sequence {
         });
     }
 
-    /** Translate a text change at offsets into edits naming elements. */
+    /** Translate a text change at offsets into edits referring to elements. */
     change(change: TextChange, run: string): SequenceEdit[] {
         // delete before inserting
         const deleted: SequenceEdit[] =

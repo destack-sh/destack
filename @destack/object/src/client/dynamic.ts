@@ -16,13 +16,13 @@ import {
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 
-/** The hexadecimal digest digits naming a watched query: 64 bits, safe among a client's watches. */
+/** The hexadecimal digest digits identifying a watched query: 64 bits, safe among a client's watches. */
 const QUERY_NAME_LENGTH = 16;
 
 /** The local log window of a watch, in milliseconds: a minute, far above a watch's lag. */
 const LOCAL_LOG_MILLISECONDS = 60_000;
 
-/** The input field naming the request a pushed call replays under. */
+/** The input field holding the request a pushed call replays under. */
 const REQUEST_FIELD = "requestId";
 
 /** The rows a list method answers. */
@@ -79,7 +79,7 @@ export interface DynamicObjectClientOptions {
     readonly package: Package;
     /** The object types the installation serves. */
     readonly objects: readonly DynamicObject[];
-    /** The scope the calls and watches name, such as a space. */
+    /** The scope the calls and watches carry, such as a space. */
     readonly scope: string;
     /** Where and how to reach the service serving the objects. */
     readonly endpoint: ClientOptions;
@@ -126,7 +126,7 @@ export class DynamicObjectClient {
             throw new ServiceError("NOT_FOUND", { message: `${type} has no method ${method}` });
         }
 
-        // name the scope and a change's request, and validate the input
+        // set the scope and a change's request, and validate the input
         const scoped = {
             ...(description.scopeField === undefined
                 ? {}
@@ -201,7 +201,7 @@ export class DynamicObjectClient {
         query: Pick<OpenQueryOptions, "where" | "orderBy" | "limit">,
         signal: AbortSignal,
     ): AsyncGenerator<readonly JsonObject[]> {
-        // name the query and copy its rows apart from other watches
+        // key the query and copy its rows apart from other watches
         const { description, table } = this.object(type);
         const { database, scope } = this.installation;
         await this.#migrate();
@@ -278,7 +278,7 @@ export class DynamicObjectClient {
         }
     }
 
-    /** Wait until the copy completed a run of the named query. */
+    /** Wait until the copy completed a run of the given query. */
     async #copied(replica: sync.Replica, name: string, signal: AbortSignal): Promise<void> {
         const { database } = this.installation;
         await database.log.until(async () => {

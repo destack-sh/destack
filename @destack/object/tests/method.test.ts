@@ -5,19 +5,21 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { ServiceError } from "@destack/service/error";
 import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { aligned, present, schema } from "@destack/schema";
+import { aligned, present, schema, toJsonSchema } from "@destack/schema";
+import { AuditTarget } from "@destack/audit";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
-import { ObjectServer, RecoverableController, Settlement } from "../src/server/index.ts";
-import { Call, defineObject, method, settlement, suspendable } from "../src/index.ts";
+import { ObjectStore, RecoverableController, Settlement } from "../src/server/index.ts";
+import { Call, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
 import { describeObject } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
-import { principal } from "@destack/access";
-import { openSpace } from "./fixture/space.ts";
+import { none, principal, Caller } from "@destack/access";
+import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
 import { any } from "./fixture/match.ts";
+import { request } from "./fixture/request.ts";
 
 /** The space containing the tasks. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -80,7 +82,7 @@ test("derive routes and describe each method with its permission, input and audi
                 name: "@destack/object",
                 version: any(String),
             },
-            targets: any(Object),
+            target: toJsonSchema(AuditTarget),
             details: any(Object),
         },
     });
@@ -99,13 +101,38 @@ test("derive routes and describe each method with its permission, input and audi
     expect(present(description.methods["get"], "the get method").audit).toBeUndefined();
 });
 
+test("route a creation other than create below its collection by name", () => {
+    // declare a type created by create and by import
+    const note = defineObject({
+        name: "note",
+        plural: "notes",
+        scope: "universe",
+        fields: { title: field.string(schema.string().min(1)) },
+        methods: (declared) => ({
+            create: declared.create("write", { fields: ["title"] }),
+            import: declared.create("write", { fields: ["title"] }),
+        }),
+        permissions: { write: none() },
+    });
+
+    // route create at the collection and import below it
+    const routes = PROCEDURES.parse(note.procedures);
+    expect(
+        ["create", "import"].map((name) => {
+            const { route } = present(routes[name], `the ${name} procedure`)["~orpc"];
+
+            return `${route.method} ${route.path}`;
+        }),
+    ).toEqual(["POST /notes", "POST /notes/import"]);
+});
+
 test.each(TEST_DIALECTS)(
     "route every served object, create once per request identifier and take chosen identifiers on %s",
     async (dialect) => {
-        const { server, database, execute, events, observed } = await serveTasks(dialect);
+        const { store, database, execute, events, observed } = await serveTasks(dialect);
 
         // route the replica procedures and each served object
-        expect(Object.keys(server.router())).toEqual([
+        expect(Object.keys(store.router())).toEqual([
             "replica",
             "task",
             "comment",
@@ -493,7 +520,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "refuse changing objects a stack manages, then trash, restore and purge them, the expired ones as the system, on %s",
     async (dialect) => {
-        const { server, database, execute, events, purges } = await serveTasks(dialect);
+        const { store, database, execute, events, purges } = await serveTasks(dialect);
         const created = await execute("create", {
             requestId: RequestId.create(),
             title: "Ship the plan",
@@ -567,7 +594,7 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(),
             revision: stale.revision,
         });
-        expect(await RecoverableController.purge(server, Date.now() + 60_000)).toBe(1);
+        expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(1);
 
         // purge more trash than one batch takes, across several transactions
         const trashed = Array.from({ length: 100 }, () => ({
@@ -576,7 +603,7 @@ test.each(TEST_DIALECTS)(
             deletionRequestedAt: Date.now(),
         }));
         await database.insert(task.table).values(trashed);
-        expect(await RecoverableController.purge(server, Date.now() + 60_000)).toBe(100);
+        expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(100);
 
         // audit each purge as the system's, and each caller's change once
         expect(await purges()).toEqual(Array.from({ length: 101 }, () => "task.purge"));
@@ -642,7 +669,8 @@ test("prepare external work after the access check, settle it after commit, comp
             },
         },
     });
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { task: handled, comment, taskVersion, folder },
         database: storage.database,
         callKey: testCallKey,
@@ -655,7 +683,7 @@ test("prepare external work after the access check, settle it after commit, comp
     const execute = <Name extends CallableName<typeof handled>>(
         name: Name,
         input: Record<string, unknown>,
-    ) => server.call(handled, name, { spaceId, ...input }, context);
+    ) => request(store, handled, name, { spaceId, ...input }, context);
     const created = await execute("create", { requestId: RequestId.create(), title: "Plan" });
     const reservation = `reservation-${created.id}`;
 
@@ -714,16 +742,13 @@ test("prepare external work after the access check, settle it after commit, comp
     });
     external.length = 0;
     await expect(
-        server.mutate(
-            {
-                id: RequestId.create(),
-                calls: [
-                    Call.record(handled, "export", { spaceId, id: other.id }),
-                    Call.record(handled, "export", { spaceId, id: broken.id }),
-                ],
-            },
-            context,
-        ),
+        store.mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [
+                Call.record(handled, "export", { spaceId, id: other.id }),
+                Call.record(handled, "export", { spaceId, id: broken.id }),
+            ],
+        }),
     ).rejects.toThrow(new Error("reservation failed"));
     expect(external).toEqual([
         "reserve Other",
@@ -735,16 +760,13 @@ test("prepare external work after the access check, settle it after commit, comp
     external.length = 0;
     const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
     await expect(
-        server.mutate(
-            {
-                id: RequestId.create(),
-                calls: [
-                    Call.record(handled, "export", { spaceId, id: other.id }),
-                    Call.record(handled, "export", { spaceId: elsewhere, id: other.id }),
-                ],
-            },
-            userContext("user-1", undefined),
-        ),
+        store.mutate(userContext("user-1", undefined).caller(), {
+            id: RequestId.create(),
+            calls: [
+                Call.record(handled, "export", { spaceId, id: other.id }),
+                Call.record(handled, "export", { spaceId: elsewhere, id: other.id }),
+            ],
+        }),
     ).rejects.toMatchObject({
         code: "BAD_REQUEST",
         message: "a mutation's calls act in one scope",
@@ -786,7 +808,8 @@ test("authorize a creation before its external work, and settle committed work t
         },
     });
     const reported: unknown[] = [];
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
         callKey: testCallKey,
@@ -797,29 +820,34 @@ test("authorize a creation before its external work, and settle committed work t
         report: (error) => reported.push(error),
     });
     let context = userContext("user-1", spaceId);
-    const created = await server.call(
-        task,
-        "create",
-        { spaceId, requestId: RequestId.create(), title: "Plan" },
-        context,
-    );
+    const created = await store
+        .mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [task.call("create", { spaceId, title: "Plan" })],
+        })
+        .then(([written]) => written);
 
     // refuse a caller who may not write the task before any external work
     context = userContext("user-2", spaceId);
     const version = { spaceId, parentId: created.id, title: "Draft" };
     await expect(
-        server.call(copies, "create", { ...version, requestId: RequestId.create() }, context),
+        store
+            .mutate(context.caller(), {
+                id: RequestId.create(),
+                calls: [copies.call("create", { ...version })],
+            })
+            .then(([written]) => written),
     ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
     expect(external).toEqual([]);
 
     // commit and keep the settlement despite a failed confirmation
     context = userContext("user-1", spaceId);
-    const drafted = await server.call(
-        copies,
-        "create",
-        { ...version, requestId: RequestId.create() },
-        context,
-    );
+    const drafted = await store
+        .mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [copies.call("create", { ...version })],
+        })
+        .then(([written]) => written);
     const kept = await storage.database.select().from(settlement);
     expect([external, kept.map((row) => [row.method, row.target]), reported]).toEqual([
         ["copy Draft"],
@@ -828,7 +856,7 @@ test("authorize a creation before its external work, and settle committed work t
     ]);
 
     // confirm it through the controller
-    const controller = Settlement.controller(server, { grace: { milliseconds: 0 } });
+    const controller = Settlement.controller(store, { grace: { milliseconds: 0 } });
     expect(
         await controller.reconcile(aligned(kept, 0).id, reconciliation(AbortSignal.timeout(5000))),
     ).toBeUndefined();
@@ -847,7 +875,7 @@ test("name a system creation's prepared work by the fresh identifier it creates 
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
-    // name the external copy by the identifier the system creation takes
+    // key the external copy by the identifier the system creation takes
     const external: string[] = [];
     const copies = taskCopy.handle({
         create: {
@@ -859,24 +887,29 @@ test("name a system creation's prepared work by the fresh identifier it creates 
             },
         },
     });
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
         callKey: testCallKey,
         origin: { package: task.package, service: "test" },
     });
-    const created = await server.call(
-        task,
-        "create",
-        { spaceId, requestId: RequestId.create(), title: "Plan" },
-        userContext("user-1", spaceId),
-    );
-    const [drafted] = await server.executeAsSystem(
-        copies,
-        "create",
-        [{ scope: spaceId, input: { parentId: created.id, title: "Draft" } }],
-        Date.now(),
-    );
+    const created = await store
+        .mutate(userContext("user-1", spaceId).caller(), {
+            id: RequestId.create(),
+            calls: [task.call("create", { spaceId, title: "Plan" })],
+        })
+        .then(([written]) => written);
+    const [drafted] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+        id: RequestId.create(),
+        calls: [
+            copies.call("create", {
+                ...copies.target({ scope: spaceId }),
+                parentId: created.id,
+                title: "Draft",
+            }),
+        ],
+    });
 
     expect(external).toEqual([`copy-${present(drafted, "the copy").id}`]);
 });
@@ -911,7 +944,8 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
             },
         },
     });
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
         callKey: testCallKey,
@@ -921,15 +955,15 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         },
     });
     const context = userContext("user-1", spaceId);
-    const created = await server.call(
-        task,
-        "create",
-        { spaceId, requestId: RequestId.create(), title: "Plan" },
-        context,
-    );
+    const created = await store
+        .mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [task.call("create", { spaceId, title: "Plan" })],
+        })
+        .then(([written]) => written);
 
     // cancel the reserved settlement mid-copy
-    const controller = Settlement.controller(server, { grace: { milliseconds: 0 } });
+    const controller = Settlement.controller(store, { grace: { milliseconds: 0 } });
     during = async () => {
         const [reserved] = await storage.database.select().from(settlement);
         await controller.reconcile(
@@ -941,9 +975,15 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         spaceId,
         parentId: created.id,
         title: "Draft",
-        requestId: RequestId.create(),
     };
-    await expect(server.call(copies, "create", version, context)).rejects.toMatchObject({
+    await expect(
+        store
+            .mutate(context.caller(), {
+                id: RequestId.create(),
+                calls: [copies.call("create", version)],
+            })
+            .then(([written]) => written),
+    ).rejects.toMatchObject({
         code: "SERVICE_UNAVAILABLE",
         message: "task-copy.create outlasted its settlement grace",
     });
@@ -968,8 +1008,8 @@ test("predict custom methods only where their handler is, and never a scope's su
     ]).toEqual([false, true, false, false]);
 });
 
-test("add suspending and detaching through their traits", () => {
-    // derive suspend and resume on a scope type, and detach on a declarable type
+test("add suspending and handing over through their traits", () => {
+    // derive suspend and resume on a scope type, and detach and adopt on a declarable type
     const room = defineObject({
         name: "room",
         plural: "rooms",
@@ -987,12 +1027,12 @@ test("add suspending and detaching through their traits", () => {
         declarable: { schema: schema.object({}) },
         fields: {},
         permissions: ["read", "write"],
-        detachable: { by: "write" },
+        adoptable: { by: "write" },
         methods: (builder) => ({ get: builder.get("read") }),
     });
     expect([Object.keys(room.methods).toSorted(), Object.keys(card.methods).toSorted()]).toEqual([
         ["get", "resume", "suspend"],
-        ["apply", "detach", "get"],
+        ["adopt", "apply", "detach", "get"],
     ]);
 });
 
@@ -1016,7 +1056,8 @@ async function serveTasks(dialect: Dialect) {
     let context = sign();
 
     // serve the objects, recording each audited change in the outbox
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { task: handled, comment, taskVersion, folder },
         database,
         callKey: testCallKey,
@@ -1027,19 +1068,19 @@ async function serveTasks(dialect: Dialect) {
     });
 
     return {
-        server,
+        store,
         database,
         /** Read the callers' audited actions. */
         events: () => auditedActions(database, "caller"),
         /** Read the system's audited actions. */
-        purges: () => auditedActions(database, "system"),
+        purges: () => auditedActions(database, "component"),
         /** Read the watermarks the current caller's requests reached. */
         observed: () => context.observed,
         /** Execute a task method as the current caller. */
         execute: <Name extends CallableName<typeof handled>>(
             name: Name,
             input: Record<string, unknown>,
-        ) => server.call(handled, name, { spaceId, ...input }, context),
+        ) => request(store, handled, name, { spaceId, ...input }, context),
         /** Act as a user. */
         act: (user: string) => {
             current = user;
@@ -1088,7 +1129,8 @@ test("carry a key the method derives from its work, the same for every retry of 
             rollback: async () => {},
         },
     });
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
         callKey: testCallKey,
@@ -1098,24 +1140,35 @@ test("carry a key the method derives from its work, the same for every retry of 
         },
     });
     const context = userContext("user-1", spaceId);
-    const created = await server.call(
-        task,
-        "create",
-        { spaceId, requestId: RequestId.create(), title: "Plan" },
-        context,
-    );
+    const created = await store
+        .mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [task.call("create", { spaceId, title: "Plan" })],
+        })
+        .then(([written]) => written);
 
     // retry the failed creation under the same request with the same key both times
     const version = {
         spaceId,
         parentId: created.id,
         title: "Draft",
-        requestId: RequestId.create(),
     };
-    await expect(server.call(copies, "create", version, context)).rejects.toMatchObject({
+    await expect(
+        store
+            .mutate(context.caller(), {
+                id: RequestId.create(),
+                calls: [copies.call("create", version)],
+            })
+            .then(([written]) => written),
+    ).rejects.toMatchObject({
         code: "SERVICE_UNAVAILABLE",
     });
-    await server.call(copies, "create", version, context);
+    await store
+        .mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [copies.call("create", version)],
+        })
+        .then(([written]) => written);
     expect(keys).toEqual(["copy-Draft", "copy-Draft"]);
 });
 
@@ -1141,7 +1194,8 @@ test("settle each call's prepared work once when two calls of one mutation share
             },
         },
     });
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
         callKey: testCallKey,
@@ -1151,22 +1205,19 @@ test("settle each call's prepared work once when two calls of one mutation share
         },
     });
     const context = userContext("user-1", spaceId);
-    const created = await server.call(
-        task,
-        "create",
-        { spaceId, requestId: RequestId.create(), title: "Plan" },
-        context,
-    );
+    const created = await store
+        .mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [task.call("create", { spaceId, title: "Plan" })],
+        })
+        .then(([written]) => written);
 
     // create two copies of one title in one mutation, confirming both and keeping no settlement
     const copy = { spaceId, parentId: created.id, title: "Draft" };
-    await server.mutate(
-        {
-            id: RequestId.create(),
-            calls: [Call.record(copies, "create", copy), Call.record(copies, "create", copy)],
-        },
-        context,
-    );
+    await store.mutate(context.caller(), {
+        id: RequestId.create(),
+        calls: [Call.record(copies, "create", copy), Call.record(copies, "create", copy)],
+    });
     expect([confirmed, await storage.database.select().from(settlement)]).toEqual([
         ["copy-Draft", "copy-Draft"],
         [],

@@ -54,9 +54,9 @@ export const ObjectDescription = defineSchema(
         scope: schema.array(AccessName),
         /** The SQL name of the table with the records. */
         table: schema.string().min(1),
-        /** Where the objects live beside durable ones: in instances' memory, or in files read per scope. */
-        storage: schema.enum(["ephemeral", "external"]).exactOptional(),
-        /** The input field naming the objects' scope, absent for objects of the universe. */
+        /** Where the objects live beside durable ones: in instances' memory, in files read per scope, or in the client's own database. */
+        storage: schema.enum(["ephemeral", "external", "local"]).exactOptional(),
+        /** The input field holding the objects' scope, absent for objects of the universe. */
         scopeField: schema.string().min(1).exactOptional(),
         /** The SQL column of each row property. */
         columns: schema.record(schema.string(), schema.string().min(1)),
@@ -100,7 +100,7 @@ export function describeObject(object: ObjectType): ObjectDescription {
     // describe each method from its procedure
     const methods: Record<string, MethodDescription> = {};
     for (const [name, declared] of Object.entries(object.methods)) {
-        if (declared.isSystem === true) {
+        if (declared.isInternal === true) {
             continue;
         }
         methods[name] = describeMethod(object, name, declared);
@@ -129,9 +129,7 @@ export function describeObject(object: ObjectType): ObjectDescription {
             ? { declaration: toJsonSchema(object.lifecycle.declarationSchema) }
             : {}),
         methods,
-        ...(object.isReadAudited
-            ? { watch: describeAuditAction(object.audit("watch", "collection")) }
-            : {}),
+        ...(object.isReadAudited ? { watch: describeAuditAction(object.audit("watch")) } : {}),
         ...(object.presentation === undefined ? {} : { presentation: object.presentation }),
         ...(object.search === undefined ? {} : { search: object.search }),
         fields: Object.fromEntries(
@@ -187,11 +185,7 @@ function describeMethod(
         ),
         ...(declared.mutates || object.isReadAudited
             ? {
-                  audit: describeAuditAction(
-                      declared.mutates || declared.target
-                          ? object.audit(name)
-                          : object.audit(name, "collection"),
-                  ),
+                  audit: describeAuditAction(object.audit(name)),
               }
             : {}),
     };

@@ -36,6 +36,7 @@ test("list the terms a task fixes in stored data: its type, relations, permissio
         ...Object.fromEntries(
             Object.entries(methods).map(([name, kind]) => [`task/method/${name}`, { kind }]),
         ),
+        "task/permission/declare": {},
         "task/permission/plan": {},
         "task/permission/read": {},
         "task/permission/write": {},

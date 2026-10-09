@@ -1,6 +1,7 @@
 export {
     Condition,
     ConditionMap,
+    Conditions,
     Observation,
     observeCondition,
     StatusCondition,
@@ -22,8 +23,9 @@ export {
 } from "./object.ts";
 export {
     type KeyFields,
-    type ObjectController,
+    ObjectController,
     type ObjectReconciliation,
     ObjectWatch,
 } from "./controller.ts";
 export { INTRINSIC, Intrinsic } from "./intrinsic.ts";
+export { client } from "./client.ts";

@@ -31,7 +31,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
     return {
         relationships: sharingMethod(
             "relationships",
-            read,
+            { permission: read, mutates: false },
             { method: "GET", path: "/{id}/relationships" },
             (shapes) => shapes.target.extend(PageShape),
             page(Relationship.schema),
@@ -54,7 +54,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
         ),
         grant: sharingMethod(
             "grant",
-            null,
+            { permission: grant, mutates: true },
             { method: "POST", path: "/{id}/relationships" },
             (shapes) => shapes.target.extend({ ...shapes.replay, ...GrantShape }),
             Relationship.schema,
@@ -83,7 +83,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
         ),
         revoke: sharingMethod(
             "revoke",
-            null,
+            { permission: grant, mutates: true },
             { method: "DELETE", path: "/{id}/relationships/{relationshipId}" },
             (shapes) => shapes.target.extend({ ...shapes.replay, ...RelationshipShape }),
             Empty,
@@ -102,7 +102,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
         ),
         invitations: sharingMethod(
             "invitations",
-            grant,
+            { permission: grant, mutates: false },
             { method: "GET", path: "/{id}/invitations" },
             (shapes) => shapes.target.extend(PageShape),
             page(Invitation.schema),
@@ -122,13 +122,13 @@ export function sharingMethods({ grant, read }: SharingGate) {
         ),
         invite: sharingMethod(
             "invite",
-            null,
+            { permission: grant, mutates: true },
             { method: "POST", path: "/{id}/invitations" },
             (shapes) => shapes.target.extend({ ...shapes.replay, ...InviteShape }),
             Invitation.schema,
             async (call) => {
                 // invite to the relationship on an object outside the trash
-                // TODO #Incomplete: send an invitation notification when the invitation names a contact
+                // TODO #Incomplete: send an invitation notification when the invitation refers to a contact
                 await requirePresent(call, "live");
                 const { relationship, ...invitation } = InviteInput.parse(call.input);
 
@@ -140,7 +140,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
         ),
         accept: sharingMethod(
             "accept",
-            null,
+            { permission: read, mutates: true },
             { method: "POST", path: "/{id}/invitations/{invitationId}/accept" },
             (shapes) => shapes.target.extend({ ...shapes.replay, ...InvitationShape }),
             Relationship.schema,
@@ -158,7 +158,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
         ),
         explain: defineMethod<MethodConfiguration>({
             kind: "explain",
-            permission: null,
+            permission: read,
             mutates: false,
             target: false,
             result: "value",
@@ -172,7 +172,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
         }),
         withdraw: sharingMethod(
             "withdraw",
-            null,
+            { permission: grant, mutates: true },
             { method: "DELETE", path: "/{id}/invitations/{invitationId}" },
             (shapes) => shapes.target.extend({ ...shapes.replay, ...InvitationShape }),
             Empty,
@@ -192,10 +192,10 @@ export function sharingMethods({ grant, read }: SharingGate) {
     };
 }
 
-/** Declare a sharing method. */
+/** Declare a sharing method: a listing loads its target by its permission, a change leaves the decision to the relation it grants. */
 function sharingMethod(
     kind: MethodKind,
-    required: string | null,
+    access: { readonly permission: string; readonly mutates: boolean },
     route: Route,
     input: (schema: ObjectSchema) => schema.JsonObject,
     output: MethodProcedure["output"],
@@ -204,9 +204,9 @@ function sharingMethod(
 ): Method {
     return defineMethod<MethodConfiguration>({
         kind,
-        permission: required,
-        mutates: required === null,
-        target: required !== null,
+        permission: access.permission,
+        mutates: access.mutates,
+        target: !access.mutates,
         result: "value",
         isPredicted: false,
         procedure: (_name, shapes) => ({ route, input: input(shapes), output }),
@@ -267,7 +267,7 @@ function requireReading(object: ObjectType) {
     return object.reading;
 }
 
-/** Require the named object to exist, outside the trash when live. */
+/** Require the given object to exist, outside the trash when live. */
 async function requirePresent(call: Call, state: "live" | "stored"): Promise<void> {
     // read the object
     const table = call.object.table;

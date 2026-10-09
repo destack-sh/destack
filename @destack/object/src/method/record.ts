@@ -48,18 +48,19 @@ import {
     type RowSchema,
     type ScopeShape,
     type TargetShape,
+    type VariantSchema,
 } from "./procedure.ts";
+import { InputSchema } from "./input.ts";
 import { kebabCase } from "../object/name.ts";
 import { Listing } from "../query/listing.ts";
 import { nest } from "../query/item.ts";
 import { ListShape, QueryShape, ViewShape } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
-import type { ObjectTable } from "../object/table.ts";
+import type { ObjectTable, TraitTable } from "../object/table.ts";
 
 import { nextVersion } from "./versioned.ts";
 import { isManaging } from "../trait/declarable.ts";
 
-import type { TraitTable } from "../object/table.ts";
 import type { RecoverableDefinition } from "../trait/recoverable.ts";
 /** The count of objects a bulk update changed. */
 export const BatchPayload = schema.object({ count: schema.number().int().nonnegative() });
@@ -122,18 +123,26 @@ export type CreationOf<Definition extends Table, Input extends schema.Schema> = 
     (call: Call<Definition, Input>, object: ObjectReference) => Creation | Promise<Creation>
 >;
 
+/** The column sets of a sum type, by the field telling them apart and then by its value, such as `{ kind: { personal: ["platform"], cloud: ["location"] } }`. */
+export type Variants<Fields extends string = string> = Readonly<
+    Record<string, Readonly<Record<string, readonly Fields[]>>>
+>;
+
 /** How a creation method creates: its written fields, input, creator and prediction. */
 export interface CreateOptions<
     Fields extends string,
     Input extends schema.JsonObject,
     Prepared extends schema.Schema,
-    System extends boolean,
+    Internal extends boolean,
     Definition extends Table = Table,
+    Sum extends Variants = Variants,
 > {
-    /** Whether only the system creates, with no permission, naming the caller fields itself. */
-    readonly isSystem?: System;
+    /** Whether the creation stays out of the routes people call, setting the caller fields itself. */
+    readonly isInternal?: Internal;
     /** The fields the caller writes, every written field when absent. */
     readonly fields?: readonly Fields[];
+    /** The column sets of a type whose rows are a sum type, of which the caller writes one beside the fields. */
+    readonly variants?: Sum;
     /** The caller-supplied values beyond fields. */
     readonly input?: Input;
     /** The external work the creation prepares before its transaction. */
@@ -154,8 +163,8 @@ export interface UpdateOptions<
     Input extends schema.JsonObject,
     Prepared extends schema.Schema,
 > {
-    /** Whether only the system updates, with no permission. */
-    readonly isSystem?: true;
+    /** Whether the update stays out of the routes people call. */
+    readonly isInternal?: true;
     /** The fields the caller writes, every written field when absent. */
     readonly fields?: readonly Fields[];
     /** The caller-supplied values beyond fields. */
@@ -180,23 +189,24 @@ export interface UpdateManyOptions<Fields extends string, Match extends string> 
 
 /** How a deletion method deletes. */
 export interface RemoveOptions<Prepared extends schema.Schema> {
-    /** Whether only the system deletes, with no permission. */
-    readonly isSystem?: true;
+    /** Whether the deletion stays out of the routes people call. */
+    readonly isInternal?: true;
     /** The external work the deletion prepares before its transaction. */
     readonly prepared?: Prepared;
 }
 
 /** Create an object from the fields the caller writes. */
 export function create<
-    const Permission extends string | null,
+    const Permission extends string,
     const Fields extends string = string,
     Input extends schema.JsonObject = never,
     Prepared extends schema.Schema = never,
-    const System extends boolean = false,
+    const Internal extends boolean = false,
     Definition extends Table = Table,
+    const Sum extends Variants = never,
 >(
     permission: Permission,
-    options: CreateOptions<Fields, Input, Prepared, System, Definition> = {},
+    options: CreateOptions<Fields, Input, Prepared, Internal, Definition, Sum> = {},
 ): Method<{
     kind: "create";
     permission: Permission;
@@ -204,8 +214,9 @@ export function create<
     prepared: NoInfer<Prepared>;
     mutates: true;
     fields: NoInfer<Fields>;
+    variants: NoInfer<Sum>;
     table: Definition;
-    system: NoInfer<System>;
+    internal: NoInfer<Internal>;
 }> {
     // resolve the creation from a creator relation or a declared creation
     const { creator: _creator, creation: _creation, ...declared } = options;
@@ -218,8 +229,9 @@ export function create<
         prepared: Prepared;
         mutates: true;
         fields: Fields;
+        variants: Sum;
         table: Definition;
-        system: System;
+        internal: Internal;
     }>({
         kind: "create",
         permission,
@@ -227,7 +239,7 @@ export function create<
         ...declared,
         target: false,
         result: "object",
-        procedure: (_name, shapes) => createProcedure(shapes, options),
+        procedure: (name, shapes) => createProcedure(name, shapes, options),
         handler: (call: Call<ObjectTable>) => createObject(call, creation),
         authorize: (call: Call<ObjectTable>) => authorizeCreate(call, creation),
         inverse: (step) => {
@@ -256,7 +268,7 @@ export function create<
 
 /** Update an object's written fields. */
 export function update<
-    const Permission extends string | null,
+    const Permission extends string,
     const Fields extends string = string,
     Input extends schema.JsonObject = never,
     Prepared extends schema.Schema = never,
@@ -363,7 +375,7 @@ export function updateMany<
 
 /** Delete an object. */
 export function remove<
-    const Permission extends string | null,
+    const Permission extends string,
     Prepared extends schema.Schema = never,
     Definition extends Table = Table,
 >(
@@ -418,16 +430,16 @@ export function remove<
 
 /** A custom method's permission, input, output and inverse. */
 export interface CustomDefinition<
-    Permission extends string | null,
+    Permission extends string,
     Input extends schema.JsonObject,
     Output extends schema.Schema,
     Prepared extends schema.Schema,
-    System extends boolean = false,
+    Internal extends boolean = false,
 > {
-    /** The permission the caller needs on the target, null for none. */
+    /** The permission the caller needs on the target. */
     readonly permission: Permission;
-    /** Whether only the system calls the method. */
-    readonly isSystem?: System;
+    /** Whether the method stays out of the routes people call, run only by the principals' own code. */
+    readonly isInternal?: Internal;
     /** The caller-supplied fields. */
     readonly input?: Input;
     /** The result, the updated object when absent. */
@@ -436,8 +448,10 @@ export interface CustomDefinition<
     readonly prepared?: Prepared;
     /** Whether each reading call is audited. */
     readonly audited?: true;
-    /** The fields of the result an audited read's event names. */
+    /** The fields of the result an audited read's event records. */
     readonly audit?: { readonly details: schema.Object<Record<string, schema.Schema>> };
+    /** Whether the target loads where the caller holds the permission before the method runs, false for an invitation verb whose invitation access decides. */
+    readonly target?: false;
     /** The inverse method name, or a function deriving inverse calls. */
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
     /** The input fields each release computes from an earlier call's input, by the release introducing them. */
@@ -446,15 +460,15 @@ export interface CustomDefinition<
 
 /** Declare a method reading one object, as tRPC's `query`. */
 export function query<
-    const Permission extends string | null,
+    const Permission extends string,
     Input extends schema.JsonObject = never,
     Output extends schema.Schema = never,
     Prepared extends schema.Schema = never,
-    const System extends boolean = false,
+    const Internal extends boolean = false,
     Definition extends Table = Table,
 >(
     this: MethodBuilder<Definition>,
-    definition: CustomDefinition<Permission, Input, Output, Prepared, System>,
+    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
 ): Method<{
     kind: "custom";
     permission: Permission;
@@ -463,7 +477,7 @@ export function query<
     prepared: Prepared;
     mutates: false;
     table: Definition;
-    system: System;
+    internal: Internal;
 }> {
     return defineMethod<{
         kind: "custom";
@@ -473,21 +487,21 @@ export function query<
         prepared: Prepared;
         mutates: false;
         table: Definition;
-        system: System;
+        internal: Internal;
     }>(custom(definition, false));
 }
 
 /** Declare a method changing one object, as tRPC's `mutation`. */
 export function mutation<
-    const Permission extends string | null,
+    const Permission extends string,
     Input extends schema.JsonObject = never,
     Output extends schema.Schema = never,
     Prepared extends schema.Schema = never,
-    const System extends boolean = false,
+    const Internal extends boolean = false,
     Definition extends Table = Table,
 >(
     this: MethodBuilder<Definition>,
-    definition: CustomDefinition<Permission, Input, Output, Prepared, System>,
+    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
 ): Method<{
     kind: "custom";
     permission: Permission;
@@ -496,7 +510,7 @@ export function mutation<
     prepared: Prepared;
     mutates: true;
     table: Definition;
-    system: System;
+    internal: Internal;
 }> {
     return defineMethod<{
         kind: "custom";
@@ -506,20 +520,20 @@ export function mutation<
         prepared: Prepared;
         mutates: true;
         table: Definition;
-        system: System;
+        internal: Internal;
     }>(custom(definition, true));
 }
 
 /** Describe a custom method on one object, reading or changing it. */
 function custom<
-    const Permission extends string | null,
+    const Permission extends string,
     Input extends schema.JsonObject,
     Output extends schema.Schema,
     Prepared extends schema.Schema,
     const Mutates extends boolean,
-    const System extends boolean,
+    const Internal extends boolean,
 >(
-    definition: CustomDefinition<Permission, Input, Output, Prepared, System>,
+    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
     mutates: Mutates,
 ): MethodDefinition<{
     kind: "custom";
@@ -528,9 +542,9 @@ function custom<
     output: Output;
     prepared: Prepared;
     mutates: Mutates;
-    system: System;
+    internal: Internal;
 }> {
-    const { inverse, ...declared } = definition;
+    const { inverse, target, ...declared } = definition;
 
     return {
         kind: "custom",
@@ -545,7 +559,7 @@ function custom<
               }),
         mutates,
         isPredicted: false,
-        target: true,
+        target: target ?? true,
         result: definition.output === undefined ? "object" : "value",
         procedure: (name, shapes) => ({
             route: { method: "POST", path: `/{id}/${kebabCase(name)}` },
@@ -564,26 +578,55 @@ function fields(input: schema.JsonObject | undefined): schema.JsonObject["shape"
     return input?.shape ?? {};
 }
 
-/** Derive a creation's procedure: the scope, the chosen identifier, the parent and the written fields. */
+/** Derive a creation's procedure at the collection, or below it by name for another creation: the scope, the chosen identifier, the parent and the written fields, joined by one variant's of a sum type. */
 function createProcedure(
+    name: string,
     shapes: ObjectSchema,
     options: Pick<
         CreateOptions<string, schema.JsonObject, schema.Schema, boolean>,
-        "fields" | "isSystem" | "input"
+        "fields" | "isInternal" | "input" | "variants"
     >,
 ): MethodProcedure {
+    // take the shared fields
+    const shared = shapes.scope.extend({
+        ...shapes.created,
+        ...shapes.parent,
+        ...shapes.replay,
+        ...shapes.written(options.fields, false),
+        ...(options.isInternal === true ? shapes.callers : {}),
+        ...fields(options.input),
+    });
+
     return {
-        route: { method: "POST", path: "" },
-        input: shapes.scope.extend({
-            ...shapes.created,
-            ...shapes.parent,
-            ...shapes.replay,
-            ...shapes.written(options.fields, false),
-            ...(options.isSystem === true ? shapes.callers : {}),
-            ...fields(options.input),
-        }),
+        route: { method: "POST", path: name === "create" ? "" : `/${kebabCase(name)}` },
+        input:
+            options.variants === undefined
+                ? shared
+                : variantInput(name, shapes, shared, options.variants),
         output: shapes.row,
     };
+}
+
+/** Join each variant's columns to a creation's shared fields under its value of the field telling them apart. */
+function variantInput(
+    name: string,
+    shapes: ObjectSchema,
+    shared: schema.JsonObject,
+    variants: Variants,
+): InputSchema {
+    // require one field telling the variants apart
+    const [sum, ...others] = Object.entries(variants);
+    if (sum === undefined || others.length > 0) {
+        throw new TypeError(`creation ${name} tells its variants apart by one field`);
+    }
+
+    // take each variant's columns, required and non-null
+    const [field, byValue] = sum;
+    const objects = Object.entries(byValue).map(([value, written]) =>
+        shared.extend({ [field]: schema.literal(value), ...shapes.required(written) }),
+    );
+
+    return InputSchema.union(field, objects);
 }
 
 /** Resolve a creation from a creator relation or a declared creation, refusing both. */
@@ -607,11 +650,6 @@ async function authorizeCreate(
     call: Call<ObjectTable>,
     creation: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
 ): Promise<void> {
-    // skip a creation needing no permission
-    if (call.method.permission === null) {
-        return;
-    }
-
     // require the receiving parent and the creation
     const reader = await call.requireAuthorization().reader(call.scope);
     const parent = call.object.parent && call.parent();
@@ -720,7 +758,7 @@ async function updateMatching(
             revision: sql`${table.revision} + 1`,
             ...(hasGeneration ? { generation: sql`${definition.column("generation")} + 1` } : {}),
             updatedAt: call.now,
-            updatedBy: call.caller === undefined ? null : Subject.key(call.caller),
+            updatedBy: call.caller.subject === undefined ? null : Subject.key(call.caller.subject),
         })
         .where(and(matching, permitted))
         .returning({ id: table.id });
@@ -781,12 +819,13 @@ async function createObject(
 /** Build the columns a created object is inserted with. */
 async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table>> {
     // fill caller fields with a calling principal of the declared kinds
-    const { object, caller } = call;
-    const isSystem = call.method.isSystem === true;
+    const { object } = call;
+    const caller = call.caller.subject;
+    const isInternal = call.method.isInternal === true;
     const callers: Record<string, string> = {};
     for (const [name, declared] of Object.entries(object.fields)) {
         const kinds = declared.principals;
-        if (!declared.isCallerFilled || isSystem) {
+        if (!declared.isCallerFilled || isInternal) {
             continue;
         } else if (
             caller === undefined ||
@@ -817,9 +856,9 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
                   call.database,
               );
 
-    // require the writing client
-    if (object.storage === "ephemeral" && call.client === undefined) {
-        throw new TypeError(`ephemeral ${object.name} objects are created by a client`);
+    // require the writer
+    if (object.storage === "ephemeral" && call.writerId === undefined) {
+        throw new TypeError(`ephemeral ${object.name} objects are created by a writer`);
     }
 
     // assemble the columns
@@ -830,7 +869,7 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
         id: call.id,
         scope: call.scope,
         ...(version === undefined ? {} : { number: version }),
-        ...(object.storage === "ephemeral" ? { client: call.client } : {}),
+        ...(object.storage === "ephemeral" ? { writerId: call.writerId } : {}),
         ...callers,
         createdAt: call.now,
         createdBy: caller === undefined ? null : Subject.key(caller),
@@ -863,16 +902,12 @@ async function insertCreated(
             return { id, created: call.with({ id }), row };
         });
     } catch (error) {
-        // report conflicts only to admitted callers and the system
+        // report conflicts only to admitted callers
         const isConflict =
             (isServiceError(error) && error.code === "CONFLICT") ||
             (error instanceof DatabaseError &&
                 (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE"));
-        if (
-            isConflict &&
-            call.method.permission !== null &&
-            !call.requireAuthorization().isSystem
-        ) {
+        if (isConflict) {
             await requireCreatable(call);
         }
         throw error;
@@ -960,7 +995,7 @@ async function deleteObject(call: Call<ObjectTable>): Promise<Record<string, nev
     if (deleting !== undefined) {
         await deleting.update({
             deletionRequestedAt: call.now,
-            deletedBy: call.caller === undefined ? null : Subject.key(call.caller),
+            deletedBy: call.caller.subject === undefined ? null : Subject.key(call.caller.subject),
         });
 
         return {};
@@ -1156,14 +1191,9 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
         schema.Object<ReturnType<typeof page<RowSchema<Object>>>["shape"] & typeof ListShape>
     >;
     create: Procedure<
-        schema.Object<
-            ScopeShape<Object> &
-                CreationShape<Object> &
-                ParentShape<Object> &
-                ReplayShape<Object> &
-                WrittenShape<Object, Declared, false> &
-                FieldShape<Declared>
-        >,
+        IsSum<Declared["variants"]> extends true
+            ? VariantSchema<Object, Declared, CreateShape<Object, Declared>>
+            : schema.Object<CreateShape<Object, Declared>>,
         RowSchema<Object>
     >;
     update: Procedure<
@@ -1202,6 +1232,21 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
             : NonNullable<Declared["output"]>
     >;
 };
+
+/** The fields every creation takes: its scope, chosen identifier, parent, replay, written fields and own input. */
+type CreateShape<Object extends ObjectType, Declared extends Method> = ScopeShape<Object> &
+    CreationShape<Object> &
+    ParentShape<Object> &
+    ReplayShape<Object> &
+    WrittenShape<Object, Declared, false> &
+    FieldShape<Declared>;
+
+/** Whether a method declares the column sets of a sum type. */
+export type IsSum<Sum> = [NonNullable<Sum>] extends [never]
+    ? false
+    : object extends NonNullable<Sum>
+      ? false
+      : true;
 
 /** The written values a call matches objects by, in their JSON form. */
 type MatchShape<Object extends ObjectType> = WrittenShape<Object, Method, true>;

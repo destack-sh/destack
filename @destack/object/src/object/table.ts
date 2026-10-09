@@ -11,7 +11,7 @@ import {
 } from "@destack/db";
 import type { ModuleMetadata, PackageId } from "@destack/package";
 import type { Field, FieldColumn, TextField } from "../field/field.ts";
-import type { ClientBuilderMap, RecordBuilderMap } from "../trait/record.ts";
+import type { RecordBuilderMap, WriterBuilderMap } from "../trait/record.ts";
 import { type managedColumns } from "../trait/declarable.ts";
 import type { DeletionBuilderMap, deletionColumns } from "../trait/recoverable.ts";
 import type { ParentBuilderMap } from "../trait/nested.ts";
@@ -51,7 +51,7 @@ type ScopeBuilderMap<Scope> = Scope extends "universe"
         ? { scope: ColumnBuilder<FieldColumn<Identifier<Scope>, true, false>> }
         : { scope: ColumnBuilder<FieldColumn<string, true, false>> };
 
-/** The columns naming the declaration that manages a record. */
+/** The columns identifying the declaration that manages a record. */
 type ManagedBuilderMap<Declarable> = Declarable extends undefined
     ? {}
     : ReturnType<typeof managedColumns>;
@@ -77,7 +77,7 @@ type TraitBuilderMap = {
 } & ReturnType<typeof controlledColumns> &
     ReturnType<typeof managedColumns>;
 
-/** The columns a definition's constraints name. */
+/** The columns a definition's constraints refer to. */
 export type ConstraintColumns<
     Name extends string,
     Scope,
@@ -86,7 +86,7 @@ export type ConstraintColumns<
     Storage = "durable",
 > = TableColumnMap<
     RecordBuilderMap<Identity> &
-        ClientBuilderMap<Storage> &
+        WriterBuilderMap<Storage> &
         ScopeBuilderMap<Scope> &
         TraitBuilderMap &
         FieldBuilderMap<Fields>,
@@ -109,7 +109,7 @@ export type ObjectBuilderMap<
     Identity extends string = Name,
     Storage = "durable",
 > = RecordBuilderMap<Identity, TraitOf<Traits, "key">> &
-    ClientBuilderMap<Storage> &
+    WriterBuilderMap<Storage> &
     ScopeBuilderMap<Scope> &
     ParentBuilderMap<Identity, TraitOf<Traits, "nested">> &
     DeletionBuilderMap<TraitOf<Traits, "recoverable">> &

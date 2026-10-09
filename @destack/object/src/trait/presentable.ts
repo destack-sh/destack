@@ -5,7 +5,7 @@ import type { ObjectDefinition } from "../object/object.ts";
 import type { Erasure } from "./trait.ts";
 import { BucketName, type FileBucket, ObjectFile } from "../field/file.ts";
 
-/** The fields an object is titled by when it names none, the first one it has. */
+/** The fields an object is titled by when it sets none, the first one it has. */
 const TITLE_FIELDS = ["title", "name"] as const;
 
 /** The longest emoji in UTF-16 code units: 15, the longest RGI sequence. */
@@ -35,7 +35,7 @@ const ChosenIcon = [
     }),
 ] as const;
 
-/** An object's icon: an emoji, an icon set's icon, or an image kept in the bucket its type names. */
+/** An object's icon: an emoji, an icon set's icon, or an image kept in the bucket its type sets. */
 export const Icon = defineSchema(
     schema.union([
         ...ChosenIcon,
@@ -48,7 +48,7 @@ export const Icon = defineSchema(
 /** An object's icon. */
 export type Icon = schema.Infer<typeof Icon>;
 
-/** An object's cover: an image kept in the bucket its type names, and the vertical point the banner centres on. */
+/** An object's cover: an image kept in the bucket its type sets, and the vertical point the banner centres on. */
 export const Cover = defineSchema(
     schema.object({
         /** The image. */
@@ -181,7 +181,7 @@ export const Presentable = {
             return undefined;
         }
 
-        // title by the named field or the first title field, refusing a type without one
+        // title by the given field or the first title field, refusing a type without one
         const fields = definition.fields ?? {};
         const title = options.title ?? TITLE_FIELDS.find((name) => Object.hasOwn(fields, name));
         for (const named of [title, options.subtitle]) {

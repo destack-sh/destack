@@ -11,13 +11,14 @@ import * as sqlite from "@destack/db/bun";
 import { subjectContext, testCallKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
-import { EphemeralStorage, ObjectServer } from "../src/server/index.ts";
+import { EphemeralStorage, ObjectStore } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import type { ClientOptions } from "@destack/service/client";
 import { defineService } from "@destack/service/declare";
 import { serveObjects } from "./fixture/device.ts";
 import { user } from "./schema.ts";
-import { openSpace, space, unmoved } from "./fixture/space.ts";
+import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
+import { request } from "./fixture/request.ts";
 
 /** How long a check may take to pass, in milliseconds: well within the 5 s test timeout. */
 const UNTIL_MILLISECONDS = 2000;
@@ -39,7 +40,7 @@ const presence = defineObject({
         cursor: field.integer().optional(),
         profile: field.reference("profile", (): ObjectType => profile).optional(),
     },
-    constraints: (entry) => [unique("presence_client").on(entry.parentId, entry.client)],
+    constraints: (entry) => [unique("presence_writer").on(entry.parentId, entry.writerId)],
     permissions: {
         read: through("parent", "present"),
         write: intersection(relation("member"), through("parent", "present")),
@@ -84,7 +85,7 @@ const profile = defineObject({
 const boardsService = defineService("boards", { objects: { presence, board, profile } });
 
 test.for(TEST_DIALECTS)(
-    "share presence on a board across instances, guarded by access, gone after its client on %s",
+    "share presence on a board across instances, guarded by access, gone after its writer on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
 
@@ -99,8 +100,8 @@ test.for(TEST_DIALECTS)(
             subject: principal.user.reference("universe", "bob"),
         });
         // follow every durable type of the space next to the ephemeral one
-        const durable = east.server.source.relayed(
-            east.server.source.queriesShape.subscription({
+        const durable = east.store.source.relayed(
+            east.store.source.queriesShape.subscription({
                 name: "objects",
                 scope: spaceId,
                 below: spaceId,
@@ -111,20 +112,20 @@ test.for(TEST_DIALECTS)(
         expect((await nextPage(durable)).complete).toBe(true);
         await durable.return(undefined);
 
-        const alice = east.follow("alice", "client-a");
+        const alice = east.follow("alice", "writer-a");
         expect(await alice.rows()).toEqual([]);
         const mine = await east.call("alice", presence, "create", {
-            client: "client-a",
+            writerId: "writer-a",
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
             activity: "editing",
             cursor: 0,
         });
 
-        // name the writing client on the row, once per board and client
-        expect(mine.client).toBe("client-a");
+        // record the writer on the row, once per board and writer
+        expect(mine.writerId).toBe("writer-a");
         await expect(
             east.call("alice", presence, "create", {
-                client: "client-a",
+                writerId: "writer-a",
                 parent: {
                     packageId: board.policy.definition.packageId,
                     type: "board",
@@ -138,10 +139,10 @@ test.for(TEST_DIALECTS)(
         });
 
         // show the owner's moving cursor to the viewer on the other instance
-        const bob = west.follow("bob", "client-b");
+        const bob = west.follow("bob", "writer-b");
         expect(await bob.rows()).toEqual([["alice", "editing", 0]]);
         await east.call("alice", presence, "update", {
-            client: "client-a",
+            writerId: "writer-a",
             id: mine.id,
             cursor: 12,
         });
@@ -150,7 +151,7 @@ test.for(TEST_DIALECTS)(
         // find no board for a stranger's presence, and show the stranger nobody
         await expect(
             west.call("carol", presence, "create", {
-                client: "client-c",
+                writerId: "writer-c",
                 parent: {
                     packageId: board.policy.definition.packageId,
                     type: "board",
@@ -159,32 +160,32 @@ test.for(TEST_DIALECTS)(
                 activity: "viewing",
             }),
         ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no board ${plans.id}` });
-        const carol = west.follow("carol", "client-c");
+        const carol = west.follow("carol", "writer-c");
         expect(await carol.rows()).toEqual([]);
 
         // remove the owner's presence everywhere after its linger
-        expect(await west.follow("bob", "client-a").rows()).toEqual([["alice", "editing", 12]]);
+        expect(await west.follow("bob", "writer-a").rows()).toEqual([["alice", "editing", 12]]);
         alice.close();
         expect(await bob.rows()).toEqual([]);
 
         // hide the board's presence from the viewer once the owner revokes it
-        expect(await east.follow("alice", "client-d").rows()).toEqual([]);
+        expect(await east.follow("alice", "writer-d").rows()).toEqual([]);
         vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
         onTestFinished(() => {
             vi.useRealTimers();
         });
         const viewing = await west.call("alice", presence, "create", {
-            client: "client-d",
+            writerId: "writer-d",
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
             activity: "viewing",
         });
         expect(await bob.rows()).toEqual([["alice", "viewing", null]]);
 
-        // keep the row past its linger while the client streams on the other instance
+        // keep the row past its linger while the writer streams on the other instance
         await vi.advanceTimersByTimeAsync(150);
         vi.useRealTimers();
         expect(
-            await present(west.server.ephemeral, "the west ephemeral storage")
+            await present(west.store.ephemeral, "the west ephemeral storage")
                 .database.select({ id: presence.table.id })
                 .from(presence.table),
         ).toEqual([{ id: viewing.id }]);
@@ -215,35 +216,35 @@ test.for(TEST_DIALECTS)(
             type: "board",
             id: plans.id,
         };
-        for (const [as, client] of [
-            ["alice", "client-a"],
-            ["bob", "client-b"],
+        for (const [as, writerId] of [
+            ["alice", "writer-a"],
+            ["bob", "writer-b"],
         ] as const) {
-            // keep each client streaming past the linger
-            await east.follow(as, client).rows();
-            await east.call(as, presence, "create", { client, parent, activity: "editing" });
+            // keep each writer streaming past the linger
+            await east.follow(as, writerId).rows();
+            await east.call(as, presence, "create", { writerId, parent, activity: "editing" });
         }
 
         // idle only the viewer's own editing presences
         const idled = await east.call("bob", presence, "idle", {
-            client: "client-b",
+            writerId: "writer-b",
             where: { activity: "editing" },
             activity: "idle",
         });
-        const rows = await present(east.server.ephemeral, "the east ephemeral storage")
+        const rows = await present(east.store.ephemeral, "the east ephemeral storage")
             .database.select({
-                client: presence.table.client,
+                writerId: presence.table.writerId,
                 activity: presence.table.activity,
             })
             .from(presence.table);
         expect([
             idled,
-            rows.toSorted((left, right) => left.client.localeCompare(right.client)),
+            rows.toSorted((left, right) => left.writerId.localeCompare(right.writerId)),
         ]).toEqual([
             { count: 1 },
             [
-                { client: "client-a", activity: "editing" },
-                { client: "client-b", activity: "idle" },
+                { writerId: "writer-a", activity: "editing" },
+                { writerId: "writer-b", activity: "idle" },
             ],
         ]);
     },
@@ -337,7 +338,7 @@ test.for(TEST_DIALECTS)(
             name: "Alice",
         });
 
-        // show the viewer each board with the presence on it and the profile each presence names
+        // show the viewer each board with the presence on it and the profile each presence refers to
         const alice = await clientOf(east, "alice");
         const bob = await clientOf(west, "bob");
         await alice.client.query.presence.findMany().subscribe().ready;
@@ -419,7 +420,7 @@ async function serveBoards(dialect: Dialect) {
     // serve them from two instances sharing presence over their database's channel
     const instance = async () => {
         const durable = await storage.connect(storage.database.tables);
-        const store = present(
+        const ephemeral = present(
             await EphemeralStorage.open(
                 [presence, board, profile],
                 EphemeralStorage.channel(durable),
@@ -433,11 +434,12 @@ async function serveBoards(dialect: Dialect) {
             ),
             "the ephemeral storage",
         );
-        onTestFinished(() => store[Symbol.asyncDispose]());
-        const server = new ObjectServer({
+        onTestFinished(() => ephemeral[Symbol.asyncDispose]());
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { presence, board, profile },
             database: durable,
-            ephemeral: store,
+            ephemeral,
             callKey: testCallKey,
             origin: {
                 package: presence.package,
@@ -445,10 +447,13 @@ async function serveBoards(dialect: Dialect) {
             },
         });
 
-        const served = serveObjects(server.implement(boardsService), spaceId);
+        const served = serveObjects(
+            store.implement(boardsService, store.routed, store.controllers(), {}),
+            spaceId,
+        );
 
         return {
-            server,
+            store,
             /** Reach the instance over HTTP as a user. */
             endpoint: served.endpoint,
             /** Call a method as a user. */
@@ -457,18 +462,18 @@ async function serveBoards(dialect: Dialect) {
                 object: Object,
                 name: Name,
                 input: object,
-            ) => server.call(object, name, { spaceId, ...input }, context(as).context),
+            ) => request(store, object, name, { spaceId, ...input }, context(as).context),
             /** Follow the space's presence as a user's client. */
-            follow: (as: string, client: string) => {
+            follow: (as: string, writerId: string) => {
                 // read the pages in the background into the rows received, waking whoever waits for the next
                 const { context: followed, controller } = context(as);
-                const pages = server.source.relayed(
-                    server.source.ephemeralShape.subscription({
+                const pages = store.source.relayed(
+                    store.source.ephemeralShape.subscription({
                         name: "ephemeral",
                         scope: spaceId,
                         below: spaceId,
                         parameters: {
-                            client,
+                            writerId,
                             queries: { presences: { object: "presence" } },
                         },
                     }),

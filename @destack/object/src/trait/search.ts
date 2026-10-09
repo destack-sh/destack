@@ -19,7 +19,7 @@ export type ObjectSearch = schema.Infer<typeof ObjectSearchSchema>;
 
 /** How callers find an object type's objects, and how a definition's roles read. */
 export const ObjectSearch = Object.assign(ObjectSearchSchema, {
-    /** Read a definition's roles, a role left out naming no field. */
+    /** Read a definition's roles, a role left out pointing at no field. */
     of(definition: SearchDefinition): ObjectSearch {
         return ObjectSearchSchema.parse({
             searchable: [],
@@ -30,7 +30,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     },
 });
 
-/** How a definition declares its query roles, a role left out naming no field. */
+/** How a definition declares its query roles, a role left out pointing at no field. */
 export type SearchDefinition = Partial<ObjectSearch>;
 
 /** The field types full-text search reads. */
@@ -84,7 +84,7 @@ function indexes(
     });
 }
 
-/** Refuse a role naming an unknown field, or a field its role cannot read. */
+/** Refuse a role pointing at an unknown field, or a field its role cannot read. */
 function requireRoles(object: ObjectType, options: ObjectSearch): void {
     const roles = [
         ["searchable", options.searchable, SEARCHED_TYPES],

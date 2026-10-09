@@ -9,8 +9,8 @@ import { v7 } from "uuid";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
-import { ExpiringController, ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ExpiringController, ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
 
@@ -54,7 +54,8 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         const database = storage.database;
         await openSpace(database, spaceId);
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { alert },
             database,
             callKey: testCallKey,
@@ -68,12 +69,12 @@ test.each(TEST_DIALECTS)(
             title: string,
             times: { createdAt: number; readAt: number | null },
         ) => {
-            const created = await server.call(
-                alert,
-                "create",
-                { spaceId, requestId: RequestId.create(), title },
-                context,
-            );
+            const created = await store
+                .mutate(context.caller(), {
+                    id: RequestId.create(),
+                    calls: [alert.call("create", { spaceId, title })],
+                })
+                .then(([written]) => written);
             await database.update(alert.table).set(times).where(eq(alert.table.id, created.id));
 
             return created.id;
@@ -89,7 +90,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // remove the two expired alerts and schedule the third
-        const controller = new ExpiringController(server);
+        const controller = new ExpiringController(store);
         expect(Object.keys(alert.procedures).toSorted()).toEqual(["create", "get"]);
         const delay = await controller.reconcile(
             "expiry",
@@ -98,7 +99,7 @@ test.each(TEST_DIALECTS)(
         const left = await database.select({ id: alert.table.id }).from(alert.table);
         expect([
             left.map((row) => row.id),
-            await auditedActions(database, "system"),
+            await auditedActions(database, "component"),
             delay !== undefined && delay > 28 * DAY && delay <= 29 * DAY,
         ]).toEqual([[kept], ["alert.expire", "alert.expire"], true]);
     },
@@ -115,7 +116,8 @@ test("leave the expired rows a database copies to the deletes their home sends",
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, spaceId);
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { alert },
         database,
         callKey: testCallKey,
@@ -133,7 +135,7 @@ test("leave the expired rows a database copies to the deletes their home sends",
     });
 
     // expire nothing and schedule nothing
-    const controller = new ExpiringController(server);
+    const controller = new ExpiringController(store);
     const delay = await controller.reconcile("expiry", reconciliation(AbortSignal.timeout(5000)));
     const left = await database.select({ title: alert.table.title }).from(alert.table);
     expect([left, delay, controller.watches]).toEqual([[{ title: "Copied" }], undefined, []]);

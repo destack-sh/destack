@@ -56,7 +56,7 @@ export type RecoverableMethodMap<Deletion> = Deletion extends RecoverableDefinit
           ? {
                 readonly discard: Method<{
                     kind: "custom";
-                    permission: null;
+                    permission: PurgePermission<Deletion>;
                     output: typeof Empty;
                     mutates: true;
                 }>;
@@ -64,14 +64,14 @@ export type RecoverableMethodMap<Deletion> = Deletion extends RecoverableDefinit
           : {})
     : {};
 
-/** The permission purging needs: the one `purge` names, else `by`. */
+/** The permission purging needs: the one `purge` sets, else `by`. */
 type PurgePermission<Deletion extends RecoverableDefinition> = Deletion extends {
     readonly purge: infer Purge extends string;
 }
     ? Purge
     : Deletion["by"];
 
-/** The external work a purge prepares: the schema `prepared` names, else none. */
+/** The external work a purge prepares: the schema `prepared` sets, else none. */
 type PurgePrepared<Deletion extends RecoverableDefinition> = Deletion extends {
     readonly prepared: infer Prepared extends schema.Schema;
 }
@@ -110,7 +110,7 @@ export const recoverable: Trait<RecoverableDefinition> & {
         delete: method.delete(options.by),
         restore: restoration("restore", options.by, options),
         purge: restoration("purge", options.purge ?? options.by, options),
-        ...(options.keep === "record" ? { discard } : {}),
+        ...(options.keep === "record" ? { discard: discard(options.purge ?? options.by) } : {}),
     }),
     validate: (options, object, definition) => {
         // refuse controlled objects

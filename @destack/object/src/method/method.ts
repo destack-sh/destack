@@ -19,6 +19,7 @@ import {
     type RemoveOptions,
     type UpdateManyOptions,
     type UpdateOptions,
+    type Variants,
 } from "./record.ts";
 import type { MethodKind } from "./kind.ts";
 import type { Step } from "./step.ts";
@@ -31,8 +32,8 @@ export { METHOD_KINDS, type MethodKind } from "./kind.ts";
 export interface MethodConfiguration {
     /** The method's kind. */
     readonly kind: MethodKind;
-    /** The permission the caller needs on the target, or null for none. */
-    readonly permission: string | null;
+    /** The permission the caller needs on the target. */
+    readonly permission: string;
     /** The caller-supplied values beyond columns. */
     readonly input: schema.Schema;
     /** The result of a custom method. */
@@ -43,10 +44,12 @@ export interface MethodConfiguration {
     readonly mutates: boolean;
     /** The columns a creation or update writes. */
     readonly fields: string;
+    /** The column sets of a sum type a creation writes, by the field telling them apart and its value. */
+    readonly variants: object;
     /** The table of the method's object type. */
     readonly table: Table;
-    /** Whether only the system calls the method. */
-    readonly system: boolean;
+    /** Whether the method stays out of the routes people call, run only by the principals' own code. */
+    readonly internal: boolean;
 }
 
 /** One type a method declares: its own, or the default when it declares none. */
@@ -60,14 +63,16 @@ export type OptionOf<
 export interface Method<Configuration extends Partial<MethodConfiguration> = MethodConfiguration> {
     /** The method's kind. */
     readonly kind: OptionOf<Configuration, "kind", MethodKind>;
-    /** The permission the caller needs on the target, or null for none. */
-    readonly permission: OptionOf<Configuration, "permission", string | null>;
+    /** The permission the caller needs on the target. */
+    readonly permission: OptionOf<Configuration, "permission", string>;
     /** Whether the method changes state. */
     readonly mutates: OptionOf<Configuration, "mutates", boolean>;
     /** Whether each reading call is audited. */
     readonly audited?: true;
     /** The columns a creation or update writes, every written field when absent. */
     readonly fields?: readonly OptionOf<Configuration, "fields", string>[];
+    /** The column sets of a sum type a creation writes, one beside the shared fields. */
+    readonly variants?: OptionOf<Configuration, "variants", never>;
     /** The caller-supplied values beyond columns. */
     readonly input?: OptionOf<Configuration, "input", never>;
     /** The input fields each release computes from an earlier call's input, by the release introducing them. */
@@ -88,7 +93,7 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     readonly result: "object" | "page" | "value";
     /** Whether clients predict the method. */
     readonly isPredicted: boolean;
-    /** The fields of the result an audited read's event names. */
+    /** The fields of the result an audited read's event records. */
     readonly audit?: { readonly details: schema.Object<Record<string, schema.Schema>> };
     /** Derive the method's procedure under a name. */
     procedure(name: string, schema: ObjectSchema): MethodProcedure;
@@ -108,8 +113,8 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     rollback?(call: SettlementCall, prepared: unknown): Promise<void>;
     /** Derive the idempotency key of a call's external work. */
     idempotencyKey?(call: Call): string;
-    /** Whether only the system calls the method. */
-    readonly isSystem?: OptionOf<Configuration, "system", boolean>;
+    /** Whether the method stays out of the routes people call, run only by the principals' own code. */
+    readonly isInternal?: OptionOf<Configuration, "internal", boolean>;
     /** Refuse an object type the method cannot serve. */
     validate?(object: ObjectType): void;
     /** Derive the calls undoing a step. */
@@ -122,13 +127,13 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
 export interface MethodBuilder<Definition extends Table = Table, Written extends string = string> {
     /** Declare a method reading one object, as tRPC's `query`. */
     query<
-        const Permission extends string | null,
+        const Permission extends string,
         Input extends schema.JsonObject = never,
         Output extends schema.Schema = never,
         Prepared extends schema.Schema = never,
-        const System extends boolean = false,
+        const Internal extends boolean = false,
     >(
-        definition: CustomDefinition<Permission, Input, Output, Prepared, System>,
+        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
     ): Method<{
         kind: "custom";
         permission: Permission;
@@ -137,17 +142,17 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         prepared: NoInfer<Prepared>;
         mutates: false;
         table: Definition;
-        system: NoInfer<System>;
+        internal: NoInfer<Internal>;
     }>;
     /** Declare a method changing one object, as tRPC's `mutation`. */
     mutation<
-        const Permission extends string | null,
+        const Permission extends string,
         Input extends schema.JsonObject = never,
         Output extends schema.Schema = never,
         Prepared extends schema.Schema = never,
-        const System extends boolean = false,
+        const Internal extends boolean = false,
     >(
-        definition: CustomDefinition<Permission, Input, Output, Prepared, System>,
+        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
     ): Method<{
         kind: "custom";
         permission: Permission;
@@ -156,7 +161,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         prepared: NoInfer<Prepared>;
         mutates: true;
         table: Definition;
-        system: NoInfer<System>;
+        internal: NoInfer<Internal>;
     }>;
     /** Read one object. */
     get<const Permission extends string>(
@@ -168,14 +173,15 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
     ): Method<{ kind: "list"; permission: Permission; mutates: false; table: Definition }>;
     /** Create an object from the fields the caller writes. */
     create<
-        const Permission extends string | null,
+        const Permission extends string,
         const Fields extends Written = Written,
         Input extends schema.JsonObject = never,
         Prepared extends schema.Schema = never,
-        const System extends boolean = false,
+        const Internal extends boolean = false,
+        const Sum extends Variants<Written> = never,
     >(
         permission: Permission,
-        options?: CreateOptions<Fields, Input, Prepared, System, Definition>,
+        options?: CreateOptions<Fields, Input, Prepared, Internal, Definition, Sum>,
     ): Method<{
         kind: "create";
         permission: Permission;
@@ -183,12 +189,13 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         prepared: NoInfer<Prepared>;
         mutates: true;
         fields: NoInfer<Fields>;
+        variants: NoInfer<Sum>;
         table: Definition;
-        system: NoInfer<System>;
+        internal: NoInfer<Internal>;
     }>;
     /** Update an object's written fields. */
     update<
-        const Permission extends string | null,
+        const Permission extends string,
         const Fields extends Written = Written,
         Input extends schema.JsonObject = never,
         Prepared extends schema.Schema = never,
@@ -221,7 +228,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         table: Definition;
     }>;
     /** Delete an object. */
-    delete<const Permission extends string | null, Prepared extends schema.Schema = never>(
+    delete<const Permission extends string, Prepared extends schema.Schema = never>(
         permission: Permission,
         options?: RemoveOptions<Prepared>,
     ): Method<{

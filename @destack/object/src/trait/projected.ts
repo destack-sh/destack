@@ -7,23 +7,23 @@ import type { Trait } from "./trait.ts";
 export interface ProjectedDefinition {
     /** The object type whose rows the objects project. */
     readonly from: ObjectType | (() => ObjectType);
-    /** The subject field of the source naming each row's recipient. */
+    /** The subject field of the source holding each row's recipient. */
     readonly to: string;
-    /** The qualified reference field naming each object's source row, unique in its scope. */
+    /** The qualified reference field holding each object's source row, unique in its scope. */
     readonly source: string;
-    /** The fields kept equal to the source row's, each naming its source field, such as the source's scope. */
+    /** The fields kept equal to the source row's, each mapped to its source field, such as the source's scope. */
     readonly fields?: Readonly<Record<string, string>>;
     /** The object's own fields a change of the kept fields clears, such as its read state. */
     readonly clears?: readonly string[];
-    /** The copied types naming the residents of each home and the installations keeping rows for them. */
+    /** The copied types identifying the residents of each home and the installations keeping rows for them. */
     readonly residence: Residence;
 }
 
-/** The copied types telling a home whose rows it projects: its residents' users with their homes, and the residences in their scopes. */
+/** The copied types telling a home whose rows it projects: the personal accounts whose homes they are, and the residences in their users' scopes. */
 export interface Residence {
-    /** The users, each with the `home` field naming its home space. */
-    readonly user: ObjectType;
-    /** The residences in users' scopes, each with the `source` scope and the `installation` keeping rows for the user. */
+    /** The accounts, each personal one in its user's scope, whose home space is the home below the account in the scope chain. */
+    readonly account: ObjectType;
+    /** The residences in users' scopes, each with the `source` scope, the `installation` keeping rows for the user and its package's `service`. */
     readonly residence: ObjectType;
 }
 
@@ -35,7 +35,7 @@ export const SourceReference = schema.object({
 
 /** Objects projected from another type's rows: each its own object with its own state, created with its source and retracted when the source leaves. */
 export const projected: Trait<ProjectedDefinition> & {
-    /** Read the source type a projection names. */
+    /** Read the source type a projection refers to. */
     sourceOf(options: ProjectedDefinition): ObjectType;
 } = {
     key: "projected",
@@ -50,7 +50,7 @@ export const projected: Trait<ProjectedDefinition> & {
     ],
     methods: () => ({}),
     validate: (options, object) => {
-        // require a qualified reference to the source type, and a subject field naming its recipient
+        // require a qualified reference to the source type, and a subject field holding its recipient
         const field = object.fields[options.source];
         const source = projected.sourceOf(options);
         if (field?.type !== "reference" || !field.qualified || !source.same(field.target?.())) {
@@ -82,10 +82,10 @@ export const projected: Trait<ProjectedDefinition> & {
             throw new TypeError(`object ${object.name} clears no own field ${cleared}`);
         }
 
-        // require the residents' homes and the residences naming their sources
-        const { user, residence } = options.residence;
+        // require the accounts telling personal ones apart and the residences listing their sources
+        const { account, residence } = options.residence;
         const missing = [
-            ...(user.fields["home"] === undefined ? [`${user.name}.home`] : []),
+            ...(account.fields["kind"] === undefined ? [`${account.name}.kind`] : []),
             ...["source", "installation"].flatMap((name) =>
                 residence.fields[name] === undefined ? [`${residence.name}.${name}`] : [],
             ),
@@ -96,7 +96,7 @@ export const projected: Trait<ProjectedDefinition> & {
             );
         }
     },
-    /** Read the source type a projection names. */
+    /** Read the source type a projection refers to. */
     sourceOf(options: ProjectedDefinition): ObjectType {
         return typeof options.from === "function" ? options.from() : options.from;
     },

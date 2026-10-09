@@ -30,7 +30,7 @@ const SEND_CONCURRENCY = 32;
 /** How often a change trigger looks again within its lag, advancing its slot however quiet its table: three times. */
 const SLOT_ADVANCES = 3;
 
-/** Follow the change triggers of served objects, recording the call of each change they admit as a run in the space's cell. */
+/** Follow the change triggers of served objects, recording the call of each change they admit as a run in the space's machine. */
 export class ChangeController implements Controller {
     /** The controller's name in reports. */
     readonly name = "change";
@@ -40,7 +40,7 @@ export class ChangeController implements Controller {
     readonly concurrency: number;
     /** The database keeping the followed objects and their log. */
     readonly #database: DatabaseConnection;
-    /** The cell recording the runs. */
+    /** The machine recording the runs. */
     readonly #runs: RunClient;
     /** The triggers, by name. */
     readonly #followed: ReadonlyMap<string, ChangeTrigger>;
@@ -49,7 +49,7 @@ export class ChangeController implements Controller {
     /** Read the current time. */
     readonly #now: () => number;
 
-    /** Follow change triggers over a database, recording runs in a cell. */
+    /** Follow change triggers over a database, recording runs in a machine. */
     constructor(
         database: DatabaseConnection,
         triggers: readonly ChangeTrigger[],
@@ -57,7 +57,7 @@ export class ChangeController implements Controller {
         report: (error: unknown) => void,
         now: () => number = Date.now,
     ) {
-        // keep the database, the cell, the report and the clock
+        // keep the database, the machine, the report and the clock
         this.#database = database;
         this.#runs = runs;
         this.#report = report;

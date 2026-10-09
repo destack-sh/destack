@@ -42,7 +42,7 @@ export function move<const Permission extends string>(
 
 /** Move an object back under its former parent. */
 function moveBack(step: Step, nesting: NestedDefinition): readonly sync.Call[] | undefined {
-    // name the former parent, of one type or any
+    // find the former parent, of one type or any
     const before = step.before;
     if (before === undefined) {
         return undefined;

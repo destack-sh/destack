@@ -14,11 +14,12 @@ import { Replay } from "@destack/audit";
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
-import type { Call } from "../method/index.ts";
+import { Call } from "../method/index.ts";
 
 import type { ObjectType } from "../object/index.ts";
 import { type BranchChange, BranchWrite } from "./write.ts";
 import type { BranchType } from "./type.ts";
+import { Caller } from "@destack/access";
 
 /** The columns a stored branch call keeps: the call and its author's subject key. */
 const STORED_CALL = sync.Call.extend({ author: schema.string() }).loose();
@@ -102,15 +103,17 @@ export class Branch {
         const last = (await this.calls()).length;
         const author = call.requireCaller();
         for (const [index, entry] of calls.entries()) {
-            await call.invoke(this.types.call).create({
-                id: `${this.types.call.identity}-${v7()}`,
-                parentId: this.id,
-                position: last + index + 1,
-                method: entry.method,
-                input: entry.input,
-                release: entry.release,
-                author: Subject.key(author),
-            });
+            await call.mutate(call.caller, [
+                Call.record(this.types.call, "create", {
+                    id: `${this.types.call.identity}-${v7()}`,
+                    parentId: this.id,
+                    position: last + index + 1,
+                    method: entry.method,
+                    input: entry.input,
+                    release: entry.release,
+                    author: Subject.key(author),
+                }),
+            ]);
         }
 
         return calls.map((entry) => ({ ...entry, author }));
@@ -146,24 +149,30 @@ export class Branch {
             const existing = byName.get(named(entry));
             byName.delete(named(entry));
             if (existing !== undefined) {
-                await call.invoke(this.types.row).update({
-                    id: existing.id,
-                    row: entry.row,
-                    before: entry.before,
-                });
+                await call.mutate(call.caller, [
+                    Call.record(this.types.row, "update", {
+                        id: existing.id,
+                        row: entry.row,
+                        before: entry.before,
+                    }),
+                ]);
             } else {
-                await call.invoke(this.types.row).create({
-                    id: `${this.types.row.identity}-${v7()}`,
-                    parentId: this.id,
-                    table: entry.table,
-                    key: entry.key,
-                    ...(entry.row === null ? {} : { row: entry.row }),
-                    ...(entry.before === null ? {} : { before: entry.before }),
-                });
+                await call.mutate(call.caller, [
+                    Call.record(this.types.row, "create", {
+                        id: `${this.types.row.identity}-${v7()}`,
+                        parentId: this.id,
+                        table: entry.table,
+                        key: entry.key,
+                        ...(entry.row === null ? {} : { row: entry.row }),
+                        ...(entry.before === null ? {} : { before: entry.before }),
+                    }),
+                ]);
             }
         }
         for (const entry of byName.values()) {
-            await call.invoke(this.types.row).delete({ id: entry.id });
+            await call.mutate(call.caller, [
+                Call.record(this.types.row, "delete", { id: entry.id }),
+            ]);
         }
     }
 
@@ -209,7 +218,7 @@ export class Branch {
         await BranchWrite.write(this.database, this.types.tables(objects), await this.rows());
     }
 
-    /** Replay calls with the system's authority as their authors over rows, returning the rows they leave changed. */
+    /** Replay calls as their authors over rows, returning the rows they leave changed. */
     async #replay(
         call: Call,
         calls: readonly BranchCall[],
@@ -234,10 +243,11 @@ export class Branch {
                     throw new TypeError("replaying branch calls needs a call that runs methods");
                 } else if (method.prepare === undefined && run !== undefined) {
                     await Branch.#attempt(savepoint, () =>
-                        run(resolved.object, resolved.name, resolved.input, {
-                            as: entry.author,
-                            authority: "system",
-                        }),
+                        run(
+                            Call.record(resolved.object, resolved.name, resolved.input),
+                            Caller.of(entry.author, call.now),
+                            true,
+                        ),
                     );
                 }
             }
@@ -259,7 +269,7 @@ export class Branch {
         return Condition.render({ parentId: this.id }, table);
     }
 
-    /** Run a replayed call in its own savepoint, skipping a refusal the server would answer for good. */
+    /** Run a replayed call in its own savepoint, skipping a refusal the store would answer for good. */
     static async #attempt(
         database: DatabaseConnection,
         run: () => Promise<unknown>,
@@ -274,7 +284,7 @@ export class Branch {
     }
 }
 
-/** Name a branch row by its table and key. */
+/** Build the key of a branch row from its table and key. */
 function named(entry: { readonly table: string; readonly key: unknown }): string {
     return JSON.stringify([entry.table, entry.key]);
 }

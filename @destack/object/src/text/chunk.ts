@@ -58,7 +58,7 @@ const INCLUDED_CHUNK = schema.looseObject({
 /** The chunk rows a listed page includes for one owner. */
 const INCLUDED_CHUNKS = schema.array(INCLUDED_CHUNK);
 
-/** The columns naming one text field of one owner. */
+/** The columns identifying one text field of one owner. */
 type Parent = Pick<Chunk, "scope" | "parentPackageId" | "parentType" | "parentId" | "field">;
 
 /** The result of an edit: the edits undoing it. */
@@ -297,13 +297,13 @@ async function read(
     return ordered(rows);
 }
 
-/** Read the contiguous chunks containing the elements some edits name. */
+/** Read the contiguous chunks containing the elements some edits refer to. */
 async function touched(
     database: DatabaseConnection,
     parent: Parent,
     edits: readonly SequenceEdit[],
 ): Promise<Chunk[]> {
-    // find the chunks containing the named elements and any run the edits insert
+    // find the chunks containing the referenced elements and any run the edits insert
     const { named, inserted, isAtStart } = editedElements(edits);
     const found =
         named.length === 0 && inserted.size === 0
@@ -325,7 +325,7 @@ async function touched(
     return from === undefined || to === undefined ? [] : read(database, parent, { from, to });
 }
 
-/** Collect the elements some edits name, skipping the runs they insert, and whether one inserts at the start. */
+/** Collect the elements some edits refer to, skipping the runs they insert, and whether one inserts at the start. */
 function editedElements(edits: readonly SequenceEdit[]): {
     readonly named: Element[];
     readonly inserted: Set<string>;
@@ -336,7 +336,7 @@ function editedElements(edits: readonly SequenceEdit[]): {
     const named: Element[] = [];
     let isAtStart = false;
     for (const edit of edits) {
-        // name the elements of runs inserted before
+        // collect the elements of runs inserted before
         const elements = namedElements(edit);
         named.push(...elements.filter((element) => !inserted.has(element.run)));
 
@@ -700,17 +700,17 @@ function start(row: Chunk): Element {
     return { run: first.run, offset: first.start };
 }
 
-/** List the elements an edit names: an insertion's anchor, or a deletion's or restoration's ends. */
+/** List the elements an edit refers to: an insertion's anchor, or a deletion's or restoration's ends. */
 function namedElements(edit: SequenceEdit): Element[] {
-    // name an insertion's anchor
+    // take an insertion's anchor
     if ("insert" in edit) {
         return edit.after === undefined ? [] : [edit.after];
     }
-    // name a deletion's ends
+    // take a deletion's ends
     else if ("delete" in edit) {
         return [edit.delete.from, edit.delete.to];
     }
-    // name a restoration's ends
+    // take a restoration's ends
     else {
         return [edit.restore.from, edit.restore.to];
     }

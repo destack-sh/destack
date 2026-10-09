@@ -7,17 +7,17 @@ import { subjectContext, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineService } from "@destack/service";
 import { serveObjects } from "./fixture/device.ts";
 import { notebook, notesDatabase } from "./fixture/note.ts";
-import { openSpace, space, unmoved } from "./fixture/space.ts";
+import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 
-/** An entry's natural key: the notebook's term, as a moniker names a symbol. */
+/** An entry's natural key: the notebook's term, as a moniker identifies a symbol. */
 const Term = schema.string().regex(/^term:[A-Za-z]+$/u);
 
-/** An entry of a notebook's index, named by its term and kept in files rather than the space's database. */
+/** An entry of a notebook's index, identified by its term and kept in files rather than the space's database. */
 const entry = defineObject({
     name: "entry",
     plural: "entries",
@@ -47,26 +47,29 @@ test("read external objects named by their key from the database their files ope
     );
     onTestFinished(() => files.close());
     const opened: string[] = [];
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { notebook, entry },
         database: durable.database,
-        external: {
-            objects: [entry],
-            open: async (scope): Promise<DatabaseConnection> => {
-                opened.push(scope);
+        external: [
+            {
+                objects: [entry],
+                open: async (scope): Promise<DatabaseConnection> => {
+                    opened.push(scope);
 
-                return files.database;
+                    return files.database;
+                },
             },
-        },
+        ],
         callKey: testCallKey,
         origin: { package: entry.package, service: "test" },
     });
-    const travel = await server.call(
-        notebook,
-        "create",
-        { spaceId, requestId: RequestId.create(), name: "Travel" },
-        context("alice"),
-    );
+    const travel = await store
+        .mutate(context("alice").caller(), {
+            id: RequestId.create(),
+            calls: [notebook.call("create", { spaceId, name: "Travel" })],
+        })
+        .then(([written]) => written);
     const id = "term:Vienna";
     await files.database.insert(entry.table).values({
         id,
@@ -78,8 +81,8 @@ test("read external objects named by their key from the database their files ope
     });
 
     // read the entry through its notebook's read permission
-    const read = await server.call(entry, "get", { spaceId, id }, context("alice"));
-    const listed = await server.call(entry, "list", { spaceId }, context("alice"));
+    const read = await store.query(context("alice").caller(), entry.call("get", { spaceId, id }));
+    const listed = await store.query(context("alice").caller(), entry.call("list", { spaceId }));
     expect([read.term, listed.items.map((row) => row.term), opened]).toEqual([
         "Vienna",
         ["Vienna"],
@@ -89,11 +92,20 @@ test("read external objects named by their key from the database their files ope
     // follow the entries in a client's live query, through the external copy
     const service = defineService("index", { objects: { notebook, entry } });
     const served = serveObjects(
-        ObjectServer.serve(service, {
-            database: durable.database,
-            external: { objects: [entry], open: async () => files.database },
-            callKey: testCallKey,
-        }),
+        ObjectExtension.compose(
+            [
+                {
+                    ...ObjectExtension.of(service, []),
+                    external: { objects: [entry], open: async () => files.database },
+                },
+            ],
+            {
+                origin: { package: service.package, service: service.name },
+                principal: spacePrincipal(spaceId),
+                database: durable.database,
+                callKey: testCallKey,
+            },
+        ).services[0],
         spaceId,
     );
     const local = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, entry }));

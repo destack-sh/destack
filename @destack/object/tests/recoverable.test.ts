@@ -7,14 +7,14 @@ import { journal } from "@destack/audit/stack";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
-import { ObjectServer, RecoverableController } from "../src/server/index.ts";
+import { ObjectStore, RecoverableController } from "../src/server/index.ts";
 import { recoverable } from "../src/trait/recoverable.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
 import { any } from "./fixture/match.ts";
+import { request } from "./fixture/request.ts";
 
 /** The space containing the credentials. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -76,8 +76,10 @@ test.each(TEST_DIALECTS)(
             }),
             { days: 7 },
         );
+        let now = Date.now();
         const serve = (object: ObjectType) =>
-            new ObjectServer({
+            new ObjectStore({
+                principal: spacePrincipal(spaceId),
                 objects: { credential: object },
                 database,
                 callKey: testCallKey,
@@ -85,19 +87,14 @@ test.each(TEST_DIALECTS)(
                     package: credential.package,
                     service: "test",
                 },
+                clock: () => now,
             });
         let context = userContext("user-1", spaceId);
         const execute = <Object extends typeof credential, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
             input: Record<string, unknown>,
-        ) =>
-            serve(object).call(
-                object,
-                name,
-                { spaceId, requestId: RequestId.create(), ...input },
-                context,
-            );
+        ) => request(serve(object), object, name, { spaceId, ...input }, context);
         // restore within the host's window what the declared window no longer restores
         const created = await execute(handled, "create", {
             custodianId: "user-2",
@@ -136,7 +133,7 @@ test.each(TEST_DIALECTS)(
             .select()
             .from(credential.table)
             .where(eq(credential.table.id, created.id));
-        // name the owner as the deleter and the custodian as the last writer
+        // record the owner as the deleter and the custodian as the last writer
         expect(purged).toEqual({
             ...created,
             value: null,
@@ -165,21 +162,23 @@ test.each(TEST_DIALECTS)(
             value: "swordfish",
         });
         await execute(handled, "delete", { id: expired.id, revision: expired.revision });
-        const server = serve(handled);
+        const store = serve(handled);
         const later = Date.now() + 8 * 24 * 60 * 60 * 1000;
+        now = later;
         expect([
-            await RecoverableController.purge(server, later),
-            await RecoverableController.purge(server, later),
+            await RecoverableController.purge(store, later),
+            await RecoverableController.purge(store, later),
         ]).toEqual([1, 0]);
-        expect(await auditedActions(database, "system")).toEqual(["credential.purge"]);
+        expect(await auditedActions(database, "component")).toEqual(["credential.purge"]);
         const [kept] = await database
             .select({ value: credential.table.value, purgedAt: credential.table.purgedAt })
             .from(credential.table)
             .where(eq(credential.table.id, expired.id));
         expect(kept).toEqual({ value: null, purgedAt: later });
+        now = Date.now();
 
         // look again and purge after the next window ends
-        const controller = new RecoverableController(server);
+        const controller = new RecoverableController(store);
         const pending = await execute(handled, "create", { custodianId: "user-2", value: "later" });
         await execute(handled, "delete", { id: pending.id, revision: pending.revision });
         const week = 7 * 24 * 60 * 60 * 1000;
@@ -218,12 +217,12 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([[handled.table], ["trash"], [], ["trash"], true]);
         await database
             .update(credential.table)
-            .set({ deletionRequestedAt: Date.now() - week - 1 })
+            .set({ deletionRequestedAt: now - week - 1 })
             .where(eq(credential.table.id, pending.id));
         expect(
             await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),
         ).toBeUndefined();
-        expect(await auditedActions(database, "system")).toEqual([
+        expect(await auditedActions(database, "component")).toEqual([
             "credential.purge",
             "credential.purge",
         ]);

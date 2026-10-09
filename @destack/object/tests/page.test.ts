@@ -1,4 +1,4 @@
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectExtension } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -15,7 +15,7 @@ import { v7 } from "uuid";
 import { anyone, LinkSecret, principal } from "@destack/access";
 import { Subject } from "@destack/sync";
 import { page, pageDatabase, pagesService } from "./fixture/page.ts";
-import { openSpace, unmoved } from "./fixture/space.ts";
+import { openSpace, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 
 /** The space with the pages. */
@@ -27,19 +27,21 @@ const audience = PackageId.parse("package-01a0d5eb-fbad-732f-bbb4-a58aebbeb908")
 /** The rows an include adds, read for their titles. */
 const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
 
-/** Serve a space's pages to bearer-named users and anonymous readers. */
+/** Serve a space's pages to bearer-identified users and anonymous readers. */
 async function servePages(dialect: Dialect) {
     const storage = await TestDatabase.create(dialect, pageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
+    const owner = await openSpace(database, spaceId);
 
     // serve the space's pages
     const server = Server.start({
-        ...ObjectServer.serve(pagesService, {
+        ...ObjectExtension.compose([ObjectExtension.of(pagesService, [])], {
+            origin: { package: pagesService.package, service: pagesService.name },
+            principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             database,
-        }),
+        }).services[0],
         audience,
         scope: spaceId,
         resources: new ResourceContext(),
@@ -77,7 +79,7 @@ async function servePages(dialect: Dialect) {
     const connect = (headers: Record<string, string>) =>
         createClient(pagesService, endpoint(headers));
 
-    return { connect, endpoint };
+    return { connect, endpoint, owner };
 }
 
 /** Keep a user's pages on a device. */
@@ -128,7 +130,7 @@ async function openDevice(user: string, endpoint: ClientOptions) {
 test.each(TEST_DIALECTS)(
     "share page trees with members and links, and move pages within them on %s",
     async (dialect) => {
-        const { connect } = await servePages(dialect);
+        const { connect, owner } = await servePages(dialect);
         const alice = connect({ authorization: "Bearer alice" });
         const bob = connect({ authorization: "Bearer bob" });
         const carol = connect({ authorization: "Bearer carol" });
@@ -257,6 +259,10 @@ test.each(TEST_DIALECTS)(
             [
                 ["page edit / page edit-direct / field owner holding relation owner", "subject"],
                 [
+                    `page edit / page edit-direct / role ${owner} bound on space ${spaceId}`,
+                    "subject",
+                ],
+                [
                     `page edit / through parent to page ${handbook.id} / page edit-direct / field owner holding relation owner`,
                     "subject",
                 ],
@@ -264,6 +270,11 @@ test.each(TEST_DIALECTS)(
                     `page edit / through parent to page ${handbook.id} / page edit-direct / relation editor`,
                     "subject",
                 ],
+                [
+                    `page edit / through parent to page ${handbook.id} / page edit-direct / role ${owner} bound on space ${spaceId}`,
+                    "subject",
+                ],
+                [`page edit / role ${owner} bound on space ${spaceId}`, "subject"],
             ],
         ]);
 

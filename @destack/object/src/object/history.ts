@@ -65,7 +65,7 @@ export function checkpoint<const Scope extends ObjectScope>(scope: Scope) {
         fields: {
             /** The principal who named the checkpoint. */
             createdBy: field.subject().caller(),
-            /** The log position the checkpoint names. */
+            /** The log position the checkpoint marks. */
             position: field.json(LogPosition),
             /** The checkpoint's name. */
             title: field.string(schema.string().min(1).max(200)),

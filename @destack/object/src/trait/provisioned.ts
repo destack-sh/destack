@@ -66,7 +66,7 @@ function resourceFields(kind: ResourceKind) {
         appliedState: field.string(Digest).optional(),
         /** Whether a host's provider provisions the resource, its stack declares its reference, or a connection lends its credential. */
         origin: field.enum(["provisioned", "declared", "connection"]).default("provisioned"),
-        /** The connection in the space whose credential the host lends to every call, absent where each call names one lent to its installation. */
+        /** The connection in the space whose credential the host lends to every call, absent where each call carries one lent to its installation. */
         connection: field.string(schema.identifier("connection")).optional(),
         /** The requested placement, absent for automatic selection. */
         placement: field.json(ResourcePlacement).optional(),
@@ -76,7 +76,7 @@ function resourceFields(kind: ResourceKind) {
         reference: field.string().optional(),
         /** The actual provider location, absent before provisioning. */
         location: field.string().optional(),
-        /** The machine keeping the resource, absent for provider-managed storage. */
+        /** The machine keeping the resource, absent before provisioning. */
         machineId: field.string(schema.identifier("machine")).optional(),
         /** What deletion does to the stored content: destroy it, keep it for a window, or keep it. */
         retention: field.json(ResourceRetention).default("forever"),
@@ -289,8 +289,8 @@ function resourceMethods() {
     return {
         get: method.get("read"),
         list: method.list("read"),
-        create: method.create(null, {
-            isSystem: true,
+        create: method.create("declare", {
+            isInternal: true,
             fields: [
                 "name",
                 "definitionPackageId",
@@ -302,11 +302,11 @@ function resourceMethods() {
                 "owner",
             ],
         }),
-        update: method.update(null, {
-            isSystem: true,
+        update: method.update("declare", {
+            isInternal: true,
             fields: ["definitionVersion", "spec", "retention"],
         }),
-        delete: method.delete(null, { isSystem: true }),
+        delete: method.delete("declare", { isInternal: true }),
         adopt,
         specify,
     };
@@ -314,14 +314,6 @@ function resourceMethods() {
 
 /** Write the record a stack's resource declares, provisioned or declared at a reference. */
 function declaredValues(name: string, declared: ResourceDefinition) {
-    // TODO #Incomplete: adopt resources from other spaces after ownership and residency checks
-    if (declared.adopt) {
-        throw new ObjectError(
-            "UNSUPPORTED_DECLARATION",
-            `resource adoption is not supported: ${name}`,
-        );
-    }
-
     // require the provider connecting a resource whose reference the stack declares
     const { declaration, placement, reference, connection } = declared;
     const provider = placement?.provider;

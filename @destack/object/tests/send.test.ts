@@ -1,6 +1,6 @@
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { accessTables, principal, relation } from "@destack/access";
+import { accessTables, principal, relation, Caller } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { asc, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -12,10 +12,11 @@ import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import type { RunDelivery, RunRequest } from "@destack/service/trigger";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { until } from "@destack/service/timer";
-import { openSpace, space } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
+import { createRouterClient } from "@destack/service/server";
 
 /** The space with the accounts. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");
@@ -77,15 +78,16 @@ const memberDatabase = defineDatabase({
 });
 
 test.each(TEST_DIALECTS)(
-    "send a call from a method once its transaction commits, nothing from one that rolls back, and let go of one the cell refuses for good, on %s",
+    "send a call from a method once its transaction commits, nothing from one that rolls back, and let go of one the machine refuses for good, on %s",
     async (dialect) => {
-        // serve the members with a cell recording their runs
+        // serve the members with a machine recording their runs
         const storage = await TestDatabase.create(dialect, memberDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const recorded: [RunRequest, RunDelivery | undefined][] = [];
         const reports: string[] = [];
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { member },
             database: storage.database,
             callKey: testCallKey,
@@ -111,21 +113,21 @@ test.each(TEST_DIALECTS)(
         });
         const context = userContext("user-1", spaceId);
         const signUp = (name: string) =>
-            server.call(
-                member,
-                "create",
-                { spaceId, requestId: RequestId.create(), name },
-                context,
-            );
+            store
+                .mutate(context.caller(), {
+                    id: RequestId.create(),
+                    calls: [member.call("create", { spaceId, name })],
+                })
+                .then(([written]) => written);
 
-        // sign up a name the cell refuses before another, and fail a sign-up after it sent
+        // sign up a name the machine refuses before another, and fail a sign-up after it sent
         await signUp("Bounced");
         await signUp("Ada");
         await expect(signUp("Refused")).rejects.toThrow("the sign-up is refused");
 
         // deliver the outbox through the server's controller, twice to show one delivery
         const sends = present(
-            server.controllers().find((controller) => controller.name === "sends"),
+            store.controllers().find((controller) => controller.name === "sends"),
             "the sends controller",
         );
         const signal = new AbortController().signal;
@@ -160,22 +162,24 @@ test.each(TEST_DIALECTS)(
             await Promise.all([storage.close(), copies.close()]);
         });
         await openSpace(storage.database, spaceId);
-        const home = new ObjectServer({
+        const home = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { note },
             database: storage.database,
             callKey: testCallKey,
             origin: { package: note.package, service: "test" },
         });
-        const written = await home.call(
-            note,
-            "create",
-            { spaceId, requestId: RequestId.create(), title: "Ada's" },
-            userContext("ada", spaceId),
-        );
+        const written = await home
+            .mutate(userContext("ada", spaceId).caller(), {
+                id: RequestId.create(),
+                calls: [note.call("create", { spaceId, title: "Ada's" })],
+            })
+            .then(([created]) => created);
 
         // follow them as bob, whose uplink runs his changes at home
         const reports: string[] = [];
-        const follower = new ObjectServer({
+        const follower = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: {},
             policies: [note],
             database: copies.database,
@@ -200,9 +204,17 @@ test.each(TEST_DIALECTS)(
 
         // write a note and rename ada's through the copy, delivering the sends twice to show one delivery
         await copies.database.transaction(async (transaction) => {
-            const context = { database: transaction, scope: spaceId, now: Date.now() };
-            await follower.change(context, note, "create", { title: "Bob's" });
-            await follower.change(context, note, "rename", { id: written.id, title: "Bob's now" });
+            await follower.mutate(
+                Caller.of(spacePrincipal(spaceId), Date.now()),
+                {
+                    id: RequestId.create(),
+                    calls: [
+                        note.call("create", { spaceId, title: "Bob's" }),
+                        note.call("rename", { spaceId, id: written.id, title: "Bob's now" }),
+                    ],
+                },
+                { transaction },
+            );
         });
         const sends = present(
             follower.controllers().find((controller) => controller.name === "sends"),
@@ -227,7 +239,7 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-test("pass a pushed mutation of copied rows toward their home as the principal pushing it, and refuse one mixing kept rows in", async () => {
+test("refuse a pushed mutation of copied rows, alone or beside kept rows, which only their home writes", async () => {
     // keep the notes at home and copy them in a follower serving members
     const storage = await TestDatabase.create("sqlite", noteDatabase, { isMigrated: true });
     const copies = await TestDatabase.create(
@@ -244,45 +256,27 @@ test("pass a pushed mutation of copied rows toward their home as the principal p
     });
     await openSpace(storage.database, spaceId);
     await openSpace(copies.database, spaceId);
-    const home = new ObjectServer({
-        objects: { note },
-        database: storage.database,
-        callKey: testCallKey,
-        origin: { package: note.package, service: "test" },
-    });
-    const follower = new ObjectServer({
+    const follower = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { member },
         policies: [note],
         database: copies.database,
         callKey: testCallKey,
         origin: { package: note.package, service: "test" },
-        subscriber: {
-            uplink: {
-                stream: async function* (_subscription, signal) {
-                    await until(signal);
-                    yield* [];
-                },
-                receive: (mutation, as) =>
-                    home.receiveFrom(
-                        mutation,
-                        userContext(present(as, "the sender").subject.id, spaceId),
-                    ),
-            },
-            subscriptions: async () => [],
-        },
     });
 
     // push a note's creation as bob, then one beside a member's
     const create = note.calls().create({ title: "Bob's" });
     const join = member.calls().create({ name: "Bob" });
-    const pushed = await follower.push(
-        spaceId,
-        [
+    const pushed = await createRouterClient(follower.router(), {
+        context: userContext("bob", spaceId),
+    }).replica.push({
+        scope: spaceId,
+        mutations: [
             { id: RequestId.create(), calls: [create] },
             { id: RequestId.create(), calls: [join, create] },
         ],
-        userContext("bob", spaceId),
-    );
+    });
     const notes = await storage.database
         .select({ owner: note.table.ownerId, title: note.table.title })
         .from(note.table);
@@ -293,8 +287,8 @@ test("pass a pushed mutation of copied rows toward their home as the principal p
         ),
         notes,
     }).toEqual({
-        outcomes: [null, "BAD_REQUEST"],
-        notes: [{ owner: "bob", title: "Bob's" }],
+        outcomes: ["BAD_REQUEST", "BAD_REQUEST"],
+        notes: [],
     });
 });
 
@@ -306,7 +300,8 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
         await Promise.all([storage.close(), copies.close()]);
     });
     await openSpace(storage.database, spaceId);
-    const home = new ObjectServer({
+    const home = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { note },
         database: storage.database,
         callKey: testCallKey,
@@ -316,10 +311,12 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
         name: "notes",
         parameters: schema.object({}),
         audience: "reader",
+        isReadinessGate: true,
         replica: ({ name, scope }) => new Replica({ name, scope, tables: [note.table] }),
     });
     const refused: string[] = [];
-    const follower = new ObjectServer({
+    const follower = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: {},
         policies: [note],
         database: copies.database,
@@ -358,7 +355,10 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
 
     // receive bob's note through the follower
     const created = note.calls().create({ title: "Bob's" });
-    await follower.receive({ ...created, input: { ...created.input, spaceId } });
+    await follower.receive(
+        { ...created, input: { ...created.input, spaceId } },
+        spacePrincipal(spaceId),
+    );
     const notes = await storage.database
         .select({ owner: note.table.ownerId, title: note.table.title })
         .from(note.table);

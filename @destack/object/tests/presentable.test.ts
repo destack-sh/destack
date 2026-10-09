@@ -9,8 +9,8 @@ import { present, schema } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
 import { describeObject } from "../src/inspect/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 
 /** The space containing the boards. */
@@ -55,25 +55,27 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { board },
         database: storage.database,
         callKey: testCallKey,
         origin: { package: board.package, service: "test" },
     });
-    const created = await server.call(
-        board,
-        "create",
-        {
-            spaceId,
-            requestId: RequestId.create(),
-            name: "Roadmap",
-            icon: { emoji: "🗺️" },
-            color: "teal",
-            cover: { file: { key: "covers/roadmap.png" }, focus: 0.4 },
-        },
-        userContext("user-1", spaceId),
-    );
+    const created = await store
+        .mutate(userContext("user-1", spaceId).caller(), {
+            id: RequestId.create(),
+            calls: [
+                board.call("create", {
+                    spaceId,
+                    name: "Roadmap",
+                    icon: { emoji: "🗺️" },
+                    color: "teal",
+                    cover: { file: { key: "covers/roadmap.png" }, focus: 0.4 },
+                }),
+            ],
+        })
+        .then(([written]) => written);
     const described = describeObject(board);
 
     expect({

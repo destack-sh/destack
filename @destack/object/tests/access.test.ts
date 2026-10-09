@@ -7,9 +7,9 @@ import { schema } from "@destack/schema";
 
 import { subjectContext, testCallKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, Intrinsic } from "../src/index.ts";
-import { space } from "./fixture/space.ts";
+import { space, spacePrincipal } from "./fixture/space.ts";
 
 /** The space whose roles and members the test follows. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -38,7 +38,8 @@ test.for(TEST_DIALECTS)(
         const object = space.reference("universe", SPACE_ID);
 
         // serve the space's roles and relationships to the owner
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(SPACE_ID),
             objects: { role, relationship },
             policies: [space],
             database,
@@ -51,7 +52,7 @@ test.for(TEST_DIALECTS)(
         await database
             .insert(space.table)
             .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
-        await new Authorization(server.authorizer, database, () => ({
+        await new Authorization(store.authorizer, database, () => ({
             subjects: [owner],
             now: Date.now(),
             attributes: {},
@@ -63,8 +64,8 @@ test.for(TEST_DIALECTS)(
         });
 
         // keep the owner role and its binding from the snapshot
-        const pages = server.source.relayed(
-            server.source.queriesShape.subscription({
+        const pages = store.source.relayed(
+            store.source.queriesShape.subscription({
                 name: "objects",
                 scope: SPACE_ID,
                 below: SPACE_ID,
@@ -101,20 +102,21 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // keep a new role at once and its binding to a member
-        const reviewer = await server.call(
-            role,
-            "create",
-            {
-                spaceId: SPACE_ID,
-                requestId: RequestId.create(),
-                name: "reviewer",
-                description: "Reviews the space",
-                permissions: [],
-            },
-            context,
-        );
+        const reviewer = await store
+            .mutate(context.caller(), {
+                id: RequestId.create(),
+                calls: [
+                    role.call("create", {
+                        spaceId: SPACE_ID,
+                        name: "reviewer",
+                        description: "Reviews the space",
+                        permissions: [],
+                    }),
+                ],
+            })
+            .then(([written]) => written);
         expect(await next()).toEqual([["destack__access__role", "insert", "reviewer"]]);
-        const authorization = await server.authorize(database, SPACE_ID, context);
+        const authorization = await store.authorize(database, SPACE_ID, context.caller());
         await authorization.grant({
             object,
             role: reviewer.id,

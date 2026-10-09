@@ -42,6 +42,25 @@ export const Observation = defineSchema(
 /** A controller's report on one record. */
 export type Observation = schema.Infer<typeof Observation>;
 
+/** The conditions a controller reports on its records under declared names, read typed by name. */
+export class Conditions<const Name extends string> {
+    /** The names the controller reports. */
+    readonly names: readonly Name[];
+
+    /** Declare the names a controller reports. */
+    constructor(names: readonly Name[]) {
+        this.names = names;
+    }
+
+    /** Read a record's condition by name, absent until its controller reports it. */
+    read(
+        record: { readonly conditions: Readonly<Record<string, StatusCondition>> },
+        name: Name,
+    ): StatusCondition | undefined {
+        return record.conditions[name];
+    }
+}
+
 /** Record a controller's observation of a condition, keeping its last transition time while the status stays. */
 export function observeCondition(
     previous: StatusCondition | undefined,

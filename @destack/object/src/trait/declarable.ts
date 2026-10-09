@@ -1,5 +1,5 @@
 import { present, type schema } from "@destack/schema";
-import { managerChecks } from "@destack/access";
+import { Manager, managerChecks } from "@destack/access";
 import { identifier, integer, text, type Column, type Row } from "@destack/db";
 import { type Method } from "../method/method.ts";
 import {
@@ -10,9 +10,9 @@ import {
     type TargetShape,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
-import type { Gated, Trait } from "./trait.ts";
+import { traitPermissions, type Gated, type Trait } from "./trait.ts";
 
-import { detach, apply } from "../method/declarable.ts";
+import { adopt, apply, detach } from "../method/declarable.ts";
 /** Decide whether a declaration still manages a record. */
 export function isManaging(row: Row | undefined): boolean {
     return (
@@ -22,7 +22,7 @@ export function isManaging(row: Row | undefined): boolean {
     );
 }
 
-/** Declare the columns naming a record's managing declaration. */
+/** Declare the columns identifying a record's managing declaration. */
 export function managedColumns() {
     return {
         /** The installation that applied the declaration. */
@@ -36,7 +36,7 @@ export function managedColumns() {
     };
 }
 
-/** The columns naming a record's manager. */
+/** The columns identifying a record's manager. */
 export interface ManagedColumnMap {
     /** The installation that applied the declaration. */
     readonly managerInstallationId: Column;
@@ -59,9 +59,12 @@ export type DeclarableMethodMap<Declarable> = [Declarable] extends [undefined]
     ? {}
     : { readonly apply: typeof apply };
 
-/** The methods detachable records take. */
-export type DetachableMethodMap<Detach> = [Detach] extends [string]
-    ? { readonly detach: Method<{ kind: "detach"; permission: Detach; mutates: true }> }
+/** The methods adoptable records take: detach and adopt. */
+export type AdoptableMethodMap<Gate> = [Gate] extends [string]
+    ? {
+          readonly detach: Method<{ kind: "detach"; permission: Gate; mutates: true }>;
+          readonly adopt: Method<{ kind: "adopt"; permission: Gate; mutates: true }>;
+      }
     : {};
 
 /** Records that stacks declare, managed by their declaration until detached. */
@@ -77,38 +80,50 @@ export const declarable: Trait<DeclarableDefinition> = {
             managerName: present(columns["managerName"], "the manager name column"),
             detachedAt: present(columns["detachedAt"], "the detachment column"),
         }),
+    policy: (_options, _object, permissions) => traitPermissions(permissions, ["declare"]),
     methods: () => ({ apply }),
 };
 
-/** Declared records callers detach from their declaration. */
-export const detachable: Trait<Gated> & {
+/** Declared records callers detach from their declaration for direct editing, and direct records a declaration adopts. */
+export const adoptable: Trait<Gated> & {
     /** Declare the method detaching a record from its declaration. */
     detach: typeof detach;
+    /** Declare the method adopting a direct record into a declaration. */
+    adopt: typeof adopt;
 } = {
-    key: "detachable",
+    key: "adoptable",
     isDurable: true,
-    options: (definition) => definition.detachable,
+    options: (definition) => definition.adoptable,
     columns: () => ({}),
     constraints: () => [],
-    methods: (options) => ({ detach: detach(options.by) }),
+    methods: (options) => ({ detach: detach(options.by), adopt: adopt(options.by) }),
     validate: (_options, object, definition) => {
         // require records a stack declares
         if (definition.declarable === undefined) {
-            throw new TypeError(`object ${object.name} is detachable but not declarable`);
+            throw new TypeError(`object ${object.name} takes adoptable but is not declarable`);
         }
     },
     detach: (permission) => detach(permission),
+    adopt: (permission) => adopt(permission),
 };
 
-/** The procedure applying a declared record derives, which only the system calls. */
+/** The procedure applying a declared record derives, which stays out of the routes people call. */
 export type DeclarableProcedures<Object extends ObjectType> = {
     apply: Procedure<schema.Object<Readonly<Record<string, schema.Schema>>>, RowSchema<Object>>;
 };
 
-/** The procedure detaching derives. */
-export type DetachableProcedures<Object extends ObjectType> = {
+/** The procedures the adoptable trait derives. */
+export type AdoptableProcedures<Object extends ObjectType> = {
     detach: Procedure<
         schema.Object<TargetShape<Object> & ReplayShape<Object> & RevisionField>,
+        RowSchema<Object>
+    >;
+    adopt: Procedure<
+        schema.Object<
+            TargetShape<Object> &
+                ReplayShape<Object> &
+                RevisionField & { readonly manager: typeof Manager.schema }
+        >,
         RowSchema<Object>
     >;
 };

@@ -1,4 +1,4 @@
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectExtension } from "../src/server/index.ts";
 import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
@@ -14,7 +14,7 @@ import { project, task, tasksDatabase, tasksService } from "./fixture/task.ts";
 import type { CallInput } from "../src/index.ts";
 import { ServiceError } from "@destack/service/error";
 import { principal } from "@destack/access";
-import { openSpace } from "./fixture/space.ts";
+import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 
 /** The space with the projects. */
@@ -31,12 +31,14 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         await openSpace(database, spaceId);
 
-        // serve the space's tasks to users named by their bearer credential
+        // serve the space's tasks to users identified by their bearer credential
         const server = Server.start({
-            ...ObjectServer.serve(tasksService, {
+            ...ObjectExtension.compose([ObjectExtension.of(tasksService, [])], {
+                origin: { package: tasksService.package, service: tasksService.name },
+                principal: spacePrincipal(spaceId),
                 callKey: testCallKey,
                 database,
-            }),
+            }).services[0],
             audience,
             scope: spaceId,
             resources: new ResourceContext(),
@@ -186,7 +188,7 @@ test.each(TEST_DIALECTS)(
         });
         expect(followUp.origin).toEqual(origin);
 
-        // refuse requests naming another space than the caller authenticated for
+        // refuse requests for another space than the caller authenticated for
         const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
         await expect(
             alice.project.get({ spaceId: elsewhere, id: launch.id }),
@@ -215,11 +217,12 @@ test("serve a handled type in place of the service's own", async () => {
             throw new ServiceError("CONFLICT", { message: "projects are frozen" });
         },
     });
-    const served = ObjectServer.serve(tasksService, {
+    const served = ObjectExtension.compose([ObjectExtension.of(tasksService, [frozen])], {
+        origin: { package: tasksService.package, service: tasksService.name },
+        principal: spacePrincipal(spaceId),
         callKey: testCallKey,
         database: storage.database,
-        handled: [frozen],
-    });
+    }).services[0];
     const server = Server.start({
         ...served,
         audience,

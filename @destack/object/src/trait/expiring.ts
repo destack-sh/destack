@@ -2,7 +2,7 @@ import { Duration } from "@destack/schema";
 import { TABLE, Condition } from "@destack/db";
 import type { ObjectType } from "../object/object.ts";
 import { expiry } from "../method/expiring.ts";
-import type { Trait } from "./trait.ts";
+import { traitPermissions, type Trait } from "./trait.ts";
 
 /** A rule expiring matching objects a window after a time field. */
 export interface ExpiryRule {
@@ -14,7 +14,7 @@ export interface ExpiryRule {
     readonly where?: Condition;
 }
 
-/** Objects the system removes once a rule's window passes. */
+/** Objects their server removes once a rule's window passes. */
 export const expiring: Trait<readonly ExpiryRule[]> & {
     /** Copy an expiring object type with the rules its host sets. */
     after<Self extends ObjectType>(object: Self, rules: readonly ExpiryRule[]): Self;
@@ -24,6 +24,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
     options: (definition) => definition.expiring,
     columns: () => ({}),
     constraints: () => [],
+    policy: (_options, _object, permissions) => traitPermissions(permissions, ["expire"]),
     methods: () => ({ expire: expiry }),
     validate: (rules, object) => requireRules(object, rules),
     after(object, rules) {

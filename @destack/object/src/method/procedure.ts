@@ -15,13 +15,14 @@ import type {
 } from "../object/object.ts";
 import type { MethodKind } from "./kind.ts";
 import { kebabCase } from "../object/name.ts";
-import { ClientId } from "../replica/replica.ts";
+import { WriterId } from "../replica/replica.ts";
 import type { Method } from "./method.ts";
+import type { InputSchema } from "./input.ts";
 import type { RecordProcedures } from "./record.ts";
 import type { RecoverableProcedures } from "../trait/recoverable.ts";
 import type { NestedProcedures } from "../trait/nested.ts";
 import type { ShareableProcedures } from "../trait/shareable.ts";
-import type { DeclarableProcedures, DetachableProcedures } from "../trait/declarable.ts";
+import type { DeclarableProcedures, AdoptableProcedures } from "../trait/declarable.ts";
 import type { BindableProcedures } from "../trait/bindable.ts";
 import type { TrackedProcedures } from "../trait/tracked.ts";
 import type { TextProcedures } from "../trait/text.ts";
@@ -41,12 +42,14 @@ export interface ObjectSchema {
     readonly parent: schema.JsonObject["shape"];
     /** The parent a moved object moves to. */
     readonly destination: schema.JsonObject["shape"];
-    /** The field naming a mutation: its request identifier or client. */
+    /** The field identifying a mutation: its request identifier or client. */
     readonly replay: schema.JsonObject["shape"];
-    /** The columns a system creation writes for the calling principal it names. */
+    /** The columns an internal creation writes for the calling principal it records. */
     readonly callers: schema.JsonObject["shape"];
     /** Read the columns a write takes. */
     written(names: readonly string[] | undefined, isPartial: boolean): schema.JsonObject["shape"];
+    /** Read the columns a write gives a value, refusing null, as one variant of a sum type writes them. */
+    required(names: readonly string[]): schema.JsonObject["shape"];
 }
 
 /** An HTTP method and a path below an object's collection. */
@@ -61,8 +64,8 @@ export interface Route {
 export interface MethodProcedure {
     /** The route below the object's collection. */
     readonly route: Route;
-    /** The complete input, an object of fields. */
-    readonly input: schema.JsonObject;
+    /** The complete input: an object of fields, or one object per variant of a sum type. */
+    readonly input: InputSchema;
     /** The output: a value or a stream of values. */
     readonly output: ProcedureOutput;
 }
@@ -97,23 +100,23 @@ export function objectProcedures(object: ObjectType): Readonly<Record<string, un
 /** Derive one procedure per callable method of an object type, each parsing its input to JSON. */
 export function callableProcedures(
     object: ObjectType,
-): Readonly<Record<string, Procedure<schema.JsonObject, ProcedureOutput>>> {
+): Readonly<Record<string, Procedure<InputSchema, ProcedureOutput>>> {
     // build the shapes
     const scope = scopeRoute(object);
     const collection: `/${string}` = `${scope.prefix}/${kebabCase(object.plural)}`;
     const shapes = objectSchema(object);
 
     // derive each method's procedure
-    const procedures: Record<string, Procedure<schema.JsonObject, ProcedureOutput>> = {};
+    const procedures: Record<string, Procedure<InputSchema, ProcedureOutput>> = {};
     for (const [name, method] of Object.entries(object.methods)) {
-        if (method.isSystem === true) {
+        if (method.isInternal === true) {
             continue;
         }
         const { route, input, output } = method.procedure(name, shapes);
         procedures[name] = procedure(
             defineProcedure({
                 authentication: method.mutates ? "identity" : "public",
-                permission: null,
+                permission: { rows: object.policy.permission(method.permission) },
                 audit: false,
                 convert: object.conversions(name),
             }),
@@ -135,7 +138,7 @@ export function objectSchema(object: ObjectType): ObjectSchema {
         scopeField === undefined ? {} : { [scopeField]: schema.string().min(1) },
     );
 
-    // read the written columns, and the caller columns a system creation writes
+    // read the written columns, and the caller columns an internal creation writes
     const written = writtenSchema(object);
     const callers = Object.entries(object.fields)
         .filter(([, declared]) => declared.isCallerFilled)
@@ -144,13 +147,19 @@ export function objectSchema(object: ObjectType): ObjectSchema {
     return {
         row: rowSchema(object),
         written,
+        required: (names) =>
+            Object.fromEntries(
+                names.map((name) => [name, object.table[TABLE].column(name).definition.json]),
+            ),
         callers: written(callers, false),
         scope: selection,
         target: selection.extend({ id }),
         created: { id: id.exactOptional() },
         ...parentShapes(object),
         replay:
-            object.storage === "ephemeral" ? { client: ClientId } : { requestId: RequestId.schema },
+            object.storage === "ephemeral"
+                ? { writerId: WriterId }
+                : { requestId: RequestId.schema },
     };
 }
 
@@ -221,7 +230,7 @@ function parentShapes(object: ObjectType): Pick<ObjectSchema, "parent" | "destin
     };
 }
 
-/** Build the schema naming an object's parent. */
+/** Build the schema identifying an object's parent. */
 function parentSchema(parent: ObjectType | "any"): schema.JsonObject["shape"] {
     return parent === "any" ? { parent: ParentReference } : { parentId: parent.idSchema };
 }
@@ -236,15 +245,16 @@ export interface ScopeRoute {
 
 /** Derive an object's scope route. */
 export function scopeRoute(object: ObjectType): ScopeRoute {
-    // route universe objects without a scope, and name the scope in a field for several or any
+    // route universe objects without a scope, and put the scope in a field for several or any
     const [single, ...others] = object.scopes;
+    const scopes: readonly unknown[] = [object.scope].flat();
     if (object.scope === Scope.universe.id) {
         return { prefix: "" };
-    } else if (single === undefined || others.length > 0) {
+    } else if (single === undefined || others.length > 0 || scopes.includes(Scope.universe.id)) {
         return { prefix: "", field: "scope" };
     }
 
-    // name the scope in its type's route and identifier field
+    // put the scope in its type's route and identifier field
 
     return {
         prefix: `/${kebabCase(single.plural)}/{${single.identity}Id}`,
@@ -278,7 +288,7 @@ export type MethodProcedures<Object extends ObjectType> = {
     >;
 };
 
-/** The procedures callers call: those of an object type's non-system methods, by method name. */
+/** The procedures callers call: those of an object type's routed methods, by method name. */
 export type ObjectProcedures<Object extends ObjectType> = Pick<
     MethodProcedures<Object>,
     CallableName<Object>
@@ -287,10 +297,10 @@ export type ObjectProcedures<Object extends ObjectType> = Pick<
 /** The names of an object type's methods. */
 export type MethodName<Object extends ObjectType> = keyof Object["methods"] & string;
 
-/** The names of an object type's non-system methods. */
+/** The names of an object type's routed methods. */
 export type CallableName<Object extends ObjectType> = {
     [Name in keyof Object["methods"] & string]: [
-        NonNullable<Object["methods"][Name]["isSystem"]>,
+        NonNullable<Object["methods"][Name]["isInternal"]>,
     ] extends [true]
         ? never
         : Name;
@@ -298,7 +308,8 @@ export type CallableName<Object extends ObjectType> = {
 
 /** The procedure of a method whose kind is unknown: any input and output. */
 type AnyProcedure = Procedure<
-    schema.Object<Readonly<Record<string, schema.Schema>>>,
+    | schema.Object<Readonly<Record<string, schema.Schema>>>
+    | schema.DiscriminatedUnion<readonly schema.Object<Readonly<Record<string, schema.Schema>>>[]>,
     ProcedureOutput
 >;
 
@@ -313,7 +324,7 @@ type MethodProcedureOf<
           TransitionProcedures<Object> &
           NestedProcedures<Object> &
           ShareableProcedures<Object> &
-          DetachableProcedures<Object> &
+          AdoptableProcedures<Object> &
           DeclarableProcedures<Object> &
           BindableProcedures &
           TrackedProcedures<Object> &
@@ -349,16 +360,33 @@ export function inputSchemaOf<Object extends ObjectType>(
     return present(contract.inputSchema, `the input of ${name}`);
 }
 
-/** The input a caller passes to a method, without the scope it calls in. */
+/** The input a call of a method takes without its scope and the request's identifiers, each variant's for a sum type. */
 export type CallInput<Object extends ObjectType, Name extends MethodName<Object>> =
     string extends MethodName<Object>
         ? Readonly<Record<string, unknown>>
-        : Omit<
+        : OmitEach<
               schema.Input<ProcedureOf<Object, Name>["~orpc"]["inputSchema"]>,
               | "requestId"
-              | (Object["storage"] extends "ephemeral" ? "client" : never)
+              | (Object["storage"] extends "ephemeral" ? "writerId" : never)
               | ScopeField<Object>
           >;
+
+/** The scope a call carries, the running call's when absent; a store requires it set. */
+export type CallScope<Object extends ObjectType> = {
+    readonly [Field in ScopeField<Object>]?: string;
+};
+
+/** The input identifying one object as a call's target: its scope field and its identifier. */
+export type TargetInput<Object extends ObjectType> = {
+    readonly [Field in ScopeField<Object>]: string;
+} & {
+    readonly id?: string;
+};
+
+/** Leave keys out of each member of a union. */
+export type OmitEach<Value, Key extends PropertyKey> = Value extends unknown
+    ? Omit<Value, Key>
+    : never;
 
 /** The result a method returns. */
 export type CallOutput<Object extends ObjectType, Name extends MethodName<Object>> = schema.Infer<
@@ -394,12 +422,12 @@ export type IdSchema<Object extends ObjectType> = schema.Schema<
 /** The value a field's validator accepts: an identifier's plain string, any other value as it is. */
 type Accepted<Value> = Value extends Identifier<string> ? string : Value;
 
-/** The input field naming the parent. */
+/** The input field holding the parent. */
 type ParentField<Object extends ObjectType> = "parentType" extends keyof Select<Object["table"]>
     ? "parent"
     : "parentId";
 
-/** The value naming an object's parent. */
+/** The value identifying an object's parent. */
 type ParentValue<Object extends ObjectType> = "parentType" extends keyof Select<Object["table"]>
     ? ParentReference
     : NonNullable<Select<Object["table"]>["parentId" & keyof Select<Object["table"]>]>;
@@ -434,10 +462,10 @@ export type DestinationShape<Object extends ObjectType> = "parentId" extends key
       }
     : {};
 
-/** The field naming a mutation: its request identifier or client. */
+/** The field identifying a mutation: its request identifier or writer. */
 export type ReplayShape<Object extends ObjectType = ObjectType> =
     Object["storage"] extends "ephemeral"
-        ? { client: typeof ClientId }
+        ? { writerId: typeof WriterId }
         : { requestId: typeof RequestId.schema };
 
 /** The revision a change requires. */
@@ -454,7 +482,7 @@ type WrittenName<Object extends ObjectType, Declared extends Method> =
           ? WrittenField<Object["fields"]>
           : NonNullable<Declared["fields"]>[number])
     | (Declared extends { readonly kind: "create" }
-          ? true extends NonNullable<Declared["isSystem"]>
+          ? true extends NonNullable<Declared["isInternal"]>
               ? CallerField<Object["fields"]>
               : never
           : never);
@@ -464,8 +492,49 @@ export type WrittenShape<
     Object extends ObjectType,
     Declared extends Method,
     IsPartial extends boolean,
+> = ColumnShape<Object, WrittenName<Object, Declared>, IsPartial>;
+
+/** One object per variant a creation declares, each the shared fields with its own columns and the literal of its variant. */
+export type VariantSchema<
+    Object extends ObjectType,
+    Declared extends Method,
+    Shape,
+    Variants = NonNullable<Declared["variants"]>,
+> = schema.DiscriminatedUnion<
+    {
+        [Field in keyof Variants & string]: {
+            [Value in keyof Variants[Field] & string]: schema.Object<
+                Shape & { [Key in Field]: schema.Schema<Value, Value> } & RequiredShape<
+                        Object,
+                        VariantField<Variants[Field][Value]>
+                    >
+            >;
+        }[keyof Variants[Field] & string];
+    }[keyof Variants & string][]
+>;
+
+/** The JSON validators of the columns a write gives a value, refusing null. */
+type RequiredShape<
+    Object extends ObjectType,
+    Written extends string,
     Row = Insert<Object["table"]>,
-    Name extends keyof Row = Extract<WrittenName<Object, Declared>, keyof Row>,
+> = {
+    [Key in Extract<Written, keyof Row>]-?: schema.Schema<
+        JsonOf<NonNullable<Row[Key]>>,
+        Accepted<JsonOf<NonNullable<Row[Key]>>>
+    >;
+};
+
+/** The columns one variant writes. */
+type VariantField<Fields> = Fields extends readonly (infer Field extends string)[] ? Field : never;
+
+/** The JSON validators of the given columns, each optional to a partial write. */
+type ColumnShape<
+    Object extends ObjectType,
+    Written extends string,
+    IsPartial extends boolean,
+    Row = Insert<Object["table"]>,
+    Name extends keyof Row = Extract<Written, keyof Row>,
 > = {
     [
         Key in Name as IsPartial extends true ? never : Key extends OptionalKeys<Row> ? never : Key

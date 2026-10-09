@@ -6,17 +6,17 @@ import { RequestId } from "@destack/service/request";
 import { testCallKey } from "@destack/service/test";
 import type { InstallationContext } from "@destack/service/workload";
 import { Scope } from "@destack/sync";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { serveObjects, spaceId } from "./fixture/device.ts";
 import { notebook, note, notesDatabase, notesService } from "./fixture/note.ts";
-import { openSpace } from "./fixture/space.ts";
+import { openSpace, spacePrincipal } from "./fixture/space.ts";
 
-/** Name a call's space and a new request. */
+/** Build a call's space and a new request. */
 function request() {
     return { spaceId, requestId: RequestId.create() };
 }
 
-/** The refusal of a method in the capped space, naming the way out of the cap. */
+/** The refusal of a method in the capped space, stating the way out of the cap. */
 function refused(method: string): readonly [string, string] {
     return [
         "QUOTA_EXCEEDED",
@@ -36,31 +36,39 @@ async function serveInstalledNotes() {
     const installation: InstallationContext = {
         id: "installation-01996ab0-0000-7000-8000-000000000003",
         scope: spaceId,
-        build: (await MemoryBuild.write(new Map(), { package: note.package })).reader,
+        build: await MemoryBuild.write(new Map(), { package: note.package }),
         publisher: {
             stream: () => {
                 throw new TypeError("the fixture streams no copies");
             },
             receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
         },
+        settings: {},
         publisherAt: () => {
             throw new TypeError("the fixture reaches no installation");
         },
+        at: () => {
+            throw new TypeError("the fixture fetches no address");
+        },
         directory: {
             isHome: async () => false,
-            locale: async () => undefined,
+            locale: () => Promise.reject(new TypeError("the fixture knows no person")),
             address: () => Promise.reject(new TypeError("the fixture resolves no address")),
             messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
         },
     };
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { notebook, note },
         database,
         callKey: testCallKey,
         origin: { package: note.package, service: notesService.name },
         installation,
     });
-    const served = serveObjects(server.implement(notesService), spaceId);
+    const served = serveObjects(
+        store.implement(notesService, store.routed, store.controllers(), {}),
+        spaceId,
+    );
 
     return { database, alice: createClient(notesService, served.endpoint("alice")) };
 }
@@ -72,7 +80,7 @@ test("refuse an installation's writes in a space whose storage is capped, keepin
     const packing = await alice.note.create({ ...request(), title: "Packing" });
     const tickets = await alice.note.create({ ...request(), title: "Tickets" });
 
-    // cap the space's storage, as the copy of its scope row arrives from its cell
+    // cap the space's storage, as the copy of its scope row arrives from its machine
     await Scope.cap(database, spaceId, Date.now());
     const created = await refusal(alice.note.create({ ...request(), title: "Hotels" }));
     const updated = await refusal(
@@ -88,7 +96,7 @@ test("refuse an installation's writes in a space whose storage is capped, keepin
     await Scope.cap(database, spaceId, null);
     const hotels = await alice.note.create({ ...request(), title: "Hotels" });
 
-    // name the refused method and the way out of the cap
+    // state the refused method and the way out of the cap
     expect({
         created,
         updated,

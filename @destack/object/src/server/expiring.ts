@@ -1,4 +1,4 @@
-import { earliest } from "@destack/access";
+import { earliest, Caller } from "@destack/access";
 import { Duration } from "@destack/schema";
 import {
     Change,
@@ -6,6 +6,7 @@ import {
     type DatabaseConnection,
     isNotNull,
     lte,
+    notInArray,
     min,
     type Row,
     type Select,
@@ -14,35 +15,37 @@ import {
     Condition,
 } from "@destack/db";
 import type { Controller, Reconciliation } from "@destack/service/control";
+import { Replica } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
-import { SystemCall } from "../method/system.ts";
 import type { ExpiryRule } from "../trait/expiring.ts";
-import type { ObjectServer } from "./server.ts";
+import type { ObjectStore } from "./store.ts";
+import { RequestId } from "@destack/service/request";
+import { Call } from "../method/call.ts";
 
 /** The most rows one expiry removes per transaction: about a millisecond of deletes. */
 const EXPIRE_ROWS = 100;
 
-/** The server an expiry reads and removes through. */
-type ExpiringServer = Pick<ObjectServer, "objects" | "database" | "executeAsSystem">;
+/** The component name the expiry runs and records its calls under. */
+const EXPIRY = "expiry";
 
 /** Remove expiring objects as their windows pass, scheduling the next window's end. */
 export class ExpiringController implements Controller {
     /** The controller's name. */
-    readonly name = "expiry";
+    readonly name = EXPIRY;
     /** The tables of the expiring objects. */
     readonly watches: readonly Table[];
-    /** The server the expiry runs through. */
-    readonly #server: ExpiringServer;
+    /** The store the expiry runs through. */
+    readonly #store: Omit<ObjectStore, "router">;
     /** The expiring object types. */
     readonly #types: readonly ObjectType[];
 
-    /** Watch the expiring objects a server serves. */
-    constructor(server: ExpiringServer) {
-        this.#server = server;
+    /** Watch the expiring objects a store serves. */
+    constructor(store: Omit<ObjectStore, "router">) {
+        this.#store = store;
         // leave the copied rows to the deletes their home sends
-        this.#types = server.objects.filter(
+        this.#types = store.objects.filter(
             (object) =>
-                object.lifecycle.expiring !== undefined && !server.database.copies(object.table),
+                object.lifecycle.expiring !== undefined && !store.database.copies(object.table),
         );
         this.watches = this.#types.map((object) => object.table);
     }
@@ -71,12 +74,12 @@ export class ExpiringController implements Controller {
     /** Expire what passed and schedule the earliest window end. */
     async reconcile(_key: string, _reconciliation: Reconciliation): Promise<number | undefined> {
         // expire what passed and read each rule's earliest window end
-        const now = Date.now();
-        await ExpiringController.expire(this.#server, now);
+        const now = this.#store.clock();
+        await ExpiringController.expire(this.#store, now);
         const passes = await Promise.all(
             this.#types.flatMap((object) =>
                 (object.lifecycle.expiring ?? []).map((rule) =>
-                    passing(this.#server.database, object, rule),
+                    passing(this.#store.database, object, rule),
                 ),
             ),
         );
@@ -85,22 +88,24 @@ export class ExpiringController implements Controller {
         return next === undefined ? undefined : Math.max(0, next - now);
     }
 
-    /** Remove expired objects as the system, returning the count. */
-    static async expire(server: ExpiringServer, now: number): Promise<number> {
+    /** Remove expired objects as the store's principal, returning the count. */
+    static async expire(store: Omit<ObjectStore, "router">, now: number): Promise<number> {
         // remove each rule's rows in batches until one comes back short
         let removed = 0;
-        for (const object of server.objects.filter((each) => !server.database.copies(each.table))) {
+        for (const object of store.objects.filter((each) => !store.database.copies(each.table))) {
             for (const rule of object.lifecycle.expiring ?? []) {
                 for (let batch = EXPIRE_ROWS; batch === EXPIRE_ROWS;) {
-                    const rows = await expired(server.database, object, rule, now);
-                    if (rows.length > 0) {
-                        await server.executeAsSystem(
-                            object,
-                            "expire",
-                            rows.map((row) => SystemCall.of(row)),
-                            now,
-                        );
-                    }
+                    const rows = await expired(store.database, object, rule, now);
+                    await store.mutate(
+                        Caller.of(store.principal, now),
+                        {
+                            id: RequestId.create(now),
+                            calls: rows.map((row) =>
+                                Call.record(object, "expire", object.target(row)),
+                            ),
+                        },
+                        { component: EXPIRY },
+                    );
                     batch = rows.length;
                     removed += batch;
                 }
@@ -118,7 +123,10 @@ async function expired(
     rule: ExpiryRule,
     now: number,
 ): Promise<Select<Table>[]> {
+    // leave the rows of scopes the database copies to the deletes their home sends
     const table = object.table;
+    const copied = await Replica.scopes(database, table);
+    const kept = copied.length === 0 ? undefined : notInArray(table[TABLE].column("scope"), copied);
 
     return database
         .select()
@@ -127,6 +135,7 @@ async function expired(
             and(
                 lte(table[TABLE].column(rule.from), now - Duration.milliseconds(rule.after)),
                 matching(table, rule),
+                kept,
             ),
         )
         .limit(EXPIRE_ROWS);

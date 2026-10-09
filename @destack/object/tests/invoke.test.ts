@@ -1,6 +1,6 @@
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { principal, relation } from "@destack/access";
+import { none, principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -8,12 +8,14 @@ import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
 import { reportError } from "@destack/service/server";
 import { testCallKey } from "@destack/service/test";
+import { request } from "./fixture/request.ts";
+import { createRouterClient } from "@destack/service/server";
 
 /** The space containing the shelves. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
@@ -37,7 +39,7 @@ const book = defineObject({
     }),
 });
 
-/** Loan slips the system writes for a borrower, whom only the system names. */
+/** Loan slips the space writes for a borrower, whom only the space sets. */
 const slip = defineObject({
     name: "slip",
     plural: "slips",
@@ -47,10 +49,10 @@ const slip = defineObject({
         shelf: field.string(),
         isReturned: field.boolean().default(false),
     },
-    permissions: { read: relation("borrower") },
+    permissions: { read: relation("borrower"), issue: none() },
     methods: (method) => ({
-        issue: method.create(null, { isSystem: true }),
-        close: method.update(null, { isSystem: true }),
+        issue: method.create("issue", { isInternal: true }),
+        close: method.update("issue", { isInternal: true }),
     }),
 });
 
@@ -77,32 +79,48 @@ const shelf = defineObject({
             output: schema.object({ slip: schema.string() }),
         }),
         misfile: method.mutation({ permission: "write" }),
+        forge: method.mutation({
+            permission: "write",
+            input: schema.object({ borrower: schema.string() }),
+        }),
     }),
 }).handle({
     // tidy the shelf's books as the caller
     tidy: async (call) =>
-        call.invoke(book).tidy({ where: { shelf: call.target.name }, isTidy: true }),
+        call
+            .mutate(call.caller, [
+                book.call("tidy", { where: { shelf: call.target.name }, isTidy: true }),
+            ])
+            .then(([tidied]) => tidied),
     // tidy one owned book as the caller
     straighten: async (call) => {
-        await call.invoke(book).update({ id: call.input.book, isTidy: true });
+        await call.mutate(call.caller, [
+            book.call("update", { id: call.input.book, isTidy: true }),
+        ]);
 
         return call.target;
     },
-    // issue a slip to the borrower as the system and close it
+    // issue a slip to the borrower as the space and close it
     lend: async (call) => {
-        const issued = schema.looseObject({ id: schema.string() }).parse(
-            await call.invoke(slip).issue({
-                borrowerId: call.input.borrower,
-                shelf: call.target.name,
-            }),
-        );
-        await call.invoke(slip).close({ id: issued.id, isReturned: true });
+        const [slipped] = await call.mutate(call.service, [
+            slip.call("issue", { borrowerId: call.input.borrower, shelf: call.target.name }),
+        ]);
+        const issued = schema.looseObject({ id: schema.string() }).parse(slipped);
+        await call.mutate(call.service, [slip.call("close", { id: issued.id, isReturned: true })]);
 
         return { slip: issued.id };
     },
+    // issue a slip as the caller, who holds no permission to
+    forge: async (call) => {
+        await call.mutate(call.caller, [
+            slip.call("issue", { borrowerId: call.input.borrower, shelf: call.target.name }),
+        ]);
+
+        return call.target;
+    },
     // shelve a book on an unnamed shelf, which the book's schema refuses
     misfile: async (call) => {
-        await call.invoke(book).create({ shelf: "" });
+        await call.mutate(call.caller, [book.call("create", { shelf: "" })]);
 
         return call.target;
     },
@@ -129,7 +147,8 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, shelfDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { book, shelf, slip },
             database: storage.database,
             callKey: testCallKey,
@@ -144,7 +163,8 @@ test.each(TEST_DIALECTS)(
             name: Name,
             input: object,
         ) =>
-            server.call(
+            request(
+                store,
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
@@ -183,12 +203,13 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "invoke system methods in a caller's call, writing objects the caller may not, on %s",
+    "invoke methods as the space in a caller's call, writing objects the caller may not, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, shelfDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: {
                 book,
                 shelf,
@@ -210,21 +231,23 @@ test.each(TEST_DIALECTS)(
             },
         });
         const context = userContext("user-1", spaceId);
-        const call = <Object extends typeof shelf | typeof slip, Name extends CallableName<Object>>(
+        const run = <Object extends typeof shelf | typeof slip, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
             input: object,
         ) =>
-            server.call(
+            request(
+                store,
                 object,
                 name,
                 { spaceId, requestId: RequestId.create(), ...input },
                 context,
             );
 
-        // lend a book to user-2, issuing and closing a slip user-1 may not write
-        const home = await call(shelf, "create", { name: "home" });
-        const lent = await call(shelf, "lend", { id: home.id, borrower: "user-2" });
+        // lend a book to user-2, issuing and closing a slip user-1 may not write, and refuse user-1 issuing one
+        const home = await run(shelf, "create", { name: "home" });
+        const lent = await run(shelf, "lend", { id: home.id, borrower: "user-2" });
+        const forged = await refusal(run(shelf, "forge", { id: home.id, borrower: "user-2" }));
         const rows = await storage.database
             .select({
                 id: slip.table.id,
@@ -234,12 +257,13 @@ test.each(TEST_DIALECTS)(
             })
             .from(slip.table);
 
-        // refuse a client pushing a system method
-        const pushed = server.push(
-            spaceId,
-            [
+        // refuse a client pushing a method left out of its routes
+        const mutationId = RequestId.create();
+        const pushed = createRouterClient(store.router(), { context: context }).replica.push({
+            scope: spaceId,
+            mutations: [
                 {
-                    id: "mutation-1",
+                    id: mutationId,
                     calls: [
                         {
                             method: "slip.issue",
@@ -249,15 +273,15 @@ test.each(TEST_DIALECTS)(
                     ],
                 },
             ],
-            context,
-        );
-        // hide system methods from the routes and from pushes
-        expect([rows, Object.keys(slip.procedures), (await pushed).outcomes]).toEqual([
+        });
+        // hide the space's methods from the routes and from pushes
+        expect([rows, forged, Object.keys(slip.procedures), (await pushed).outcomes]).toEqual([
             [{ id: lent.slip, borrower: "user-2", shelf: "home!", isReturned: true }],
+            ["NOT_FOUND", "slip not found"],
             [],
             [
                 {
-                    id: "mutation-1",
+                    id: mutationId,
                     outcome: {
                         error: {
                             code: "BAD_REQUEST",
@@ -277,30 +301,31 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, shelfDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { book, shelf, slip },
             database: storage.database,
             callKey: testCallKey,
             origin: { package: book.package, service: "test" },
         });
         const context = userContext("user-1", spaceId);
-        const home = await server.call(
-            shelf,
-            "create",
-            { spaceId, requestId: RequestId.create(), name: "home" },
-            context,
-        );
+        const home = await store
+            .mutate(context.caller(), {
+                id: RequestId.create(),
+                calls: [shelf.call("create", { spaceId, name: "home" })],
+            })
+            .then(([written]) => written);
 
         // refuse a page of no books, and an invoked creation on an unnamed shelf, as callers see it
         expect([
-            await reported(server.call(book, "list", { spaceId, limit: 0 }, context)),
+            await reported(store.query(context.caller(), book.call("list", { spaceId, limit: 0 }))),
             await reported(
-                server.call(
-                    shelf,
-                    "misfile",
-                    { spaceId, requestId: RequestId.create(), id: home.id },
-                    context,
-                ),
+                store
+                    .mutate(context.caller(), {
+                        id: RequestId.create(),
+                        calls: [shelf.call("misfile", { spaceId, id: home.id })],
+                    })
+                    .then(([written]) => written),
             ),
         ]).toEqual([
             ["BAD_REQUEST", "invalid input: limit: too small: expected number to be >=1"],

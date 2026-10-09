@@ -121,20 +121,24 @@ async function purge(
     return {};
 }
 
-/** Remove a purged record the type keeps, at the loaded revision. */
-export const discard = keptMethod
-    .mutation({ permission: null, isSystem: true, output: Empty })
-    .handle(async (call) => {
-        // require a purged record
-        if (!isPurged(call.target)) {
-            throw new ServiceError("CONFLICT", { message: `${call.object.name} is not purged` });
-        }
+/** Remove a purged record the type keeps, at the loaded revision, by the holders of the purge permission. */
+export function discard<const Permission extends string>(permission: Permission) {
+    return keptMethod
+        .mutation({ permission, isInternal: true, output: Empty })
+        .handle(async (call) => {
+            // require a purged record
+            if (!isPurged(call.target)) {
+                throw new ServiceError("CONFLICT", {
+                    message: `${call.object.name} is not purged`,
+                });
+            }
 
-        // delete it at the loaded revision
-        await call.remove();
+            // delete it at the loaded revision
+            await call.remove();
 
-        return {};
-    });
+            return {};
+        });
+}
 
 /** Decide whether a purge already destroyed a kept record's content. */
 function isPurged(row: Row): boolean {

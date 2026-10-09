@@ -12,7 +12,6 @@ import { PlanError } from "@destack/resource/error";
 import type { ResourceState } from "@destack/package/declare";
 import { aligned, canonicalize, Digest, Duration, type Identifier, present } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
-import { SystemCall } from "../method/system.ts";
 import {
     ObjectWatch,
     type ObjectController,
@@ -22,6 +21,7 @@ import type { Condition } from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ProvisionedObject, type ProvisionedRecord } from "../trait/provisioned.ts";
+import { Call } from "../method/call.ts";
 
 /** The condition a resource reports while it waits for its draining consumers to stop before a recreation. */
 export const DRAINING = "draining";
@@ -33,8 +33,8 @@ export interface ProvisionedOptions {
         Provider<ResourceKind, ObjectType>,
         "kind" | "code" | "object" | "provision" | "reconcile" | "fence" | "snapshot"
     >[];
-    /** The machine keeping the resources its providers provision, absent for a region. */
-    readonly machine: Identifier<"machine"> | null;
+    /** The machine keeping the resources its providers provision. */
+    readonly machine: Identifier<"machine">;
 }
 
 /** The control loop of one kind's provisioned objects: it provisions, observes, plans, applies with approval and retires them through the providers a process holds. */
@@ -126,7 +126,7 @@ async function reconcile(
     if (row.deletionRequestedAt !== null) {
         return retire(object, row, row.deletionRequestedAt, reconciliation, options);
     }
-    // observe a resource lent from a connection ready at its own identifier below the host's egress
+    // observe a resource lent from a connection ready at its own identifier below the machine's egress
     else if (row.origin === "connection") {
         await observe(
             object,
@@ -476,7 +476,7 @@ async function retire(
     }
 
     // finish the record's deletion
-    await reconciliation.execute("finalize", [row]);
+    await reconciliation.mutate([Call.record(object, "finalize", object.target(row))]);
 
     return undefined;
 }
@@ -532,15 +532,17 @@ async function observe(
         return row;
     }
 
-    // observe the generation, the conditions and the fields as the system
-    const [observed] = await reconciliation.server.executeAsSystem(
-        object,
-        "observe",
-        [SystemCall.of(row, { observedGeneration: row.generation, conditions, fields })],
-        Date.now(),
-    );
+    // observe the generation, the conditions and the fields
+    const [observed] = await reconciliation.mutate([
+        Call.record(object, "observe", {
+            ...object.target(row),
+            observedGeneration: row.generation,
+            conditions,
+            fields,
+        }),
+    ]);
 
-    return present(observed, `the observation of resource ${row.id}`);
+    return object.rowSchema().parse(present(observed, `the observation of resource ${row.id}`));
 }
 
 /** Describe a condition that does not hold. */

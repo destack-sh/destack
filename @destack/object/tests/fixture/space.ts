@@ -1,5 +1,12 @@
-import { accessRelationship, anyone, none, Relationship, relation } from "@destack/access";
-import { Scope } from "@destack/sync";
+import {
+    accessRelationship,
+    anyone,
+    none,
+    principal,
+    Relationship,
+    relation,
+} from "@destack/access";
+import { Scope, type Subject } from "@destack/sync";
 import { AccessFixture } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import { schema } from "@destack/schema";
@@ -18,15 +25,22 @@ export const space = defineObject({
     shareable: { by: "share" },
 });
 
-/** Record a space, public unless private. */
+/** Reference a space as the principal its server's own work runs as. */
+export function spacePrincipal(id: string): Subject {
+    return principal.space.reference(Scope.universe.id, id);
+}
+
+/** Record a space owned by itself, public unless private, returning its owner role. */
 export async function openSpace(
     database: DatabaseConnection,
     id: string,
     visibility: "public" | "private" = "public",
-): Promise<void> {
-    // record the space's scope
+): Promise<string> {
+    // record the space's scope, owned by the space as its creation binds it
     const object = space.reference(Scope.universe.id, id);
-    await new AccessFixture(database).copyScope(object);
+    const fixture = new AccessFixture(database);
+    await fixture.copyScope(object);
+    const owner = await fixture.copyOwner(object, spacePrincipal(id), 0);
 
     // relate anyone to a public space as its reader
     if (visibility === "public") {
@@ -44,6 +58,8 @@ export async function openSpace(
             ),
         );
     }
+
+    return owner;
 }
 
 /** Refuse reconnecting a client with an unmoved scope. */

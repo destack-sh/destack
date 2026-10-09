@@ -93,7 +93,7 @@ function optionsOf(
         });
     }
 
-    // include the named relations, a text holder's chunks among them
+    // include the requested relations, a text holder's chunks among them
     const includes =
         object.text.length === 0 || options.aggregate !== undefined
             ? options.with
@@ -236,13 +236,13 @@ function directRelations(
     object: ObjectType,
     listed: readonly ObjectType[],
 ): Record<string, Relation> {
-    // name each relation once, the first declaration winning
+    // key each relation once, the first declaration winning
     const named: Record<string, Relation> = {};
     const relate = (name: string, relation: Relation) => {
         named[name] ??= relation;
     };
 
-    // relate the type a reference names, and the parent of a nested type
+    // relate the type a reference refers to, and the parent of a nested type
     for (const [column, field] of Object.entries(object.fields)) {
         const served = listed.find((entry) => entry.same(field.target?.()));
         if (field.relation !== undefined && !field.qualified && served !== undefined) {
@@ -269,7 +269,7 @@ function directRelations(
     return named;
 }
 
-/** Name the column relating children to a type: the parent column, or their only reference to it. */
+/** Find the column relating children to a type: the parent column, or their only reference to it. */
 function childColumn(
     children: ObjectType,
     object: ObjectType,
@@ -316,7 +316,7 @@ function keep(target: ObjectType, relation: Relation): Relation {
     return where === undefined ? relation : { ...relation, where };
 }
 
-/** Name a type's only unqualified reference field to another type. */
+/** Find a type's only unqualified reference field to another type. */
 function referenceTo(from: ObjectType, to: ObjectType): string | undefined {
     const fields = Object.entries(from.fields).filter(
         ([, field]) => field.type === "reference" && !field.qualified && to.same(field.target?.()),

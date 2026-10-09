@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "@destack/db";
-import type { Directory, ObjectClaims } from "@destack/directory";
+import { type Directory, DirectoryStore, type ObjectClaims } from "@destack/directory";
 import { ObjectType } from "../object/object.ts";
 
 /** The names one request's write claims, reserved in the directory until the write commits. */
@@ -18,15 +18,30 @@ export class Reservation {
         this.owned = owned;
     }
 
-    /** Reserve the names that an open transaction's indexed rows claim and refuse names of other objects. */
+    /** Reserve the names that an open transaction's indexed rows claim and refuse names of other objects, or claim them in the transaction itself where the directory keeps its claims in the same database. */
     static async open(
         directory: Directory,
         transaction: DatabaseConnection,
         objects: readonly ObjectType[],
         requestId: string,
-    ): Promise<Reservation> {
-        // reserve every written object's claims
+    ): Promise<Reservation | undefined> {
+        // claim every written object's names in the transaction of a directory in the same database, none for a step writing no object
         const owned = await ObjectType.written(transaction, objects);
+        if (owned.length === 0) {
+            return undefined;
+        } else if (
+            directory instanceof DirectoryStore &&
+            directory.database.state === transaction.state
+        ) {
+            const within = new DirectoryStore(transaction);
+            for (const entry of owned) {
+                ObjectType.refuse(objects, await within.replace(entry, requestId));
+            }
+
+            return undefined;
+        }
+
+        // reserve every written object's claims in a directory elsewhere
         const claims = owned.flatMap((entry) => entry.claims);
         if (claims.length > 0) {
             ObjectType.refuse(objects, await directory.claim(claims, requestId));

@@ -1,5 +1,5 @@
 import { ObjectReference, Subject } from "@destack/sync";
-import { type GrantReader, type Permission } from "@destack/access";
+import { Caller, type GrantReader, type Permission } from "@destack/access";
 import {
     and,
     eq,
@@ -17,22 +17,25 @@ import {
 import type { BranchCall } from "../branch/branch.ts";
 import { schema, Version, type JsonObject } from "@destack/schema";
 import { isServiceError, ServiceError, TRANSIENT_STATUSES } from "@destack/service/error";
-import { type Address, type Destination, Outbox } from "@destack/service/outbox";
+import type { Address, Destination } from "@destack/service/outbox";
 import { RequestId } from "@destack/service/request";
 import { RunRequest } from "@destack/service/trigger";
 import type * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { ObjectTable } from "../object/table.ts";
 import type { Authorization } from "../server/authorization.ts";
+import type { ObjectStore } from "../server/store.ts";
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import type { MethodKind, TargetKind } from "./kind.ts";
-import type { CallInput, MethodName } from "./procedure.ts";
+import { InputSchema } from "./input.ts";
 import type { InstallationContext } from "@destack/service/workload";
 import type { SettlementCall } from "./settlement.ts";
-import type { listObjects } from "./record.ts";
+import type { IsSum, listObjects } from "./record.ts";
 import { ParentReference } from "../trait/nested.ts";
 
-/** A call a method sent, as its outbox keeps it until the cell records its run. */
+/** A call's input as JSON: a record of JSON values. */
+const JSON_INPUT = schema.record(schema.string(), schema.json());
+/** A call a method sent, as its outbox keeps it until the machine records its run. */
 const OutboxMessage = schema.object({
     /** The request recording the run once, however often the outbox delivers it. */
     requestId: RequestId.schema,
@@ -43,7 +46,7 @@ const OutboxMessage = schema.object({
 /** The sent calls one delivery sends: 100 small calls at once. */
 const SEND_BATCH = 100;
 
-/** The calls methods send through the outbox, delivered to the server keeping the rows they change or to the cell recording their runs. */
+/** The calls methods send through the outbox, delivered to the store keeping the rows they change or to the machine recording their runs. */
 export const OutboxCall = {
     name: "sends",
     message: OutboxMessage,
@@ -81,14 +84,14 @@ export const OutboxCall = {
 /** A call a method sent. */
 export type OutboxCall = schema.Infer<typeof OutboxMessage>;
 
-/** A method result naming an object by its identifier. */
+/** A method result identifying an object by its identifier. */
 const IDENTIFIED = schema.looseObject({ id: schema.string() });
 
 /** A controlled target's generation, which the controlled trait keeps beside the record columns. */
 const GENERATION = schema.number().int();
 
 /** The input schemas of methods as clients call them, by object type, method and whether pushed or read. */
-const INPUTS = new WeakMap<ObjectType, Map<string, schema.JsonObject>>();
+const INPUTS = new WeakMap<ObjectType, Map<string, InputSchema>>();
 
 /** One call of a method inside its transaction, served or predicted. */
 export class Call<Definition extends Table = Table, Input extends schema.Schema = schema.Schema> {
@@ -110,8 +113,8 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     readonly target?: Select<Definition>;
     /** The transaction: the server's, or the client's over its replica. */
     readonly database: DatabaseConnection;
-    /** The calling principal. */
-    readonly caller?: Subject;
+    /** The caller: who calls and what it presented, anonymous without a subject. */
+    readonly caller: Caller;
     /** The time of the call in UTC epoch milliseconds. */
     readonly now: number;
     /** The server's authorization, absent exactly when a client predicts the call. */
@@ -122,20 +125,20 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     readonly prepared?: unknown;
     /** The idempotency key of the call's external work. */
     readonly idempotencyKey?: string;
-    /** The client writing an ephemeral object. */
-    readonly client?: string;
+    /** The client instance writing an ephemeral object. */
+    readonly writerId?: string;
     /** The request a durable mutation replays under. */
     readonly requestId?: string;
     /** Run another method in the call's transaction as its caller. */
     readonly run?: Run;
-    /** The outbox delivering this call's sends, absent where nothing receives them. */
-    readonly sends?: Outbox;
     /** The view the call reads, as of a position or over a branch, the live database when absent. */
     readonly snapshot?: Snapshot;
     /** The calls the method's expansion ran before it in its mutation. */
     readonly expansion?: readonly BranchCall[];
-    /** The installation the server serves as, absent outside a space and on clients. */
+    /** The installation the store serves as, absent outside a space and on clients. */
     readonly installation?: InstallationContext;
+    /** The store running the call, which runs further calls as a principal in transactions of their own, absent on clients. */
+    readonly store?: Omit<ObjectStore, "router">;
     /** The fields the call was made of, which copies change. */
     readonly #fields: CallFields<Definition, Input>;
 
@@ -160,9 +163,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         if (fields.target !== undefined) {
             this.target = fields.target;
         }
-        if (fields.caller !== undefined) {
-            this.caller = fields.caller;
-        }
+        this.caller = fields.caller;
         if (fields.authorization !== undefined) {
             this.authorization = fields.authorization;
         }
@@ -172,17 +173,14 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         if (fields.idempotencyKey !== undefined) {
             this.idempotencyKey = fields.idempotencyKey;
         }
-        if (fields.client !== undefined) {
-            this.client = fields.client;
+        if (fields.writerId !== undefined) {
+            this.writerId = fields.writerId;
         }
         if (fields.requestId !== undefined) {
             this.requestId = fields.requestId;
         }
         if (fields.run !== undefined) {
             this.run = fields.run;
-        }
-        if (fields.sends !== undefined) {
-            this.sends = fields.sends;
         }
         if (fields.snapshot !== undefined) {
             this.snapshot = fields.snapshot;
@@ -193,13 +191,17 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         if (fields.installation !== undefined) {
             this.installation = fields.installation;
         }
+        if (fields.store !== undefined) {
+            this.store = fields.store;
+        }
     }
 
-    /** Resolve a recorded call against the served types, validating its input. */
+    /** Resolve a recorded call against the served types, its input converted to the served release; internal methods answer the platform's own code alone, never a remote caller. */
     static resolve(
         objects: readonly ObjectType[],
-        entry: sync.Call,
+        entry: ObjectCall,
         mutates: boolean,
+        isRemote: boolean,
     ): {
         readonly object: ObjectType;
         readonly name: string;
@@ -213,7 +215,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         if (
             object === undefined ||
             method === undefined ||
-            method.isSystem === true ||
+            (method.isInternal === true && isRemote) ||
             (mutates && !method.mutates)
         ) {
             throw new ServiceError("BAD_REQUEST", {
@@ -225,13 +227,12 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
             });
         }
 
-        // convert the input to the served release and validate it
-        const input = Call.input(object, name, mutates);
-        const parsed = input.safeParse(Call.upgrade(object, name, entry, input.shape));
+        // convert the input to the served release as JSON, which the method's input schema validates when the call runs
+        const fields = InputSchema.fields(Call.input(object, name, mutates)).shape;
+        const parsed = JSON_INPUT.safeParse(Call.upgrade(object, name, entry, fields));
         if (!parsed.success) {
             throw new ServiceError("BAD_REQUEST", {
-                message: `invalid input to ${entry.method}`,
-                data: { issues: parsed.error.issues },
+                message: `the input to ${entry.method} is not JSON`,
             });
         }
 
@@ -239,19 +240,21 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     }
 
     /** Read a method's input schema as clients call it, without a pushed call's replay field. */
-    static input(object: ObjectType, name: string, mutates: boolean): schema.JsonObject {
+    static input(object: ObjectType, name: string, mutates: boolean): InputSchema {
         // build each method's schema once per object type, which methods of traits share
         const key = `${name} ${String(mutates)}`;
-        const built = INPUTS.get(object) ?? new Map<string, schema.JsonObject>();
+        const built = INPUTS.get(object) ?? new Map<string, InputSchema>();
         INPUTS.set(object, built);
         const kept = built.get(key);
         if (kept !== undefined) {
             return kept;
         }
 
-        // leave out the field naming the request a pushed call replays under
+        // leave out the field holding the request a pushed call replays under
         const procedure = object.method(name).procedure(name, object.schema).input;
-        const input = mutates ? Call.#unreplayed(object, procedure) : procedure;
+        const input = mutates
+            ? InputSchema.map(procedure, (fields) => Call.#unreplayed(object, fields))
+            : procedure;
         built.set(key, input);
 
         return input;
@@ -268,7 +271,11 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     }
 
     /** Record a call of an object's method, against the release of the object's package. */
-    static record(object: ObjectType, name: string, input: JsonObject): sync.Call {
+    static record(
+        object: ObjectType,
+        name: string,
+        input: Readonly<Record<string, unknown>>,
+    ): sync.Call {
         return {
             method: `${object.name}.${name}`,
             input: schema.record(schema.string(), schema.json()).parse(input),
@@ -280,9 +287,9 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     static upgrade(
         object: ObjectType,
         name: string,
-        call: sync.Call,
+        call: ObjectCall,
         shape?: object,
-    ): sync.Call["input"] {
+    ): Readonly<Record<string, unknown>> {
         // refuse a call of a later release
         const served = object.package.version;
         if (Version.compare(call.release, served) > 0) {
@@ -298,7 +305,12 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
 
         // assign each later release's fields and drop the fields this release no longer declares
-        const converted = Expression.upgrade(conversions, call.input, call.release, served);
+        const converted = Expression.upgrade(
+            conversions,
+            schema.record(schema.string(), schema.json()).parse(call.input),
+            call.release,
+            served,
+        );
 
         return shape === undefined
             ? converted
@@ -312,60 +324,47 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return parsed.success ? parsed.data.id : undefined;
     }
 
-    /** Call another object type's methods in this call's scope and transaction, as this call's caller or another principal. */
-    invoke<Object extends ObjectType>(
-        object: Object,
-        options: InvokeOptions = {},
-    ): Invoker<Object> {
-        return this.invoker(options)<Object>(object);
-    }
-
-    /** Call object types' methods through this call as one function, as this call's caller or another principal. */
-    invoker(options: InvokeOptions = {}): Invoke {
-        return invoking((object, name, input) => this.#invoke(object, name, input, options));
-    }
-
-    /** Change another object type's rows as this call's caller, in this call's scope unless the input names another: in this transaction where the database keeps them, else through a call sent toward their home once it commits. */
-    async change(object: ObjectType, name: string, input: JsonObject): Promise<void> {
-        // send a change of copied rows toward their home
-        if (this.database.copies(object.table)) {
-            const field = object.route.field;
-            const scoped =
-                field === undefined || Object.hasOwn(input, field)
-                    ? input
-                    : { ...input, [field]: this.scope };
-            await this.send({ call: Call.record(object, name, scoped) });
-        }
-        // run any other change in this transaction
-        else {
-            await this.#invoke(object, name, input, {});
-        }
-    }
-
-    /** Run another object's method without external work in the same storage. */
-    async #invoke(
-        object: ObjectType,
-        name: string,
-        input: JsonObject,
-        options: InvokeOptions,
-    ): Promise<unknown> {
-        // require a method without external work in the same storage
-        const method = object.methods[name];
-        if (method === undefined) {
-            throw new TypeError(`object ${object.name} has no method ${name}`);
-        } else if (method.prepare !== undefined) {
-            throw new TypeError(
-                `${object.name}.${name} does external work, which an invoked call cannot`,
-            );
-        } else if (object.storage !== this.object.storage) {
-            throw new TypeError(
-                `${this.object.name}.${this.name} cannot invoke ${object.name}, stored apart`,
-            );
-        } else if (this.run === undefined) {
-            throw new TypeError(`${this.object.name}.${this.name} runs no invoked calls`);
+    /** Run calls in this call's transaction as a caller, each result in order; a change of copied rows goes toward their home once the transaction commits. */
+    async mutate<const Calls extends readonly ObjectCall[]>(
+        caller: Caller,
+        calls: Calls,
+    ): Promise<ResultsOf<Calls>> {
+        const results: unknown[] = [];
+        for (const entry of calls) {
+            results.push(await this.#run(caller, entry, true));
         }
 
-        return this.run(object, name, input, options);
+        return Call.#results(calls, results);
+    }
+
+    /** Read through a method in this call's transaction as a caller. */
+    async query<Result>(caller: Caller, call: ObjectCall<Result>): Promise<Result> {
+        const [result] = Call.#results([call], [await this.#run(caller, call, false)]);
+
+        return result;
+    }
+
+    /** Run one call of the platform's own code in this call's transaction and scope, refusing a call with nothing to run it. */
+    async #run(caller: Caller, entry: ObjectCall, mutates: boolean): Promise<unknown> {
+        if (this.run === undefined) {
+            throw new TypeError(`${this.object.name}.${this.name} runs no nested calls`);
+        }
+
+        return this.run(entry, caller, mutates);
+    }
+
+    /** Type the results of calls by the results they answer. */
+    static #results<const Calls extends readonly ObjectCall[]>(
+        _calls: Calls,
+        results: unknown[],
+    ): ResultsOf<Calls>;
+    /**
+     * Type the results of calls.
+     *
+     * @construct each result is the result its call's method answers, which ObjectCall carries from type.call.
+     */
+    static #results(_calls: readonly ObjectCall[], results: unknown[]): unknown[] {
+        return results;
     }
 
     /** Copy the call with some fields changed, as a call of any input once the input changes. */
@@ -396,25 +395,20 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return this.authorization;
     }
 
-    /** Read the principal calling, refusing a call without one. */
+    /** Read the subject calling, refusing a call without one. */
     requireCaller(): Subject {
-        if (this.caller === undefined) {
+        const subject = this.caller.subject;
+        if (subject === undefined) {
             throw new ServiceError("FORBIDDEN", {
                 message: `${this.object.name} needs a calling principal`,
             });
         }
 
-        return this.caller;
+        return subject;
     }
 
-    /** Read the permission the method requires of its caller, which a system method has none of. */
+    /** Read the permission the method requires of its caller. */
     permission(): Permission {
-        if (this.method.permission === null) {
-            throw new TypeError(
-                `${this.object.name}.${this.name} requires no permission of a caller`,
-            );
-        }
-
         return this.object.permission(this.method.permission);
     }
 
@@ -432,9 +426,9 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return this.id;
     }
 
-    /** Read the parent the call's input names. */
+    /** Read the parent the call's input refers to. */
     parent(): ObjectReference | undefined {
-        // read the named parent of a nested object
+        // read the given parent of a nested object
         const declared = this.object.parent;
         const input: JsonObject = this.input;
         const named = declared?.object === "any" ? input["parent"] : input["parentId"];
@@ -448,7 +442,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
             : declared.object.reference(this.scope, schema.string().parse(named));
     }
 
-    /** Read the parent the call's input names, refusing a call without one. */
+    /** Read the parent the call's input refers to, refusing a call without one. */
     requireParent(): ObjectReference {
         const parent = this.parent();
         if (parent === undefined) {
@@ -462,7 +456,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
 
     /** Read the parent columns the call's input writes. */
     parentColumns(): Row {
-        // write nothing for an object without a parent, and the typed parent's identifier as named
+        // write nothing for an object without a parent, and the typed parent's identifier as given
         const declared = this.object.parent;
         if (declared === undefined) {
             return {};
@@ -544,22 +538,12 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
 
     /** Send a call to run later, once this call's transaction commits. */
     async send(request: { readonly call: sync.Call; readonly at?: number }): Promise<void> {
-        // require a served call on an object server delivering its sends
-        this.requireAuthorization();
-        if (this.sends === undefined) {
-            throw new TypeError(
-                `${this.method.kind} ${this.name} sends calls where nothing receives them`,
-            );
-        }
-
         // record the send once in the call's transaction, lending the caller's authority when delegated
-        const requestId = RequestId.create();
-        const delegation = this.authorization?.delegation;
-        const message: OutboxCall = {
-            requestId,
-            request: { ...request, ...(delegation === undefined ? {} : { delegation }) },
-        };
-        await this.sends.append(OutboxCall, requestId, message, this.database);
+        const { delegation } = this.requireAuthorization();
+        await this.requireStore().send(request.call, this.database, {
+            ...(request.at === undefined ? {} : { at: request.at }),
+            ...(delegation === undefined ? {} : { delegation }),
+        });
     }
 
     /** Update the target's desired state at the loaded revision, advancing a controlled target's generation. */
@@ -630,7 +614,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
             ...changes,
             revision: target.revision + 1,
             updatedAt: this.now,
-            updatedBy: this.caller === undefined ? null : Subject.key(this.caller),
+            updatedBy: this.caller.subject === undefined ? null : Subject.key(this.caller.subject),
         };
 
         // update at the loaded revision
@@ -646,6 +630,25 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
 
         return row;
+    }
+
+    /** The caller of the service running the call acting as itself, such as its space or installation, refusing a call no store runs. */
+    get service(): Caller {
+        return Caller.of(this.requireStore().principal, this.now);
+    }
+
+    /** Admit a caller in a scope inside the call's transaction, as code the caller's principal owns acts there. */
+    admit(caller: Caller, scope: string): Promise<Authorization> {
+        return this.requireStore().admit(this.database, scope, caller, { now: this.now });
+    }
+
+    /** Read the store running the call, refusing a call no store runs. */
+    requireStore(): Omit<ObjectStore, "router"> {
+        if (this.store === undefined) {
+            throw new TypeError(`${this.object.name}.${this.name} runs in no store`);
+        }
+
+        return this.store;
     }
 
     /** Read the target an instance call loaded, which a record write requires. */
@@ -679,66 +682,36 @@ export type CallFields<
     | "objects"
     | "prepared"
     | "idempotencyKey"
-    | "client"
+    | "writerId"
     | "requestId"
     | "run"
-    | "sends"
     | "snapshot"
     | "expansion"
     | "installation"
+    | "store"
 >;
 
-/** The methods of an object type a call invokes, each taking its input and resolving its result. */
-export type Invoker<Object extends ObjectType> = {
-    readonly [Name in keyof Object["methods"]]: {
-        invoke(
-            input: CallInput<Object, Name & MethodName<Object>>,
-        ): Promise<ResultOf<Object, Name & MethodName<Object>>>;
-    }["invoke"];
+/** A call of one method of an object type as a value: the method, its input and release, and the result it answers. */
+export interface ObjectCall<Result = unknown> {
+    /** The object type and method, such as page.create. */
+    readonly method: string;
+    /** The method's input with its scope and target, as the method's input schema reads it. */
+    readonly input: Readonly<Record<string, unknown>>;
+    /** The release of the method's package the call was made against. */
+    readonly release: string;
+    /** The result the call answers, carried by its type alone. */
+    readonly result?: Result;
+}
+
+/** The results of calls in order. */
+export type ResultsOf<Calls extends readonly ObjectCall[]> = {
+    -readonly [Index in keyof Calls]: Calls[Index] extends ObjectCall<infer Result>
+        ? Result
+        : never;
 };
 
-/** Call an object type's methods, as a call, a stack and the system invoke them. */
-export type Invoke = <Object extends ObjectType>(object: Object) => Invoker<Object>;
-
-/** Call object types' methods through one runner, as a call, a stack and the system invoke them. */
-export function invoking(
-    run: (object: ObjectType, name: string, input: JsonObject) => Promise<unknown>,
-): Invoke;
-/**
- * Call object types' methods through one runner.
- *
- * @construct each object type gets a function per method, each run with its declared input and result, which is how Invoke maps the object.
- */
-export function invoking(
-    run: (object: ObjectType, name: string, input: JsonObject) => Promise<unknown>,
-): (object: ObjectType) => unknown {
-    return (object) =>
-        Object.fromEntries(
-            Object.keys(object.methods).map((name) => [
-                name,
-                (input: JsonObject) => run(object, name, input),
-            ]),
-        );
-}
-
-/** How a call invokes another object's method. */
-export interface InvokeOptions {
-    /** The principal the call records as its caller, this call's caller when absent. */
-    readonly as?: Subject;
-}
-
-/** Run a method of an object in a call's scope and transaction, as its caller or another principal. */
-export type Run = (
-    object: ObjectType,
-    name: string,
-    input: JsonObject,
-    options: {
-        /** The principal the call records as its caller, the invoking call's caller when absent. */
-        readonly as?: Subject;
-        /** Whose authority decides the call's permissions, the invoking call's when absent and the system's for branch previews. */
-        readonly authority?: "caller" | "system";
-    },
-) => Promise<unknown>;
+/** Run a call in a calling method's transaction and scope as a caller, reading or changing objects. */
+export type Run = (entry: ObjectCall, caller: Caller, mutates: boolean) => Promise<unknown>;
 
 /** The input a call reads: the output of its method's input schema, a JSON object without one. */
 export type InputOf<Input extends schema.Schema> = [Input] extends [never]
@@ -762,7 +735,10 @@ type MethodCall<Configuration extends Partial<MethodConfiguration>> = Call<
           }
         : {}) &
     (OptionOf<Configuration, "kind", MethodKind> extends "create"
-        ? { readonly input: ParentInput<TableOf<Configuration>> }
+        ? { readonly input: ParentInput<TableOf<Configuration>> } & VariantCall<
+              TableOf<Configuration>,
+              OptionOf<Configuration, "variants", never>
+          >
         : {}) &
     (OptionOf<Configuration, "kind", MethodKind> extends TargetKind
         ? { readonly target: Select<TableOf<Configuration>> }
@@ -797,7 +773,7 @@ type MethodResult<Configuration extends Partial<MethodConfiguration>> = [
         : Select<TableOf<Configuration>>
     : schema.Output<OptionOf<Configuration, "output", never>>;
 
-/** The parent a creation names: a reference to a parent of several types, else its identifier, absent for an orphan. */
+/** The parent a creation refers to: a reference to a parent of several types, else its identifier, absent for an orphan. */
 type ParentInput<Definition extends Table> =
     Select<Definition> extends { readonly parentId: infer Parent }
         ? Select<Definition> extends { readonly parentType: unknown }
@@ -819,6 +795,32 @@ type WrittenInput<
     ? { readonly [Name in keyof Written]?: JsonOf<Exclude<Written[Name], undefined>> }
     : { readonly [Name in keyof Written]: JsonOf<Written[Name]> };
 
+/** The input of a creation writing a sum type: one variant's columns under its value of the field telling them apart. */
+type VariantCall<Definition extends Table, Sum> =
+    IsSum<Sum> extends true
+        ? {
+              readonly input: {
+                  [Field in keyof Sum & string]: {
+                      [Value in keyof Sum[Field] & string]: {
+                          readonly [Key in Field]: Value;
+                      } & RequiredInput<
+                          Definition,
+                          Sum[Field][Value] extends readonly (infer Written extends string)[]
+                              ? Written
+                              : never
+                      >;
+                  }[keyof Sum[Field] & string];
+              }[keyof Sum & string];
+          }
+        : {};
+
+/** The columns a write gives a value in their JSON form, null refused. */
+type RequiredInput<
+    Definition extends Table,
+    Fields extends string,
+    Written = Pick<Insert<Definition>, Extract<Fields, keyof Insert<Definition>>>,
+> = { readonly [Name in keyof Written]-?: JsonOf<NonNullable<Written[Name]>> };
+
 /** An object type as its methods' types read it: its table and its methods by name. */
 type MethodOwner = { readonly table: Table; readonly methods: Readonly<Record<string, Method>> };
 
@@ -835,6 +837,7 @@ export type TypesOf<Declaration extends Method, Definition extends Table> = {
     }
         ? Fields
         : string;
+    readonly variants: Exclude<Declaration["variants"], undefined>;
     readonly table: Definition;
 };
 
@@ -942,7 +945,7 @@ export type Bivariant<Callback extends (...parameters: never[]) => unknown> = {
     run(...parameters: Parameters<Callback>): ReturnType<Callback>;
 }["run"];
 
-/** Report whether a failure is the cell's final refusal: a client error, not a timeout or throttle. */
+/** Report whether a failure is the machine's final refusal: a client error, not a timeout or throttle. */
 function isRefusal(error: Error): boolean {
     return (
         isServiceError(error) &&

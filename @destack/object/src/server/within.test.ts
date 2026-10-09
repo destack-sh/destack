@@ -1,15 +1,15 @@
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { none, principal, relation, through } from "@destack/access";
+import { accessRelationship, none, principal, relation, through } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { AccessFixture } from "@destack/access/test";
-import { asc, type DatabaseConnection, defineDatabase } from "@destack/db";
+import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier } from "@destack/schema";
 
 import { Replica, Scope } from "@destack/sync";
 import { defineObject, field } from "../index.ts";
-import { ObjectServer, Subscriber, SystemAuthorization } from "./index.ts";
+import { ObjectStore, Subscriber } from "./index.ts";
 
 /** Refuse a change sent over the uplink, as these copies receive none. */
 const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
@@ -24,7 +24,7 @@ const person = defineObject({
     scope: "universe",
     isScope: true,
     fields: { name: field.string() },
-    relations: { joined: { subjects: [principal.cell], grantedBy: null } },
+    relations: { joined: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("joined") },
     methods: (method) => ({ list: method.list("read") }),
 });
@@ -42,7 +42,7 @@ const profile = defineObject({
     methods: (method) => ({ list: method.list("read") }),
 });
 
-/** Teams of the universe, which the cell keeps no copies of. */
+/** Teams of the universe, which the space keeps no copies of. */
 const team = defineObject({
     name: "team",
     plural: "teams",
@@ -53,13 +53,13 @@ const team = defineObject({
     methods: (method) => ({ list: method.list("read") }),
 });
 
-/** Badges living in a person's or a team's scope, each listed to the cells it is shown to. */
+/** Badges living in a person's or a team's scope, each listed to the spaces it is shown to. */
 const badge = defineObject({
     name: "badge",
     plural: "badges",
     scope: [person, team],
     fields: { label: field.string() },
-    relations: { shown: { subjects: [principal.cell], grantedBy: null } },
+    relations: { shown: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("shown") },
     methods: (method) => ({ list: method.list("read") }),
 });
@@ -67,9 +67,10 @@ const badge = defineObject({
 /** Serve people and profiles over a database. */
 function serve(
     database: DatabaseConnection,
-    subscriber?: NonNullable<ConstructorParameters<typeof ObjectServer>[0]["subscriber"]>,
+    subscriber?: NonNullable<ConstructorParameters<typeof ObjectStore>[0]["subscriber"]>,
 ) {
-    return new ObjectServer({
+    return new ObjectStore({
+        principal: principal.space.reference(Scope.universe.id, spaceId),
         objects: { person, profile },
         database,
         ...(subscriber === undefined ? {} : { subscriber }),
@@ -86,14 +87,14 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const tables = [...person.tables, ...profile.tables, journal];
         const home = await TestDatabase.create(dialect, tables, { isMigrated: true });
-        const regional = defineDatabase({
-            name: "cell",
+        const declared = defineDatabase({
+            name: "space",
             tables: [journal],
             copies: [...person.tables, ...profile.tables],
         });
-        const cell = await TestDatabase.create(dialect, regional, { isMigrated: true });
+        const space = await TestDatabase.create(dialect, declared, { isMigrated: true });
         onTestFinished(async () => {
-            await Promise.all([home.close(), cell.close()]);
+            await Promise.all([home.close(), space.close()]);
         });
 
         // keep three people at home with a profile each, one of them suspended
@@ -130,24 +131,19 @@ test.each(TEST_DIALECTS)(
 
         // let the space read ada and the suspended cy
         const served = serve(home.database);
-        const system = await SystemAuthorization.open(
-            served.authorizer,
-            home.database,
-            Scope.universe.id,
-            now,
-        );
         const join = (id: string) =>
-            system.grant({
-                object: person.reference(Scope.universe.id, id),
-                relation: "joined",
-                subject: principal.cell.reference(Scope.universe.id, spaceId),
-            });
+            new AccessFixture(home.database).copyRelationship(
+                id,
+                person.reference(Scope.universe.id, id),
+                "joined",
+                principal.space.reference(Scope.universe.id, spaceId),
+            );
         const joined = await join(ada);
         await join(cy);
 
-        // keep the space's copy of the universe on the cell, decided at home for the space
-        const copying: ObjectServer<{ person: typeof person; profile: typeof profile }> = serve(
-            cell.database,
+        // keep the space's copy of the universe in its database, decided at home for the space
+        const copying: ObjectStore<{ person: typeof person; profile: typeof profile }> = serve(
+            space.database,
             Subscriber.of(
                 {
                     receive: refuseChanges,
@@ -155,7 +151,9 @@ test.each(TEST_DIALECTS)(
                         served.source.replicate(
                             asked,
                             asked.after,
-                            { subject: principal.cell.reference(Scope.universe.id, asked.below) },
+                            {
+                                subject: principal.space.reference(Scope.universe.id, asked.below),
+                            },
                             signal,
                         ),
                 },
@@ -179,8 +177,8 @@ test.each(TEST_DIALECTS)(
             await following.catch(() => undefined);
         });
         const copied = async () => {
-            await Replica.reach(
-                cell.database,
+            await Replica.wait(
+                space.database,
                 Scope.universe.id,
                 await home.database.log.position(),
                 AbortSignal.timeout(5000),
@@ -188,10 +186,10 @@ test.each(TEST_DIALECTS)(
 
             return {
                 people: (
-                    await cell.database.select().from(person.table).orderBy(asc(person.table.id))
+                    await space.database.select().from(person.table).orderBy(asc(person.table.id))
                 ).map((row) => row.id),
                 profiles: (
-                    await cell.database.select().from(profile.table).orderBy(asc(profile.table.id))
+                    await space.database.select().from(profile.table).orderBy(asc(profile.table.id))
                 ).map((row) => [row.id, row.scope, row.handle, row.email]),
             };
         };
@@ -213,7 +211,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // take a person leaving the space out with their profile
-        await system.revoke(person.reference(Scope.universe.id, ada), joined.id);
+        await home.database.delete(accessRelationship).where(eq(accessRelationship.id, joined));
         expect(await copied()).toEqual({
             people: [bob, cy],
             profiles: [[profileOf(bob), bob, "@1", null]],
@@ -230,17 +228,17 @@ test.each(TEST_DIALECTS)(
             [...person.tables, ...team.tables, ...badge.tables, journal],
             { isMigrated: true },
         );
-        const cell = await TestDatabase.create(
+        const space = await TestDatabase.create(
             dialect,
             defineDatabase({
-                name: "cell",
+                name: "space",
                 tables: [journal],
                 copies: [...person.tables, ...badge.tables],
             }),
             { isMigrated: true },
         );
         onTestFinished(async () => {
-            await Promise.all([home.close(), cell.close()]);
+            await Promise.all([home.close(), space.close()]);
         });
         const now = 1;
         const ada = personOf(1);
@@ -264,37 +262,36 @@ test.each(TEST_DIALECTS)(
             .values(badges.map(([id, scope, label]) => ({ id, scope, label, ...at })));
 
         // let the space read ada, and show it the first and the last badge
-        const served = new ObjectServer({
+        const served = new ObjectStore({
+            principal: principal.space.reference(Scope.universe.id, spaceId),
             objects: { person, team, badge },
             database: home.database,
             callKey: testCallKey,
             origin: { package: person.package, service: "test" },
         });
-        const system = await SystemAuthorization.open(
-            served.authorizer,
-            home.database,
-            Scope.universe.id,
-            now,
+        const fixture = new AccessFixture(home.database);
+        const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
+        await fixture.copyRelationship(
+            ada,
+            person.reference(Scope.universe.id, ada),
+            "joined",
+            spaceSubject,
         );
-        const cellOfSpace = principal.cell.reference(Scope.universe.id, spaceId);
-        await system.grant({
-            object: person.reference(Scope.universe.id, ada),
-            relation: "joined",
-            subject: cellOfSpace,
-        });
         for (const [id, scope] of [badges[0], badges[2]]) {
-            await system.grant({
-                object: badge.reference(scope, id),
-                relation: "shown",
-                subject: cellOfSpace,
-            });
+            await fixture.copyRelationship(
+                scope,
+                badge.reference(scope, id),
+                "shown",
+                spaceSubject,
+            );
         }
 
-        // copy the universe the space reads onto the cell, which serves people and badges alone
-        const copying: ObjectServer<{ person: typeof person; badge: typeof badge }> =
-            new ObjectServer({
+        // copy the universe the space reads into its database, which serves people and badges alone
+        const copying: ObjectStore<{ person: typeof person; badge: typeof badge }> =
+            new ObjectStore({
+                principal: principal.space.reference(Scope.universe.id, spaceId),
                 objects: { person, badge },
-                database: cell.database,
+                database: space.database,
                 subscriber: Subscriber.of(
                     {
                         receive: refuseChanges,
@@ -303,7 +300,7 @@ test.each(TEST_DIALECTS)(
                                 asked,
                                 asked.after,
                                 {
-                                    subject: principal.cell.reference(
+                                    subject: principal.space.reference(
                                         Scope.universe.id,
                                         asked.below,
                                     ),
@@ -321,10 +318,10 @@ test.each(TEST_DIALECTS)(
                 callKey: testCallKey,
                 origin: { package: person.package, service: "test" },
             });
-        await follow(copying, home.database, cell.database);
+        await follow(copying, home.database, space.database);
 
         // keep the shown badges of the team and of ada, and withhold the hidden one
-        const copied = await cell.database.select().from(badge.table).orderBy(asc(badge.table.id));
+        const copied = await space.database.select().from(badge.table).orderBy(asc(badge.table.id));
         expect(copied.map((row) => [row.id, row.scope, row.label])).toEqual([
             [badgeOf(1), crew, "shown in the team"],
             [badgeOf(3), ada, "shown in ada's scope"],
@@ -334,9 +331,9 @@ test.each(TEST_DIALECTS)(
 
 /** Follow a server's copies until they reach the home database's position, stopping once the test finishes. */
 async function follow(
-    copying: ObjectServer,
+    copying: ObjectStore,
     home: DatabaseConnection,
-    cell: DatabaseConnection,
+    space: DatabaseConnection,
 ): Promise<void> {
     // run the replica controller's one key
     const follower = present(
@@ -355,8 +352,8 @@ async function follow(
     });
 
     // wait for the copy to reach home
-    await Replica.reach(
-        cell,
+    await Replica.wait(
+        space,
         Scope.universe.id,
         await home.log.position(),
         AbortSignal.timeout(5000),

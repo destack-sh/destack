@@ -2,20 +2,31 @@ import {
     accessRelationship,
     accessRole,
     accessRolePermission,
+    CHAIN_SHAPE,
     ChainParameters,
     decisionTables,
-    isPrincipal,
+    CONTAINED,
     principal,
     Relationship,
-    type Standing,
+    Caller,
     type UniverseParameters,
 } from "@destack/access";
 import { ScopeProjector } from "./projected.ts";
 import { Scope, ObjectReference, Subject } from "@destack/sync";
 import type { JsonValue } from "@destack/schema";
-import { Change, eq, LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
+import {
+    and,
+    Change,
+    type DatabaseConnection,
+    eq,
+    LogPosition,
+    Snapshot,
+    TABLE,
+    type Table,
+} from "@destack/db";
 
-import { aligned, Digest, Duration, found, present, schema } from "@destack/schema";
+import { PackageId } from "@destack/package";
+import { aligned, Digest, Duration, found, schema } from "@destack/schema";
 
 import { isServiceError, ServiceError } from "@destack/service/error";
 
@@ -33,7 +44,8 @@ import {
     QUERIES_SHAPE,
     QueriesParameters,
 } from "../replica/replica.ts";
-import { ObjectType, REPLICATE, REPRESENT, type ObjectStorage } from "../object/object.ts";
+import { ObjectType, REPLICATE, type ObjectStorage } from "../object/object.ts";
+import { ExternalStorage } from "./external.ts";
 import { projected } from "../trait/projected.ts";
 
 import { Authorization } from "./authorization.ts";
@@ -45,7 +57,7 @@ import type { Controller } from "@destack/service/control";
 
 import { until } from "@destack/service/timer";
 
-import type { ObjectServer, Subscriber, SubscriberEntry } from "./server.ts";
+import type { ObjectStore, Subscriber } from "./store.ts";
 
 /** The largest broadcast event, in bytes: 16 KiB, far above the tens of bytes a cursor takes. */
 const BROADCAST_BYTES = 16 * 1024;
@@ -53,19 +65,19 @@ const BROADCAST_BYTES = 16 * 1024;
 /** An event an object sends, with the object it is about. */
 const SENT_EVENT = ObjectReference.extend({ event: schema.json() });
 
-/** The copies a server's objects stream: client feeds of a scope's queries, and replicas of scopes for databases below. */
+/** The copies a store's objects stream: client feeds of a scope's queries, and replicas of scopes for databases below. */
 export class ObjectSource {
-    /** The server whose objects the copies keep. */
-    readonly server: Omit<ObjectServer, "router">;
+    /** The store whose objects the copies keep. */
+    readonly store: Omit<ObjectStore, "router">;
     /** The copies streaming now, by the scope or principal below they are for. */
     readonly #streaming = new Map<string, number>();
 
-    /** Stream the copies of a server's objects. */
-    constructor(server: Omit<ObjectServer, "router">) {
-        this.server = server;
+    /** Stream the copies of a store's objects. */
+    constructor(store: Omit<ObjectStore, "router">) {
+        this.store = store;
     }
 
-    /** Report whether a copy streams now for a scope or principal below, such as a placed workload following this server. */
+    /** Report whether a copy streams now for a scope or principal below, such as a platform installation following this store. */
     follows(below: string): boolean {
         return this.#streaming.has(below);
     }
@@ -134,7 +146,7 @@ export class ObjectSource {
     ): Promise<ReplicaFollower> {
         switch (shape.audience) {
             case "caller":
-                await this.server.enter(context, subscription.scope);
+                await this.store.enter(context, subscription.scope);
 
                 return { context };
             case "recipient":
@@ -173,46 +185,56 @@ export class ObjectSource {
         // find the served object standing for the scope
         const standing = await this.#standing(request.below);
 
-        // decide for the principal a served object stands for, which the caller represents
-        if (standing !== undefined) {
-            const { object, reference, subject, parent } = standing;
-            const authorization = await this.server.authorize(
-                this.server.database,
-                reference.scope,
-                context,
-            );
-            await authorization.require(object.permission(REPRESENT), reference);
+        // decide for the principal a served object stands for when it follows itself
+        const caller = Caller.principal(context.requireAuthentication().claims);
+        if (
+            standing !== undefined &&
+            caller !== undefined &&
+            Subject.same(caller, standing.subject)
+        ) {
+            const { subject, parent } = standing;
 
             return { subject, ...(parent === undefined ? {} : { parent }) };
         }
 
-        // decide for the caller, which is the scope's principal or lives in the scope
-        const { subjects } = this.server.accessContext(context, request.below);
+        // decide for a caller that is the scope's principal or lives in the scope, such as its installation
+        const { subjects } = context.caller(request.below);
         const kept = subjects.filter(
             (subject) => subject.id === request.below || subject.scope === request.below,
         );
         if (kept.length === 0) {
             throw new ServiceError("FORBIDDEN", {
-                message: `the caller keeps no copies for ${request.below}`,
+                message: `only ${request.below} and what lives in it follow the copies kept for it`,
             });
         }
-        if (this.#shape(request).audience === "contained") {
-            await this.#requireReplicate(request.below, kept, context);
+        // decide a single copy here, on the scope below for a follower living in it, and a copy via scopes on each of them
+        const via =
+            request.shape === CHAIN_SHAPE
+                ? ChainParameters.parse(request.parameters).via
+                : undefined;
+        if (this.#shape(request).audience === "contained" && via === undefined) {
+            const isResident = kept.some((subject) => subject.scope === request.below);
+            const decided = standing === undefined || isResident ? request.below : request.scope;
+            await this.#requireReplicate(decided, kept, context);
         }
 
         return { context };
     }
 
-    /** Require the `replicate` permission on a caller's own object, or else on the scope, to copy its chain. */
+    /** Require the `replicate` permission on a caller's own object, or else on a scope: the one below, or the copied one for a scope another database keeps, such as a space. */
     async #requireReplicate(
         below: string,
         kept: readonly Subject[],
         context: ServiceContext,
     ): Promise<void> {
         // list the permissions on the caller's own objects
-        const authorization = await this.server.authorize(this.server.database, below, context);
+        const authorization = await this.store.authorize(
+            this.store.database,
+            below,
+            context.caller(below),
+        );
         const personal = kept.flatMap((subject) =>
-            this.server.durable
+            this.store.durable
                 .filter(
                     (object) => object.policy.is(subject) && object.permissions.includes(REPLICATE),
                 )
@@ -223,8 +245,8 @@ export class ObjectSource {
         );
 
         // add the scope's permission, and require the first one
-        const scope = await Scope.object(Snapshot.live(this.server.database), below);
-        const policy = this.server.authorizer.policy(scope);
+        const scope = await Scope.object(Snapshot.live(this.store.database), below);
+        const policy = this.store.authorizer.policy(scope);
         const granting = [...personal];
         if (Object.hasOwn(policy.definition.permissions, REPLICATE)) {
             granting.push({ permission: policy.permission(REPLICATE), target: scope });
@@ -238,38 +260,34 @@ export class ObjectSource {
         await authorization.require(first.permission, first.target);
     }
 
-    /** Find the object standing for a principal callers act as, with the scopes the principal lives inside, absent when none stands for it here: its own, or its scope's for a principal inside a principal, as a space's zone stands for the space's installations. */
-    async standing(subject: Subject): Promise<Standing | undefined> {
-        // find the object standing for the principal's identifier, standing for the principal itself
-        const standing = await this.#standing(subject.id);
-        if (standing !== undefined && Subject.same(standing.subject, subject)) {
-            return {
-                permission: standing.object.permission(REPRESENT),
-                object: standing.reference,
-                subject: standing.subject,
-                within: standing.parent === undefined ? [] : await this.#within(standing.parent),
-            };
+    /** List the scopes above the row standing for a principal, or for an installation's space, none for anyone and when no row stands for it. */
+    async within(
+        subject: Subject | undefined,
+        database: DatabaseConnection,
+    ): Promise<readonly Subject[]> {
+        // take the principal standing for itself, or the space an installation lives in
+        if (subject === undefined) {
+            return [];
+        }
+        const standingFor = principal.installation.is(subject) ? subject.scope : subject.id;
+
+        // read the scopes above the row standing for it
+        const standing = await this.#standing(standingFor, database);
+        if (standing?.parent === undefined) {
+            return [];
         }
 
-        // stand for a principal inside a principal through the object standing for its scope
-        const scope = isPrincipal(subject) ? await this.#standing(subject.scope) : undefined;
-        if (scope === undefined || scope.subject.id !== subject.scope) {
-            return undefined;
-        }
-
-        return {
-            permission: scope.object.permission(REPRESENT),
-            object: scope.reference,
-            subject,
-            within: [
-                scope.subject,
-                ...(scope.parent === undefined ? [] : await this.#within(scope.parent)),
-            ],
-        };
+        return (await this.#within(standing.parent, database)).map((inside) => ({
+            ...inside,
+            relation: CONTAINED,
+        }));
     }
 
-    /** Find the object standing for a scope as a principal among the served types the database is home of and the copied types standing here, with the scope containing it. */
-    async #standing(below: string): Promise<
+    /** Find the object standing for a scope as a principal among the types the store serves or decides, home or copied, with the scope containing it. */
+    async #standing(
+        below: string,
+        database: DatabaseConnection = this.store.database,
+    ): Promise<
         | {
               readonly object: ObjectType;
               readonly reference: ObjectReference;
@@ -278,23 +296,17 @@ export class ObjectSource {
           }
         | undefined
     > {
-        // look among the served types this database is home of and the copied types standing here
-        const { database, standing } = this.server;
-        const homed = this.server.durable.filter((object) => !database.copies(object.table));
-        for (const object of [...homed, ...standing]) {
-            // skip unrepresented types and other identifiers
+        // look among the types the store serves or decides, a copy standing as its home does
+        for (const object of this.store.decided) {
+            // skip other identifiers
             const table = object.table;
             const identifier = table[TABLE].column("id").definition.schema;
-            if (!object.permissions.includes(REPRESENT) || !identifier.safeParse(below).success) {
+            if (!identifier.safeParse(below).success) {
                 continue;
             }
 
             // read the object, skipping a type without the identity relation
-            const [row] = await Snapshot.live(this.server.database).select(
-                table,
-                ["id"],
-                [[below]],
-            );
+            const [row] = await Snapshot.live(database).select(table, ["id"], [[below]]);
             const identity = Object.entries(object.mapping.relations).find(
                 ([, field]) => field.column === object.mapping.id,
             );
@@ -302,15 +314,15 @@ export class ObjectSource {
                 continue;
             }
 
-            // stand for the principal the object's identifier is, as a user's `self` is
-            const subject = this.server.authorizer.related(object.mapping, identity[0], row);
-            const parent = row["parent"];
+            // stand for the principal the object's identifier is, as a user's `self` is, inside the scope keeping it
+            const subject = this.store.authorizer.related(object.mapping, identity[0], row);
+            const scope = schema.string().parse(row["scope"]);
             if (subject !== undefined) {
                 return {
                     object,
-                    reference: object.reference(schema.string().parse(row["scope"]), below),
+                    reference: object.reference(scope, below),
                     subject,
-                    parent: typeof parent === "string" ? parent : undefined,
+                    parent: scope === Scope.universe.id ? undefined : scope,
                 };
             }
         }
@@ -323,11 +335,12 @@ export class ObjectSource {
         name: QUERIES_SHAPE,
         parameters: QueriesParameters,
         audience: "caller",
+        isReadinessGate: true,
         replica: ({ name, scope }) =>
             new sync.Replica({
                 name,
                 scope,
-                tables: this.server.durable.map((object) => object.table),
+                tables: this.store.durable.map((object) => object.table),
             }),
     });
 
@@ -336,11 +349,12 @@ export class ObjectSource {
         name: EPHEMERAL_SHAPE,
         parameters: EphemeralParameters,
         audience: "caller",
+        isReadinessGate: true,
         replica: ({ name, scope }) =>
             new sync.Replica({
                 name,
                 scope,
-                tables: this.server.store().objects.map((object) => object.table),
+                tables: this.store.requireEphemeral().objects.map((object) => object.table),
             }),
     });
 
@@ -349,12 +363,13 @@ export class ObjectSource {
         name: EXTERNAL_SHAPE,
         parameters: QueriesParameters,
         audience: "caller",
+        isReadinessGate: true,
         replica: ({ name, scope }) =>
             new sync.Replica({
                 name,
                 scope,
-                tables: present(this.server.external, "the external files").objects.map(
-                    (object) => object.table,
+                tables: this.store.external.flatMap((storage) =>
+                    storage.objects.map((object) => object.table),
                 ),
             }),
     });
@@ -364,6 +379,7 @@ export class ObjectSource {
         name: ACCESS_SHAPE,
         parameters: schema.object({}),
         audience: "caller",
+        isReadinessGate: true,
         replica: ({ name, scope }) => new sync.Replica({ name, scope, tables: decisionTables }),
     });
 
@@ -372,10 +388,11 @@ export class ObjectSource {
         name: PROJECTION_SHAPE,
         parameters: ProjectionParameters,
         audience: "recipient",
+        isReadinessGate: false,
         replica: ({ name, scope, parameters }) => {
-            // project the source's rows into the home the copy is named for, through the served types projecting them
-            const projectors = this.server.objects.flatMap((object) => {
-                // keep a projecting type's projector for the named source
+            // project the source's rows into the home the copy is for, through the served types projecting them
+            const projectors = this.store.objects.flatMap((object) => {
+                // keep a projecting type's projector for the given source
                 const projector =
                     object.projected === undefined
                         ? undefined
@@ -408,7 +425,7 @@ export class ObjectSource {
     ): AsyncGenerator<sync.Page> {
         // require the rows this installation keeps, and each recipient to live in the following home
         const parameters = ProjectionParameters.parse(subscription.parameters);
-        const { installation } = this.server;
+        const { installation } = this.store;
         if (installation === undefined || parameters.installation !== installation.id) {
             throw new ServiceError("NOT_FOUND", {
                 message: `${parameters.installation} keeps the rows elsewhere`,
@@ -429,7 +446,7 @@ export class ObjectSource {
 
         // stream the rows each recipient receives
         const audience = await RecipientAudience.of(
-            this.server,
+            this.store,
             scope,
             parameters.to,
             parameters.recipients,
@@ -442,7 +459,7 @@ export class ObjectSource {
             },
         };
         yield* marking(
-            this.server.feed.subscribe(queries, after, signal, {
+            this.store.feed.subscribe(queries, after, signal, {
                 audience,
                 ...(drain === undefined ? {} : { drain }),
                 ...(origin === undefined ? {} : { origin }),
@@ -451,9 +468,9 @@ export class ObjectSource {
         );
     }
 
-    /** Find the served type a projection names, refusing one without its recipient field. */
+    /** Find the served type a projection refers to, refusing one without its recipient field. */
     #projected(parameters: ProjectionParameters): ObjectType {
-        const source = this.server.durable.find(
+        const source = this.store.durable.find(
             (object) =>
                 object.name === parameters.type &&
                 object.policy.definition.packageId === parameters.packageId,
@@ -467,39 +484,53 @@ export class ObjectSource {
         return source;
     }
 
-    /** List the subscriptions a home follows: one per projected type and source installation its residents' residences name. */
+    /** List the subscriptions a home follows: one per projected type and source installation its residents' residences refer to. */
     async projectionSubscriptions(home: string): Promise<sync.Subscription[]> {
         // project nowhere without a projected type
-        const projecting = this.server.objects.flatMap((object) =>
+        const projecting = this.store.objects.flatMap((object) =>
             object.projected === undefined ? [] : [object.projected],
         );
-        const { residence } = this.server;
+        const { residence } = this.store;
         if (residence === undefined || projecting.length === 0) {
             return [];
         }
 
-        // read the residences of the users living here, grouped by source and installation
-        const user = residence.user.table[TABLE];
+        // read the residences of the users whose personal account this home belongs to, grouped by source and installation
+        const account = residence.account.table[TABLE];
         const residing = residence.residence.table[TABLE];
-        const rows = await this.server.database
+        const rows = await this.store.database
             .select({
-                user: user.column("id"),
+                user: residing.column("scope"),
                 source: residing.column("source"),
                 installation: residing.column("installation"),
+                service: residing.column("service"),
             })
             .from(residence.residence.table)
-            .innerJoin(residence.user.table, eq(user.column("id"), residing.column("scope")))
-            .where(eq(user.column("home"), home))
-            .orderBy(residing.column("source"), residing.column("installation"), user.column("id"));
+            .innerJoin(
+                residence.account.table,
+                and(
+                    eq(account.column("scope"), residing.column("scope")),
+                    eq(account.column("kind"), "personal"),
+                ),
+            )
+            .innerJoin(Scope.table, eq(Scope.table.parent, account.column("id")))
+            .where(eq(Scope.table.scope, home))
+            .orderBy(
+                residing.column("source"),
+                residing.column("installation"),
+                residing.column("service"),
+                residing.column("scope"),
+            );
         const sources = Map.groupBy(
             rows.map((row) => ({
                 source: schema.string().parse(row.source),
                 installation: schema.identifier("installation").parse(row.installation),
+                service: PackageId.parse(row.service),
                 recipient: Subject.key(
                     principal.user.reference(Scope.universe.id, schema.string().parse(row.user)),
                 ),
             })),
-            (row) => JSON.stringify([row.source, row.installation]),
+            (row) => JSON.stringify([row.source, row.installation, row.service]),
         );
 
         // follow each projected type from each source for its recipients
@@ -507,7 +538,7 @@ export class ObjectSource {
             const source = projected.sourceOf(options);
 
             return [...sources.values()].map((entries) => {
-                const { source: scope, installation } = aligned(entries, 0);
+                const { source: scope, installation, service } = aligned(entries, 0);
 
                 return this.projectionShape.subscription({
                     name: home,
@@ -515,6 +546,7 @@ export class ObjectSource {
                     below: home,
                     parameters: {
                         installation,
+                        service,
                         packageId: source.policy.definition.packageId,
                         type: source.name,
                         to: options.to,
@@ -528,8 +560,8 @@ export class ObjectSource {
     /** Build the controller recording in each recipient's user scope the installation keeping rows of a projected type for them, absent without one. */
     addresses(): Controller | undefined {
         // find the served types some type projects, with their recipient fields
-        const { installation } = this.server;
-        const sources = this.server.durable.flatMap((object) =>
+        const { installation } = this.store;
+        const sources = this.store.durable.flatMap((object) =>
             object.projections.flatMap((projecting) =>
                 projecting.projected === undefined
                     ? []
@@ -545,7 +577,7 @@ export class ObjectSource {
             name: "address",
             watches: sources.map(({ table }) => table),
             keys: (change) => {
-                // read the recipient the changed row names
+                // read the recipient the changed row refers to
                 const row = Change.image(change);
                 const source = sources.find(({ table }) => table === change.table);
                 const recipient = source === undefined ? undefined : row[source.to];
@@ -555,7 +587,7 @@ export class ObjectSource {
             list: async () => {
                 const keys = await Promise.all(
                     sources.map(async ({ table, to }) => {
-                        const rows = await this.server.database
+                        const rows = await this.store.database
                             .selectDistinct({ recipient: table[TABLE].column(to) })
                             .from(table);
 
@@ -568,7 +600,7 @@ export class ObjectSource {
                 return [...new Set(keys.flat())];
             },
             reconcile: async (recipient) => {
-                // settle a recipient without a user, whose key a change of a row naming them enqueues again
+                // settle a recipient without a user, whose key a change of a row referring to them enqueues again
                 try {
                     await installation.directory.address(recipient);
                 } catch (error) {
@@ -590,15 +622,15 @@ export class ObjectSource {
         // open the audience
         const { scope, after, previous, refresh, origin } = subscription;
         const { queries } = QueriesParameters.parse(subscription.parameters);
-        const audience = await ObjectAudience.of(this.server, scope, context);
+        const audience = await ObjectAudience.of(this.store, scope, context.caller(scope));
 
         // follow the queries from the queries the copy reflects
         const { chain } = audience;
-        const compiled = ObjectType.queries(this.server.durable, queries, chain);
+        const compiled = ObjectType.queries(this.store.durable, queries, chain);
         const earlier =
             previous === undefined ? undefined : QueriesParameters.parse(previous).queries;
         const options = followOptions(audience, context, {
-            previous: earlier && ObjectType.queries(this.server.durable, earlier, chain),
+            previous: earlier && ObjectType.queries(this.store.durable, earlier, chain),
             refresh,
             origin,
         });
@@ -607,31 +639,33 @@ export class ObjectSource {
 
         // audit watching each audited object type
         const tables = new Set(Object.values(compiled).flatMap(tablesOf));
-        const audited = this.server.objects.filter(
+        const audited = this.store.objects.filter(
             (object) =>
-                (object.isReadAudited || this.server.isAccessAudited) && tables.has(object.table),
+                (object.isReadAudited || this.store.isAccessAudited) && tables.has(object.table),
         );
         const pages = audited.reduce(
             (source, object) => () => {
                 const { action, values } = object.auditCall("watch", {}, scope);
 
-                return this.server.audit(scope, context).stream(action, values, source);
+                return this.store
+                    .audit(scope, context.caller(scope), { requestId: context.requestId })
+                    .stream(action, values, source);
             },
-            () => follow(this.server.feed),
+            () => follow(this.store.feed),
         );
         yield* pages();
     }
 
-    /** Follow a scope's ephemeral objects for a client. */
+    /** Follow a scope's ephemeral objects for a writer. */
     async *#ephemeral(
         subscription: sync.Subscription,
         context: ServiceContext,
     ): AsyncGenerator<sync.Page> {
-        // track the client's rows
+        // track the writer's rows
         const { scope, after, previous, refresh, origin } = subscription;
-        const { queries, client } = EphemeralParameters.parse(subscription.parameters);
-        const store = this.server.store();
-        const release = store.track(EphemeralStorage.clientKey(context, client));
+        const { queries, writerId } = EphemeralParameters.parse(subscription.parameters);
+        const store = this.store.requireEphemeral();
+        const release = store.track(EphemeralStorage.writerKey(context.caller(scope), writerId));
         const compiled = ObjectType.queries(store.objects, queries, [scope]);
         const earlier =
             previous === undefined ? undefined : EphemeralParameters.parse(previous).queries;
@@ -666,7 +700,10 @@ export class ObjectSource {
         // open the scope's files
         const { scope, after, previous, refresh, origin } = subscription;
         const { queries } = QueriesParameters.parse(subscription.parameters);
-        const external = present(this.server.external, "the external files");
+        const external = ExternalStorage.of(
+            this.store.external,
+            Object.values(queries ?? {}).map((query) => query.object),
+        );
         const feed = new sync.Feed(
             await external.open(scope),
             external.objects.map((object) => object.table),
@@ -716,7 +753,7 @@ export class ObjectSource {
                 refresh,
                 origin,
             });
-            const pages = this.server.feed.subscribe(
+            const pages = this.store.feed.subscribe(
                 queries,
                 isFirst ? after : undefined,
                 signal,
@@ -743,8 +780,10 @@ export class ObjectSource {
             // open the audience and watch access rows until the request closes or access changes
             const revised = new AbortController();
             const signal = AbortSignal.any([context.request.signal, revised.signal]);
-            const since = (await this.server.database.log.position()).sequence;
-            const audience = await ObjectAudience.of(this.server, scope, context, { storage });
+            const since = (await this.store.database.log.position()).sequence;
+            const audience = await ObjectAudience.of(this.store, scope, context.caller(scope), {
+                storage,
+            });
             const watching = this.#watchAccess(audience.chain, since, revised, signal);
 
             // follow until access changes, and from a snapshot after
@@ -762,10 +801,10 @@ export class ObjectSource {
         revised: AbortController,
         signal: AbortSignal,
     ): Promise<void> {
-        const tables = this.server.authorizer.watch(chain).map((watch) => watch.table);
+        const tables = this.store.authorizer.watch(chain).map((watch) => watch.table);
         try {
             // abort the stream on the first page with changes
-            const pages = this.server.database.log.follow(
+            const pages = this.store.database.log.follow(
                 { tables, scopes: chain, after: since },
                 signal,
             );
@@ -791,15 +830,19 @@ export class ObjectSource {
         context: ServiceContext,
     ): Promise<void> {
         // require a small event and a reader
-        const store = this.server.store();
+        const store = this.store.requireEphemeral();
         if (new TextEncoder().encode(JSON.stringify(event)).length > BROADCAST_BYTES) {
             throw new ServiceError("BAD_REQUEST", {
                 message: `a broadcast has at most ${BROADCAST_BYTES} bytes`,
             });
         }
-        await this.server.enter(context, scope);
+        await this.store.enter(context, scope);
         const reference = { ...target, scope };
-        const authorization = await this.server.admit(this.server.database, scope, context);
+        const authorization = await this.store.admit(
+            this.store.database,
+            scope,
+            context.caller(scope),
+        );
         if (!(await this.#lists(authorization, reference))) {
             throw new ServiceError("NOT_FOUND", { message: `no ${target.type} ${target.id}` });
         }
@@ -808,17 +851,17 @@ export class ObjectSource {
         store.tracker.broadcast(scope, { ...reference, event });
     }
 
-    /** The shapes this server serves and follows, by name. */
+    /** The shapes this store serves and follows, by name. */
     get shapes(): ReadonlyMap<string, sync.Shape> {
         return new Map(
             [
-                ...this.server.authorizer.shapes,
+                ...this.store.authorizer.shapes,
                 this.queriesShape,
                 this.ephemeralShape,
                 this.externalShape,
                 this.accessShape,
                 this.projectionShape,
-                ...this.server.shapes,
+                ...this.store.shapes,
             ].map((shape) => [shape.name, shape]),
         );
     }
@@ -828,7 +871,12 @@ export class ObjectSource {
         return this.#shape(request).replica(request);
     }
 
-    /** Find the served shape a request names, refusing any other. */
+    /** Report whether a request's copy gates this store's readiness, as its shape says. */
+    isReadinessGate(request: Pick<sync.Subscription, "shape">): boolean {
+        return this.#shape(request).isReadinessGate;
+    }
+
+    /** Find the served shape a request asks for, refusing any other. */
     #shape(request: Pick<sync.Subscription, "shape">): sync.Shape {
         const shape = this.shapes.get(request.shape);
         if (shape === undefined) {
@@ -838,12 +886,12 @@ export class ObjectSource {
         return shape;
     }
 
-    /** Name the copy a subscription keeps by its name and scope, which every subscription of the copy shares. */
+    /** Build the key of the copy a subscription keeps from its name and scope, which every subscription of the copy shares. */
     static #copy(subscription: Pick<sync.Subscription, "name" | "scope">): string {
         return `${subscription.name} ${subscription.scope}`;
     }
 
-    /** Build the controller following each requested copy and dropping each kept copy no request names. */
+    /** Build the controller following each requested copy and dropping each kept copy no request asks for. */
     controller(subscriber: Subscriber): Controller {
         // list the requested copies and revise the listed ones
         const listed = new Map<string, CopyEntry>();
@@ -868,8 +916,8 @@ export class ObjectSource {
     /** List the tables whose changes list the copies again. */
     #copyWatches(subscriber: Subscriber): Table[] {
         // watch the copied scope types and the residents' homes and addresses
-        const { residence } = this.server;
-        const scopes = this.server.copied
+        const { residence } = this.store;
+        const scopes = this.store.copied
             .filter((object) => object.policy.definition.scope === true)
             .map((object) => object.table);
 
@@ -879,18 +927,18 @@ export class ObjectSource {
                 ...scopes,
                 ...(residence === undefined
                     ? []
-                    : [residence.user.table, residence.residence.table]),
+                    : [residence.account.table, residence.residence.table]),
                 ...(subscriber.watches ?? []),
             ]),
         ];
     }
 
-    /** Follow each requested copy from its publisher, and drop each kept copy no request names, by copy key. */
+    /** Follow each requested copy from its publisher, and drop each kept copy no request asks for, by copy key. */
     async #copies(subscriber: Subscriber): Promise<Map<string, CopyIntent & { digest: string }>> {
-        // drop the kept copies no request names and follow the requested ones
+        // drop the kept copies no request asks for and follow the requested ones
         const entries = await subscriber.subscriptions();
         const named = new Set(entries.map((entry) => ObjectSource.#copy(entry.subscription)));
-        const kept = await sync.Replica.subscriptions(this.server.database);
+        const kept = await sync.Replica.subscriptions(this.store.database);
         const actions: CopyIntent[] = [
             ...kept
                 .filter((copy) => !named.has(ObjectSource.#copy(copy)))
@@ -940,9 +988,9 @@ export class ObjectSource {
             if (copy.action === "follow") {
                 await this.#followCopy(key, copy, listed, list, revised);
             }
-            // drop a kept copy no request names and wait for a request naming it again
+            // drop a kept copy no request asks for and wait for a request asking for it again
             else {
-                await this.replicaOf(copy.subscription).drop(this.server.database);
+                await this.replicaOf(copy.subscription).drop(this.store.database);
                 await until(revised);
             }
         }
@@ -961,7 +1009,7 @@ export class ObjectSource {
         try {
             const { subscription, publisher } = copy;
             await this.replicaOf(subscription).follow(
-                this.server.database,
+                this.store.database,
                 (from, stream) => publisher.stream({ ...subscription, ...from }, stream),
                 revised,
                 { subscription },
@@ -976,13 +1024,9 @@ export class ObjectSource {
     }
 
     /** List the rows of the universe a scope reads: each copied type's rows, nested types within their scopes. */
-    universeRows(source?: Pick<ObjectServer, "objects">): UniverseParameters["rows"] {
-        // leave inherited rows to the chains, and keep the types of one source in this process, or of none
-        const sourceOf = (object: ObjectType) =>
-            this.server.sources.find((each) => each.objects.some((type) => type.same(object)));
-        const copied = this.server.copied.filter(
-            (object) => object.inherited === undefined && sourceOf(object) === source,
-        );
+    universeRows(): UniverseParameters["rows"] {
+        // leave inherited rows to the chains
+        const copied = this.store.copied.filter((object) => object.inherited === undefined);
         const isUnscoped = (object: ObjectType) =>
             object.scopes.length === 0 ||
             object.scopes.some((scope) => !copied.some((type) => type.same(scope)));
@@ -1017,19 +1061,22 @@ export class ObjectSource {
         return rows;
     }
 
-    /** List the subscriptions a placed workload keeps: the universe's rows and one copy of its scopes' chains. */
-    async workloadSubscriptions(placement: string): Promise<sync.Subscription[]> {
+    /** List the subscriptions of the scopes a database serves rows in, kept below a space: the universe's rows and one copy of the scopes' chains, leaving out the copied types another publisher copies. */
+    async servedSubscriptions(
+        below: string,
+        elsewhere: readonly ObjectType[] = [],
+    ): Promise<sync.Subscription[]> {
         // read the copied scopes the served objects live in while the universe's copy includes them
-        const living = this.server.copied.filter((scope) =>
-            this.server.durable.some((object) => object.scopes.some((type) => type.same(scope))),
+        const living = this.store.copied.filter((scope) =>
+            this.store.durable.some((object) => object.scopes.some((type) => type.same(scope))),
         );
         const scopes = await Promise.all(
             living.map(async (scope) => {
                 const table = scope.table[TABLE];
-                const rows = await this.server.database
+                const rows = await this.store.database
                     .select({ id: table.column("id"), scope: table.column("scope") })
                     .from(scope.table)
-                    .where(sync.Replica.includes(placement, scope.table));
+                    .where(sync.Replica.includes(below, scope.table));
 
                 return rows.map((row): ObjectReference => ({
                     ...scope.typeReference,
@@ -1040,11 +1087,13 @@ export class ObjectSource {
         );
 
         // copy the scopes' chains in one copy, after the rows of the universe
-        const universe = this.universeSubscription(placement);
-        const chains = await this.server.authorizer.chainVia(
-            this.server.database,
-            placement,
+        const universe = this.universeSubscription(below);
+        const chains = await this.store.authorizer.chainVia(
+            this.store.database,
+            below,
             scopes.flat(),
+            this.store.authorizer.scoped,
+            elsewhere.map((type) => type.typeReference),
         );
 
         return [
@@ -1059,13 +1108,13 @@ export class ObjectSource {
         options: { readonly isHome: boolean },
     ): Promise<sync.Subscription[]> {
         // copy the chain and the rows of the universe the scope reads
-        const chain = await this.server.authorizer.chain(this.server.database, below, options);
+        const chain = await this.store.authorizer.chain(this.store.database, below, options);
         const universe = this.universeSubscription(below);
 
         return universe === undefined ? chain : [...chain, universe];
     }
 
-    /** Build the subscription of the copy of the universe's rows a scope or cell reads, absent when the server copies no type living there. */
+    /** Build the subscription of the copy of the universe's rows a scope or machine reads, absent when the store copies no type living there. */
     universeSubscription(below: string): sync.Subscription | undefined {
         // request nothing where no global object type is served
         const rows = this.universeRows();
@@ -1073,34 +1122,12 @@ export class ObjectSource {
             return undefined;
         }
 
-        // copy the universe's rows the scope or cell may read, under its own name
-        return this.server.authorizer.universeShape.subscription({
+        // copy the universe's rows the scope or machine may read, under its own name
+        return this.store.authorizer.universeShape.subscription({
             name: below,
             scope: Scope.universe.id,
             below,
             parameters: { rows },
-        });
-    }
-
-    /** List the copies a database keeps of the rows its sources in this process keep, one per source. */
-    sourceSubscriptions(below: string): SubscriberEntry[] {
-        return this.server.sources.flatMap((source) => {
-            // request nothing of a source keeping no copied type
-            const rows = this.universeRows(source);
-            const [first] = rows;
-            if (first === undefined) {
-                return [];
-            }
-
-            // copy the source's rows under a name of its package
-            const subscription = this.server.authorizer.universeShape.subscription({
-                name: `${below}/${first.type.packageId}`,
-                scope: Scope.universe.id,
-                below,
-                parameters: { rows },
-            });
-
-            return [{ subscription, publisher: source.uplink }];
         });
     }
 
@@ -1113,11 +1140,11 @@ export class ObjectSource {
         const copy = this.replicaOf(subscription);
         const { after, origin } = subscription;
         if (origin !== undefined) {
-            await copy.requireAcyclic(this.server.database, origin);
+            await copy.requireAcyclic(this.store.database, origin);
         }
 
         // stream the copy, sending no bare positions of the subscriber's own writes
-        yield* this.server.feed.subscribe(
+        yield* this.store.feed.subscribe(
             copy.queries,
             after,
             signal,
@@ -1145,9 +1172,9 @@ export class ObjectSource {
         // relay a copied scope only once its copy has a position, and never back to its source
         const copy = shape.replica(request);
         const { previous, origin } = request;
-        await sync.Replica.requireRelayable(this.server.database, request.name, request.scope);
+        await sync.Replica.requireRelayable(this.store.database, request.name, request.scope);
         if (origin !== undefined) {
-            await copy.requireAcyclic(this.server.database, origin);
+            await copy.requireAcyclic(this.store.database, origin);
         }
 
         // stream the copy from the parameters it reflects, ending at a completed page once drained
@@ -1155,7 +1182,7 @@ export class ObjectSource {
             previous === undefined
                 ? undefined
                 : shape.replica({ ...request, parameters: previous }).queries;
-        yield* this.server.feed.subscribe(copy.queries, after, signal, {
+        yield* this.store.feed.subscribe(copy.queries, after, signal, {
             audience,
             ...(reflected === undefined ? {} : { previous: reflected }),
             ...(drain === undefined ? {} : { drain }),
@@ -1165,7 +1192,7 @@ export class ObjectSource {
 
     /** Require a chain copy's scope to contain the follower's scope, through its parent when kept elsewhere. */
     async #requireContaining(request: sync.Subscription, follower: ReplicaFollower): Promise<void> {
-        // require a follower outside the chains, such as a placed workload, to copy them via scopes inside them
+        // require a follower outside the chains, such as a platform installation, to copy them via scopes inside them
         const { via, between } = ChainParameters.parse(request.parameters);
         if (via !== undefined) {
             await this.#requireVia(request.scope, via, between ?? []);
@@ -1176,7 +1203,7 @@ export class ObjectSource {
         // read the scopes containing the follower's
         const parent = "subject" in follower ? follower.parent : undefined;
         const chain = await Scope.chain(
-            Snapshot.live(this.server.database),
+            Snapshot.live(this.store.database),
             parent ?? request.below,
         );
         const scopes = [
@@ -1197,7 +1224,7 @@ export class ObjectSource {
         between: readonly string[],
     ): Promise<void> {
         // require each replicated scope's chain to hold the copied scope
-        const chains = await Scope.chains(Snapshot.live(this.server.database), via);
+        const chains = await Scope.chains(Snapshot.live(this.store.database), via);
         const scopes = new Set<string>();
         for (const [relay, links] of chains) {
             const ids = links.map((link) => link.object.id);
@@ -1221,11 +1248,11 @@ export class ObjectSource {
     }
 
     /** Require a reader, a principal or a caller, to hold the `replicate` permission on the scope it copies a chain via. */
-    async requireReplicateVia(via: string, reader: Subject | ServiceContext): Promise<void> {
+    async requireReplicateVia(via: string, reader: Caller): Promise<void> {
         // require a scope type keeping copies of its chain
-        const { database } = this.server;
+        const { database } = this.store;
         const scope = await Scope.object(Snapshot.live(database), via);
-        const policy = this.server.authorizer.policy(scope);
+        const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
             throw new ServiceError("FORBIDDEN", {
                 message: `no ${scope.type} keeps copies of its chain`,
@@ -1233,10 +1260,9 @@ export class ObjectSource {
         }
 
         // decide for the principal standing for the follower, or for the caller
-        const authorization =
-            "packageId" in reader
-                ? await this.server.authorizeSubject(database, via, reader)
-                : await this.server.authorize(database, via, reader);
+        const authorization = !Caller.isRemote(reader)
+            ? await this.store.authorize(database, via, reader, { within: [] })
+            : await this.store.authorize(database, via, reader);
         await authorization.require(policy.permission(REPLICATE), scope);
     }
 
@@ -1253,45 +1279,67 @@ export class ObjectSource {
 
         // decide a principal's chain by containment in the universe as a principal inside its parent's chain
         if ("subject" in follower && isContained) {
-            return ObjectAudience.of(this.server, Scope.universe.id, follower.subject, {
-                isContained,
-                within: await this.#within(follower.parent ?? request.below),
-                ...copying,
-            });
+            return ObjectAudience.of(
+                this.store,
+                Scope.universe.id,
+                Caller.of(follower.subject, this.store.clock()),
+                {
+                    isContained,
+                    within: await this.#within(follower.parent ?? request.below),
+                    ...copying,
+                },
+            );
         }
         // decide a principal's other rows in the copied scope, as a principal inside its parent's chain
         else if ("subject" in follower) {
             const { parent } = follower;
             const within = parent === undefined ? [] : await this.#within(parent);
 
-            return ObjectAudience.of(this.server, request.scope, follower.subject, { within });
+            return ObjectAudience.of(
+                this.store,
+                request.scope,
+                Caller.of(follower.subject, this.store.clock()),
+                { within },
+            );
         }
         // decide a caller's chain by containment, with its fields from the scope it acts in
         else if (isContained) {
-            return ObjectAudience.of(this.server, request.below, follower.context, {
-                isContained,
-                ...copying,
-            });
+            return ObjectAudience.of(
+                this.store,
+                request.below,
+                follower.context.caller(request.below),
+                {
+                    isContained,
+                    ...copying,
+                },
+            );
         }
-        // decide a caller in the scope a relayed copy is kept for, or in the copied scope at its home
+        // decide a caller in the scope a relayed copy is kept for when this database copies the shape's tables, or in the copied scope at its home
         else {
-            const isRelayed = await sync.Replica.isCopied(this.server.database, request.scope);
-            const scope = isRelayed ? request.below : request.scope;
+            const { database } = this.store;
+            const { tables } = shape.replica(request);
+            const copied = await Promise.all(
+                tables.map((table) => sync.Replica.isCopied(database, request.scope, table)),
+            );
+            const scope = copied.every(Boolean) ? request.below : request.scope;
 
-            return ObjectAudience.of(this.server, scope, follower.context);
+            return ObjectAudience.of(this.store, scope, follower.context.caller(scope));
         }
     }
 
     /** List the scopes a principal lives inside: a scope and the scopes enclosing it below the universe. */
-    async #within(scope: string): Promise<ObjectReference[]> {
-        const links = await Scope.chain(Snapshot.live(this.server.database), scope);
+    async #within(
+        scope: string,
+        database: DatabaseConnection = this.store.database,
+    ): Promise<ObjectReference[]> {
+        const links = await Scope.chain(Snapshot.live(database), scope);
 
         return links.flatMap((link) => (link.object.id === Scope.universe.id ? [] : [link.object]));
     }
 
     /** Decide whether a caller may list a served durable object. */
     async #lists(authorization: Authorization, reference: ObjectReference): Promise<boolean> {
-        const object = this.server.objects.find(
+        const object = this.store.objects.find(
             (entry) =>
                 entry.storage === "durable" &&
                 entry.name === reference.type &&
@@ -1334,7 +1382,7 @@ export class ObjectSource {
                     if (arrived.page.done === true) {
                         return;
                     }
-                    stop ??= this.server.store().tracker.listen(scope, (event) => {
+                    stop ??= this.store.requireEphemeral().tracker.listen(scope, (event) => {
                         received.push(event);
                         waker.arrival.resolve();
                     });
@@ -1394,7 +1442,7 @@ export class ObjectSource {
     }
 }
 
-/** What the replica controller does with a copy: follow it for its request from its publisher, or drop it once no request names it. */
+/** What the replica controller does with a copy: follow it for its request from its publisher, or drop it once no request asks for it. */
 type CopyIntent =
     | {
           /** A request follows the copy. */

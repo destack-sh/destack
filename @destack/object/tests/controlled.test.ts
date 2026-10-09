@@ -1,14 +1,14 @@
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { principal, relation } from "@destack/access";
+import { none, principal, relation, Caller } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 
-import { defineObject, field, SystemCall } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { defineObject, field } from "../src/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { RequestId } from "@destack/service/request";
 import { testCallKey } from "@destack/service/test";
 
@@ -29,10 +29,10 @@ const machine = defineObject({
         size: field.string(schema.string().min(1)),
         address: field.string().optional(),
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
+    permissions: { read: relation("owner"), write: relation("owner"), provision: none() },
     methods: (method) => ({
         create: method.create("write", { fields: ["size"] }),
-        provision: method.create(null, { isSystem: true }),
+        provision: method.create("provision", { isInternal: true }),
         update: method.update("write", { fields: ["size"] }),
         delete: method.delete("write"),
     }),
@@ -50,7 +50,9 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, machineDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        const server = new ObjectServer({
+        let now = 0;
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { machine },
             database: storage.database,
             callKey: testCallKey,
@@ -58,7 +60,13 @@ test.each(TEST_DIALECTS)(
                 package: machine.package,
                 service: "test",
             },
+            clock: () => now,
         });
+        const at = (time: number) => {
+            now = time;
+
+            return Caller.of(spacePrincipal(spaceId), time);
+        };
         const read = async () => {
             const [row] = await storage.database.select().from(machine.table);
 
@@ -66,65 +74,83 @@ test.each(TEST_DIALECTS)(
         };
 
         // create a machine as the system on behalf of its owner
-        await server.executeAsSystem(
-            machine,
-            "provision",
-            [{ scope: spaceId, id: MACHINE, input: { ownerId: "global:user-1", size: "small" } }],
-            1_000,
-        );
+        await store.mutate(at(1_000), {
+            id: RequestId.create(now),
+            calls: [
+                machine.call("provision", {
+                    ...machine.target({ scope: spaceId, id: MACHINE }),
+                    ownerId: "global:user-1",
+                    size: "small",
+                }),
+            ],
+        });
         const created = present(await read(), "the machine");
 
         // observe it twice and keep the transition time while the status stays
         const ready = { status: "false", reason: "Provisioning", message: "" } as const;
-        await server.executeAsSystem(
-            machine,
-            "observe",
-            [SystemCall.of(created, { observedGeneration: 1, conditions: { ready } })],
-            2_000,
-        );
-        await server.executeAsSystem(
-            machine,
-            "observe",
-            [
-                SystemCall.of(present(await read(), "the machine"), {
+        await store.mutate(at(2_000), {
+            id: RequestId.create(now),
+            calls: [
+                machine.call("observe", {
+                    ...machine.target(created),
+                    observedGeneration: 1,
+                    conditions: { ready },
+                }),
+            ],
+        });
+        await store.mutate(at(3_000), {
+            id: RequestId.create(now),
+            calls: [
+                machine.call("observe", {
+                    ...machine.target(present(await read(), "the machine")),
                     observedGeneration: 1,
                     conditions: { ready: { ...ready, message: "waiting for capacity" } },
                     fields: { address: "10.0.0.1" },
                 }),
             ],
-            3_000,
-        );
+        });
         const observed = present(await read(), "the machine");
 
         // delete it through its controller, requesting and finalizing inside an open transaction
-        await server.executeAsSystem(machine, "delete", [SystemCall.of(observed)], 4_000);
+        await store.mutate(at(4_000), {
+            id: RequestId.create(now),
+            calls: [machine.call("delete", machine.target(observed))],
+        });
         const requested = present(await read(), "the machine");
         await storage.database.transaction(async (transaction) => {
-            await server
-                .invoke(machine, { database: transaction, scope: spaceId, now: 5_000 })
-                .finalize({ id: created.id });
+            await store.mutate(
+                at(5_000),
+                {
+                    id: RequestId.create(now),
+                    calls: [machine.call("finalize", { spaceId, id: created.id })],
+                },
+                { transaction },
+            );
         });
         const finalized = await read();
 
-        // refuse system work once the space moves to another cell
-        await server.executeAsSystem(
-            machine,
-            "provision",
-            [{ scope: spaceId, input: { ownerId: "global:user-1", size: "large" } }],
-            6_000,
-        );
+        // refuse system work once the space moves to another machine
+        await store.mutate(at(6_000), {
+            id: RequestId.create(now),
+            calls: [
+                machine.call("provision", {
+                    ...machine.target({ scope: spaceId }),
+                    ownerId: "global:user-1",
+                    size: "large",
+                }),
+            ],
+        });
         await Scope.fence(storage.database, spaceId, "host-2", 7_000);
-        const moved = server.executeAsSystem(
-            machine,
-            "observe",
-            [
-                SystemCall.of(present(await read(), "the machine"), {
+        const moved = store.mutate(at(8_000), {
+            id: RequestId.create(now),
+            calls: [
+                machine.call("observe", {
+                    ...machine.target(present(await read(), "the machine")),
                     observedGeneration: 1,
                     conditions: {},
                 }),
             ],
-            8_000,
-        );
+        });
         await expect(moved).rejects.toMatchObject({
             code: "MISDIRECTED_REQUEST",
             message: `${spaceId} moves to host-2`,
@@ -169,22 +195,34 @@ test("answer a repeated system request from the journal, provisioning once, and 
     const storage = await TestDatabase.create("sqlite", machineDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    const server = new ObjectServer({
+    let now = 0;
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { machine },
         database: storage.database,
         callKey: testCallKey,
         origin: { package: machine.package, service: "test" },
+        clock: () => now,
     });
+    const at = (time: number) => {
+        now = time;
+
+        return Caller.of(spacePrincipal(spaceId), time);
+    };
 
     // provision under a request twice, then with another size under it
     const requestId = await RequestId.derive(1_000, "machine small");
     const provision = (size: string) =>
-        server.executeAsSystem(
-            machine,
-            "provision",
-            [{ scope: spaceId, requestId, input: { ownerId: "global:user-1", size } }],
-            1_000,
-        );
+        store.mutate(at(1_000), {
+            id: requestId,
+            calls: [
+                machine.call("provision", {
+                    ...machine.target({ scope: spaceId }),
+                    ownerId: "global:user-1",
+                    size,
+                }),
+            ],
+        });
     const [first] = await provision("small");
     const [repeated] = await provision("small");
     const other = await refusal(provision("large"));

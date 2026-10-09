@@ -1,5 +1,5 @@
 import { Address, type Plan, type Step } from "@destack/resource";
-import { Scope } from "@destack/sync";
+import { Scope, type Subject } from "@destack/sync";
 import { Authorizer, Manager, type Policy } from "@destack/access";
 import {
     and,
@@ -31,8 +31,11 @@ import type { FieldColumn } from "../field/field.ts";
 import type { Directory } from "@destack/directory";
 import { Reservation } from "./reservation.ts";
 import { Moved } from "@destack/directory";
-import type { ObjectServer } from "./server.ts";
-import type { Invoke, Invoker } from "../method/call.ts";
+import type { ObjectStore } from "./store.ts";
+import type { Authorization } from "./authorization.ts";
+import { Call, type ObjectCall, type ResultsOf } from "../method/call.ts";
+import { Caller } from "@destack/access";
+import { RequestId } from "@destack/service/request";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 
@@ -93,14 +96,16 @@ export type DeclarationOf<Object extends ObjectType> = [
     ? never
     : schema.Infer<NonNullable<Object["lifecycle"]["declarationSchema"]>>;
 
-/** What a host applies a stack with. */
+/** What a machine applies a stack with. */
 export interface ApplyOptions {
     /** The database with the stack's scope and records. */
     readonly database: DatabaseConnection;
-    /** The object types the host applies declarations of. */
+    /** The object types the machine applies declarations of. */
     readonly objects: readonly ObjectType[];
     /** The installation and package applying the stack. */
     readonly manager: Omit<Manager, "name">;
+    /** The principal the declarations' calls run as, such as the space applying an installation's stack. */
+    readonly as: Subject;
     /** The scope containing the declared records. */
     readonly scope: string;
     /** The stack's document, keyed by collection. */
@@ -111,8 +116,8 @@ export interface ApplyOptions {
     readonly policies?: readonly Policy[];
     /** The directory with the claims of unique indexes, kept by the account service. */
     readonly directory?: Directory;
-    /** The object server running the declarations' system calls, applying each record where its rows live. */
-    readonly server?: Pick<ObjectServer, "invoker" | "change">;
+    /** The object store running the declarations' calls, applying each record where its rows live. */
+    readonly store?: Pick<ObjectStore, "mutate" | "admit">;
     /** Open the build of a package's release in the scope, the installation's when given. */
     readonly release?: Stack["release"];
 }
@@ -120,12 +125,14 @@ export interface ApplyOptions {
 /** An object type beside how its declarations become records. */
 type TypeDeclaration = ObjectDeclaration & { readonly object: ObjectOf<{ table: ManagedTable }> };
 
-/** A stack applied in one scope: its manager's document, and the lookups and system methods its declarations use. */
+/** A stack applied in one scope: its manager's document, and the lookups and calls its declarations use. */
 export class Stack {
     /** The scope containing the declared records, such as a space identifier. */
     readonly scope: string;
     /** The installation and package applying the stack. */
     readonly manager: Omit<Manager, "name">;
+    /** The principal the declarations' calls run as, such as the space applying an installation's stack. */
+    readonly as: Subject;
     /** The stack's document, keyed by collection. */
     readonly document: JsonObject;
     /** The time the stack is applied, in UTC milliseconds. */
@@ -134,7 +141,7 @@ export class Stack {
     readonly authorizer: Authorizer;
     /** The transaction writing one object type's records, the stack's database outside one. */
     readonly database: DatabaseConnection;
-    /** What the host applies the stack with. */
+    /** What the machine applies the stack with. */
     readonly #options: ApplyOptions;
     /** The declared object types in dependency order. */
     readonly #ordered: readonly TypeDeclaration[];
@@ -153,6 +160,7 @@ export class Stack {
         // keep the stack
         this.scope = options.scope;
         this.manager = options.manager;
+        this.as = options.as;
         this.document = options.document;
         this.now = now;
         this.authorizer = authorizer;
@@ -193,7 +201,7 @@ export class Stack {
                 (entry.keys ?? [entry.object.plural]).includes(key),
             );
             if (readers.length === 0) {
-                throw new ObjectError("UNSUPPORTED_DECLARATION", `this host cannot apply ${key}`);
+                throw new ObjectError("UNSUPPORTED_DECLARATION", `this server applies no ${key}`);
             }
             const collected = readers.map((entry) => Object.keys(collect(entry, options.document)));
             for (const name of Object.keys(DECLARED.parse(value))) {
@@ -201,7 +209,7 @@ export class Stack {
                 if (count === 0) {
                     throw new ObjectError(
                         "UNSUPPORTED_DECLARATION",
-                        `this host cannot apply ${key} ${name}`,
+                        `this server applies no ${key} ${name}`,
                     );
                 } else if (count > 1) {
                     throw new TypeError(`several object types collect ${key} ${name}`);
@@ -219,16 +227,19 @@ export class Stack {
         return stack.#apply();
     }
 
-    /** Resolve an object type the host applies declarations of, by name. */
+    /** Resolve an object type the machine applies declarations of, by name. */
     object(name: string): ObjectType {
         return this.#select(name).object;
     }
 
-    /** Find the declared object type whose objects an identifier names, refusing an identifier none names. */
+    /** Find the declared object type whose objects an identifier refers to, refusing an identifier none matches. */
     typeOf(id: string): ObjectType {
         const target = this.#ordered.find((entry) => entry.object.identifies(id));
         if (!target) {
-            throw new ObjectError("UNSUPPORTED_DECLARATION", `this host applies no type of ${id}`);
+            throw new ObjectError(
+                "UNSUPPORTED_DECLARATION",
+                `this server applies no type of ${id}`,
+            );
         }
 
         return target.object;
@@ -264,7 +275,7 @@ export class Stack {
         // wait for a record kept where its rows live until its copy arrives, and refuse an unknown one
         const id = await this.find(object, name);
         const target = this.#select(object).object;
-        if (id === undefined && this.database.copies(target.table)) {
+        if (id === undefined && (await target.isCopy(this.database, this.scope))) {
             this.wait(`${target.name} ${name} waits for its copy`);
         } else if (id === undefined) {
             throw new ObjectError("INVALID_DECLARATION", `unknown ${target.name}: ${name}`);
@@ -278,23 +289,33 @@ export class Stack {
         throw new DependencyWait(message);
     }
 
-    /** Call an object type's system methods in the transaction and scope. */
-    invoke<Object extends ObjectType>(object: Object): Invoker<Object> {
-        return this.invoker()<Object>(object);
+    /** Run calls as the stack's principal in the stack's transaction, each result in order: copied rows' changes go toward their home once it commits. */
+    mutate<const Calls extends readonly ObjectCall[]>(calls: Calls): Promise<ResultsOf<Calls>>;
+    /**
+     * Run calls as the stack's principal in the stack's transaction.
+     *
+     * @construct each result is the result its call's method answers, which ObjectCall carries from type.call.
+     */
+    mutate(calls: readonly ObjectCall[]): Promise<unknown[]> {
+        return this.#store().mutate(
+            this.caller,
+            { id: RequestId.create(this.now), calls },
+            { transaction: this.database, scope: this.scope },
+        );
     }
 
-    /** Call object types' system methods in the stack's transaction as one function. */
-    invoker(): Invoke {
-        return this.#server().invoker(this);
+    /** The caller the stack's calls run as: its principal, at the stack's time. */
+    get caller(): Caller {
+        return Caller.of(this.as, this.now);
     }
 
     /** Open the build of a package's release in the scope, the installation's when given. */
     release(packageId: PackageId, installation?: Identifier<"installation">): Promise<BuildReader> {
-        // require the host opening releases
+        // require the machine opening releases
         const { release } = this.#options;
         if (release === undefined) {
             throw new TypeError(
-                `the stack opens the release of ${packageId}, but no host opens releases`,
+                `the stack opens the release of ${packageId}, but no machine opens releases`,
             );
         }
 
@@ -360,7 +381,7 @@ export class Stack {
                 const chain = await Scope.guard(database, this.scope);
                 for (const link of chain) {
                     if (link.movedTo !== undefined) {
-                        throw Moved.error({ scope: link.object.id, cell: link.movedTo });
+                        throw Moved.error({ scope: link.object.id, machine: link.movedTo });
                     }
                 }
 
@@ -399,7 +420,7 @@ export class Stack {
         );
         if (!target) {
             const plural = typeof object === "string" ? object : object.plural;
-            throw new ObjectError("UNSUPPORTED_DECLARATION", `this host cannot apply ${plural}`);
+            throw new ObjectError("UNSUPPORTED_DECLARATION", `this server applies no ${plural}`);
         }
 
         return target;
@@ -491,7 +512,7 @@ export class Stack {
         }
         const id = object.generateId();
         await this.#applyRecord(object, name, values, id);
-        if (!database.copies(object.table)) {
+        if (!(await object.isCopy(database, this.scope))) {
             await declaration.written?.(this, await read(database, object.table, id), resolved);
         }
 
@@ -549,7 +570,7 @@ export class Stack {
             return [step];
         }
         await this.#applyRecord(declaration.object, name, values);
-        if (!database.copies(table)) {
+        if (!(await declaration.object.isCopy(database, this.scope))) {
             await declaration.written?.(this, await read(database, table, row.id), resolved);
         }
 
@@ -567,26 +588,28 @@ export class Stack {
         const json = Object.fromEntries(
             Object.entries(values).map(([column, value]) => [column, jsonOf(table, column, value)]),
         );
-        await this.change(object, "apply", {
-            ...(id === undefined ? {} : { id }),
-            manager: { ...this.manager, name },
-            values: json,
-        });
+        await this.mutate([
+            Call.record(object, "apply", {
+                ...(id === undefined ? {} : { id }),
+                manager: { ...this.manager, name },
+                values: json,
+            }),
+        ]);
     }
 
-    /** Change an object type's rows as the system in the stack's transaction: here where the database keeps them, else at their source once it commits. */
-    async change(object: ObjectType, name: string, input: JsonObject): Promise<void> {
-        await this.#server().change(this, object, name, input);
+    /** Admit the stack's principal in its scope inside the stack's transaction, as its access declarations write. */
+    authorization(): Promise<Authorization> {
+        return this.#store().admit(this.database, this.scope, this.caller);
     }
 
-    /** Require the object server running the declarations' system calls. */
-    #server(): Pick<ObjectServer, "invoker" | "change"> {
-        const { server } = this.#options;
-        if (server === undefined) {
-            throw new TypeError("the stack runs system calls, but no object server runs them");
+    /** Require the object store running the declarations' calls. */
+    #store(): Pick<ObjectStore, "mutate" | "admit"> {
+        const { store } = this.#options;
+        if (store === undefined) {
+            throw new TypeError("the stack runs calls, but no object store runs them");
         }
 
-        return server;
+        return store;
     }
 
     /** Retire attached records the manager no longer declares. */
@@ -621,10 +644,12 @@ export class Stack {
             if (declaration.retire) {
                 await declaration.retire.start(this, row);
             } else {
-                await this.change(declaration.object, "apply", {
-                    manager: { ...this.manager, name },
-                    values: null,
-                });
+                await this.mutate([
+                    Call.record(declaration.object, "apply", {
+                        manager: { ...this.manager, name },
+                        values: null,
+                    }),
+                ]);
             }
         }
 
@@ -686,7 +711,7 @@ function order(declarations: readonly TypeDeclaration[]): TypeDeclaration[] {
     return ordered;
 }
 
-/** Read the declarations each declaration names to run after. */
+/** Read the declarations each declaration lists to run after. */
 function explicitDependencies(
     declarations: readonly TypeDeclaration[],
 ): Map<TypeDeclaration, readonly TypeDeclaration[]> {
@@ -802,7 +827,7 @@ function jsonOf(table: Table, column: string, value: ColumnValue | undefined): J
         : table[TABLE].column(column).definition.toJson(value);
 }
 
-/** Refuse values naming unknown columns. */
+/** Refuse values for unknown columns. */
 function requireColumns(object: ObjectType, values: object): void {
     const columns = object.table[TABLE].columns;
     const unknown = Object.keys(values).find((key) => !Object.hasOwn(columns, key));

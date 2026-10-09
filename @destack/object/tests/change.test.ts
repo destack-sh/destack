@@ -99,7 +99,7 @@ test.each(TEST_DIALECTS)(
                 const change = "change" in request.event ? request.event.change : undefined;
                 if (isFailing && change?.key === undefined) {
                     isFailing = false;
-                    throw new TypeError("the cell is unreachable");
+                    throw new TypeError("the machine is unreachable");
                 }
                 recorded.push(request);
             },
@@ -116,7 +116,7 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(),
         });
         await expect(controller.reconcile(keyOf(titled))).rejects.toThrow(
-            "the cell is unreachable",
+            "the machine is unreachable",
         );
         await controller.reconcile(keyOf(titled));
 

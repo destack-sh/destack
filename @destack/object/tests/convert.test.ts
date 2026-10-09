@@ -7,8 +7,8 @@ import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { testCallKey } from "@destack/service/test";
 import { userContext } from "./fixture/user.ts";
@@ -44,7 +44,8 @@ test.for(TEST_DIALECTS)(
         );
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { card },
             database: storage.database,
             callKey: testCallKey,
@@ -56,53 +57,47 @@ test.for(TEST_DIALECTS)(
         const context = userContext("alice", spaceId);
 
         // create and rename a card through calls of the release before the rename
-        const [result] = await server.mutate(
-            {
-                id: RequestId.create(),
-                calls: [
-                    {
-                        method: "card.create",
-                        release: "2026.8.0",
-                        input: { spaceId, title: "Plan" },
-                    },
-                ],
-            },
-            context,
-        );
+        const [result] = await store.mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [
+                {
+                    method: "card.create",
+                    release: "2026.8.0",
+                    input: { spaceId, title: "Plan" },
+                },
+            ],
+        });
         const created = schema.looseObject({ id: schema.string() }).parse(result);
-        await server.mutate(
-            {
-                id: RequestId.create(),
-                calls: [
-                    {
-                        method: "card.update",
-                        release: "2026.8.0",
-                        input: { spaceId, id: created.id, title: "Roadmap" },
-                    },
-                ],
-            },
-            context,
-        );
+        await store.mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [
+                {
+                    method: "card.update",
+                    release: "2026.8.0",
+                    input: { spaceId, id: created.id, title: "Roadmap" },
+                },
+            ],
+        });
 
         // refuse a call made against a release the server does not serve yet
-        const later = server.mutate(
-            {
-                id: RequestId.create(),
-                calls: [
-                    {
-                        method: "card.update",
-                        release: "2026.10.0",
-                        input: { spaceId, id: created.id, name: "Next" },
-                    },
-                ],
-            },
-            context,
-        );
+        const later = store.mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [
+                {
+                    method: "card.update",
+                    release: "2026.10.0",
+                    input: { spaceId, id: created.id, name: "Next" },
+                },
+            ],
+        });
         await expect(later).rejects.toMatchObject({
             code: "BAD_REQUEST",
             message: "card.update was made against release 2026.10.0 of card, which is at 2026.9.0",
         });
-        const stored = await server.call(card, "get", { spaceId, id: created.id }, context);
+        const stored = await store.query(
+            context.caller(),
+            card.call("get", { spaceId, id: created.id }),
+        );
         expect(stored.name).toBe("Roadmap");
     },
 );

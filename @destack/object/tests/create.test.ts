@@ -1,14 +1,14 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { unique } from "@destack/db";
+import { check, sql, unique } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
-import { defineObject, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { type CallInput, defineObject, field } from "../src/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
 import { userContext } from "./fixture/user.ts";
 
@@ -21,7 +21,7 @@ const privateId = schema.identifier("space").parse("space-01996ab0-0000-7000-800
 /** The authentication creating a handle asks for: several factors within ten minutes. */
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
 
-/** Names unique within a space, created only by their named user after strong authentication. */
+/** Names unique within a space, created only by the user they refer to after strong authentication. */
 const handle = defineObject({
     name: "handle",
     plural: "handles",
@@ -46,9 +46,10 @@ test.each(TEST_DIALECTS)(
         await openSpace(storage.database, spaceId);
         await openSpace(storage.database, privateId, "private");
 
-        // serve the handles to the user each call names
+        // serve the handles to the user each call refers to
         let level = 2;
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { handle },
             database: storage.database,
             callKey: testCallKey,
@@ -62,12 +63,12 @@ test.each(TEST_DIALECTS)(
                 assurance: { level, authenticatedAt: Date.now() },
             });
 
-            return server.call(
-                handle,
-                "create",
-                { spaceId: scope, requestId: RequestId.create(), ...input },
-                context,
-            );
+            return store
+                .mutate(context.caller(), {
+                    id: RequestId.create(),
+                    calls: [handle.call("create", { spaceId: scope, ...input })],
+                })
+                .then(([written]) => written);
         };
 
         // take a name and an identifier as alice
@@ -136,7 +137,8 @@ test("create an object the caller has the permission on only as the creator its 
     });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { team },
         database: storage.database,
         callKey: testCallKey,
@@ -148,13 +150,13 @@ test("create an object the caller has the permission on only as the creator its 
     const context = userContext("alice", spaceId);
 
     // create a team as its owner and read it as that owner
-    const created = await server.call(
-        team,
-        "create",
-        { spaceId, requestId: RequestId.create(), name: "Core" },
-        context,
-    );
-    const read = await server.call(team, "get", { spaceId, id: created.id }, context);
+    const created = await store
+        .mutate(context.caller(), {
+            id: RequestId.create(),
+            calls: [team.call("create", { spaceId, name: "Core" })],
+        })
+        .then(([written]) => written);
+    const read = await store.query(context.caller(), team.call("get", { spaceId, id: created.id }));
     expect(read.name).toBe("Core");
 });
 
@@ -164,7 +166,8 @@ test("run only the one method a Loan lends its caller, refusing every other", as
     });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { team },
         database: storage.database,
         callKey: testCallKey,
@@ -180,14 +183,14 @@ test("run only the one method a Loan lends its caller, refusing every other", as
                 method: `${team.package.name}/team.${method}`,
             },
         });
-    const created = await server.call(
-        team,
-        "create",
-        { spaceId, requestId: RequestId.create(), name: "Core" },
-        loaned("create"),
-    );
+    const created = await store
+        .mutate(loaned("create").caller(), {
+            id: RequestId.create(),
+            calls: [team.call("create", { spaceId, name: "Core" })],
+        })
+        .then(([written]) => written);
     const read = await refusal(
-        server.call(team, "get", { spaceId, id: created.id }, loaned("create")),
+        store.query(loaned("create").caller(), team.call("get", { spaceId, id: created.id })),
     );
 
     expect([created.name, read]).toEqual([
@@ -196,5 +199,98 @@ test("run only the one method a Loan lends its caller, refusing every other", as
             "FORBIDDEN",
             `the loan lends ${team.package.name}/team.create, not ${team.package.name}/team.get`,
         ],
+    ]);
+});
+
+/** Ways to reach a team: an email address, or a phone number with its region. */
+const contact = defineObject({
+    name: "contact",
+    plural: "contacts",
+    scope: space,
+    fields: {
+        label: field.string(schema.string().min(1)),
+        kind: field.enum(["email", "phone"]),
+        address: field.string(schema.email()).optional(),
+        number: field.string(schema.e164()).optional(),
+        region: field.string(schema.string().length(2)).optional(),
+    },
+    relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
+    permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
+    methods: (method) => ({
+        get: method.get("read"),
+        create: method.create("update", {
+            fields: ["label"],
+            variants: { kind: { email: ["address"], phone: ["number", "region"] } },
+            creator: "owner",
+        }),
+    }),
+    constraints: (entry) => [
+        check(
+            "contact_kind",
+            sql`(${entry.kind} = 'email' AND ${entry.address} IS NOT NULL AND ${entry.number} IS NULL AND ${entry.region} IS NULL) OR (${entry.kind} = 'phone' AND ${entry.address} IS NULL AND ${entry.number} IS NOT NULL AND ${entry.region} IS NOT NULL)`,
+        ),
+    ],
+});
+
+test("create each variant of a sum type from its own fields beside the shared ones, refusing another variant's field", async () => {
+    const storage = await TestDatabase.create("sqlite", [journal, ...contact.tables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
+        objects: { contact },
+        database: storage.database,
+        callKey: testCallKey,
+        origin: { package: contact.package, service: "test" },
+    });
+    const create = (input: CallInput<typeof contact, "create">) =>
+        store
+            .mutate(userContext("alice", spaceId).caller(), {
+                id: RequestId.create(),
+                calls: [contact.call("create", { spaceId, ...input })],
+            })
+            .then(([written]) => written);
+
+    // create an email and a phone contact, each with its variant's columns alone
+    const email = await create({ label: "Mail", kind: "email", address: "alice@example.com" });
+    const phone = await create({
+        label: "Desk",
+        kind: "phone",
+        number: "+4930123456",
+        region: "de",
+    });
+
+    // refuse an email contact carrying a phone's number
+    const mixed = await refusal(
+        store
+            .mutate(userContext("alice", spaceId).caller(), {
+                id: RequestId.create(),
+                calls: [
+                    contact.call("create", {
+                        spaceId,
+                        label: "Both",
+                        kind: "email",
+                        address: "alice@example.com",
+                        number: "+4930123456",
+                    }),
+                ],
+            })
+            .then(([written]) => written),
+    );
+
+    // compare each contact's columns and the refusal
+    const columns = [email, phone].map(({ label, kind, address, number, region }) => ({
+        label,
+        kind,
+        address,
+        number,
+        region,
+    }));
+    expect([...columns, mixed]).toEqual([
+        { label: "Mail", kind: "email", address: "alice@example.com", number: null, region: null },
+        { label: "Desk", kind: "phone", address: null, number: "+4930123456", region: "de" },
+        ["BAD_REQUEST", 'invalid input: unrecognized key: "number"'],
     ]);
 });

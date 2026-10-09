@@ -1,4 +1,4 @@
-import { through } from "@destack/access";
+import { none, through, Caller } from "@destack/access";
 import type { AuditCall } from "@destack/audit";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase, TABLE } from "@destack/db";
@@ -11,8 +11,8 @@ import { OtlpExporter } from "@destack/telemetry/otlp";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 
 /** An API key a caller hands a method, which nothing derived from the call keeps. */
@@ -24,16 +24,16 @@ const holder = defineObject({
     plural: "holders",
     scope: space,
     fields: { label: field.string(), token: field.string().sensitive().optional() },
-    permissions: { read: through("space", "read") },
+    permissions: { read: through("space", "read"), provision: none() },
     methods: (method) => ({
         get: method.get("read"),
         create: method.create("read", {
             fields: ["label", "token"],
             input: schema.object({ key: ApiKey }),
         }),
-        /** Create a holder as the system. */
-        provision: method.create(null, {
-            isSystem: true,
+        /** Create a holder as the space. */
+        provision: method.create("provision", {
+            isInternal: true,
             fields: ["label"],
             input: schema.object({ key: ApiKey }),
         }),
@@ -59,7 +59,9 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
         ).options(holder.package),
     );
     onTestFinished(() => telemetry.shutdown());
-    const server = new ObjectServer({
+    const spaceId = `space-${v7()}`;
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { holder },
         database: storage.database,
         callKey: testCallKey,
@@ -72,7 +74,6 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
             },
         },
     });
-    const spaceId = `space-${v7()}`;
     await openSpace(storage.database, spaceId);
 
     // create a holder with a valid key, and refuse one with a key of another shape
@@ -80,29 +81,33 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     const token = "token-column-0123456789";
     const invalid = "pk-refused-0123456789";
     const create = (key: string) =>
-        server.call(
-            holder,
-            "create",
-            { spaceId, requestId: RequestId.create(), label: "deploy", key, token },
-            userContext("alice", spaceId),
-        );
+        store
+            .mutate(userContext("alice", spaceId).caller(), {
+                id: RequestId.create(),
+                calls: [holder.call("create", { spaceId, label: "deploy", key, token })],
+            })
+            .then(([written]) => written);
     await create(valid);
     const refused = await create(invalid).then(
         () => undefined,
         (error: unknown) => error,
     );
-    const refusedSystem = await server
-        .executeAsSystem(
-            holder,
-            "provision",
-            [{ scope: spaceId, input: { label: "deploy", key: invalid } }],
-            Date.now(),
-        )
+    const refusedSystem = await store
+        .mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            id: RequestId.create(),
+            calls: [
+                holder.call("provision", {
+                    ...holder.target({ scope: spaceId }),
+                    label: "deploy",
+                    key: invalid,
+                }),
+            ],
+        })
         .then(
             () => undefined,
             (error: unknown) => error,
         );
-    for (const controller of server.controllers()) {
+    for (const controller of store.controllers()) {
         for (const key of await controller.list()) {
             await controller.reconcile(key, reconciliation());
         }
@@ -144,8 +149,11 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
         isTokenKept: traces.rows.includes(token),
     }).toEqual({
         leaking: [],
-        refusal: ["BAD_REQUEST", "invalid input to holder.create"],
-        systemRefusal: ["BAD_REQUEST", "Input validation failed"],
+        refusal: ["BAD_REQUEST", "invalid input: key: invalid string: must match pattern /^sk-/u"],
+        systemRefusal: [
+            "BAD_REQUEST",
+            "invalid input: key: invalid string: must match pattern /^sk-/u",
+        ],
         isAudited: true,
         isTokenKept: true,
     });

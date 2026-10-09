@@ -143,6 +143,7 @@ export const folder = defineObject({
 export const objectDatabase = defineDatabase({
     name: "main",
     tables: [
+        space.table,
         note.table,
         label.table,
         journal,

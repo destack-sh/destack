@@ -6,9 +6,9 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { subjectContext, testCallKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import type { ServiceContext } from "@destack/service/server";
-import { ObjectServer } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { notebook, note, notesDatabase } from "./fixture/note.ts";
-import { openSpace } from "./fixture/space.ts";
+import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 
 test.for(TEST_DIALECTS)(
@@ -42,12 +42,12 @@ test.for(TEST_DIALECTS)(
         const snapshot = first.value;
 
         // write on the east instance and follow on the west
-        const created = await east.call(
-            notebook,
-            "create",
-            { spaceId, requestId: RequestId.create(), name: "Travel" },
-            context(controller.signal),
-        );
+        const created = await east
+            .mutate(context(controller.signal).caller(), {
+                id: RequestId.create(),
+                calls: [notebook.call("create", { spaceId, name: "Travel" })],
+            })
+            .then(([written]) => written);
         let names: unknown[] = [];
         for await (const page of pages) {
             names = page.changes
@@ -63,7 +63,8 @@ test.for(TEST_DIALECTS)(
 
 /** Serve the notes over one connection as alice. */
 function serve(database: DatabaseConnection) {
-    return new ObjectServer({
+    return new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { notebook, note },
         database,
         callKey: testCallKey,

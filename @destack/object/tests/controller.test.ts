@@ -1,21 +1,23 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/service/test";
-import { principal, relation } from "@destack/access";
+import { none, principal, relation, Caller } from "@destack/access";
 import { journal } from "@destack/audit/stack";
+import { Journal } from "@destack/audit/server";
+import { Scope } from "@destack/sync";
 import { asc, eq, defineDatabase, type Change } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
-import { ObjectServer } from "../src/server/index.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { ObjectStore } from "../src/server/index.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 
 /** The space with the reminders. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
 
-/** Reminders the system sends once due, a batch per topic. */
+/** Reminders the space sends once due, a batch per topic. */
 const reminder = defineObject({
     name: "reminder",
     plural: "reminders",
@@ -26,11 +28,12 @@ const reminder = defineObject({
         dueAt: field.time(),
         sentAt: field.time().optional(),
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
+    permissions: { read: relation("owner"), write: relation("owner"), send: none() },
     methods: (method) => ({
+        get: method.get("read"),
         create: method.create("write", { fields: ["topic", "dueAt"] }),
         send: method
-            .mutation({ permission: null, isSystem: true })
+            .mutation({ permission: "send", isInternal: true })
             .handle((call) => call.update({ sentAt: call.now })),
     }),
 }).control({
@@ -41,7 +44,7 @@ const reminder = defineObject({
         const { rows, now } = reconciling;
         const due = rows.filter((row) => row.dueAt <= now);
         if (due.length > 0) {
-            await reconciling.execute("send", due);
+            await reconciling.mutate(due.map((row) => reminder.call("send", reminder.target(row))));
         }
         const next = rows.filter((row) => row.dueAt > now).map((row) => row.dueAt - now);
 
@@ -56,13 +59,14 @@ const reminderDatabase = defineDatabase({
 });
 
 test.each(TEST_DIALECTS)(
-    "reconcile a type's pending objects by the key its controller declares, as the system, on %s",
+    "reconcile a type's pending objects by the key its controller declares, as the store's principal, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, reminderDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         const database = storage.database;
         await openSpace(database, spaceId);
-        const server = new ObjectServer({
+        const store = new ObjectStore({
+            principal: spacePrincipal(spaceId),
             objects: { reminder },
             database,
             callKey: testCallKey,
@@ -72,7 +76,7 @@ test.each(TEST_DIALECTS)(
             },
         });
         const controller = present(
-            server.controllers().find((each) => each.name === "reminder"),
+            store.controllers().find((each) => each.name === "reminder"),
             "the reminder controller",
         );
 
@@ -80,12 +84,12 @@ test.each(TEST_DIALECTS)(
         const context = userContext("user-1", spaceId);
         const now = Date.now();
         const create = async (topic: string, dueAt: number) =>
-            server.call(
-                reminder,
-                "create",
-                { spaceId, requestId: RequestId.create(), topic, dueAt },
-                context,
-            );
+            store
+                .mutate(context.caller(), {
+                    id: RequestId.create(),
+                    calls: [reminder.call("create", { spaceId, topic, dueAt })],
+                })
+                .then(([written]) => written);
         await create("tea", now - 1000);
         await create("tea", now - 500);
         await create("tea", now + 60_000);
@@ -144,23 +148,24 @@ test("select a changed pending object's own key beside the keys a watch of its o
     });
     const storage = await TestDatabase.create("sqlite", reminderDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
         objects: { reminder: queued },
         database: storage.database,
         callKey: testCallKey,
         origin: { package: reminder.package, service: "test" },
     });
     const controller = present(
-        server.controllers().find((each) => each.name === "reminder"),
+        store.controllers().find((each) => each.name === "reminder"),
         "the reminder controller",
     );
     await openSpace(storage.database, spaceId);
-    const created = await server.call(
-        reminder,
-        "create",
-        { spaceId, requestId: RequestId.create(), topic: "tea", dueAt: 1 },
-        userContext("user-1", spaceId),
-    );
+    const created = await store
+        .mutate(userContext("user-1", spaceId).caller(), {
+            id: RequestId.create(),
+            calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: 1 })],
+        })
+        .then(([written]) => written);
     const changed = (sentAt: number | null): Change<typeof reminder.table> => ({
         transaction: null,
         table: reminder.table,
@@ -178,4 +183,55 @@ test("select a changed pending object's own key beside the keys a watch of its o
         await controller.keys?.(changed(1)),
         controller.watches,
     ]).toEqual([['{"id":"head"}', `{"id":"${created.id}"}`], ['{"id":"head"}'], [reminder.table]]);
+});
+
+test("run a controller's calls as the space, audited as the space with the controller's name, and refuse principals lacking the method's permission", async () => {
+    const storage = await TestDatabase.create("sqlite", reminderDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, spaceId);
+    const store = new ObjectStore({
+        principal: spacePrincipal(spaceId),
+        objects: { reminder },
+        database,
+        callKey: testCallKey,
+        origin: { package: reminder.package, service: "test" },
+    });
+    const controller = present(
+        store.controllers().find((each) => each.name === "reminder"),
+        "the reminder controller",
+    );
+
+    // send a due reminder of user-1 through the controller
+    const due = await store
+        .mutate(userContext("user-1", spaceId).caller(), {
+            id: RequestId.create(),
+            calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: Date.now() - 1000 })],
+        })
+        .then(([written]) => written);
+    await controller.reconcile('{"topic":"tea"}', reconciliation(AbortSignal.timeout(5000)));
+    const sends = (await new Journal(database, testCallKey).read({ limit: 10 })).filter(
+        (call) => call.method === "reminder.send",
+    );
+
+    // refuse the send to its owner, who reads it, and conceal it from another user
+    const [row] = await database.select().from(reminder.table);
+    const send = (as: string) =>
+        refusal(
+            store.mutate(Caller.of(principal.user.reference(Scope.universe.id, as), Date.now()), {
+                id: RequestId.create(),
+                calls: [reminder.call("send", reminder.target(present(row, "the reminder")))],
+            }),
+        );
+
+    // record the send as the space and the controller, and refuse both users
+    expect([
+        sends.map((call) => [call.execution.context.caller, call.execution.context.component]),
+        await send("user-1"),
+        await send("user-2"),
+    ]).toEqual([
+        [[{ subject: spacePrincipal(spaceId) }, "reminder"]],
+        ["FORBIDDEN", "permission denied: send"],
+        ["NOT_FOUND", `no reminder ${due.id}`],
+    ]);
 });

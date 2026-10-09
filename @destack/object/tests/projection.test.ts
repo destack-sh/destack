@@ -11,9 +11,9 @@ import { Feed, Replica, replica, Subject } from "@destack/sync";
 import { none, principal } from "@destack/access";
 import { v7 } from "uuid";
 import { defineObject, field, type ObjectType } from "../src/index.ts";
-import { ObjectServer, ScopeProjector } from "../src/server/index.ts";
+import { ObjectStore, ScopeProjector } from "../src/server/index.ts";
 import { objectDatabase } from "./schema.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 
 /** The space with the memos. */
 const MEMOS = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -32,13 +32,23 @@ const memo = defineObject({
     projections: (): readonly ObjectType[] => [receipt],
 });
 
-/** A person, whose home keeps the receipts of the memos they receive. */
+/** A person, whose personal account's home keeps the receipts of the memos they receive. */
 const person = defineObject({
     name: "person",
     plural: "people",
     scope: "universe",
     isScope: true,
-    fields: { home: field.string().optional() },
+    fields: { name: field.string() },
+    permissions: { read: none() },
+});
+
+/** An account of a person, whose personal one's home is the person's home. */
+const holder = defineObject({
+    name: "holder",
+    plural: "holders",
+    scope: person,
+    isScope: true,
+    fields: { kind: field.enum(["personal", "shared"]) },
     permissions: { read: none() },
 });
 
@@ -69,7 +79,7 @@ const receipt = defineObject({
         source: "source",
         fields: { title: "title" },
         clears: ["seenAt"],
-        residence: { user: person, residence: sender },
+        residence: { account: holder, residence: sender },
     },
     permissions: { read: none() },
     methods: (method) => ({ get: method.get("read") }),
@@ -144,7 +154,7 @@ test.for(TEST_DIALECTS)(
         };
         const reach = async () =>
             expect(
-                await Replica.reach(
+                await Replica.wait(
                     database,
                     MEMOS,
                     await database.log.position(),
@@ -232,19 +242,23 @@ test("settle the address of a recipient without a user, and record it again once
     const installation: InstallationContext = {
         id: "installation-01996ab0-0000-7000-8000-000000000003",
         scope: MEMOS,
-        build: (await MemoryBuild.write(new Map(), { package: memo.package })).reader,
+        build: await MemoryBuild.write(new Map(), { package: memo.package }),
         publisher: {
             stream: () => {
                 throw new TypeError("the fixture streams no copies");
             },
             receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
         },
+        settings: {},
         publisherAt: () => {
             throw new TypeError("the fixture reaches no installation");
         },
+        at: () => {
+            throw new TypeError("the fixture reaches no address");
+        },
         directory: {
             isHome: async () => false,
-            locale: async () => undefined,
+            locale: () => Promise.reject(new TypeError("the fixture knows no person")),
             messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
             address: async (address) => {
                 recorded.push(address);
@@ -260,7 +274,8 @@ test("settle the address of a recipient without a user, and record it again once
                 resolve();
             }
         });
-    const server = new ObjectServer({
+    const store = new ObjectStore({
+        principal: spacePrincipal(MEMOS),
         objects: { memo },
         database,
         callKey: testCallKey,
@@ -270,7 +285,7 @@ test("settle the address of a recipient without a user, and record it again once
     const failures: unknown[] = [];
     const loop = new ControlLoop(
         database,
-        [present(server.source.addresses(), "the address controller")],
+        [present(store.source.addresses(), "the address controller")],
         { report: (_controller, _key, error) => failures.push(error) },
     );
     const controller = new AbortController();
@@ -280,7 +295,7 @@ test("settle the address of a recipient without a user, and record it again once
         await running;
     });
 
-    // settle the recipient without retrying and record it again for a new memo naming them
+    // settle the recipient without retrying and record it again for a new memo referring to them
     await recordedTimes(1);
     await loop.idle();
     const settled = [...recorded];

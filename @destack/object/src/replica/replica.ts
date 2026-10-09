@@ -100,8 +100,8 @@ export const ListShape = {
 /** The most mutations one push sends: at 1 to 5 ms each, about half a second. */
 export const PUSH_MUTATIONS = 100;
 
-/** The identifier an object client generates for itself. */
-export const ClientId = schema.string().min(1).max(64);
+/** The identifier an object client generates for itself as the writer of its ephemeral objects. */
+export const WriterId = schema.string().min(1).max(64);
 
 /** A query of one object type's rows in the scope a replica follows. */
 export type ObjectQuery = OpenQueryOptions & {
@@ -130,11 +130,13 @@ export const ACCESS_SHAPE = "access";
 /** The shape of the rows of a type a home's residents receive, which the home projects. */
 export const PROJECTION_SHAPE = "projection";
 
-/** The parameters of a projection shape: the installation keeping the rows, the type, its recipient field, and the residents by subject key. */
+/** The parameters of a projection shape: the installation keeping the rows and its service, the type, its recipient field, and the residents by subject key. */
 export const ProjectionParameters = defineSchema(
     schema.object({
         /** The installation in the scope keeping the rows. */
         installation: schema.identifier("installation"),
+        /** The package of the installation, whose service streams the rows. */
+        service: PackageId,
         /** The package declaring the type. */
         packageId: PackageId,
         /** The type's name. */
@@ -155,11 +157,11 @@ export const QueriesParameters = defineSchema(
 /** The parameters of the shape of a scope's durable objects. */
 export type QueriesParameters = schema.Infer<typeof QueriesParameters>;
 
-/** The parameters of the shape of a scope's ephemeral objects: the queries, and the client owning the rows it writes. */
+/** The parameters of the shape of a scope's ephemeral objects: the queries, and the writer owning the rows it writes. */
 export const EphemeralParameters = defineSchema(
     schema.object({
         queries: schema.record(schema.string(), ObjectQuery).exactOptional(),
-        client: ClientId,
+        writerId: WriterId,
     }),
 );
 
@@ -191,7 +193,7 @@ export type PushResult = schema.Infer<typeof PushResult>;
 
 /** The procedures a client replica or a database copying the served one uses. */
 export const replicaProcedures = {
-    push: defineProcedure({ authentication: "identity", permission: null, audit: false })
+    push: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
         .route({ method: "POST", path: "/replica/push" })
         .input(
             schema.object({
@@ -199,12 +201,12 @@ export const replicaProcedures = {
                 scope: schema.string().min(1),
                 /** The mutations, in the order the client committed them. */
                 mutations: schema.array(Mutation).min(1).max(PUSH_MUTATIONS),
-                /** The client writing ephemeral objects. */
-                client: ClientId.exactOptional(),
+                /** The client instance writing ephemeral objects. */
+                writerId: WriterId.exactOptional(),
             }),
         )
         .output(PushResult),
-    call: defineProcedure({ authentication: "public", permission: null, audit: false })
+    call: defineProcedure({ authentication: "public", permission: "rows", audit: false })
         .route({ method: "POST", path: "/replica/call" })
         .input(
             schema.object({
@@ -215,7 +217,7 @@ export const replicaProcedures = {
             }),
         )
         .output(schema.json()),
-    receive: defineProcedure({ authentication: "identity", permission: null, audit: false })
+    receive: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
         .route({ method: "POST", path: "/replica/receive" })
         .input(
             schema.object({
@@ -224,7 +226,7 @@ export const replicaProcedures = {
             }),
         )
         .output(schema.object({})),
-    broadcast: defineProcedure({ authentication: "identity", permission: null, audit: false })
+    broadcast: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
         .route({ method: "POST", path: "/replica/broadcast" })
         .input(
             schema.object({
@@ -237,7 +239,7 @@ export const replicaProcedures = {
             }),
         )
         .output(schema.object({})),
-    stream: defineProcedure({ authentication: "public", permission: null, audit: false })
+    stream: defineProcedure({ authentication: "public", permission: "rows", audit: false })
         .route({ method: "POST", path: "/replica/stream" })
         .input(Subscription)
         .output(eventIterator(Page)),

@@ -111,7 +111,7 @@ function unpredicted<Declared extends Method>(declared: Declared): Declared {
     return { ...declared, isPredicted: false };
 }
 
-/** Name the scope object of the call's scope. */
+/** Find the scope object of the call's scope. */
 function scopeObject(call: Call): Promise<ObjectReference> {
     return Scope.object(Snapshot.live(call.database), call.scope);
 }
