@@ -1,6 +1,6 @@
 import { test, expect } from "@destack/test";
 import { AuditError } from "../src/error/index.ts";
-import { AuditStorage, documentRename, rename } from "./storage.ts";
+import { AuditStorage, documentRename, rename, INTEGRATION } from "./storage.ts";
 import { AuditCall, defineAuditAction } from "../src/index.ts";
 import { document } from "./stack/index.ts";
 import { schema } from "@destack/schema";
@@ -18,7 +18,7 @@ test("keep each call in the history of its scope", async () => {
             .parse("space-01996ab0-0000-7000-8000-000000000001");
         const recorder = new AuditRecorder(
             {
-                caller: { type: "system" as const, name: "integration" },
+                ...INTEGRATION,
                 package: documentRename.package,
                 service: "document",
                 scope,
@@ -64,7 +64,7 @@ test("read the calls of a scope and of the scopes inside it, routed to each scop
         for (const scope of [outer, other, inner]) {
             const recorder = new AuditRecorder(
                 {
-                    caller: { type: "system" as const, name: "integration" },
+                    ...INTEGRATION,
                     package: documentRename.package,
                     service: "document",
                     scope: scope.id,
@@ -246,7 +246,7 @@ test("keep a moved scope's earlier calls within it, and within the scope that en
         // record a rename in the account, move it into the second organisation, and record another
         const recorder = new AuditRecorder(
             {
-                caller: { type: "system" as const, name: "integration" },
+                ...INTEGRATION,
                 package: documentRename.package,
                 service: "document",
                 scope: account.id,

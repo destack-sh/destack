@@ -13,7 +13,13 @@ import { Snapshot } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { accountRecord, document } from "./stack/index.ts";
 import { PackageId } from "@destack/package";
-import { accessTables } from "@destack/access";
+import { accessTables, principal } from "@destack/access";
+
+/** The machine the fixture's own calls run as, made by its integration component. */
+export const INTEGRATION = {
+    caller: { subject: principal.machine.reference(Scope.universe.id, "machine-integration") },
+    component: "integration",
+};
 
 /** A document rename action. */
 export const documentRename = defineAuditAction(
@@ -67,7 +73,7 @@ export class AuditStorage {
         this.history = new AuditHistory(routing.events.store);
         this.recorder = new AuditRecorder(
             {
-                caller: { type: "system", name: "integration" },
+                ...INTEGRATION,
                 package: documentRename.package,
                 service: "document",
                 scope: "universe",
@@ -125,7 +131,7 @@ export class AuditStorage {
         return page.events.map((event) => AuditCall.parse(event.data));
     }
 
-    /** Deliver the history's routed copies, as the host's controllers do. */
+    /** Deliver the history's routed copies, as the machine's controllers do. */
     async route(): Promise<void> {
         await this.#routing.events.settle();
     }

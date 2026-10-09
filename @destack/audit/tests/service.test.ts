@@ -11,7 +11,7 @@ import { createAuditClient } from "../src/client/index.ts";
 import { defineAuditAction } from "../src/declare/index.ts";
 import { AuditContext } from "../src/record/index.ts";
 import { AuditRecorder, implementAudit } from "../src/server/index.ts";
-import { AuditStorage } from "./storage.ts";
+import { AuditStorage, INTEGRATION } from "./storage.ts";
 
 /** A document action delivered through the service. */
 const documentPublish = defineAuditAction(
@@ -37,16 +37,16 @@ function client(server: { fetch(request: Request): Promise<Response> }) {
     });
 }
 
-/** The account whose calls another host delivers. */
+/** The account whose calls another machine delivers. */
 const ACCOUNT = "account-01995da9-7223-7000-8000-000000000001";
 
-test("take ended calls an admitted host delivers into the history, refusing a host the intake refuses", async () => {
+test("take ended calls an admitted machine delivers into the history, refusing a machine the intake refuses", async () => {
     const storage = await AuditStorage.open();
     try {
-        // record a publish in another host's journal
+        // record a publish in another machine's journal
         const recorder = new AuditRecorder(
             AuditContext.parse({
-                caller: { type: "system", name: "document" },
+                ...INTEGRATION,
                 package: documentPublish.package,
                 service: "document",
                 scope: ACCOUNT,
@@ -59,7 +59,7 @@ test("take ended calls an admitted host delivers into the history, refusing a ho
             outcome: { kind: "success" },
         });
 
-        // serve the history, admitting the account's host alone
+        // serve the history, admitting the account's machine alone
         const admitted: string[][] = [];
         await using history = Server.start({
             ...implementAudit({
@@ -68,7 +68,7 @@ test("take ended calls an admitted host delivers into the history, refusing a ho
                     admitted.push([...scopes]);
                     if (scopes.some((scope) => scope !== ACCOUNT)) {
                         throw new ServiceError("FORBIDDEN", {
-                            message: "the host keeps no calls of another account",
+                            message: "the machine keeps no calls of another account",
                         });
                     }
                 },
@@ -81,8 +81,8 @@ test("take ended calls an admitted host delivers into the history, refusing a ho
                 new Authentication({
                     credential: { kind: "fixture", id: "fixture" },
                     audience: documentPublish.package.id,
-                    subject: principal.user.reference("universe", "host"),
-                    subjects: [principal.user.reference("universe", "host")],
+                    subject: principal.machine.reference("universe", "machine-1"),
+                    subjects: [principal.machine.reference("universe", "machine-1")],
                     verifiedAt: Date.now(),
                     expiresAt: Date.now() + 60000,
                 }),
@@ -108,7 +108,7 @@ test("take ended calls an admitted host delivers into the history, refusing a ho
             stored: { stored: 1 },
             admitted: [[ACCOUNT], ["account-01995da9-7223-7000-8000-000000000002"]],
             kept: [published],
-            refused: ["FORBIDDEN", "the host keeps no calls of another account"],
+            refused: ["FORBIDDEN", "the machine keeps no calls of another account"],
         });
     } finally {
         await storage.close();

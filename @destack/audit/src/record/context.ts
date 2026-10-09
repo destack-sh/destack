@@ -2,11 +2,13 @@ import { defineSchema, schema } from "@destack/schema";
 import { Package } from "@destack/package";
 import { AuditCaller } from "./actor.ts";
 
-/** The authority and origin of an executed call, as its host supplied them. */
+/** The authority and origin of an executed call, as its machine supplied them. */
 export const AuditContext = defineSchema(
     schema.object({
-        /** The caller: a verified subject with its delegates, the platform, or an anonymous caller. */
+        /** The caller: a verified principal with its delegates, or anyone for an unauthenticated caller. */
         caller: AuditCaller,
+        /** The code that made the call on its principal's behalf, such as a controller's name. */
+        component: schema.string().min(1).exactOptional(),
         /** The scope whose history receives the call. */
         scope: schema.string().min(1),
         /** The Loan the caller's authority came with: its identifier and the home space that signed it. */
@@ -22,9 +24,9 @@ export const AuditContext = defineSchema(
         package: Package,
         /** The service serving the call. */
         service: schema.string().min(1),
-        /** The installation executing the service, as the host relaying its journal recorded it. */
+        /** The installation executing the service, as the machine relaying its journal recorded it. */
         installationId: schema.identifier("installation").exactOptional(),
-        /** The instance executing the service, as the host relaying its journal recorded it. */
+        /** The instance executing the service, as the machine relaying its journal recorded it. */
         instanceId: schema.identifier("instance").exactOptional(),
         /** The machine executing the service. */
         machineId: schema.identifier("machine").exactOptional(),
@@ -43,11 +45,11 @@ export const AuditContext = defineSchema(
             .string()
             .regex(/^[0-9a-f]{32}$/u)
             .exactOptional(),
-        /** The caller's network address, as the host saw it. */
+        /** The caller's network address, as the machine saw it. */
         address: schema.sensitive(schema.string(), "personal").exactOptional(),
-        /** The caller's user agent, as the host saw it. */
+        /** The caller's user agent, as the machine saw it. */
         userAgent: schema.sensitive(schema.string(), "personal").exactOptional(),
     }),
 );
-/** The authority and origin of an executed call, as its host supplied them. */
+/** The authority and origin of an executed call, as its machine supplied them. */
 export type AuditContext = schema.Infer<typeof AuditContext>;

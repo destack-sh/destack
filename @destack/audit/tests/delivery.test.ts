@@ -7,7 +7,7 @@ import { AuditError } from "../src/error/index.ts";
 import { type AuditCall, call } from "../src/record/index.ts";
 import { AuditRecorder, Journal } from "../src/server/index.ts";
 import { journal } from "../src/stack/index.ts";
-import { AuditStorage, documentRename, rename } from "./storage.ts";
+import { AuditStorage, documentRename, rename, INTEGRATION } from "./storage.ts";
 
 test("deliver a batch again after its acceptance was lost, the history holding each call once", async () => {
     let storage = await AuditStorage.open();
@@ -154,7 +154,7 @@ test("relay an instance's journal with its installation and instance as provenan
             .parse("space-01996ab0-0000-7000-8000-000000000001");
         const recorder = new AuditRecorder(
             {
-                caller: { type: "system", name: "document" },
+                ...INTEGRATION,
                 package: documentRename.package,
                 service: "document",
                 scope: space,
@@ -204,13 +204,13 @@ test("relay an instance's journal with its installation and instance as provenan
                 "FORBIDDEN",
                 `installation ${provenance.installationId} records no calls of ${other} in ${space}`,
             ],
-            ["FORBIDDEN", "only the host records a call's provenance"],
-            ["FORBIDDEN", "only the host records a call's provenance"],
+            ["FORBIDDEN", "only the machine records a call's provenance"],
+            ["FORBIDDEN", "only the machine records a call's provenance"],
             "done",
             "done",
         ]);
 
-        // keep the call once, with the installation and the instance the host verified
+        // keep the call once, with the installation and the instance the machine verified
         const items = await storage.calls(space);
         expect(items.map((record) => record.execution.context)).toEqual([
             {

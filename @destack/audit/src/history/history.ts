@@ -31,7 +31,7 @@ export class AuditHistory {
         return batch.calls.length;
     }
 
-    /** Store a batch of an instance's journal its host relays, recording the instance as each call's provenance. */
+    /** Store a batch of an instance's journal its machine relays, recording the instance as each call's provenance. */
     async relay(value: unknown, provenance: AuditProvenance): Promise<number> {
         // parse the batch, refusing one no journal writes
         const parsed = AuditBatch.safeParse(value);
@@ -92,7 +92,7 @@ export class AuditHistory {
         };
     }
 
-    /** Require a relayed call to run in the instance's space and package, without a provenance, which only its host records. */
+    /** Require a relayed call to run in the instance's space and package, without a provenance, which only its machine records. */
     static #requireOrigin(relayed: AuditCall, provenance: AuditProvenance): void {
         // refuse a call of another space or package
         const { context } = relayed.execution;
@@ -109,12 +109,12 @@ export class AuditHistory {
             context.instanceId !== undefined ||
             context.machineId !== undefined;
         if (isProvenanced) {
-            throw new AuditError("FORBIDDEN", "only the host records a call's provenance");
+            throw new AuditError("FORBIDDEN", "only the machine records a call's provenance");
         }
     }
 }
 
-/** The instance whose journal a host relays, as the host verified it from the instance's secret. */
+/** The instance whose journal a machine relays, as the machine verified it from the instance's secret. */
 export interface AuditProvenance {
     /** The space the instance serves. */
     readonly scope: Identifier<"space">;

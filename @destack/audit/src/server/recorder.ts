@@ -4,7 +4,7 @@ import { AuditContext } from "../record/context.ts";
 import { AuditExecution, type AuditTarget } from "../record/execution.ts";
 import { v7 } from "uuid";
 import { schema, canonicalize, JsonValue, type JsonObject } from "@destack/schema";
-import { Failure, Outcome } from "@destack/sync";
+import { Failure, Outcome, type Subject } from "@destack/sync";
 import { denialOf, ServiceError } from "@destack/service";
 import type { Authentication } from "@destack/service/authentication";
 import {
@@ -17,8 +17,16 @@ import type { AuditAction } from "../declare/action.ts";
 import { AuditError } from "../error/index.ts";
 import { serviceInvoke } from "../record/action.ts";
 
-/** The host-selected origin of calls. */
-export type AuditOrigin = Omit<AuditContext, "caller" | "deploymentId" | "traceId">;
+/** The machine-selected origin of calls. */
+export type AuditOrigin = Omit<AuditContext, "caller" | "component" | "deploymentId" | "traceId">;
+
+/** A principal running its own code, and the component of that code making its calls. */
+export interface AuditPrincipal {
+    /** The principal the calls run as. */
+    readonly as: Subject;
+    /** The code making the calls, such as a controller's name. */
+    readonly component?: string;
+}
 
 /** The durable store of recorded calls. */
 export interface AuditWriter<Transaction = never> {
@@ -86,18 +94,16 @@ export class AuditRecorder<Transaction = never> {
         origin: AuditOrigin,
         requestId?: string,
     ): AuditRecorder<Transaction> {
-        // record the represented subject and its delegates, and read who acted
+        // record the represented subject and its delegates, or anyone, and read who acted
         const claims = caller?.claims;
         const recorded: AuditCaller =
             claims === undefined
-                ? { type: "anonymous" }
+                ? AuditCaller.anyone
                 : {
-                      type: "subject",
                       subject: claims.subject,
                       ...(claims.delegates === undefined ? {} : { delegates: claims.delegates }),
                   };
-        const actor = AuditCaller.actor(recorded);
-        const acting = actor.type === "subject" ? actor.subject : undefined;
+        const acting = claims === undefined ? undefined : AuditCaller.actor(recorded).subject;
 
         // select the deployment the acting workload ran, and the session or token the caller presented
         const deploymentId = acting === undefined ? undefined : caller?.deployment(acting);
@@ -129,33 +135,36 @@ export class AuditRecorder<Transaction = never> {
         );
     }
 
-    /** Open a recorder of a service's calls in a scope, for a request's caller or the service itself. */
+    /** Open a recorder of a service's calls in a scope, for a request's caller or a principal running its own code. */
     static service<Transaction>(
         writer: AuditWriter<Transaction>,
         origin: Omit<AuditOrigin, "scope">,
-    ): (scope: string, context?: ServiceContext) => AuditRecorder<Transaction> {
-        return (scope, request) =>
-            request === undefined
-                ? AuditRecorder.system(writer, { ...origin, scope })
+    ): (scope: string, caller: ServiceContext | AuditPrincipal) => AuditRecorder<Transaction> {
+        return (scope, caller) =>
+            "as" in caller
+                ? AuditRecorder.as(writer, { ...origin, scope }, caller)
                 : AuditRecorder.from(
-                      request.authenticationError === undefined ? request.authentication : null,
+                      caller.authenticationError === undefined ? caller.authentication : null,
                       writer,
                       { ...origin, scope },
-                      request.requestId,
+                      caller.requestId,
                   );
     }
 
-    /** Record as the service itself, with the active trace. */
-    static system<Transaction>(
+    /** Record as a principal running its own code, naming the component making the calls, with the active trace. */
+    static as<Transaction>(
         writer: AuditWriter<Transaction>,
         origin: AuditOrigin,
+        principal: AuditPrincipal,
     ): AuditRecorder<Transaction> {
         const span = trace.getSpanContext(context.active());
+        const { as, component } = principal;
 
         return new AuditRecorder(
             {
                 ...origin,
-                caller: { type: "system", name: origin.service },
+                caller: { subject: as },
+                ...(component === undefined ? {} : { component }),
                 ...(span && isSpanContextValid(span) ? { traceId: span.traceId } : {}),
             },
             writer,

@@ -7,9 +7,9 @@ import { schema } from "@destack/schema";
 import { AuditActor, AuditCaller } from "../src/record/index.ts";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./storage.ts";
-import { principal } from "@destack/access";
+import { anyone, principal } from "@destack/access";
 
-test("persist verified caller identities and tell apart identities of different scopes", async () => {
+test("persist verified caller identities, record an unauthenticated caller as anyone, and tell apart identities of different scopes", async () => {
     const storage = await AuditStorage.open();
     try {
         // use the same identifier in two scopes
@@ -22,7 +22,7 @@ test("persist verified caller identities and tell apart identities of different 
             .parse("deployment-01996ab0-0000-7000-8000-000000000001");
         const requests = [
             { subject: represented },
-            { subject: { ...represented, scope: "host-example" } },
+            { subject: { ...represented, scope: "machine-example" } },
             {
                 subject: represented,
                 deployments: [
@@ -84,17 +84,16 @@ test("persist verified caller identities and tell apart identities of different 
             origin,
             rejected.requestId,
         );
-        const anonymous = await recorder.record(undefined, documentRename, {
+        const unauthenticated = await recorder.record(undefined, documentRename, {
             ...rename,
             outcome: { kind: "success" },
         });
-        calls.push(anonymous);
+        calls.push(unauthenticated);
 
         // compare the full recorded identity
-        const person = { type: "subject", subject: represented };
-        const local = { type: "subject", subject: { ...represented, scope: "host-example" } };
+        const person = { subject: represented };
+        const local = { subject: { ...represented, scope: "machine-example" } };
         const share = {
-            type: "subject",
             subject: principal.installation.reference("space-example", "share"),
         };
         expect(calls.map((call) => call.execution.context)).toEqual([
@@ -106,7 +105,7 @@ test("persist verified caller identities and tell apart identities of different 
                 deploymentId,
             },
             { ...origin, caller: share },
-            { ...origin, caller: { type: "anonymous" } },
+            { ...origin, caller: { subject: anyone.reference("*", "*") } },
         ]);
 
         // read the identities back through delivery and history queries
