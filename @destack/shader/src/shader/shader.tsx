@@ -1,8 +1,16 @@
 import * as style from "@destack/style";
-import { MOTION_VARIABLE } from "@destack/theme";
-import { createEffect, createMemo, createSignal, type JSX, omit, Show } from "@destack/view";
+import {
+    createEffect,
+    createMemo,
+    createSignal,
+    type JSX,
+    omit,
+    Show,
+    untrack,
+} from "@destack/view";
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createMutationObserver } from "@destack/view/primitives/mutation-observer";
+import { createReducedMotion } from "@destack/view/motion";
 import {
     ShaderError,
     type ShaderFailure,
@@ -11,12 +19,8 @@ import {
 } from "../mount/mount.ts";
 import { resolveValues, type ShaderValues } from "./value.ts";
 
-/** The device preferences a theme's colors and motion follow. */
-const THEME_QUERIES = [
-    "(prefers-color-scheme: dark)",
-    "(prefers-contrast: more)",
-    "(prefers-reduced-motion: reduce)",
-];
+/** The device preferences a theme's colors follow. */
+const THEME_QUERIES = ["(prefers-color-scheme: dark)", "(prefers-contrast: more)"];
 
 /** The styles of a shader's surface. */
 const styles = style.create({
@@ -112,15 +116,7 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     const theme = createMemo(() => [mutations(), ...preferences.map((matches) => matches())]);
 
     // hold still where the theme's motion scale, the person's motion setting, reads zero
-    const isStill = createMemo(() => {
-        theme();
-        const element = canvas();
-
-        return (
-            element !== undefined &&
-            getComputedStyle(element).getPropertyValue(MOTION_VARIABLE).trim() === "0"
-        );
-    });
+    const isStill = createReducedMotion(canvas);
 
     // build the mount once the canvas exists, and again for a new fragment shader
     createEffect(
@@ -129,8 +125,12 @@ export function Shader(properties: ShaderProperties): JSX.Element {
             if (element === undefined) {
                 return undefined;
             }
+            // build from the uniforms of the moment, which the next effect keeps current
             let isCurrent = true;
-            void resolveValues(properties.uniforms, element).then((uniforms) => {
+            void resolveValues(
+                untrack(() => properties.uniforms),
+                element,
+            ).then((uniforms) => {
                 // drop a build a newer one replaced
                 if (!isCurrent) {
                     return;

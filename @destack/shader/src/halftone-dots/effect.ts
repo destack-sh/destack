@@ -183,7 +183,6 @@ float getLumBall(vec2 p, vec2 pad, vec2 inCellOffset, float contrast, float base
   return ball * outOfFrame;
 }
 
-
 void main() {
 
   float stepMultiplier = 1.;

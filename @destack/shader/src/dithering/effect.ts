@@ -99,7 +99,6 @@ float getBayerValue(vec2 uv, int size) {
   return 0.0;
 }
 
-
 void main() {
   float t = .5 * u_time;
 
@@ -234,7 +233,6 @@ void main() {
     shape = .5 + .5 * dot(lightPos, pos);
     shape *= step(0., d);
   }
-
 
   int type = int(floor(u_type));
   float dithering = 0.0;

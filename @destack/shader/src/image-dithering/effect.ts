@@ -44,7 +44,6 @@ uniform float u_colorSteps;
 
 out vec4 fragColor;
 
-
 ${glsl.hash21}
 ${glsl.pi}
 
@@ -123,7 +122,6 @@ float getBayerValue(vec2 uv, int size) {
   }
   return 0.0;
 }
-
 
 void main() {
 

@@ -58,7 +58,6 @@ float valueNoise(vec2 st) {
   return mix(x1, x2, u.y);
 }
 
-
 void main() {
   vec2 uv = v_patternUV;
   uv *= .5;

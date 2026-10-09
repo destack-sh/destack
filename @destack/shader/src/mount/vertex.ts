@@ -50,7 +50,6 @@ void main() {
   mat2 graphicRotation = mat2(cos(r), sin(r), -sin(r), cos(r));
   vec2 graphicOffset = vec2(-u_offsetX, u_offsetY);
 
-
   // ===================================================
 
   float fixedRatio = 1.;

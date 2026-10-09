@@ -162,7 +162,6 @@ void main() {
     grain_uv *= 1.6;
   }
 
-
   float shape = 0.;
 
   if (u_shape < 1.5) {

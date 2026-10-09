@@ -109,7 +109,6 @@ void main() {
   shape = pow(shape, falloffExp);
   shape = 1. - clamp(shape, 0., 1.);
 
-
   float outerMask = .002;
   float outer = 1.0 - smoothstep(radius - outerMask, radius + outerMask, r);
   outer = mix(outer, 1., isInSector);
