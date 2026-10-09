@@ -3,8 +3,10 @@
 `@destack/shader/<effect>` is Paper Shaders' effects as Solid components (`MeshGradient`, `Metaballs`, `GrainGradient`… with `colors`, `speed`, `frame`, `fit`, `scale`, `minPixelRatio`), and `Shader` is its `ShaderMount`.
 
 ```tsx
-<Metaballs colors={[color.primary, color.accent]} colorBack={color.background} />; // theme tokens as colors
-<Shader fragmentShader={glow} uniforms={{ u_color: color.primary }} />; // ShaderMount's fragmentShader
+// theme tokens as colors
+<Metaballs colors={[color.primary, color.accent]} colorBack={color.background} />;
+// ShaderMount's fragmentShader
+<Shader fragmentShader={glow} uniforms={{ u_color: color.primary }} />;
 <Shader
     fragmentShader={glow}
     uniforms={{}}

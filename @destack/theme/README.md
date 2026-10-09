@@ -3,7 +3,8 @@
 `defineTheme` is Radix Themes' theme (`accent` its `accentColor`, `base` its `grayColor`, `radius`, `scaling`) over shadcn's color roles (`background`, `foreground`, `primary`, `mutedForeground`, `chart1`…), with Apple's text styles in `@destack/theme/text` and W3C design tokens as StyleX constants in `@destack/theme/tokens.stylex`.
 
 ```ts
-defineTheme({ name: "notes", base: "sand", accent: "orange", density: "compact" }); // Radix Themes has no density
+// Radix Themes has no density
+defineTheme({ name: "notes", base: "sand", accent: "orange", density: "compact" });
 Palette.of("indigo").tone(0.95); // OKLCH tones from a seed, where Radix has twelve steps
 theme.resolve("light", 1).color("mutedForeground"); // roles solved for APCA contrast
 theme.variables("system", preferences); // custom properties, where Radix has a <Theme> component

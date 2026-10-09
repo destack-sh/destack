@@ -3,10 +3,29 @@
 An `Event` is a CloudEvent (`id`, `source`, `time`, `data`) kept by a scope, and `EventStore` keeps each kind's events hot in SQL, flushes them into Parquet segments in the scope's bucket, and seals personal values for crypto-shredding.
 
 ```ts
-const event: Event = { scope, id, source: spaceId, time: 1791158400000000, keys: { actor, method }, data: {} }; // CloudEvents' id, source, time, data
+// CloudEvents' id, source, time, data
+const event: Event = {
+    scope,
+    id,
+    source: spaceId,
+    time: 1791158400000000,
+    keys: { actor, method },
+    data: {},
+};
 await store.append(call, [event], transaction); // in the caller's transaction, kept once
-await store.query(log, { scope, where: Filter.parse("severity >= 13"), text: "timeout", from, before }); // AIP-160 over hot rows and Parquet
-await store.series(usage, { scope, from, before }, { measure: "quantity", fold: "sum", group: ["meter"], step: HOUR });
+// AIP-160 over hot rows and Parquet
+await store.query(log, {
+    scope,
+    where: Filter.parse("severity >= 13"),
+    text: "timeout",
+    from,
+    before,
+});
+await store.series(
+    usage,
+    { scope, from, before },
+    { measure: "quantity", fold: "sum", group: ["meter"], step: HOUR },
+);
 await store.forget("user-…"); // crypto-shredding: the person's key goes, the events stay
 ```
 
@@ -37,8 +56,19 @@ export const call = defineEventKind({
 ```ts
 import { eventTables } from "@destack/event/stack";
 
-export const spaceDatabase = defineDatabase({ name: "space", tables: [...eventTables([log, span, call]), outbox] });
-const store = new EventStore({ database, kinds: [log, span, call], files, personal, outbox, targets, deliver });
+export const spaceDatabase = defineDatabase({
+    name: "space",
+    tables: [...eventTables([log, span, call]), outbox],
+});
+const store = new EventStore({
+    database,
+    kinds: [log, span, call],
+    files,
+    personal,
+    outbox,
+    targets,
+    deliver,
+});
 loop.add(...store.controllers);
 ```
 
@@ -51,7 +81,12 @@ for await (const { event } of store.tail(log, { scope, where }, signal)) {
     render(event);
 }
 const reader = new EventReader(`endpoint:${id}`, 7 * DAY);
-const { events, sequence } = await store.changes(call, { scope }, await reader.after(database), 100);
+const { events, sequence } = await store.changes(
+    call,
+    { scope },
+    await reader.after(database),
+    100,
+);
 await reader.advance(database, sequence, now);
 ```
 
@@ -62,7 +97,11 @@ await reader.advance(database, sequence, now);
 ```ts
 import { serveEvents } from "@destack/event/server";
 
-const procedures = serveEvents({ store, admit, unmasked: (context, read) => server.unmasked(context, read) });
+const procedures = serveEvents({
+    store,
+    admit,
+    unmasked: (context, read) => server.unmasked(context, read),
+});
 ```
 
 ## Tests

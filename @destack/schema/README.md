@@ -3,11 +3,16 @@
 `schema` is Zod 4 limited to what JSON Schema expresses, `toJsonSchema` and `fromJsonSchema` are Zod's `z.toJSONSchema` and `z.fromJSONSchema`, the time types are Temporal's `Instant`, `PlainDate`, `PlainTime` and `Duration` in JSON, and `schema.identifier` brands a prefixed UUIDv7.
 
 ```ts
-const Note = defineSchema(schema.object({ title: schema.string().min(1), archived: schema.boolean() })); // z.object
+// z.object
+const Note = defineSchema(
+    schema.object({ title: schema.string().min(1), archived: schema.boolean() }),
+);
 type Note = schema.Infer<typeof Note>; // z.infer
 toJsonSchema(Note); // z.toJSONSchema, refusing transforms, refinements, dates and loose objects
-fromJsonSchema({ $ref: "#/components/schemas/Pet", components: { schemas: { Pet } } }); // an OpenAPI schema
-schema.identifier("space").parse("space-01995f12-3456-7890-8abc-123456789abc"); // Identifier<"space">
+// an OpenAPI schema
+fromJsonSchema({ $ref: "#/components/schemas/Pet", components: { schemas: { Pet } } });
+// Identifier<"space">
+schema.identifier("space").parse("space-01995f12-3456-7890-8abc-123456789abc");
 const date: PlainDate = { year: 2026, month: 10, day: 3 }; // Temporal.PlainDate in JSON
 ```
 
@@ -16,8 +21,10 @@ const date: PlainDate = { year: 2026, month: 10, day: 3 }; // Temporal.PlainDate
 `compareJsonSchemas` compares two JSON Schemas by the values each accepts: `"same"`, `"wider"`, `"narrower"` or `"incompatible"`.
 
 ```ts
-compareJsonSchemas(toJsonSchema(schema.enum(["a"])), toJsonSchema(schema.enum(["a", "b"]))); // "wider"
-compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.string().max(5))); // "narrower"
+// "wider"
+compareJsonSchemas(toJsonSchema(schema.enum(["a"])), toJsonSchema(schema.enum(["a", "b"])));
+// "narrower"
+compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.string().max(5)));
 ```
 
 ## Sensitivity

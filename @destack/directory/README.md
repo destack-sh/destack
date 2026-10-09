@@ -18,7 +18,8 @@ throw Moved.error({ scope: spaceId, machine: laptopMachineId }); // 421 Misdirec
 ```ts
 const directory = new DirectoryStore(accountDatabase);
 await directory.publish(cloudMachineId, platformAccountId, "https://eu.destack.app", publication);
-const placement = present(await directory.locate(spaceId), "placement"); // { id, scope, machine, epoch: 1 }
+// { id, scope, machine, epoch: 1 }
+const placement = present(await directory.locate(spaceId), "placement");
 await directory.move(placement, laptopMachineId);
 await directory.assign(placement, laptopMachineId); // work for another machine in the space
 ```
@@ -28,7 +29,11 @@ await directory.assign(placement, laptopMachineId); // work for another machine 
 `authenticate` verifies a request's bearer token by its issuer's keys, the universe's or the signing space's.
 
 ```ts
-const caller = await directory.authenticate(request, { audience, universe: issuer, scope: spaceId });
+const caller = await directory.authenticate(request, {
+    audience,
+    universe: issuer,
+    scope: spaceId,
+});
 const lent = await directory.verify(delegation, { audience, scope: spaceId });
 ```
 
@@ -48,7 +53,8 @@ await keystore.rotate(database, spaceId);
 `claim` reserves unique names for objects, `confirm` makes them `active` or `held`, and `owner` finds the object holding a name.
 
 ```ts
-const taken = await directory.claim([{ index, key, objectId, scope }], requestId); // the names other objects hold
+// the names other objects hold
+const taken = await directory.claim([{ index, key, objectId, scope }], requestId);
 await directory.confirm(requestId, owned);
 const owner = await directory.owner(index, key); // { objectId, scope }
 ```
@@ -58,6 +64,9 @@ const owner = await directory.owner(index, key); // { objectId, scope }
 `directoryTables` lists the tables the account service keeps in its database, and `follow` caches their reads until a logged change.
 
 ```ts
-export const accountDatabase = defineDatabase({ name: "account", tables: [...accountTables, ...directoryTables] });
+export const accountDatabase = defineDatabase({
+    name: "account",
+    tables: [...accountTables, ...directoryTables],
+});
 void directory.follow(signal);
 ```

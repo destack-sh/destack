@@ -48,6 +48,10 @@ Serve a site from a space.
 ```ts
 import { checkPackage, formatSource } from "@destack/check";
 
-const result = await checkPackage({ directory: ".", files: ["src"], plugins: [{ name: "database", specifier, rules }] });
+const result = await checkPackage({
+    directory: ".",
+    files: ["src"],
+    plugins: [{ name: "database", specifier, rules }],
+});
 const source = await formatSource("generated.ts", generatedSource);
 ```

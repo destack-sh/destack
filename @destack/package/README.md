@@ -3,10 +3,26 @@
 `destack.json` is a package's `package.json` companion with Deno's permissions as `capabilities`, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, and `graph` holds a build's symbols under SCIP monikers and relationships.
 
 ```ts
-const capabilities = { network: { connect: ["api.github.com"] }, env: { names: ["GITHUB_TOKEN"] }, run: { commands: ["git"] } }; // deno run --allow-net=api.github.com --allow-env=GITHUB_TOKEN --allow-run=git
-defineExample({ of: Button, name: "ghost", description, properties: { variant: "ghost" }, render }); // a Storybook story's args
-defineScenario({ of: Calendar, interaction: viewInteraction, name, description, given, when, then }); // a story's play function
-graph.Moniker.of({ packageId, module: "src/page.ts", name: "Page" }); // "package-…/src/page.ts#Page", after SCIP's symbols
+// deno run --allow-net=api.github.com --allow-env=GITHUB_TOKEN --allow-run=git
+const capabilities = {
+    network: { connect: ["api.github.com"] },
+    env: { names: ["GITHUB_TOKEN"] },
+    run: { commands: ["git"] },
+};
+// a Storybook story's args
+defineExample({ of: Button, name: "ghost", description, properties: { variant: "ghost" }, render });
+// a story's play function
+defineScenario({
+    of: Calendar,
+    interaction: viewInteraction,
+    name,
+    description,
+    given,
+    when,
+    then,
+});
+// "package-…/src/page.ts#Page", after SCIP's symbols
+graph.Moniker.of({ packageId, module: "src/page.ts", name: "Page" });
 const { id, name, version } = import.meta.destack.package;
 ```
 
@@ -72,7 +88,11 @@ export const buttonGhost = defineExample({
 import { BuildReader } from "@destack/package/manifest";
 
 const reader = await BuildReader.open(location, fetch, signal);
-const settings = await reader.declared(import.meta.destack.package.id, "setting", SettingDescription);
+const settings = await reader.declared(
+    import.meta.destack.package.id,
+    "setting",
+    SettingDescription,
+);
 const module = await reader.module((await reader.graph()).modules["src/server.ts"]);
 ```
 

@@ -4,10 +4,13 @@
 
 ```ts
 import { expect, test } from "@destack/test"; // vitest
-export default defineConfiguration({ test: { include: ["src/**/*.test.ts"] } }); // vitest/config's defineConfig
-expect(await refusal(client.read(pageId))).toEqual(["NOT_FOUND", `no page ${pageId}`]); // the code and message of a refused call
+// vitest/config's defineConfig
+export default defineConfiguration({ test: { include: ["src/**/*.test.ts"] } });
+// the code and message of a refused call
+expect(await refusal(client.read(pageId))).toEqual(["NOT_FOUND", `no page ${pageId}`]);
 const row = single(await database.select().from(page)); // the only row, or a throw
-Runner.play(createTallyMarkTwice, [TallyDriver, ViewDriver]); // picks the driver by the interaction's name
+// picks the driver by the interaction's name
+Runner.play(createTallyMarkTwice, [TallyDriver, ViewDriver]);
 ```
 
 ## Scenarios
@@ -19,9 +22,13 @@ import { type DriverType, Runner } from "@destack/test";
 
 const TallyDriver: DriverType<Tallying, Tally> = {
     interaction: tallyInteraction,
-    start: (given) => ({ act: (step) => tally.apply(step), observe: (observation) => tally.read(observation) }),
+    start: (given) => ({
+        act: (step) => tally.apply(step),
+        observe: (observation) => tally.read(observation),
+    }),
 };
-await Runner.observe(createTallyMarkTwice, TallyDriver); // [{ marks: "3" }, { marks: "4" }, { marks: "0" }]
+// [{ marks: "3" }, { marks: "4" }, { marks: "0" }]
+await Runner.observe(createTallyMarkTwice, TallyDriver);
 ```
 
 ## Discovery

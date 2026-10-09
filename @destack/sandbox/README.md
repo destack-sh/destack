@@ -75,5 +75,6 @@ A failed start or stop throws a `SandboxError` with the code `UNSUPPORTED`, `STA
 ```ts
 import { SandboxError } from "@destack/sandbox/error";
 
-new SandboxError("UNSUPPORTED", "this platform has no sandbox").toServiceError(); // { code: "NOT_IMPLEMENTED", … }
+// { code: "NOT_IMPLEMENTED", … }
+new SandboxError("UNSUPPORTED", "this platform has no sandbox").toServiceError();
 ```

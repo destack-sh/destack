@@ -3,11 +3,14 @@
 `defineResourceKind` is a Kubernetes CustomResourceDefinition with `spec` and desired `state` schemas, a `Provider` is a Terraform provider that plans, applies, snapshots and fences one kind's resources on a host, and `ResourceContext` holds a workload's clients as a Cloudflare Worker's `env` holds its bindings.
 
 ```ts
-const DatabaseKind = defineResourceKind("database", { spec: DatabaseSpec, state: DatabaseState }); // a CRD's spec and status
+// a CRD's spec and status
+const DatabaseKind = defineResourceKind("database", { spec: DatabaseSpec, state: DatabaseState });
 const plan = await provider.reconcile.plan(record, desired); // terraform plan
-await provider.reconcile.apply(record, desired, await Plan.digest(plan)); // terraform apply of a saved plan
+// terraform apply of a saved plan
+await provider.reconcile.apply(record, desired, await Plan.digest(plan));
 Plan.classify(plan); // "safe", "fallible", "backward-incompatible" or "destructive"
-await database.get(new ResourceContext().bind(database, connection)).select().from(note); // env.DATABASE in a Worker
+// env.DATABASE in a Worker
+await database.get(new ResourceContext().bind(database, connection)).select().from(note);
 ```
 
 ## Definitions
@@ -39,7 +42,12 @@ A `Plan` lists the `Step`s that change resources, and a plan at or above `backwa
 ```ts
 const plan: Plan = {
     steps: [
-        { action: "create", target: "resource/main/table/note/column/priority", risk: "safe", detail: "add column priority" },
+        {
+            action: "create",
+            target: "resource/main/table/note/column/priority",
+            risk: "safe",
+            detail: "add column priority",
+        },
         { action: "delete", target: "role/viewer", risk: "destructive", detail: "retire" },
     ],
 };
@@ -52,6 +60,8 @@ Plan.isAtLeast(plan, "backward-incompatible"); // true
 
 ```ts
 const history = await History.read(latest.reader, vocabulary);
-const upgrade = Upgrade.plan(history, build.package, declarations, (declaration) => compares.get(declaration.kind));
+const upgrade = Upgrade.plan(history, build.package, declarations, (declaration) =>
+    compares.get(declaration.kind),
+);
 const advanced = Vocabulary.advance(vocabulary, declarations, "2026.11.0");
 ```

@@ -3,13 +3,16 @@
 `t`, `plural` and `select` are Lingui's macros writing Unicode MessageFormat 2 through `messageformat`, `Localization` is `Intl`'s formatters bound to a locale and its catalogs, and `Locale` is BCP 47 tags with CLDR parent locales and RFC 4647 lookup.
 
 ```ts
-t`Archived ${plural(count, { one: "# page", other: "# pages" })} in ${space.name}`; // Lingui's msg descriptor as JSON of its package, rendered later
+// Lingui's msg descriptor as JSON of its package, rendered later
+t`Archived ${plural(count, { one: "# page", other: "# pages" })} in ${space.name}`;
 Message.context("button")`Open`; // Lingui's context option as a tag
 verbatim`Destack`; // left out of extraction and catalogs, where Lingui leaves plain strings
 localization.money(1200, "EUR"); // minor units, where Intl.NumberFormat takes major: "12,00 €"
 localization.money(1200, "x-credits"); // a custom currency beside its code: "1,200 credits"
-localization.relative(threeDaysAgo, Date.now()); // the largest whole unit, where Intl.RelativeTimeFormat takes one
-Locale.fallback("es-MX", "en"); // CLDR parents, then the source language: ["es-MX", "es-419", "es", "en"]
+// the largest whole unit, where Intl.RelativeTimeFormat takes one
+localization.relative(threeDaysAgo, Date.now());
+// CLDR parents, then the source language: ["es-MX", "es-419", "es", "en"]
+Locale.fallback("es-MX", "en");
 Locale.accepted("fr-CH, de;q=0.7, *;q=0.5"); // an Accept-Language header by weight: ["fr-CH", "de"]
 ```
 

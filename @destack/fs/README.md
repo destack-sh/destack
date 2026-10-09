@@ -10,7 +10,8 @@ Lock and read host files through operating-system APIs.
 import { FileLock } from "@destack/fs";
 
 await using lock = await FileLock.acquire("/path/to/app.lock", { signal });
-await using other = await FileLock.tryAcquire("/path/to/other.lock"); // undefined while another process holds it
+// undefined while another process holds it
+await using other = await FileLock.tryAcquire("/path/to/other.lock");
 ```
 
 ## Lock files
@@ -51,5 +52,6 @@ import { FileSystemError } from "@destack/fs/error";
 if (error instanceof FileSystemError && error.code === "EACCES") {
     report(`cannot ${error.operation} ${error.path}`);
 }
-new FileSystemError("read", "/notes/today.md", "ENOENT").toServiceError(); // { code: "INTERNAL_SERVER_ERROR", … }
+// { code: "INTERNAL_SERVER_ERROR", … }
+new FileSystemError("read", "/notes/today.md", "ENOENT").toServiceError();
 ```

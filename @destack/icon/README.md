@@ -3,7 +3,8 @@
 `Icon` draws [Phosphor](https://phosphoricons.com) icons with `@phosphor-icons/react`'s `weight` and `size`, picked by `name`.
 
 ```tsx
-<Icon name="trash" weight="bold" size="1.5rem" />; // Phosphor's <Trash weight="bold" size="1.5rem" />
+// Phosphor's <Trash weight="bold" size="1.5rem" />
+<Icon name="trash" weight="bold" size="1.5rem" />;
 <Icon name="trash" label="Delete" />; // hidden from assistive technology without a label
 <Icon icon={done() ? check : circle} />; // an icon module from @destack/icon/phosphor/<name>
 ```

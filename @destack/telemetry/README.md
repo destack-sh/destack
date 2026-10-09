@@ -3,10 +3,15 @@
 `telemetry.scope` is OpenTelemetry's logs, tracer and meter for one package, `captureException`, `captureMessage` and sessions are Sentry's with its `level`, `tags`, `fingerprint` and errored or crashed sessions, `visit` and `track` are Segment's `page` and `track`, and `/otlp` exports and receives OTLP/JSON.
 
 ```ts
-const { log, span, metric, track, visit, captureException } = telemetry.scope(import.meta.destack.package);
+const { log, span, metric, track, visit, captureException } = telemetry.scope(
+    import.meta.destack.package,
+);
 log.info("page.saved", { length: text.length }); // an OpenTelemetry LogRecord
 await span("page.render", { blocks: 12 }, () => render(page)); // tracer.startActiveSpan
-metric.counter("page.saves", { unit: "{save}", attributes: { space: ["personal", "shared"] } }).add(1, { space: "shared" }); // meter.createCounter
+// meter.createCounter
+metric
+    .counter("page.saves", { unit: "{save}", attributes: { space: ["personal", "shared"] } })
+    .add(1, { space: "shared" });
 captureException(error, { tags: { feature: "export" } }); // Sentry.captureException
 track("page.shared", { audience: "space" }); // Segment's analytics.track
 ```
@@ -18,7 +23,8 @@ track("page.shared", { audience: "space" }); // Segment's analytics.track
 ```ts
 import { startTelemetry } from "@destack/telemetry/bun";
 
-await startTelemetry(exporter.options(runner.package, { ratio: 0.1 })); // every failed or slow trace kept beside the ratio
+// every failed or slow trace kept beside the ratio
+await startTelemetry(exporter.options(runner.package, { ratio: 0.1 }));
 captureMessage("quota nearly reached", { level: "warning", fingerprint: ["quota"] });
 telemetry.startSession(); // a handled exception marks it errored, an escaped one crashed
 ```
@@ -30,8 +36,13 @@ telemetry.startSession(); // a handled exception marks it errored, an escaped on
 ```ts
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 
-const exporter = OtlpExporter.http(new URL(OTLP_ORIGIN_PATH, start.egress).href, () => `Bearer ${start.secret}`, report);
-const browser = OtlpExporter.origin(reportToDevtools); // a page's signals to /.destack/telemetry on its origin
+const exporter = OtlpExporter.http(
+    new URL(OTLP_ORIGIN_PATH, start.egress).href,
+    () => `Bearer ${start.secret}`,
+    report,
+);
+// a page's signals to /.destack/telemetry on its origin
+const browser = OtlpExporter.origin(reportToDevtools);
 ```
 
 ## Trace identifiers
