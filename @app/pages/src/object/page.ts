@@ -1,6 +1,6 @@
+import { space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { space } from "@destack/space/object";
 
 /** A page in a tree of pages, shared with its subpages and publishable through links. */
 export const page = defineObject({
@@ -19,7 +19,7 @@ export const page = defineObject({
         /** The emoji or icon name shown beside the title. */
         icon: field.string(schema.string().max(32)).optional(),
         /** The page's place among its siblings, as a fractional index. */
-        position: field.position().default("a0"),
+        position: field.fractionalIndex().default("a0"),
     },
     recoverable: { within: { days: 30 }, by: "manage" },
     shareable: { isPublic: true },
