@@ -755,7 +755,12 @@ class Rows {
             index = new Map();
             for (const row of this.all(table)) {
                 const name = JSON.stringify(json(table, column, row[column]));
-                index.set(name, [...(index.get(name) ?? []), row]);
+                const rows = index.get(name);
+                if (rows === undefined) {
+                    index.set(name, [row]);
+                } else {
+                    rows.push(row);
+                }
             }
             byColumn.set(column, index);
         }
