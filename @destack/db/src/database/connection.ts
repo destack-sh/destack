@@ -137,7 +137,7 @@ export class DatabaseConnection<
         return MutationQuery.of(this.driver, table, "delete");
     }
 
-    /** Upsert rows as they are, writing only the columns each row has, a batch of alike rows per statement. */
+    /** Upsert rows as they are, writing only the columns each row has, a batch of alike rows per statement, keeping the stored rows of an append-only table. */
     async upsert<Definition extends Table>(
         table: Definition,
         rows: readonly Insert<Definition>[],
@@ -170,9 +170,9 @@ export class DatabaseConnection<
         // insert each batch
         const size = Math.floor(PARAMETER_BUDGET / written.length);
         for (let start = 0; start < rows.length; start += size) {
-            // keep the stored row when only the key is written
+            // keep the stored row when only the key is written, or when an append-only table keeps it unchanged
             const insert = this.insert(table).values(rows.slice(start, start + size));
-            if (Object.keys(set).length === 0) {
+            if (Object.keys(set).length === 0 || definition.isAppendOnly) {
                 await insert.onConflictDoNothing();
             }
             // update the other written columns otherwise
