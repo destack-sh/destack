@@ -1,4 +1,4 @@
-import { type BuildDescription } from "@destack/package/build";
+import { type BuildDescription } from "@destack/package/manifest";
 import { modulePath } from "../compile/dependency.ts";
 import { type Package, type PackageExport, type DeclarationDescription } from "@destack/package";
 

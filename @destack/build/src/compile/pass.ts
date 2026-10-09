@@ -17,8 +17,8 @@ import {
     type Compilation,
     type Pass,
     type TransformContext,
-    type BuildDescription,
 } from "@destack/package/build";
+import type { BuildDescription } from "@destack/package/manifest";
 import type { SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";
 import { BuildError } from "../error/index.ts";

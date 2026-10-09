@@ -592,7 +592,7 @@ test("plan the upgrade from what a package published", async () => {
         .replace("export const notePublish", "export const noteRelease")
         .replace(
             "        .output(schema.object({ path: schema.string() })),\n};",
-            '        .output(schema.object({ path: schema.string() })),\n    count: defineProcedure({ authentication: "public", permission: null, audit: false })\n        .route({ method: "GET", path: "/notes/count" })\n        .output(schema.number()),\n};',
+            '        .output(schema.object({ path: schema.string() })),\n    count: defineProcedure({ authentication: "public", permission: "anyone", audit: false })\n        .route({ method: "GET", path: "/notes/count" })\n        .output(schema.number()),\n};',
         )
         .replace(
             'list: implementation.list.handler(() => ({ path: "/notes" })),',

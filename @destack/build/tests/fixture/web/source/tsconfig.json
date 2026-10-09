@@ -19,7 +19,7 @@
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
         "lib": ["ESNext", "DOM", "DOM.Iterable"],
-        "types": ["@destack/web/client"],
+        "types": ["@destack/view/client"],
         "jsx": "preserve",
         "jsxImportSource": "@destack/view"
     },

@@ -1,4 +1,4 @@
-import { BuildDescription } from "@destack/package/build";
+import { BuildDescription } from "@destack/package/manifest";
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve, sep, posix } from "node:path";
 import { type Plugin } from "vite";

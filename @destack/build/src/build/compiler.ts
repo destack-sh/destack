@@ -16,9 +16,8 @@ import {
     type ExpandedOutput,
     type OutputKind,
     type OutputRequest,
-    type BuildDescription,
 } from "@destack/package/build";
-import { type PackageOutput } from "@destack/package/manifest";
+import { type BuildDescription, type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/transform";
 import { Toolchain } from "@destack/check";

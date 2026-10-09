@@ -12,7 +12,7 @@ import { BuildReader, type PackageLocation, PackageManifest } from "@destack/pac
 import { ServiceError } from "@destack/service/error";
 import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
-import { CacheEntry } from "../cache/index.ts";
+import { CacheEntry } from "../cache/entry.ts";
 
 /** The uploads one store runs at once: at tens of milliseconds per R2 upload, eight store 2000 files in about 10 seconds. */
 const CONCURRENT_UPLOADS = 8;
@@ -31,6 +31,15 @@ export class PackageStore {
     /** Store builds in a bucket. */
     constructor(bucket: Bucket) {
         this.bucket = bucket;
+    }
+
+    /** Name a build by the digest of its manifest, as a store keeps it. */
+    static async digest(manifest: PackageManifest): Promise<Digest> {
+        const bytes = encodeManifest(PackageManifest.parse(manifest));
+
+        return Digest.parse(
+            (await PackageFile.describe("manifest.json", "application/json", bytes)).digest,
+        );
     }
 
     /** Store each file of a build, then its manifest, returning the manifest's digest. */

@@ -14,6 +14,7 @@ import { BuildError } from "../error/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
 import { runtimeConditions } from "@destack/package/build";
 import { compiledPackage, selectExport } from "../source/source.ts";
+import { loadExtensions, transformPlugins } from "../compile/extension.ts";
 
 /** The exports of a module. */
 const Exports = schema.record(schema.string(), schema.unknown());
@@ -176,18 +177,34 @@ async function evaluateEntry(
             external: isBuiltin,
             resolve: { conditionNames: runtimeConditions(project.runtime) },
             treeshake: { moduleSideEffects: true },
-            plugins: [entryPlugin(source), modulePlugin(compiledPackage(project))],
+            plugins: [
+                entryPlugin(source),
+                modulePlugin(compiledPackage(project)),
+                ...transformPlugins(
+                    (await loadExtensions(project.directory, project.declaration)).map(
+                        (loaded) => loaded.extension,
+                    ),
+                    {
+                        directory: project.directory,
+                        runtime: project.runtime,
+                        server: false,
+                        options: {},
+                    },
+                ),
+            ],
         });
         const generated = await bundle.generate({ format: "esm", codeSplitting: false });
-        if (generated.output.length !== 1 || generated.output[0].type !== "chunk") {
+        const chunks = generated.output.filter((file) => file.type === "chunk");
+        const [chunk] = chunks;
+        if (chunks.length !== 1 || chunk === undefined) {
             throw new BuildError(
                 "INSPECTION_FAILED",
                 "declaration evaluation requires one JavaScript module",
             );
         }
 
-        // link runtime builtins into the fresh module and evaluate it
-        const module = new SourceTextModule(generated.output[0].code);
+        // link runtime builtins into the fresh module and evaluate it, leaving emitted assets aside
+        const module = new SourceTextModule(chunk.code);
         await module.link(linkBuiltin);
         await module.evaluate();
 

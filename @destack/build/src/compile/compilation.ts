@@ -25,8 +25,8 @@ import {
     isRuntimeModule,
     type OutputDescription,
     runtimeConditions,
-    type BuildDescription,
 } from "@destack/package/build";
+import type { BuildDescription } from "@destack/package/manifest";
 import type { ModuleDescription } from "@destack/package/code";
 import type { Capabilities } from "@destack/package";
 import { PackagePath } from "@destack/package/file";

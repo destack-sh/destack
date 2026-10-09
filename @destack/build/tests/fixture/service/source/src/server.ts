@@ -30,7 +30,7 @@ export const vault = defineVault({ name: "credentials", spec: {} });
 export const token = defineSecret({ name: "mail-token" });
 /** The public notes API. */
 export const router = {
-    list: defineProcedure({ authentication: "public", permission: null, audit: false })
+    list: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
         .route({ method: "GET", path: "/notes" })
         .output(schema.object({ path: schema.string() })),
 };
