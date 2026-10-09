@@ -39,11 +39,14 @@ export const PushEncryption = {
         );
 
         // derive the content key and nonce
-        const info = concat(text("WebPush: info\0"), receiver, sent);
-        const input = await derive(secret, shared, info, 32);
         const salt = options.salt ?? crypto.getRandomValues(new Uint8Array(SALT_BYTES));
-        const content = await derive(salt, input, text("Content-Encoding: aes128gcm\0"), 16);
-        const nonce = await derive(salt, input, text("Content-Encoding: nonce\0"), 12);
+        const { content, nonce } = await PushEncryption.deriveKeys({
+            auth: secret,
+            shared,
+            receiver,
+            sender: sent,
+            salt,
+        });
 
         // encrypt the message behind the header
         const key = await crypto.subtle.importKey("raw", content, "AES-GCM", false, ["encrypt"]);
@@ -61,6 +64,34 @@ export const PushEncryption = {
         header.set(sent, SALT_BYTES + 5);
 
         return concat(header, sealed);
+    },
+
+    /** Derive a message's content key and nonce from the agreed secret, as sender and browser alike do (RFC 8291 3.4). */
+    async deriveKeys(agreed: {
+        /** The browser's authentication secret. */
+        readonly auth: Uint8Array<ArrayBuffer>;
+        /** The ECDH secret of the sender's and the browser's keys. */
+        readonly shared: Uint8Array<ArrayBuffer>;
+        /** The browser's public key. */
+        readonly receiver: Uint8Array<ArrayBuffer>;
+        /** The sender's public key. */
+        readonly sender: Uint8Array<ArrayBuffer>;
+        /** The message's salt. */
+        readonly salt: Uint8Array<ArrayBuffer>;
+    }): Promise<{
+        readonly content: Uint8Array<ArrayBuffer>;
+        readonly nonce: Uint8Array<ArrayBuffer>;
+    }> {
+        // derive the input keying material from the authentication secret
+        const info = concat(text("WebPush: info\0"), agreed.receiver, agreed.sender);
+        const input = await derive(agreed.auth, agreed.shared, info, 32);
+
+        // derive the content key and nonce from the salt
+        const { salt } = agreed;
+        const content = await derive(salt, input, text("Content-Encoding: aes128gcm\0"), 16);
+        const nonce = await derive(salt, input, text("Content-Encoding: nonce\0"), 12);
+
+        return { content, nonce };
     },
 };
 
@@ -92,13 +123,13 @@ function text(value: string): Uint8Array<ArrayBuffer> {
 }
 
 /** Join byte arrays. */
-function concat(...parts: readonly Uint8Array<ArrayBuffer>[]): Uint8Array<ArrayBuffer> {
-    // copy each part after the ones before it
-    const joined = new Uint8Array(parts.reduce((length, part) => length + part.length, 0));
+function concat(...arrays: readonly Uint8Array<ArrayBuffer>[]): Uint8Array<ArrayBuffer> {
+    // copy each array after the ones before it
+    const joined = new Uint8Array(arrays.reduce((length, array) => length + array.length, 0));
     let offset = 0;
-    for (const part of parts) {
-        joined.set(part, offset);
-        offset += part.length;
+    for (const array of arrays) {
+        joined.set(array, offset);
+        offset += array.length;
     }
 
     return joined;

@@ -13,6 +13,9 @@
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
+        "./smtp": {
+            "runtimes": ["bun"]
+        },
         "./stack": {
             "runtimes": ["bun", "workerd"]
         },

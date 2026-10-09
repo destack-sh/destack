@@ -1,73 +1,49 @@
-import type { MessageProvider, Outcome } from "../provider/index.ts";
+import type { Fetch } from "@destack/service";
+import { type MessageProvider, Outcome } from "../provider/index.ts";
 import { PushEncryption } from "./encryption.ts";
 import type { Vapid } from "./vapid.ts";
 
-/** The code of a refusal for good from a push service that forgot the endpoint (RFC 8030 7.3). */
-export const GONE = "gone";
+/** A provider of push messages, which also answers the key a scope's browsers subscribe with. */
+export interface PushProvider extends MessageProvider {
+    /** Read the application server key browsers subscribe to a scope's pushes with, its VAPID public key (RFC 8292 3.2). */
+    applicationServerKey(scope: string): Promise<string>;
+}
 
-/** The statuses of a push service that forgot the endpoint (RFC 8030 7.3). */
-const GONE_STATUSES: ReadonlySet<number> = new Set([404, 410]);
-
-/** The milliseconds in a second, as Retry-After counts seconds. */
-const MILLISECONDS = 1000;
-
-/** Post one request to a push service, as fetch does. */
-export type PushFetch = (url: string, init: RequestInit) => Promise<Response>;
-
-/** Send push messages to browsers through their push services, encrypted for each browser and signed with VAPID keys. */
-export function pushProvider(vapid: Vapid, send: PushFetch = fetch): MessageProvider {
+/** Send push messages to browsers through their push services, encrypted for each browser and signed with the VAPID keys of the message's scope. */
+export function pushProvider(
+    vapid: (scope: string) => Promise<Vapid>,
+    fetch: Fetch = globalThis.fetch,
+): PushProvider {
     return {
-        channel: "push",
-        async send(message): Promise<Outcome> {
+        async applicationServerKey(scope) {
+            return (await vapid(scope)).publicKey();
+        },
+        async send(message, server): Promise<Outcome> {
             // require a push message
             const { to, content } = message;
             if (to.channel !== "push" || content.channel !== "push") {
                 throw new TypeError(`message ${message.id} is no push`);
             }
 
-            // encrypt the payload for the browser and post it signed, under its topic
-            const now = Date.now();
+            // encrypt the payload for the browser and post it signed by its scope under its topic
+            const signer = await vapid(message.scope);
             const payload = new TextEncoder().encode(JSON.stringify(content.data));
-            const response = await send(to.url, {
-                method: "POST",
-                headers: {
-                    Authorization: await vapid.authorization(to.url, now),
-                    "Content-Encoding": "aes128gcm",
-                    "Content-Type": "application/octet-stream",
-                    TTL: String(content.ttl),
-                    Urgency: content.urgency,
-                    ...(content.topic === undefined ? {} : { Topic: content.topic }),
-                },
-                body: await PushEncryption.encrypt(to.keys, payload),
-            });
-            const error = { code: String(response.status), message: await response.text() };
+            const response = await fetch(
+                new Request(to.url, {
+                    method: "POST",
+                    headers: {
+                        Authorization: await signer.authorization(to.url, server.clock()),
+                        "Content-Encoding": "aes128gcm",
+                        "Content-Type": "application/octet-stream",
+                        TTL: String(content.ttl),
+                        Urgency: content.urgency,
+                        ...(content.topic === undefined ? {} : { Topic: content.topic }),
+                    },
+                    body: await PushEncryption.encrypt(to.keys, payload),
+                }),
+            );
 
-            // read the status as sent, forgotten, retried or failed
-            if (response.ok) {
-                return { outcome: "sent" };
-            } else if (GONE_STATUSES.has(response.status)) {
-                return { outcome: "failed", error: { ...error, code: GONE } };
-            } else if (response.status === 429 || response.status >= 500) {
-                const after = retryAfter(response.headers.get("Retry-After"), now);
-
-                return after === undefined
-                    ? { outcome: "retry", error }
-                    : { outcome: "retry", after, error };
-            }
-
-            return { outcome: "failed", error };
+            return Outcome.read(response, server.clock());
         },
     };
-}
-
-/** Read a Retry-After header as milliseconds from now, absent without one. */
-function retryAfter(header: string | null, now: number): number | undefined {
-    if (header === null) {
-        return undefined;
-    }
-    const seconds = Number(header);
-
-    return Number.isFinite(seconds)
-        ? seconds * MILLISECONDS
-        : Math.max(0, Date.parse(header) - now);
 }

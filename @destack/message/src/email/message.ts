@@ -7,7 +7,7 @@ const SUBJECT_LENGTH = 998;
 const BODY_LENGTH = 64 * 1024;
 
 /** The email address a message goes to. */
-export const EmailRecipient = schema.object({
+export const EmailDestination = schema.object({
     channel: schema.literal("email"),
     /** The email address. */
     address: schema.email(),

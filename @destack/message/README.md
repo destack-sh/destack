@@ -1,80 +1,70 @@
 # @destack/message
 
-Send messages by email, push or webhook through providers.
+`MailTransport` is Nodemailer's transport, with `SmtpTransport`, `SesTransport` over the SESv2 API and `PrintTransport` as its SMTP, SES and stream transports, `pushProvider` is the `web-push` library's `sendNotification` with RFC 8291 encryption and RFC 8292 VAPID, and an `endpoint` is a Svix endpoint delivering Standard Webhooks.
+
+```ts
+const email = emailProvider(new SmtpTransport(client, { from: "Destack <notices@destack.app>" })); // nodemailer.createTransport
+await MimeMessage.compose({ from, to, subject, date: new Date(), key, text, html }); // Nodemailer's MailComposer
+const push = pushProvider(async (scope) => Vapid.derive(await deriver(scope), "https://destack.app")); // web-push's setVapidDetails
+await client.endpoint.create({ scope, requestId, url, events: ["member.create"], format: "event", authentication, secret }); // a Svix endpoint
+await WebhookSignature.sign(secret, id, timestamp, body); // Standard Webhooks' "v1,…"
+```
 
 ## Messages
 
-`message.create` requests one message to one recipient.
+`message.create` requests one pending message to one recipient, its content sealed by the producer to the space's message key.
 
 ```ts
+const { key } = await messages.key.read({ scope: spaceId });
 await client.message.create({
-    spaceId,
-    requestId,
-    id: deliveryId, // the requester's idempotency key
+    scope: spaceId,
+    requestId: await RequestId.derive(regressedAt, `${issueId} regressed`),
     to: { channel: "email", address: "dana@example.com" },
-    content: { channel: "email", subject: "Regressed", text: "title is too long" },
+    source: issue.reference(spaceId, issueId), // the object it delivers for
+    status: "pending", // until its provider sends it or refuses it for good
+    ciphertext: await MessageKey.of(key).seal({ channel: "email", subject: "Regressed", text: "title is too long" }, spaceId),
 });
-```
-
-### Attempts
-
-Each `attempt` records one provider's try at a message, and the `Sent` condition carries the failure code once it fails.
-
-```ts
-const tries = await objects.query.attempt.findMany({ where: { parentId: id } }); // outcome: sent | retry | failed
-```
-
-## Providers
-
-A `MessageProvider` sends the messages of one channel.
-
-```ts
-const print: MessageProvider = {
-    channel: "email",
-    send: async (message) => (console.log(message.content), { outcome: "sent" }),
-};
 ```
 
 ## Service
 
-`implementMessages` sends a cell's due messages through their providers.
+`implementMessages` serves a space's messages, attempts and endpoints, and sends each message through its channel's provider.
 
 ```ts
+import { implementMessages } from "@destack/message/server";
+
 const messages = implementMessages({
-    database,
-    callKey,
-    providers: [mailProvider(transport), webhookProvider()],
-    cell: hostId,
-    spaces,
+    providers: { email: emailProvider(transport), push: pushProvider(vapid), webhook: webhookProvider(open, fetch) },
+    deriver,
+    events: history.store,
 });
 ```
 
-## Push
+## Providers
 
-`pushProvider` sends push messages encrypted for each browser (RFC 8291) and signed with VAPID keys (RFC 8292).
+A `MessageProvider` sends the messages of one channel, and `Outcome.read` reads an HTTP answer as an outcome.
 
 ```ts
-const vapid = new Vapid(await Vapid.importKeys(jwk), "https://destack.app");
-const push = pushProvider(vapid);
+Outcome.read(new Response(null, { status: 429, headers: { "Retry-After": "30" } }), Date.now()); // { kind: "retry", after: 30_000, error }
+Outcome.read(new Response(null, { status: 410 }), Date.now()); // { kind: "failed", error: { code: GONE } }
 ```
 
-## Webhooks
+## Tables
 
-`webhookProvider` posts webhook messages signed per Standard Webhooks.
+`messageTables` lists the tables a space database includes.
 
 ```ts
-const secret = generateSecret(); // "whsec_…"
-await objects.mutate.message.create({
-    to: { channel: "webhook", url: "https://hooks.example.com/destack" },
-    content: { channel: "webhook", type: "issue.regressed", data: { issue: id } },
-    secret,
-});
+import { messageTables } from "@destack/message/stack";
+
+const space = defineDatabase({ name: "space", tables: [...messageTables, journal] });
 ```
 
-## Signatures
+## Tests
 
-`WebhookSignature.sign` computes the `webhook-signature` header of a message.
+`SmtpTestServer.listen` starts a scripted SMTP server on 127.0.0.1, and `MailFixture` records each email it sends.
 
 ```ts
-const signature = await WebhookSignature.sign(secret, id, timestamp, body); // "v1,…"
+await using server = await SmtpTestServer.listen({ security: "starttls", certificate, answers: { "RCPT TO:<eve@example.com>": "550 5.1.1 no such user" } });
+const mail = new MailFixture();
+mail.sent; // [{ to: "ada@example.com", subject: "Hello", … }]
 ```

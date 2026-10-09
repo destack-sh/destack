@@ -1,3 +1,4 @@
+import { PushEncryption } from "../push/encryption.ts";
 import type { PushKeys } from "../push/message.ts";
 
 /** The JWK member with an elliptic-curve private key (RFC 7518 6.2.2.1). */
@@ -65,10 +66,13 @@ export async function decrypt(browser: Browser, body: Uint8Array<ArrayBuffer>): 
             256,
         ),
     );
-    const info = join(text("WebPush: info\0"), receiver, sender);
-    const input = await derive(auth, shared, info, 32);
-    const content = await derive(salt, input, text("Content-Encoding: aes128gcm\0"), 16);
-    const nonce = await derive(salt, input, text("Content-Encoding: nonce\0"), 12);
+    const { content, nonce } = await PushEncryption.deriveKeys({
+        auth,
+        shared,
+        receiver,
+        sender,
+        salt,
+    });
 
     // open the record, dropping the delimiter ending the last one
     const key = await crypto.subtle.importKey("raw", content, "AES-GCM", false, ["decrypt"]);
@@ -79,43 +83,7 @@ export async function decrypt(browser: Browser, body: Uint8Array<ArrayBuffer>): 
     return new TextDecoder().decode(opened.slice(0, opened.lastIndexOf(2)));
 }
 
-/** Derive key material with HKDF-SHA-256. */
-async function derive(
-    salt: Uint8Array<ArrayBuffer>,
-    input: Uint8Array<ArrayBuffer>,
-    info: Uint8Array<ArrayBuffer>,
-    length: number,
-): Promise<Uint8Array<ArrayBuffer>> {
-    const key = await crypto.subtle.importKey("raw", input, "HKDF", false, ["deriveBits"]);
-
-    return new Uint8Array(
-        await crypto.subtle.deriveBits(
-            { name: "HKDF", hash: "SHA-256", salt, info },
-            key,
-            length * 8,
-        ),
-    );
-}
-
 /** Encode bytes as base64url text. */
 export function encode(bytes: Uint8Array): string {
     return bytes.toBase64({ alphabet: "base64url", omitPadding: true });
-}
-
-/** Encode text as UTF-8. */
-function text(value: string): Uint8Array<ArrayBuffer> {
-    return new TextEncoder().encode(value);
-}
-
-/** Join byte arrays. */
-function join(...parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
-    // copy each part after the ones before it
-    const joined = new Uint8Array(parts.reduce((length, part) => length + part.length, 0));
-    let offset = 0;
-    for (const part of parts) {
-        joined.set(part, offset);
-        offset += part.length;
-    }
-
-    return joined;
 }

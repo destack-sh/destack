@@ -1,4 +1,5 @@
 import { SignJWT } from "jose";
+import type { Deriver } from "@destack/identity";
 import { schema } from "@destack/schema";
 
 /** How long a token stays valid, in seconds: half the day RFC 8292 allows. */
@@ -6,6 +7,9 @@ const TOKEN_SECONDS = 12 * 60 * 60;
 
 /** The algorithm of VAPID keys: ECDSA over P-256 (RFC 8292 3.1). */
 const ALGORITHM = { name: "ECDSA", namedCurve: "P-256" } as const;
+
+/** The label of a scope's VAPID key, distinct from every other key its root secret derives. */
+const LABEL = "@destack/message/vapid";
 
 /** A VAPID private key as a JWK keeps it, its public point beside the private scalar it keeps loose (RFC 7518 6.2). */
 const PrivateKey = schema.looseObject({
@@ -35,17 +39,17 @@ export class Vapid {
         this.subject = subject;
     }
 
-    /** Generate a private JWK for a new identity. */
-    static async generateKey(): Promise<string> {
-        const pair = await crypto.subtle.generateKey(ALGORITHM, true, ["sign", "verify"]);
+    /** Derive a space's VAPID keys from its root secret, the same for every derivation. */
+    static async derive(root: Pick<Deriver, "derivePrivateKey">, subject: string): Promise<Vapid> {
+        const jwk = await root.derivePrivateKey(LABEL);
 
-        return JSON.stringify(await crypto.subtle.exportKey("jwk", pair.privateKey));
+        return new Vapid(await Vapid.importKeys(jwk), subject);
     }
 
     /** Import the key pair of a private JWK, deriving the public key from its point. */
-    static async importKeys(jwk: string): Promise<CryptoKeyPair> {
+    static async importKeys(jwk: unknown): Promise<CryptoKeyPair> {
         // sign with the private key, and verify with its public point alone
-        const key = PrivateKey.parse(JSON.parse(jwk));
+        const key = PrivateKey.parse(jwk);
         const point = { kty: key.kty, crv: key.crv, x: key.x, y: key.y };
         const privateKey = await crypto.subtle.importKey("jwk", key, ALGORITHM, false, ["sign"]);
         const publicKey = await crypto.subtle.importKey("jwk", point, ALGORITHM, true, ["verify"]);

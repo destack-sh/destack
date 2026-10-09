@@ -1,4 +1,9 @@
-import type { MessageProvider, Outcome } from "../provider/index.ts";
+import type { CallServer } from "@destack/object";
+import type { schema } from "@destack/schema";
+import type { Fetch } from "@destack/service";
+import { type ObjectReference, Subject } from "@destack/sync";
+import { encodeBody, WebhookDestination } from "./message.ts";
+import { type MessageProvider, Outcome } from "../provider/index.ts";
 
 /** The prefix of a Standard Webhooks signing secret. */
 const SECRET_PREFIX = "whsec_";
@@ -6,75 +11,65 @@ const SECRET_PREFIX = "whsec_";
 /** How long a webhook endpoint takes to answer before the send is retried: Standard Webhooks' 15 seconds. */
 const TIMEOUT_MILLISECONDS = 15_000;
 
-/** The statuses an endpoint answers to be asked again later: timeouts, throttling and server failures. */
-const RETRIED_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
+/** The media type of each webhook body format. */
+const MEDIA_TYPES = {
+    event: "application/json",
+    json: "application/json",
+    ndjson: "application/x-ndjson",
+} as const;
 
-/** Generate a Standard Webhooks signing secret: 24 random bytes, base64, prefixed. */
-export function generateSecret(): string {
-    return `${SECRET_PREFIX}${crypto.getRandomValues(new Uint8Array(24)).toBase64()}`;
-}
-
-/** Send webhook messages as signed HTTPS posts, after the Standard Webhooks specification. */
+/** Send webhook messages as HTTPS posts authenticated with the vault secret of each: signed after the Standard Webhooks specification, or with the secret's value in a header. */
 export function webhookProvider(
-    send: (url: string, init: RequestInit) => Promise<Response> = fetch,
+    readSecret: (
+        server: Pick<CallServer, "query" | "clock">,
+        secret: ObjectReference,
+        reader: Subject,
+    ) => Promise<string>,
+    fetch: Fetch = globalThis.fetch,
 ): MessageProvider {
     return {
-        channel: "webhook",
-        async send(message): Promise<Outcome> {
-            // require a webhook message with its endpoint's secret
+        async send(message, server): Promise<Outcome> {
+            // require a webhook message
             const { to, content } = message;
-            if (
-                to.channel !== "webhook" ||
-                content.channel !== "webhook" ||
-                message.secret === null
-            ) {
-                throw new TypeError(`message ${message.id} is no signed webhook message`);
+            if (to.channel !== "webhook" || content.channel !== "webhook") {
+                throw new TypeError(`message ${message.id} is no webhook message`);
             }
 
-            // sign the identifier, time and body with the endpoint's secret
-            const body = JSON.stringify({
-                type: content.type,
-                timestamp: new Date(message.createdAt).toISOString(),
-                data: content.data,
-            });
-            const timestamp = String(Math.floor(Date.now() / 1000));
-            const signature = await WebhookSignature.sign(
-                message.secret,
-                message.id,
+            // encode the body and read the secret as the message's reader
+            const body = encodeBody(message.id, message.createdAt, content);
+            const value = await readSecret(server, to.secret, to.reader);
+
+            // sign the body with the secret or put the secret in the endpoint's header
+            const timestamp = String(Math.floor(server.clock() / 1000));
+            const authentication = await authenticate(to, value, {
+                id: message.id,
                 timestamp,
                 body,
-            );
+            });
 
-            // post it, reading the status as sent, retried or failed
+            // post it and read the answer as an outcome
+            const request = new Request(to.url, {
+                method: "POST",
+                headers: {
+                    ...authentication,
+                    "content-type": MEDIA_TYPES[content.format],
+                    "webhook-id": message.id,
+                    "webhook-timestamp": timestamp,
+                },
+                body,
+                signal: AbortSignal.timeout(TIMEOUT_MILLISECONDS),
+            });
             try {
-                const response = await send(to.url, {
-                    method: "POST",
-                    headers: {
-                        "content-type": "application/json",
-                        "webhook-id": message.id,
-                        "webhook-timestamp": timestamp,
-                        "webhook-signature": signature,
-                    },
-                    body,
-                    signal: AbortSignal.timeout(TIMEOUT_MILLISECONDS),
-                });
-                const error = { code: String(response.status), message: response.statusText };
-                if (response.ok) {
-                    return { outcome: "sent" };
-                } else if (response.status >= 500 || RETRIED_STATUSES.has(response.status)) {
-                    return { outcome: "retry", error };
-                }
-
-                return { outcome: "failed", error };
+                return Outcome.read(await fetch(request), server.clock());
             } catch (error) {
-                // retry an endpoint that did not answer
-                return {
-                    outcome: "retry",
-                    error: {
-                        code: "unreachable",
-                        message: error instanceof Error ? error.message : String(error),
-                    },
-                };
+                // retry an endpoint the network failed to connect to or that did not answer in time
+                if (isUnreachable(error)) {
+                    return {
+                        kind: "retry",
+                        error: { code: "unreachable", message: error.message },
+                    };
+                }
+                throw error;
             }
         },
     };
@@ -82,7 +77,7 @@ export function webhookProvider(
 
 /** The signatures of webhook messages, after Standard Webhooks. */
 export const WebhookSignature = {
-    /** Sign a message's identifier, time and body with an endpoint's secret, as the `webhook-signature` header carries it. */
+    /** Sign a message's identifier, time and body with an endpoint's secret, for the `webhook-signature` header. */
     async sign(secret: string, id: string, timestamp: string, body: string): Promise<string> {
         // key HMAC-SHA256 with the secret's bytes
         const key = await crypto.subtle.importKey(
@@ -93,10 +88,35 @@ export const WebhookSignature = {
             ["sign"],
         );
 
-        // sign the identifier, time and body joined by dots
+        // sign the identifier and time and body joined by dots
         const content = new TextEncoder().encode(`${id}.${timestamp}.${body}`);
         const signed = await crypto.subtle.sign("HMAC", key, content);
 
         return `v1,${new Uint8Array(signed).toBase64()}`;
     },
 };
+
+/** Build the header authenticating a webhook post: its signature, or the secret's value in the endpoint's header. */
+async function authenticate(
+    to: Pick<schema.Infer<typeof WebhookDestination>, "authentication">,
+    secret: string,
+    post: { readonly id: string; readonly timestamp: string; readonly body: string },
+): Promise<Record<string, string>> {
+    // put the secret in the endpoint's header
+    if (to.authentication.kind === "header") {
+        return { [to.authentication.name]: secret };
+    }
+
+    // sign the identifier, time and body
+    const signature = await WebhookSignature.sign(secret, post.id, post.timestamp, post.body);
+
+    return { "webhook-signature": signature };
+}
+
+/** Decide whether a fetch failed on the network, as the Fetch Standard's TypeError, or ran out of time, as an AbortSignal's TimeoutError. */
+function isUnreachable(error: unknown): error is TypeError | DOMException {
+    return (
+        error instanceof TypeError ||
+        (error instanceof DOMException && error.name === "TimeoutError")
+    );
+}

@@ -1,14 +1,17 @@
-import { count, type DatabaseConnection, eq } from "@destack/db";
+import { ServerCall, type CallServer } from "@destack/object";
+import { count, eq } from "@destack/db";
+import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
-import { ObjectServer, Subscriber } from "@destack/object/server";
-import type { CallKey } from "@destack/service/request";
-import type { ServiceImplementation } from "@destack/service/server";
+import type { Extension } from "@destack/object/server";
+import { implement, type ServiceContext } from "@destack/service/server";
+import { aligned, Duration, present } from "@destack/schema";
+import { ServiceError } from "@destack/service/error";
 import { RetryPolicy } from "@destack/service/timer";
-import { space } from "@destack/space/object";
-import type { Uplink } from "@destack/sync";
-import { message, messageAttempt } from "../object/index.ts";
-import type { MessageProvider } from "../provider/index.ts";
+import { type Message, message, messageAttempt, MessageKey } from "../object/index.ts";
+import type { MessageProvider, Outcome } from "../provider/index.ts";
+import type { PushProvider } from "../push/index.ts";
 import { messageService } from "../service/index.ts";
+import { type EndpointOptions, serveEndpoints } from "./endpoint.ts";
 
 /** How refused sends retry by default: 5 s doubling to 15 min, 8 attempts over about an hour. */
 const RETRY = RetryPolicy.of({
@@ -18,155 +21,231 @@ const RETRY = RetryPolicy.of({
     jitter: "full",
 });
 
+/** How long a settled message keeps its sealed content by default: seven days after delivery or a final failure, long enough to inspect a delivery, as webhook services keep payloads for a retention window. */
+const SEALED_RETENTION: Duration = { days: 7 };
+
 /** The messages sent at once by default: 16 in flight at 50 to 500 ms send 30 to 320 a second. */
 const CONCURRENCY = 16;
 
-/** What a cell serves its spaces' messages with: their database, the providers of each channel and the spaces it follows. */
+/** What a machine serves its spaces' messages with: the providers of each channel and the deriver opening their sealed content. */
 export interface MessageOptions {
-    /** The database keeping the messages, with copies of the spaces they live in. */
-    readonly database: DatabaseConnection;
-    /** The key sensitive call inputs are fingerprinted under in the journal. */
-    readonly callKey: CallKey;
-    /** The providers sending each channel's messages. */
-    readonly providers: readonly MessageProvider[];
-    /** The cell serving the spaces, which with the service's name names the copy of their rows. */
-    readonly cell: string;
-    /** The space service's uplink, streaming the spaces' rows and their chains and receiving their changes. */
-    readonly spaces: Uplink;
+    /** The provider of each channel, failing a message on a channel without one. */
+    readonly providers: {
+        /** The provider of email messages. */
+        readonly email?: MessageProvider;
+        /** The provider of push messages, which also answers the key browsers subscribe with. */
+        readonly push?: PushProvider;
+        /** The provider of webhook messages. */
+        readonly webhook?: MessageProvider;
+    };
+    /** Read the deriver of the identity holding a scope, whose message key opens the content sealed to the scope's messages. */
+    readonly deriver: (scope: string) => Promise<Pick<Deriver, "derivePrivateKey">>;
+    /** The events keeping the calls the space's endpoints deliver. */
+    readonly events: EndpointOptions["events"];
     /** How refused sends retry, about an hour of eight attempts by default. */
     readonly retry?: RetryPolicy;
+    /** How long a settled message keeps its sealed content, seven days by default. */
+    readonly retention?: Duration;
 }
 
-/** The message service with the object server keeping the messages. */
-export interface MessageImplementation extends ServiceImplementation {
-    /** The object server keeping the messages, a source of the space service's copies. */
-    readonly objects: ObjectServer;
+/** Implement the message service: keep a space's messages and send each through its channel's provider, deliver its endpoints' histories, and answer the key its messages are sealed to and the key each space's browsers subscribe with. */
+export function implementMessages(options: MessageOptions): Extension {
+    // route the keys and pushes, the push provider answering the key browsers subscribe with
+    const pushes = implement(messageService.router.push).$context<ServiceContext>();
+    const keys = implement(messageService.router.key).$context<ServiceContext>();
+    const push = options.providers.push;
+    const key = async (scope: string) =>
+        (await MessageKey.derive(await options.deriver(scope))).key;
+
+    return {
+        service: messageService,
+        objects: {
+            ...serveMessages(options),
+            endpoint: serveEndpoints({ events: options.events, key }),
+        },
+        serve: () => ({
+            // route the message service's keys and pushes beside its objects
+            procedures: {
+                key: keys.router({
+                    read: keys.read.handler(async ({ input }) => ({ key: await key(input.scope) })),
+                }),
+                push: pushes.router({
+                    applicationServerKey: pushes.applicationServerKey.handler(async ({ input }) => {
+                        // refuse a machine sending no pushes
+                        if (push === undefined) {
+                            throw new ServiceError("NOT_FOUND", {
+                                message: "this machine sends no pushes",
+                            });
+                        }
+
+                        return { key: await push.applicationServerKey(input.scope) };
+                    }),
+                }),
+            },
+        }),
+    };
 }
 
-/** Implement the message service: keep a cell's spaces' messages and send each through its channel's provider. */
-export function implementMessages(options: MessageOptions): MessageImplementation {
-    const objects: ObjectServer = new ObjectServer({
-        objects: serveMessages(options.providers, options.retry ?? RETRY),
-        policies: [space],
-        database: options.database,
-        callKey: options.callKey,
-        origin: { package: messageService.package, service: messageService.name },
-        subscriber: Subscriber.of(options.spaces, () =>
-            objects.source.workloadSubscriptions(`${options.cell}/${messageService.name}`),
-        ),
-    });
+/** Serve messages: send each one through its channel's provider under a controller, opening its sealed content only then, and erase the content once its retention passes. */
+export function serveMessages(
+    options: Pick<MessageOptions, "providers" | "deriver" | "retry" | "retention">,
+) {
+    const sending = {
+        providers: options.providers,
+        deriver: options.deriver,
+        retry: options.retry ?? RETRY,
+        retention: Duration.milliseconds(options.retention ?? SEALED_RETENTION),
+    };
 
-    return { ...objects.implement(messageService), objects };
-}
-
-/** Serve messages, sending each unsettled one through its channel's provider under a controller, and the attempts it records. */
-export function serveMessages(providers: readonly MessageProvider[], retry: RetryPolicy) {
     return {
         message: message.control({
-            pending: { sentAt: { isNull: true }, failedAt: { isNull: true } },
+            pending: { erasedAt: { isNull: true } },
             concurrency: CONCURRENCY,
-            reconcile: (reconciliation) => send(reconciliation, providers, retry),
+            reconcile: (reconciliation) => send(reconciliation, sending),
         }),
         attempt: messageAttempt,
     };
 }
 
-/** Send one due message and record what its provider made of it, returning when to try again. */
+/** Send each due message and record what its provider made of it, or erase a settled one's content once its retention passes, returning when to look again. */
 async function send(
     reconciliation: ObjectReconciliation<typeof message>,
-    providers: readonly MessageProvider[],
-    retry: RetryPolicy,
+    options: {
+        readonly providers: MessageOptions["providers"];
+        readonly deriver: MessageOptions["deriver"];
+        readonly retry: RetryPolicy;
+        readonly retention: number;
+    },
 ): Promise<number | undefined> {
+    // read the key's one message whole at its current revision
     const { now } = reconciliation;
-    for (const row of reconciliation.rows) {
-        // wait for a refused message's next attempt
-        if (row.retryAt !== null && row.retryAt > now) {
-            return row.retryAt - now;
-        }
-
-        // read the whole message, its sensitive secret included, and send it through its channel's provider
-        const [whole] = await reconciliation.database
+    const row = aligned(reconciliation.rows, 0);
+    const whole = aligned(
+        await reconciliation.database
             .select()
             .from(message.table)
-            .where(eq(message.table.id, row.id));
-        if (whole === undefined) {
-            continue;
+            .where(eq(message.table.id, row.id)),
+        0,
+    );
+
+    // erase a settled message's content once its retention passes
+    if (whole.status !== "pending") {
+        const settledAt = present(whole.settledAt, "a settled message's time");
+        const erasedAt = settledAt + options.retention;
+        if (erasedAt > now) {
+            return erasedAt - now;
         }
-        const provider = providers.find((candidate) => candidate.channel === row.to.channel);
-        const outcome =
-            provider === undefined
-                ? {
-                      outcome: "failed" as const,
-                      error: {
-                          code: "unprovided",
-                          message: `no provider sends ${row.to.channel} messages here`,
-                      },
-                  }
-                : await provider.send(whole);
-
-        // record the try, counting the refusals so far
-        await reconciliation.server.executeAsSystem(
-            messageAttempt,
-            "record",
-            [
-                {
-                    scope: whole.scope,
-                    input: {
-                        parentId: whole.id,
-                        outcome: outcome.outcome,
-                        ...(outcome.outcome === "sent" ? {} : { error: outcome.error }),
-                    },
-                },
-            ],
-            now,
-        );
-        const [tried] = await reconciliation.database
-            .select({ count: count() })
-            .from(messageAttempt.table)
-            .where(eq(messageAttempt.table.parentId, whole.id));
-        const attempts = tried?.count ?? 0;
-
-        // settle it as sent, retry it after the policy's interval, or fail it once the policy gives up
-        const isFailed =
-            outcome.outcome === "failed" ||
-            (outcome.outcome === "retry" && !RetryPolicy.isRetried(retry, attempts));
-        const fields =
-            outcome.outcome === "sent"
-                ? { sentAt: now, retryAt: null }
-                : isFailed
-                  ? { failedAt: now, retryAt: null }
-                  : {
-                        retryAt:
-                            now +
-                            ((outcome.outcome === "retry" ? outcome.after : undefined) ??
-                                RetryPolicy.interval(retry, attempts)),
-                    };
-        await reconciliation.server.executeAsSystem(
-            message,
-            "observe",
-            [
-                {
-                    scope: whole.scope,
-                    target: whole,
-                    input: {
-                        observedGeneration: whole.generation,
-                        conditions: {
-                            Sent:
-                                outcome.outcome === "sent"
-                                    ? { status: "true", reason: "Sent", message: "" }
-                                    : {
-                                          status: isFailed ? "false" : "unknown",
-                                          reason: isFailed ? outcome.error.code : "Retrying",
-                                          message: outcome.error.message,
-                                      },
-                        },
-                        fields,
-                    },
-                },
-            ],
-            now,
-        );
+        await reconciliation.execute(message, "erase", [ServerCall.of(whole)]);
+    }
+    // wait for a refused message's next attempt
+    else if (whole.retryAt !== null && whole.retryAt > now) {
+        return whole.retryAt - now;
+    }
+    // send it and settle it as sent, retried after the policy's interval, or failed once the policy gives up
+    else {
+        const outcome = await attempt(options, whole, reconciliation.server);
+        const attempts = await recordAttempt(reconciliation, whole, outcome);
+        await observe(reconciliation, whole, settle(outcome, options.retry, attempts, now));
     }
 
     return undefined;
+}
+
+/** Record the controller's observation of a message: the fields it writes and its Sent condition. */
+async function observe(
+    reconciliation: ObjectReconciliation<typeof message>,
+    row: Message,
+    observed: ReturnType<typeof settle>,
+): Promise<void> {
+    await reconciliation.execute(message, "observe", [
+        ServerCall.of(row, {
+            observedGeneration: row.generation,
+            conditions: { Sent: observed.sent },
+            fields: observed.fields,
+        }),
+    ]);
+}
+
+/** Open a message's content and send it through its channel's provider, failing one no provider here sends. */
+async function attempt(
+    options: {
+        readonly providers: MessageOptions["providers"];
+        readonly deriver: MessageOptions["deriver"];
+    },
+    whole: Message,
+    server: CallServer,
+): Promise<Outcome> {
+    // fail a message no provider here sends
+    const provider = options.providers[whole.to.channel];
+    if (provider === undefined) {
+        return {
+            kind: "failed",
+            error: {
+                code: "unprovided",
+                message: `no provider sends ${whole.to.channel} messages here`,
+            },
+        };
+    }
+
+    // open the content right before the provider sends it
+    const sealed = present(whole.ciphertext, "an unsettled message's ciphertext");
+    const key = await MessageKey.derive(await options.deriver(whole.scope));
+    const content = await key.open(sealed, whole.scope);
+
+    return provider.send({ ...whole, content }, server);
+}
+
+/** Record a try of a message, returning how many tries it has. */
+async function recordAttempt(
+    reconciliation: ObjectReconciliation<typeof message>,
+    whole: Pick<Message, "id" | "scope">,
+    outcome: Outcome,
+): Promise<number> {
+    // record the try
+    await reconciliation.execute(messageAttempt, "create", [
+        { scope: whole.scope, input: { parentId: whole.id, outcome } },
+    ]);
+
+    // count the tries so far
+    const [tried] = await reconciliation.database
+        .select({ count: count() })
+        .from(messageAttempt.table)
+        .where(eq(messageAttempt.table.parentId, whole.id));
+
+    return present(tried, "a count's row").count;
+}
+
+/** Decide a message's fields and Sent condition after a try: sent, retried after the policy's interval, or failed once the policy gives up. */
+function settle(outcome: Outcome, retry: RetryPolicy, attempts: number, now: number) {
+    // settle a sent message
+    if (outcome.kind === "sent") {
+        return {
+            fields: { status: "sent" as const, settledAt: now, retryAt: null },
+            sent: { status: "true" as const, reason: "Sent", message: "" },
+        };
+    }
+    // retry after the provider's wait or the policy's interval while the policy retries
+    else if (outcome.kind === "retry" && RetryPolicy.isRetried(retry, attempts)) {
+        const retryAt = now + (outcome.after ?? RetryPolicy.interval(retry, attempts));
+
+        return {
+            fields: { retryAt },
+            sent: {
+                status: "unknown" as const,
+                reason: "Retrying",
+                message: outcome.error.message,
+            },
+        };
+    }
+    // fail a refusal for good or one the policy no longer retries
+    else {
+        return {
+            fields: { status: "failed" as const, settledAt: now, retryAt: null },
+            sent: {
+                status: "false" as const,
+                reason: outcome.error.code,
+                message: outcome.error.message,
+            },
+        };
+    }
 }

@@ -1,9 +1,12 @@
-import { aligned, schema } from "@destack/schema";
+import { aligned, present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { decrypt, encode, importBrowser, subscribeBrowser } from "../test/index.ts";
+import { decrypt, encode, importBrowser, subscribeBrowser, UNQUERIED } from "../test/index.ts";
 import { PushEncryption } from "./encryption.ts";
 import { pushProvider } from "./push.ts";
 import { Vapid } from "./vapid.ts";
+
+/** The time every push is signed at. */
+const NOW = 1_790_000_000_000;
 
 /** RFC 8291's example: its keys, salt, message and the body it encrypts to. */
 const EXAMPLE = {
@@ -70,38 +73,19 @@ test("sign VAPID tokens for the push service's origin, verifiable with the appli
         "verify",
     ]);
     const vapid = new Vapid(keys, "mailto:push@destack.app");
-    const header = await vapid.authorization(
-        "https://fcm.googleapis.com/fcm/send/abc",
-        1_790_000_000_000,
-    );
-    const match = /^vapid t=([^,]+), k=(.+)$/u.exec(header);
-    if (match === null) {
-        throw new TypeError(`authorization ${header} is no vapid header`);
-    }
-    const key = aligned(match, 2);
-    const parts = aligned(match, 1).split(".");
-    const [head, claims, signature] = [aligned(parts, 0), aligned(parts, 1), aligned(parts, 2)];
+    const header = await vapid.authorization("https://fcm.googleapis.com/fcm/send/abc", NOW);
 
     // verify the signature with the key browsers subscribe with, and read the claims
-    const verifier = await crypto.subtle.importKey(
-        "raw",
-        Uint8Array.fromBase64(key, { alphabet: "base64url" }),
-        { name: "ECDSA", namedCurve: "P-256" },
-        false,
-        ["verify"],
-    );
-    const isValid = await crypto.subtle.verify(
-        { name: "ECDSA", hash: "SHA-256" },
-        verifier,
-        Uint8Array.fromBase64(signature, { alphabet: "base64url" }),
-        new TextEncoder().encode(`${head}.${claims}`),
-    );
-    expect([isValid, readPart(head), readPart(claims), key]).toEqual([
-        true,
-        { typ: "JWT", alg: "ES256" },
-        { aud: "https://fcm.googleapis.com", exp: 1_790_043_200, sub: "mailto:push@destack.app" },
-        await vapid.publicKey(),
-    ]);
+    expect(await readVapid(header)).toEqual({
+        isValid: true,
+        header: { typ: "JWT", alg: "ES256" },
+        claims: {
+            aud: "https://fcm.googleapis.com",
+            exp: 1_790_043_200,
+            sub: "mailto:push@destack.app",
+        },
+        key: await vapid.publicKey(),
+    });
 
     // refuse a contact push services cannot find
     expect(() => new Vapid(keys, "push@destack.app")).toThrow(
@@ -109,45 +93,28 @@ test("sign VAPID tokens for the push service's origin, verifiable with the appli
     );
 });
 
-test("post encrypted pushes with RFC 8030's headers, which the browser decrypts, and read each status as an outcome", async () => {
-    // answer each post with the next scripted response
+/** Push to one browser through a push service answering each post with the next response, signing with one scope's keys. */
+async function pushTo(responses: Response[]) {
+    // sign with one key pair, keeping the scopes it is derived for
     const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
         "sign",
         "verify",
     ]);
-    const responses = [
-        new Response(null, { status: 201 }),
-        new Response("gone", { status: 410 }),
-        new Response("slow down", { status: 429, headers: { "Retry-After": "30" } }),
-        new Response("unavailable", { status: 503 }),
-        new Response("payload too large", { status: 413 }),
-    ];
-    const posted: {
-        url: string;
-        headers: Record<string, string>;
-        body: Uint8Array<ArrayBuffer>;
-    }[] = [];
-    const provider = pushProvider(new Vapid(keys, "https://destack.app"), async (url, options) => {
-        // record the post
-        const headers = Object.fromEntries(new Headers(options.headers).entries());
-        if (!(options.body instanceof Uint8Array)) {
-            throw new TypeError("push posts bytes");
-        }
-        posted.push({ url, headers, body: new Uint8Array(options.body) });
+    const service = answerInTurn(responses);
+    const keyed: string[] = [];
+    const vapid = new Vapid(keys, "https://destack.app");
+    const deriveVapid = async (scope: string) => {
+        keyed.push(scope);
 
-        // answer with the next response
-        const response = responses.shift();
-        if (response === undefined) {
-            throw new TypeError("push service has no more responses");
-        }
+        return vapid;
+    };
+    const provider = pushProvider(deriveVapid, service.fetch);
 
-        return response;
-    });
-
-    // push five messages to one browser
+    // address one browser
     const browser = await subscribeBrowser();
     const message = {
         id: schema.identifier("message").parse("message-019f5530-8000-7000-8000-0000000000aa"),
+        scope: "space-019f5530-8000-7000-8000-0000000000ab",
         createdAt: 0,
         to: {
             channel: "push" as const,
@@ -161,36 +128,69 @@ test("post encrypted pushes with RFC 8030's headers, which the browser decrypts,
             ttl: 86_400,
             topic: "019f55308000700080000000000000aa",
         },
-        secret: null,
     };
+    const send = () => provider.send(message, { ...UNQUERIED, clock: () => NOW });
+
+    return { provider, vapid, keyed, browser, message, service, send };
+}
+
+test("read each status a push service answers as an outcome", async () => {
+    const { send } = await pushTo([
+        new Response(null, { status: 201 }),
+        new Response(null, { status: 410, statusText: "Gone" }),
+        new Response(null, {
+            status: 429,
+            statusText: "Too Many Requests",
+            headers: { "Retry-After": "30" },
+        }),
+        new Response(null, { status: 503, statusText: "Service Unavailable" }),
+        new Response(null, { status: 413, statusText: "Content Too Large" }),
+    ]);
     const outcomes = [];
     for (let index = 0; index < 5; index++) {
-        outcomes.push(await provider.send(message));
+        outcomes.push(await send());
     }
 
-    // read success, a forgotten endpoint, throttling, an outage and a refusal
     expect(outcomes).toEqual([
-        { outcome: "sent" },
-        { outcome: "failed", error: { code: "gone", message: "gone" } },
-        { outcome: "retry", after: 30_000, error: { code: "429", message: "slow down" } },
-        { outcome: "retry", error: { code: "503", message: "unavailable" } },
-        { outcome: "failed", error: { code: "413", message: "payload too large" } },
+        { kind: "sent" },
+        { kind: "failed", error: { code: "gone", message: "Gone" } },
+        { kind: "retry", after: 30_000, error: { code: "429", message: "Too Many Requests" } },
+        { kind: "retry", error: { code: "503", message: "Service Unavailable" } },
+        { kind: "failed", error: { code: "413", message: "Content Too Large" } },
     ]);
+});
 
-    // check the coding, lifetime, topic and urgency of each post, signed by the sender and decrypted by the browser
-    const first = aligned(posted, 0);
-    const authorization = first.headers["authorization"];
-    if (authorization === undefined) {
-        throw new TypeError("push post has no authorization");
-    }
+test("answer a scope's application server key, and post a push signed by it and encrypted with RFC 8030's headers", async () => {
+    const { provider, vapid, keyed, browser, message, service, send } = await pushTo([
+        new Response(null, { status: 201 }),
+    ]);
+    await send();
+
+    // sign with the scope's key, which its application server key is
+    expect(await provider.applicationServerKey(message.scope)).toBe(await vapid.publicKey());
+    expect(new Set(keyed)).toEqual(new Set([message.scope]));
+
+    // check the coding, lifetime, topic and urgency of the post, signed by the sender and decrypted by the browser
+    const first = aligned(service.posted, 0);
+    const { authorization, ...headers } = first.headers;
     expect({
         url: first.url,
-        headers: { ...first.headers, authorization: authorization.slice(0, 8) },
+        authorization: await readVapid(present(authorization, "the post's authorization")),
+        headers,
         payload: await decrypt(browser, first.body),
     }).toEqual({
         url: "https://updates.push.services.mozilla.com/wpush/v2/abc",
+        authorization: {
+            isValid: true,
+            header: { typ: "JWT", alg: "ES256" },
+            claims: {
+                aud: "https://updates.push.services.mozilla.com",
+                exp: 1_790_043_200,
+                sub: "https://destack.app",
+            },
+            key: await vapid.publicKey(),
+        },
         headers: {
-            authorization: "vapid t=",
             "content-encoding": "aes128gcm",
             "content-type": "application/octet-stream",
             ttl: "86400",
@@ -201,9 +201,66 @@ test("post encrypted pushes with RFC 8030's headers, which the browser decrypts,
     });
 });
 
-/** Read a JWT part's JSON. */
-function readPart(part: string): unknown {
+/** A push service answering each post with the next response, keeping the posts. */
+function answerInTurn(responses: Response[]) {
+    const posted: {
+        url: string;
+        headers: Record<string, string>;
+        body: Uint8Array<ArrayBuffer>;
+    }[] = [];
+    const fetch = async (request: Request) => {
+        // record the post
+        const headers = Object.fromEntries(request.headers.entries());
+        posted.push({ url: request.url, headers, body: await request.bytes() });
+
+        // answer with the next response
+        const response = responses.shift();
+        if (response === undefined) {
+            throw new TypeError("push service has no more responses");
+        }
+
+        return response;
+    };
+
+    return { fetch, posted };
+}
+
+/** Read a VAPID Authorization header: whether its key verifies its token, the token's header and claims, and the key. */
+async function readVapid(authorization: string) {
+    // split the token and the key, and the token into its header, claims and signature
+    const match = /^vapid t=([^,]+), k=(.+)$/u.exec(authorization);
+    if (match === null) {
+        throw new TypeError(`authorization ${authorization} is no vapid header`);
+    }
+    const key = aligned(match, 2);
+    const segments = aligned(match, 1).split(".");
+    const [header, claims, signature] = [
+        aligned(segments, 0),
+        aligned(segments, 1),
+        aligned(segments, 2),
+    ];
+
+    // verify the signature with the key
+    const verifier = await crypto.subtle.importKey(
+        "raw",
+        Uint8Array.fromBase64(key, { alphabet: "base64url" }),
+        { name: "ECDSA", namedCurve: "P-256" },
+        false,
+        ["verify"],
+    );
+    const isValid = await crypto.subtle.verify(
+        { name: "ECDSA", hash: "SHA-256" },
+        verifier,
+        Uint8Array.fromBase64(signature, { alphabet: "base64url" }),
+        new TextEncoder().encode(`${header}.${claims}`),
+    );
+
+    return { isValid, header: readSegment(header), claims: readSegment(claims), key };
+}
+
+/** Read a JWT segment's JSON. */
+function readSegment(segment: string): unknown {
     return JSON.parse(
-        new TextDecoder().decode(Uint8Array.fromBase64(part, { alphabet: "base64url" })),
+        new TextDecoder().decode(Uint8Array.fromBase64(segment, { alphabet: "base64url" })),
     );
 }

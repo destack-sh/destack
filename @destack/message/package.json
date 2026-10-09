@@ -4,15 +4,19 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Send messages on a channel, email, push or webhook, as a kind its providers fulfil.",
+    "description": "Send messages on a channel, email, push or webhook, as a kind its providers fulfil, email through SMTP, Amazon SES or a printer.",
     "exports": {
         ".": "./src/index.ts",
+        "./aws": "./src/aws/index.ts",
         "./email": "./src/email/index.ts",
+        "./mime": "./src/mime/index.ts",
         "./object": "./src/object/index.ts",
+        "./print": "./src/print/index.ts",
         "./provider": "./src/provider/index.ts",
         "./push": "./src/push/index.ts",
         "./server": "./src/server/index.ts",
         "./service": "./src/service/index.ts",
+        "./smtp": "./src/smtp/index.ts",
         "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts",
         "./webhook": "./src/webhook/index.ts"
@@ -22,6 +26,7 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/identity": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
@@ -29,12 +34,15 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
-        "@destack/space": "workspace:*",
         "@destack/sync": "workspace:*",
-        "jose": "6.2.12"
+        "jose": "6.2.12",
+        "@destack/error": "workspace:*",
+        "@destack/bucket": "workspace:*"
     },
     "devDependencies": {
         "@destack/directory": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2"
     }
