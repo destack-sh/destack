@@ -1,10 +1,12 @@
-import type { ObjectServer, Extension } from "@destack/object/server";
+import type { ObjectStore, ObjectExtension } from "@destack/object/server";
 import { distributionService } from "../service/index.ts";
 import type { Identifier } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
 import type { Distribution } from "../distribution/index.ts";
 import { distribution } from "../object/index.ts";
+import { Caller } from "@destack/access";
+import { RequestId } from "@destack/service/request";
 
 /** How often the distribution stages the channel's latest release: daily, as Sparkle checks by default. */
 const STAGE_INTERVAL_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -23,17 +25,17 @@ export function implementDistributions(options: {
     readonly machine: Identifier<"machine">;
     /** The installed distribution, absent for a development build. */
     readonly host?: DistributionHost;
-}): Extension {
+}): ObjectExtension {
     const { host } = options;
 
     return {
         service: distributionService,
         objects: { distribution: serveDistributions(host) },
-        serve: (server) => ({
+        serve: (store) => ({
             controllers:
                 host === undefined
                     ? []
-                    : [new DistributionController(server, options.machine, host)],
+                    : [new DistributionController(store, options.machine, host)],
         }),
     };
 }
@@ -85,8 +87,8 @@ export function serveDistributions(host: DistributionHost | undefined) {
 export class DistributionController implements Controller {
     /** The controller's name in reports. */
     readonly name = "distribution";
-    /** The server keeping the distribution row. */
-    readonly #server: Pick<ObjectServer, "database" | "principal" | "execute">;
+    /** The store keeping the distribution row. */
+    readonly #store: Pick<ObjectStore, "database" | "principal" | "mutate">;
     /** This machine, the scope of its distribution. */
     readonly #machineId: Identifier<"machine">;
     /** The installed distribution. */
@@ -94,11 +96,11 @@ export class DistributionController implements Controller {
 
     /** Control the distribution of a machine. */
     constructor(
-        server: Pick<ObjectServer, "database" | "principal" | "execute">,
+        store: Pick<ObjectStore, "database" | "principal" | "mutate">,
         machineId: Identifier<"machine">,
         host: DistributionHost,
     ) {
-        this.#server = server;
+        this.#store = store;
         this.#machineId = machineId;
         this.#host = host;
     }
@@ -113,28 +115,26 @@ export class DistributionController implements Controller {
         // record the distribution on its first start
         const now = Date.now();
         const scope = this.#machineId;
-        const [found] = await this.#server.database
+        const [found] = await this.#store.database
             .select()
             .from(distribution.table)
             .where(distribution.inScope(scope));
         const options = this.#host.distribution.options;
         const [recorded] =
             found === undefined
-                ? await this.#server.execute(
-                      this.#server.principal,
-                      distribution,
-                      "create",
-                      [
-                          {
-                              scope,
-                              input: {
+                ? await this.#store.mutate(
+                      Caller.of(this.#store.principal, now),
+                      {
+                          id: RequestId.create(now),
+                          calls: [
+                              distribution.call("create", {
+                                  ...distribution.target({ scope }),
                                   channel: options.channel,
                                   installed: options.running.version,
-                              },
-                          },
-                      ],
-                      now,
-                      this.name,
+                              }),
+                          ],
+                      },
+                      { component: this.name },
                   )
                 : [found];
         if (recorded === undefined) {
@@ -144,13 +144,13 @@ export class DistributionController implements Controller {
         }
 
         // stage the latest release
-        await this.#server.execute(
-            this.#server.principal,
-            distribution,
-            "stage",
-            [{ scope, target: recorded }],
-            now,
-            this.name,
+        await this.#store.mutate(
+            Caller.of(this.#store.principal, now),
+            {
+                id: RequestId.create(now),
+                calls: [distribution.call("stage", distribution.target(recorded))],
+            },
+            { component: this.name },
         );
 
         return STAGE_INTERVAL_MILLISECONDS;

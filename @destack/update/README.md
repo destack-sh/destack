@@ -3,9 +3,17 @@
 `Updater` is a TUF client over `tuf-js` that checks, downloads, stages and activates a distribution's releases under an installation lock, `/publish` writes the signed TUF repository with a two-of-three root and online targets, snapshot and timestamp keys, and `Release.target` names targets by Rust's target triples.
 
 ```ts
-await using updater = await Updater.open({ directory, repository, channel: "stable", root: trustedRoot, target }); // tuf-js's Updater
+// tuf-js's Updater
+await using updater = await Updater.open({
+    directory,
+    repository,
+    channel: "stable",
+    root: trustedRoot,
+    target,
+});
 const update = await updater.check(); // refreshes root, timestamp, snapshot and targets metadata
-const staged = await updater.stage(await update.download({ signal, onProgress })); // verified against the targets' hashes
+// verified against the targets' hashes
+const staged = await updater.stage(await update.download({ signal, onProgress }));
 await SignedRepository.create(directory, revision, root, keys, releases); // a TUF repository
 Release.target("darwin", "arm64"); // "aarch64-apple-darwin"
 ```
@@ -61,6 +69,7 @@ LIFETIME_DAYS; // { targets: 365, snapshot: 14, timestamp: 14 }
 `distribution` keeps the machine's distribution as an object, which `serveDistributions` serves and `DistributionController` stages daily.
 
 ```ts
-await client.distribution.stage({ machineId, requestId, id }); // { installed: "2026.10.1", staged: "2026.10.2", status: "staged", … }
+// { installed: "2026.10.1", staged: "2026.10.2", status: "staged", … }
+await client.distribution.stage({ machineId, requestId, id });
 await client.distribution.activate({ machineId, requestId, id });
 ```
