@@ -66,14 +66,14 @@ Code is still there, it's still relevant, but, thanks to modern game engines, yo
 # The Software Engine
 
 General purpose software is now discovering the same tradeoffs that game engines have figured out over decades.
-We know the principal components, but they're scatted and rebuilt a million ways, and it follows that we also need a "software engine": an _integrated_ "platform software" building blocks for a new level of "userland software". 
+We know the principal components, but they're scattered and reconstituted a thousand different ways, and it follows that we also need a "software engine": an _integrated_ "platform software" building blocks for a new level of "userland software". 
 
 Despite half a century of development, our tools for building and understanding software systems are surprisingly primitive.
 We _still_ struggle with "works on my machine", and reproducing observed issues in the "laboratory" is virtually impossible.
 If software is going to run _everything_, faster than anyone can verify, how do we make sure it's the right software?
 
-Oddly, the primary objective of "software factories" seems to be _removing_ oneself from the process without any sufficient higher order specification to anchor this new higher order programming.
-In frighteningly short order, steering only through the peephole of a chat window makes it almost impossible to figure out where to go next and how to get there.
+Oddly, the primary objective of "software factories" seems to be _removing_ oneself from the process - without any new higher order specification to anchor the next level of higher order programming.
+In frighteningly short order, steering only through the peephole of a chatbox makes it almost impossible to figure out where to go next and how to get there.
 
 :::figure width="640" src="./wright-flyer-wind-tunnel.jpg" alt="A full-size Wright Flyer replica mounted on a test stand inside the Ames wind tunnel, with two engineers standing beside it."
 [Wright Flyer replica in the Ames wind tunnel](https://www.nasa.gov/image-article/wright-flyer/) — NASA, public domain.

@@ -1,16 +1,14 @@
 import * as style from "@destack/style";
-import { createSignal } from "@destack/view";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { InstallWays } from "./install";
 import { Label } from "../entry/label";
 import { StackSwitch } from "../entry/switch";
-import { firstPicks, promptOf, tallyOf, ToolWall, totalOf } from "./wall";
+import { tallyOf, ToolWall, totalOf } from "./wall";
 import { Ledger } from "../figure/ledger";
 import { screen } from "../../layout/screen.stylex";
 
-/** The participle, which closes the page as the verb opens it. */
+/** The participle, the last of the word's forms before the page closes. */
 const participle: Form = {
     syllables: ["de", "stack", "ing"],
     pronunciation: "/diːˈstakɪŋ/",
@@ -22,17 +20,12 @@ const participle: Form = {
     },
 };
 
-/** Close the page as the hero opens it: the participle, the tools you pick and the space they become, and the ways to install under them. */
-export function Participle(properties: { isOpen: boolean }) {
-    // hold the tools the reader uses, starting from the first figure's six
-    const [picks, setPicks] = createSignal<readonly string[]>(firstPicks);
-    const pick = (name: string) =>
-        setPicks((current) =>
-            current.includes(name)
-                ? current.filter((picked) => picked !== name)
-                : [...current, name],
-        );
-
+/** Show the participle at work: the tools you pick, tallied, and the space they become. */
+export function Participle(properties: {
+    isOpen: boolean;
+    picks: readonly string[];
+    onPick: (name: string) => void;
+}) {
     return (
         <section
             {...style.attrs(
@@ -58,17 +51,20 @@ export function Participle(properties: { isOpen: boolean }) {
                 <Label>
                     {properties.isOpen ? "Your own corner of the cloud" : "Pick your current stack"}
                 </Label>
-                <ToolWall picks={picks()} isOpen={properties.isOpen} onPick={pick} />
+                <ToolWall
+                    picks={properties.picks}
+                    isOpen={properties.isOpen}
+                    onPick={properties.onPick}
+                />
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <Label>{properties.isOpen ? "Your space" : "Your current stack"}</Label>
                 <Ledger
-                    entries={tallyOf(picks())}
-                    total={totalOf(picks(), properties.isOpen)}
+                    entries={tallyOf(properties.picks)}
+                    total={totalOf(properties.picks, properties.isOpen)}
                     isOpenAt={() => properties.isOpen}
                 />
             </div>
-            <InstallWays prompt={promptOf(picks())} />
         </section>
     );
 }
@@ -76,9 +72,8 @@ export function Participle(properties: { isOpen: boolean }) {
 /** The closing styles. */
 const styles = style.create({
     section: {
-        height: "auto",
         gridTemplateRows: {
-            default: "auto auto minmax(0, 1fr) auto",
+            default: "auto auto minmax(0, 1fr)",
             [screen.belowDesktop]: "auto",
         },
     },

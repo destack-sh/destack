@@ -8,6 +8,7 @@ import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
 import type { Entry } from "../figure/ledger";
 import { palette } from "../../palette.stylex";
+import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 
 /** An app every space comes with: its name, its icon, and its tint. */
@@ -58,27 +59,13 @@ const spaceJobs: readonly Job[] = [
     "mail",
 ];
 
-/** The tally's rows for the services your space connects to: the label, the services, what your space does in their place, and its note with and without them. */
-const connections: readonly (readonly [
-    label: string,
-    names: readonly string[],
-    app: App,
-    note: (list: string) => string,
-    idle: string,
-])[] = [
-    [
-        "Agents",
-        ["ChatGPT", "Claude"],
-        { name: "Agents", icon: "agent", tint: "#6b5ca5" },
-        (list) => `run with ${list}`,
-        "bring your own",
-    ],
+/** The tally's rows for the services your space connects to: the label, the services, and what your space does in their place. */
+const connections: readonly (readonly [label: string, names: readonly string[], app: App])[] = [
+    ["Agents", ["ChatGPT", "Claude"], { name: "Agents", icon: "agent", tint: "#6b5ca5" }],
     [
         "Code and cloud",
         ["GitHub", "AWS"],
         { name: "Forge + Hosting", icon: "source", tint: "#c64a17" },
-        (list) => `connects ${list}`,
-        "included",
     ],
 ];
 
@@ -623,34 +610,23 @@ export function tallyOf(picks: readonly string[]): readonly Entry[] {
                 jobLabels[job],
                 picked.filter((tool) => jobOf(tool) === job),
                 apps[job],
-                (list) => `replaces ${list}`,
-                "included",
             ),
         ),
-        ...connections.map(([label, names, app, note, idle]) =>
+        ...connections.map(([label, names, app]) =>
             entryOf(
                 label,
                 picked.filter((tool) => names.includes(tool.name)),
                 app,
-                note,
-                idle,
             ),
         ),
     ];
 }
 
 /** Set one tally row: the tools you picked for a job while stacked, and what your space does in their place once destacked. */
-function entryOf(
-    label: string,
-    doers: readonly Tool[],
-    app: App,
-    note: (list: string) => string,
-    idle: string,
-): Entry {
-    // name the picked tools and count their logins
-    const logins = loginsOf(doers);
+function entryOf(label: string, doers: readonly Tool[], app: App): Entry {
+    // name the picked tools with the logins they need
+    const logins = `${loginsOf(doers)} ${loginsOf(doers) === 1 ? "login" : "logins"}`;
     const [first] = doers;
-    const list = doers.length <= 2 ? listOf(doers) : `${doers.length} apps`;
 
     return {
         stacked: {
@@ -663,20 +639,17 @@ function entryOf(
                 first === undefined
                     ? "None"
                     : doers.length === 1
-                      ? first.name
-                      : `${doers.length} apps`,
+                      ? `${first.name} · ${logins}`
+                      : `${doers.length} apps · ${logins}`,
             chips: [],
-            note:
-                first === undefined
-                    ? "pick one to compare"
-                    : `${logins} ${logins === 1 ? "login" : "logins"}`,
+            note: "",
         },
         destacked: {
             label,
             mark: { icon: app.icon, tint: app.tint },
             name: app.name,
             chips: [],
-            note: first === undefined ? idle : note(list),
+            note: "",
         },
     };
 }
@@ -814,12 +787,13 @@ const styles = style.create({
         gap: stroke.border,
         gridAutoFlow: "row dense",
         gridAutoRows: {
-            default: "minmax(5.75rem, 1fr)",
+            default: "minmax(0, 1fr)",
+            [screen.belowDesktop]: "5.75rem",
             [media.maxMd]: "5rem",
         },
         gridTemplateColumns: {
             default: `repeat(${perRow}, minmax(0, 1fr))`,
-            [media.maxMd]: "repeat(4, minmax(0, 1fr))",
+            [media.maxMd]: "repeat(3, minmax(0, 1fr))",
         },
         listStyle: "none",
         margin: 0,

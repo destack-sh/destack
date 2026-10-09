@@ -6,8 +6,8 @@ import type { JSX } from "@destack/view";
 
 import { installCommand } from "../../content/site";
 import { lattice } from "../../layout/lattice.stylex";
-import { systemOf, systems } from "./download/catalog";
-import { createDownloads } from "./download/download";
+import { systemOf, systems } from "../participle/download/catalog";
+import { createDownloads } from "../participle/download/download";
 import { Glyph } from "../figure/glyph";
 import { screen } from "../../layout/screen.stylex";
 import { createCopy } from "../../layout/copy";

@@ -6,10 +6,6 @@ export const assets: Record<string, () => Promise<string>> = {
         import("../../../../public/_content/docs/setup/index.json?raw").then(
             (module) => module.default,
         ),
-    "/_content/tree/bdde7211423cf80bc014bd13de537552d89c631d6e9656dd91fcef92ded8802c.json": () =>
-        import("../../../../public/_content/tree/bdde7211423cf80bc014bd13de537552d89c631d6e9656dd91fcef92ded8802c.json?raw").then(
-            (module) => module.default,
-        ),
     "/_content/tree/c0f66583508180752f49d9a538c84c5bab263b9e17e567f30fbc12aa4c495d4d.json": () =>
         import("../../../../public/_content/tree/c0f66583508180752f49d9a538c84c5bab263b9e17e567f30fbc12aa4c495d4d.json?raw").then(
             (module) => module.default,
@@ -20,6 +16,10 @@ export const assets: Record<string, () => Promise<string>> = {
         ),
     "/_content/tree/d1d4b8a9d8548e19153001b7086fdbdf22a7dbc533708ab95bd0985490418411.json": () =>
         import("../../../../public/_content/tree/d1d4b8a9d8548e19153001b7086fdbdf22a7dbc533708ab95bd0985490418411.json?raw").then(
+            (module) => module.default,
+        ),
+    "/_content/tree/db7a873b92fd0a397c81948bbf24291e5b474478b6ea530e8ac031c5a3dd5bbc.json": () =>
+        import("../../../../public/_content/tree/db7a873b92fd0a397c81948bbf24291e5b474478b6ea530e8ac031c5a3dd5bbc.json?raw").then(
             (module) => module.default,
         ),
 };
