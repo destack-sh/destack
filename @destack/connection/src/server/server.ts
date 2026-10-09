@@ -5,7 +5,6 @@ import {
     observeCondition,
     type PreparedCallOf,
     type ResultOf,
-    type CallServer,
 } from "@destack/object";
 import { aligned, present } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
@@ -28,6 +27,7 @@ import {
 import { requireVault } from "./integration.ts";
 import { complete, exchange, poll, start, started } from "./authorization.ts";
 import { Secret } from "@destack/vault/server";
+import type { ObjectStore } from "@destack/object/server";
 
 /** How long a connection waits after its authorization server failed to answer before trying again: a minute. */
 const RETRY_MILLISECONDS = 60_000;
@@ -60,11 +60,11 @@ export function serveConnections(tokens: TokenSource) {
                     prepare: async (call) => withdrawal(call.requireTarget()),
                     handler: (call) => revoke(call),
                     commit: async (call, prepared) =>
-                        withdraw(call.requireServer(), prepared, tokens),
+                        withdraw(call.requireStore(), prepared, tokens),
                 },
                 requestToken: {
                     prepare: (call) =>
-                        lend(call.requireTarget(), tokens, call.requireServer(), call.now),
+                        lend(call.requireTarget(), tokens, call.requireStore(), call.now),
                     handler: async (call) => call.prepared,
                 },
             })
@@ -95,7 +95,7 @@ async function keep(call: CallOf<typeof connection, "create">, tokens: TokenSour
     // keep the material
     if (material !== undefined) {
         const id = present(call.id, "a prepared creation's identifier");
-        await tokens.write(call.requireServer(), { id, vault }, { material });
+        await tokens.write(call.requireStore(), { id, vault }, { material });
     }
 
     return {};
@@ -137,7 +137,11 @@ async function revoke(
 }
 
 /** Revoke a committed revocation's tokens at their server, or uninstall its integration, then destroy its credential. */
-async function withdraw(system: CallServer, prepared: unknown, tokens: TokenSource): Promise<void> {
+async function withdraw(
+    system: Omit<ObjectStore, "router">,
+    prepared: unknown,
+    tokens: TokenSource,
+): Promise<void> {
     // read the credential
     const withdrawn = Withdrawal.parse(prepared);
     const credential = await tokens.read(system, withdrawn);
@@ -169,7 +173,7 @@ async function reconcile(
 ): Promise<number | undefined> {
     // read the key's one connection at its current revision
     const { now } = reconciliation;
-    const system = reconciliation.server;
+    const system = reconciliation.store;
     const [read] = await reconciliation.database
         .select()
         .from(connection.table)
@@ -221,14 +225,12 @@ async function finalize(
     tokens: TokenSource,
 ): Promise<void> {
     await Secret.destroy(
-        reconciliation.server,
+        reconciliation.store,
         current.vault,
         TokenSource.secret(current.id),
         tokens.options.consumer,
     );
-    await reconciliation.execute(connection, "finalize", [
-        { scope: current.scope, target: current, input: {} },
-    ]);
+    await reconciliation.mutate([connection.call("finalize", connection.target(current))]);
 }
 
 /** Poll a connection's device authorization, or mark it pending until a person authorizes it, returning when to look again. */
@@ -255,7 +257,7 @@ async function awaitPerson(
     if (current.conditions["Authorized"] === undefined) {
         const message = "waiting for a person to authorize the connection";
         const pending = { status: "false" as const, reason: "Pending", message };
-        await tokens.observe(reconciliation.server, current, pending, {}, reconciliation.now);
+        await tokens.observe(reconciliation.store, current, pending, {}, reconciliation.now);
     }
 
     return undefined;
@@ -263,7 +265,7 @@ async function awaitPerson(
 
 /** Obtain a connection's token, or refresh it before it expires, returning when to look again. */
 async function keepToken(
-    system: CallServer,
+    system: Omit<ObjectStore, "router">,
     current: Connection,
     tokens: TokenSource,
     now: number,
@@ -287,7 +289,7 @@ async function keepToken(
 
 /** Refresh a connection's token, recording a failure other than a refused grant and waiting before the next try. */
 async function refresh(
-    system: CallServer,
+    system: Omit<ObjectStore, "router">,
     row: Connection,
     tokens: TokenSource,
     now: number,
@@ -321,7 +323,7 @@ async function refresh(
 async function lend(
     row: Connection,
     tokens: TokenSource,
-    system: CallServer,
+    system: Omit<ObjectStore, "router">,
     now: number,
 ): Promise<Token> {
     // require an authorized connection holding a token

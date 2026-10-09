@@ -14,7 +14,7 @@ import {
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
 import { defineObject, INTRINSIC } from "@destack/object";
-import { ObjectServer } from "@destack/object/server";
+import { ObjectStore } from "@destack/object/server";
 import type {} from "@destack/package/import-meta";
 import { present, schema } from "@destack/schema";
 import { binding, capture, deployment, installation } from "@destack/space/object";
@@ -300,8 +300,8 @@ export interface ConnectionFixtureOptions {
 export class ConnectionFixture {
     /** The database. */
     readonly database: DatabaseConnection;
-    /** The object server keeping the connections. */
-    readonly objects: ObjectServer;
+    /** The object store keeping the connections. */
+    readonly objects: ObjectStore;
     /** The connections' tokens. */
     readonly tokens: TokenSource;
     /** The lender of the connections. */
@@ -444,8 +444,8 @@ export class ConnectionFixture {
         keystore: VaultKeystore,
         home: ConnectionFixtureOptions["home"],
         scope: ObjectReference,
-    ): ObjectServer {
-        return new ObjectServer({
+    ): ObjectStore {
+        return new ObjectStore({
             principal: principal.space.reference(Scope.universe.id, scope.id),
             objects: {
                 ...serveConnections(tokens),
@@ -471,9 +471,9 @@ export class ConnectionFixture {
     }
 
     /** Answer clients sending their principal, leaving the controllers to the test. */
-    static #serve(objects: ObjectServer): Server {
+    static #serve(objects: ObjectStore): Server {
         return Server.start({
-            ...objects.implement(connectionService),
+            ...objects.implement(connectionService, objects.routed, objects.controllers(), {}),
             controllers: [],
             audience: connectionService.package.id,
             drainTimeout: 1000,
@@ -605,29 +605,30 @@ export class ConnectionFixture {
     async staticIntegration(
         visibility: Integration["visibility"] = "private",
     ): Promise<ObjectReference> {
-        const created = await this.objects.call(
-            integration,
-            "create",
-            {
-                scope: this.scope.id,
-                requestId: RequestId.create(),
-                issuer: ISSUER,
-                endpoints: {
-                    authorization: `${ISSUER}/authorize`,
-                    token: `${ISSUER}/token`,
-                    revocation: `${ISSUER}/revoke`,
-                    deviceAuthorization: `${ISSUER}/device`,
-                    isIssuerReturned: true,
-                },
-                clientId: "static-client",
-                authentication: "client_secret_basic",
-                redirectUris: ["https://app.test/callback"],
-                vault: this.vaultReference,
-                secret: this.server.clientSecret,
-                visibility,
-            },
-            this.context(),
-        );
+        const created = await this.objects
+            .mutate(this.context().caller(), {
+                id: RequestId.create(),
+                calls: [
+                    integration.call("create", {
+                        scope: this.scope.id,
+                        issuer: ISSUER,
+                        endpoints: {
+                            authorization: `${ISSUER}/authorize`,
+                            token: `${ISSUER}/token`,
+                            revocation: `${ISSUER}/revoke`,
+                            deviceAuthorization: `${ISSUER}/device`,
+                            isIssuerReturned: true,
+                        },
+                        clientId: "static-client",
+                        authentication: "client_secret_basic",
+                        redirectUris: ["https://app.test/callback"],
+                        vault: this.vaultReference,
+                        secret: this.server.clientSecret,
+                        visibility,
+                    }),
+                ],
+            })
+            .then(([written]) => written);
 
         return integration.reference(this.scope.id, created.id);
     }

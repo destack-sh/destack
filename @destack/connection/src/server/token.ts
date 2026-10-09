@@ -1,6 +1,6 @@
 import type { connect } from "../client/client.ts";
 import { and, eq } from "@destack/db";
-import type { Condition, CallServer } from "@destack/object";
+import type { Condition } from "@destack/object";
 import { aligned, type Identifier, type JsonValue, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import type { ObjectReference, Subject } from "@destack/sync";
@@ -21,6 +21,8 @@ import { Assertion } from "../oauth/assertion.ts";
 import type { Fetch } from "@destack/service";
 import { AuthorizationServer, JWT_BEARER, TOKEN_EXCHANGE } from "../oauth/server.ts";
 import { Secret } from "@destack/vault/server";
+import type { ObjectStore } from "@destack/object/server";
+import { Caller } from "@destack/access";
 
 /** How long before its expiry an access token is refreshed: a minute, as client libraries refresh ahead of clock drift and request time. */
 export const REFRESH_MARGIN = 60_000;
@@ -80,7 +82,11 @@ export class TokenSource {
     }
 
     /** Read a connection's credential, refreshing a token that expires within the margin. */
-    async current(system: CallServer, row: Connection, now: number): Promise<Credential> {
+    async current(
+        system: Omit<ObjectStore, "router">,
+        row: Connection,
+        now: number,
+    ): Promise<Credential> {
         // send supplied material and a token that stays valid
         const credential = await this.read(system, row);
         const expiresAt = credential.token?.expiresAt;
@@ -96,7 +102,11 @@ export class TokenSource {
     }
 
     /** Refresh a connection's token once at a time, writing it to the vault and the expiry to the connection. */
-    refresh(system: CallServer, row: Connection, now: number): Promise<Credential> {
+    refresh(
+        system: Omit<ObjectStore, "router">,
+        row: Connection,
+        now: number,
+    ): Promise<Credential> {
         // join a refresh in flight as a rotated refresh token is used once (RFC 9700 4.14)
         const flying = this.#refreshing.get(row.id);
         if (flying !== undefined) {
@@ -114,7 +124,7 @@ export class TokenSource {
 
     /** Read a connection's credential from its vault, empty before the first write. */
     async read(
-        system: CallServer,
+        system: Omit<ObjectStore, "router">,
         row: { readonly id: string; readonly vault: ObjectReference },
     ): Promise<Credential> {
         const { consumer } = this.options;
@@ -125,7 +135,7 @@ export class TokenSource {
 
     /** Read an integration as its connections' client: here with the secret its vault keeps, or through its home for a copy. */
     async integration(
-        system: CallServer,
+        system: Omit<ObjectStore, "router">,
         reference: ObjectReference | null,
     ): Promise<IntegrationClient> {
         // require the integration
@@ -166,7 +176,10 @@ export class TokenSource {
     }
 
     /** Address a kept integration's authorization server as its client, with the secret its vault keeps. */
-    async local(system: CallServer, row: Integration): Promise<AuthorizationServer> {
+    async local(
+        system: Omit<ObjectStore, "router">,
+        row: Integration,
+    ): Promise<AuthorizationServer> {
         return this.server(row, await this.#secret(system, row));
     }
 
@@ -178,7 +191,7 @@ export class TokenSource {
             readonly redirectUri: string;
             readonly vault: ObjectReference | null;
         },
-        system: CallServer,
+        system: Omit<ObjectStore, "router">,
     ): Promise<Integration> {
         // register at the home as this space
         const home = this.options.home;
@@ -191,13 +204,15 @@ export class TokenSource {
         }
 
         // register here as the system of the scope
-        const [registered] = await system.execute(
-            system.principal,
-            integration,
-            "register",
-            [{ scope, input: request }],
-            system.clock(),
-        );
+        const [registered] = await system.mutate(Caller.of(system.principal, system.clock()), {
+            id: RequestId.create(),
+            calls: [
+                integration.call("register", {
+                    ...integration.target({ scope }),
+                    ...request,
+                }),
+            ],
+        });
 
         return present(registered, `the client registered in ${scope}`);
     }
@@ -217,7 +232,7 @@ export class TokenSource {
 
     /** Keep a credential in a connection's vault. */
     async write(
-        system: CallServer,
+        system: Omit<ObjectStore, "router">,
         row: { readonly id: string; readonly vault: ObjectReference },
         credential: Credential,
     ): Promise<void> {
@@ -232,7 +247,7 @@ export class TokenSource {
 
     /** Record a connection's Authorized condition with the fields an authorization writes, refusing a connection gone meanwhile. */
     async observe(
-        system: CallServer,
+        system: Omit<ObjectStore, "router">,
         row: Connection,
         authorized: Condition,
         fields: Readonly<Record<string, JsonValue>>,
@@ -248,23 +263,17 @@ export class TokenSource {
         }
 
         // observe it at that revision
-        await system.execute(
-            system.principal,
-            connection,
-            "observe",
-            [
-                {
-                    scope: current.scope,
-                    target: current,
-                    input: {
-                        observedGeneration: current.generation,
-                        conditions: { Authorized: authorized },
-                        fields,
-                    },
-                },
+        await system.mutate(Caller.of(system.principal, now), {
+            id: RequestId.create(now),
+            calls: [
+                connection.call("observe", {
+                    ...connection.target(current),
+                    observedGeneration: current.generation,
+                    conditions: { Authorized: authorized },
+                    fields,
+                }),
             ],
-            now,
-        );
+        });
     }
 
     /** Address an integration's authorization server as its client, with its secret or as a public client. */
@@ -285,14 +294,21 @@ export class TokenSource {
     }
 
     /** Read a kept integration's secret from its vault, absent for a public client. */
-    async #secret(system: CallServer, row: Integration): Promise<string | undefined> {
+    async #secret(
+        system: Omit<ObjectStore, "router">,
+        row: Integration,
+    ): Promise<string | undefined> {
         return row.vault === null
             ? undefined
             : Secret.read(system, row.vault, TokenSource.secret(row.id), this.options.consumer);
     }
 
     /** Obtain a new token for a connection, keep it, and mark the connection authorized or its grant expired. */
-    async #refresh(system: CallServer, row: Connection, now: number): Promise<Credential> {
+    async #refresh(
+        system: Omit<ObjectStore, "router">,
+        row: Connection,
+        now: number,
+    ): Promise<Credential> {
         // obtain the token and mark a refused grant expired for a person to authorize again
         const credential = await this.read(system, row);
         let token: Token;
@@ -334,7 +350,7 @@ export class TokenSource {
 
     /** Obtain a new token the way a connection's kind does. */
     async #obtain(
-        system: CallServer,
+        system: Omit<ObjectStore, "router">,
         row: Connection,
         credential: Credential,
         now: number,
@@ -406,7 +422,11 @@ export class TokenSource {
     }
 
     /** Read the current access token of a token exchange's source connection. */
-    async #source(system: CallServer, reference: ObjectReference, now: number): Promise<string> {
+    async #source(
+        system: Omit<ObjectStore, "router">,
+        reference: ObjectReference,
+        now: number,
+    ): Promise<string> {
         // read the source connection's current token
         const rows = await system.database
             .select()

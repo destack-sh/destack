@@ -1,4 +1,4 @@
-import type { CallOf, PreparedCallOf, ResultOf, CallServer } from "@destack/object";
+import type { CallOf, PreparedCallOf, ResultOf } from "@destack/object";
 import { present } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import type { ObjectReference } from "@destack/sync";
@@ -8,6 +8,7 @@ import { TokenGrant } from "../oauth/grant.ts";
 import { AuthorizationServer } from "../oauth/server.ts";
 import { TokenSource } from "./token.ts";
 import { Secret } from "@destack/vault/server";
+import type { ObjectStore } from "@destack/object/server";
 
 /** Serve integrations, keeping each one's client secret or private key in its vault as the service. */
 export function serveIntegrations(tokens: TokenSource): typeof integration {
@@ -51,7 +52,7 @@ export function serveIntegrations(tokens: TokenSource): typeof integration {
                     present(call.id, "a registered client's identifier"),
                     call.input,
                     tokens,
-                    call.requireServer(),
+                    call.requireStore(),
                 ),
             handler: (call, next) => {
                 const { vault, ...registration } = call.prepared;
@@ -88,7 +89,7 @@ async function keepSecret(
     if (vault !== undefined && secret !== undefined) {
         const id = present(call.id, "a prepared creation's identifier");
         const { consumer } = tokens.options;
-        await Secret.keep(call.requireServer(), vault, TokenSource.secret(id), secret, consumer);
+        await Secret.keep(call.requireStore(), vault, TokenSource.secret(id), secret, consumer);
     }
 
     return {};
@@ -106,7 +107,7 @@ async function destroy(
     if (target.vault !== null) {
         const secret = TokenSource.secret(target.id);
         const { consumer } = tokens.options;
-        await Secret.destroy(call.requireServer(), target.vault, secret, consumer);
+        await Secret.destroy(call.requireStore(), target.vault, secret, consumer);
     }
 
     return deleted;
@@ -122,7 +123,7 @@ async function register(
         readonly vault: ObjectReference | null;
     },
     tokens: TokenSource,
-    system: CallServer,
+    system: Omit<ObjectStore, "router">,
 ): Promise<Registration> {
     // find the resource's authorization server and its registration endpoint
     const { fetch, consumer } = tokens.options;
@@ -180,5 +181,5 @@ async function client(
 ): Promise<AuthorizationServer> {
     const target = call.requireTarget();
 
-    return tokens.local(call.requireServer(), target);
+    return tokens.local(call.requireStore(), target);
 }

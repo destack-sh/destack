@@ -1,4 +1,4 @@
-import { principal } from "@destack/access";
+import { principal, Caller } from "@destack/access";
 import { and, eq } from "@destack/db";
 import {
     type CallOf,
@@ -25,6 +25,7 @@ import {
 import { Pkce } from "../oauth/pkce.ts";
 import { DEVICE_CODE } from "../oauth/server.ts";
 import { PERSON_KINDS, TokenSource } from "./token.ts";
+import { RequestId } from "@destack/service/request";
 
 /** The random bytes of a state, 256 bits. */
 const STATE_BYTES = 32;
@@ -67,7 +68,7 @@ async function startPage(
         target.integration === null ? await register(call, target, redirectUri, tokens) : undefined;
     const client =
         registered === undefined
-            ? await tokens.integration(call.requireServer(), target.integration)
+            ? await tokens.integration(call.requireStore(), target.integration)
             : { integration: registered, server: tokens.server(registered, undefined) };
     if (!client.integration.redirectUris.includes(redirectUri)) {
         throw new ServiceError("BAD_REQUEST", {
@@ -107,7 +108,7 @@ async function startDevice(
 ): Promise<AuthorizationStart> {
     // ask the integration's server for a device code
     const target = call.requireTarget();
-    const client = await tokens.integration(call.requireServer(), target.integration);
+    const client = await tokens.integration(call.requireStore(), target.integration);
     const device = await client.server.authorizeDevice(target.scopes, target.resource ?? undefined);
 
     return { kind: "device", ...device };
@@ -133,7 +134,7 @@ async function register(
             : { scope: present(call.chain[1], `the scope enclosing ${call.scope}`), vault: null };
     const request = { resource, redirectUri, vault: placement.vault };
 
-    return tokens.register(placement.scope, request, call.requireServer());
+    return tokens.register(placement.scope, request, call.requireStore());
 }
 
 /** Record a started authorization bound to the person and session starting it, and the client a registration created. */
@@ -150,23 +151,24 @@ export async function started(
     // record the request as the person and session starting it
     const caller = requirePerson(call);
     const person = { parentId: target.id, userId: caller.userId, session: caller.session };
-    const requests = call.invoke(authorizationRequest);
 
-    // keep a page authorization's state, redirect and verifier
-    if (prepared.kind === "page") {
-        const { state, redirectUri, verifier } = prepared;
-        await requests.start({ ...person, kind: "page", state, redirectUri, verifier });
-    }
-    // keep an installation's state and redirect
-    else if (prepared.kind === "installation") {
-        const { state, redirectUri } = prepared;
-        await requests.start({ ...person, kind: "installation", state, redirectUri });
-    }
-    // keep a device authorization's code and interval
-    else {
-        const { deviceCode, interval } = prepared;
-        await requests.start({ ...person, kind: "device", deviceCode, interval });
-    }
+    // keep a page's state, redirect and verifier, an installation's state and redirect, or a device's code and interval
+    const request =
+        prepared.kind === "page"
+            ? {
+                  kind: prepared.kind,
+                  state: prepared.state,
+                  redirectUri: prepared.redirectUri,
+                  verifier: prepared.verifier,
+              }
+            : prepared.kind === "installation"
+              ? { kind: prepared.kind, state: prepared.state, redirectUri: prepared.redirectUri }
+              : {
+                    kind: prepared.kind,
+                    deviceCode: prepared.deviceCode,
+                    interval: prepared.interval,
+                };
+    await call.mutate(call.caller, [authorizationRequest.call("start", { ...person, ...request })]);
 
     return prepared.kind === "device"
         ? { url: prepared.url, userCode: prepared.userCode }
@@ -191,7 +193,7 @@ export async function exchange(
     }
 
     // require the issuer the server returns to be the integration's (RFC 9207 2.4)
-    const client = await tokens.integration(call.requireServer(), target.integration);
+    const client = await tokens.integration(call.requireStore(), target.integration);
     requireIssuer(client.integration, parameters["iss"]);
 
     // refuse a server's error redirect
@@ -218,7 +220,7 @@ export async function exchange(
         code_verifier: present(request.verifier, "the request's code verifier"),
         ...(target.resource === null ? {} : { resource: target.resource }),
     });
-    const system = call.requireServer();
+    const system = call.requireStore();
     await tokens.write(system, target, { ...(await tokens.read(system, target)), token });
 
     return {
@@ -235,7 +237,7 @@ export async function complete(
     // use the request up
     const target = call.requireTarget();
     const grant = call.prepared;
-    await call.invoke(authorizationRequest).delete({ id: grant.request });
+    await call.mutate(call.caller, [authorizationRequest.call("delete", { id: grant.request })]);
 
     // record the granted account, scopes and expiry with the Authorized condition
     return call.updateStatus({
@@ -271,7 +273,7 @@ export async function poll(
     });
 
     // ask for the token, waiting while the person has yet to approve
-    const client = await tokens.integration(reconciliation.server, row.integration);
+    const client = await tokens.integration(reconciliation.store, row.integration);
     let answer: Token | ConnectionError;
     try {
         answer = await client.server.token({
@@ -304,25 +306,22 @@ async function settle(
     tokens: TokenSource,
 ): Promise<void> {
     // use the request up
-    const { server, now } = reconciliation;
-    await server.execute(
-        server.principal,
-        authorizationRequest,
-        "delete",
-        [{ scope: row.scope, target: request, input: {} }],
-        now,
-    );
+    const { store, now } = reconciliation;
+    await store.mutate(Caller.of(store.principal, now), {
+        id: RequestId.create(now),
+        calls: [authorizationRequest.call("delete", authorizationRequest.target(request))],
+    });
 
     // record a denied or expired authorization
     if (answer instanceof ConnectionError) {
         const denied = { status: "false" as const, reason: "Denied", message: answer.message };
-        await tokens.observe(server, row, denied, {}, now);
+        await tokens.observe(store, row, denied, {}, now);
     }
     // keep the token and mark the connection authorized
     else {
-        await tokens.write(server, row, { ...(await tokens.read(server, row)), token: answer });
+        await tokens.write(store, row, { ...(await tokens.read(store, row)), token: answer });
         await tokens.observe(
-            server,
+            store,
             row,
             { status: "true", reason: "Authorized", message: "" },
             { expiresAt: answer.expiresAt ?? null, scopes: answer.scopes ?? row.scopes },
@@ -350,15 +349,14 @@ function requirePerson(call: CallOf<typeof connection, "authorize" | "complete">
     readonly session: string;
 } {
     // require a person calling in a session
-    const caller = call.caller;
-    const session = call.requireAuthorization().context(call.scope).session;
-    if (caller === undefined || !principal.user.is(caller) || session === undefined) {
+    const { subject, session } = call.caller;
+    if (subject === undefined || !principal.user.is(subject) || session === undefined) {
         throw new ServiceError("FORBIDDEN", {
             message: "a person authorizes a connection in a signed-in session",
         });
     }
 
-    return { userId: caller.id, session };
+    return { userId: subject.id, session };
 }
 
 /** Find a connection's pending browser authorization by its state. */

@@ -3,9 +3,29 @@
 `@destack/connection` is Nango: an `integration` is a Nango integration, the OAuth client registered at a provider, a `connection` is a Nango connection holding one external account's credential in a vault, and `Lender.lend` is Nango's proxy, applying the credential to an outbound request and refreshing it before it expires.
 
 ```ts
-await client.integration.create({ scope, requestId, issuer, endpoints, clientId, authentication: "client_secret_basic", redirectUris, vault, secret, visibility: "private" }); // a Nango integration
-await client.connection.create({ scope, requestId, protocol: { kind: "authorization-code" }, resource, vault }); // a Nango connection
-const { url } = await client.connection.authorize({ scope, id, requestId, redirectUri }); // Nango's auth flow
+// a Nango integration
+await client.integration.create({
+    scope,
+    requestId,
+    issuer,
+    endpoints,
+    clientId,
+    authentication: "client_secret_basic",
+    redirectUris,
+    vault,
+    secret,
+    visibility: "private",
+});
+// a Nango connection
+await client.connection.create({
+    scope,
+    requestId,
+    protocol: { kind: "authorization-code" },
+    resource,
+    vault,
+});
+// Nango's auth flow
+const { url } = await client.connection.authorize({ scope, id, requestId, redirectUri });
 const loan = await lender.lend(reference, request, Date.now()); // Nango's proxy
 await client.connection.revoke({ scope, id, requestId }); // RFC 7009 revocation
 ```
@@ -18,7 +38,9 @@ A `connection` keeps the credential of one external account in a vault of its sc
 const { id } = await client.connection.create({
     scope: spaceId,
     requestId: RequestId.create(),
-    protocol: { kind: "key", header: "x-api-key" }, // or signature, sigv4, jwt, authorization-code, client-credentials, device-code, token-exchange, mtls
+    // or signature, sigv4, jwt, authorization-code, client-credentials, device-code,
+    // token-exchange, mtls
+    protocol: { kind: "key", header: "x-api-key" },
     material: { kind: "key", key },
     vault: vault.reference(spaceId, vaultId),
 });
@@ -29,7 +51,13 @@ const { id } = await client.connection.create({
 A connection to a `resource` without an integration registers a client at the resource's authorization server, as MCP clients do (RFC 9728, RFC 8414, RFC 7591).
 
 ```ts
-await client.connection.create({ scope, requestId, protocol: { kind: "authorization-code" }, resource: "https://mcp.example.com/mcp", vault });
+await client.connection.create({
+    scope,
+    requestId,
+    protocol: { kind: "authorization-code" },
+    resource: "https://mcp.example.com/mcp",
+    vault,
+});
 ```
 
 ## Service
@@ -39,7 +67,13 @@ await client.connection.create({ scope, requestId, protocol: { kind: "authorizat
 ```ts
 import { implementConnections } from "@destack/connection/server";
 
-const connections = implementConnections({ space: spaceId, consumer: machine, fetch, issuers: [], home });
+const connections = implementConnections({
+    space: spaceId,
+    consumer: machine,
+    fetch,
+    issuers: [],
+    home,
+});
 const lender = connections.lender(server);
 ```
 
@@ -62,5 +96,8 @@ await github.request("GET", "/repos/acme/site", token.accessToken);
 ```ts
 import { connectionTables, integrationTables } from "@destack/connection/stack";
 
-const space = defineDatabase({ name: "space", tables: [...connectionTables, ...integrationTables] });
+const space = defineDatabase({
+    name: "space",
+    tables: [...connectionTables, ...integrationTables],
+});
 ```

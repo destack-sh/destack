@@ -1,6 +1,6 @@
+import { Caller } from "@destack/access";
 import { and, type DatabaseConnection, eq } from "@destack/db";
-import type { CallServer } from "@destack/object";
-import type { ObjectServer } from "@destack/object/server";
+import type { ObjectStore } from "@destack/object/server";
 import { schema } from "@destack/schema";
 import type { ObjectReference, Subject } from "@destack/sync";
 import { ConnectionError } from "../error/error.ts";
@@ -8,18 +8,15 @@ import { ConnectionRequest } from "../lend/lend.ts";
 import { type Connection, type ConnectionKind, connection } from "../object/connection.ts";
 import type { TokenSource } from "./token.ts";
 
-/** The server a lender borrows through: the system executor, and the authorizer deciding a consumer's lend permission. */
-export type LendingServer = CallServer & Pick<ObjectServer, "authorizeSubject">;
-
 /** The machine side of lending: it applies a connection's current credential to an installation's outbound request, which never sees the credential. */
 export class Lender {
-    /** The object server keeping the connections. */
-    readonly #system: LendingServer;
+    /** The object store keeping the connections. */
+    readonly #system: Omit<ObjectStore, "router">;
     /** The connections' current tokens, refreshed once per connection with the controller. */
     readonly #tokens: TokenSource;
 
-    /** Lend the connections an object server keeps. */
-    constructor(system: LendingServer, tokens: TokenSource) {
+    /** Lend the connections an object store keeps. */
+    constructor(system: Omit<ObjectStore, "router">, tokens: TokenSource) {
         this.#system = system;
         this.#tokens = tokens;
     }
@@ -81,7 +78,13 @@ export class Lender {
     async #isConsumer(row: Connection, consumer: Subject): Promise<boolean> {
         // decide the consumer's lend permission on the connection
         const { database } = this.#system;
-        const authorization = await this.#system.authorizeSubject(database, row.scope, consumer);
+        const now = this.#system.clock();
+        const authorization = await this.#system.authorize(
+            database,
+            row.scope,
+            Caller.of(consumer, now),
+            { now },
+        );
         const decision = await authorization.check(
             connection.permission("lend"),
             connection.reference(row.scope, row.id),

@@ -17,19 +17,20 @@ async function createKey(
     fixture: ConnectionFixture,
     input: Readonly<Record<string, unknown>> = {},
 ) {
-    const created = await fixture.objects.call(
-        connection,
-        "create",
-        {
-            scope: fixture.scope.id,
-            requestId: RequestId.create(),
-            vault: fixture.vaultReference,
-            protocol: { kind: "key", header: "x-api-key" },
-            material: { kind: "key", key: "sk-test-0123456789" },
-            ...input,
-        },
-        fixture.context(),
-    );
+    const created = await fixture.objects
+        .mutate(fixture.context().caller(), {
+            id: RequestId.create(),
+            calls: [
+                connection.call("create", {
+                    scope: fixture.scope.id,
+                    vault: fixture.vaultReference,
+                    protocol: { kind: "key", header: "x-api-key" },
+                    material: { kind: "key", key: "sk-test-0123456789" },
+                    ...input,
+                }),
+            ],
+        })
+        .then(([written]) => written);
     await fixture.control();
 
     return created.id;
@@ -48,12 +49,15 @@ test("lend a connection to an installation's calls only while it is bound to tha
                 .then((loan) => loan.request.headers.get("x-api-key")),
         );
     const change = (name: "bindConsumer" | "releaseConsumer") =>
-        fixture.objects.call(
-            connection,
-            name,
-            { scope: fixture.scope.id, requestId: RequestId.create(), id, consumer: borrower },
-            fixture.context(),
-        );
+        fixture.objects.mutate(fixture.context().caller(), {
+            id: RequestId.create(),
+            calls: [
+                connection.call(name, {
+                    ...connection.target({ scope: fixture.scope.id, id }),
+                    consumer: borrower,
+                }),
+            ],
+        });
 
     // refuse before lending, lend to the borrower alone, and refuse again once reclaimed
     const before = await lend(borrower);

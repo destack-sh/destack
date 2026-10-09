@@ -1,10 +1,10 @@
 import type { Identifier } from "@destack/schema";
-import type { Extension } from "@destack/object/server";
+import type { ObjectExtension, ObjectStore } from "@destack/object/server";
 import { connection } from "../object/connection.ts";
 import { connectionService } from "../service/index.ts";
 import { serveIntegrations } from "./integration.ts";
 import { IntegrationCopy, integrationShape, connectionShape } from "./copy.ts";
-import { Lender, type LendingServer } from "./lender.ts";
+import { Lender } from "./lender.ts";
 import { serveConnections } from "./server.ts";
 import { TokenSource, type TokenSourceOptions } from "./token.ts";
 
@@ -15,9 +15,9 @@ export interface ConnectionOptions extends TokenSourceOptions {
 }
 
 /** The connection extension of a space, with the lender the machine's egress lends its connections through. */
-export interface ConnectionImplementation extends Extension {
-    /** Lend the space's connections through its server, applying their credentials to its installations' outbound calls. */
-    lender(server: LendingServer): Lender;
+export interface ConnectionImplementation extends ObjectExtension {
+    /** Lend the space's connections through its store, applying their credentials to its installations' outbound calls. */
+    lender(store: Omit<ObjectStore, "router">): Lender;
 }
 
 /** Implement the connection service: keep a space's connections, their credentials current, and lend them to the machine's egress; keep the space's integrations where it has no home, else copy them from it. */
@@ -42,6 +42,6 @@ export function implementConnections(options: ConnectionOptions): ConnectionImpl
                   subscriptions: (objects) =>
                       IntegrationCopy.subscriptions(objects.database, space, home),
               }),
-        lender: (server) => new Lender(server, tokens),
+        lender: (store) => new Lender(store, tokens),
     };
 }
