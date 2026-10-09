@@ -3,11 +3,19 @@
 `@destack/audit` is Google Cloud Audit Logs, with `activity`, `access` and `denial` calls as its Admin Activity, Data Access and Policy Denied logs kept 400 days, and `Journal` is Stripe's idempotency keys, running each request once and replaying its outcome to retries.
 
 ```ts
-export const noteRename = defineAuditAction({ name: "note.rename", target, details }); // the log entry's methodName
-await recorder.record(transaction, noteRename, { target, details, outcome: { kind: "success" } }); // Admin Activity
+// the log entry's methodName
+export const noteRename = defineAuditAction({ name: "note.rename", target, details });
+// Admin Activity
+await recorder.record(transaction, noteRename, { target, details, outcome: { kind: "success" } });
 await recorder.read(openSecret, { target, details: {} }, () => secrets.get(id)); // Data Access
 await calls.execute(request, fingerprint, { authorize, run }); // Stripe's idempotent request
-await events.query({ kind: "call", scope: organisationId, within: true, where: 'outcome = "denied"' }); // Policy Denied
+// Policy Denied
+await events.query({
+    kind: "call",
+    scope: organisationId,
+    within: true,
+    where: 'outcome = "denied"',
+});
 ```
 
 ## Actions
@@ -32,7 +40,8 @@ import { journal } from "@destack/audit/stack";
 
 export const main = defineDatabase({ name: "main", tables: [journal, ...page.tables] });
 const calls = new Journal(database, callKey);
-await calls.replay(request, fingerprint); // the recorded results, or undefined before the request ran
+// the recorded results, or undefined before the request ran
+await calls.replay(request, fingerprint);
 ```
 
 ## Recorders
@@ -43,7 +52,10 @@ await calls.replay(request, fingerprint); // the recorded results, or undefined 
 const audit = AuditRecorder.service(calls, { package: pagesService.package, service: "pages" });
 const recorder = audit(spaceId, context);
 const own = audit(spaceId, { as: installation, component: "ReminderController" });
-Server.start({ ...options, audit: AuditRecorder.procedure(({ context }) => recorderOf(context), { isAccessAudited }) });
+Server.start({
+    ...options,
+    audit: AuditRecorder.procedure(({ context }) => recorderOf(context), { isAccessAudited }),
+});
 ```
 
 ## History

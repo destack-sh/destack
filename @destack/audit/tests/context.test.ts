@@ -56,7 +56,7 @@ test("persist verified caller identities, record an unauthenticated caller as an
                 resources: new ResourceContext(),
             });
             const recorder = AuditRecorder.from(
-                request.authentication,
+                request.caller(),
                 storage.journal,
                 origin,
                 request.requestId,
@@ -79,7 +79,7 @@ test("persist verified caller identities, record an unauthenticated caller as an
             }),
         });
         const recorder = AuditRecorder.from(
-            rejected.authentication,
+            { subjects: [] },
             storage.journal,
             origin,
             rejected.requestId,

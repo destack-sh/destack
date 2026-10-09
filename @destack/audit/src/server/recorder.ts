@@ -4,26 +4,22 @@ import { AuditContext } from "../record/context.ts";
 import { AuditExecution, type AuditTarget } from "../record/execution.ts";
 import { v7 } from "uuid";
 import { schema, canonicalize, JsonValue, type JsonObject } from "@destack/schema";
-import { Failure, Outcome, type Subject } from "@destack/sync";
+import { Failure, Outcome, Subject } from "@destack/sync";
 import { denialOf, ServiceError } from "@destack/service";
-import type { Authentication } from "@destack/service/authentication";
-import {
-    type ProcedureAudit,
-    type ProcedureCall,
-    type ServiceContext,
-} from "@destack/service/server";
+import type { Caller } from "@destack/access";
+import { type ProcedureAudit, type ProcedureCall } from "@destack/service/server";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
 import type { AuditAction } from "../declare/action.ts";
 import { AuditError } from "../error/index.ts";
 import { serviceInvoke } from "../record/action.ts";
 
 /** The machine-selected origin of calls. */
-export type AuditOrigin = Omit<AuditContext, "caller" | "component" | "deploymentId" | "traceId">;
+export type AuditOrigin = Omit<AuditContext, "caller" | "deploymentId" | "traceId">;
 
-/** A principal running its own code, and the component of that code making its calls. */
-export interface AuditPrincipal {
-    /** The principal the calls run as. */
-    readonly as: Subject;
+/** What a recorder records about the calls beside their caller: the request they answer, and the component of a principal's own code making them. */
+export interface AuditCalled {
+    /** The request the calls answer. */
+    readonly requestId?: string;
     /** The code making the calls, such as a controller's name. */
     readonly component?: string;
 }
@@ -87,37 +83,35 @@ export class AuditRecorder<Transaction = never> {
     /** The writer calls go to. */
     readonly #writer: AuditWriter<Transaction>;
 
-    /** Record under a verified caller, or none, with the active trace. */
+    /** Record a caller's calls: the represented subject and its delegates, or anyone for an anonymous caller, with the credential, deployment and Loan it presented. */
     static from<Transaction>(
-        caller: Authentication | null,
+        caller: Caller,
         writer: AuditWriter<Transaction>,
         origin: AuditOrigin,
         requestId?: string,
     ): AuditRecorder<Transaction> {
         // record the represented subject and its delegates, or anyone, and read who acted
-        const claims = caller?.claims;
+        const { subject, delegates, credential, loan } = caller;
         const recorded: AuditCaller =
-            claims === undefined
+            subject === undefined
                 ? AuditCaller.anyone
-                : {
-                      subject: claims.subject,
-                      ...(claims.delegates === undefined ? {} : { delegates: claims.delegates }),
-                  };
-        const acting = claims === undefined ? undefined : AuditCaller.actor(recorded).subject;
+                : { subject, ...(delegates === undefined ? {} : { delegates: [...delegates] }) };
+        const acting = subject === undefined ? undefined : AuditCaller.actor(recorded).subject;
 
         // select the deployment the acting workload ran, and the session or token the caller presented
-        const deploymentId = acting === undefined ? undefined : caller?.deployment(acting);
-        const presented = caller?.credential.id;
-        const session = schema.identifier("session").safeParse(presented);
-        const token = schema.identifier("token").safeParse(presented);
+        const deploymentId =
+            acting === undefined
+                ? undefined
+                : caller.deployments?.find((entry) => Subject.same(entry.subject, acting))?.id;
+        const session = schema.identifier("session").safeParse(credential?.id);
+        const token = schema.identifier("token").safeParse(credential?.id);
         const span = trace.getSpanContext(context.active());
 
-        // read the request's session, token and trace
+        // read the caller's session, token and trace
         const sessionId = session.success ? session.data : origin.sessionId;
-        const clientId = caller?.credential.client ?? origin.clientId;
+        const clientId = credential?.client ?? origin.clientId;
         const tokenId = token.success ? token.data : origin.tokenId;
         const traceId = span && isSpanContextValid(span) ? span.traceId : undefined;
-        const loan = claims?.loan;
 
         return new AuditRecorder(
             {
@@ -135,40 +129,22 @@ export class AuditRecorder<Transaction = never> {
         );
     }
 
-    /** Open a recorder of a service's calls in a scope, for a request's caller or a principal running its own code. */
+    /** Open a recorder of a service's calls in a scope, for a caller, its request and the component of a principal running its own code. */
     static service<Transaction>(
         writer: AuditWriter<Transaction>,
         origin: Omit<AuditOrigin, "scope">,
-    ): (scope: string, caller: ServiceContext | AuditPrincipal) => AuditRecorder<Transaction> {
-        return (scope, caller) =>
-            "as" in caller
-                ? AuditRecorder.as(writer, { ...origin, scope }, caller)
-                : AuditRecorder.from(
-                      caller.authenticationError === undefined ? caller.authentication : null,
-                      writer,
-                      { ...origin, scope },
-                      caller.requestId,
-                  );
-    }
-
-    /** Record as a principal running its own code, naming the component making the calls, with the active trace. */
-    static as<Transaction>(
-        writer: AuditWriter<Transaction>,
-        origin: AuditOrigin,
-        principal: AuditPrincipal,
-    ): AuditRecorder<Transaction> {
-        const span = trace.getSpanContext(context.active());
-        const { as, component } = principal;
-
-        return new AuditRecorder(
-            {
-                ...origin,
-                caller: { subject: as },
-                ...(component === undefined ? {} : { component }),
-                ...(span && isSpanContextValid(span) ? { traceId: span.traceId } : {}),
-            },
-            writer,
-        );
+    ): (scope: string, caller: Caller, called?: AuditCalled) => AuditRecorder<Transaction> {
+        return (scope, caller, called = {}) =>
+            AuditRecorder.from(
+                caller,
+                writer,
+                {
+                    ...origin,
+                    scope,
+                    ...(called.component === undefined ? {} : { component: called.component }),
+                },
+                called.requestId,
+            );
     }
 
     /** Record a procedure call after it ends: writes, audited reads and denials. */
