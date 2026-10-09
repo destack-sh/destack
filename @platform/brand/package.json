@@ -1,0 +1,17 @@
+{
+    "name": "@platform/brand",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Destack's mark, app icons, favicons and social banners.",
+    "exports": {
+        "./mark.svg": "./mark.svg",
+        "./icon/*": "./icon/*",
+        "./favicon/*": "./favicon/*",
+        "./banner/*": "./banner/*"
+    },
+    "scripts": {
+        "generate": "bun run generate.ts"
+    }
+}
