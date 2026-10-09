@@ -114,6 +114,16 @@ const [open, setOpen] = createControllableSignal({
 });
 ```
 
+## Motion
+
+`createReducedMotion` follows whether the theme holds an element's motion still, from the person's motion setting or the device's preference, where Framer Motion's `useReducedMotion` reads the device alone.
+
+```tsx
+const isStill = createReducedMotion(canvas);
+createTimer(turn, () => (isStill() ? false : 6000), setInterval);
+isMotionReduced(element); // one read, for code outside tracking
+```
+
 ## Data
 
 `useSpace` opens the objects of the view's space, and `useQuery` follows a query.
