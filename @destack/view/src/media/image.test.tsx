@@ -3,22 +3,18 @@ import { render } from "@solidjs/web";
 import { flush } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { Image, Picture } from "./image.tsx";
-import type { ImageAsset } from "./asset.ts";
+import type { ImageMetadata } from "./asset.ts";
 
 /** A hero image the build turned into two widths in three formats, with a blurred rendition. */
-const hero: ImageAsset = {
+const hero: ImageMetadata = {
     src: "/_assets/hero.png",
     width: 1600,
     height: 900,
-    type: "image/png",
-    variants: ["image/avif", "image/webp", "image/png"].flatMap((type) =>
-        [640, 1280].map((width) => ({
-            src: `/_assets/hero-${width}.${type.slice(6)}`,
-            width,
-            type,
-        })),
+    format: "png",
+    srcSet: (["avif", "webp", "png"] as const).flatMap((format) =>
+        [640, 1280].map((width) => ({ src: `/_assets/hero-${width}.${format}`, width, format })),
     ),
-    placeholder: "data:image/webp;base64,UklGRg==",
+    blurDataURL: "data:image/webp;base64,UklGRg==",
 };
 
 /** Render an element into the document and remove it after the test. */
@@ -85,7 +81,7 @@ test("offer a picture's better formats before its original", () => {
 });
 
 test("show an image given by its address at its given dimensions", () => {
-    // render an address with its size and no variants
+    // render an address with its size and no source set
     const image = mount(() => (
         <Image src="/logo.svg" alt="" width={32} height={32} />
     )).querySelector("img");

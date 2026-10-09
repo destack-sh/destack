@@ -1,7 +1,12 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** An image a build generated: its original, its variants by width and format, and a blurred placeholder. */
-export const ImageAsset = defineSchema(
+/** A raster image format, by the name sharp and Astro give it. */
+export const ImageFormat = defineSchema(schema.enum(["avif", "webp", "png", "jpeg", "gif"]));
+/** A raster image format. */
+export type ImageFormat = schema.Infer<typeof ImageFormat>;
+
+/** An image a build generated, after Astro's `ImageMetadata`: its original, its source set by width and format, and Next.js's blurred rendition. */
+export const ImageMetadata = defineSchema(
     schema.object({
         /** The original image's address. */
         src: schema.string().min(1),
@@ -9,25 +14,25 @@ export const ImageAsset = defineSchema(
         width: schema.number().int().positive(),
         /** The intrinsic height in pixels. */
         height: schema.number().int().positive(),
-        /** The original's media type, such as `image/png`. */
-        type: schema.string().min(1),
-        /** The generated variants, each one width in one format. */
-        variants: schema.array(
+        /** The original's format. */
+        format: ImageFormat,
+        /** The generated files, each one width in one format, the original among them. */
+        srcSet: schema.array(
             schema.object({
-                /** The variant's address. */
+                /** The file's address. */
                 src: schema.string().min(1),
-                /** The variant's width in pixels. */
+                /** The file's width in pixels. */
                 width: schema.number().int().positive(),
-                /** The variant's media type, such as `image/avif`. */
-                type: schema.string().min(1),
+                /** The file's format. */
+                format: ImageFormat,
             }),
         ),
         /** A tiny blurred rendition as a data URL, absent when the build made none. */
-        placeholder: schema.string().startsWith("data:").exactOptional(),
+        blurDataURL: schema.string().startsWith("data:").exactOptional(),
     }),
 );
 /** An image a build generated. */
-export type ImageAsset = schema.Infer<typeof ImageAsset>;
+export type ImageMetadata = schema.Infer<typeof ImageMetadata>;
 
-/** An image to show: a build's asset, or an address with its dimensions given beside it. */
-export type ImageSource = ImageAsset | string;
+/** An image to show: a build's image, or an address with its dimensions given beside it. */
+export type ImageSource = ImageMetadata | string;

@@ -11,6 +11,7 @@
         "./inspect": "./src/inspect/index.ts",
         "./router": "./src/router/index.ts",
         "./media": "./src/media/index.ts",
+        "./media/asset": "./src/media/asset.ts",
         "./example": "./src/example/index.ts",
         "./scenario": "./src/scenario/index.ts",
         "./browser": "./src/browser/index.ts",

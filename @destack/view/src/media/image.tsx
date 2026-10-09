@@ -2,16 +2,22 @@ import * as style from "@destack/style";
 import type { JSX } from "@solidjs/web";
 import { For } from "../solid/flow.ts";
 import { createSignal, omit } from "../solid/reactive.ts";
-import type { ImageAsset } from "./asset.ts";
+import type { ImageFormat, ImageMetadata } from "./asset.ts";
 
 /** The formats a picture offers before its original, best first. */
-const PICTURE_TYPES = ["image/avif", "image/webp"];
+const PICTURE_FORMATS: readonly ImageFormat[] = ["avif", "webp"];
 
 /** The format an image prefers for its single source. */
-const IMAGE_TYPE = "image/webp";
+const IMAGE_FORMAT: ImageFormat = "webp";
 
-/** The styles of images. */
+/** The styles of images: a picture and its sources laying the image out as a bare image would, and a blurred placeholder. */
 const styles = style.create({
+    picture: {
+        display: "contents",
+    },
+    source: {
+        display: "none",
+    },
     placeholder: (placeholder: string) => ({
         backgroundImage: `url("${placeholder}")`,
         backgroundSize: "cover",
@@ -26,7 +32,7 @@ interface ImageAttributes extends Omit<
 > {
     /** The text standing in for the image, empty for a decorative one. */
     readonly alt: string;
-    /** Show the asset's blurred rendition until the image loads, or nothing. */
+    /** Show the image's blurred rendition until it loads, or nothing. */
     readonly placeholder?: "blur" | "empty";
     /** Call back once the image loads. */
     readonly onLoad?: (event: Event) => void;
@@ -36,12 +42,12 @@ interface ImageAttributes extends Omit<
     readonly style?: JSX.CSSProperties | string;
 }
 
-/** The properties of an image: a build's asset with its own size, or an address with its width and height. */
+/** The properties of an image: a build's image with its own size, or an address with its width and height. */
 export type ImageProperties = ImageAttributes &
     (
         | {
-              /** The build's asset. */
-              readonly src: ImageAsset;
+              /** The build's image. */
+              readonly src: ImageMetadata;
           }
         | {
               /** The image's address. */
@@ -60,19 +66,24 @@ export function Image(properties: ImageProperties): JSX.Element {
 
 /** Show an image in the best format the browser reads, each format at the width the layout needs. */
 export function Picture(properties: ImageProperties): JSX.Element {
-    // offer each better format an asset has before its original
-    const variants = () => (typeof properties.src === "string" ? [] : properties.src.variants);
+    // offer each better format the image has before its original
+    const files = () => (typeof properties.src === "string" ? [] : properties.src.srcSet);
     const sources = () =>
-        PICTURE_TYPES.map((type) => ({
-            type,
-            srcset: srcsetOf(variants().filter((variant) => variant.type === type)),
+        PICTURE_FORMATS.map((format) => ({
+            type: `image/${format}`,
+            srcset: srcsetOf(files().filter((file) => file.format === format)),
         })).filter((source) => source.srcset !== "");
 
     return (
-        <picture data-slot="picture">
+        <picture data-slot="picture" {...style.attrs(styles.picture)}>
             <For each={sources()}>
                 {(source) => (
-                    <source type={source.type} srcset={source.srcset} sizes={properties.sizes} />
+                    <source
+                        type={source.type}
+                        srcset={source.srcset}
+                        sizes={properties.sizes}
+                        {...style.attrs(styles.source)}
+                    />
                 )}
             </For>
             <ImageElement image={properties} choose={original} />
@@ -80,31 +91,31 @@ export function Picture(properties: ImageProperties): JSX.Element {
     );
 }
 
-/** Render an image element over the variants a choice keeps, its blurred rendition shown until it loads. */
+/** Render an image element over the files a choice keeps, its blurred rendition shown until it loads. */
 function ImageElement(properties: {
     readonly image: ImageProperties;
-    readonly choose: (asset: ImageAsset) => ImageAsset["variants"];
+    readonly choose: (image: ImageMetadata) => ImageMetadata["srcSet"];
 }): JSX.Element {
-    // read the asset, or the address and size given beside it
+    // read the build's image, or the address and size given beside it
     const image = properties.image;
     const rest = omit(image, "src", "alt", "placeholder", "xstyle", "style", "onLoad");
     const [isLoaded, setLoaded] = createSignal(false);
-    const asset = () => (typeof image.src === "string" ? undefined : image.src);
+    const metadata = () => (typeof image.src === "string" ? undefined : image.src);
     const size = () =>
         "width" in image
             ? { width: image.width, height: image.height }
-            : { width: asset()?.width, height: asset()?.height };
+            : { width: metadata()?.width, height: metadata()?.height };
 
-    // keep the variants the choice offers
+    // keep the files the choice offers
     const chosen = () => {
-        const found = asset();
+        const found = metadata();
 
         return found === undefined ? [] : properties.choose(found);
     };
 
     // show the blurred rendition until the image loads
     const placeholder = () => {
-        const found = asset()?.placeholder;
+        const found = metadata()?.blurDataURL;
 
         return image.placeholder === "empty" || isLoaded() || found === undefined
             ? undefined
@@ -131,19 +142,19 @@ function ImageElement(properties: {
     );
 }
 
-/** Keep an asset's variants in the preferred single format, or else its original's. */
-function preferred(asset: ImageAsset): ImageAsset["variants"] {
-    const found = asset.variants.filter((variant) => variant.type === IMAGE_TYPE);
+/** Keep an image's files in the preferred single format, or else its original's. */
+function preferred(image: ImageMetadata): ImageMetadata["srcSet"] {
+    const found = image.srcSet.filter((file) => file.format === IMAGE_FORMAT);
 
-    return found.length > 0 ? found : original(asset);
+    return found.length > 0 ? found : original(image);
 }
 
-/** Keep an asset's variants in its original's format. */
-function original(asset: ImageAsset): ImageAsset["variants"] {
-    return asset.variants.filter((variant) => variant.type === asset.type);
+/** Keep an image's files in its original's format. */
+function original(image: ImageMetadata): ImageMetadata["srcSet"] {
+    return image.srcSet.filter((file) => file.format === image.format);
 }
 
-/** Write variants as a width-described source set, empty for none. */
-function srcsetOf(variants: ImageAsset["variants"]): string {
-    return variants.map((variant) => `${variant.src} ${variant.width}w`).join(", ");
+/** Write files as a width-described source set, empty for none. */
+function srcsetOf(files: ImageMetadata["srcSet"]): string {
+    return files.map((file) => `${file.src} ${file.width}w`).join(", ");
 }

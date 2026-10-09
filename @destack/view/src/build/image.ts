@@ -2,102 +2,110 @@ import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import sharp from "sharp";
 import type { Plugin } from "@destack/package/build";
+import { ImageFormat } from "../media/asset.ts";
 
-/** The widths a build renders images at, common device widths up to each image's own. */
-const WIDTHS = [640, 828, 1080, 1920, 2560, 3840];
+/** The widths a build renders images at by default, Next.js's device sizes. */
+export const IMAGE_WIDTHS: readonly number[] = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
 
-/** The formats a build renders beside each image's own, best first. */
-const FORMATS = ["avif", "webp"] as const;
+/** The formats a build renders beside each image's own by default, best first. */
+export const IMAGE_FORMATS: readonly ImageFormat[] = ["avif", "webp"];
 
 /** The width of an image's blurred rendition. */
-const PLACEHOLDER_WIDTH = 16;
+const BLUR_WIDTH = 16;
 
 /** The WebP quality of an image's blurred rendition, which its blur hides. */
-const PLACEHOLDER_QUALITY = 40;
+const BLUR_QUALITY = 40;
 
-/** The raster images an import turns into assets, by extension. */
+/** The raster images an import turns into image metadata, by extension. */
 const RASTER = /\.(?:png|jpe?g|webp|avif|gif)$/u;
 
-/** The media type of each raster format sharp reads. */
-const TYPES: Readonly<Record<string, string>> = {
-    png: "image/png",
-    jpeg: "image/jpeg",
-    webp: "image/webp",
-    avif: "image/avif",
-    gif: "image/gif",
-};
-
-/** One rendered variant of an image: its width, its media type and its bytes. */
-export interface ImageVariant {
-    /** The width in pixels. */
-    readonly width: number;
-    /** The media type. */
-    readonly type: string;
-    /** The encoded bytes. */
-    readonly bytes: Uint8Array;
+/** The widths and formats an image renders at, Next.js's device sizes and AVIF and WebP by default. */
+export interface ImageOptions {
+    /** The widths to render at, each below the image's own, beside its own. */
+    readonly widths?: readonly number[];
+    /** The formats to render in beside the image's own. */
+    readonly formats?: readonly ImageFormat[];
 }
 
-/** An image's intrinsic size and type, its variants and its blurred rendition. */
-export interface ProcessedImage {
+/** One file of an image's source set: its width and format. */
+export interface ImageFile {
+    /** The width in pixels. */
+    readonly width: number;
+    /** The format. */
+    readonly format: ImageFormat;
+}
+
+/** An image rendered for a build: its size and format, its blurred rendition, and each file of its source set with its bytes. */
+export interface TransformedImage {
     /** The intrinsic width in pixels. */
     readonly width: number;
     /** The intrinsic height in pixels. */
     readonly height: number;
-    /** The original's media type. */
-    readonly type: string;
-    /** The variants, each width in each format. */
-    readonly variants: readonly ImageVariant[];
+    /** The original's format. */
+    readonly format: ImageFormat;
     /** The blurred rendition as a data URL. */
-    readonly placeholder: string;
+    readonly blurDataURL: string;
+    /** The rendered files, the original's own bytes at its own width and format. */
+    readonly files: readonly (ImageFile & { readonly data: Uint8Array })[];
 }
 
-/** Read an image's size and blurred rendition, and render its variants at the widths up to its own unless asked not to. */
-export async function processImage(
+/** Plan an image's files: each width below its own and its own, in the formats and its own. */
+export function imageFiles(
+    width: number,
+    format: ImageFormat,
+    options: ImageOptions = {},
+): readonly ImageFile[] {
+    const widths = [...(options.widths ?? IMAGE_WIDTHS).filter((entry) => entry < width), width];
+    const formats = [...new Set([...(options.formats ?? IMAGE_FORMATS), format])];
+
+    return widths.flatMap((entry) => formats.map((each) => ({ width: entry, format: each })));
+}
+
+/** Read an image's size and format, and render its blurred rendition and the source set the options plan. */
+export async function transformImage(
     bytes: Uint8Array,
-    options: { readonly variants?: boolean } = {},
-): Promise<ProcessedImage> {
+    options: ImageOptions = {},
+): Promise<TransformedImage> {
     // read the intrinsic size and format
     const metadata = await sharp(bytes).metadata();
-    const format = metadata.format;
-    const type = TYPES[format];
-    if (metadata.width === undefined || metadata.height === undefined || type === undefined) {
-        throw new TypeError(`image of format ${format} has no raster size`);
+    const format = ImageFormat.safeParse(metadata.format);
+    if (metadata.width === undefined || metadata.height === undefined || !format.success) {
+        throw new TypeError(`image of format ${metadata.format} has no raster size`);
     }
 
-    // render each width up to the image's own in the better formats and its own
-    const widths =
-        options.variants === false
-            ? []
-            : [...WIDTHS.filter((width) => width < metadata.width), metadata.width];
-    const variants = await Promise.all(
-        widths.flatMap((width) =>
-            [...FORMATS, format].map(async (target) => ({
-                width,
-                type: TYPES[target] ?? type,
-                bytes: new Uint8Array(
-                    await sharp(bytes).resize({ width }).toFormat(target).toBuffer(),
-                ),
-            })),
-        ),
+    // render each planned file, keeping the original's own bytes at its own width and format
+    const files = await Promise.all(
+        imageFiles(metadata.width, format.data, options).map(async (file) => ({
+            ...file,
+            data:
+                file.width === metadata.width && file.format === format.data
+                    ? bytes
+                    : new Uint8Array(
+                          await sharp(bytes)
+                              .resize({ width: file.width })
+                              .toFormat(file.format)
+                              .toBuffer(),
+                      ),
+        })),
     );
 
     // render the blurred rendition as an inline WebP
-    const placeholder = await sharp(bytes)
-        .resize({ width: PLACEHOLDER_WIDTH })
+    const blur = await sharp(bytes)
+        .resize({ width: BLUR_WIDTH })
         .blur()
-        .webp({ quality: PLACEHOLDER_QUALITY })
+        .webp({ quality: BLUR_QUALITY })
         .toBuffer();
 
     return {
         width: metadata.width,
         height: metadata.height,
-        type,
-        variants,
-        placeholder: `data:image/webp;base64,${placeholder.toString("base64")}`,
+        format: format.data,
+        blurDataURL: `data:image/webp;base64,${blur.toString("base64")}`,
+        files,
     };
 }
 
-/** Turn raster image imports into image assets: their variants emitted by a build, their original while serving. */
+/** Turn raster image imports into image metadata: their source sets emitted by a build, their original while serving. */
 export function imagePlugin(): Plugin {
     // remember whether the plugin builds or serves
     let isBuild = true;
@@ -114,36 +122,31 @@ export function imagePlugin(): Plugin {
                 return null;
             }
 
-            // describe the image, its variants emitted as hashed assets when building
-            // NOTE #Performance: keep rendered variants in the build's content-addressed cache by the image's digest
+            // describe the image, its source set emitted as hashed assets when building
+            // NOTE #Performance: keep rendered files in the build's content-addressed cache by the image's digest
             const bytes = new Uint8Array(await readFile(id));
-            const image = await processImage(bytes, { variants: isBuild });
+            const image = await transformImage(bytes, isBuild ? {} : { widths: [], formats: [] });
             const stem = basename(id, extname(id));
             const reference = (name: string, source: Uint8Array) =>
                 `import.meta.ROLLUP_FILE_URL_${this.emitFile({ type: "asset", name, source })}`;
             const original = isBuild ? reference(basename(id), bytes) : JSON.stringify(`/@fs${id}`);
-            const variants = isBuild
-                ? image.variants.map((variant) => {
-                      // reuse the original for its own format at its own width
-                      const address =
-                          variant.width === image.width && variant.type === image.type
-                              ? original
-                              : reference(
-                                    `${stem}-${variant.width}.${variant.type.slice("image/".length)}`,
-                                    variant.bytes,
-                                );
+            const entries = image.files.map((file) => {
+                // serve the original for its own format at its own width
+                const address =
+                    file.width === image.width && file.format === image.format
+                        ? original
+                        : reference(`${stem}-${file.width}.${file.format}`, file.data);
 
-                      return `{ src: ${address}, width: ${variant.width}, type: ${JSON.stringify(variant.type)} }`;
-                  })
-                : [];
-            const asset: Omit<ProcessedImage, "variants"> = {
+                return `{ src: ${address}, width: ${file.width}, format: ${JSON.stringify(file.format)} }`;
+            });
+            const metadata = {
                 width: image.width,
                 height: image.height,
-                type: image.type,
-                placeholder: image.placeholder,
+                format: image.format,
+                blurDataURL: image.blurDataURL,
             };
 
-            return `export default { ...${JSON.stringify(asset)}, src: ${original}, variants: [${variants.join(", ")}] };\n`;
+            return `export default { ...${JSON.stringify(metadata)}, src: ${original}, srcSet: [${entries.join(", ")}] };\n`;
         },
     };
 }

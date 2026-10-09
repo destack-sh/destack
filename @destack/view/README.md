@@ -3,7 +3,8 @@
 `@destack/view` is Solid 2, `/router` is Solid Router 2 with nuqs' `useQueryState` and React Router's `useBlocker`, `/primitives/*` is solid-primitives, `/document` is Next.js's `Metadata`, `Viewport`, `next/font` and `next/script` with next-themes, `/media` is `next/image`, and `/test` is Testing Library's `render`.
 
 ```tsx
-const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1)); // page() is an accessor
+// page() is an accessor
+const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
 const blocker = useBlocker(() => form.isEdited()); // blocker.state(), "unblocked" | "blocked"
 const sans = defineFont({ src: plexSans, fallback: ["sans-serif"] }); // next/font/local's localFont
 <Font font={sans} />; // writes the faces next/font injects
