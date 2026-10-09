@@ -144,7 +144,7 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
         ...(await fixture.options({ extensions: [] })),
         extensions: [implementation],
     });
-    const { server: objects, services } = served;
+    const { store: objects, services } = served;
     const observed = implementation.receiver(objects);
     const server = listen(present(services[1], "the observability service"));
 

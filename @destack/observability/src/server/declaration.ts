@@ -1,10 +1,12 @@
 import { and, Change, eq, isNotNull, isNull } from "@destack/db";
-import type { ObjectServer } from "@destack/object/server";
+import type { ObjectStore } from "@destack/object/server";
 import type { Controller } from "@destack/service/control";
 import { installation, installationRevision } from "@destack/space/object";
 import type { OpenBuild } from "@destack/space/server";
 import { type Identifier, schema } from "@destack/schema";
 import { AlertRuleDefinition, alertRule } from "../object/index.ts";
+import { Caller } from "@destack/access";
+import { RequestId } from "@destack/service/request";
 
 /** Keep the alert rules each installation's applied revision declares in its space, retiring those it no longer declares. */
 export class DeclarationController implements Controller {
@@ -12,14 +14,14 @@ export class DeclarationController implements Controller {
     readonly name = "alert-rule-declarations";
     /** The copies whose changes name the installations to reconcile. */
     readonly watches = [installation.table, installationRevision.table];
-    /** The object server keeping the rules beside copies of the installations and their revisions. */
-    readonly #server: ObjectServer;
+    /** The object store keeping the rules beside copies of the installations and their revisions. */
+    readonly #store: ObjectStore;
     /** Open an installation revision's build. */
     readonly #open: OpenBuild;
 
-    /** Apply the rules the builds of an object server's copied installations declare. */
-    constructor(server: ObjectServer, open: OpenBuild) {
-        this.#server = server;
+    /** Apply the rules the builds of an object store's copied installations declare. */
+    constructor(store: ObjectStore, open: OpenBuild) {
+        this.#store = store;
         this.#open = open;
     }
 
@@ -35,7 +37,7 @@ export class DeclarationController implements Controller {
     /** List the copied installations and those managing rules still kept. */
     async list(): Promise<readonly string[]> {
         // read the installations and the managers of kept rules
-        const database = this.#server.database;
+        const database = this.#store.database;
         const installed = await database
             .select({ id: installation.table.id })
             .from(installation.table);
@@ -54,7 +56,7 @@ export class DeclarationController implements Controller {
         // read the rules the installation's applied revision declares, and the rules it keeps
         const id = schema.identifier("installation").parse(key);
         const declaring = await this.#declaring(id);
-        const kept = await this.#server.database
+        const kept = await this.#store.database
             .select({
                 scope: alertRule.table.scope,
                 packageId: alertRule.table.managerPackageId,
@@ -73,40 +75,38 @@ export class DeclarationController implements Controller {
         const applied =
             declaring === undefined
                 ? []
-                : declaring.rules.map((rule) => ({
-                      scope: declaring.scope,
-                      input: {
+                : declaring.rules.map((rule) =>
+                      alertRule.call("apply", {
+                          ...alertRule.target({ scope: declaring.scope }),
                           manager: {
                               installationId: key,
                               packageId: rule.package,
                               name: rule.name,
                           },
                           values: rule.description,
-                      },
-                  }));
+                      }),
+                  );
 
         // retire each kept rule no longer declared
         const calls = [
             ...applied,
             ...kept
                 .filter((row) => !declared.some((rule) => rule.name === row.name))
-                .map((row) => ({
-                    scope: row.scope,
-                    input: {
+                .map((row) =>
+                    alertRule.call("apply", {
+                        ...alertRule.target({ scope: row.scope }),
                         manager: { installationId: key, packageId: row.packageId, name: row.name },
                         values: null,
-                    },
-                })),
+                    }),
+                ),
         ];
         if (calls.length > 0) {
-            const server = this.#server;
-            await server.execute(
-                server.principal,
-                alertRule,
-                "apply",
-                calls,
-                server.clock(),
-                this.name,
+            const store = this.#store;
+            const now = store.clock();
+            await store.mutate(
+                Caller.of(store.principal, now),
+                { id: RequestId.create(now), calls },
+                { component: this.name },
             );
         }
 
@@ -116,7 +116,7 @@ export class DeclarationController implements Controller {
     /** Read the rules an installation's applied revision declares with its space, absent while it applies none. */
     async #declaring(id: Identifier<"installation">) {
         // read the installation's applied revision from the copies
-        const [applied] = await this.#server.database
+        const [applied] = await this.#store.database
             .select({
                 scope: installation.table.scope,
                 packageId: installation.table.packageId,

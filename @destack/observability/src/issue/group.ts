@@ -1,7 +1,6 @@
 import { EventTime } from "@destack/event";
 import { and, count, eq, inArray, sql, type DatabaseConnection } from "@destack/db";
-import { ServerCall } from "@destack/object";
-import type { ObjectServer } from "@destack/object/server";
+import type { ObjectStore } from "@destack/object/server";
 import { BuildCache } from "@destack/package/manifest";
 import type { Digest, Identifier } from "@destack/schema";
 import { installation, installationRevision } from "@destack/space/object";
@@ -12,6 +11,8 @@ import { Exception } from "./exception.ts";
 import { fingerprint } from "./fingerprint.ts";
 import { parseStack, type StackFrame } from "./frame.ts";
 import { Symbolicator } from "./symbolicate.ts";
+import { Caller } from "@destack/access";
+import { RequestId } from "@destack/service/request";
 
 /** The component name the grouper records its calls under. */
 const GROUPER = "issues";
@@ -54,18 +55,15 @@ interface Revision {
 
 /** Groups unexpected exceptions into a space's issues: symbolicated, attributed to the graph and fingerprinted. */
 export class Grouper {
-    /** The object server keeping the issues beside copies of the installations and their revisions. */
-    readonly #objects: Pick<ObjectServer, "database" | "principal" | "execute">;
+    /** The object store keeping the issues beside copies of the installations and their revisions. */
+    readonly #objects: Pick<ObjectStore, "database" | "principal" | "mutate">;
     /** Open an installation revision's build. */
     readonly #open: OpenBuild;
     /** The symbolicators of the builds read recently. */
     readonly #symbolicators = new BuildCache(async (reader) => new Symbolicator(reader));
 
-    /** Group exceptions into the issues an object server keeps, opening the builds of the revisions that ran them. */
-    constructor(
-        objects: Pick<ObjectServer, "database" | "principal" | "execute">,
-        open: OpenBuild,
-    ) {
+    /** Group exceptions into the issues an object store keeps, opening the builds of the revisions that ran them. */
+    constructor(objects: Pick<ObjectStore, "database" | "principal" | "mutate">, open: OpenBuild) {
         this.#objects = objects;
         this.#open = open;
     }
@@ -121,15 +119,20 @@ export class Grouper {
         // open new issues
         const events = [...grouped.values()].flat();
         const known = await this.#known(scope, events);
-        await this.#objects.execute(
-            this.#objects.principal,
-            issue,
-            "open",
-            [...grouped]
-                .filter(([key]) => !known.has(key))
-                .map(([, group]) => ({ scope, input: openingOf(group) })),
-            now,
-            GROUPER,
+        await this.#objects.mutate(
+            Caller.of(this.#objects.principal, now),
+            {
+                id: RequestId.create(now),
+                calls: [...grouped]
+                    .filter(([key]) => !known.has(key))
+                    .map(([, group]) =>
+                        issue.call("open", {
+                            ...issue.target({ scope }),
+                            ...openingOf(group),
+                        }),
+                    ),
+            },
+            { component: GROUPER },
         );
 
         // count the events and people into every issue
@@ -140,23 +143,26 @@ export class Grouper {
             return row === undefined ? [] : [{ row, group }];
         });
         const people = await this.#affect(scope, counted);
-        await this.#objects.execute(
-            this.#objects.principal,
-            issue,
-            "occur",
-            counted.map(({ row, group }) => {
-                const latest = latestOf(group);
+        await this.#objects.mutate(
+            Caller.of(this.#objects.principal, now),
+            {
+                id: RequestId.create(now),
+                calls: counted.map(({ row, group }) => {
+                    const latest = latestOf(group);
 
-                return ServerCall.of(row, {
-                    level: group.map((event) => event.exception.level).reduce(severest, row.level),
-                    lastSeenAt: Math.max(row.lastSeenAt, ...group.map(timeOf)),
-                    ...(latest === undefined ? {} : { lastRevisionId: latest.id }),
-                    count: row.count + group.length,
-                    people: people.get(row.id) ?? row.people,
-                });
-            }),
-            now,
-            GROUPER,
+                    return issue.call("occur", {
+                        ...issue.target(row),
+                        level: group
+                            .map((event) => event.exception.level)
+                            .reduce(severest, row.level),
+                        lastSeenAt: Math.max(row.lastSeenAt, ...group.map(timeOf)),
+                        ...(latest === undefined ? {} : { lastRevisionId: latest.id }),
+                        count: row.count + group.length,
+                        people: people.get(row.id) ?? row.people,
+                    });
+                }),
+            },
+            { component: GROUPER },
         );
 
         return { issues, counted };
@@ -259,13 +265,13 @@ export class Grouper {
                     moved.map(({ row }) => row.id),
                 ),
             );
-        await this.#objects.execute(
-            this.#objects.principal,
-            issue,
-            name,
-            rows.map((row) => ServerCall.of(row)),
-            now,
-            GROUPER,
+        await this.#objects.mutate(
+            Caller.of(this.#objects.principal, now),
+            {
+                id: RequestId.create(now),
+                calls: rows.map((row) => issue.call(name, issue.target(row))),
+            },
+            { component: GROUPER },
         );
     }
 

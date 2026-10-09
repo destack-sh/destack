@@ -3,7 +3,7 @@ import type { EventKind, EventPolicy, EventStore } from "@destack/event";
 import type { Sku } from "@destack/finance";
 import { usage } from "@destack/finance/declare";
 import type { ObjectType } from "@destack/object";
-import type { ObjectServer, Extension } from "@destack/object/server";
+import type { ObjectStore, ObjectExtension } from "@destack/object/server";
 import { schema } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
 import { SettingValue } from "@destack/setting/object";
@@ -53,13 +53,11 @@ export interface ObservabilityOptions {
 }
 
 /** The observability extension of a space or a machine, with the event kinds it appends and the receiver of its installations' and pages' OTLP exports. */
-export interface ObservabilityImplementation extends Extension {
+export interface ObservabilityImplementation extends ObjectExtension {
     /** The event kinds the space's or the machine's event store keeps for it. */
     readonly events: readonly EventKind[];
-    /** Receive the OTLP exports of the installations and pages over the space's or machine's server, grouping a machine's exceptions into issues. */
-    receiver(
-        server: Pick<ObjectServer, "database" | "principal" | "execute" | "clock">,
-    ): OtlpReceiver;
+    /** Receive the OTLP exports of the installations and pages over the space's or machine's store, grouping a machine's exceptions into issues. */
+    receiver(store: Pick<ObjectStore, "database" | "principal" | "mutate" | "clock">): OtlpReceiver;
 }
 
 /** Implement observability over a space's or a machine's events, deciding reads by the policies of the scopes it observes. */
@@ -75,19 +73,19 @@ export function implementObservability(options: ObservabilityOptions): Observabi
                 ? TELEMETRY_KINDS
                 : [...OBSERVABILITY_KINDS, ...(spaces.skus === undefined ? [] : [usage])],
         // route the reads, keep the declared rules and measure the spaces on a machine
-        serve: (server) => ({
-            procedures: observabilityProcedures(events, server.unmasked),
-            controllers: controllersOf(options, server),
+        serve: (store) => ({
+            procedures: observabilityProcedures(events, store.unmasked),
+            controllers: controllersOf(options, store),
         }),
-        receiver: (server) => {
+        receiver: (store) => {
             // group a machine's exceptions into issues and hash its visitors before appending their exports
             const receiver = new ObservabilityReceiver({
                 events,
                 ...(spaces === undefined
                     ? {}
-                    : { grouper: new Grouper(server, spaces.openBuild), salt: events.database }),
+                    : { grouper: new Grouper(store, spaces.openBuild), salt: events.database }),
                 report: options.report,
-                clock: server.clock,
+                clock: store.clock,
             });
 
             return { receive: (emitter, signal, body) => receiver.receive(emitter, signal, body) };
@@ -96,7 +94,7 @@ export function implementObservability(options: ObservabilityOptions): Observabi
 }
 
 /** List the controllers of a machine's observability: the declared rules, and the meters where usage is billed. */
-function controllersOf(options: ObservabilityOptions, objects: ObjectServer): Controller[] {
+function controllersOf(options: ObservabilityOptions, objects: ObjectStore): Controller[] {
     const { spaces } = options;
     if (spaces === undefined) {
         return [];

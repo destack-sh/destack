@@ -10,7 +10,7 @@ import {
     sql,
 } from "@destack/db";
 import type { EventFilter, EventStore, Series } from "@destack/event";
-import { type ObjectReconciliation, ServerCall } from "@destack/object";
+import { type ObjectReconciliation } from "@destack/object";
 import { Duration, present, schema } from "@destack/schema";
 import { installation } from "@destack/space/object";
 import { EventKey } from "../event/key.ts";
@@ -59,11 +59,11 @@ export async function evaluateRules(
     reconciliation: ObjectReconciliation<typeof alertRule>,
     options: AlertOptions,
 ): Promise<number> {
-    const { now, server } = reconciliation;
+    const { now, store } = reconciliation;
     for (const rule of reconciliation.rows) {
         // retire a deleted rule
         if (rule.deletionRequestedAt !== null) {
-            await reconciliation.execute(alertRule, "finalize", [ServerCall.of(rule)]);
+            await reconciliation.mutate([alertRule.call("finalize", alertRule.target(rule))]);
             continue;
         }
 
@@ -73,7 +73,7 @@ export async function evaluateRules(
             const { condition } = rule;
             crossings =
                 condition.kind === "issue"
-                    ? await issueCrossings(server.database, rule, condition)
+                    ? await issueCrossings(store.database, rule, condition)
                     : await eventCrossings(options.events, rule, condition, now);
         } catch (error) {
             await observe(reconciliation, rule, now, "InvalidRule", String(error));
@@ -95,8 +95,8 @@ async function fireAndSettle(
     crossings: readonly Crossing[],
 ): Promise<void> {
     // fire for crossing subjects without a firing alert or one within the interval
-    const { now, server } = reconciliation;
-    const alerts = await alertsOf(server.database, rule);
+    const { now, store } = reconciliation;
+    const alerts = await alertsOf(store.database, rule);
     const interval = Duration.milliseconds(rule.interval);
     const fired = crossings.filter((crossing) => {
         const latest = alerts.find((each) => subjectOf(each) === subjectOf(crossing));
@@ -106,18 +106,16 @@ async function fireAndSettle(
             (latest.status !== "firing" && latest.createdAt <= now - interval)
         );
     });
-    const created = await reconciliation.execute(
-        alert,
-        "fire",
-        fired.map((crossing) => ({
-            scope: rule.scope,
-            input: {
+    const created = await reconciliation.mutate(
+        fired.map((crossing) =>
+            alert.call("fire", {
+                ...alert.target({ scope: rule.scope }),
                 ruleId: rule.id,
                 group: crossing.group,
                 value: crossing.value,
                 title: crossing.title.slice(0, 500),
-            },
-        })),
+            }),
+        ),
     );
 
     // call the installation methods the rule's actions name for each new alert
@@ -138,11 +136,7 @@ async function fireAndSettle(
         ),
         ...(rule.condition.kind === "issue" ? created : []),
     ];
-    await reconciliation.execute(
-        alert,
-        "settle",
-        settled.map((each) => ServerCall.of(each)),
-    );
+    await reconciliation.mutate(settled.map((each) => alert.call("settle", alert.target(each))));
 }
 
 /** Read the issues a filter selects that opened, regressed or escalated since the rule's last evaluation. */
@@ -334,8 +328,8 @@ async function call(
     if (!isInstallationMethod(method)) {
         throw new TypeError(`installation takes no method ${method}`);
     }
-    await reconciliation.execute(installation, method, [
-        ServerCall.of(present(row, `installation ${id}`)),
+    await reconciliation.mutate([
+        installation.call(method, installation.target(present(row, `installation ${id}`))),
     ]);
 }
 
@@ -361,8 +355,9 @@ async function observe(
     ) {
         return;
     }
-    await reconciliation.execute(alertRule, "observe", [
-        ServerCall.of(rule, {
+    await reconciliation.mutate([
+        alertRule.call("observe", {
+            ...alertRule.target(rule),
             observedGeneration: rule.generation,
             conditions: {
                 Ready: { status: reason === "Evaluated" ? "true" : "false", reason, message },
