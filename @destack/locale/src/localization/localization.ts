@@ -69,17 +69,28 @@ export const Localization = {
         );
         const chain = Locale.fallback(tag, source);
 
+        // build each formatter once per options and reuse it
+        const numbers = cached(
+            (options?: Intl.NumberFormatOptions) => new Intl.NumberFormat(tag, options),
+        );
+        const dates = cached(
+            (options?: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(tag, options),
+        );
+        const lists = cached(
+            (options?: Intl.ListFormatOptions) => new Intl.ListFormat(tag, options),
+        );
+        const relatives = new Intl.RelativeTimeFormat(tag, { numeric: "auto" });
+
         return {
             tag,
             direction: direction ?? Locale.direction(tag),
             render: (message) => render(message, chain, source, translations),
-            number: (value, options) => new Intl.NumberFormat(tag, options).format(value),
-            money: (amount, currency) => money(amount, currency, tag),
-            date: (time, options) => new Intl.DateTimeFormat(tag, options).format(time),
-            dateRange: (start, end, options) =>
-                new Intl.DateTimeFormat(tag, options).formatRange(start, end),
-            list: (items, options) => new Intl.ListFormat(tag, options).format(items),
-            relative: (time, now) => relative(time, now, tag),
+            number: (value, options) => numbers(options).format(value),
+            money: (amount, currency) => money(amount, currency, numbers),
+            date: (time, options) => dates(options).format(time),
+            dateRange: (start, end, options) => dates(options).formatRange(start, end),
+            list: (items, options) => lists(options).format(items),
+            relative: (time, now) => relative(time, now, relatives),
         };
     },
 };
@@ -117,27 +128,50 @@ function compile(locale: LocaleTag, source: string): MessageFormat {
 }
 
 /** Write an amount in its currency's minor unit, a custom x- currency by its code. */
-function money(amount: number, currency: string, tag: LocaleTag): string {
+function money(
+    amount: number,
+    currency: string,
+    numbers: (options?: Intl.NumberFormatOptions) => Intl.NumberFormat,
+): string {
     // write a custom currency's amount beside its code
     if (currency.startsWith("x-")) {
-        return `${new Intl.NumberFormat(tag).format(amount)} ${currency.slice(2)}`;
+        return `${numbers().format(amount)} ${currency.slice(2)}`;
     }
 
     // write the amount shifted by the currency's minor unit digits
-    const formatter = new Intl.NumberFormat(tag, { style: "currency", currency });
+    const formatter = numbers({ style: "currency", currency });
     const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
 
     return formatter.format(amount / 10 ** digits);
 }
 
 /** Write an instant relative to now in its largest whole unit, seconds below a second. */
-function relative(time: number, now: number, tag: LocaleTag): string {
+function relative(time: number, now: number, relatives: Intl.RelativeTimeFormat): string {
     // take the largest unit the distance covers once, seconds below that
     const distance = time - now;
     const [unit, length] = UNITS.find(([, size]) => Math.abs(distance) >= size) ?? SECOND;
 
-    return new Intl.RelativeTimeFormat(tag, { numeric: "auto" }).format(
-        Math.round(distance / length),
-        unit,
-    );
+    return relatives.format(Math.round(distance / length), unit);
+}
+
+/** Return a factory that builds a formatter once per options and returns the same one after. */
+function cached<Options, Formatter>(
+    create: (options?: Options) => Formatter,
+): (options?: Options) => Formatter {
+    const formatters = new Map<string, Formatter>();
+
+    return (options) => {
+        // reuse the formatter of equal options
+        const key = JSON.stringify(options ?? {});
+        const known = formatters.get(key);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // build and keep the first one
+        const formatter = create(options);
+        formatters.set(key, formatter);
+
+        return formatter;
+    };
 }
