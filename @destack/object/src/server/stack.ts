@@ -30,11 +30,11 @@ import type { RecordBuilderMap } from "../trait/record.ts";
 import type { FieldColumn } from "../field/field.ts";
 import type { Directory } from "@destack/directory";
 import { Reservation } from "./reservation.ts";
-import { Moved } from "@destack/directory";
 import type { ObjectStore } from "./store.ts";
 import type { Authorization } from "./authorization.ts";
 import { Call, type ObjectCall, type ResultsOf } from "../method/call.ts";
 import { Caller } from "@destack/access";
+import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
@@ -381,7 +381,10 @@ export class Stack {
                 const chain = await Scope.guard(database, this.scope);
                 for (const link of chain) {
                     if (link.movedTo !== undefined) {
-                        throw Moved.error({ scope: link.object.id, machine: link.movedTo });
+                        throw new ServiceError("MISDIRECTED_REQUEST", {
+                            message: `${link.object.id} moves to ${link.movedTo}`,
+                            data: { scope: link.object.id, machine: link.movedTo },
+                        });
                     }
                 }
 

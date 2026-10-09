@@ -119,7 +119,7 @@ test.each(TEST_DIALECTS)(
         const accountObject = account.reference(Scope.universe.id, accountId);
         const accessCopies = new AccessFixture(home.database);
         await accessCopies.copyScope(accountObject);
-        await accessCopies.copyScope(space.reference(accountId, spaceId));
+        await accessCopies.copyPartition(space.reference(accountId, spaceId));
         await accessCopies.copyOwner(accountObject, alice);
         await accessCopies.copyRole(
             accountObject,
@@ -287,7 +287,9 @@ test("keep one copy record per followed space of one account, and drop one space
 
     // stop following the other space once the scope rows change, dropping its copies alone, and keep the account's role
     requested.delete(otherSpaceId);
-    await new AccessFixture(machine.database).copyScope(space.reference(accountId, thirdSpaceId));
+    await new AccessFixture(machine.database).copyPartition(
+        space.reference(accountId, thirdSpaceId),
+    );
     await machine.database.log.until(
         async () => (await Replica.subscriptions(machine.database)).length === 3,
         controller.signal,
@@ -336,7 +338,9 @@ test("drop a copy no request names under the lease its follow holds, whichever o
 
     // stop requesting the space's chain once the scope rows change, and wait for its copies to drop
     requested.delete(spaceId);
-    await new AccessFixture(machine.database).copyScope(space.reference(accountId, otherSpaceId));
+    await new AccessFixture(machine.database).copyPartition(
+        space.reference(accountId, otherSpaceId),
+    );
     await machine.database.log.until(
         async () => (await Replica.subscriptions(machine.database)).length === 0,
         controller.signal,
@@ -392,7 +396,7 @@ test("follow copies as a server serving no methods, which keeps no journal and t
     });
     const accessCopies = new AccessFixture(home.database);
     await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
-    await accessCopies.copyScope(space.reference(accountId, spaceId));
+    await accessCopies.copyPartition(space.reference(accountId, spaceId));
 
     // follow the space's chain without a journal
     const feed = new Feed(home.database, accessTables);
@@ -449,7 +453,7 @@ test("copy the chains of an installation's two served spaces in one copy via bot
     await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
     await accessCopies.copyScope(account.reference(Scope.universe.id, otherAccountId));
     for (const id of [spaceId, otherSpaceId]) {
-        await new AccessFixture(home.database).copyScope(space.reference(accountId, id));
+        await new AccessFixture(home.database).copyPartition(space.reference(accountId, id));
         await home.database
             .insert(space.table)
             .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -575,7 +579,7 @@ test("copy a scoped table an installation's database declares beside its followe
     const accessCopies = new AccessFixture(home.database);
     await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
     for (const id of [spaceId, otherSpaceId]) {
-        await accessCopies.copyScope(space.reference(accountId, id));
+        await accessCopies.copyPartition(space.reference(accountId, id));
         await home.database
             .insert(space.table)
             .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -667,8 +671,8 @@ async function openCopies() {
     const accountObject = account.reference(Scope.universe.id, accountId);
     const accessCopies = new AccessFixture(home.database);
     await accessCopies.copyScope(accountObject);
-    await accessCopies.copyScope(space.reference(accountId, spaceId));
-    await accessCopies.copyScope(space.reference(accountId, otherSpaceId));
+    await accessCopies.copyPartition(space.reference(accountId, spaceId));
+    await accessCopies.copyPartition(space.reference(accountId, otherSpaceId));
     await accessCopies.copyRole(
         accountObject,
         { name: "member", description: "Reads the account's spaces", permissions: [] },

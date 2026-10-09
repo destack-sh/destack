@@ -131,6 +131,23 @@ async function installationSubscriptions(
     ];
 }
 
+/** Follow the chain of a partition below an installation's root from that root, through the object API of the installation's own package. */
+async function partitionSubscriptions(
+    installation: InstallationContext,
+    partition: string,
+    store: ObjectStore,
+): Promise<readonly SubscriberEntry[]> {
+    const root = installation.publisherAt(
+        Egress.address(installation.id, installation.scope),
+        store.origin.package.id,
+    );
+
+    return (await store.source.subscriptions(partition, { isHome: false })).map((subscription) => ({
+        subscription,
+        publisher: root,
+    }));
+}
+
 /** Serve extensions over one store, each routing its own objects under its service. */
 function compose<const Extensions extends readonly ObjectExtension[]>(
     extensions: Extensions,
@@ -168,6 +185,7 @@ function compose(
             installation === undefined
                 ? options.principal
                 : principal.installation.reference(installation.scope, installation.id),
+        ...(installation?.partition === undefined ? {} : { partition: installation.partition }),
         objects: Object.fromEntries(extensions.flatMap((each) => Object.entries(each.objects))),
         policies: [...policies, ...extensions.flatMap((each) => each.policies ?? [])],
         shapes: [...shapes, ...extensions.flatMap((each) => each.shapes ?? [])],
@@ -187,7 +205,10 @@ function compose(
                     await Promise.all([
                         installation === undefined
                             ? []
-                            : installationSubscriptions(installation, store),
+                            : installation.partition === undefined ||
+                                installation.partition === installation.scope
+                              ? installationSubscriptions(installation, store)
+                              : partitionSubscriptions(installation, installation.partition, store),
                         subscriptions?.(store) ?? [],
                         ...extensions.map(
                             async (each) => (await each.subscriptions?.(store)) ?? [],

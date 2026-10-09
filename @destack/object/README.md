@@ -127,6 +127,30 @@ const [renamed] = await store.mutate(caller, { id: requestId, calls: [rename] })
 await store.mutate(Caller.of(space, Date.now()), { id: RequestId.create(), calls: [create] });
 ```
 
+## Partitions
+
+A scope type declaring `partition: true` keeps each of its objects' contents in a partition of their own, served by one instance; a store serving one partition answers a call in another with a 421 naming the partition.
+
+```ts
+const room = defineObject({
+    name: "room",
+    plural: "rooms",
+    scope: space,
+    isScope: true,
+    partition: true,
+});
+const store = new ObjectStore({
+    objects: { message },
+    partition: roomId,
+    database,
+    principal,
+    callKey,
+    origin,
+});
+// a call in another room: 421 MISDIRECTED_REQUEST { scope, partition }, which the router resends once
+request.headers.set(PARTITION_HEADER, roomId);
+```
+
 ## Nested calls
 
 `call.mutate` runs calls inside a handler's transaction, as the same caller or as the service.

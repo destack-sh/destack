@@ -336,6 +336,8 @@ export interface ObjectDefinition<
     readonly represents?: Policy;
     /** Whether the objects are scopes containing other objects. */
     readonly isScope?: boolean;
+    /** Whether each object is a partition: the rows of the objects inside it live and run together, apart from its parent's, which only a scope type is. */
+    readonly partition?: true;
     /** The operations callers may execute, keyed by method name. */
     readonly methods?: Methods;
     /** The fields each object has, for objects declared by fields. */
@@ -1981,6 +1983,8 @@ export function defineObject<
             readonly shareable?: Sharing;
             /** Whether the objects are scopes containing other objects. */
             readonly isScope?: IsScope;
+            /** Whether each object is a partition, its contents' rows living and running apart from its parent's. */
+            readonly partition?: true;
             /** The kind whose resources the objects are. */
             readonly provisioned?: Provisioning;
             /** The attachments the objects take. */
@@ -2318,7 +2322,7 @@ function durableDeclarations(
     definition: ObjectDefinition,
     traits: readonly TraitInstance[],
 ): string[] {
-    const keys = ["audited", "inherited", "isScope", "aggregates", "indexes"] as const;
+    const keys = ["audited", "inherited", "isScope", "partition", "aggregates", "indexes"] as const;
 
     return [
         ...traits
@@ -2413,6 +2417,7 @@ function objectPolicy(
         ...(definition.isScope === true || represented?.definition.scope === true
             ? { scope: true }
             : {}),
+        ...(definition.partition === true ? { partition: true } : {}),
         contributes: policies.flatMap((policy) => policy.contributes ?? []),
     });
 }

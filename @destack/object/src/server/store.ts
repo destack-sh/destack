@@ -254,6 +254,8 @@ export interface ObjectStoreOptions<
     readonly database: DatabaseConnection;
     /** The principal the store's own work runs as: its controllers, settlements and the changes it receives in process. */
     readonly principal: Subject;
+    /** The one partition the store serves, every partition of its database when absent. */
+    readonly partition?: string;
     /** The key sensitive call inputs are fingerprinted under in the journal, given exactly when object types serve methods. */
     readonly callKey?: CallKey;
     /** The package and service recording the calls. */
@@ -303,6 +305,8 @@ export class ObjectStore<
     readonly database: DatabaseConnection;
     /** The principal the store's own work runs as: its controllers, settlements and the changes it receives in process. */
     readonly principal: Subject;
+    /** The one partition the store serves, every partition of its database when absent. */
+    readonly #partition: string | undefined;
     /** The evaluator of the served objects' policies. */
     readonly authorizer: Authorizer;
     /** The journal of executed mutations, kept only by a store serving methods. */
@@ -408,6 +412,7 @@ export class ObjectStore<
         // build the authorizer over the objects, the scope types enclosing them and the residence
         this.database = options.database;
         this.principal = options.principal;
+        this.#partition = options.partition;
         this.residence = ObjectStore.#residence(this.objects);
         this.authorizer = ObjectStore.#authorizer(this.objects, this.residence, options);
         TrackedHistory.require(this.objects, this.authorizer);
@@ -1751,6 +1756,7 @@ export class ObjectStore<
         // resolve its access, then require an unmoved scope a remote caller also sees
         const authorization = await this.authorize(database, scope, caller, options);
         authorization.requireUnmoved();
+        authorization.requirePartition(this.#partition);
         if (Caller.isRemote(caller)) {
             await authorization.requireVisible(this.objects);
         }

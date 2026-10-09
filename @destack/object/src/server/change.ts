@@ -13,11 +13,13 @@ import {
 } from "@destack/db";
 import { found, schema } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
-import type {
-    ChangeOperation,
-    ChangeTrigger,
-    ObjectChange,
-    RunClient,
+import { RequestId } from "@destack/service/request";
+import {
+    type ChangeOperation,
+    type ChangeTrigger,
+    type ObjectChange,
+    type RunClient,
+    RunEvent,
 } from "@destack/service/trigger";
 import { ObjectType } from "../object/object.ts";
 
@@ -115,9 +117,13 @@ export class ChangeController implements Controller {
         try {
             for (;;) {
                 const page = await log.read({ tables: [table], after });
-                const seen = page.changes.flatMap(
-                    (logged) => ChangeController.#see(trigger, logged, epoch, match) ?? [],
-                );
+                const seen = page.changes.flatMap((logged) => {
+                    const admitted = ChangeController.#see(trigger, logged, epoch, match);
+
+                    return admitted === undefined
+                        ? []
+                        : [{ change: admitted, at: logged.changedAt }];
+                });
                 await this.#record(trigger, seen);
                 after = Math.max(after, page.sequence);
                 await log.advance(slot, after, this.#now() + change.maxLag);
@@ -157,8 +163,9 @@ export class ChangeController implements Controller {
             return sequence;
         }
 
-        // record the snapshot's matching rows as created, page by page
+        // record the snapshot's matching rows as created at the snapshot's reading, page by page
         const snapshot = log.at({ epoch, sequence });
+        const at = this.#now();
         const table = ChangeController.#table(trigger);
         let last: Row | undefined;
         for (;;) {
@@ -170,10 +177,13 @@ export class ChangeController implements Controller {
                 limit: SNAPSHOT_PAGE_ROWS,
             });
             const created = rows.map((row) => ({
-                position: { epoch, sequence },
-                operation: "create" as const,
-                key: Key.of(table, row),
-                after: row,
+                change: {
+                    position: { epoch, sequence },
+                    operation: "create" as const,
+                    key: Key.of(table, row),
+                    after: row,
+                },
+                at,
             }));
             await this.#record(trigger, created);
             last = rows.at(-1);
@@ -189,22 +199,20 @@ export class ChangeController implements Controller {
         return sequence;
     }
 
-    /** Record the runs of some changes' calls once per change and snapshot row, reporting a change whose call fails to build. */
-    async #record(trigger: ChangeTrigger, changes: readonly ObjectChange[]): Promise<void> {
+    /** Record the runs of some changes' calls once per change and snapshot row, under requests derived from each change and its time, reporting a change whose call fails to build. */
+    async #record(
+        trigger: ChangeTrigger,
+        changes: readonly { readonly change: ObjectChange; readonly at: number }[],
+    ): Promise<void> {
         // build each change's request, reporting and passing over a change the trigger builds no call of
-        const requests = changes.flatMap((change) => {
+        const requests = changes.flatMap(({ change, at }) => {
             const key =
                 change.key === undefined ? {} : { key: schema.string().parse(change.key["id"]) };
             try {
                 const call = trigger.call(change);
+                const event = { change: { position: change.position, ...key } };
 
-                return [
-                    {
-                        call,
-                        triggerName: trigger.name,
-                        event: { change: { position: change.position, ...key } },
-                    },
-                ];
+                return [{ request: { call, triggerName: trigger.name, event }, at }];
             } catch (error) {
                 this.#report(
                     new Error(
@@ -220,7 +228,17 @@ export class ChangeController implements Controller {
         // send them several at a time in request order
         for (let start = 0; start < requests.length; start += SEND_CONCURRENCY) {
             const chunk = requests.slice(start, start + SEND_CONCURRENCY);
-            await Promise.all(chunk.map((request) => this.#runs.send(request)));
+            await Promise.all(
+                chunk.map(async ({ request, at }) => {
+                    // send under the request derived from the trigger and the change, one however often sent
+                    const event = RunEvent.requestId(request.event);
+                    const requestId = await RequestId.derive(
+                        at,
+                        `${ChangeController.#key(trigger)} ${event}`,
+                    );
+                    await this.#runs.send(request, { requestId });
+                }),
+            );
         }
     }
 

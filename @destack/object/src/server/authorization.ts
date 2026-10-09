@@ -24,7 +24,6 @@ import {
 } from "@destack/db";
 import { aligned, schema } from "@destack/schema";
 import { conceal, ServiceError } from "@destack/service/error";
-import { Moved } from "@destack/directory";
 import type { Call } from "../method/call.ts";
 import type { MethodKind } from "../method/kind.ts";
 import { SCOPE_READ, type ObjectType } from "../object/object.ts";
@@ -399,7 +398,21 @@ export class Authorization extends access.Authorization {
     requireUnmoved(): void {
         const moved = this.access.moved;
         if (moved !== undefined) {
-            throw Moved.error(moved);
+            throw new ServiceError("MISDIRECTED_REQUEST", {
+                message: `${moved.scope} moves to ${moved.machine}`,
+                data: moved,
+            });
+        }
+    }
+
+    /** Refuse a call in a scope another partition serves than the one the store serves, a store serving every partition of its database taking any. */
+    requirePartition(served: string | undefined): void {
+        const { scope, partition } = this.access;
+        if (served !== undefined && partition !== undefined && partition !== served) {
+            throw new ServiceError("MISDIRECTED_REQUEST", {
+                message: `${scope} is served by partition ${partition}`,
+                data: { scope, partition },
+            });
         }
     }
 

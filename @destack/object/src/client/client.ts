@@ -48,7 +48,6 @@ import type { Client } from "@destack/service";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import type { Package } from "@destack/package";
 import { errorOf, ServiceError } from "@destack/service/error";
-import { Moved } from "@destack/directory";
 import { Replay } from "@destack/audit";
 import { Authorization, Authorizer, decisionTables } from "@destack/access";
 import { RequestId } from "@destack/service/request";
@@ -2098,8 +2097,8 @@ export class ObjectClient<
     /** Reconnect to the machine serving a moved scope now, returning whether the failure was a move. */
     #redirect(error: unknown, service: Client<ReplicaProcedures>): boolean {
         // ignore other failures
-        const moved = Moved.of(error);
-        if (moved === undefined) {
+        const moved = ServiceError.data(error, "MISDIRECTED_REQUEST");
+        if (moved === undefined || !("machine" in moved)) {
             return false;
         }
 
