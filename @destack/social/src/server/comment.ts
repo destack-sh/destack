@@ -38,7 +38,7 @@ export const comment = base.comment.handle({
             payload: excerptOf(row),
             excluded: mentioned,
         } as const;
-        await (isReply ? base.reply : base.thread).announce(call, notice);
+        await (isReply ? base.reply : base.thread).notify(call, notice);
 
         return row;
     },

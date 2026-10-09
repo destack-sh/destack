@@ -1,7 +1,8 @@
+import { space } from "@destack/account/object";
 import { activity, announcement, Subscription, subscription } from "@destack/notification";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { space } from "@destack/space/object";
+
 import { comment, favourite, presence, reaction, receipt } from "../../src/index.ts";
 
 /** Articles with every social attachment, shared with editors, commenters and viewers. */

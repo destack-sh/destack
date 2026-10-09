@@ -1,10 +1,10 @@
+import { space } from "@destack/account/object";
 import { intersection, relation, through } from "@destack/access";
 import { unique } from "@destack/db";
 import { defineObject, field, Selection } from "@destack/object";
 import { schema } from "@destack/schema";
-import { space } from "@destack/space/object";
 
-/** One client's presence on an object, kept in memory. */
+/** One writer's presence on an object, kept in memory. */
 export const presence = defineObject({
     name: "presence",
     plural: "presences",
@@ -24,12 +24,12 @@ export const presence = defineObject({
         isTyping: field.boolean().default(false),
     },
     constraints: (entry) => [
-        unique("presence_client").on(
+        unique("presence_writer").on(
             entry.parentPackageId,
             entry.parentType,
             entry.parentId,
             entry.principal,
-            entry.client,
+            entry.writerId,
         ),
     ],
     permissions: {

@@ -1,7 +1,7 @@
+import { space } from "@destack/account/object";
 import { intersection, relation, through } from "@destack/access";
 import { unique } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { space } from "@destack/space/object";
 
 /** A principal's private star on an object. */
 export const favourite = defineObject({

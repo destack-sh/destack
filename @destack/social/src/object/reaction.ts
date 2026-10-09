@@ -1,8 +1,8 @@
+import { space } from "@destack/account/object";
 import { intersection, relation, through } from "@destack/access";
 import { unique } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { space } from "@destack/space/object";
 
 /** The longest emoji in UTF-16 code units: 15, the longest RGI sequence. */
 const EMOJI_LENGTH = 15;

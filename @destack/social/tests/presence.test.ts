@@ -6,7 +6,7 @@ import { article } from "./fixture/article.ts";
 import { actors, type Follower, serveArticles } from "./fixture/server.ts";
 
 test.for(TEST_DIALECTS)(
-    "show an article's readers who is on it once per client, what they do and where, until they leave, on %s",
+    "show an article's readers who is on it once per writer, what they do and where, until they leave, on %s",
     async (dialect) => {
         const { call, host, as, follow } = await serveArticles(dialect);
         const draft = await call(article, "create", { title: "Launch plan" });
@@ -70,7 +70,7 @@ test.for(TEST_DIALECTS)(
         await call(presence, "delete", { id: editing.id });
         expect(await rows(bob)).toEqual([[Subject.key(actors.bob), "viewing", null, false]]);
 
-        // refuse a second presence of one principal's client, and let another principal copy the client only for its own row
+        // refuse a second presence of one principal's writer, and let another principal copy the writer only for its own row
         as("bob");
         expect(
             await refusal(call(presence, "create", { ...host(article, draft.id), status: "idle" })),
@@ -78,7 +78,7 @@ test.for(TEST_DIALECTS)(
         const copied = await call(presence, "create", {
             ...host(article, draft.id),
             status: "idle",
-            client: "client-alice",
+            writerId: "writer-alice",
         });
         expect(await rows(bob)).toEqual([
             [Subject.key(actors.bob), "viewing", null, false],

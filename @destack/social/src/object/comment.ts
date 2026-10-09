@@ -1,3 +1,4 @@
+import { space } from "@destack/account/object";
 import {
     ACCESS_PACKAGE_ID,
     intersection,
@@ -13,7 +14,7 @@ import { type Action, activity, announcement, subscription } from "@destack/noti
 import { defineNotification } from "@destack/notification/declare";
 import { defineObject, field, type ObjectType, Selection } from "@destack/object";
 import { schema } from "@destack/schema";
-import { space } from "@destack/space/object";
+
 import { reaction } from "./reaction.ts";
 
 /** The longest comment text in UTF-16 code units, about four pages. */

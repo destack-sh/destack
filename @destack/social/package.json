@@ -8,7 +8,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./server": "./src/server/index.ts",
-        "./destack.json": "./destack.json"
+        "./destack.json": "./destack.json",
+        "./stack": "./src/stack/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
