@@ -1,0 +1,29 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a1134b-9917-7715-9de1-f110ac97cc97",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./github": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./server": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
+        }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/test/fixture.ts"],
+                "rules": ["destack/valid-declaration"],
+                "reason": "the fixture composes one test database per topology from its callers' tables: a home keeping notices, or a space copying them beside another service's tables"
+            }
+        ]
+    }
+}

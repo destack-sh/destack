@@ -1,0 +1,46 @@
+{
+    "name": "@destack/connection",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Hold credentials for external accounts and lend them to outbound calls.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./client": "./src/client/index.ts",
+        "./github": "./src/github/index.ts",
+        "./oauth": "./src/oauth/index.ts",
+        "./object": "./src/object/index.ts",
+        "./server": "./src/server/index.ts",
+        "./service": "./src/service/index.ts",
+        "./signature": "./src/signature/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./test": "./src/test/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "jose": "6.2.12",
+        "uuid": "14.0.2"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2",
+        "@destack/space": "workspace:*"
+    }
+}
