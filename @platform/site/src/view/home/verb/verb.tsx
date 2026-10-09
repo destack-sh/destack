@@ -33,8 +33,8 @@ const verb: Form = {
     pronunciation: "/diːˈstak/",
     partOfSpeech: "verb",
     sense: {
-        definition: "to take back your software",
-        highlight: ["back"],
+        definition: "to reconquer your software",
+        highlight: ["reconquer"],
         sentence: "Own your apps and agents in one unified personal software platform.",
     },
 };

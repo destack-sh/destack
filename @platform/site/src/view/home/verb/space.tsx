@@ -200,7 +200,7 @@ const tabs: readonly (readonly [row: number, icon: string, tint: string, title: 
     [2, "linear", "#5e6ad2", "Destack › All issues"],
     [3, "slack", "#4a154b", "launch (Channel) - Symbol - Slack"],
     [4, "github", "#181717", "destack-sh/destack"],
-    [5, "framer", "#0a0a0a", "Destack · Take back your software"],
+    [5, "framer", "#0a0a0a", "Destack · Reconquer your software"],
     [6, "calendly", "#006bff", "Destack demo | Florian | Calendly"],
     [7, "replit", "#f26207", "Join the waitlist"],
 ];

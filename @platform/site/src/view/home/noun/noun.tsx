@@ -25,7 +25,7 @@ const noun: Form = {
     partOfSpeech: "noun",
     sense: {
         definition: "a complete, absurdly integrated software engine",
-        highlight: ["complete", "integrated"],
+        highlight: ["complete", "absurdly integrated"],
         sentence:
             "Auth, secrets, workflows, sync and more – everything serious software needs, already included.",
     },

@@ -14,7 +14,7 @@ const participle: Form = {
     pronunciation: "/diːˈstakɪŋ/",
     partOfSpeech: "present participle",
     sense: {
-        definition: "taking back your stack, one app at a time",
+        definition: "reconquering your stack, one app at a time",
         highlight: ["one app at a time"],
         sentence: "Start with one app, bring your own agent, and keep going as far as you want.",
     },

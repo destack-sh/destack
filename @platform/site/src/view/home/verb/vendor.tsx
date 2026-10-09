@@ -127,7 +127,7 @@ function Framer() {
                     <span {...style.attrs(styles.framerDot)} />
                     Launching Friday
                 </span>
-                <b {...style.attrs(styles.framerTitle)}>Take back your software.</b>
+                <b {...style.attrs(styles.framerTitle)}>Reconquer your software.</b>
             </header>
             <section {...style.attrs(styles.framerSection)}>
                 <span {...style.attrs(styles.framerHead)}>
