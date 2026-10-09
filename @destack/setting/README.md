@@ -3,9 +3,21 @@
 `defineSetting` is a VS Code configuration contribution (`title`, `description`, a schema, `default`, a scope and the scopes that override it), stored as `setting` objects along a space's scope chain, and `mode` adds Chrome enterprise policy's recommended and mandatory values as `recommend` and `require`.
 
 ```ts
-defineSetting({ name: "editor.mode", title, description, schema, default: "standard", scope: "user", overrides: ["space", "client"], apply: "immediate" }); // contributes.configuration
-editor: { setting: editorMode, value: "vim", mode: "recommend" }; // a Chrome recommended policy, "require" a mandatory one
-editorMode.resolve(selection, rows, chain, clientValues); // client, then user, account and default, as VS Code's workspace over user
+// contributes.configuration
+defineSetting({
+    name: "editor.mode",
+    title,
+    description,
+    schema,
+    default: "standard",
+    scope: "user",
+    overrides: ["space", "client"],
+    apply: "immediate",
+});
+// a Chrome recommended policy, "require" a mandatory one
+editor: { setting: editorMode, value: "vim", mode: "recommend" };
+// client, then user, account and default, as VS Code's workspace over user
+editorMode.resolve(selection, rows, chain, clientValues);
 merge: "key"; // each record key from its own nearest placement
 ```
 

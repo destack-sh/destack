@@ -43,7 +43,7 @@ test.each(TEST_DIALECTS)(
             Stack.apply({
                 database: storage.database,
                 objects,
-                server: storage.objects,
+                store: storage.objects,
                 as: storage.objects.principal,
                 release: () => storage.reader,
                 manager,

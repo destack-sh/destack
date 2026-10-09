@@ -209,7 +209,7 @@ async function follow(
 > {
     // serve the scope as Alice
     const server = Server.start({
-        ...storage.objects.implement(settingService),
+        ...storage.objects.implement(settingService, storage.objects.routed, storage.objects.controllers(), {}),
         audience: notes.id,
         scope,
         resources: new ResourceContext(),

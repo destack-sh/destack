@@ -9,7 +9,7 @@ import { account, machine, organisation, user, space } from "@destack/account/ob
 import type { Dialect } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
 import type { CallableName, CallOutput, ObjectType } from "@destack/object";
-import { ObjectServer } from "@destack/object/server";
+import { ObjectStore } from "@destack/object/server";
 
 import { settingTables } from "../../src/stack/index.ts";
 import { setting } from "../../src/object/index.ts";
@@ -37,7 +37,7 @@ export class Storage {
     /** Open the fixture release's settings for every written value. */
     readonly catalog: ReturnType<typeof SettingCatalog.cached>;
     /** The served setting values. */
-    readonly objects: ObjectServer<ReturnType<typeof serveSettings>>;
+    readonly objects: ObjectStore<ReturnType<typeof serveSettings>>;
 
     /** Serve values checked against a release declaring some settings. */
     constructor(test: TestDatabase, declarations: readonly Setting[]) {
@@ -46,7 +46,7 @@ export class Storage {
         this.subject = Subject.parse(principal.user.reference(Scope.universe.id, alice));
         this.reader = release(declarations);
         this.catalog = SettingCatalog.cached(() => this.reader);
-        this.objects = new ObjectServer({
+        this.objects = new ObjectStore({
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
             objects: serveSettings(this.catalog, []),
             // decide access in the scopes the values live in
@@ -78,12 +78,15 @@ export class Storage {
         }
         const context = subjectContext(this.subject, scope);
 
-        return await this.objects.call(
-            object,
-            name,
-            { [field]: scope, requestId: RequestId.create(), ...input },
-            context,
-        );
+        // read through a query, or write through a one-call mutation
+        const call = object.call(name, { [field]: scope, ...input });
+        const caller = context.caller();
+
+        return object.method(name).mutates
+            ? this.objects
+                  .mutate(caller, { id: RequestId.create(), calls: [call] })
+                  .then(([result]) => result)
+            : this.objects.query(caller, call);
     }
 
     /** Open a database of a dialect with Alice's own personal scope. */
