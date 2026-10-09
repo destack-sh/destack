@@ -6,8 +6,8 @@ export const assets: Record<string, () => Promise<string>> = {
         import("../../../../public/_content/docs/setup/index.json?raw").then(
             (module) => module.default,
         ),
-    "/_content/tree/4cc365369057bb6ac318b17016d78ea8629ebfee50e2b34595e886a739f0f131.json": () =>
-        import("../../../../public/_content/tree/4cc365369057bb6ac318b17016d78ea8629ebfee50e2b34595e886a739f0f131.json?raw").then(
+    "/_content/tree/1821d251cf091e2b1edcad5e2e9d5d666a1fcf88b2cbb3b21c8666c734840145.json": () =>
+        import("../../../../public/_content/tree/1821d251cf091e2b1edcad5e2e9d5d666a1fcf88b2cbb3b21c8666c734840145.json?raw").then(
             (module) => module.default,
         ),
     "/_content/tree/c0f66583508180752f49d9a538c84c5bab263b9e17e567f30fbc12aa4c495d4d.json": () =>

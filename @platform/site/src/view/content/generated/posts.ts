@@ -53,7 +53,7 @@ export const posts = [
     {
         author: "Florian",
         contentRoute:
-            "/_content/tree/4cc365369057bb6ac318b17016d78ea8629ebfee50e2b34595e886a739f0f131.json",
+            "/_content/tree/1821d251cf091e2b1edcad5e2e9d5d666a1fcf88b2cbb3b21c8666c734840145.json",
         cover: {
             source: "/_content/assets/aade6fe26c510ace.jpg",
             alt: "Illustration of Cambrian marine life, with Opabinia swimming above trilobites, spiny animals, and sponges.",
@@ -70,7 +70,7 @@ export const posts = [
         ],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 2768,
+        tokens: 2500,
     },
 ] as const satisfies readonly Post[];
 
