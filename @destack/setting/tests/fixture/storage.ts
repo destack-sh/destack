@@ -3,17 +3,9 @@ import { AccessFixture } from "@destack/access/test";
 import { Scope, type ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/service/request";
-import { accessTables, principal } from "@destack/access";
-import {
-    account,
-    client,
-    key,
-    machine,
-    organisation,
-    user,
-    type Client,
-} from "@destack/account/object";
-import { space } from "@destack/space/object";
+import { accessTables, principal, universe } from "@destack/access";
+import { account, machine, organisation, user, space } from "@destack/account/object";
+
 import type { Dialect } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
 import type { CallableName, CallOutput, ObjectType } from "@destack/object";
@@ -29,10 +21,10 @@ import { editor, lineNumbers, release } from "./setting/index.ts";
 import { alice } from "./value.ts";
 import { subjectContext, testCallKey } from "@destack/service/test";
 
-/** The fixture's service of setting values and Alice's clients. */
-export const settingService = defineService("setting", { objects: { setting, client } });
+/** The fixture's service of setting values. */
+export const settingService = defineService("setting", { objects: { setting } });
 
-/** Setting values and Alice's clients served from a migrated test database. */
+/** Setting values served from a migrated test database. */
 export class Storage {
     /** The isolated database. */
     readonly test: TestDatabase;
@@ -44,8 +36,8 @@ export class Storage {
     readonly reader: Promise<BuildReader>;
     /** Open the fixture release's settings for every written value. */
     readonly catalog: ReturnType<typeof SettingCatalog.cached>;
-    /** The served setting values and clients. */
-    readonly objects: ObjectServer<ReturnType<typeof serveSettings> & { client: typeof client }>;
+    /** The served setting values. */
+    readonly objects: ObjectServer<ReturnType<typeof serveSettings>>;
 
     /** Serve values checked against a release declaring some settings. */
     constructor(test: TestDatabase, declarations: readonly Setting[]) {
@@ -55,7 +47,8 @@ export class Storage {
         this.reader = release(declarations);
         this.catalog = SettingCatalog.cached(() => this.reader);
         this.objects = new ObjectServer({
-            objects: { ...serveSettings(this.catalog), client },
+            principal: universe.reference(Scope.universe.id, Scope.universe.id),
+            objects: serveSettings(this.catalog, []),
             // decide access in the scopes the values live in
             policies: [user, space, account, organisation, machine].map((type) => type.policy),
             database: test.database,
@@ -93,17 +86,12 @@ export class Storage {
         );
     }
 
-    /** Register a client of Alice's. */
-    async register(name: string): Promise<Omit<Client, "push">> {
-        return await this.call(client, "create", alice, { name, kind: "desktop" });
-    }
-
     /** Open a database of a dialect with Alice's own personal scope. */
     static async open(
         dialect: Dialect,
         declarations: readonly Setting[] = [editor, lineNumbers],
     ): Promise<Storage> {
-        const tables = [...accessTables, ...settingTables, client.table, key.table, outbox];
+        const tables = [...accessTables, ...settingTables, outbox];
         const test = await TestDatabase.create(dialect, tables, { isMigrated: true });
         const storage = new Storage(test, declarations);
         await storage.own(principal.user.reference(Scope.universe.id, alice));

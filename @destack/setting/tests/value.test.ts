@@ -14,7 +14,6 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await Storage.open(dialect);
         onTestFinished(() => storage.close());
-        const laptop = await storage.register("laptop");
         const call = async (name: "create" | "update", input: JsonObject) =>
             await storage.call(setting, name, alice, input);
         const create = (input: JsonObject) =>
@@ -26,18 +25,14 @@ test.each(TEST_DIALECTS)(
                 ...input,
             });
 
-        // write a personal value and an override on the laptop in Bob's installation, and change it
+        // write a personal value and an override in Bob's installation, and change it
         const base = await create({});
-        const override = await create({
-            installation,
-            clientId: laptop.id,
-            value: "standard",
-        });
+        const override = await create({ installation, value: "standard" });
         const changed = await call("update", { id: override.id, value: "vim" });
         const rows = await storage.database
             .select()
             .from(setting.table)
-            .orderBy(asc(setting.table.revision), asc(setting.table.clientId));
+            .orderBy(asc(setting.table.revision), asc(setting.table.installation));
         const author = Subject.key(principal.user.reference(Scope.universe.id, alice));
         const written = {
             createdBy: author,
@@ -62,7 +57,6 @@ test.each(TEST_DIALECTS)(
                 createdAt: base.createdAt,
                 updatedAt: base.updatedAt,
                 installation: null,
-                clientId: null,
                 value: "vim",
             },
             {
@@ -72,7 +66,6 @@ test.each(TEST_DIALECTS)(
                 updatedAt: changed.updatedAt,
                 revision: 2,
                 installation: selection.installation,
-                clientId: laptop.id,
                 value: "vim",
             },
         ]);

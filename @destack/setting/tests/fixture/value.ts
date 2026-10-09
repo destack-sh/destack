@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import type { SettingValue } from "../../src/object/index.ts";
+import type { ClientSettingValue, SettingValue } from "../../src/object/index.ts";
 import { Scope } from "@destack/sync";
 import { SettingPlacement, SettingSelection } from "../../src/setting/placement.ts";
 import type { SettingSource } from "../../src/setting/resolution.ts";
@@ -23,17 +23,11 @@ export const installation = schema
     .identifier("installation")
     .parse("installation-019f5530-8000-7000-8000-000000000004");
 
-/** Alice's own client. */
-export const clientId = schema
-    .identifier("client")
-    .parse("client-019f5530-8000-7000-8000-000000000005");
-
-/** Alice using Bob's installation on her own client. */
+/** Alice using Bob's installation. */
 export const selection = SettingSelection.parse({
     scope: alice,
     space,
     installation,
-    clientId,
 });
 
 /** Alice's personal editor mode. */
@@ -54,19 +48,26 @@ export const personal: SettingValue = {
     package: null,
     space: null,
     installation: null,
-    clientId: null,
     mode: "set",
     value: "vim",
     release: "2026.9.0",
 };
 
-/** Alice's editor mode in Bob's installation on her client. */
-export const override: SettingValue = {
-    ...personal,
-    id: schema.identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000007"),
-    installation,
-    clientId,
+/** The editor mode Alice's laptop keeps. */
+export const laptop: ClientSettingValue = {
+    id: schema
+        .identifier("client-setting")
+        .parse("client-setting-019f5530-8000-7000-8000-000000000007"),
+    createdAt: 1000,
+    createdBy: null,
+    updatedAt: 1000,
+    updatedBy: null,
+    revision: 1,
+    tags: {},
+    scope: schema.identifier("client").parse("client-019f5530-8000-7000-8000-000000000009"),
+    ...named(editor),
     value: "standard",
+    release: "2026.9.0",
 };
 
 /** The editor mode Bob's space requires of the users acting in it. */
@@ -82,12 +83,24 @@ export function named(declared: Setting): Pick<SettingValue, "packageId" | "name
     return { packageId: declared.reference.packageId, name: declared.reference.name };
 }
 
-/** Describe a value as the source it contributes to a resolution, valid or skipped as invalid. */
+/** Describe a placed value as the source it contributes to a resolution, valid or skipped as invalid. */
 export function source(value: SettingValue, kind: "value" | "invalid" = "value"): SettingSource {
-    return {
-        kind,
+    const placed = {
+        kind: "value" as const,
         id: value.id,
         revision: value.revision,
         ...SettingPlacement.of(value),
     };
+
+    return kind === "value" ? placed : { kind, source: placed };
+}
+
+/** Describe a client's value as the source it contributes to a resolution, valid or skipped as invalid. */
+export function clientSource(
+    value: ClientSettingValue,
+    kind: "client" | "invalid" = "client",
+): SettingSource {
+    const kept = { kind: "client" as const, id: value.id, revision: value.revision };
+
+    return kind === "client" ? kept : { kind, source: kept };
 }

@@ -38,8 +38,6 @@ export const setting = defineObject({
         space: field.string(schema.identifier("space")).optional(),
         /** The installation the value applies to. */
         installation: field.string(schema.identifier("installation")).optional(),
-        /** The user's client the value applies on. */
-        clientId: field.string(schema.identifier("client")).optional(),
 
         /** How the value applies. */
         mode: field.enum(SETTING_MODES),
@@ -49,7 +47,7 @@ export const setting = defineObject({
         release: field.string(Version),
     },
     permissions: ["read", "write"],
-    detachable: { by: "write" },
+    adoptable: { by: "write" },
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
@@ -65,12 +63,11 @@ export const setting = defineObject({
             sql`coalesce(${value.package}, '')`,
             sql`coalesce(${value.space}, '')`,
             sql`coalesce(${value.installation}, '')`,
-            sql`coalesce(${value.clientId}, '')`,
         ),
         index("setting_scope").on(value.scope, value.id),
         check(
             "setting_override",
-            sql`(${value.installation} IS NULL OR ${value.space} IS NULL) AND (${value.mode} = 'set' OR (${value.package} IS NULL AND ${value.space} IS NULL AND ${value.clientId} IS NULL))`,
+            sql`(${value.installation} IS NULL OR ${value.space} IS NULL) AND (${value.mode} = 'set' OR (${value.package} IS NULL AND ${value.space} IS NULL))`,
         ),
     ],
 });

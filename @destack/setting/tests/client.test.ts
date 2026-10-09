@@ -1,15 +1,17 @@
+import { space } from "@destack/account/object";
+import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, canonicalize } from "@destack/schema";
+import { canonicalize, Identifier, schema } from "@destack/schema";
 import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Observable } from "@destack/service/observable";
 import { Server } from "@destack/service/server";
-import { space } from "@destack/space/object";
+
 import { expect, onTestFinished, test } from "@destack/test";
-import { setting, type SettingValue } from "../src/object/index.ts";
+import { clientSetting, setting, type SettingValue } from "../src/object/index.ts";
 import {
     type Setting,
     SettingPlacement,
@@ -18,7 +20,7 @@ import {
 } from "../src/setting/index.ts";
 import { editor, lineNumbers, notes } from "./fixture/setting/index.ts";
 import { settingService, Storage } from "./fixture/storage.ts";
-import { alice, named, source } from "./fixture/value.ts";
+import { alice, clientSource, named, source } from "./fixture/value.ts";
 
 /** The space Alice acts in. */
 const spaceId = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000000000030");
@@ -146,11 +148,65 @@ test.each(TEST_DIALECTS)(
     5000,
 );
 
-/** Serve a scope's values to Alice and follow them into a local copy. */
+test("resolve a value the client keeps over the user's own, keeping it off the server", async () => {
+    const storage = await Storage.open("sqlite");
+    onTestFinished(() => storage.close());
+    const personal = await follow(storage, alice);
+    const release = editor.package.version;
+
+    // set Alice's own value on the server, and keep the client's value in its database
+    const placed = await storage.call(setting, "create", alice, {
+        ...named(editor),
+        mode: "set",
+        value: "vim",
+        release,
+    });
+    const kept = personal.mutate(clientSetting).create({
+        ...named(editor),
+        value: "standard",
+        release,
+    });
+    const value = await kept.predicted;
+    await kept.confirmed;
+
+    // read both layers and resolve the client's value over Alice's
+    const selection = SettingSelection.parse({ scope: alice });
+    const values = personal.query.setting.findMany({ where: editor.condition(selection) });
+    const placedRows = values.subscribe();
+    const keptRows = personal.query.clientSetting.findMany().subscribe();
+    onTestFinished(async () => {
+        await Promise.all([placedRows.close(), keptRows.close()]);
+    });
+    await Promise.all([placedRows.ready, keptRows.ready]);
+    const chain = await personal.replica.chain(personal.database);
+    const resolved = editor.resolve(
+        selection,
+        await placedRows.read(),
+        chain,
+        await keptRows.read(),
+    );
+
+    // expect the client's value to win, and no mutation of it to reach the outbox
+    expect({
+        value: resolved.value,
+        sources: resolved.sources,
+        overridden: resolved.overridden,
+        mutations: (await personal.inspect()).mutations,
+    }).toEqual({
+        value: "standard",
+        sources: [clientSource(value)],
+        overridden: [{ kind: "default", package: notes }, source(placed)],
+        mutations: { pending: 0, executed: 0, rejected: 0 },
+    });
+});
+
+/** Serve a scope's values to Alice and follow them into a local copy beside the client's own values. */
 async function follow(
     storage: Storage,
     scope: string,
-): Promise<ObjectClient<{ readonly setting: typeof setting }>> {
+): Promise<
+    ObjectClient<{ readonly setting: typeof setting; readonly clientSetting: typeof clientSetting }>
+> {
     // serve the scope as Alice
     const server = Server.start({
         ...storage.objects.implement(settingService),
@@ -173,22 +229,19 @@ async function follow(
     });
     onTestFinished(() => server.close());
 
-    // copy the scope's values into a local database
-    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ setting }), {
-        isMigrated: true,
-        isReplica: true,
-    });
+    // copy the scope's values into a local database beside the client's own values
+    const local = await TestDatabase.create("sqlite", []);
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
         database: local.database,
-        objects: { setting },
+        objects: { setting, clientSetting },
         scope,
         caller: storage.subject,
+        client: principal.client.reference(Scope.universe.id, Identifier.create("client")),
         endpoint: { url: "https://settings.test", fetch: (request) => server.fetch(request) },
         reconnect: (cell) => {
             throw new TypeError(`no scope moves in this test, yet one moved to ${cell}`);
         },
-        isMigrated: true,
     });
     const controller = new AbortController();
     const running = client.run(controller.signal, (error) => {

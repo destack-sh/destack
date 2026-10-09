@@ -1,6 +1,7 @@
 import { Package } from "@destack/package";
 import { defineSchema, schema, canonicalize } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
+import type { ClientSettingValue } from "../object/client.ts";
 import { SettingReference } from "./setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
 
@@ -12,7 +13,23 @@ const PlacedValue = SettingPlacement.extend({
     revision: schema.number().int().min(1),
 });
 
-/** The declaration default, a placed value, or a placed value the declaration no longer accepts. */
+/** A placed value. */
+const ValueSource = PlacedValue.extend({
+    /** A placed value. */
+    kind: schema.literal("value"),
+});
+
+/** A value the client keeps. */
+const ClientSource = schema.object({
+    /** A client's value. */
+    kind: schema.literal("client"),
+    /** The value's identifier in the client's database. */
+    id: schema.identifier("client-setting"),
+    /** The value's revision. */
+    revision: schema.number().int().min(1),
+});
+
+/** The declaration default, a placed or client value, or a value the declaration no longer accepts. */
 export const SettingSource = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -21,13 +38,13 @@ export const SettingSource = defineSchema(
             /** The release declaring the default. */
             package: Package,
         }),
-        PlacedValue.extend({
-            /** A placed value. */
-            kind: schema.literal("value"),
-        }),
-        PlacedValue.extend({
-            /** A placed value the current declaration rejects, skipped by the resolution. */
+        ValueSource,
+        ClientSource,
+        schema.object({
+            /** A value the current declaration rejects, skipped by the resolution. */
             kind: schema.literal("invalid"),
+            /** The skipped value. */
+            source: schema.discriminatedUnion("kind", [ValueSource, ClientSource]),
         }),
     ]),
 );
@@ -67,21 +84,27 @@ export const SettingResolution = Object.assign(
         }),
     ),
     {
-        /** Read the value a resolution shows at an exact placement, valid or not, or null for none. */
+        /** Read the value a resolution shows at an exact placement or on the client, valid or not, or null for none. */
         observed(
             resolution: SettingResolution<unknown>,
-            placement: SettingPlacement,
-        ): Pick<SettingValue, "id" | "revision"> | null {
-            const selected = canonicalize(SettingPlacement.of(placement));
-            const source = [...resolution.sources, ...resolution.overridden].find(
-                (candidate) =>
-                    candidate.kind !== "default" &&
-                    canonicalize(SettingPlacement.of(candidate)) === selected,
+            at: SettingPlacement | "client",
+        ): Pick<SettingValue | ClientSettingValue, "id" | "revision"> | null {
+            // list every placed and client source, invalid ones included, and find the one at the placement
+            const selected = at === "client" ? at : canonicalize(SettingPlacement.of(at));
+            const placed = [...resolution.sources, ...resolution.overridden].flatMap((source) =>
+                source.kind === "invalid"
+                    ? [source.source]
+                    : source.kind === "default"
+                      ? []
+                      : [source],
+            );
+            const found = placed.find((source) =>
+                source.kind === "client"
+                    ? selected === "client"
+                    : canonicalize(SettingPlacement.of(source)) === selected,
             );
 
-            return source === undefined || source.kind === "default"
-                ? null
-                : { id: source.id, revision: source.revision };
+            return found === undefined ? null : { id: found.id, revision: found.revision };
         },
     },
 );

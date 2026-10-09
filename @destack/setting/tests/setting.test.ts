@@ -2,7 +2,6 @@ import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { Scope } from "@destack/sync";
 import { defineSetting } from "../src/declare/index.ts";
 import { SettingError } from "../src/error/index.ts";
 import {
@@ -11,17 +10,17 @@ import {
     settingVocabulary,
     SettingDescription,
 } from "../src/inspect/index.ts";
-import type { SettingValue } from "../src/object/index.ts";
+import type { ClientSettingValue, SettingValue } from "../src/object/index.ts";
 import { SettingResolution, SettingSelection } from "../src/setting/index.ts";
-import { Setting, SettingCatalog } from "../src/setting/index.ts";
+import { Setting, SettingCatalog, SettingReference } from "../src/setting/index.ts";
 import {
     account,
     alice,
     chain,
-    clientId,
+    clientSource,
     installation,
+    laptop,
     named,
-    override,
     personal,
     required,
     selection,
@@ -73,18 +72,19 @@ function failure(run: () => unknown): { code: string; message: string } | "accep
 }
 
 test("resolve personal, client and required values independently of their order", () => {
-    // take the client override over the personal value, in either order
+    // take the client's value over the personal one and a recommendation, in either order
+    const recommendation: SettingValue = { ...required, mode: "recommend" };
     const ordinary = {
         ...standard,
-        sources: [source(override)],
-        overridden: [{ kind: "default", package: notes }, source(personal)],
+        sources: [clientSource(laptop)],
+        overridden: [{ kind: "default", package: notes }, source(recommendation), source(personal)],
     };
     expect([
-        editor.resolve(selection, [override, personal], chain),
-        editor.resolve(selection, [personal, override], chain),
+        editor.resolve(selection, [personal, recommendation], chain, [laptop]),
+        editor.resolve(selection, [recommendation, personal], chain, [laptop]),
     ]).toEqual([ordinary, ordinary]);
 
-    // expose the personal value once the override goes
+    // expose the personal value once the client's value goes
     expect(editor.resolve(selection, [personal], chain)).toEqual({
         ...standard,
         value: "vim",
@@ -92,13 +92,13 @@ test("resolve personal, client and required values independently of their order"
         overridden: [{ kind: "default", package: notes }],
     });
 
-    // take a requirement over every ordinary value
-    expect(editor.resolve(selection, [override, personal, required], chain)).toEqual({
+    // take a requirement over every ordinary value, the client's included
+    expect(editor.resolve(selection, [personal, required], chain, [laptop])).toEqual({
         ...standard,
         value: "vim",
         enforcement: "required",
         sources: [source(required)],
-        overridden: [...ordinary.overridden, ...ordinary.sources],
+        overridden: [{ kind: "default", package: notes }, source(personal), clientSource(laptop)],
     });
 });
 
@@ -144,16 +144,21 @@ test("resolve each key of a merged setting from its own nearest placement, requi
     // bind one command personally, another on the client, and require a third in the space
     const bindings = { ...personal, ...named(keybindings) };
     const mine = { ...bindings, value: { "note.archive": "mod+e", "note.pin": "mod+p" } };
-    const laptop = { ...override, ...named(keybindings), value: { "note.search": "mod+k" } };
+    const kept = { ...laptop, ...named(keybindings), value: { "note.search": "mod+k" } };
     const fixed = { ...required, ...named(keybindings), value: { "note.pin": null } };
-    const resolved = keybindings.resolve(selection, [laptop, fixed, mine], chain);
+    const resolved = keybindings.resolve(selection, [fixed, mine], chain, [kept]);
 
     // keep every key from the placement deciding it, the client override leaving the personal keys
     expect(resolved).toEqual({
         setting: keybindings.reference,
         selection,
         value: { "note.archive": "mod+e", "note.pin": null, "note.search": "mod+k" },
-        sources: [{ kind: "default", package: notes }, source(mine), source(laptop), source(fixed)],
+        sources: [
+            { kind: "default", package: notes },
+            source(mine),
+            clientSource(kept),
+            source(fixed),
+        ],
         overridden: [],
         enforcement: "required",
         keys: {
@@ -167,7 +172,7 @@ test("resolve each key of a merged setting from its own nearest placement, requi
                 overridden: [source(mine)],
                 enforcement: "required",
             },
-            "note.search": { source: source(laptop), overridden: [], enforcement: "ordinary" },
+            "note.search": { source: clientSource(kept), overridden: [], enforcement: "ordinary" },
         },
     });
 
@@ -176,7 +181,7 @@ test("resolve each key of a merged setting from its own nearest placement, requi
         failure(() =>
             keybindings.resolve(
                 selection,
-                [mine, { ...mine, id: laptop.id, value: { "note.archive": "mod+r" } }],
+                [mine, { ...mine, id: required.id, value: { "note.archive": "mod+r" } }],
                 chain,
             ),
         ),
@@ -310,12 +315,12 @@ test("resolve space settings per installation and machine settings per machine",
         { ...standard, setting: template.reference, selection: second },
     ]);
 
-    // resolve a machine setting on its machine, and refuse one set on another machine
+    // resolve a client setting from the value its client keeps, and refuse a value placed in a scope
     const cache = defineSetting(
         {
             ...editor.definition,
             name: "cacheDirectory",
-            scope: "machine",
+            scope: "client",
             overrides: [],
             schema: schema.string().min(1),
             default: "/cache",
@@ -323,29 +328,28 @@ test("resolve space settings per installation and machine settings per machine",
         },
         { package: notes },
     );
-    const machine = "machine-019f5530-8000-7000-8000-000000000015";
-    const path: SettingValue = {
-        ...personal,
+    const client = "client-019f5530-8000-7000-8000-000000000015";
+    const path: ClientSettingValue = {
+        ...laptop,
         ...named(cache),
-        scope: machine,
         value: "/Users/alice/cache",
     };
-    const machineChain = [machine, account, Scope.universe.id];
-    const onMachine = SettingSelection.parse({ scope: machine });
-    expect(cache.resolve(onMachine, [path], machineChain)).toEqual({
+    const elsewhere: SettingValue = { ...personal, ...named(cache), scope: client };
+    const onClient = SettingSelection.parse({ scope: client });
+    expect(cache.resolve(onClient, [], [client], [path])).toEqual({
         setting: cache.reference,
-        selection: onMachine,
+        selection: onClient,
         value: "/Users/alice/cache",
-        sources: [source(path)],
+        sources: [clientSource(path)],
         overridden: [{ kind: "default", package: notes }],
         enforcement: "ordinary",
     });
     expect(
         failure(() =>
             cache.resolve(
-                SettingSelection.parse({ scope: "machine-019f5530-8000-7000-8000-000000000016" }),
-                [path],
-                machineChain,
+                SettingSelection.parse({ scope: "client-019f5530-8000-7000-8000-000000000016" }),
+                [elsewhere],
+                [client],
             ),
         ),
     ).toEqual({
@@ -362,14 +366,17 @@ test("refuse placements and writes a setting does not permit", () => {
         message: "setting value uses an unsupported setting override",
     };
     expect([
-        failure(() => plain.requirePlacement({ installation, clientId, mode: "set" }, "own")),
-        failure(() => plain.resolve(selection, [override], chain)),
+        failure(() => plain.requirePlacement({ installation, mode: "set" }, "own")),
+        failure(() => plain.resolve(selection, [], chain, [laptop])),
         failure(() => editor.requirePlacement({ mode: "set" }, "enclosing")),
         failure(() => editor.requirePlacement({ mode: "recommend" }, "own")),
         failure(() => editor.requirePlacement({ space, installation, mode: "set" }, "own")),
     ]).toEqual([
         unsupported,
-        unsupported,
+        {
+            code: "INVALID_PLACEMENT",
+            message: `clients keep no values of ${SettingReference.key(plain.reference)}`,
+        },
         {
             code: "INVALID_PLACEMENT",
             message: "setting value outside its declared scope must recommend or require",
@@ -430,12 +437,27 @@ test("skip stored values a changed schema rejects, falling through to the next s
         },
     ]);
 
-    // find the invalid value at its placement, and nothing where no value is placed
+    // skip the client's value the changed schema rejects too
+    const emacs = { ...laptop, value: "vim" };
+    expect(upgraded.resolve(selection, [], chain, [emacs]).sources).toEqual([
+        { kind: "default", package: { ...notes, version: "2026.10.0" } },
+        clientSource(emacs, "invalid"),
+    ]);
+
+    // find the invalid values at their placement and on the client, and nothing where no value is placed
     const resolution = upgraded.resolve(selection, [personal], chain);
+    const kept = upgraded.resolve(selection, [personal], chain, [emacs]);
     expect([
         SettingResolution.observed(resolution, { scope: alice }),
-        SettingResolution.observed(resolution, { scope: alice, clientId }),
-    ]).toEqual([{ id: personal.id, revision: personal.revision }, null]);
+        SettingResolution.observed(resolution, { scope: alice, installation }),
+        SettingResolution.observed(resolution, "client"),
+        SettingResolution.observed(kept, "client"),
+    ]).toEqual([
+        { id: personal.id, revision: personal.revision },
+        null,
+        null,
+        { id: emacs.id, revision: emacs.revision },
+    ]);
 });
 
 test("convert stored values of earlier releases, and skip values of later releases and ones no conversion reaches", () => {
@@ -451,7 +473,7 @@ test("convert stored values of earlier releases, and skip values of later releas
     );
     const unconverted = new Setting(notes, { ...keymap.definition, convert: {} });
     const earlier: SettingValue = { ...personal, release: "2026.8.0" };
-    const current: SettingValue = { ...override, value: { keymap: "vim" } };
+    const current: SettingValue = { ...personal, value: { keymap: "vim" } };
     const expected = {
         ...standard,
         setting: keymap.reference,
@@ -610,4 +632,17 @@ test("plan a setting's value change between releases: safe widenings, converted 
         ],
         "setting/editor.mode: declare a conversion for 2026.9.0",
     ]);
+});
+
+test("read a setting's value among an installation's resolved settings, refusing an invalid or unresolved one", () => {
+    // read the resolved value by the setting's key
+    const key = SettingReference.key(editor.reference);
+    const read = editor.read({ [key]: "vim" });
+
+    // refuse a value the schema rejects and a setting the host left out
+    expect(read).toBe("vim");
+    expect(() => editor.read({ [key]: "emacs" })).toThrow(schema.Error);
+    expect(() => editor.read({})).toThrow(
+        new SettingError("UNDECLARED", `the installation's machine resolved no ${key}`),
+    );
 });

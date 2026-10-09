@@ -8,12 +8,14 @@ import {
 } from "../setting/index.ts";
 import { BuildCache } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
+import type { ObjectType } from "@destack/object";
 
-/** Serve declared values, checking each written value against the catalog `declared` reads for it. */
+/** Serve declared values, checking each written value against the catalog `declared` reads for it, and each value a stack declares against the build installing its package, applied after some object types such as installations. */
 export function serveSettings(
     declared: (
         written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
     ) => Promise<SettingCatalog>,
+    after: readonly ObjectType[],
 ) {
     // read each stack release's settings once
     const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
@@ -34,15 +36,16 @@ export function serveSettings(
                 },
             })
             .declare({
+                after,
                 keys: ["settings"],
                 collect: (document) =>
                     schema.record(schema.string(), SpaceSetting).parse(document["settings"] ?? {}),
                 resolve: async (_name, desired: SpaceSetting, stack) => {
-                    // read the declaring release
-                    const reader = await stack.release(
-                        stack.manager.packageId,
-                        stack.manager.installationId,
-                    );
+                    // read the release declaring the setting: the stack's own for its package, else the one the space installs
+                    const isOwn = desired.setting.packageId === stack.manager.packageId;
+                    const reader = isOwn
+                        ? await stack.release(stack.manager.packageId, stack.manager.installationId)
+                        : await stack.release(desired.setting.packageId);
                     const placed = (await catalogs.read(reader)).get(desired.setting);
 
                     // require a declared value at a placement the space permits, stamped with its release

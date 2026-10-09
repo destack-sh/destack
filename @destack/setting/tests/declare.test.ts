@@ -1,3 +1,4 @@
+import { space } from "@destack/account/object";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Scope } from "@destack/sync";
 import { AccessFixture } from "@destack/access/test";
@@ -5,7 +6,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
 import { Stack } from "@destack/object/server";
 import { schema, type JsonObject } from "@destack/schema";
-import { space } from "@destack/space/object";
+
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
 import { serveSettings } from "../src/server/index.ts";
@@ -37,12 +38,13 @@ test.each(TEST_DIALECTS)(
         await new AccessFixture(storage.database).copyScope(
             space.reference(Scope.universe.id, spaceId),
         );
-        const objects = [serveSettings(storage.catalog).setting];
+        const objects = [serveSettings(storage.catalog, []).setting];
         const apply = (settings: JsonObject) =>
             Stack.apply({
                 database: storage.database,
                 objects,
                 server: storage.objects,
+                as: storage.objects.principal,
                 release: () => storage.reader,
                 manager,
                 scope: spaceId,
@@ -71,7 +73,6 @@ test.each(TEST_DIALECTS)(
             package: null,
             space: null,
             installation: null,
-            clientId: null,
             value: "vim",
             release: "2026.9.0",
         };

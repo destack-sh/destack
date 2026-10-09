@@ -19,8 +19,8 @@ export const SettingScope = defineSchema(
             overrides: schema.array(schema.literal("installation")),
         }),
         schema.object({
-            /** A value of each machine. */
-            scope: schema.literal("machine"),
+            /** A value each client keeps for itself, as a local object. */
+            scope: schema.literal("client"),
             /** The overrides the setting permits: none. */
             overrides: schema.tuple([]),
         }),

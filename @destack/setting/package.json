@@ -13,7 +13,8 @@
         "./stack": "./src/stack/index.ts",
         "./server": "./src/server/index.ts",
         "./object": "./src/object/index.ts",
-        "./error": "./src/error/index.ts"
+        "./error": "./src/error/index.ts",
+        "./native": "./src/native/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
