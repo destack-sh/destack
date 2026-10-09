@@ -20,7 +20,7 @@ export const requireJsdoc: Rule = {
         type: "suggestion",
         schema: [],
         docs: { description: "document every declaration, member and field" },
-        messages: { missing: "[WD02] add a documentation comment" },
+        messages: { missing: "add a documentation comment" },
     },
     create(context) {
         /** Report a node without a documentation comment on the line directly above it. */

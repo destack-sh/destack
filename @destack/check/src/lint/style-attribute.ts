@@ -30,7 +30,7 @@ export const styleAttribute: Rule = {
         type: "problem",
         schema: [],
         docs: { description: "pass StyleX styles as xstyle" },
-        messages: { style: "[WS01] pass StyleX styles as xstyle, keeping style for inline styles" },
+        messages: { style: "pass StyleX styles as xstyle, keeping style for inline styles" },
     },
     create(context) {
         // collect the names bound to created styles

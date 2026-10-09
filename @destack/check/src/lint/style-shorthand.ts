@@ -42,7 +42,7 @@ export const styleShorthand: Rule = {
         schema: [],
         docs: { description: "give shorthands a single value" },
         messages: {
-            shorthand: "[WS06] give '{{name}}' one value, writing each side as its own longhand",
+            shorthand: "give '{{name}}' one value, writing each side as its own longhand",
         },
     },
     create(context) {

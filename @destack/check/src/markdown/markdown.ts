@@ -159,7 +159,7 @@ function checkSentences(lines: readonly SourceLine[]): Finding[] {
                   .slice(0, 1)
                   .map((column) => ({
                       code: "one-sentence-per-line",
-                      message: "[WD10] start each sentence on its own line",
+                      message: "start each sentence on its own line",
                       line: index,
                       column,
                       offset: line.start + column,

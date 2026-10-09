@@ -8,7 +8,7 @@ export const styleHover: Rule = {
         schema: [],
         docs: { description: "guard hover styles by the hover media condition" },
         messages: {
-            hover: "[WS03] guard :hover inside { default: null, [media.hover]: value }",
+            hover: "guard :hover inside { default: null, [media.hover]: value }",
         },
     },
     create(context) {

@@ -6,7 +6,7 @@ export const noClassName: Rule = {
         type: "problem",
         schema: [],
         docs: { description: "style elements through StyleX" },
-        messages: { className: "[WS02] style the element through xstyle instead of a class name" },
+        messages: { className: "style the element through xstyle instead of a class name" },
     },
     create(context) {
         return {

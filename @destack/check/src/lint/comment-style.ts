@@ -14,12 +14,12 @@ export const commentStyle: Rule = {
         schema: [],
         docs: { description: "write short lowercase line comments without final periods" },
         messages: {
-            space: "[WC01] start the comment with a space",
-            lowercase: "[WC01] start the comment with a lowercase letter",
-            period: "[WC02] remove the final period",
-            tag: "[WC20] tag the keyword comment, like 'TODO #Cleanup: ...'",
-            dash: "[WC05] use a colon or comma instead of a dash",
-            continuation: "[WC03] indent the continued comment line by one extra space",
+            space: "start the comment with a space",
+            lowercase: "start the comment with a lowercase letter",
+            period: "remove the final period",
+            tag: "tag the keyword comment, like 'TODO #Cleanup: ...'",
+            dash: "use a colon or comma instead of a dash",
+            continuation: "indent the continued comment line by one extra space",
         },
     },
     create(context) {

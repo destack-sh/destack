@@ -21,7 +21,7 @@ export const validDeclaration: Rule = {
         type: "problem",
         schema: [],
         docs: { description: "declare as an exported module constant" },
-        messages: { export: "[PK05] assign '{{name}}(...)' to an exported module-level const" },
+        messages: { export: "assign '{{name}}(...)' to an exported module-level const" },
     },
     create(context) {
         // skip test modules and files outside Destack packages

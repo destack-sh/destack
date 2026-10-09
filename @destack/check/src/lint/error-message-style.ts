@@ -26,8 +26,8 @@ export const errorMessageStyle: Rule = {
         docs: { description: "use explicit lowercase error messages without final periods" },
         schema: [],
         messages: {
-            style: "[DF04] use a lowercase error message without a final period",
-            missing: "[DF04] give the service error a message that says what was refused",
+            style: "use a lowercase error message without a final period",
+            missing: "give the service error a message that says what was refused",
         },
     },
     create(context) {

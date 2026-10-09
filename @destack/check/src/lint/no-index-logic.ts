@@ -7,7 +7,7 @@ export const noIndexLogic: Rule = {
         type: "suggestion",
         schema: [],
         docs: { description: "keep index modules to re-exports" },
-        messages: { logic: "[PK03] move this statement out of the index module" },
+        messages: { logic: "move this statement out of the index module" },
     },
     create(context) {
         // apply only to Destack packages

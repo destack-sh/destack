@@ -7,11 +7,11 @@ export const jsdocSentence: Rule = {
         schema: [],
         docs: { description: "write documentation as sentences, one per line" },
         messages: {
-            capital: "[WD03] start the documentation with a capital letter",
-            period: "[WD03] end the documentation with a period",
-            sentence: "[WD06] start each sentence on its own line",
-            header: "[WD07] separate the header line from the paragraph with a blank line",
-            detached: "[WD04] place the documentation directly above the code it describes",
+            capital: "start the documentation with a capital letter",
+            period: "end the documentation with a period",
+            sentence: "start each sentence on its own line",
+            header: "separate the header line from the paragraph with a blank line",
+            detached: "place the documentation directly above the code it describes",
         },
     },
     create(context) {

@@ -14,8 +14,8 @@ export const styleTokens: Rule = {
         schema: [],
         docs: { description: "style from theme tokens" },
         messages: {
-            variable: "[WS04] read the theme token instead of a raw custom property",
-            color: "[WS05] use a color token instead of a literal color",
+            variable: "read the theme token instead of a raw custom property",
+            color: "use a color token instead of a literal color",
         },
     },
     create(context) {

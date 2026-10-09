@@ -10,7 +10,7 @@ export const requireBlockComment: Rule = {
         type: "suggestion",
         schema: [],
         docs: { description: "open each logic block with a comment" },
-        messages: { missing: "[WL09] describe this logic block with a comment above it" },
+        messages: { missing: "describe this logic block with a comment above it" },
     },
     create(context) {
         /** Check the blocks of one function body. */

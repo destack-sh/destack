@@ -7,7 +7,7 @@ export const paddingBeforeReturn: Rule = {
         fixable: "whitespace",
         schema: [],
         docs: { description: "separate the return value with a blank line" },
-        messages: { blank: "[WL11] add a blank line before the return" },
+        messages: { blank: "add a blank line before the return" },
     },
     create(context) {
         return {

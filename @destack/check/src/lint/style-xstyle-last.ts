@@ -15,7 +15,7 @@ export const styleXstyleLast: Rule = {
         type: "problem",
         schema: [],
         docs: { description: "merge the caller's xstyle last" },
-        messages: { last: "[WS07] merge the caller's xstyle after the component's own styles" },
+        messages: { last: "merge the caller's xstyle after the component's own styles" },
     },
     create(context) {
         return {
