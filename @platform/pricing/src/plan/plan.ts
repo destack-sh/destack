@@ -182,7 +182,7 @@ export const FREE: ProductDefinition = {
     features: [
         storage.grant(1_000_000_000),
         compute.grant(100 * 60 * 60 * DURABLE_OBJECT_GIGABYTES),
-        capacityClasses.grant(["elastic", "machine"]),
+        capacityClasses.grant(["elastic", "personal"]),
         support.grant("community"),
         members.grant(10),
     ],
@@ -196,7 +196,7 @@ export const GO: ProductDefinition = {
     features: [
         storage.grant(null),
         compute.grant(null),
-        capacityClasses.grant(["elastic", "machine"]),
+        capacityClasses.grant(["elastic", "personal"]),
         support.grant("community"),
         members.grant(10),
     ],
@@ -210,7 +210,7 @@ export const PLUS: ProductDefinition = {
     features: [
         storage.grant(null),
         compute.grant(null),
-        capacityClasses.grant(["elastic", "reserved", "machine"]),
+        capacityClasses.grant(["elastic", "reserved", "personal"]),
         support.grant("email"),
         customDomains.grant(null),
         members.grant(null),
@@ -225,7 +225,7 @@ export const PRO: ProductDefinition = {
     features: [
         storage.grant(null),
         compute.grant(null),
-        capacityClasses.grant(["elastic", "reserved", "machine"]),
+        capacityClasses.grant(["elastic", "reserved", "personal"]),
         support.grant("priority"),
         customDomains.grant(null),
         members.grant(null),

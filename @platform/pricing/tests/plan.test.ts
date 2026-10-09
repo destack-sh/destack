@@ -169,14 +169,14 @@ test.each(TEST_DIALECTS)(
                 "this universe takes no payments, so it sells nothing",
             ],
             entitlements: [
-                ["capacityClasses", ["elastic", "machine"], null],
+                ["capacityClasses", ["elastic", "personal"], null],
                 ["compute", 45_000, "within"],
                 ["members", 10, null],
                 ["storage", 1_000_000_000, "within"],
                 ["support", "community", null],
             ],
             derived: [
-                ["capacity", null, ["elastic", "machine"]],
+                ["capacity", null, ["elastic", "personal"]],
                 ["compute", 45_000, null],
                 ["membership", 10, null],
                 ["storage", 1_000_000_000, null],
