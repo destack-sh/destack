@@ -3,12 +3,17 @@
 `Policy` is a SpiceDB schema definition (`relation`, `permission`, `union` as `+`, `intersection` as `&`, `exclusion` as `-`, `through` as the `->` arrow, `members` as a subject set, `resource` and `context` as caveats), `Authorizer` is SpiceDB's `CheckPermission`, `LookupSubjects` and `LookupResources` compiled to SQL over the object's own database, and `elevated` is RFC 9470 step-up authentication.
 
 ```ts
-read: union(relation("owner"), relation("editor"), through("parent", "read")); // owner + editor + parent->read
+// owner + editor + parent->read
+read: union(relation("owner"), relation("editor"), through("parent", "read"));
 reader: { subjects: [principal.user, folder.members("read")] }; // user | folder#read
 edit: intersection(relation("editor"), resource({ team: sql.placeholder("team") })); // a caveat
 await authorizer.check(snapshot, page.permission("edit"), target, access); // CheckPermission
-await authorizer.subjects(snapshot, page.permission("read"), target, type, Date.now(), { limit: 50 }); // LookupSubjects
-await database.select().from(pages).where(authorizer.where(page.permission("read"), access)); // LookupResources as SQL
+// LookupSubjects
+await authorizer.subjects(snapshot, page.permission("read"), target, type, Date.now(), {
+    limit: 50,
+});
+// LookupResources as SQL
+await database.select().from(pages).where(authorizer.where(page.permission("read"), access));
 await authorization.grant({ object: page, relation: "editor", subject }); // WriteRelationships
 ```
 
@@ -39,11 +44,15 @@ export const note = new Policy(import.meta.destack.package, {
 An `Authorizer` resolves a caller's `Access` in a scope, and `require` throws an `AccessError` naming the first permission the caller lacks.
 
 ```ts
-const authorizer = new Authorizer([note], [{ policy: note, table: notes, id: "id", scope: "scope", attributes: {}, relations: {} }]);
+const authorizer = new Authorizer(
+    [note],
+    [{ policy: note, table: notes, id: "id", scope: "scope", attributes: {}, relations: {} }],
+);
 const snapshot = Snapshot.live(database);
 const access = await authorizer.resolve(snapshot, spaceId, context);
 await authorizer.require(snapshot, [note.permission("read")], target, access);
-await authorizer.explain(snapshot, note.permission("delete"), target, access); // the gate or failing grants
+// the gate or failing grants
+await authorizer.explain(snapshot, note.permission("delete"), target, access);
 ```
 
 ## Changes
@@ -53,8 +62,11 @@ await authorizer.explain(snapshot, note.permission("delete"), target, access); /
 ```ts
 const authorization = new Authorization(authorizer, database, (scope) => caller.context(scope));
 await authorization.revoke(page, relationshipId);
-const { id, secret } = await authorization.link({ object: page, relation: "viewer" }); // a share link
-const offer = await authorization.invite({ relationship: { object: page, relation: "editor", subject: contact } });
+// a share link
+const { id, secret } = await authorization.link({ object: page, relation: "viewer" });
+const offer = await authorization.invite({
+    relationship: { object: page, relation: "editor", subject: contact },
+});
 await authorization.accept(page, offer.id);
 ```
 

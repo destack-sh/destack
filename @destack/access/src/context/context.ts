@@ -4,8 +4,11 @@ import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
 import { isPrincipal, principal } from "../declare/principal.ts";
 import { Restriction } from "./restriction.ts";
-import type { Attribute } from "../declare/expression.ts";
+import { Attribute } from "../declare/expression.ts";
 
+
+/** The assurance of a principal proven by its server's key: phishing-resistant, as level 3 is. */
+export const KEY_ASSURANCE = 3;
 /** The schema of a contact. */
 const contactSchema = defineSchema(
     schema.object({
@@ -77,7 +80,57 @@ export interface Caller {
     readonly contacts?: readonly Contact[];
     /** The permissions a restricted credential allows, intersected with every grant. */
     readonly permissions?: readonly Restriction[];
+    /** The session or agent instance the caller belongs to, matched by grants bound to one session. */
+    readonly session?: string;
+    /** Digests of the link secrets the caller presented. */
+    readonly linkSecrets?: readonly string[];
+    /** Trusted attributes access policies read. */
+    readonly attributes?: Readonly<Record<string, Attribute>>;
+    /** The token a space exchanged for the caller, lending its authority to one installation (RFC 8693). */
+    readonly delegation?: string;
+    /** The one scope a scoped credential acts in, absent for a credential acting anywhere. */
+    readonly scope?: string;
+    /** The credential the caller presented, absent for an anonymous caller or a principal running its own code. */
+    readonly credential?: CallerCredential;
+    /** The deployments the workload identities among the subjects run in. */
+    readonly deployments?: readonly CallerDeployment[];
+    /** The Loan the caller's authority came with, absent for any other caller. */
+    readonly loan?: CallerLoan;
 }
+
+/** A credential a caller presented: its kind, its identifier and the client whose key it is bound to. */
+export const CallerCredential = schema.object({
+    /** The credential kind. */
+    kind: schema.string().min(1),
+    /** The credential identifier. */
+    id: schema.string().min(1),
+    /** The client whose key the credential is bound to, absent for an unbound credential. */
+    client: schema.identifier("client").exactOptional(),
+});
+/** A credential a caller presented. */
+export type CallerCredential = schema.Infer<typeof CallerCredential>;
+
+/** A workload identity authenticated within one deployment. */
+export const CallerDeployment = schema.object({
+    /** The workload identity. */
+    subject: Subject,
+    /** The deployment. */
+    id: schema.identifier("deployment"),
+});
+/** A workload identity authenticated within one deployment. */
+export type CallerDeployment = schema.Infer<typeof CallerDeployment>;
+
+/** The Loan a caller's authority came with: its identifier, the home space that signed it, and the one method it lends. */
+export const CallerLoan = schema.object({
+    /** The Loan's identifier (RFC 7519 4.1.7). */
+    id: schema.string().min(1),
+    /** The home space that signed it. */
+    issuer: schema.string().min(1),
+    /** The one method it lends, as `<package>/<object>.<method>`. */
+    method: schema.string().min(1),
+});
+/** The Loan a caller's authority came with. */
+export type CallerLoan = schema.Infer<typeof CallerLoan>;
 
 /** A verified caller: its schema, and the principals and contacts it derives. */
 export const Caller = {
@@ -95,7 +148,48 @@ export const Caller = {
         contacts: schema.array(Contact).exactOptional(),
         /** The permissions a restricted credential allows. */
         permissions: schema.array(Restriction.schema).exactOptional(),
+        /** The session or agent instance the caller belongs to. */
+        session: schema.string().min(1).exactOptional(),
+        /** Digests of the link secrets the caller presented. */
+        linkSecrets: schema.array(schema.string().min(1)).exactOptional(),
+        /** Trusted attributes access policies read. */
+        attributes: schema.record(schema.string(), Attribute).exactOptional(),
+        /** The token a space exchanged for the caller, lending its authority to one installation (RFC 8693). */
+        delegation: schema.string().min(1).exactOptional(),
+        /** The one scope a scoped credential acts in. */
+        scope: schema.string().min(1).exactOptional(),
+        /** The credential the caller presented. */
+        credential: CallerCredential.exactOptional(),
+        /** The deployments the workload identities among the subjects run in. */
+        deployments: schema.array(CallerDeployment).exactOptional(),
+        /** The Loan the caller's authority came with. */
+        loan: CallerLoan.exactOptional(),
     }),
+
+    /** Key a caller by its represented subject and the principal sending its calls, as retries and writers are identified. */
+    key(caller: Pick<Caller, "subject" | "delegates">): string {
+        const { subject } = caller;
+        const sender = Caller.sender(caller);
+
+        return JSON.stringify([
+            subject === undefined ? null : Subject.key(subject),
+            sender === undefined ? null : Subject.key(sender),
+        ]);
+    },
+
+    /** Report whether a caller is remote: it presented a credential or none, unlike a principal running its own code. */
+    isRemote(caller: Pick<Caller, "subject" | "credential">): boolean {
+        return caller.credential !== undefined || caller.subject === undefined;
+    },
+
+    /** The caller of a principal running its own code at a time, proven by its server's key. */
+    of(subject: Subject, now: number): Caller {
+        return {
+            subject,
+            subjects: [subject],
+            assurance: { level: KEY_ASSURANCE, authenticatedAt: now },
+        };
+    },
 
     /** Read the principal acting for the caller. */
     principal(caller: Caller): Subject | undefined {
@@ -159,22 +253,28 @@ export const Caller = {
     },
 };
 
-/** What the authorizer decides on: a verified caller and its request's attributes. */
+/** What the authorizer decides on: a verified caller at a time, within a request. */
 export interface AccessContext extends Caller {
     /** The request's identifier, matched by grants bound to one request. */
     readonly request?: string;
-    /** The session or agent instance the request belongs to, matched by grants bound to one session. */
-    readonly session?: string;
-    /** Digests of the link secrets the request presented. */
-    readonly linkSecrets?: readonly string[];
-    /** Trusted request time in UTC epoch milliseconds. */
+    /** Trusted time of the decision in UTC epoch milliseconds. */
     readonly now: number;
-    /** Trusted request attributes referenced by declarations. */
+    /** Trusted attributes referenced by declarations. */
     readonly attributes: Readonly<Record<string, Attribute>>;
 }
 
-/** Read the request attributes of an access context. */
+/** Build access contexts and read their request attributes. */
 export const AccessContext = {
+    /** Decide for a caller at a time, within a request when given. */
+    of(caller: Caller, now: number, request?: string): AccessContext {
+        return {
+            ...caller,
+            attributes: caller.attributes ?? {},
+            now,
+            ...(request === undefined ? {} : { request }),
+        };
+    },
+
     /** Read a request attribute for a policy condition and refuse a missing or non-finite one. */
     attribute(context: AccessContext, name: string): Scalar {
         const value = Object.hasOwn(context.attributes, name)

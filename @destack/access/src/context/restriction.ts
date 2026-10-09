@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PermissionReference } from "../declare/policy.ts";
-import type { AccessContext } from "./context.ts";
+import type { Caller } from "./context.ts";
 
 /** The schema of a restriction: a permission a restricted credential allows, in one scope and optionally on one object. */
 const restrictionSchema = defineSchema(
@@ -27,7 +27,7 @@ export const Restriction = {
 function allows(
     permission: PermissionReference,
     object: { readonly scope: string; readonly id?: string },
-    context: AccessContext,
+    context: Pick<Caller, "permissions">,
 ): boolean {
     return (
         context.permissions === undefined ||
@@ -42,7 +42,7 @@ function allows(
 function select(
     permission: PermissionReference,
     scope: string,
-    context: AccessContext,
+    context: Pick<Caller, "permissions">,
 ): readonly string[] | "every" {
     // select every object without restrictions
     if (context.permissions === undefined) {
