@@ -3,9 +3,23 @@
 `@destack/sync` is ElectricSQL's shapes over the `@destack/db` log, with Zero's queries and incremental pipelines in `Query` and `Dataflow`, and Replicache's pending mutations, rebased over each server page, in `Prediction`.
 
 ```ts
-const board = defineShape({ name: "board", parameters, audience: "reader", isReadinessGate: true, replica }); // ElectricSQL's shape
-const query: Query = { table: project, scopes: [spaceId], relations, with: { tasks: { limit: 5 } } }; // Zero's related()
-for await (const page of feed.subscribe({ board: query }, after, signal, { audience })) send(page); // ElectricSQL's shape log
+// ElectricSQL's shape
+const board = defineShape({
+    name: "board",
+    parameters,
+    audience: "reader",
+    isReadinessGate: true,
+    replica,
+});
+// Zero's related()
+const query: Query = {
+    table: project,
+    scopes: [spaceId],
+    relations,
+    with: { tasks: { limit: 5 } },
+};
+// ElectricSQL's shape log
+for await (const page of feed.subscribe({ board: query }, after, signal, { audience })) send(page);
 await copy.follow(local, follow, signal, { prediction }); // Replicache's pull into a local database
 await prediction.add(local, mutationId, origin, mutate); // Replicache's pending mutation
 await prediction.acknowledge(local, mutationId, position); // Replicache's lastMutationID
@@ -22,12 +36,24 @@ const board = defineShape({
     audience: "reader",
     isReadinessGate: true, // the follower serves once the copy holds a snapshot
     replica: ({ name, scope, parameters }) =>
-        new Replica({ name, scope, tables: [task], where: new Map([[task, { boardId: parameters.board }]]) }),
+        new Replica({
+            name,
+            scope,
+            tables: [task],
+            where: new Map([[task, { boardId: parameters.board }]]),
+        }),
 });
-const subscription = board.subscription({ name: "board", scope, below: spaceId, parameters: { board: boardId } });
+const subscription = board.subscription({
+    name: "board",
+    scope,
+    below: spaceId,
+    parameters: { board: boardId },
+});
 await board
     .replica(subscription)
-    .follow(local, (from, signal) => source.stream({ ...subscription, ...from }, signal), signal, { subscription });
+    .follow(local, (from, signal) => source.stream({ ...subscription, ...from }, signal), signal, {
+        subscription,
+    });
 ```
 
 ## Queries
@@ -82,6 +108,7 @@ await prediction.checkout(local, branchId); // edits now queue for the branch
 
 ```ts
 const links = await Scope.chain(snapshot, spaceId); // nearest first
-await Scope.fence(database, spaceId, targetMachine, Date.now()); // writes refuse while a transfer moves the scope
+// writes refuse while a transfer moves the scope
+await Scope.fence(database, spaceId, targetMachine, Date.now());
 await Scope.cap(database, spaceId, Date.now()); // writes but deletes refuse
 ```
