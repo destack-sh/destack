@@ -4,6 +4,9 @@ import type { ResourceState } from "@destack/package/declare";
 import type { Connector } from "../provider/provider.ts";
 import { ResourceHandle } from "./handle.ts";
 
+/** The declaration kind every package declaring resources gives them in its destack.json. */
+export const RESOURCE_DECLARATION = "resource";
+
 /** A resource's identifier, whichever kind it is: the kind's name as prefix and a UUIDv7. */
 export const ResourceId = defineSchema(schema.anyIdentifier());
 /** A resource's identifier, whichever kind it is. */
