@@ -50,7 +50,7 @@ test("start the workload on the object's alarm before any event, serve requests 
     await object.alarm();
     const after = Date.now();
 
-    // bound the alarm ten minutes after it rang, below the 15-minute limit of an alarm
+    // bound the alarm ten minutes after it rang
     const [deadline] = deadlines;
     expect({
         text: await answer.text(),

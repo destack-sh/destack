@@ -1,3 +1,4 @@
+import type { Caller } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import { DeclarationReference } from "@destack/package/declare";
 import { Server, type ServerOptions, type ServiceImplementation } from "../server/index.ts";
@@ -7,7 +8,8 @@ import { type Alarm, AlarmClock } from "../control/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { AuditHistory, InstallationContext, Workload, WorkloadContext } from "./workload.ts";
-import { type CallKey } from "../request/index.ts";
+import { CallKey } from "../request/index.ts";
+import type { Hibernation, SocketHandler } from "./socket.ts";
 
 /** A running workload instance. */
 export class WorkloadInstance implements AsyncDisposable {
@@ -23,6 +25,8 @@ export class WorkloadInstance implements AsyncDisposable {
     #closing?: Promise<void>;
     /** The clock keeping the services' alarms on the host's one wake-up, absent without one. */
     readonly #clock: AlarmClock | undefined;
+    /** What the workload does with its held sockets' events, absent for a workload holding none. */
+    #sockets: SocketHandler | undefined;
 
     /** Keep the clock of the host's wake-up. */
     private constructor(clock: AlarmClock | undefined) {
@@ -34,7 +38,7 @@ export class WorkloadInstance implements AsyncDisposable {
         workload: Workload,
         options: WorkloadInstanceOptions,
     ): Promise<WorkloadInstance> {
-        // clean up a failed start, keeping the services' alarms on the host's one wake-up
+        // clean up a failed start
         const clock = options.alarm === undefined ? undefined : new AlarmClock(options.alarm);
         const instance = new WorkloadInstance(clock);
         try {
@@ -47,7 +51,9 @@ export class WorkloadInstance implements AsyncDisposable {
                     : { installation: options.installation }),
                 ...(options.runs === undefined ? {} : { runs: options.runs }),
                 callKey: options.callKey,
+                deriver: await CallKey.deriver(await options.callKey()),
                 ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
+                ...(options.hibernation === undefined ? {} : { hibernation: options.hibernation }),
                 signal: instance.#controller.signal,
                 shutdown: () => instance.shutdown(),
                 report: (error) => options.report(error),
@@ -61,6 +67,7 @@ export class WorkloadInstance implements AsyncDisposable {
             for (const trigger of implementation.triggers ?? []) {
                 instance.#register(trigger);
             }
+            instance.#sockets = implementation.sockets;
 
             // reject a cancelled start
             instance.signal.throwIfAborted();
@@ -137,6 +144,15 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#services.has(keyOf(service));
     }
 
+    /** What the workload does with its held sockets' events, refusing a workload holding none. */
+    requireSocketHandler(): SocketHandler {
+        if (this.#sockets === undefined) {
+            throw new ServiceError("NOT_FOUND", { message: "the workload handles no sockets" });
+        }
+
+        return this.#sockets;
+    }
+
     /** Request shutdown. */
     shutdown(): void {
         this.#controller.abort();
@@ -144,15 +160,15 @@ export class WorkloadInstance implements AsyncDisposable {
 
     /** Run the controllers at the host's wake-up until no key is due now or reconciling, or until a deadline. */
     async alarm(deadline: number): Promise<void> {
-        // set the wake-up again, which the host cleared as it rang
+        // set the wake-up again
         await this.#clock?.rang();
         await Promise.all(
             [...this.#services.values()].map((served) => served.server.idle(deadline)),
         );
     }
 
-    /** Dispatch a request to a service. */
-    fetch(service: Service, request: Request): Promise<Response> {
+    /** Dispatch a request to a service, as a caller verified elsewhere in this process where one is given. */
+    fetch(service: Service, request: Request, caller?: Caller): Promise<Response> {
         // require the service
         const server = this.#services.get(keyOf(service))?.server;
         if (!server) {
@@ -161,7 +177,7 @@ export class WorkloadInstance implements AsyncDisposable {
             });
         }
 
-        return server.fetch(request);
+        return server.fetch(request, caller);
     }
 
     /** Close the workload. */
@@ -211,7 +227,7 @@ export interface WorkloadInstanceOptions {
     readonly history?: AuditHistory;
     /** The installation the workload runs as, absent outside a space. */
     readonly installation?: InstallationContext;
-    /** The cell recording the installation's runs, absent outside a space. */
+    /** The machine recording the installation's runs, absent outside a space. */
     readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
@@ -219,6 +235,8 @@ export interface WorkloadInstanceOptions {
     readonly alarm?: Alarm;
     /** Open the database the instance's ephemeral objects live in, absent where the workload opens its own. */
     readonly ephemeral?: WorkloadContext["ephemeral"];
+    /** The WebSockets the host keeps open for the instance, absent where the host keeps none. */
+    readonly hibernation?: Hibernation;
     /** Report a failure of the workload's background work to its host. */
     report(error: unknown): void;
     /** Select the options of one service. */

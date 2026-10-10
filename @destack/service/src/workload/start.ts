@@ -1,9 +1,21 @@
 import { DeclarationName } from "@destack/package";
 import { ResourceBinding } from "@destack/resource";
-import { defineSchema, Digest, schema } from "@destack/schema";
+import { defineSchema, schema } from "@destack/schema";
 
 /** The path below which an installation's origin receives webhook requests, and a host forwards them to a runner. */
 export const WEBHOOK_PATH = "/.destack/webhook";
+
+/** The path below which a host hands a service the requests a route sends it, by the service's name, and at which the service answers them below its mount. */
+export const ROUTE_PATH = "/.destack/route";
+
+/** The header a caller names the partition of an installation its call goes to with, the installation's root without it. */
+export const PARTITION_HEADER = "Destack-Partition";
+
+/** The header carrying the URL a request a front door hands on asked for, such as a routed request's. */
+export const FORWARDED_URL_HEADER = "Destack-Forwarded-Url";
+
+/** The path on a host's egress origin at which the host takes its instances' journals and relays them to their spaces' histories. */
+export const JOURNAL_PATH = "/.destack/journal";
 
 /** The first line a host writes to a runner's input, starting one workload of an installation. */
 export const WorkloadStart = defineSchema(
@@ -14,10 +26,12 @@ export const WorkloadStart = defineSchema(
         scope: schema.identifier("space"),
         /** The installation the workload runs. */
         installation: schema.identifier("installation"),
-        /** The digest of the manifest of the build the workload runs, absent for a release no host resolved. */
-        manifest: Digest.exactOptional(),
+        /** The one partition of the installation's database the instance serves, every partition when absent. */
+        partition: schema.string().min(1).exactOptional(),
         /** The resources the installation binds, by the package's resource name. */
         bindings: schema.record(DeclarationName, ResourceBinding),
+        /** The installation's resolved value of each setting its package declares, by `<package>/<name>`. */
+        settings: schema.record(schema.string().min(1), schema.json()),
         /** The secret the host and the runner prove each other's requests with. */
         secret: schema.string().min(1),
         /** The host's egress, below which the workload reaches addresses as its installation. */
@@ -31,12 +45,7 @@ export const WorkloadStart = defineSchema(
 /** The first line a host writes to a runner's input. */
 export type WorkloadStart = schema.Infer<typeof WorkloadStart>;
 
-/** The first line a runner writes to its output after it serves. */
-export const WorkloadReady = defineSchema(
-    schema.object({
-        /** The loopback port serving the package's service below its mount. */
-        port: schema.number().int().min(1).max(65_535),
-    }),
-);
+/** The first line a runner writes to its output once it serves on its socket. */
+export const WorkloadReady = defineSchema(schema.object({}));
 /** The first line a runner writes to its output. */
 export type WorkloadReady = schema.Infer<typeof WorkloadReady>;

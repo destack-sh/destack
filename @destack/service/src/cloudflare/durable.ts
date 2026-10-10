@@ -41,7 +41,7 @@ export class DurableObjectWorkload {
 
     /** Run the controllers due at the alarm, settling once none is due or at the alarm's deadline. */
     async alarm(): Promise<void> {
-        // run for a bounded time, keeping the alarm due so a follow resumes across alarms
+        // run for a bounded time
         const workload = await this.#started;
         await workload.alarm(Date.now() + ALARM_MILLISECONDS);
     }

@@ -1,3 +1,4 @@
+import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
 import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
@@ -7,7 +8,6 @@ import { defineService } from "../declare/service.ts";
 import { defineTrigger } from "../trigger/index.ts";
 import type { RunClient } from "../trigger/index.ts";
 import { GitHubSignature } from "../github/index.ts";
-import { emptyBuild } from "../test/build.ts";
 import { hosting } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
 
@@ -37,17 +37,23 @@ const publisher = {
 const installation: InstallationContext = {
     id: "installation-01996ab0-0000-7000-8000-000000000002",
     scope: "space-01996ab0-0000-7000-8000-000000000001",
-    build: await emptyBuild(first.package),
+    build: await MemoryBuild.write(new Map(), { package: first.package }),
+    settings: {},
     publisher,
     publisherAt: () => publisher,
+    at: (address) => ({
+        url: address,
+        fetch: () => Promise.reject(new Error("the fixture installation reaches no address")),
+    }),
     directory: {
         isHome: async () => false,
-        locale: async () => undefined,
+        locale: (subject) => Promise.reject(new TypeError(`the fixture knows no ${subject}`)),
         address: async () => {},
+        messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
     },
 };
 
-/** A cell the fixture workloads record no runs in. */
+/** A machine the fixture workloads record no runs in. */
 const runs: RunClient = {
     send: async () => {
         throw new Error("the fixture records no runs");
@@ -58,7 +64,7 @@ const runs: RunClient = {
 const github = defineTrigger({
     name: "github",
     on: {
-        webhook: { signature: new GitHubSignature(), route: "/", secret: async () => "secret" },
+        webhook: { signature: new GitHubSignature(), path: "/", secret: async () => "secret" },
     },
     call: (delivery) => ({
         method: "repository.push",
@@ -118,7 +124,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
                         {
                             service: first,
                             router: {},
-                            route: async () => {
+                            fetch: async () => {
                                 accepted.resolve();
                                 await released.promise;
 
@@ -178,7 +184,7 @@ test("retain shared resources until an overdue request observes cancellation", a
                         {
                             service: first,
                             router: {},
-                            route: async (request: Request) => {
+                            fetch: async (request: Request) => {
                                 request.signal.addEventListener("abort", () => cancelled.resolve());
                                 accepted.resolve();
                                 await released.promise;
@@ -309,8 +315,8 @@ test("reject a trigger registered twice and release startup resources", async ()
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("give a starting workload the host's audit history, its installation and the cell recording its runs", async () => {
-    // start a workload that delivers one batch to the history it receives and keeps the installation and the cell
+test("give a starting workload the host's audit history, its installation and the machine recording its runs", async () => {
+    // start a workload that delivers one batch to the history it receives and keeps the installation and the machine
     let received: InstallationContext | undefined;
     let recording: RunClient | undefined;
     await using instance = await WorkloadInstance.start(

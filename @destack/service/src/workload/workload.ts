@@ -1,14 +1,22 @@
 import type { DatabaseConnection, Table } from "@destack/db";
+import type { JsonValue } from "@destack/schema";
 import type { Publisher, Uplink } from "@destack/sync";
-import { type CapabilityName, type ComputeDefinition, ModuleMetadata } from "@destack/package";
+import {
+    type CapabilityName,
+    type ComputeDefinition,
+    ModuleMetadata,
+    type PackageId,
+} from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
-import { type BuildReader, type Tier, WorkloadDefinition } from "@destack/package/manifest";
+import { type BuildReader, WorkloadDefinition } from "@destack/package/manifest";
+import type { Permission, PermissionRequest, PermissionScope } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { LocaleTag } from "@destack/locale";
 import type { ServiceImplementation } from "../server/index.ts";
-import type { RunClient } from "../trigger/index.ts";
-import type { Trigger } from "../trigger/index.ts";
+import type { RunClient, Trigger } from "../trigger/index.ts";
+import type { Deriver } from "@destack/identity";
 import { type CallKey } from "../request/index.ts";
+import type { Hibernation, SocketHandler } from "./socket.ts";
 
 /** A declared unit of deployment. */
 export interface Workload extends Declaration {
@@ -16,15 +24,19 @@ export interface Workload extends Declaration {
     readonly compute?: ComputeDefinition;
     /** The package's capabilities the workload uses, every one when absent. */
     readonly capabilities?: readonly CapabilityName[];
-    /** The placements a universe chooses from for the workload, absent for a workload spaces install. */
-    readonly placement?: readonly Tier[];
+    /** The kind permissions the workload requests by scope, consented to at install and granted exactly. */
+    readonly permissions?: PermissionRequest;
     /** Start one instance and return its services and webhooks. */
     start(context: WorkloadContext): WorkloadImplementation | Promise<WorkloadImplementation>;
 }
 
 /** Declare a workload. */
 export function defineWorkload(
-    definition: WorkloadDefinition & Pick<Workload, "start">,
+    definition: Omit<WorkloadDefinition, "permissions"> &
+        Pick<Workload, "start"> & {
+            /** The kind permissions the workload requests by scope, consented to at install and granted exactly. */
+            readonly permissions?: { readonly [Scope in PermissionScope]?: readonly Permission[] };
+        },
     module?: ModuleMetadata,
 ): Workload {
     // stamp the declaring package
@@ -42,14 +54,18 @@ export interface WorkloadContext {
     readonly history?: AuditHistory;
     /** The installation the workload runs as, absent outside a space. */
     readonly installation?: InstallationContext;
-    /** The cell recording the installation's runs: sent calls and the calls of its triggers' causes, absent outside a space. */
+    /** The machine recording the installation's runs: sent calls and the calls of its triggers' causes, absent outside a space. */
     readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
+    /** Derive the installation's own secrets under labels, the same on every instance of the installation. */
+    readonly deriver: Deriver;
     /** Open the database the instance's ephemeral objects live in, absent where the workload opens its own. */
     readonly ephemeral?: (
         tables: readonly Table[],
     ) => Promise<DatabaseConnection & { close(): Promise<void> }>;
+    /** The WebSockets the host keeps open for the instance, absent where the host keeps none. */
+    readonly hibernation?: Hibernation;
     /** The shutdown signal. */
     readonly signal: AbortSignal;
     /** Request shutdown. */
@@ -60,30 +76,38 @@ export interface WorkloadContext {
     defer(dispose: () => void | PromiseLike<void>): void;
 }
 
-/** The installation a workload runs as: its space, its build, the publishers of its copies, and the directory through its cell. */
+/** The installation a workload runs as: its space, its build and settings, the publishers of its copies, and the directory through its machine. */
 export interface InstallationContext {
     /** The installation's identifier. */
     readonly id: string;
     /** The installation's space. */
     readonly scope: string;
+    /** The one partition of the installation's database the instance serves, every partition when absent. */
+    readonly partition?: string;
     /** The build the installation's deployment runs, which reads the package's own files such as its catalogs. */
     readonly build: BuildReader;
-    /** The publisher of the copies of the space's chain and the universe's rows it reads, receiving their changes: its cell. */
+    /** The installation's resolved value of each setting its package declares, by `<package>/<name>`. */
+    readonly settings: Readonly<Record<string, JsonValue>>;
+    /** The publisher of the copies of the space's chain and the universe's rows it reads, receiving their changes: its machine. */
     readonly publisher: Uplink;
-    /** Connect to the installation of the package at an address `<installation>.<space>` as a publisher. */
-    publisherAt(address: string): Publisher;
-    /** The directory, through the space's cell. */
-    readonly directory: CellDirectory;
+    /** Connect to the copies an installation at an address `<installation>--<space>` publishes through the object API of a package's service, which decides each follow by its shape's audience. */
+    publisherAt(address: string, packageId: PackageId): Publisher;
+    /** Reach the services at an address through the host's egress as the installation: a space's own at `<space>`, an installation's at `<installation>--<space>`. */
+    at(address: string): { readonly url: string; fetch(request: Request): Promise<Response> };
+    /** The directory, through the space's machine. */
+    readonly directory: InstallationDirectory;
 }
 
-/** The directory as an installation sees it through its cell: people's homes and locales, and the addresses of projected rows. */
-export interface CellDirectory {
+/** The directory as an installation sees it through its machine: people's homes and locales, the addresses of projected rows, and the keys messages are sealed to. */
+export interface InstallationDirectory {
     /** Decide whether a person lives in a space. */
     isHome(subject: string, space: string): Promise<boolean>;
-    /** Read the language and region a person set, absent while unset. */
-    locale(subject: string): Promise<LocaleTag | undefined>;
+    /** Read the language and region a person reads. */
+    locale(subject: string): Promise<LocaleTag>;
     /** Record that the installation sends a person projected rows. */
     address(recipient: string): Promise<void>;
+    /** Read the public key the messages of a space are sealed to, its identity's message key. */
+    messageKey(space: string): Promise<string>;
 }
 
 /** The audit history a workload delivers its calls to, in batches of one transaction each. */
@@ -101,4 +125,6 @@ export interface WorkloadImplementation {
     readonly services: readonly ServiceImplementation[];
     /** The triggers of the workload's package, whose signed requests the workload receives. */
     readonly triggers?: readonly Trigger[];
+    /** What the workload does with its held sockets' messages and closes. */
+    readonly sockets?: SocketHandler;
 }
