@@ -16,6 +16,15 @@ schema.identifier("space").parse("space-01995f12-3456-7890-8abc-123456789abc");
 const date: PlainDate = { year: 2026, month: 10, day: 3 }; // Temporal.PlainDate in JSON
 ```
 
+## Clocks
+
+`Clock` is the current time a long-lived owner reads, `Clock.system` the system's, and a test passes one it sets.
+
+```ts
+const clock: Clock = { now: () => 1_760_000_000_000 }; // a test's fixed time
+Clock.system.now(); // Date.now()
+```
+
 ## Comparisons
 
 `compareJsonSchemas` compares two JSON Schemas by the values each accepts: `"same"`, `"wider"`, `"narrower"` or `"incompatible"`.
