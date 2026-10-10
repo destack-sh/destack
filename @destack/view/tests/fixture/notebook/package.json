@@ -12,7 +12,7 @@
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/space": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/view": "workspace:*"
     },
     "devDependencies": {

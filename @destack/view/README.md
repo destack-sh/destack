@@ -236,14 +236,9 @@ import { useLocale } from "@destack/view";
 
 export function Archived(properties: { count: number; notebook: string }) {
     const locale = useLocale();
+    const notes = plural(properties.count, { one: "# note", other: "# notes" });
 
-    return (
-        <p>
-            {locale.render(
-                t`Archived ${plural(properties.count, { one: "# note", other: "# notes" })} in ${properties.notebook}`,
-            )}
-        </p>
-    );
+    return <p>{locale.render(t`Archived ${notes} in ${properties.notebook}`)}</p>;
 }
 
 <LocaleContext value={Localization.of(Locale.parse("de-AT"), catalogs)}>{page}</LocaleContext>;
