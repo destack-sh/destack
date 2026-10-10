@@ -17,7 +17,7 @@ import {
     type SQL,
     type Table,
 } from "@destack/db";
-import { Identifier } from "@destack/schema";
+import { Clock, Identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { Scope } from "@destack/sync";
 import {
@@ -35,7 +35,7 @@ import {
     type Endpoint,
     type Placement,
 } from "../placement/placement.ts";
-import { Directory } from "./directory.ts";
+import type { Directory } from "./directory.ts";
 import { identityOperation } from "../identity/operation.ts";
 import { type Identity, IdentityOperation } from "@destack/identity";
 
@@ -57,7 +57,7 @@ const PLACEMENT_COLUMNS = {
 };
 
 /** The directory itself, in the account service's database, keeping its reads while it follows the log. */
-export class DirectoryStore extends Directory {
+export class DirectoryStore implements Directory {
     /** The account service's database. */
     readonly database: DatabaseConnection;
     /** Claim owners by index and key. */
@@ -68,21 +68,15 @@ export class DirectoryStore extends Directory {
     readonly #endpoints = new ReadCache<Endpoint | undefined>(CAPACITY);
     /** Current identities by subject. */
     readonly #identities = new ReadCache<Identity | undefined>(CAPACITY);
-    /** The directory's clock, in UTC epoch milliseconds. */
-    readonly #clock: () => number;
+    /** The clock reservations, assignments and operations are timed by. */
+    readonly #clock: Clock;
     /** Whether the log is followed, which keeps the reads current. */
     #isFollowing = false;
 
     /** Keep the directory's tables in the account service's database. */
-    constructor(database: DatabaseConnection, options: { readonly clock?: () => number } = {}) {
-        super();
+    constructor(database: DatabaseConnection, options: { readonly clock?: Clock } = {}) {
         this.database = database;
-        this.#clock = options.clock ?? (() => Date.now());
-    }
-
-    /** Read the directory's clock. */
-    protected override now(): number {
-        return this.#clock();
+        this.#clock = options.clock ?? Clock.system;
     }
 
     /** Keep the reads, forgetting those each logged change affects, until the signal aborts. */
@@ -170,10 +164,11 @@ export class DirectoryStore extends Directory {
         await this.database
             .insert(assignmentTable)
             .values({
+                id: Identifier.create("assignment"),
                 space: placement.id,
                 machine,
                 scope: Scope.universe.id,
-                assignedAt: this.#clock(),
+                assignedAt: this.#clock.now(),
             })
             .onConflictDoNothing();
     }
@@ -226,7 +221,7 @@ export class DirectoryStore extends Directory {
 
     /** Record the URL a machine answers at under a publication, replacing the one it published before. */
     async publish(machine: string, scope: string, url: string, publication: string): Promise<void> {
-        const now = this.#clock();
+        const now = this.#clock.now();
         await this.database
             .insert(endpointTable)
             .values({ id: machine, scope, url, publication, publishedAt: now })
@@ -335,7 +330,7 @@ export class DirectoryStore extends Directory {
         const isRecoverable =
             following === undefined ||
             (priority < following.priority &&
-                following.appliedAt + RECOVERY_MILLISECONDS >= this.#clock());
+                following.appliedAt + RECOVERY_MILLISECONDS >= this.#clock.now());
         if (!isRecoverable) {
             throw new ServiceError("CONFLICT", {
                 message: `the operation cannot nullify the later operations of ${claims.subject}`,
@@ -400,7 +395,7 @@ export class DirectoryStore extends Directory {
     /** Reserve a request's claims in chunks until its write commits, returning the names other objects hold. */
     async claim(claims: readonly Claim[], requestId: string): Promise<readonly Claim[]> {
         // reserve each chunk for a minute
-        const expiresAt = this.#clock() + RESERVATION_MILLISECONDS;
+        const expiresAt = this.#clock.now() + RESERVATION_MILLISECONDS;
         const refused: Claim[] = [];
         for (let start = 0; start < claims.length; start += CHAIN_TERMS) {
             const chunk = claims.slice(start, start + CHAIN_TERMS);
@@ -492,7 +487,7 @@ export class DirectoryStore extends Directory {
     /** List the expired reservations of some indexes, and the next deadline, by the directory's clock. */
     async expired(indexes: readonly string[]): Promise<Expiry> {
         // read the expired reservations of the indexes
-        const now = this.#clock();
+        const now = this.#clock.now();
         const reserved = and(
             eq(claimTable.state, "pending"),
             inArray(claimTable.index, [...indexes]),
@@ -567,7 +562,7 @@ export class DirectoryStore extends Directory {
             digest: await IdentityOperation.digest(operation),
             operation,
             priority,
-            appliedAt: this.#clock(),
+            appliedAt: this.#clock.now(),
             isNullified: false,
         });
     }

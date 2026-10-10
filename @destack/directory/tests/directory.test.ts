@@ -1,10 +1,16 @@
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { keyPair } from "../src/test/index.ts";
-import { schema } from "@destack/schema";
+import { Clock, schema } from "@destack/schema";
 import { defineProcedure, defineService, ServiceMount } from "@destack/service";
 import { ServiceError } from "@destack/service/error";
 import { expect, onTestFinished, test } from "@destack/test";
-import { directoryTables, DirectoryStore, Placement, placementTable } from "../src/index.ts";
+import {
+    directoryTables,
+    DirectoryStore,
+    Placement,
+    placementTable,
+    Resolver,
+} from "../src/index.ts";
 import { IdentityError, IdentityOperation } from "@destack/identity";
 import { RECOVERY_MILLISECONDS } from "../src/directory/store.ts";
 
@@ -16,12 +22,22 @@ const placements = defineService("placements", {
         .output(Placement),
 });
 
+/** The machine the scenarios first place a space on. */
+const MACHINE_A = "machine-01996ab0-0000-7000-8000-0000000000a1";
+
+/** The machine the scenarios move a space to. */
+const MACHINE_B = "machine-01996ab0-0000-7000-8000-0000000000a2";
+
+/** The space the client scenarios call. */
+const SPACE = "space-01996ab0-0000-7000-8000-0000000000a3";
+
 test.each(TEST_DIALECTS)(
     "locate a space, take it over only on the machine its move still targets at the next epoch, and withdraw it on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
+        const resolver = new Resolver(directory, Clock.system);
         const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
 
         // place a space on its machine twice
@@ -72,6 +88,7 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
+        const resolver = new Resolver(directory, Clock.system);
         const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
         await directory.place(placement);
 
@@ -123,6 +140,7 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
+        const resolver = new Resolver(directory, Clock.system);
 
         // publish through a first tunnel, then through a second as the machine reconnects
         await directory.publish("machine-a", "account-1", "https://relay-1.test/", "tunnel-1");
@@ -145,6 +163,7 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
+        const resolver = new Resolver(directory, Clock.system);
         const placed = [
             { id: "space-2", scope: "account-1", machine: "machine-a", epoch: 1 },
             { id: "space-1", scope: "account-1", machine: "machine-b", epoch: 1 },
@@ -167,6 +186,7 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
+        const resolver = new Resolver(directory, Clock.system);
         const index = "package-1/place/name";
         const claim = (key: string, objectId: string) => ({
             index,
@@ -229,101 +249,49 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "send a service's requests to a machine's endpoint and resend them once to the machine a scope moved to on %s",
+    "resolve an address for every call: a machine's own services, a space's and an installation's below the space at the machine serving it, following a moved space once on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const directory = new DirectoryStore(storage.database);
-        await directory.publish(
-            "machine-a",
-            "account-1",
-            "https://machine-a.test/",
-            "publication-1",
-        );
-        await directory.publish(
-            "machine-b",
-            "account-1",
-            "https://machine-b.test",
-            "publication-1",
-        );
+        const resolver = new Resolver(directory, Clock.system);
+        const [first, second] = [MACHINE_A, MACHINE_B];
+        await directory.publish(first, "account-1", "https://machine-a.test/", "publication-1");
+        await directory.publish(second, "account-1", "https://machine-b.test", "publication-1");
+        await directory.place({ id: SPACE, scope: "account-1", machine: first, epoch: 1 });
 
-        // answer misdirected at the first machine and the placement at the second
-        const mount = ServiceMount.path(placements.package.id);
-        const placement = { id: "space-1", scope: "account-1", machine: "machine-b", epoch: 2 };
-        const sent: string[] = [];
-        const client = directory.machineClient(placements, "machine-a", async (request) => {
-            sent.push(`${request.method} ${request.url}`);
-            const moved = {
-                defined: true,
-                code: "MISDIRECTED_REQUEST",
-                status: 421,
-                message: "space-1 moves to machine-b",
-                data: { scope: "space-1", machine: "machine-b" },
-            };
-
-            return request.url.startsWith("https://machine-a.test")
-                ? Response.json(moved, { status: 421 })
-                : Response.json(placement);
-        });
-
-        // follow the move once and stay at the new machine
-        expect([
-            await client.locate({ scope: "space-1" }),
-            await client.locate({ scope: "space-1" }),
-            sent,
-        ]).toEqual([
-            placement,
-            placement,
-            [
-                `GET https://machine-a.test${mount}/placements/space-1`,
-                `GET https://machine-b.test${mount}/placements/space-1`,
-                `GET https://machine-b.test${mount}/placements/space-1`,
-            ],
-        ]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "send a service's requests below the mount of its space and of an installation of its space at the machine serving the space on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const directory = new DirectoryStore(storage.database);
-        await directory.publish(
-            "machine-a",
-            "account-1",
-            "https://machine-a.test/",
-            "publication-1",
-        );
-        await directory.place({
-            id: "space-1",
-            scope: "account-1",
-            machine: "machine-a",
-            epoch: 1,
-        });
-
-        // call the service of the space and of its finance installation
+        // answer misdirected at the first machine once the space moved, and the placement elsewhere
+        const placement = { id: SPACE, scope: "account-1", machine: second, epoch: 2 };
         const sent: string[] = [];
         const fetch = async (request: Request) => {
             sent.push(`${request.method} ${request.url}`);
-
-            return Response.json({
-                id: "space-1",
-                scope: "account-1",
-                machine: "machine-a",
-                epoch: 1,
+            if (!request.url.startsWith("https://machine-a.test") || sent.length < 4) {
+                return Response.json(placement);
+            }
+            await directory.move({ ...placement, machine: first, epoch: 1 }, second);
+            await directory.place(placement);
+            const moved = new ServiceError("MISDIRECTED_REQUEST", {
+                message: `${SPACE} moves to ${second}`,
+                data: { scope: SPACE, machine: second },
             });
-        };
-        await directory.spaceClient(placements, "space-1", fetch).locate({ scope: "space-1" });
-        await directory
-            .installationClient(placements, "space-1", "finance", fetch)
-            .locate({ scope: "space-1" });
 
-        // mount the service below the space's path and below the installation's
+            return Response.json(moved.toJSON(), { status: moved.status });
+        };
+
+        // call a machine's own service, the space's, its finance installation's, then the space's once it moved
+        await resolver.client(placements, first, fetch).locate({ scope: SPACE });
+        await resolver.client(placements, SPACE, fetch).locate({ scope: SPACE });
+        await resolver.client(placements, `finance--${SPACE}`, fetch).locate({ scope: SPACE });
+        await resolver.client(placements, SPACE, fetch).locate({ scope: SPACE });
+
+        // mount each below its address, and resend the moved space's call to its new machine
         const mount = ServiceMount.path(placements.package.id);
         expect(sent).toEqual([
-            `GET https://machine-a.test/spaces/space-1${mount}/placements/space-1`,
-            `GET https://machine-a.test/spaces/space-1/installations/finance${mount}/placements/space-1`,
+            `GET https://machine-a.test${mount}/placements/${SPACE}`,
+            `GET https://machine-a.test/spaces/${SPACE}${mount}/placements/${SPACE}`,
+            `GET https://machine-a.test/spaces/${SPACE}/installations/finance${mount}/placements/${SPACE}`,
+            `GET https://machine-a.test/spaces/${SPACE}${mount}/placements/${SPACE}`,
+            `GET https://machine-b.test/spaces/${SPACE}${mount}/placements/${SPACE}`,
         ]);
     },
 );
@@ -334,7 +302,7 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, directoryTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         let now = Date.now();
-        const directory = new DirectoryStore(storage.database, { clock: () => now });
+        const directory = new DirectoryStore(storage.database, { clock: { now: () => now } });
         const placement = { id: "space-1", scope: "account-1", machine: "machine-a", epoch: 1 };
         await directory.place(placement);
         const signing = await keyPair();

@@ -1,14 +1,20 @@
-import { principal } from "@destack/access";
+import { type Caller, principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { IdentityOperation, LocalKeyring } from "@destack/identity";
 import { PackageId } from "@destack/package";
-import { Identifier, type JsonObject, type JsonValue } from "@destack/schema";
-import { Authentication, TokenIssuer } from "@destack/service/authentication";
+import { Clock, Identifier, type JsonObject, type JsonValue } from "@destack/schema";
+import { TokenIssuer } from "@destack/service/authentication";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { SignJWT } from "jose";
-import { directoryTables, DirectoryStore, identityKey, IdentityKeystore } from "../src/index.ts";
+import {
+    directoryTables,
+    DirectoryStore,
+    identityKey,
+    IdentityKeystore,
+    Resolver,
+} from "../src/index.ts";
 import { keyPair } from "../src/test/index.ts";
 
 /** The universe's issuer, which its tokens name. */
@@ -24,6 +30,7 @@ test("verify a token by its issuer's keys, a space's in a space or outside one a
     });
     onTestFinished(() => storage.close());
     const directory = new DirectoryStore(storage.database);
+    const resolver = new Resolver(directory, Clock.system);
     const keystore = new IdentityKeystore(
         await LocalKeyring.read(LocalKeyring.generate()),
         directory,
@@ -71,7 +78,7 @@ test("verify a token by its issuer's keys, a space's in a space or outside one a
             scope,
         );
     const verify = async (request: Request, scope?: string) => {
-        const verified = directory.authenticate(request, {
+        const verified = resolver.authenticate(request, {
             audience: AUDIENCE,
             universe: ISSUER,
             ...(scope === undefined ? {} : { scope }),
@@ -80,9 +87,9 @@ test("verify a token by its issuer's keys, a space's in a space or outside one a
         if (refused !== "done") {
             return refused.join(": ");
         }
-        const { claims } = await verified;
+        const caller = await verified;
 
-        return [claims.subject.id, claims.scope];
+        return [caller.subject?.id, caller.credential?.scope];
     };
     const other = PackageId.parse("package-019f7480-0000-7000-8000-00000000e004");
     const owner = principal.user.reference(Scope.universe.id, Identifier.create("user"));
@@ -113,7 +120,7 @@ test("verify a token by its issuer's keys, a space's in a space or outside one a
     // accept tokens of spaces alone without the universe's issuer, refusing the universe's
     const spacesAlone = async (request: Request) => {
         const refused = await refusal(
-            directory.authenticate(request, { audience: AUDIENCE, scope: target }),
+            resolver.authenticate(request, { audience: AUDIENCE, scope: target }),
         );
 
         return refused === "done" ? "accepted" : refused.join(": ");
@@ -132,22 +139,25 @@ async function signInstallation(
     scope: string,
 ): Promise<Request> {
     const now = Date.now();
-    const caller = new Authentication({
-        credential: { kind: "installation", id: Identifier.create("instance") },
-        audience,
-        scope,
+    const caller: Caller = {
         subject: installation,
         subjects: [installation],
         deployments: [{ subject: installation, id: Identifier.create("deployment") }],
-        verifiedAt: now,
-        expiresAt: now + 60_000,
-    });
+        credential: {
+            kind: "installation",
+            id: Identifier.create("instance"),
+            audience,
+            scope,
+            verifiedAt: now,
+            expiresAt: now + 60_000,
+        },
+    };
     const issuer = new TokenIssuer({
         authority: { kind: "space", space: installation.scope },
         issuer: installation.scope,
         sign: (claims) => new SignJWT(claims).setProtectedHeader({ alg: "ES256" }).sign(key),
     });
-    const { accessToken } = await issuer.issue(caller);
+    const { accessToken } = await issuer.issue(caller, Date.now());
 
     return new Request("https://notes.test/.destack/service", {
         headers: { authorization: `Bearer ${accessToken}` },
@@ -162,22 +172,25 @@ async function signUser(
     scope: string,
 ): Promise<string> {
     const now = Date.now();
-    const caller = new Authentication({
-        credential: { kind: "session", id: Identifier.create("session") },
-        audience: AUDIENCE,
-        scope,
+    const caller: Caller = {
         subject: user,
         subjects: [user],
-        verifiedAt: now,
-        expiresAt: now + 60_000,
-    });
+        credential: {
+            kind: "session",
+            id: Identifier.create("session"),
+            audience: AUDIENCE,
+            scope,
+            verifiedAt: now,
+            expiresAt: now + 60_000,
+        },
+    };
     const issuer = new TokenIssuer({
         authority: { kind: "universe" },
         issuer: ISSUER,
         sign: (claims) => keystore.sign(database, Scope.universe.id, claims),
     });
 
-    return (await issuer.issue(caller)).accessToken;
+    return (await issuer.issue(caller, Date.now())).accessToken;
 }
 
 /** Send a token as a request's bearer credential. */

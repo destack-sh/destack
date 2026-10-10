@@ -1,6 +1,7 @@
 import { principal, universe } from "@destack/access";
 import { eq, type DatabaseConnection } from "@destack/db";
-import { type Directory, KEY_SET_MILLISECONDS } from "../directory/directory.ts";
+import type { Directory } from "../directory/directory.ts";
+import { KEY_SET_MILLISECONDS } from "../directory/resolver.ts";
 import type { Placement } from "../placement/placement.ts";
 import { identityKey, type SigningKey } from "./key.ts";
 import {
@@ -16,8 +17,7 @@ import {
 } from "@destack/identity";
 import {
     SPACE_KEY,
-    AUTHENTICATION_LIFETIME_MILLISECONDS,
-    Authentication,
+    TOKEN_LIFETIME_MILLISECONDS,
     TokenIssuer,
 } from "@destack/service/authentication";
 import type { Fetch } from "@destack/service";
@@ -27,6 +27,7 @@ import type { Rewrapper } from "@destack/resource";
 import { ServiceError } from "@destack/service/error";
 import type { Digest } from "@destack/schema";
 import { SignJWT, type JWTPayload } from "jose";
+import { Clock } from "@destack/schema";
 
 /** The algorithm of identity keys: ECDSA over P-256. */
 const ALGORITHM = { name: "ECDSA", namedCurve: "P-256" } as const;
@@ -76,15 +77,15 @@ export class IdentityKeystore {
     readonly #signers = new Map<string, Promise<CryptoKey>>();
     /** The derivations of the identities' decrypted root secrets, non-extractable, by subject. */
     readonly #roots = new Map<string, Promise<Deriver>>();
-    /** The keystore's clock, in UTC epoch milliseconds. */
-    readonly #clock: () => number;
+    /** The clock keys are published and tokens signed by. */
+    readonly clock: Clock;
 
     /** Hold identities' keys under a keyring, publishing the identities in a directory. */
-    constructor(keyring: Keyring, directory: Directory, clock: () => number = () => Date.now()) {
+    constructor(keyring: Keyring, directory: Directory, clock: Clock = Clock.system) {
         // keep the keyring, directory and clock, and seal keys with them
         this.keyring = keyring;
         this.directory = directory;
-        this.#clock = clock;
+        this.clock = clock;
         this.rewrap = {
             table: identityKey,
             seal: (row, recipient) => this.#seal(row, recipient),
@@ -156,17 +157,19 @@ export class IdentityKeystore {
 
         return async (request) => {
             // sign a short token of only the subject
-            const now = Date.now();
+            const now = this.clock.now();
             const { accessToken } = await issuance.issuer.issue(
-                new Authentication({
-                    credential: issuance.credential,
-                    audience,
-                    ...(issuance.scope === undefined ? {} : { scope: issuance.scope }),
+                {
                     subject,
                     subjects: [subject],
-                    verifiedAt: now,
-                    expiresAt: now + AUTHENTICATION_LIFETIME_MILLISECONDS,
-                }),
+                    credential: {
+                        ...issuance.credential,
+                        audience,
+                        ...(issuance.scope === undefined ? {} : { scope: issuance.scope }),
+                        verifiedAt: now,
+                        expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
+                    },
+                },
                 now,
             );
 
@@ -390,14 +393,14 @@ export class IdentityKeystore {
         return {
             publicKey: await PublicKey.of(pair.publicKey),
             privateKey: await this.#encryptKey(subject, "signing", pair.privateKey),
-            publishedAt: this.#clock(),
+            publishedAt: this.clock.now(),
         };
     }
 
     /** Choose the signing key that signs now: the newest every verifier read, else the oldest, as an identity's first key. */
     #active(signingKeys: readonly SigningKey[]): SigningKey {
         // take the newest key published past the verifiers' key set age
-        const now = this.#clock();
+        const now = this.clock.now();
         const active =
             signingKeys.find((key) => key.publishedAt + KEY_SET_MILLISECONDS <= now) ??
             signingKeys.at(-1);

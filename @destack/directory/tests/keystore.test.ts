@@ -2,7 +2,7 @@ import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
 import { principal, universe } from "@destack/access";
 import { PackageId } from "@destack/package";
-import { present } from "@destack/schema";
+import { Clock, present } from "@destack/schema";
 import { SPACE_KEY } from "@destack/service/authentication";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -13,6 +13,7 @@ import {
     identityKey,
     IdentityKeystore,
     KEY_SET_MILLISECONDS,
+    Resolver,
 } from "../src/index.ts";
 
 /** Read the key a token names. */
@@ -27,8 +28,9 @@ test("sign with the active key until every verifier read the next one, verifying
     });
     onTestFinished(() => storage.close());
     let now = Date.now();
-    const clock = () => now;
+    const clock = { now: () => now };
     const directory = new DirectoryStore(storage.database, { clock });
+    const resolver = new Resolver(directory, clock);
     const keystore = new IdentityKeystore(
         await LocalKeyring.read(LocalKeyring.generate()),
         directory,
@@ -37,7 +39,7 @@ test("sign with the active key until every verifier read the next one, verifying
     const subject = Scope.universe.id;
     await keystore.generate(storage.database, subject);
     const sign = () => keystore.sign(storage.database, subject, { sub: "user-1" });
-    const keys = directory.keys(subject);
+    const keys = resolver.keys(subject);
     const verified = async (token: string) => (await jwtVerify(token, keys)).payload.sub;
 
     // sign and verify with the first key, then rotate to a next key
@@ -67,6 +69,7 @@ test("send a request as an installation with a token its space's key signs, whic
     });
     onTestFinished(() => storage.close());
     const directory = new DirectoryStore(storage.database);
+    const resolver = new Resolver(directory, Clock.system);
     const keystore = new IdentityKeystore(
         await LocalKeyring.read(LocalKeyring.generate()),
         directory,
@@ -93,14 +96,14 @@ test("send a request as an installation with a token its space's key signs, whic
         return new Response(null, { status: 204 });
     });
     await send(new Request("https://notes.test/"));
-    const verified = await directory.authenticate(present(received, "the sent request"), {
+    const verified = await resolver.authenticate(present(received, "the sent request"), {
         audience,
     });
-    expect([
-        verified.claims.subject,
-        verified.claims.credential.kind,
-        verified.claims.deployments,
-    ]).toEqual([installation, SPACE_KEY, undefined]);
+    expect([verified.subject, verified.credential?.kind, verified.deployments]).toEqual([
+        installation,
+        SPACE_KEY,
+        undefined,
+    ]);
 });
 
 test("send a request as the universe bound to one space, which the directory verifies for that space alone, and refuse signing as anyone else", async () => {
@@ -110,6 +113,7 @@ test("send a request as the universe bound to one space, which the directory ver
     });
     onTestFinished(() => storage.close());
     const directory = new DirectoryStore(storage.database);
+    const resolver = new Resolver(directory, Clock.system);
     const keystore = new IdentityKeystore(
         await LocalKeyring.read(LocalKeyring.generate()),
         directory,
@@ -135,13 +139,13 @@ test("send a request as the universe bound to one space, which the directory ver
     );
     await send(new Request("https://notes.test/"));
     const sent = present(received, "the sent request");
-    const verified = await directory.authenticate(sent.clone(), {
+    const verified = await resolver.authenticate(sent.clone(), {
         audience,
         universe: issuer,
         scope: space,
     });
     const elsewhere = await refusal(
-        directory.authenticate(sent, {
+        resolver.authenticate(sent, {
             audience,
             universe: issuer,
             scope: "space-01996ab0-0000-7000-8000-000000000013",
@@ -161,7 +165,7 @@ test("send a request as the universe bound to one space, which the directory ver
             fetch,
         );
     expect({
-        verified: [verified.claims.subject, verified.claims.credential.kind, verified.claims.scope],
+        verified: [verified.subject, verified.credential?.kind, verified.credential?.scope],
         elsewhere,
     }).toEqual({
         verified: [self, "universe-key", space],

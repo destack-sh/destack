@@ -5,9 +5,10 @@
 ```ts
 await directory.apply(operation, placement); // the PLC directory's POST /:did
 await directory.identity(spaceId); // the PLC directory's GET /:did/data
-await jwtVerify(token, directory.keys(spaceId)); // jose's createRemoteJWKSet, kept ten minutes
 await directory.place({ id: spaceId, scope: accountId, machine: cloudMachineId, epoch: 1 });
-const pages = directory.spaceClient(pagesService, spaceId, fetch); // resends once on a 421 naming the machine
+const resolver = new Resolver(directory, clock); // a DID resolver over any Directory
+await jwtVerify(token, resolver.keys(spaceId)); // jose's createRemoteJWKSet, kept ten minutes
+const pages = resolver.client(pagesService, spaceId, fetch); // resends once on a 421 naming the machine
 ```
 
 ## Placements
@@ -25,15 +26,15 @@ await directory.assign(placement, laptopMachineId); // work for another machine 
 
 ## Tokens
 
-`authenticate` verifies a request's bearer token by its issuer's keys, the universe's or the signing space's.
+`Resolver.authenticate` verifies a request's bearer token by its issuer's keys, the universe's or the signing space's.
 
 ```ts
-const caller = await directory.authenticate(request, {
+const caller = await resolver.authenticate(request, {
     audience,
     universe: issuer,
     scope: spaceId,
 });
-const lent = await directory.verify(delegation, { audience, scope: spaceId });
+const lent = await resolver.verify(delegation, { audience, scope: spaceId });
 ```
 
 ## Keystores

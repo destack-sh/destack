@@ -7,6 +7,7 @@ import {
     integer,
     sql,
     text,
+    uniqueIndex,
 } from "@destack/db";
 import { defineSchema, Digest, schema } from "@destack/schema";
 
@@ -110,10 +111,12 @@ export const placementTable = defineTable(
 export const assignmentTable = defineTable(
     "assignment",
     {
+        /** The assignment's identifier. */
+        id: text("id").primaryKey(),
         /** The space with the work. */
-        space: text("space").primaryKey(),
+        space: text("space").notNull(),
         /** The machine the work is for. */
-        machine: text("machine").primaryKey(),
+        machine: text("machine").notNull(),
         /** The universe, where every assignment lives. */
         scope: text("scope").notNull(),
         /** When the space's machine assigned the work, in UTC epoch milliseconds. */
@@ -121,7 +124,10 @@ export const assignmentTable = defineTable(
     },
     {
         log: {},
-        constraints: (assignment) => [index("assignment_machine").on(assignment.machine)],
+        constraints: (assignment) => [
+            uniqueIndex("assignment_work").on(assignment.space, assignment.machine),
+            index("assignment_machine").on(assignment.machine),
+        ],
     },
 );
 
