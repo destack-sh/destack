@@ -9,10 +9,12 @@ import {
     integer,
     json,
     text,
+    type Database,
     type DatabaseConnection,
     type Relation,
     Relations,
     type Table,
+    uniqueIndex,
 } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { replicaTables, type Replica } from "../replica/replica.ts";
@@ -138,6 +140,20 @@ export const tag = defineTable(
     { log: {} },
 );
 
+/** Labels of a folder, each name once per folder. */
+export const label = defineTable(
+    "label",
+    {
+        /** The label's key. */
+        id: text("id").primaryKey(),
+        /** The folder the label lives in. */
+        scope: text("scope").notNull(),
+        /** The label's name, unique in its folder. */
+        name: text("name").notNull(),
+    },
+    { log: {}, constraints: (table) => [uniqueIndex("label_name").on(table.scope, table.name)] },
+);
+
 /** The tags of tasks: one row per task and tag. */
 export const taskTag = defineTable(
     "task_tag",
@@ -250,7 +266,7 @@ export async function open(
 /** Open a migrated copy database without trees and references. */
 export async function openCopy(
     dialect: (typeof TEST_DIALECTS)[number],
-    tables: readonly Table[] = TABLES,
+    tables: Database | readonly Table[] = TABLES,
 ): Promise<DatabaseConnection> {
     const test = await TestDatabase.create(dialect, tables, { isMigrated: true, isReplica: true });
     onTestFinished(() => test.close());

@@ -16,6 +16,7 @@ import {
     type Table,
     type LogPosition,
     type DatabaseConnection,
+    defineDatabase,
 } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { setTimeout } from "node:timers/promises";
@@ -27,6 +28,7 @@ import { type Resumption, Uplink } from "./shape.ts";
 import {
     asset,
     first,
+    label,
     note,
     open,
     openCopy,
@@ -193,6 +195,7 @@ test.for(TEST_DIALECTS)(
             scopes.map((scope) => ({
                 scope,
                 parent: Scope.universe.id,
+                partition: Scope.universe.id,
                 packageId: Scope.universe.packageId,
                 type: "folder",
             })),
@@ -352,6 +355,76 @@ test.for(TEST_DIALECTS)(
         expect([await projects.position(copy), await work.position(copy)]).toEqual([
             await source.log.position(),
             undefined,
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "snapshot a row the source replaced under a new key with the same unique name, on %s",
+    async (dialect) => {
+        const tables = [label, project, ...replicaTables];
+        const source = await open(dialect, tables);
+        const copy = await openCopy(
+            dialect,
+            defineDatabase({ name: "copy", tables: replicaTables, copies: [label, project] }),
+        );
+        const feed = new Feed(source, [label, project, replica]);
+        await source.insert(label).values({ id: "l1", scope: "inbox", name: "red" });
+
+        // copy the labels until synced
+        await syncLabels(
+            new Replica({ name: "work", scope: "inbox", tables: [label] }),
+            source,
+            copy,
+            feed,
+        );
+
+        // replace the label under a new key, then snapshot again with the copy reshaped
+        await source.delete(label).where(eq(label.id, "l1"));
+        await source.insert(label).values({ id: "l2", scope: "inbox", name: "red" });
+        await syncLabels(
+            new Replica({ name: "work", scope: "inbox", tables: [label, project] }),
+            source,
+            copy,
+            feed,
+        );
+
+        // keep the replacing row alone
+        expect(await copy.select().from(label)).toEqual([
+            { id: "l2", scope: "inbox", name: "red" },
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "copy rows that swapped their unique names across several commits of one page, on %s",
+    async (dialect) => {
+        const tables = [label, ...replicaTables];
+        const source = await open(dialect, tables);
+        const copy = await openCopy(
+            dialect,
+            defineDatabase({ name: "copy", tables: replicaTables, copies: [label] }),
+        );
+        const feed = new Feed(source, [label, replica]);
+        await source.insert(label).values([
+            { id: "l1", scope: "inbox", name: "red" },
+            { id: "l2", scope: "inbox", name: "blue" },
+        ]);
+
+        // copy the labels until synced
+        const labels = new Replica({ name: "work", scope: "inbox", tables: [label] });
+        await syncLabels(labels, source, copy, feed);
+
+        // swap the names through a third one, one commit each
+        await source.update(label).set({ name: "green" }).where(eq(label.id, "l1"));
+        await source.update(label).set({ name: "red" }).where(eq(label.id, "l2"));
+        await source.update(label).set({ name: "blue" }).where(eq(label.id, "l1"));
+        await syncLabels(labels, source, copy, feed);
+
+        // keep both rows under their swapped names
+        expect(await copy.select().from(label).orderBy(label.id)).toEqual([
+            { id: "l1", scope: "inbox", name: "blue" },
+            { id: "l2", scope: "inbox", name: "red" },
         ]);
     },
 );
@@ -1036,6 +1109,31 @@ test("resume a subscription from the copy's position, reshape one of other param
         { after: position, origin },
     ]);
 });
+
+/** Follow a copy of the inbox's labels until it reaches the source's position. */
+async function syncLabels(
+    labels: Replica,
+    source: DatabaseConnection,
+    copy: DatabaseConnection,
+    feed: Feed,
+): Promise<void> {
+    // follow the copy's queries from the feed until it reaches the source's position
+    const controller = new AbortController();
+    const following = labels.follow(
+        copy,
+        (from, signal) => feed.subscribe(labels.queries, from.after, signal),
+        controller.signal,
+    );
+    const isSynced = await Replica.wait(
+        copy,
+        labels.scope,
+        await source.log.position(),
+        AbortSignal.timeout(5000),
+    );
+    controller.abort();
+    await following;
+    expect(isSynced).toBe(true);
+}
 
 /** Follow a copy's queries from a feed, naming the follower's own origin. */
 function followOf(feed: Feed, copy: Replica) {

@@ -27,6 +27,7 @@ const UNIVERSE_ROW: RowImage<typeof scopeTable> = {
     scope: UNIVERSE_ID,
     parent: UNIVERSE_ID,
     ancestors: [],
+    partition: UNIVERSE_ID,
     packageId: universe.packageId,
     type: universe.type,
     suspendedAt: null,
@@ -45,6 +46,8 @@ export const Scope = {
     object,
     cap,
     fence,
+    fenced,
+    link: linkOf,
     guard,
     unfence,
 };
@@ -55,6 +58,8 @@ export interface ScopeLink {
     readonly object: ObjectReference;
     /** The containing scope. */
     readonly parent: string;
+    /** The partition the scope's objects live in. */
+    readonly partition: string;
     /** Whether the scope is suspended. */
     readonly isSuspended: boolean;
     /** Whether the scope's storage is capped. */
@@ -93,6 +98,11 @@ async function read(
     );
 
     return ids.includes(UNIVERSE_ID) ? [...rows, UNIVERSE_ROW] : rows;
+}
+
+/** Find the fenced scope in a chain, absent when none is fenced. */
+function fenced(links: readonly ScopeLink[]): ScopeLink | undefined {
+    return links.find((link) => link.movedTo !== undefined);
 }
 
 /** Read a scope and the scopes enclosing it, nearest first. */
@@ -149,6 +159,7 @@ function linkOf(row: RowImage<typeof scopeTable>): ScopeLink {
     return {
         object: { packageId: row.packageId, type: row.type, scope: row.parent, id: row.scope },
         parent: row.parent,
+        partition: row.partition,
         isSuspended: row.suspendedAt !== null,
         isCapped: row.cappedAt !== null,
         movedTo: row.movedTo ?? undefined,
@@ -189,12 +200,12 @@ async function fence(
     now: number,
 ): Promise<void> {
     // mark the scope moved, waiting on its row lock for the writes guarding it
-    const [fenced] = await database
+    const [moved] = await database
         .update(scopeTable)
         .set({ fencedAt: now, movedTo: machine })
         .where(eq(scopeTable.scope, scope))
         .returning({ scope: scopeTable.scope });
-    if (fenced === undefined) {
+    if (moved === undefined) {
         throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
     }
 }

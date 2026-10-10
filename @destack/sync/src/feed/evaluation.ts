@@ -78,7 +78,8 @@ export class Evaluation {
         const until = this.#idle.get(sequence);
         const isStale =
             this.#idle.has(sequence) &&
-            (this.#feed.sequence > sequence || (until !== undefined && until <= Date.now()));
+            (this.#feed.sequence > sequence ||
+                (until !== undefined && until <= this.#feed.clock.now()));
         if (known !== undefined && !isStale) {
             return known;
         } else if (!isSame(this.position, position)) {
@@ -118,7 +119,7 @@ export class Evaluation {
         const expired = new AbortController();
         const timer = setTimeout(
             () => expired.abort(),
-            Math.min(until - Date.now(), LONGEST_DELAY),
+            Math.min(until - this.#feed.clock.now(), LONGEST_DELAY),
         );
         try {
             await this.#feed.next(sequence, AbortSignal.any([signal, expired.signal]));
@@ -273,7 +274,7 @@ export class Evaluation {
 
         // refresh once the decisions expired
         const until = await this.#audience.until();
-        if (until !== undefined && until <= Date.now()) {
+        if (until !== undefined && until <= this.#feed.clock.now()) {
             pages.push(await this.refresh({ epoch: position.epoch, sequence: next.value }));
         }
 

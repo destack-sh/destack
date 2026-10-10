@@ -16,6 +16,7 @@ test.for(TEST_DIALECTS)(
         const row = (scope: string, parent: string, ancestors: string[]) => ({
             scope,
             parent,
+            partition: Scope.universe.id,
             ancestors,
             packageId: PACKAGE_ID,
             type: "folder",
@@ -63,6 +64,7 @@ test.for(TEST_DIALECTS)(
         const row = (scope: string, parent: string, ancestors: string[]) => ({
             scope,
             parent,
+            partition: Scope.universe.id,
             ancestors,
             packageId: PACKAGE_ID,
             type: "folder",
@@ -108,6 +110,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         const row = (scope: string, parent: string, ancestors: string[]) => ({
             scope,
             parent,
+            partition: Scope.universe.id,
             ancestors,
             packageId: PACKAGE_ID,
             type: "folder",

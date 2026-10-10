@@ -1,6 +1,6 @@
 import { DatabaseError, type LogPosition, TABLE, type Table } from "@destack/db";
 import type { Page, ResultChange, RowChange } from "../query/page.ts";
-import { canonicalize } from "@destack/schema";
+import { canonicalize, type Clock } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Audience } from "./audience.ts";
 import { Evaluation, nextTask, Restart } from "./evaluation.ts";
@@ -76,7 +76,7 @@ export class Stream {
                     const following = this.#follow({ epoch, sequence }, signal, drain);
                     yield* this.#every === undefined
                         ? following
-                        : coalesce(following, this.#every, this.#feed.tables);
+                        : coalesce(following, this.#every, this.#feed.tables, this.#feed.clock);
                     return;
                 } catch (error) {
                     // start over after a lost position, epoch or access change
@@ -264,6 +264,7 @@ export async function* coalesce(
     pages: AsyncGenerator<Page>,
     every: number,
     tables: readonly Table[],
+    clock: Clock,
 ): AsyncGenerator<Page> {
     // race the next page with the interval's end
     let pending: Page | undefined;
@@ -280,7 +281,7 @@ export async function* coalesce(
                       new Promise<undefined>((resolve) => {
                           timer = setTimeout(
                               () => resolve(undefined),
-                              Math.max(0, due - Date.now()),
+                              Math.max(0, due - clock.now()),
                           );
                       }),
                   ]);
@@ -293,7 +294,7 @@ export async function* coalesce(
             }
             yield pending;
             pending = undefined;
-            published = Date.now();
+            published = clock.now();
         }
         // publish what remains at the end
         else if (arrived.done === true) {
@@ -307,10 +308,10 @@ export async function* coalesce(
         else {
             next = pages.next();
             pending = pending === undefined ? arrived.value : merge(pending, arrived.value, tables);
-            if (Date.now() >= due) {
+            if (clock.now() >= due) {
                 yield pending;
                 pending = undefined;
-                published = Date.now();
+                published = clock.now();
             }
         }
     }

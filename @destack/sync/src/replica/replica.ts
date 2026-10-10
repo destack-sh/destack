@@ -36,7 +36,7 @@ import {
     Relations,
 } from "@destack/db";
 import { SyncError } from "../error/error.ts";
-import { schema, canonicalize, found, zip } from "@destack/schema";
+import { schema, canonicalize, Clock, found, zip } from "@destack/schema";
 import { Page, type ResultChange, type RowChange } from "../query/page.ts";
 import { Subscription, type Resumption } from "./shape.ts";
 import type { Query, Item, AggregateRow } from "../query/query.ts";
@@ -190,18 +190,31 @@ export class Replica {
     readonly #copied: ReadonlyMap<string, Table>;
     /** The layout digest of the copied tables' logged columns. */
     readonly #layout: Promise<string>;
+    /** The clock the copy confirms its position at. */
+    readonly #clock: Clock;
 
     /** Define a copy of a scope's rows in some tables. */
     constructor(definition: {
+        /** The copy's name. */
         readonly name: string;
+        /** The scope whose rows the copy keeps. */
         readonly scope: string;
+        /** The copied tables, parents first. */
         readonly tables: readonly Table[];
+        /** The condition on each table's copied rows, none by default. */
         readonly where?: ReadonlyMap<Table, Condition>;
+        /** The scopes of each table whose rows live outside the copy's scope, none by default. */
         readonly scopes?: ReadonlyMap<Table, readonly string[]>;
+        /** The tables whose rows are copied from whichever scope they live in, none by default. */
         readonly everywhere?: ReadonlySet<Table>;
+        /** The parent tables of each table copied across scopes, none by default. */
         readonly within?: ReadonlyMap<Table, readonly Table[]>;
+        /** Whether the source may keep a copy itself, true by default. */
         readonly isRelayed?: boolean;
+        /** The projections of source tables into the copy's own, none by default. */
         readonly projectors?: readonly Projector[];
+        /** The clock the copy confirms its position at, the system clock by default. */
+        readonly clock?: Clock;
     }) {
         // keep the identity
         this.name = definition.name;
@@ -212,6 +225,7 @@ export class Replica {
         this.everywhere = definition.everywhere ?? new Set();
         this.within = definition.within ?? new Map();
         this.isRelayed = definition.isRelayed ?? true;
+        this.#clock = definition.clock ?? Clock.system;
         this.#projectors = new Map(
             (definition.projectors ?? []).map((projector) => [
                 projector.source[TABLE].sqlName,
@@ -803,7 +817,7 @@ export class Replica {
                 sequence: null,
                 subscription: subscription === undefined ? null : subscribedOf(subscription),
                 tables: [...this.#copied.keys()],
-                confirmedAt: Date.now(),
+                confirmedAt: this.#clock.now(),
             })
             .onConflictDoNothing();
     }
@@ -994,7 +1008,7 @@ export class Replica {
         const isHome = relayed === undefined && (run.isSnapshot || record?.originEpoch === null);
         const advanced = {
             ...page.position,
-            ...originColumns(relayed, isHome),
+            ...originColumns(relayed, isHome, this.#clock.now()),
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
             ...(subscription === undefined ? {} : { subscription: subscribedOf(subscription) }),
             layout: await this.#layout,
@@ -1007,7 +1021,7 @@ export class Replica {
             .values({
                 name: this.name,
                 scope: this.scope,
-                confirmedAt: record?.confirmedAt ?? Date.now(),
+                confirmedAt: record?.confirmedAt ?? this.#clock.now(),
                 ...advanced,
             })
             .onConflictDoUpdate({ target: [replica.name, replica.scope], set: advanced });
@@ -1800,6 +1814,7 @@ function predictedImages(
 function originColumns(
     relayed: Origin | undefined,
     isHome: boolean,
+    now: number,
 ):
     | {
           readonly originEpoch: string | null;
@@ -1817,7 +1832,7 @@ function originColumns(
     }
     // mark rows written at home
     else if (isHome) {
-        return { originEpoch: null, originSequence: null, confirmedAt: Date.now() };
+        return { originEpoch: null, originSequence: null, confirmedAt: now };
     }
     // keep the recorded position
     else {

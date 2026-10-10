@@ -1,4 +1,4 @@
-import { aligned, found } from "@destack/schema";
+import { aligned, Clock, found } from "@destack/schema";
 import {
     and,
     Key,
@@ -81,6 +81,8 @@ export class Feed implements Cache {
     readonly heartbeat: number;
     /** What a copy knows of its source. */
     readonly upstream: Upstream | undefined;
+    /** The clock the feed's streams and decisions run at. */
+    readonly clock: Clock;
     /** The recent changes in commit order. */
     #changes: Change[] = [];
     /** The sequence before the oldest kept change. */
@@ -119,11 +121,13 @@ export class Feed implements Cache {
             readonly upstream?: Upstream;
             readonly observe?: (cost: RunCost) => void;
             readonly heartbeat?: number;
+            readonly clock?: Clock;
         } = {},
     ) {
         // keep the logged tables and the limits
         this.database = database;
         this.upstream = options.upstream;
+        this.clock = options.clock ?? Clock.system;
         this.tables = tables
             .flatMap((table) => [
                 table,

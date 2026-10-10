@@ -13,6 +13,8 @@ export const scopeTable = defineTable(
         ancestors: json("ancestors", schema.array(schema.string()))
             .notNull()
             .default(sql`'[]'`),
+        /** The scope whose objects partition this scope's rows. */
+        partition: text("partition").notNull(),
         /** The package declaring the scope object's type. */
         packageId: identifier("package_id", "package").notNull(),
         /** The scope object's type. */

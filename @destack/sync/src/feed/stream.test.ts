@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import { afterEach, beforeEach, expect, test } from "@destack/test";
 import { vi } from "vitest";
 import { TABLE } from "@destack/db";
@@ -18,7 +19,7 @@ afterEach(() => {
 
 test("publish a page at once after a quiet interval, and merge the pages within it at its end", async () => {
     const source = pages();
-    const published = coalesce(source.pages, EVERY, [note]);
+    const published = coalesce(source.pages, EVERY, [note], Clock.system);
 
     // publish the first page at once
     source.push(page(1, [change("update", "a")]));
@@ -52,7 +53,7 @@ test("publish a page at once after a quiet interval, and merge the pages within 
 
 test("publish the buffered page once the pages end", async () => {
     const source = pages();
-    const published = coalesce(source.pages, EVERY, [note]);
+    const published = coalesce(source.pages, EVERY, [note], Clock.system);
 
     // publish the first page and buffer the second within the interval
     source.push(page(1, [change("insert", "a")]));

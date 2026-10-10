@@ -1,4 +1,4 @@
-import { schema, type JsonValue } from "@destack/schema";
+import { Clock, schema, type JsonValue } from "@destack/schema";
 import {
     Change,
     Key,
@@ -85,6 +85,8 @@ export interface TrackerOptions {
     readonly instance?: string;
     /** The heartbeat interval, in milliseconds. */
     readonly heartbeat?: number;
+    /** The clock heartbeats are timed by, the system clock by default. */
+    readonly clock?: Clock;
 }
 
 /** Rows of tables kept in memory on every instance and removed with their owners. */
@@ -111,6 +113,8 @@ export class Tracker {
     readonly #listeners = new Map<string, Set<(event: JsonValue) => void>>();
     /** The heartbeat interval, in milliseconds. */
     readonly #heartbeat: number;
+    /** The clock heartbeats are timed by. */
+    readonly #clock: Clock;
     /** The heartbeat timer. */
     readonly #beat: ReturnType<typeof setInterval>;
     /** Stop listening to the channel. */
@@ -142,6 +146,7 @@ export class Tracker {
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
         this.#channel = typedChannel(channel, TrackerMessage);
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
+        this.#clock = options.clock ?? Clock.system;
 
         // apply messages in order and ask for live rows on each start or resume
         this.#stop = this.#channel.listen(
@@ -154,7 +159,7 @@ export class Tracker {
         // announce this instance and drop silent ones
         this.#beat = setInterval(() => {
             channel.notify({ kind: "heartbeat", instance: this.instance });
-            const deadline = Date.now() - this.#heartbeat * MISSED_HEARTBEATS;
+            const deadline = this.#clock.now() - this.#heartbeat * MISSED_HEARTBEATS;
             for (const [instance, seen] of this.#instances) {
                 if (seen < deadline) {
                     this.#applied = this.#applied.then(() => this.#drop(instance));
@@ -271,7 +276,7 @@ export class Tracker {
 
         // note the sender as alive
         if (message.kind !== "stop") {
-            this.#instances.set(message.instance, Date.now());
+            this.#instances.set(message.instance, this.#clock.now());
         }
 
         // apply the rows, ends and broadcasts
