@@ -9,6 +9,12 @@ const SHEET_ID = "virtual:stylex.css";
 /** The stylesheet module's resolved identifier, prefixed as Vite marks virtual modules. */
 const RESOLVED_SHEET_ID = `\0${SHEET_ID}`;
 
+/** The packages whose imports StyleX compiles. */
+const IMPORT_SOURCES = ["@stylexjs/stylex", "@destack/style"];
+
+/** The code naming an import source, which the bundler matches natively before StyleX's own check of each module. */
+const IMPORT_SOURCE_PATTERN = /@stylexjs\/stylex|@destack\/style/u;
+
 /** The StyleX plugin with the rule collection it attaches without a type. */
 interface StylexPlugin extends Plugin {
     /** Write every rule collected so far as one stylesheet. */
@@ -26,7 +32,7 @@ export const styleExtension = {
         // read the plugin StyleX declares without a type, with the base layer before its own
         const sheet: SheetTarget = { file: undefined };
         const plugin: unknown = unplugin.vite({
-            importSources: ["@stylexjs/stylex", "@destack/style"],
+            importSources: IMPORT_SOURCES,
             useCSSLayers: { before: ["base"] },
             // keep light-dark() native, as the theme's own tokens need it and lowering it needs CSS-declared color schemes
             lightningcssOptions: { exclude: Features.LightDark },
@@ -35,11 +41,17 @@ export const styleExtension = {
             // NOTE #Performance: the plugin still polls its rule version every 150ms in this mode
             devMode: "css-only",
         });
-        if (!isStylexPlugin(plugin)) {
+        if (!isStylexPlugin(plugin) || typeof plugin.transform !== "function") {
             throw new TypeError("stylex returned no vite plugin");
         }
 
-        return [plugin, sheetPlugin(plugin, sheet)];
+        // let the bundler skip each module naming no import source before StyleX reads it
+        const filtered: Plugin = {
+            ...plugin,
+            transform: { filter: { code: IMPORT_SOURCE_PATTERN }, handler: plugin.transform },
+        };
+
+        return [filtered, sheetPlugin(plugin, sheet)];
     },
 } satisfies BuildExtension;
 
