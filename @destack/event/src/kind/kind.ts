@@ -186,6 +186,12 @@ export class EventKind<
     readonly #definition: EventKindDefinition<Shape, Data>;
     /** The append-only table keeping the hot events. */
     readonly table: ReturnType<typeof tableOf>;
+    /** The query key names in declaration order. */
+    readonly keys: readonly string[];
+    /** The column type of each query key. */
+    readonly keyTypes: Readonly<Record<string, EventKeyType>>;
+    /** The names of the keys holding maps of entries. */
+    readonly mapKeys: readonly string[];
 
     /** Hold a kind and its table. */
     constructor(
@@ -193,9 +199,16 @@ export class EventKind<
         definition: EventKindDefinition<Shape, Data>,
         table: ReturnType<typeof tableOf>,
     ) {
+        // read the keys and their column types once
         this.package = owner;
         this.#definition = definition;
         this.table = table;
+        this.keys = Object.keys(definition.keys.shape);
+        const types = Object.entries(definition.keys.shape).map(
+            ([name, key]): [string, EventKeyType] => [name, keyTypeOf(key)],
+        );
+        this.keyTypes = Object.fromEntries(types);
+        this.mapKeys = types.filter(([, type]) => type === "json").map(([name]) => name);
     }
 
     /** The package-local name. */
@@ -206,11 +219,6 @@ export class EventKind<
     /** The kind's identity across packages: its package and name. */
     get key(): string {
         return `${this.package.id}/${this.#definition.name}`;
-    }
-
-    /** The query key names in declaration order. */
-    get keys(): readonly string[] {
-        return Object.keys(this.#definition.keys.shape);
     }
 
     /** The key naming the person whose key seals the data's personal values, absent for a kind without. */
@@ -261,16 +269,6 @@ export class EventKind<
         return this.#definition.isLocked === true;
     }
 
-    /** The column type of each query key. */
-    get keyTypes(): Readonly<Record<string, EventKeyType>> {
-        return Object.fromEntries(
-            Object.entries(this.#definition.keys.shape).map(([name, key]) => [
-                name,
-                keyTypeOf(key),
-            ]),
-        );
-    }
-
     /** Write an event as a row of the kind's table, each query key a column. */
     row(event: Event): InsertValue<ReturnType<typeof tableOf>> {
         return {
@@ -307,32 +305,10 @@ export class EventKind<
         };
     }
 
-    /** The names of the keys holding maps of entries. */
-    get mapKeys(): readonly string[] {
-        const types = this.keyTypes;
-
-        return this.keys.filter((name) => types[name] === "json");
-    }
-
     /** Read the query keys' values from a record holding them, null where absent, a map key's entries parsed. */
     keyValues(values: Readonly<Record<string, unknown>>): Readonly<Record<string, EventKeyValue>> {
-        const types = this.keyTypes;
-
         return Object.fromEntries(
-            this.keys.map((name) => {
-                const value = values[name];
-
-                return [
-                    name,
-                    types[name] === "json"
-                        ? value === null || value === undefined
-                            ? null
-                            : schema.record(schema.string(), EntryValue).parse(value)
-                        : typeof value === "string" || typeof value === "number"
-                          ? value
-                          : null,
-                ];
-            }),
+            this.keys.map((name) => [name, keyValueOf(this.keyTypes[name], values[name])]),
         );
     }
 }
@@ -410,6 +386,26 @@ function keyTypeOf(key: schema.Schema): EventKeyType {
         throw new TypeError(
             `an event key holds text, a number or a map: ${JSON.stringify(described)}`,
         );
+    }
+}
+
+/** Read one query key's value as its column keeps it: null where absent, a map's entries parsed, text and numbers as they are. */
+function keyValueOf(type: EventKeyType | undefined, value: unknown): EventKeyValue {
+    // an absent key
+    if (value === null || value === undefined) {
+        return null;
+    }
+    // a map of entries
+    else if (type === "json") {
+        return schema.record(schema.string(), EntryValue).parse(value);
+    }
+    // text or a number
+    else if (typeof value === "string" || typeof value === "number") {
+        return value;
+    }
+    // refuse any other value
+    else {
+        throw new TypeError(`an event key holds text, a number or a map, not ${typeof value}`);
     }
 }
 

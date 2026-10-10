@@ -20,11 +20,11 @@ import {
     type SQLWrapper,
     TABLE,
 } from "@destack/db";
-import { canonicalize, type JsonValue, schema } from "@destack/schema";
+import { canonicalize, Clock, type JsonValue, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import type { Bucket } from "@destack/bucket";
 import type { Controller } from "@destack/service/control";
-import type { Outbox } from "@destack/service/outbox";
+import { Outbox } from "@destack/service/outbox";
 import { ArchiveController } from "../archive/controller.ts";
 import { EventArchive } from "../archive/archive.ts";
 import type { Event, EventKeyShape, EventKind, EventPolicy, Route } from "../kind/kind.ts";
@@ -68,22 +68,22 @@ export interface EventStoreOptions {
     readonly prefix?: string;
     /** The keyring sealing personal values, needed by kinds with a subject. */
     readonly personal?: PersonalKeyring;
-    /** The outbox routing copies, on the database of the hot events, needed by kinds that route. */
-    readonly outbox?: Outbox;
-    /** Name the scopes a route copies a scope's events to, needed by kinds that route. */
-    readonly targets?: (route: Route, scope: string) => Promise<readonly string[]>;
-    /** Deliver routed copies to the hosts keeping their scopes, needed by kinds that route. */
-    readonly deliver?: (
-        kind: string,
-        events: readonly Event[],
-        signal: AbortSignal,
-    ) => Promise<void>;
+    /** The forwarder of copies of the routed events the store appends, absent on a store only receiving them. */
+    readonly forwarder?: EventForwarder;
     /** Read a scope's policy for a kind, the kind's own when absent. */
     readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy | undefined>;
-    /** Read the current time in Unix milliseconds. */
-    readonly now?: () => number;
+    /** The clock segments flush, compact and expire by, the system clock by default. */
+    readonly clock?: Clock;
     /** Report the failed write of events kept at most once, which were dropped. */
-    readonly report?: (error: unknown) => void;
+    readonly report: (error: unknown) => void;
+}
+
+/** Forwards copies of a store's routed events to the hosts keeping the scopes each route names, after log forwarders. */
+export interface EventForwarder {
+    /** Name the scopes a route copies a scope's events to. */
+    targets(route: Route, scope: string): Promise<readonly string[]>;
+    /** Deliver copies to the hosts keeping their scopes. */
+    deliver(kind: string, events: readonly Event[], signal: AbortSignal): Promise<void>;
 }
 
 /** The append-only events of the scopes a host keeps. */
@@ -98,17 +98,17 @@ export class EventStore {
     readonly #archive: EventArchive;
     /** The keyring sealing personal values. */
     readonly #personal: PersonalKeyring | undefined;
-    /** The outbox routing copies. */
-    readonly #outbox: Outbox | undefined;
-    /** The scopes a route copies a scope's events to. */
-    readonly #targets: ((route: Route, scope: string) => Promise<readonly string[]>) | undefined;
+    /** The forwarder of routed copies with the outbox keeping them until delivered, on the database of the hot events. */
+    readonly #forwarding:
+        | { readonly forwarder: EventForwarder; readonly outbox: Outbox }
+        | undefined;
     /** Report a dropped write of events kept at most once. */
     readonly #report: (error: unknown) => void;
 
     /** Keep events of some kinds over a host's database and buckets. */
     constructor(options: EventStoreOptions) {
         // require a keyring for subjects
-        const { kinds, outbox, deliver, policy } = options;
+        const { kinds, forwarder, policy } = options;
         if (options.personal === undefined && kinds.some((kind) => kind.subject !== undefined)) {
             throw new TypeError("event kinds with a subject need a personal keyring");
         }
@@ -130,16 +130,23 @@ export class EventStore {
             policy: async (kind, scope) => (await policy?.(kind, scope)) ?? kind.policy,
         });
         this.#personal = options.personal;
-        this.#outbox = outbox;
-        this.#targets = options.targets;
-        this.#report = options.report ?? (() => undefined);
+        const forwarding =
+            forwarder === undefined
+                ? undefined
+                : { forwarder, outbox: new Outbox(options.database) };
+        this.#forwarding = forwarding;
+        this.#report = options.report;
         this.controllers = [
-            new ArchiveController(this.#archive, kinds, options.now ?? Date.now),
-            ...(outbox === undefined || deliver === undefined
+            new ArchiveController(this.#archive, kinds, options.clock ?? Clock.system),
+            ...(forwarding === undefined
                 ? []
                 : kinds
                       .filter((kind) => kind.route !== undefined)
-                      .map((kind) => outbox.controller(routeDestination(kind, deliver)))),
+                      .map((kind) =>
+                          forwarding.outbox.controller(
+                              routeDestination(kind, forwarding.forwarder),
+                          ),
+                      )),
         ];
     }
 
@@ -309,20 +316,7 @@ export class EventStore {
         const start = after ?? (await this.database.log.position()).sequence;
         const selection = { tables: [kind.table], scopes: [filter.scope], after: start };
         for await (const page of this.database.log.follow(selection, signal)) {
-            for (const change of page.changes) {
-                // yield each appended event the filter selects
-                if (change.operation !== "insert" || !Change.of(change, kind.table)) {
-                    continue;
-                }
-                const stored = kind.event(Change.image(change));
-                if (!match(stored)) {
-                    continue;
-                }
-                const event = await this.#open(kind, stored);
-                if (EventFilter.contains(filter, event.data)) {
-                    yield { event, sequence: change.sequence };
-                }
-            }
+            yield* this.#appended(kind, filter, match, page.changes);
         }
     }
 
@@ -345,21 +339,33 @@ export class EventStore {
 
         // open each appended event the filter selects
         const events: Event<Shape, Data>[] = [];
-        for (const change of page.changes) {
-            if (change.operation !== "insert" || !Change.of(change, kind.table)) {
-                continue;
-            }
-            const stored = kind.event(Change.image(change));
-            if (!match(stored)) {
-                continue;
-            }
-            const event = await this.#open(kind, stored);
-            if (EventFilter.contains(filter, event.data)) {
-                events.push(event);
-            }
+        for await (const { event } of this.#appended(kind, filter, match, page.changes)) {
+            events.push(event);
         }
 
         return { events, sequence: page.sequence };
+    }
+
+    /** Open each event a page of log changes appends that a filter selects, with its log sequence. */
+    async *#appended<Shape extends EventKeyShape, Data extends JsonValue>(
+        kind: EventKind<Shape, Data>,
+        filter: EventFilter,
+        match: (stored: Event) => boolean,
+        changes: readonly Change[],
+    ): AsyncGenerator<{ readonly event: Event<Shape, Data>; readonly sequence: number }> {
+        // read the kind's appends the filter's keys select
+        const appended = changes
+            .filter((change) => change.operation === "insert" && Change.of(change, kind.table))
+            .map((change) => ({ stored: kind.event(Change.image(change)), change }))
+            .filter(({ stored }) => match(stored));
+
+        // open each, keeping those holding the filter's text
+        for (const { stored, change } of appended) {
+            const event = await this.#open(kind, stored);
+            if (EventFilter.contains(filter, event.data)) {
+                yield { event, sequence: change.sequence };
+            }
+        }
     }
 
     /** Forget a person, erasing their personal values in every event sealed under their keys. */
@@ -429,7 +435,7 @@ export class EventStore {
         for (const copy of copies) {
             const key = new TextEncoder().encode(`${copy.scope} ${copy.source} ${copy.id}`);
             const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", key)).toHex();
-            await this.#outbox?.append(routeAddress(kind), digest, copy, transaction);
+            await this.#forwarding?.outbox.append(routeAddress(kind), digest, copy, transaction);
         }
     }
 
@@ -478,18 +484,21 @@ export class EventStore {
     async #copies(kind: EventKind, stored: readonly Event[]): Promise<Event[]> {
         // read each scope's targets once, refusing to append a routed kind on a store that only receives it
         const route = kind.route;
-        const targets = this.#targets;
+        const forwarding = this.#forwarding;
         if (route === undefined) {
             return [];
-        } else if (targets === undefined || this.#outbox === undefined) {
+        } else if (forwarding === undefined) {
             throw new TypeError(
-                `appending ${kind.key} routes copies, which needs an outbox, targets and a delivery`,
+                `appending ${kind.key} routes copies, which needs the store's forwarder`,
             );
         }
         const scopes = [...new Set(stored.map((event) => event.scope))];
         const named = new Map(
             await Promise.all(
-                scopes.map(async (scope) => [scope, await targets(route, scope)] as const),
+                scopes.map(
+                    async (scope) =>
+                        [scope, await forwarding.forwarder.targets(route, scope)] as const,
+                ),
             ),
         );
 

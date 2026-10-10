@@ -23,6 +23,9 @@ import { SegmentFile } from "./segment.ts";
 /** The events one pruning statement deletes, far below every dialect's bound on parameters. */
 const PRUNE_BATCH = 500;
 
+/** How long a segment file may go uncatalogued before a sweep deletes it as an orphan: an hour, far longer than writing a segment and committing its row takes. */
+const ORPHAN_MILLISECONDS = 60 * 60 * 1000;
+
 /** The share of a segment's rows below which an unlocked segment is compacted with its neighbours. */
 const SMALL_SHARE = 0.5;
 
@@ -219,6 +222,39 @@ export class EventArchive {
         return expired.length;
     }
 
+    /** Delete a scope's segment files of an unlocked kind that no catalog row names, an hour after their upload, returning how many. */
+    async sweep(kind: EventKind, scope: string, now: number): Promise<number> {
+        // leave locked kinds, whose files stay until their retention
+        if (kind.isLocked) {
+            return 0;
+        }
+
+        // delete the scope's files of the kind that no catalog row names, past the hour, a listed page at a time
+        const catalogued = new Set(
+            (await this.#catalog(kind, scope)).map((segment) => segment.file),
+        );
+        const bucket = this.#files(scope);
+        let orphans = 0;
+        let cursor: string | undefined;
+        do {
+            const page = await bucket.list({
+                prefix: `${this.#directory(kind, scope)}/`,
+                ...(cursor === undefined ? {} : { cursor }),
+            });
+            const stale = page.files
+                .filter((file) => !catalogued.has(file.key))
+                .filter((file) => file.uploaded.getTime() <= now - ORPHAN_MILLISECONDS)
+                .map((file) => file.key);
+            if (stale.length > 0) {
+                await bucket.delete(stale);
+            }
+            orphans += stale.length;
+            cursor = page.cursor;
+        } while (cursor !== undefined);
+
+        return orphans;
+    }
+
     /** Choose the catalogued segments that may hold the events a read selects. */
     async choose(
         kind: EventKind,
@@ -300,7 +336,7 @@ export class EventArchive {
         const data = await SegmentFile.encode(kind, events);
         const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", data)).toHex();
         const id = `${String(first.time)}-${String(last.time)}-${digest.slice(0, 16)}`;
-        const file = `${this.#prefix}/${kind.package.id}/${kind.name}/${scope}/${id}.parquet`;
+        const file = `${this.#directory(kind, scope)}/${id}.parquet`;
         await this.#files(scope).put(file, data, {
             sha256: digest,
             ...(kind.isLocked ? { retainUntil: new Date(now + policy.retention) } : {}),
@@ -348,6 +384,11 @@ export class EventArchive {
             .from(eventSegment)
             .where(and(eq(eventSegment.kind, kind.key), eq(eventSegment.scope, scope)))
             .orderBy(asc(eventSegment.from));
+    }
+
+    /** Name the bucket directory of a scope's segments of a kind. */
+    #directory(kind: EventKind, scope: string): string {
+        return `${this.#prefix}/${kind.package.id}/${kind.name}/${scope}`;
     }
 
     /** Read a segment file through ranged reads of its scope's bucket. */

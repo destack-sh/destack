@@ -11,7 +11,7 @@ import type { EventFilter } from "../query/query.ts";
 import { eventService, type EventSelection, FilterText } from "../service/service.ts";
 import type { Series } from "../store/series.ts";
 import type { EventStore } from "../store/store.ts";
-import { authorizeRead, type ShownEvent, type UnmaskedRead } from "./read.ts";
+import { EventRead, type ShownEvent, type UnmaskedRead } from "./read.ts";
 
 /** The events one query page returns unless the request asks for another number. */
 const PAGE_EVENTS = 100;
@@ -40,7 +40,7 @@ export function serveEvents(options: EventServiceOptions) {
         query: implementation.query.handler(async ({ input, context }) => {
             // read the page as the caller may read the kind
             const kind = store.kind(input.kind);
-            const read = await authorizeRead(context, {
+            const read = await EventRead.authorize(context, {
                 store,
                 kind,
                 selection: input,
@@ -61,7 +61,7 @@ export function serveEvents(options: EventServiceOptions) {
         tail: implementation.tail.handler(async ({ input, context }) => {
             // follow from the log's position as the call starts, so nothing appended after it is missed
             const kind = store.kind(input.kind);
-            const read = await authorizeRead(context, {
+            const read = await EventRead.authorize(context, {
                 store,
                 kind,
                 selection: input,
@@ -78,7 +78,7 @@ export function serveEvents(options: EventServiceOptions) {
         series: implementation.series.handler(async ({ input, context }) => {
             // fold as the caller may read the kind
             const kind = store.kind(input.kind);
-            const read = await authorizeRead(context, {
+            const read = await EventRead.authorize(context, {
                 store,
                 kind,
                 selection: input,
@@ -97,7 +97,7 @@ export function serveEvents(options: EventServiceOptions) {
         export: implementation.export.handler(async ({ input, context }) => {
             // stream the events that happened before the export started
             const kind = store.kind(input.kind);
-            const read = await authorizeRead(context, {
+            const read = await EventRead.authorize(context, {
                 store,
                 kind,
                 selection: input,
@@ -114,7 +114,7 @@ export function serveEvents(options: EventServiceOptions) {
         }),
         receive: implementation.receive.handler(async ({ input, context }) => {
             // admit the sender of the copies, then keep them once each
-            context.requireAuthentication();
+            context.requireCaller();
             const kind = store.kind(input.kind);
             if (options.admit === undefined) {
                 throw new ServiceError("FORBIDDEN", {

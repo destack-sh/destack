@@ -7,7 +7,6 @@ import { MemoryBucket } from "@destack/bucket/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { schema } from "@destack/schema";
-import { Authentication } from "@destack/service/authentication";
 import { createClient } from "@destack/service/client";
 import { isServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
@@ -88,7 +87,10 @@ async function serve(admit?: (context: ServiceContext, kind: EventKind) => Promi
             database,
             await LocalKeyring.read(LocalKeyring.generate()),
         ),
-        outbox: new Outbox(database),
+        // fail the test on a dropped event
+        report: (error) => {
+            throw error;
+        },
     });
 
     // let the owner grant reader read, and alice read and unmask, on the account
@@ -154,14 +156,17 @@ async function serve(admit?: (context: ServiceContext, kind: EventKind) => Promi
                     ? principal.machine.reference("universe", name)
                     : principal.user.reference("universe", name);
 
-            return new Authentication({
-                credential: { kind: "fixture", id: name },
-                audience: meters.id,
+            return {
                 subject,
                 subjects: [subject],
-                verifiedAt: Date.now(),
-                expiresAt: Date.now() + 60_000,
-            });
+                credential: {
+                    kind: "fixture",
+                    id: name,
+                    audience: meters.id,
+                    verifiedAt: Date.now(),
+                    expiresAt: Date.now() + 60_000,
+                },
+            };
         },
         authorizeMachine: async () => {},
         drainTimeout: 1000,

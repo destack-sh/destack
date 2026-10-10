@@ -184,6 +184,38 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "sweep a %s scope's segment files no catalog row names once an hour old, daily, keeping catalogued and recent ones",
+    async (dialect) => {
+        const fixture = await open(dialect);
+        const { store, bucket } = fixture;
+        const directory = `events/${meters.id}/reading/space-1`;
+
+        // flush a segment, then leave a file no catalog row names, as a write that crashed before cataloguing it
+        await store.append(
+            reading,
+            [1, 2, 3].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
+        );
+        await fixture.settle();
+        await bucket.put(`${directory}/orphan.parquet`, "lost");
+
+        // a day later, leave a fresh uncatalogued file as a write in flight, then sweep
+        fixture.now = START + DAY;
+        await bucket.put(`${directory}/inflight.parquet`, "writing");
+        await fixture.settle();
+
+        // keep the catalogued segment and the file in flight, deleting the orphan
+        const catalogued = await fixture.database.database.select().from(eventSegment);
+        const listed = await bucket.list({ prefix: `${directory}/` });
+        expect(listed.files.map((file) => file.key).toSorted()).toEqual(
+            [
+                ...catalogued.map((segment) => segment.file),
+                `${directory}/inflight.parquet`,
+            ].toSorted(),
+        );
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "search the %s data of hot and flushed events for text, filling each page",
     async (dialect) => {
         const fixture = await open(dialect);

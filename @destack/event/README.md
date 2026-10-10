@@ -65,9 +65,8 @@ const store = new EventStore({
     kinds: [log, span, call],
     files,
     personal,
-    outbox,
-    targets,
-    deliver,
+    forwarder: { targets, deliver }, // copies to the scopes each route names, through the store's outbox
+    report, // the at-most-once writes it drops
 });
 loop.add(...store.controllers);
 ```

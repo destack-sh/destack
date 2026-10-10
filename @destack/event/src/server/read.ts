@@ -24,8 +24,8 @@ export interface UnmaskedRead {
 /** An event as the event service answers it. */
 export type ShownEvent = schema.Infer<typeof Event>;
 
-/** What a read of a store's events names: the kind, the scope and object it reads, and the operation. */
-export interface ReadRequest {
+/** A read of a store's events: the kind, the scope and object it reads, and the operation. */
+export interface EventRead {
     /** The store read. */
     readonly store: EventStore;
     /** The kind read. */
@@ -44,10 +44,16 @@ export interface ReadRequest {
         | undefined;
 }
 
+/** The reads of a store's events. */
+export const EventRead = {
+    /** Require the caller to make a read, answering the read's condition and redaction. */
+    authorize,
+};
+
 /** Require the caller to read a kind of a scope, answering the read's condition and redaction. */
-export async function authorizeRead(
+async function authorize(
     context: ServiceContext,
-    request: ReadRequest,
+    request: EventRead,
 ): Promise<{ readonly where: JsonCondition; readonly redact: (event: Event) => ShownEvent }> {
     // find the object whose grants decide, refusing a kind nobody reads here
     const { kind, selection } = request;
@@ -89,7 +95,7 @@ export async function authorizeRead(
 }
 
 /** Find the object deciding a read: the one it narrows to, or the scope's own object. */
-async function governing(request: ReadRequest): Promise<ObjectReference> {
+async function governing(request: EventRead): Promise<ObjectReference> {
     // decide on the object a read narrows to
     const { kind, selection } = request;
     const narrowed = kind.access?.object;
@@ -124,11 +130,16 @@ function masked(kind: EventKind, event: Event): Event {
 
 /** Mask a value, a record or a list entry by entry. */
 function maskOf(value: JsonValue): JsonValue {
+    // a list, entry by entry
     if (Array.isArray(value)) {
         return value.map(maskOf);
-    } else if (typeof value === "object" && value !== null) {
+    }
+    // a record, each entry masked
+    else if (typeof value === "object" && value !== null) {
         return Object.fromEntries(Object.keys(value).map((key) => [key, MASK]));
     }
-
-    return MASK;
+    // a scalar
+    else {
+        return MASK;
+    }
 }

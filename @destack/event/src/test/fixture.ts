@@ -2,7 +2,7 @@ import type { Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
 import { MemoryBucket } from "@destack/bucket/test";
-import { Outbox, outbox } from "@destack/service/outbox";
+import { outbox } from "@destack/service/outbox";
 import { DatabasePersonalKeyring } from "../personal/personal.ts";
 import type { Event, EventKind, EventPolicy, Route } from "../kind/kind.ts";
 import { eventTables } from "../stack/db.ts";
@@ -29,7 +29,7 @@ export class EventFixture implements AsyncDisposable {
     /** The test database keeping the hot events, the catalog, people's keys and the outbox. */
     readonly database: TestDatabase;
     /** The memory bucket keeping the segments, its locks on the fixture's clock. */
-    readonly bucket = new MemoryBucket(() => this.now);
+    readonly bucket = new MemoryBucket({ now: () => this.now });
     /** The current time the controllers read, in Unix milliseconds. */
     now = Date.UTC(2026, 9, 1);
 
@@ -60,11 +60,16 @@ export class EventFixture implements AsyncDisposable {
                     kinds,
                     files: () => fixture.bucket,
                     personal: new DatabasePersonalKeyring(database.database, keyring),
-                    outbox: new Outbox(database.database),
-                    targets: options.targets ?? (() => Promise.resolve([])),
-                    deliver: options.deliver ?? (() => Promise.resolve()),
+                    forwarder: {
+                        targets: options.targets ?? (() => Promise.resolve([])),
+                        deliver: options.deliver ?? (() => Promise.resolve()),
+                    },
                     ...(options.policy === undefined ? {} : { policy: options.policy }),
-                    now: () => fixture.now,
+                    clock: { now: () => fixture.now },
+                    // fail the test on a dropped event
+                    report: (error) => {
+                        throw error;
+                    },
                 }),
             database,
         );

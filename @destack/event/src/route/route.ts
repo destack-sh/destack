@@ -1,5 +1,6 @@
 import type { Address, Destination } from "@destack/service/outbox";
 import { Event, type EventKind } from "../kind/kind.ts";
+import type { EventForwarder } from "../store/store.ts";
 
 /** The events one delivery of routed events sends at most. */
 const ROUTE_BATCH = 100;
@@ -12,11 +13,11 @@ export function routeAddress(kind: EventKind): Address<Event> {
 /** The outbox destination delivering a kind's routed events in order. */
 export function routeDestination(
     kind: EventKind,
-    deliver: (kind: string, events: readonly Event[], signal: AbortSignal) => Promise<void>,
+    forwarder: Pick<EventForwarder, "deliver">,
 ): Destination<Event> {
     return {
         ...routeAddress(kind),
         batch: ROUTE_BATCH,
-        accept: (events, { signal }) => deliver(kind.key, events, signal),
+        accept: (events, { signal }) => forwarder.deliver(kind.key, events, signal),
     };
 }

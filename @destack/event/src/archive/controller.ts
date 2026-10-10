@@ -2,6 +2,7 @@ import { Change } from "@destack/db";
 import type { Controller } from "@destack/service/control";
 import type { EventKind } from "../kind/kind.ts";
 import type { EventArchive } from "./archive.ts";
+import { Clock } from "@destack/schema";
 
 /** How often a scope's segments are compacted and checked against their retention without new events: daily. */
 const UPKEEP_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -16,16 +17,18 @@ export class ArchiveController implements Controller {
     readonly #archive: EventArchive;
     /** The kinds by their key. */
     readonly #kinds: ReadonlyMap<string, EventKind>;
-    /** Read the current time in Unix milliseconds. */
-    readonly #now: () => number;
+    /** The clock segments flush, compact and expire by. */
+    readonly #clock: Clock;
+    /** When this controller last swept each kind and scope for orphaned files, by key. */
+    readonly #swept = new Map<string, number>();
 
     /** Keep the segments of kinds. */
-    constructor(archive: EventArchive, kinds: readonly EventKind[], now: () => number) {
+    constructor(archive: EventArchive, kinds: readonly EventKind[], clock: Clock) {
         // index the kinds and watch their hot tables
         this.#archive = archive;
         this.#kinds = new Map(kinds.map((kind) => [kind.key, kind]));
         this.watches = kinds.map((kind) => kind.table);
-        this.#now = now;
+        this.#clock = clock;
     }
 
     /** Name the kind and scope an appended event belongs to. */
@@ -57,13 +60,20 @@ export class ArchiveController implements Controller {
         }
 
         // flush while the policy says so, then compact and expire
-        const now = this.#now();
+        const now = this.#clock.now();
         let due = await this.#archive.flushDue(kind, scope, now);
         while (due.isDue && (await this.#archive.flush(kind, scope, now))) {
             due = await this.#archive.flushDue(kind, scope, now);
         }
         await this.#archive.compact(kind, scope, now);
         await this.#archive.expire(kind, scope, now);
+
+        // sweep orphaned files once per upkeep, as listing a bucket costs a request per page
+        const sweptAt = this.#swept.get(key);
+        if (sweptAt === undefined || sweptAt + UPKEEP_MILLISECONDS <= now) {
+            await this.#archive.sweep(kind, scope, now);
+            this.#swept.set(key, now);
+        }
 
         // look again once the oldest hot event comes due, or at the next upkeep
         return Math.max(0, Math.min(due.at ?? Infinity, now + UPKEEP_MILLISECONDS) - now);
