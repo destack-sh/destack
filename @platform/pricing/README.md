@@ -55,8 +55,10 @@ Reading.operations(requests, OPERATION_PRICES.workerRequest); // 0.375 each
 ```ts
 import { OPERATION_COSTS, UNIT_COSTS } from "@platform/pricing";
 
-UNIT_COSTS[0]; // { unit: databaseStorageUnit, cost: { provider: "cloudflare", service: "Durable Objects", pricingUnit: "GB-month", unitAmount: "20", … } }
-OPERATION_COSTS[0]; // { operation: "workerRequest", cost: { service: "Workers", pricingUnit: "request", unitAmount: "0.00003", … } }
+// { unit: databaseStorageUnit, cost: { service: "Durable Objects", pricingUnit: "GB-month", … } }
+UNIT_COSTS[0];
+// { operation: "workerRequest", cost: { service: "Workers", unitAmount: "0.00003", … } }
+OPERATION_COSTS[0];
 ```
 
 ## Cloudflare
