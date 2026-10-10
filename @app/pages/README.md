@@ -66,5 +66,5 @@ import { pagesService } from "@app/pages/service";
 ```ts
 import pages from "@app/pages/package";
 
-export const personal = defineSpace({ installations: { pages: install(pages, { main: "main" }) } });
+export const personal = defineStack({ installations: { pages: install(pages, { main: "main" }) } });
 ```

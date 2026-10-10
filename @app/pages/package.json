@@ -15,7 +15,7 @@
     },
     "dependencies": {
         "@destack/audit": "workspace:*",
-        "@destack/space": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/object": "workspace:*",
