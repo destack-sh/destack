@@ -3,10 +3,20 @@
 `buildPackage` is Vite's `build` on Rolldown, emitting one module output per runtime (`browser`, `bun`, `workerd`) with a manifest, a `BuildExtension` is a Vite plugin a dependency contributes, and `/store` keeps builds by content as an OCI registry keeps a manifest and its blobs.
 
 ```ts
-await using build = await buildPackage({ directory, dependencies, outputs: await readOutputs(directory) }); // vite build
-await using builder = await PackageBuilder.start(directory); // a warm compiler, like vite build --watch
-export const viewExtension: BuildExtension = { transform: ({ server, options }) => viewPlugins(server, options["@destack/view"]) }; // Vite plugins
-await new PackageClient("https://packages.example.com/builds/", fetch).push(reader); // OCI push: blobs, then the manifest
+// vite build
+await using build = await buildPackage({
+    directory,
+    dependencies,
+    outputs: await readOutputs(directory),
+});
+// a warm compiler, like vite build --watch
+await using builder = await PackageBuilder.start(directory);
+// Vite plugins
+export const viewExtension: BuildExtension = {
+    transform: ({ server, options }) => viewPlugins(server, options["@destack/view"]),
+};
+// OCI push: blobs, then the manifest
+await new PackageClient("https://packages.example.com/builds/", fetch).push(reader);
 await PackageBuild.read(destination); // every file checked against the manifest's digests
 ```
 
@@ -36,7 +46,8 @@ await build.write(destination);
 ```ts
 await using builder = await PackageBuilder.start(directory);
 const inspection = await builder.inspect({ runtime: "bun" });
-await using warm = await builder.build({ dependencies, outputs, store, timeout: 60_000 }); // warm.reused: ["bun"]
+// warm.reused: ["bun"]
+await using warm = await builder.build({ dependencies, outputs, store, timeout: 60_000 });
 ```
 
 ## Extensions

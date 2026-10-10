@@ -106,7 +106,7 @@ test.concurrent.for(fixtures)(
                 exported(build.manifest.outputs["stack"], "."),
             );
 
-            // retain the shared database's description in the space definition
+            // retain the shared database's description in the stack definition
             const database = property(module, "database");
             const owner = property(database, "package");
             const ownerId = property(owner, "id");
@@ -224,7 +224,7 @@ async function callNotes(
             audience: build.manifest.package.id,
             scope: "fixture",
             drainTimeout: 1000,
-            authenticate: async () => null,
+            authenticate: async () => undefined,
             authorizeMachine: async () => {},
         }),
     });

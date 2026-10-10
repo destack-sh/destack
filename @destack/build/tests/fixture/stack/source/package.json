@@ -11,7 +11,7 @@
         "@destack/package": "workspace:*",
         "@destack/access": "workspace:*",
         "@template/stack": "workspace:*",
-        "@destack/space": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/account": "workspace:*"
     }
 }

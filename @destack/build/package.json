@@ -15,11 +15,7 @@
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./error": "./src/error/index.ts",
-        "./store": "./src/store/index.ts",
-        "./checkout": "./src/checkout/index.ts",
-        "./object": "./src/object/index.ts",
-        "./service": "./src/service/index.ts",
-        "./server": "./src/server/index.ts"
+        "./store": "./src/store/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -41,12 +37,7 @@
         "@destack/resource": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/sandbox": "workspace:*",
-        "@destack/error": "workspace:*",
-        "@destack/object": "workspace:*",
-        "@destack/account": "workspace:*",
-        "@destack/space": "workspace:*",
-        "@destack/sync": "workspace:*",
-        "@destack/access": "workspace:*"
+        "@destack/error": "workspace:*"
     },
     "devDependencies": {
         "uuid": "14.0.2",

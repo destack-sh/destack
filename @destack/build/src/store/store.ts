@@ -2,6 +2,7 @@ import { Digest, Instant, present, schema } from "@destack/schema";
 import {
     type Bucket,
     type BucketBody,
+    type BucketEntry,
     type BucketFile,
     BucketPreconditionError,
     type BucketRange,
@@ -476,7 +477,7 @@ export class PackageStore {
     }
 
     /** List the bucket's files below a prefix, page by page. */
-    async *#list(prefix: string): AsyncGenerator<BucketFile> {
+    async *#list(prefix: string): AsyncGenerator<BucketEntry> {
         let cursor: string | undefined;
         do {
             const page = await this.bucket.list({

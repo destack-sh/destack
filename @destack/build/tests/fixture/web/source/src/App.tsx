@@ -1,6 +1,6 @@
 import { createSignal, onSettled } from "@destack/view";
 import { DEFAULT_PREFERENCES } from "@destack/theme";
-import "@destack/theme/theme.css";
+import "@destack/view/styles";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
 import "./style.css";

@@ -1,4 +1,4 @@
-import { defineSpace, install } from "@destack/space";
+import { defineStack, install } from "@destack/stack";
 import stack from "./package.ts";
 import type {} from "@destack/package/import-meta";
 import { defineAccount } from "@destack/account/declare";
@@ -25,7 +25,7 @@ export { database } from "@template/stack";
 export const account = defineAccount({ environments: { development: {}, production: {} } });
 
 /** Configure a space without provisioning resources during compilation. */
-export const personal = defineSpace({
+export const personal = defineStack({
     resources: {
         main: { declaration: database, retention: { within: { days: 30 } }, tags: {} },
     },

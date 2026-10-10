@@ -5,14 +5,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { schema } from "@destack/schema";
 import { TestDeclaration } from "@destack/test/inspect";
-import { PackageBuilder } from "../src/build/builder.ts";
+import { Compiler } from "../src/build/compiler.ts";
 import { Fixture } from "./fixture.ts";
 
 /** Retain test discovery without collecting the resources constructed by test bodies. */
 test("inspect test bodies without declaring their temporary resources", async ({ expect }) => {
     await using input = await Fixture.open("web");
     await exportApplication(input.source);
-    await using compiler = await PackageBuilder.start(input.source);
+    await using compiler = await Compiler.start(input.source);
     const before = await compiler.inspect({ runtime: "bun" });
     const description = schema.object({
         tests: schema.array(TestDeclaration),

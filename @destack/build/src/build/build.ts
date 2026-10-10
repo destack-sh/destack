@@ -1,3 +1,4 @@
+import { BuildError } from "../error/index.ts";
 import { type DependencyResolution, PackageDefinition, TEST_EXPORT } from "@destack/package";
 import type { History } from "@destack/resource";
 import type { PackageStore } from "../store/index.ts";
@@ -268,9 +269,10 @@ export interface BuildOptions {
     store?: PackageStore;
 }
 
-/** Read the module outputs a package ships: one bundled module per runtime its exports but the test layer compile for, named after the runtime. */
+/** Read the module outputs a package ships, or those of them a build names, refusing a name its exports imply no output for: one bundled module per runtime its exports but the test layer compile for, named after the runtime. */
 export async function readOutputs(
     directory: string,
+    names?: readonly string[],
 ): Promise<Readonly<Record<string, ModuleOptions>>> {
     // read the runtimes every export but the test layer compiles for
     const declaration = await readPackageDescription(directory);
@@ -281,9 +283,20 @@ export async function readOutputs(
     );
 
     // compile each as one bundled module named after it, in the runtimes' declared order
-    return Object.fromEntries(
+    const implied = Object.fromEntries(
         Runtime.options
             .filter((runtime) => runtimes.has(runtime))
             .map((runtime) => [runtime, { kind: "module" as const, runtime, bundle: true }]),
     );
+    if (names === undefined) {
+        return implied;
+    }
+
+    // select the named outputs, refusing a name the exports imply no output for
+    const unknown = names.filter((name) => !Object.hasOwn(implied, name));
+    if (unknown.length > 0) {
+        throw new BuildError("BUILD_FAILED", `the package builds no output ${unknown.join(", ")}`);
+    }
+
+    return Object.fromEntries(Object.entries(implied).filter(([name]) => names.includes(name)));
 }

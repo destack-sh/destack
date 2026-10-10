@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { schema } from "@destack/schema";
 import { TestDeclaration } from "@destack/test/inspect";
-import { PackageBuilder } from "../build/builder.ts";
+import { Compiler } from "../build/compiler.ts";
 
 /** The packages of the inspected workspace, by identity. */
 const packages = {
@@ -82,7 +82,7 @@ test("describe one declaration as every kind its constructor lists, each owned b
     const directory = await mkdtemp(join(tmpdir(), "destack-kinds-"));
     try {
         await writeWorkspace(directory, "@example/owner");
-        await using builder = await PackageBuilder.start(directory);
+        await using builder = await Compiler.start(directory);
         const inspection = await builder.inspect({ runtime: "bun" });
         const { declarations, tests } = schema
             .object({

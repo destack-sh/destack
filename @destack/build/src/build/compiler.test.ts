@@ -4,7 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildPackage, PackageBuild, PackageBuilder, readDependencies } from "../index.ts";
+import { buildPackage, PackageBuild, Compiler, readDependencies } from "../index.ts";
 import type { PackageManifest } from "@destack/package/manifest";
 import { request } from "../../tests/fixture/library/request.ts";
 import * as resource from "../../tests/fixture/resource/request.ts";
@@ -58,7 +58,7 @@ test("rebuild a web application with emitted assets and restore every output", a
             ),
     );
     await writeFile(file, source);
-    await using builder = await PackageBuilder.start(fixture.source);
+    await using builder = await Compiler.start(fixture.source);
     const options = { dependencies: fixture.dependencies, outputs: { website: requests.browser } };
 
     // compare the full distribution before and after an application edit
@@ -127,7 +127,7 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
             '/** Return the column name. */\nexport function title(): string {\n    return "title";\n}\n';
         await writeFile(titleModule, original);
         const dependencies = await readDependencies(fileURLToPath(fixture));
-        await using builder = await PackageBuilder.start(directory);
+        await using builder = await Compiler.start(directory);
         await using first = await builder.build({ dependencies, ...resource.request });
 
         // reload the edited title module, whose dependency writes to standard output
@@ -184,7 +184,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
     try {
         // compile a real package
         await cp(new URL("source/", fixture), source, { recursive: true });
-        await using builder = await PackageBuilder.start(source);
+        await using builder = await Compiler.start(source);
         await using build = await builder.build(request);
 
         // rebuild unchanged, edited, and restored source with the same compiler
@@ -313,7 +313,7 @@ test("reuse cached builds and outputs, and compile what their keys miss", async 
         });
         await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
         const store = new PackageStore(bucket);
-        await using builder = await PackageBuilder.start(source);
+        await using builder = await Compiler.start(source);
         await using first = await builder.build({ ...request, store });
         expect(first.reused).toEqual([]);
 
@@ -363,7 +363,7 @@ test("reuse cached outputs sharing source files once the build's commit changes"
         });
         await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
         const store = new PackageStore(bucket);
-        await using builder = await PackageBuilder.start(source);
+        await using builder = await Compiler.start(source);
         const outputs = {
             bun: request.outputs.library,
             workerd: { ...request.outputs.library, runtime: "workerd" },
@@ -445,7 +445,7 @@ async function read(path: string): Promise<string> {
         );
 
         // see no user, a refused file and the sandbox proxy's refusal
-        await using builder = await PackageBuilder.start(source);
+        await using builder = await Compiler.start(source);
         const dependencies = await readDependencies(fileURLToPath(fixture));
         await using build = await builder.build({ dependencies, ...resource.request });
         const declared = present(
@@ -469,7 +469,7 @@ async function read(path: string): Promise<string> {
 test("reject invalid outputs and recover the retained compiler", async () => {
     // build once before any rejected request
     const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
-    await using builder = await PackageBuilder.start(source);
+    await using builder = await Compiler.start(source);
     await using first = await builder.build(request);
     await expect(builder.build({ dependencies: {}, outputs: {} })).rejects.toMatchObject({
         code: "BUILD_FAILED",
@@ -495,7 +495,7 @@ test("terminate compilation on cancellation and deadline, and build again with t
         new URL("../../tests/fixture/library/source/", import.meta.url),
     );
     const controller = new AbortController();
-    await using builder = await PackageBuilder.start(directory);
+    await using builder = await Compiler.start(directory);
     const pending = builder.build({ ...request, signal: controller.signal });
     controller.abort();
     await expect(pending).rejects.toMatchObject({
@@ -530,7 +530,7 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
 `,
     );
     const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
-    const builder = await PackageBuilder.start(source, {
+    const builder = await Compiler.start(source, {
         executable: process.execPath,
         arguments: ["run", script],
         read: [directory],
@@ -567,7 +567,7 @@ test("plan the upgrade from what a package published", async () => {
     const file = join(fixture.source, "src/server.ts");
     const manifest = join(fixture.source, "package.json");
     const original = await readFile(file, "utf8");
-    await using builder = await PackageBuilder.start(fixture.source);
+    await using builder = await Compiler.start(fixture.source);
 
     // publish the first release
     await using first = await builder.build(options);
@@ -682,7 +682,7 @@ test("bundle an empty module for a host module a dependency's browser field repl
         );
 
         // run the parser built for workerd, which lacks the file system
-        await using builder = await PackageBuilder.start(join(directory, "app"));
+        await using builder = await Compiler.start(join(directory, "app"));
         const outputs = { server: { kind: "module", runtime: "workerd", bundle: true } } as const;
         await using built = await builder.build({ dependencies: {}, outputs });
         await built.write(join(directory, "build"));
@@ -753,7 +753,7 @@ test("compile a package with the build extension it declares", async () => {
         }
 
         // build the package and read the greeting its extension wrote in
-        await using builder = await PackageBuilder.start(directory);
+        await using builder = await Compiler.start(directory);
         const outputs = { library: { kind: "module", runtime: "bun", bundle: true } } as const;
         await using built = await builder.build({ dependencies: {}, outputs });
         await built.write(join(directory, "build"));
@@ -818,7 +818,7 @@ test("bundle a dependency whose optional peer is absent, failing only once it is
         );
 
         // greet through the bundled loader, and fail to load the absent peer
-        await using builder = await PackageBuilder.start(join(directory, "app"));
+        await using builder = await Compiler.start(join(directory, "app"));
         const outputs = { library: { kind: "module", runtime: "bun", bundle: true } } as const;
         await using built = await builder.build({ dependencies: {}, outputs });
         await built.write(join(directory, "build"));

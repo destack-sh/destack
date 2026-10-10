@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { PackageBuilder } from "../build/builder.ts";
+import { Compiler } from "../build/compiler.ts";
 
 /** The workspace's packages: an app declaring a document, and a sibling dependency augmenting it. */
 const FILES: Readonly<Record<string, string>> = {
@@ -44,7 +44,7 @@ test("describe a symbol by the package's declarations, leaving a linked dependen
         await symlink(join(directory, "other"), join(directory, "app/node_modules/@example/other"));
 
         // inspect the app
-        await using builder = await PackageBuilder.start(join(directory, "app"));
+        await using builder = await Compiler.start(join(directory, "app"));
         const inspection = await builder.inspect({ runtime: "bun" });
         const symbols = inspection.code.flatMap((module) => module.symbols);
 
@@ -84,7 +84,7 @@ test("describe a class's private members by the names their declarations write",
         );
 
         // inspect the app
-        await using builder = await PackageBuilder.start(join(directory, "app"));
+        await using builder = await Compiler.start(join(directory, "app"));
         const inspection = await builder.inspect({ runtime: "bun" });
         const symbols = inspection.code.flatMap((module) => module.symbols);
 
