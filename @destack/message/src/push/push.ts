@@ -32,7 +32,7 @@ export function pushProvider(
                 new Request(to.url, {
                     method: "POST",
                     headers: {
-                        Authorization: await signer.authorization(to.url, store.clock()),
+                        Authorization: await signer.authorization(to.url, store.clock.now()),
                         "Content-Encoding": "aes128gcm",
                         "Content-Type": "application/octet-stream",
                         TTL: String(content.ttl),
@@ -43,7 +43,7 @@ export function pushProvider(
                 }),
             );
 
-            return Outcome.read(response, store.clock());
+            return Outcome.read(response, store.clock.now());
         },
     };
 }

@@ -57,7 +57,7 @@ function postTo(statuses: readonly number[]) {
     const requests: { url: string; headers: Headers; body: string }[] = [];
     const read: [ObjectReference, Subject][] = [];
     const vault = async (
-        _store: Pick<Omit<ObjectStore, "router">, "query" | "clock">,
+        _store: Pick<ObjectStore, "query" | "clock">,
         secret: ObjectReference,
         reader: Subject,
     ) => {

@@ -173,7 +173,7 @@ async function attempt(
         readonly deriver: MessageOptions["deriver"];
     },
     whole: Message,
-    store: Omit<ObjectStore, "router">,
+    store: ObjectStore,
 ): Promise<Outcome> {
     // fail a message no provider here sends
     const provider = options.providers[whole.to.channel];

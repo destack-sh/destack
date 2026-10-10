@@ -8,14 +8,14 @@ import { journal } from "@destack/audit/stack";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { eventTables } from "@destack/event/stack";
 import { MemoryBucket } from "@destack/bucket/test";
-import { Outbox, outbox } from "@destack/service/outbox";
+import { outbox } from "@destack/service/outbox";
 import { defineDatabase, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Derivation, LocalKeyring } from "@destack/identity";
 import { ObjectStore } from "@destack/object/server";
 import { PackageId } from "@destack/package";
 import type {} from "@destack/package/import-meta";
-import { Identifier, present, schema } from "@destack/schema";
+import { Clock, Identifier, present, schema } from "@destack/schema";
 import { type Controller, ControlLoop } from "@destack/service/control";
 import { testCallKey } from "@destack/service/test";
 import { type ObjectReference, Scope, Subject } from "@destack/sync";
@@ -137,7 +137,7 @@ function finished(
             service: "document",
             scope: scope.id,
         },
-        { record: async () => {}, clock: Date.now },
+        { record: async () => {}, clock: Clock.system },
     );
     const target = { type: "document" as const, id: "one" };
     const running =
@@ -219,13 +219,18 @@ function openEvents(database: DatabaseConnection): EventStore {
         kinds: [audit.call],
         files: () => new MemoryBucket(),
         personal: new DatabasePersonalKeyring(database, KEYRING),
-        outbox: new Outbox(database),
-        targets: async (_route, scope) => {
-            const chains = await Scope.chains(Snapshot.live(database), [scope]);
+        forwarder: {
+            targets: async (_route, scope) => {
+                const chains = await Scope.chains(Snapshot.live(database), [scope]);
 
-            return (chains.get(scope) ?? []).slice(1).map((link) => link.object.id);
+                return (chains.get(scope) ?? []).slice(1).map((link) => link.object.id);
+            },
+            deliver: (_kind, events) => store.receive(audit.call.key, events),
         },
-        deliver: (_kind, events) => store.receive(audit.call.key, events),
+        // fail the test on a dropped event
+        report: (error) => {
+            throw error;
+        },
     });
 
     return store;
@@ -405,8 +410,10 @@ test("advance an endpoint past each page and create no message twice when a page
     await served.database.log.advance(EndpointReader.of(id).name, before ?? 0, Date.now() + 60_000);
     await expect.poll(async () => (await position()) !== before, { timeout: 10_000 }).toBe(true);
 
-    // keep the one message the first page created
-    expect(await served.read(id)).toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
+    // keep the one message the first page created, delivered once its attempt lands
+    await expect
+        .poll(() => served.read(id), { timeout: 10_000 })
+        .toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
 });
 
 test("keep a disabled endpoint's position and deliver only the calls after it once enabled again", async () => {

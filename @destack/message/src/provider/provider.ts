@@ -62,7 +62,7 @@ export interface MessageProvider {
             /** What it says. */
             readonly content: Content;
         },
-        store: Pick<Omit<ObjectStore, "router">, "query" | "clock">,
+        store: Pick<ObjectStore, "query" | "clock">,
     ): Promise<Outcome>;
 }
 

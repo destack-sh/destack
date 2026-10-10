@@ -17,7 +17,7 @@ export function emailProvider(transport: MailTransport): MessageProvider {
                 text: content.text,
                 ...(content.html === undefined ? {} : { html: content.html }),
                 key: message.id,
-                date: store.clock(),
+                date: store.clock.now(),
             });
         },
     };

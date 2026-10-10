@@ -30,7 +30,7 @@ test("send an email message through the transport, keyed by its identifier with 
                 html: "<p>On it</p>",
             },
         },
-        { ...UNQUERIED, clock: () => NOW },
+        { ...UNQUERIED, clock: { now: () => NOW } },
     );
     expect({ outcome, sent: transport.sent }).toEqual({
         outcome: { kind: "sent" },

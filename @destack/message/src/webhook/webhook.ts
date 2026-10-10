@@ -21,7 +21,7 @@ const MEDIA_TYPES = {
 /** Send webhook messages as HTTPS posts authenticated with the vault secret of each: signed after the Standard Webhooks specification, or with the secret's value in a header. */
 export function webhookProvider(
     readSecret: (
-        store: Pick<Omit<ObjectStore, "router">, "query" | "clock">,
+        store: Pick<ObjectStore, "query" | "clock">,
         secret: ObjectReference,
         reader: Subject,
     ) => Promise<string>,
@@ -40,7 +40,7 @@ export function webhookProvider(
             const value = await readSecret(store, to.secret, to.reader);
 
             // sign the body with the secret or put the secret in the endpoint's header
-            const timestamp = String(Math.floor(store.clock() / 1000));
+            const timestamp = String(Math.floor(store.clock.now() / 1000));
             const authentication = await authenticate(to, value, {
                 id: message.id,
                 timestamp,
@@ -60,7 +60,7 @@ export function webhookProvider(
                 signal: AbortSignal.timeout(TIMEOUT_MILLISECONDS),
             });
             try {
-                return Outcome.read(await fetch(request), store.clock());
+                return Outcome.read(await fetch(request), store.clock.now());
             } catch (error) {
                 // retry an endpoint the network failed to connect to or that did not answer in time
                 if (isUnreachable(error)) {

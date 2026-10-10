@@ -1,6 +1,7 @@
 import type { Outcome } from "../provider/index.ts";
 import type { Mail, MailTransport } from "../email/index.ts";
 import type { ObjectStore } from "@destack/object/server";
+import { Clock } from "@destack/schema";
 
 /** A mail transport keeping the emails it sends in memory. */
 export class MailFixture implements MailTransport {
@@ -16,9 +17,9 @@ export class MailFixture implements MailTransport {
 }
 
 /** A server a provider reads no objects through, as a test sending without a space. */
-export const UNQUERIED: Pick<Omit<ObjectStore, "router">, "query" | "clock"> = {
+export const UNQUERIED: Pick<ObjectStore, "query" | "clock"> = {
     query: async () => {
         throw new TypeError("the test reads no objects");
     },
-    clock: Date.now,
+    clock: Clock.system,
 };
