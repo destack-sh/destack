@@ -272,10 +272,13 @@ function metadataPlugin(application: WebOptions): Plugin {
             if (metadata === undefined) {
                 return;
             }
+
+            // read the application's site
             const site = requireSite(application);
 
             // answer a request for a site file, passing every other request on
             vite.middlewares.use((request, response, next) => {
+                // find the site file the request names
                 const path = request.url?.replace(/\?.*$/su, "");
                 const files = writeMetadata(site, metadata, new Date());
                 const file = files.find((candidate) => candidate.path === path);

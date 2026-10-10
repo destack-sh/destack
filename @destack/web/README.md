@@ -9,7 +9,8 @@ const website: WebOptions = {
     ssr: { runtime: "bun" },
     site: "https://example.com",
     prerender: { routes: ["/"], notFound: "/404" },
-    metadata: { sitemap: ["/"], robots: { rules: [{ userAgent: "*", allow: ["/"] }] } }, // Next's sitemap.ts and robots.ts as options
+    // Next's sitemap.ts and robots.ts as options
+    metadata: { sitemap: ["/"], robots: { rules: [{ userAgent: "*", allow: ["/"] }] } },
 };
 
 await using build = await buildPackage({ directory, dependencies, outputs: { website } });
@@ -21,7 +22,13 @@ await using build = await buildPackage({ directory, dependencies, outputs: { web
 
 ```ts
 metadata: {
-    feed: { path: "/blog/feed.xml", home: "/blog/", title: "Blog", author: { name: "Ada" }, entries },
+    feed: {
+        path: "/blog/feed.xml",
+        home: "/blog/",
+        title: "Blog",
+        author: { name: "Ada" },
+        entries,
+    },
     llms: { title: "Example", summary: "What the site is.", sections: [] },
     security: { contact: ["mailto:security@example.com"], expires: "2027-04-01T00:00:00Z" },
 }
