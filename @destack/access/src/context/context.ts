@@ -1,4 +1,4 @@
-import { defineSchema, type Identifier, Instant, schema } from "@destack/schema";
+import { defineSchema, type Identifier, Instant, JsonValue, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
@@ -371,7 +371,7 @@ export const Caller = {
         }
 
         // refuse a header that is no JSON caller
-        const parsed = Caller.schema.safeParse(parseJson(forwarded));
+        const parsed = Caller.schema.safeParse(JsonValue.parse(forwarded));
         if (!parsed.success) {
             throw new AccessError("INVALID_CONTEXT", "the forwarded caller is malformed");
         }
@@ -422,15 +422,3 @@ export const AccessContext = {
         return value;
     },
 };
-
-/** Parse JSON text, reading text that is no JSON as undefined for its schema to refuse. */
-function parseJson(text: string): unknown {
-    try {
-        return JSON.parse(text);
-    } catch (error) {
-        if (error instanceof SyntaxError) {
-            return undefined;
-        }
-        throw error;
-    }
-}
