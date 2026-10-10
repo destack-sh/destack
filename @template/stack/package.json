@@ -7,7 +7,7 @@
     "description": "Full code-first definition of a Destack stack.",
     "exports": {
         ".": "./src/index.ts",
-        "./space": "./src/space/index.ts",
+        "./stack": "./src/stack/index.ts",
         "./account": "./src/account/index.ts",
         "./setting": "./src/setting/index.ts"
     },
@@ -21,7 +21,7 @@
         "@destack/setting": "2026.9.0",
         "@destack/view": "2026.9.0",
         "@destack/access": "2026.9.0",
-        "@destack/space": "2026.9.0",
+        "@destack/stack": "2026.9.0",
         "@destack/db": "2026.9.0",
         "@destack/bucket": "2026.9.0",
         "@destack/vault": "2026.9.0",

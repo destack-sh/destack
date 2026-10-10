@@ -7,10 +7,10 @@ Declare the base configuration of a space.
 `personal` declares a space holding the `main` database, the `files` bucket and the `credentials` vault.
 
 ```ts
-import { defineSpace } from "@destack/space";
+import { defineStack } from "@destack/stack";
 import { credentials, database, files } from "@template/stack";
 
-export const personal = defineSpace({
+export const personal = defineStack({
     resources: {
         main: { declaration: database, retention: { within: { days: 30 } }, tags: {} },
         files: { declaration: files, retention: { within: { days: 30 } }, tags: {} },
@@ -25,7 +25,7 @@ export const personal = defineSpace({
 
 ```ts
 export const rollback = defineAlertRule({
-    name: "Roll back new fatal issues",
+    title: "Roll back new fatal issues",
     condition: { kind: "issue", on: "open", filter: "level = fatal" },
     actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
 });
