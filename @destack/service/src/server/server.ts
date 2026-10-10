@@ -3,10 +3,8 @@ import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { AccessContext, Authorization, Caller, LinkSecret } from "@destack/access";
+import { Caller, LinkSecret } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
-import { Subject } from "@destack/sync";
-import { type Authentication, Represented } from "../authentication/index.ts";
 import type { ServiceRouter } from "../service/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
@@ -16,6 +14,10 @@ import { reportError, reportReconciliation } from "./error.ts";
 import { type Alarm, ControlLoop, type Controller } from "../control/index.ts";
 import { MAX_TIMER_DELAY } from "../timer/index.ts";
 import { copyRequest } from "../request/index.ts";
+import { Clock } from "@destack/schema";
+
+/** The seconds a starting service holds a request, and a client then waits before retrying, about the time a space takes to receive its first snapshots (RFC 9110 10.2.3). */
+const STARTING_RETRY_SECONDS = 1;
 
 /** A hosted HTTP service. */
 export class Server implements AsyncDisposable {
@@ -31,12 +33,16 @@ export class Server implements AsyncDisposable {
     readonly #drained = Promise.withResolvers<void>();
     /** Resolve when draining and disposal finish. */
     readonly #stopped = Promise.withResolvers<void>();
+    /** Resolve once the server serves. */
+    readonly #serving = Promise.withResolvers<void>();
     /** The shutdown. */
     #closing?: Promise<void>;
+    /** End the streams of accepted requests once draining starts. */
+    readonly #draining = new AbortController();
     /** Stop the controllers after draining. */
     readonly #reconciling = new AbortController();
-    /** The running controllers. */
-    readonly #controlled?: Promise<void>;
+    /** The running controllers and the readiness wait. */
+    #controlled?: Promise<void>;
     /** The loop running the controllers, absent without controllers. */
     readonly #loop?: ControlLoop;
 
@@ -48,7 +54,7 @@ export class Server implements AsyncDisposable {
     /** Create the server. */
     private constructor(options: ServerOptions) {
         // reject missing enforcement
-        for (const callback of ["authenticate", "authorizeHost"] as const) {
+        for (const callback of ["authenticate", "authorizeMachine"] as const) {
             if (typeof options[callback] !== "function") {
                 throw new TypeError(`${callback} must be configured before starting a server`);
             }
@@ -83,20 +89,20 @@ export class Server implements AsyncDisposable {
             throw new TypeError("a service running controllers needs the database of its access");
         } else if (controllers.length > 0 && access !== undefined) {
             const loop = new ControlLoop(access.database, controllers, {
-                report: reportReconciliation,
+                report: (controller, key, error) => {
+                    // record the failure, and report it naming the controller and the key it failed on
+                    reportReconciliation(controller, key, error);
+                    options.report?.(
+                        new Error(`${controller.name} failed to reconcile ${key}`, {
+                            cause: error,
+                        }),
+                    );
+                },
                 ...(options.instance === undefined ? {} : { lease: { holder: options.instance } }),
                 ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
+                ...(options.clock === undefined ? {} : { clock: options.clock }),
             });
             this.#loop = loop;
-            this.#controlled = loop.run(this.#reconciling.signal);
-
-            // stop serving once the controllers stop unasked, as a failure the host sees
-            this.#controlled.catch((error: unknown) => {
-                reportError(error);
-                if (!this.#reconciling.signal.aborted) {
-                    this.health.set("not-serving");
-                }
-            });
         }
     }
 
@@ -105,24 +111,80 @@ export class Server implements AsyncDisposable {
         return this.#loop === undefined ? Promise.resolve() : this.#loop.idle(deadline);
     }
 
-    /** Start the server. */
+    /** Start the server: run its controllers, which keep its copies, and serve once it is ready. */
     static start(options: ServerOptions): Server {
+        // create the server, run its controllers and wait for its readiness in the background
         const server = new Server(options);
-        server.health.set("serving");
+        server.#controlled = Promise.all([
+            server.#loop?.run(server.#reconciling.signal),
+            server.#serve(),
+        ]).then(() => undefined);
+
+        // stop serving once readiness or the controllers fail unasked
+        server.#controlled.catch((error: unknown) => {
+            reportError(error);
+            options.report?.(error);
+            if (!server.#reconciling.signal.aborted) {
+                server.health.set("not-serving");
+            }
+        });
 
         return server;
     }
 
-    /** Serve a request. */
-    async fetch(request: Request): Promise<Response> {
+    /** Serve at once without a readiness wait, else once ready. */
+    async #serve(): Promise<void> {
+        // serve at once a service that waits for nothing
+        const signal = this.#reconciling.signal;
+        const { ready } = this.#options;
+        if (ready === undefined) {
+            this.health.set("serving");
+            this.#serving.resolve();
+        }
+        // wait for readiness, holding requests while starting
+        else {
+            await ready(signal);
+            if (signal.aborted) {
+                return;
+            }
+            this.health.set("serving");
+            this.#serving.resolve();
+        }
+    }
+
+    /** Wait until the server serves, or for the retry window of a starting service. */
+    async #awaitServing(): Promise<void> {
+        // race serving with the window, then stop the timer
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const window = new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, STARTING_RETRY_SECONDS * 1000);
+        });
+        await Promise.race([this.#serving.promise, window]);
+        clearTimeout(timer);
+    }
+
+    /** Serve a request, as a caller verified elsewhere in this process where one is given. */
+    async fetch(request: Request, caller?: Caller): Promise<Response> {
         // answer probes
         const probe = this.health.probe(request);
         if (probe) {
             return this.#headers(probe);
         }
 
-        // refuse requests while draining
-        if (this.#closing || this.health.status !== "serving") {
+        // hold a request while starting, up to the retry window
+        if (!this.#closing && this.health.status === "starting") {
+            await this.#awaitServing();
+        }
+
+        // refuse requests still starting, asking to retry soon, and while draining
+        if (!this.#closing && this.health.status === "starting") {
+            return this.#headers(
+                new Response(null, {
+                    status: 503,
+                    headers: { "retry-after": String(STARTING_RETRY_SECONDS) },
+                }),
+            );
+        } else if (this.#closing || this.health.status !== "serving") {
             return this.#headers(new Response(null, { status: 503 }));
         }
 
@@ -134,14 +196,14 @@ export class Server implements AsyncDisposable {
             // dispatch authenticated protocols or procedures
             const accepted = copyRequest(request, { signal });
             this.#requests.set(controller, accepted);
-            const context = await Server.#authenticate(accepted, this.#options);
+            const context = await Server.#authenticate(
+                accepted,
+                this.#options,
+                caller,
+                this.#draining.signal,
+            );
             signal.throwIfAborted();
-            let response = await this.#options.route?.(accepted, context);
-            if (response === undefined) {
-                const result = await this.#handler.handle(accepted, { context });
-                response = result.matched ? result.response : new Response(null, { status: 404 });
-                response = attachBookmark(response, context.observed);
-            }
+            const response = await this.#dispatch(accepted, context);
 
             return this.#respond(this.#headers(response), controller, signal);
         } catch (error) {
@@ -156,6 +218,21 @@ export class Server implements AsyncDisposable {
 
             return this.#headers(Response.json(failure.toJSON(), { status: failure.status }));
         }
+    }
+
+    /** Dispatch an authenticated request to a protocol the server routes or to a procedure. */
+    async #dispatch(request: Request, context: ServiceContext): Promise<Response> {
+        // serve a protocol the server routes itself
+        const routed = await this.#options.fetch?.(request, context);
+        if (routed !== undefined) {
+            return routed;
+        }
+
+        // serve a procedure, answering the watermarks it observed
+        const result = await this.#handler.handle(request, { context });
+        const response = result.matched ? result.response : new Response(null, { status: 404 });
+
+        return attachBookmark(response, context.observed);
     }
 
     /** Refuse new work, drain requests and dispose resources, once. */
@@ -190,19 +267,22 @@ export class Server implements AsyncDisposable {
         await this.close();
     }
 
-    /** Authenticate a request and build its context. */
-    static async #authenticate(request: Request, options: ServerOptions): Promise<ServiceContext> {
-        // authenticate the request
-        let authentication: Authentication | null = null;
+    /** Authenticate a request, or take a caller verified elsewhere in this process, and build its context. */
+    static async #authenticate(
+        request: Request,
+        options: ServerOptions,
+        caller: Caller | undefined,
+        draining: AbortSignal,
+    ): Promise<ServiceContext> {
+        // take the given caller, else authenticate the request, and require it live
+        let authenticated: Caller | undefined;
         let authenticationError: Error | undefined;
         try {
-            const authenticated = await options.authenticate(request);
-            authenticated?.requireCurrent(
-                options.audience,
-                Date.now(),
-                options.scope ?? authenticated.claims.scope,
-            );
-            authentication = authenticated;
+            const verified = caller ?? (await options.authenticate(request));
+            if (verified !== undefined) {
+                Caller.requireLive(verified, (options.clock ?? Clock.system).now());
+            }
+            authenticated = verified;
         } catch (error) {
             authenticationError =
                 error instanceof Error
@@ -213,81 +293,38 @@ export class Server implements AsyncDisposable {
                       });
         }
 
-        // act as the principal the request names
-        const represented = Represented.read(request);
-        if (represented !== undefined) {
-            authentication = await Server.#represent(
-                authentication,
-                authenticationError,
-                represented,
-                options,
-            );
-        }
-
-        // digest the presented link secrets
-        const presented = (request.headers.get(LINK_SECRET_HEADER) ?? "")
-            .split(",")
-            .map((secret) => secret.trim())
-            .filter((secret) => secret.length > 0);
-        const linkSecrets = await Promise.all(
-            presented.map((secret) => LinkSecret.digest(secret)),
-        ).catch((error: unknown) => {
-            throw new ServiceError("UNAUTHORIZED", {
-                message: "invalid link secret",
-                cause: error,
-            });
-        });
-
-        // scope the call to the service's scope or the caller's
-        const scope = options.scope ?? authentication?.claims.scope;
+        // digest the link secrets and scope the call
+        const linkSecrets = await Server.#linkSecrets(request);
+        const scope = options.scope ?? authenticated?.credential?.scope;
 
         return new ServiceContext(request, {
             audience: options.audience,
             ...(scope === undefined ? {} : { scope }),
-            authentication,
+            ...(authenticated === undefined ? {} : { caller: authenticated }),
             resources: options.resources,
             ...(options.access === undefined ? {} : { access: options.access }),
             ...(authenticationError === undefined ? {} : { authenticationError }),
             linkSecrets,
             ...(options.clock === undefined ? {} : { clock: options.clock }),
+            draining,
         });
     }
 
-    /** Act as a principal the caller represents: one an object here stands for, whose `represent` permission the caller holds as the cells it is. */
-    static async #represent(
-        authentication: Authentication | null,
-        authenticationError: Error | undefined,
-        subject: Subject,
-        options: ServerOptions,
-    ): Promise<Authentication> {
-        // require an authenticated caller
-        if (authenticationError !== undefined) {
-            throw authenticationError;
-        } else if (authentication === null) {
-            throw new ServiceError("UNAUTHORIZED", {
-                message: "an anonymous caller represents no principal",
-            });
-        }
+    /** Digest the link secrets a request presents, refusing an invalid one. */
+    static async #linkSecrets(request: Request) {
+        const presented = (request.headers.get(LINK_SECRET_HEADER) ?? "")
+            .split(",")
+            .map((secret) => secret.trim())
+            .filter((secret) => secret.length > 0);
 
-        // find the object standing for the principal
-        const { access } = options;
-        const standing = await access?.standing?.(subject);
-        if (access === undefined || standing === undefined) {
-            throw new ServiceError("FORBIDDEN", {
-                message: `nothing here stands for ${Subject.key(subject)}`,
-            });
-        }
-
-        // require the caller to represent it, as the cells its hosts and regions are
-        const clock = options.clock ?? Date.now;
-        const caller = new Authorization(access.authorizer, access.database, (scope) =>
-            AccessContext.withCells(
-                authentication.context(options.audience, authentication.within(clock()), scope),
-            ),
+        return Promise.all(presented.map((secret) => LinkSecret.digest(secret))).catch(
+            (error: unknown) => {
+                throw new ServiceError("UNAUTHORIZED", {
+                    message: "invalid link secret",
+                    cause: error,
+                });
+            },
         );
-        await caller.require(standing.permission, standing.object);
-
-        return authentication.represent(standing);
     }
 
     /** Authorize a call. */
@@ -295,9 +332,9 @@ export class Server implements AsyncDisposable {
         call: ProcedureCall<ServiceContext>,
         options: ServerOptions,
     ): Promise<void> {
-        // require identity on protected routes, and the space's grant of an installation calling a granted procedure
+        // require identity on protected routes and the space's grant on installation calls
         if (call.access.authentication !== "public") {
-            call.context.requireAuthentication();
+            call.context.requireCaller();
         }
         if (call.access.granted === true) {
             call.context.requireCall(call.path.join("."));
@@ -306,9 +343,26 @@ export class Server implements AsyncDisposable {
         // renew the call's access
         call.context.authorization?.renew();
 
-        // decide the permission on the call's target, which audits of a denial also read
+        // admit anyone, and leave each row to the object store, refusing a credential that failed
         const permission = call.access.permission;
-        if (permission !== null) {
+        if (permission === "anyone" || permission === "rows" || "rows" in permission) {
+            Caller.delegation(call.context.caller());
+        }
+        // admit principals of the declared kinds calling as themselves
+        else if ("principals" in permission) {
+            const sender = Caller.requireSender(call.context.requireCaller());
+            const isDeclared = permission.principals.some(
+                (kind) => kind.packageId === sender.packageId && kind.type === sender.type,
+            );
+            if (!isDeclared) {
+                throw new ServiceError("FORBIDDEN", {
+                    message: `${sender.type} callers cannot call ${call.path.join(".")}`,
+                });
+            }
+            Caller.delegation(call.context.caller());
+        }
+        // decide the permission on the call's target
+        else {
             const access = options.access;
             const authorization = call.context.authorization;
             if (access?.target === undefined || authorization === undefined) {
@@ -320,13 +374,9 @@ export class Server implements AsyncDisposable {
             call.context.target = target;
             await authorization.require(permission, target);
         }
-        // check the caller in the service's scope
-        else {
-            Caller.delegation(call.context.access());
-        }
 
         // let the host authorize the call
-        await options.authorizeHost(call);
+        await options.authorizeMachine(call);
     }
 
     /** Keep a request open until its response body settles. */
@@ -384,8 +434,9 @@ export class Server implements AsyncDisposable {
 
     /** Drain within the deadline. */
     async #close(): Promise<void> {
-        // refuse new requests
+        // refuse new requests and end the open streams at their next consistent point
         this.health.set("draining");
+        this.#draining.abort(new DOMException("the service drains", "AbortError"));
         if (!this.#requests.size) {
             this.#drained.resolve();
         }
@@ -423,7 +474,7 @@ export class Server implements AsyncDisposable {
         // check each procedure's permission
         if (isProcedure(router)) {
             const permission = ProcedureMeta.of(router).permission;
-            if (permission === null) {
+            if (typeof permission === "string" || !("name" in permission)) {
                 return;
             }
 
@@ -457,20 +508,22 @@ export interface ServerOptions extends ServiceImplementation {
     health: Health;
     /** The receiving package. */
     audience: PackageId;
-    /** The one scope the service serves, absent for regional services. */
+    /** The one scope the service serves, absent for a service of every scope. */
     scope?: string;
     /** The installation's resource clients. */
     resources: ResourceContext;
-    /** Verify credentials, returning null without a credential. */
-    authenticate(request: Request): Promise<Authentication | null>;
+    /** Verify credentials, answering undefined without a credential. */
+    authenticate(request: Request): Promise<Caller | undefined>;
     /** Enforce installation and host-only requirements. */
-    authorizeHost(call: ProcedureCall<ServiceContext>): Promise<void>;
+    authorizeMachine(call: ProcedureCall<ServiceContext>): Promise<void>;
     /** The longest drain, in milliseconds. */
     drainTimeout: number;
     /** This instance's lease holder name. */
     instance?: string;
     /** Keep a wake-up for the controllers' earliest due key, so an evicted instance runs it. */
     alarm?: Alarm;
+    /** Report a controller's failure to the host beside its telemetry, such as a failed reconciliation. */
+    report?(error: unknown): void;
 }
 
 /** The procedures and enforcement of a service. */
@@ -482,11 +535,13 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     /** The policies deciding permissions. */
     access?: ServiceAccess;
     /** Serve another HTTP protocol for an authenticated request, or return undefined. */
-    route?(request: Request, context: ServiceContext): Promise<Response | undefined>;
+    fetch?(request: Request, context: ServiceContext): Promise<Response | undefined>;
     /** The service's controllers. */
     readonly controllers?: readonly Controller[];
-    /** Read the current time calls run at, in UTC epoch milliseconds, the system clock by default. */
-    readonly clock?: () => number;
+    /** Wait until the service can answer, such as once its copies hold complete snapshots, before it serves. */
+    readonly ready?: (signal: AbortSignal) => Promise<void>;
+    /** The clock calls run at, the system clock by default. */
+    readonly clock?: Clock;
 }
 
 /** Attach the request's watermarks to its response. */

@@ -6,7 +6,7 @@ const EGRESS_PATH = "/.destack/egress";
 /** An address followed by the path below it: a scoped package as two segments, an installation as one. */
 const ADDRESSED = /^\/(@[^/]+\/[^/]+|[^/@][^/]*)(\/.*)?$/u;
 
-/** The paths at which a host takes its workloads' calls: `<egress>/<address>/<path>`, the address an installation (`notes`, `notes.work.acme`) or a package's service (`@destack/audit`). */
+/** The paths at which a host takes its workloads' calls: `<egress>/<address>/<path>`, the address an installation its space binds (`notes`), an installation by identifiers (`<installation>--<space>`) or a package's service (`@destack/audit`). */
 export const Egress = {
     /** The path of a host's egress on its loopback origin. */
     path: EGRESS_PATH,
@@ -16,8 +16,25 @@ export const Egress = {
         return `${egress.replace(/\/$/u, "")}/${address}`;
     },
 
+    /** Write the URL of a host path beside an egress, below the same prefix, such as its journal. */
+    beside(egress: string, path: string): string {
+        // keep the prefix above the egress path
+        const url = new URL(egress);
+        const prefix = url.pathname.endsWith(EGRESS_PATH)
+            ? url.pathname.slice(0, -EGRESS_PATH.length)
+            : "";
+        url.pathname = `${prefix}${path}`;
+
+        return url.href;
+    },
+
+    /** Write the address of an installation by its identifiers, which any space's workloads call it at. */
+    address(installationId: string, spaceId: string): string {
+        return `${installationId}--${spaceId}`;
+    },
+
     /** Split a request to a host's egress into the address and the request below it, absent outside the egress. */
-    route(request: Request): { readonly address: string; readonly request: Request } | undefined {
+    of(request: Request): { readonly address: string; readonly request: Request } | undefined {
         // require the egress path and an address below it
         const url = new URL(request.url);
         if (!url.pathname.startsWith(`${EGRESS_PATH}/`)) {

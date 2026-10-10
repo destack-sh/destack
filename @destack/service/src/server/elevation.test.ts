@@ -4,7 +4,6 @@ import { schema } from "@destack/schema";
 import { accessTables, Authorizer, Policy, principal, relation } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Authentication } from "../authentication/index.ts";
 import { Health } from "../health/index.ts";
 import { defineProcedure } from "../service/index.ts";
 import { createClient } from "../client/index.ts";
@@ -84,16 +83,19 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
             const subject = principal.user.reference("universe", "alice");
             const now = Date.now();
 
-            return new Authentication({
+            return {
                 subject,
                 subjects: [subject],
-                credential: { kind: "user", id: "alice" },
-                audience: hosting.audience,
-                scope: hosting.scope,
-                verifiedAt: now,
-                expiresAt: now + 60_000,
+                credential: {
+                    kind: "user",
+                    id: "alice",
+                    audience: hosting.audience,
+                    scope: hosting.scope,
+                    verifiedAt: now,
+                    expiresAt: now + 60_000,
+                },
                 assurance: { level, authenticatedAt: now },
-            });
+            };
         },
         router: implementation.router({
             rename: implementation.rename.handler(({ context }) => {

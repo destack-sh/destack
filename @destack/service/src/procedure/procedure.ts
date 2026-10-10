@@ -1,14 +1,33 @@
 import { oc } from "@orpc/contract";
+import { DECLARED_ERRORS } from "../error/error.ts";
 import { schema, Version } from "@destack/schema";
 import { Expression } from "@destack/db";
-import { PermissionReference, type Permission } from "@destack/access/declare";
+import { PermissionReference, type Permission, type Policy } from "@destack/access/declare";
+import { ObjectTypeReference } from "@destack/sync";
+
+/** Who may call a procedure: holders of a permission on its target or on each row it touches, principals of some kinds, or anyone. */
+export const ProcedurePermission = schema.union([
+    /** The permission the service checks on the call's target. */
+    PermissionReference,
+    /** The permission the object store checks on each row the call reads or writes. */
+    schema.object({ rows: PermissionReference }),
+    /** The permissions the served types declare, which their server checks on the rows the call reads or writes. */
+    schema.literal("rows"),
+    /** The kinds of principals that call as themselves. */
+    schema.object({ principals: schema.array(ObjectTypeReference).min(1) }),
+    /** Anyone, for a public procedure. */
+    schema.literal("anyone"),
+]);
+
+/** Who may call a procedure. */
+export type ProcedurePermission = schema.Infer<typeof ProcedurePermission>;
 
 /** The access and audit requirements of a procedure. */
 export const ProcedureAccess = schema.object({
     /** The required credentials. */
-    authentication: schema.enum(["public", "identity", "host"]),
-    /** The permission checked on the call's target, null when the handler checks itself. */
-    permission: PermissionReference.nullable(),
+    authentication: schema.enum(["public", "identity", "machine"]),
+    /** Who may call it. */
+    permission: ProcedurePermission,
     /** The category of the event a call records when it ends, or false to record only denials. */
     audit: schema.union([schema.literal(false), schema.enum(["activity", "access"])]),
     /** Whether an installation calls it only with its space's grant, which its service binding declares. */
@@ -48,20 +67,31 @@ export type ProcedureMeta = schema.Infer<typeof ProcedureMeta>;
 
 /** Declare a procedure with its access requirements and the conversions of earlier inputs. */
 export function defineProcedure(
-    meta: Omit<ProcedureMeta, "permission"> & { readonly permission: Permission | null },
+    meta: Omit<ProcedureMeta, "permission"> & {
+        readonly permission:
+            | Permission
+            | { readonly rows: Permission }
+            | "rows"
+            | { readonly principals: readonly [Policy, ...Policy[]] }
+            | "anyone";
+    },
 ) {
-    return oc.$meta<ProcedureMeta>(meta).errors({
-        NOT_IMPLEMENTED: { status: 501 },
-        UNAUTHORIZED: { status: 401 },
-        INSUFFICIENT_AUTHENTICATION: { status: 401 },
-        FORBIDDEN: { status: 403 },
-        NOT_FOUND: { status: 404 },
-        CONFLICT: { status: 409 },
-        PRECONDITION_FAILED: { status: 412 },
-        MANAGED: { status: 409 },
-        MOVED: { status: 421 },
-        UNSUPPORTED: { status: 422 },
-        RATE_LIMITED: { status: 429 },
-        UNAVAILABLE: { status: 503 },
-    });
+    // refuse anyone on a procedure requiring credentials
+    const { permission } = meta;
+    if (permission === "anyone" && meta.authentication !== "public") {
+        throw new TypeError("a procedure anyone calls takes public authentication");
+    }
+
+    // keep the principal kinds by reference
+    const declared: ProcedurePermission =
+        typeof permission === "object" && "principals" in permission
+            ? {
+                  principals: permission.principals.map((kind) => ({
+                      packageId: kind.definition.packageId,
+                      type: kind.definition.name,
+                  })),
+              }
+            : permission;
+
+    return oc.$meta<ProcedureMeta>({ ...meta, permission: declared }).errors(DECLARED_ERRORS);
 }

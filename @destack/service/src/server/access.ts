@@ -35,7 +35,7 @@ export async function invokeProcedure<State extends Context>(
     next: () => Promise<unknown>,
     options: Pick<HandlerOptions<State>, "authorize" | "audit">,
 ): Promise<unknown> {
-    // tell a denial from a failure, recording every call's end for the recorder to keep or skip
+    // tell a denial from a failure
     const audit = options.audit;
     try {
         if (options.authorize) {

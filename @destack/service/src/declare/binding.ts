@@ -7,16 +7,20 @@ import {
 import { ModuleMetadata, type Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { defineSchema, schema, Version } from "@destack/schema";
+import { Loan, type LoanContext } from "../authentication/loan.ts";
 import { createClient } from "../client/client.ts";
 import type { Client, ServiceRouter } from "../service/service.ts";
 import type { Service } from "./service.ts";
+
+/** The provider code of service bindings, which connect over HTTP through their host's egress. */
+export const SERVICE_PROVIDER = "http";
 
 /** A service binding's specification: the service it calls, and the address it calls unless a stack binds another. */
 export const ServiceBindingSpec = defineSchema(
     schema.object({
         /** The service. */
         service: DeclarationReference,
-        /** The address an installation calls unless a stack binds another, such as `@destack/mail` for a service of the platform. */
+        /** The address an installation calls unless a stack binds another, such as `@destack/message` for a service of the platform. */
         address: schema.string().min(1).exactOptional(),
         /** The procedures the installation calls, by their dotted paths in the service's router, which the space grants it. */
         calls: schema.array(schema.string().min(1)).exactOptional(),
@@ -38,7 +42,7 @@ export type ServiceBindingDescription = schema.Infer<typeof ServiceKind.descript
 /** A dependency on a package's service, bound to a typed client of its endpoint. */
 export class ServiceBinding<
     Router extends ServiceRouter = ServiceRouter,
-> extends ResourceDeclaration<Client<Router>, ServiceBindingDescription> {
+> extends ResourceDeclaration<Client<Router, LoanContext>, ServiceBindingDescription> {
     /** The service the client calls. */
     readonly service: Service<Router>;
 
@@ -49,10 +53,10 @@ export class ServiceBinding<
     }
 
     /** The HTTP connector, calling the service at the bound address through the host's egress with the bound credential. */
-    override get connectors(): { readonly http: Connector<Client<Router>> } {
+    override get connectors(): { readonly http: Connector<Client<Router, LoanContext>> } {
         return {
             http: {
-                code: "http",
+                code: SERVICE_PROVIDER,
                 connect: async (binding: ResourceBinding) => {
                     // require the credential the host lends the binding
                     const credential = binding.credential;
@@ -60,12 +64,24 @@ export class ServiceBinding<
                         throw new TypeError(`service binding ${this.name} holds no credential`);
                     }
 
-                    // dispose nothing
-                    const client = createClient(this.service, {
+                    // ask for a Loan on an object's method for the person a call's context names
+                    const objects = this.service.objects;
+                    const client = createClient<Router, LoanContext>(this.service, {
                         url: binding.reference,
-                        headers: () => ({ authorization: `Bearer ${credential}` }),
+                        headers: (options, path) => {
+                            const [route, method] = path;
+                            const object = route === undefined ? undefined : objects[route];
+
+                            return {
+                                authorization: `Bearer ${credential}`,
+                                ...(object === undefined || method === undefined
+                                    ? {}
+                                    : Loan.ask(Loan.method(object, method), options.context)),
+                            };
+                        },
                     });
 
+                    // dispose nothing
                     return Object.assign(client, {
                         [Symbol.asyncDispose]: () => Promise.resolve(),
                     });
@@ -75,7 +91,7 @@ export class ServiceBinding<
     }
 }
 
-/** Declare a dependency on a service, called at an address a stack binds or at the one it names. */
+/** Declare a dependency on a service, called at an address a stack binds or at the one it declares. */
 export function defineServiceBinding<Router extends ServiceRouter>(
     name: string,
     service: Service<Router>,
@@ -87,7 +103,7 @@ export function defineServiceBinding<Router extends ServiceRouter>(
     } = {},
     module?: ModuleMetadata,
 ): ServiceBinding<Router> {
-    // stamp the declaring package and name each called procedure by its path
+    // stamp the declaring package and resolve each called procedure to its path
     const owner = ModuleMetadata.require(module, "defineServiceBinding").package;
     const calls = options.calls?.map((procedure) => procedurePath(service.router, procedure, name));
     const description = ServiceKind.description.parse({

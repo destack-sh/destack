@@ -12,7 +12,7 @@ import { VERSION_HEADER } from "../request/index.ts";
 /** A search procedure whose input renamed text to query and gained a limit in 2026.9.0. */
 const search = defineProcedure({
     authentication: "public",
-    permission: null,
+    permission: "anyone",
     audit: false,
     convert: {
         "2026.9.0": {
@@ -32,7 +32,7 @@ const Failure = schema.object({ code: schema.string(), message: schema.string() 
 const service = defineService("search", { search, since: "2026.8.0" });
 
 test("convert inputs of earlier releases, dropping the fields this release no longer declares, and refuse releases the service does not serve", async () => {
-    // serve the search, echoing the input it receives
+    // serve a search that echoes its input
     const implementation = implement(service.router);
     await using server = Server.start({
         ...hosting,
@@ -62,7 +62,7 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
         return failure.success ? `${failure.data.code}: ${failure.data.message}` : body;
     };
 
-    // convert an earlier input, pass a current one, and refuse the rest
+    // convert an earlier input
     expect([
         await call("2026.8.5", { text: "notes" }),
         await call(service.package.version, { query: "tasks", limit: 5 }),

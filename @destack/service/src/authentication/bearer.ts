@@ -1,4 +1,5 @@
-import { ServiceError } from "../error/index.ts";
+import { decodeJwt, errors } from "jose";
+import { isServiceError, ServiceError } from "../error/index.ts";
 
 /** The shape of an authorization header with one bearer token, per RFC 6750 2.1. */
 const BEARER = /^Bearer (\S+)$/u;
@@ -23,5 +24,46 @@ export const Bearer = {
         }
 
         return token;
+    },
+
+    /** Read a token's issuer without verifying it, absent for a token that is no JSON Web Token. */
+    issuer(token: string): unknown {
+        try {
+            return decodeJwt(token).iss;
+        } catch (error) {
+            if (!(error instanceof errors.JWTInvalid)) {
+                throw error;
+            }
+
+            return undefined;
+        }
+    },
+
+    /** Answer a failed verification of a signed token: a refusal for a token failing its checks, the key source's own refusal, and unavailability for any other failure, such as keys that do not load. */
+    refusal(error: unknown, message: string): ServiceError<string, unknown> {
+        // keep a refusal the key source answered
+        if (isServiceError(error)) {
+            return error;
+        }
+        // refuse a token that fails its checks
+        else if (
+            error instanceof errors.JWTClaimValidationFailed ||
+            error instanceof errors.JWTExpired ||
+            error instanceof errors.JWTInvalid ||
+            error instanceof errors.JWSInvalid ||
+            error instanceof errors.JWSSignatureVerificationFailed ||
+            error instanceof errors.JOSEAlgNotAllowed ||
+            error instanceof errors.JOSENotSupported ||
+            error instanceof errors.JWKSNoMatchingKey
+        ) {
+            return new ServiceError("UNAUTHORIZED", { message, cause: error });
+        }
+        // answer any other failure as unavailable keys
+        else {
+            return new ServiceError("SERVICE_UNAVAILABLE", {
+                message: "authentication keys are unavailable",
+                cause: error,
+            });
+        }
     },
 };

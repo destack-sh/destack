@@ -49,7 +49,7 @@ function openApiSchemaOf(description: JsonSchema): unknown {
 }
 
 /** Implement service procedures. */
-export { implement } from "@orpc/server";
+export { createRouterClient, implement } from "@orpc/server";
 
 /** Dispatch requests to service procedures. */
 export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<State> {
@@ -210,7 +210,7 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
         }
         const converted = Expression.upgrade(convert, decoded.data, caller, served);
 
-        // keep only the fields this release declares, the earlier ones the conversions read
+        // keep only the fields this release declares and the earlier ones the conversions read
         const inputSchema: unknown = procedure["~orpc"].inputSchema;
         const shape =
             typeof inputSchema === "object" &&
@@ -246,7 +246,7 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
         if (isProcedure(router)) {
             const access = ProcedureMeta.of(router);
             if (
-                (access.authentication !== "public" || access.permission !== null) &&
+                (access.authentication !== "public" || access.permission !== "anyone") &&
                 !options.authorize
             ) {
                 throw new TypeError("protected procedures require authorization");

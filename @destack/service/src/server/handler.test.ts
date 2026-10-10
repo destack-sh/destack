@@ -1,4 +1,4 @@
-import { AccessError, none, Policy } from "@destack/access";
+import { AccessError, none, Policy, principal } from "@destack/access";
 import { DatabaseError } from "@destack/db";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
@@ -20,17 +20,18 @@ const fixture = defineService("fixture", {});
 const authorize: NonNullable<
     HandlerOptions<{ caller: string; request: Request }>["authorize"]
 > = async ({ context, access }) => {
-    // conceal the denial from carol, and refuse anyone but alice reading notes
+    // conceal the denial from carol
     const denial = new ServiceError("FORBIDDEN", { message: "permission denied: read" });
+    const { permission } = access;
+    const isNotesRead =
+        typeof permission === "object" &&
+        "name" in permission &&
+        permission.packageId === import.meta.destack.package.id &&
+        permission.type === "notes" &&
+        permission.name === "read";
     if (context.caller === "carol") {
         throw conceal(denial, "no notes");
-    } else if (
-        context.caller !== "alice" ||
-        access.authentication !== "identity" ||
-        access.permission?.packageId !== import.meta.destack.package.id ||
-        access.permission.type !== "notes" ||
-        access.permission.name !== "read"
-    ) {
+    } else if (context.caller !== "alice" || access.authentication !== "identity" || !isNotesRead) {
         throw denial;
     }
 };
@@ -74,7 +75,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     });
     onTestFinished(() => telemetry.shutdown());
 
-    // declare a protected, audited stream
+    // declare a protected audited stream
     const notes = new Policy(import.meta.destack.package, {
         name: "notes",
         relations: {},
@@ -155,7 +156,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         { caller: "bob", outcome: "denied" },
     ]);
 
-    // answer a concealed denial as a missing resource, recording the denial
+    // answer a concealed denial as a missing resource
     const bodies: unknown[] = [];
     const concealed = createClient(defineService("fixture", service), {
         url: "https://test.local",
@@ -180,7 +181,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         health,
         authorize,
         audit: async () => {
-            throw new ServiceError("UNAVAILABLE", {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
                 message: "audit storage unavailable",
             });
         },
@@ -199,7 +200,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         await Array.fromAsync(await blocked.read());
     })();
     await expect(drained).rejects.toMatchObject({
-        code: "UNAVAILABLE",
+        code: "SERVICE_UNAVAILABLE",
         status: 503,
         message: "audit storage unavailable",
     });
@@ -260,7 +261,11 @@ test("withhold streamed values after access revocation", async () => {
     let isClosed = false;
     const outcomes: string[] = [];
     const service = {
-        watch: defineProcedure({ authentication: "identity", permission: null, audit: "access" })
+        watch: defineProcedure({
+            authentication: "identity",
+            permission: { principals: [principal.user, principal.machine, principal.installation] },
+            audit: "access",
+        })
             .route({ method: "GET", path: "/watch" })
             .output(eventIterator(schema.string())),
     };
@@ -316,16 +321,16 @@ test("withhold streamed values after access revocation", async () => {
 });
 
 test("answer a failure thrown by a handler with the status its code declares", async () => {
-    // throw Destack's own UNAVAILABLE code from a handler, naming no status
+    // throw the SERVICE_UNAVAILABLE code from a handler
     const service = {
-        read: defineProcedure({ authentication: "public", permission: null, audit: false })
+        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
             .route({ method: "GET", path: "/read" })
             .output(schema.string()),
     };
     const implementation = implement(service);
     const router = implementation.router({
         read: implementation.read.handler(async () => {
-            throw new ServiceError("UNAVAILABLE", { message: "the instance is starting" });
+            throw new ServiceError("SERVICE_UNAVAILABLE", { message: "the instance is starting" });
         }),
     });
     const handler = new ServiceHandler(router, {
@@ -346,7 +351,7 @@ test("answer a failure thrown by a handler with the status its code declares", a
         },
     });
     await expect(client.read()).rejects.toMatchObject({
-        code: "UNAVAILABLE",
+        code: "SERVICE_UNAVAILABLE",
         status: 503,
         message: "the instance is starting",
     });
@@ -356,7 +361,7 @@ test("answer a failure thrown by a handler with the status its code declares", a
 test("answer a lower package's failure with the service error it names, and an unknown failure as internal", async () => {
     // throw a database failure, an access challenge and an unknown failure from handlers
     const service = {
-        read: defineProcedure({ authentication: "public", permission: null, audit: false })
+        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
             .route({ method: "GET", path: "/read" })
             .input(schema.object({ failure: schema.enum(["duplicate", "challenge", "unknown"]) }))
             .output(schema.string()),

@@ -1,12 +1,22 @@
+import { principal } from "@destack/access";
 import { expect, test } from "@destack/test";
 import { defineProcedure } from "../procedure/index.ts";
 import { defineService, type Routed } from "./service.ts";
 
 /** A procedure every declaration of a kind shares. */
-const push = defineProcedure({ authentication: "identity", permission: null, audit: false });
+const push = defineProcedure({
+    authentication: "identity",
+    permission: { principals: [principal.user, principal.machine, principal.installation] },
+    audit: false,
+});
 
 /** A declaration sharing the push procedure under `replica`. */
-const routed: Routed = { procedures: {}, shared: { replica: { push } } };
+const routed: Routed = {
+    package: { name: "@destack/test" },
+    name: "routed",
+    procedures: {},
+    shared: { replica: { push } },
+};
 
 test("refuse routing a declaration or a procedure under the name of shared procedures", () => {
     // refuse a declaration taking the shared name

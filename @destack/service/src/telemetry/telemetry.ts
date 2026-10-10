@@ -1,16 +1,15 @@
 import {
     context,
-    propagation,
-    trace,
     telemetry,
     type Histogram,
     type Attributes,
     type Span,
     type Context,
+    type Tracer,
     SpanKind,
     SpanStatusCode,
 } from "@destack/telemetry";
-import { AsyncIteratorClass, setGlobalOtelConfig } from "@orpc/shared";
+import { AsyncIteratorClass } from "@orpc/shared";
 import { isServiceError } from "../error/index.ts";
 import type {} from "@destack/package/import-meta";
 
@@ -19,6 +18,8 @@ const manifest = import.meta.destack.package;
 
 /** Record RPC calls, including streams. */
 export class ServiceTelemetry {
+    /** The package's tracer. */
+    readonly #tracer: Tracer;
     /** The call durations, in seconds. */
     readonly #duration: Histogram;
     /** The RPC span kind. */
@@ -26,12 +27,11 @@ export class ServiceTelemetry {
 
     /** Create the telemetry. */
     constructor(kind: "client" | "server") {
-        // create the duration histogram
-        instrumentService();
+        // create the tracer and the duration histogram
+        const { tracer, meter } = telemetry.scope(manifest);
         this.#kind = kind === "client" ? SpanKind.CLIENT : SpanKind.SERVER;
-        this.#duration = telemetry
-            .scope(manifest)
-            .meter.createHistogram(`rpc.${kind}.call.duration`, { unit: "s" });
+        this.#tracer = tracer;
+        this.#duration = meter.createHistogram(`rpc.${kind}.call.duration`, { unit: "s" });
     }
 
     /** Measure a call. */
@@ -47,11 +47,11 @@ export class ServiceTelemetry {
             ...labels,
         };
 
-        return telemetry
-            .scope(manifest)
-            .tracer.startActiveSpan(path.join("/"), { kind: this.#kind, attributes }, (span) =>
-                this.#invoke(next, attributes, span),
-            );
+        return this.#tracer.startActiveSpan(
+            path.join("/"),
+            { kind: this.#kind, attributes },
+            (span) => this.#invoke(next, attributes, span),
+        );
     }
 
     /** Trace a call until its value or stream completes. */
@@ -134,16 +134,6 @@ export class ServiceTelemetry {
         span.end();
         this.#duration.record((performance.now() - started) / 1000, attributes);
     }
-}
-
-/** Enable procedure and HTTP tracing. */
-function instrumentService(): void {
-    setGlobalOtelConfig({
-        tracer: trace.getTracer("@destack/service"),
-        trace,
-        context,
-        propagation,
-    });
 }
 
 /** Report whether a call's result is a stream. */

@@ -57,6 +57,8 @@
         "@destack/resource": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/sync": "workspace:*",
-        "cron-parser": "5.7.0"
+        "cron-parser": "5.7.0",
+        "@destack/error": "workspace:*",
+        "@destack/identity": "workspace:*"
     }
 }

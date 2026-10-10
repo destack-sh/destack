@@ -1,22 +1,16 @@
 import { principal } from "@destack/access";
-import { type ObjectReference, type Subject } from "@destack/sync";
+import type { ObjectReference, Subject } from "@destack/sync";
 import type { PackageId } from "@destack/package";
-import {
-    Authorization,
-    AccessContext,
-    type Authorizer,
-    Caller,
-    type Standing,
-} from "@destack/access";
+import { AccessContext, Authorization, type Authorizer, Caller } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
-import type { Authentication } from "../authentication/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ProcedureCall } from "./access.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
+import { Clock } from "@destack/schema";
 
 /** The header with the link secrets a request presents. */
-export const LINK_SECRET_HEADER = "destack-link-secret";
+export const LINK_SECRET_HEADER = "Destack-Link-Secret";
 
 /** The verified context of a service call. */
 export class ServiceContext {
@@ -26,109 +20,112 @@ export class ServiceContext {
     readonly audience: PackageId;
     /** The call's scope. */
     readonly scope: string | undefined;
-    /** The caller's authentication, or null for an anonymous request. */
-    readonly authentication: Authentication | null;
     /** The installation's resource clients. */
     readonly resources: ResourceContext;
     /** The credential failure, absent after a successful or anonymous authentication. */
     readonly authenticationError: Error | undefined;
     /** The server-generated request identifier. */
     readonly requestId = crypto.randomUUID();
-    /** Abort when the request closes or its caller lapses, ending handlers at their next consistent point. */
+    /** Abort when the request closes, its caller lapses or the server drains, ending handlers at their next consistent point. */
     readonly signal: AbortSignal;
     /** The digests of the presented link secrets. */
     readonly linkSecrets: readonly string[];
     /** The watermarks the caller requires. */
     readonly bookmark: Bookmark;
-    /** Read the current time calls run at. */
-    readonly clock: () => number;
+    /** The clock calls run at. */
+    readonly clock: Clock;
     /** The watermarks this request's writes reached. */
     readonly observed = new Bookmark();
     /** The caller's authorization under the service's policies. */
     readonly authorization: Authorization | undefined;
     /** The object the call's permission is decided on, set before the decision for audits of a denial. */
     target?: ObjectReference;
+    /** The verified caller the request presented, absent for an anonymous request. */
+    readonly presented: Caller | undefined;
 
     /** Create the context of a request. */
     constructor(request: Request, options: ServiceContextOptions) {
         // read the host state
-        const { audience, scope, authentication, resources, access, authenticationError } = options;
+        const { audience, scope, caller, resources, access, authenticationError } = options;
         const linkSecrets = options.linkSecrets ?? [];
 
         // require no caller after a failed authentication
-        if (authentication !== null && authenticationError !== undefined) {
-            throw new TypeError("a failed authentication leaves no authentication");
+        if (caller !== undefined && authenticationError !== undefined) {
+            throw new TypeError("a failed authentication leaves no caller");
         }
 
         // keep the request and caller
         this.request = request;
         this.audience = audience;
         this.scope = scope;
-        this.authentication = authentication;
+        this.presented = caller;
         this.resources = resources;
         this.authenticationError = authenticationError;
         this.linkSecrets = linkSecrets;
-        this.clock = options.clock ?? Date.now;
+        this.clock = options.clock ?? Clock.system;
         this.bookmark = Bookmark.parse(request.headers.get(BOOKMARK_HEADER));
 
-        // authorize the caller under the service's policies
+        // authorize the caller current in the request's scope under the service's policies, which keep a bound credential's access within its scope
         this.authorization =
             access &&
-            new Authorization(access.authorizer, access.database, (authorizedScope) => {
-                const context = this.access(authorizedScope);
-                Caller.delegation(context);
+            new Authorization(access.authorizer, access.database, () => {
+                const authorized = this.caller();
+                Caller.delegation(authorized);
 
-                return context;
+                return AccessContext.of(authorized, this.clock.now());
             });
 
         // bind methods for middleware context copies
-        this.requireAuthentication = this.requireAuthentication.bind(this);
+        this.requireCaller = this.requireCaller.bind(this);
         this.requireAuthorization = this.requireAuthorization.bind(this);
-        this.access = this.access.bind(this);
+        this.caller = this.caller.bind(this);
 
-        // keep the signal as an own property
-        this.signal =
-            authentication === null
-                ? this.request.signal
-                : AbortSignal.any([
-                      this.request.signal,
-                      AbortSignal.timeout(
-                          Math.max(0, Math.ceil(authentication.lapsesAt - this.clock())),
-                      ),
-                  ]);
+        // end the signal when the request closes, the credential lapses or the server drains
+        const lapse = caller?.credential?.expiresAt;
+        this.signal = AbortSignal.any([
+            this.request.signal,
+            ...(lapse === undefined
+                ? []
+                : [AbortSignal.timeout(Math.max(0, Math.ceil(lapse - this.clock.now())))]),
+            ...(options.draining === undefined ? [] : [options.draining]),
+        ]);
     }
 
     /** Require an installation caller to hold a grant of a procedure from its space, concealing the procedure from one without it. */
-    requireCall(path: string): Authentication {
+    requireCall(path: string): Caller {
         // admit callers other than installations by their own authority
-        const authentication = this.requireAuthentication();
-        const { subject, calls } = authentication.claims;
+        const caller = this.requireCaller();
+        const { subject, calls } = caller;
         if (!principal.installation.is(subject) || calls?.includes(path) === true) {
-            return authentication;
+            return caller;
         }
 
         // refuse an installation its space granted no such call
         throw new ServiceError("NOT_FOUND", { message: `no procedure ${path}` });
     }
 
-    /** Require the caller's authentication, current as of its lapse at latest. */
-    requireAuthentication(): Authentication {
+    /** Require a verified principal calling, current as of its credential's lapse at latest. */
+    requireCaller(): Caller & { readonly subject: Subject } {
         // report a credential failure
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         }
 
-        // require a current caller
-        if (!this.authentication) {
+        // require a current principal
+        const presented = this.presented;
+        const subject = presented?.subject;
+        if (presented === undefined || subject === undefined) {
             throw new ServiceError("UNAUTHORIZED", { message: "missing caller credential" });
         }
-        this.authentication.requireCurrent(
+        const caller = { ...presented, subject };
+        Caller.requireCurrent(
+            caller,
             this.audience,
-            this.authentication.within(this.clock()),
+            Caller.within(caller, this.clock.now()),
             this.scope,
         );
 
-        return this.authentication;
+        return caller;
     }
 
     /** Read the caller's authorization, which a service declared with access always has. */
@@ -140,25 +137,25 @@ export class ServiceContext {
         return this.authorization;
     }
 
-    /** Read the access context at the current time, fixed at the caller's lapse once passed. */
-    access(scope: string | undefined = this.scope): AccessContext {
+    /** Read the request's verified caller in a scope, with the link secrets it presented, anonymous without authentication. */
+    caller(scope: string | undefined = this.scope): Caller {
         // report a credential failure
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         }
 
-        // read the caller's or an anonymous context with link secrets
-        const context = this.authentication
-            ? this.authentication.context(
-                  this.audience,
-                  this.authentication.within(this.clock()),
-                  scope,
-              )
-            : { subjects: [], attributes: {}, now: this.clock() };
+        // read the caller current in the scope with its link secrets
+        const caller = this.presented ?? { subjects: [] };
+        Caller.requireCurrent(
+            caller,
+            this.audience,
+            Caller.within(caller, this.clock.now()),
+            scope,
+        );
 
         return this.linkSecrets.length === 0
-            ? context
-            : { ...context, linkSecrets: this.linkSecrets };
+            ? caller
+            : { ...caller, linkSecrets: this.linkSecrets };
     }
 }
 
@@ -168,8 +165,8 @@ export interface ServiceContextOptions {
     readonly audience: PackageId;
     /** The call's scope. */
     readonly scope?: string;
-    /** The caller's authentication, or null for an anonymous request. */
-    readonly authentication: Authentication | null;
+    /** The verified caller, absent for an anonymous request. */
+    readonly caller?: Caller;
     /** The resource clients bound by the host. */
     readonly resources: ResourceContext;
     /** The service's policies. */
@@ -178,8 +175,10 @@ export interface ServiceContextOptions {
     readonly authenticationError?: Error;
     /** The digests of the presented link secrets. */
     readonly linkSecrets?: readonly string[];
-    /** Read the current time calls run at, the system clock by default. */
-    readonly clock?: () => number;
+    /** The clock calls run at, the system clock by default. */
+    readonly clock?: Clock;
+    /** Abort once the server drains, ending streams at their next consistent point. */
+    readonly draining?: AbortSignal;
 }
 
 /** The policies and database that decide a service's calls. */
@@ -188,8 +187,6 @@ export interface ServiceAccess {
     readonly authorizer: Authorizer;
     /** The database with relationships and roles. */
     readonly database: DatabaseConnection;
-    /** Name the object or scope a call acts on. */
+    /** Resolve the object or scope a call acts on. */
     target?(call: ProcedureCall<ServiceContext>): Promise<ObjectReference>;
-    /** Find the object standing for a principal callers act as, absent when none stands for it here. */
-    standing?(subject: Subject): Promise<Standing | undefined>;
 }

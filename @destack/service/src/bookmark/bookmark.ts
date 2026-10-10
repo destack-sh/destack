@@ -2,7 +2,7 @@ import { LogPosition } from "@destack/db";
 import { defineSchema, schema } from "@destack/schema";
 
 /** The header with watermarks on requests and responses. */
-export const BOOKMARK_HEADER = "destack-bookmark";
+export const BOOKMARK_HEADER = "Destack-Bookmark";
 
 /** A position in one scope's log. */
 export const Watermark = defineSchema(

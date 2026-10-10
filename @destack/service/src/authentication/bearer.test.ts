@@ -7,7 +7,7 @@ function read(headers: Record<string, string>): string | undefined {
 }
 
 test("read the bearer token of a request, and none from other or ambiguous credentials", () => {
-    // read a token, and nothing from a missing, malformed, other or cookie credential
+    // read a token and nothing from other credentials
     expect([
         read({ authorization: "Bearer dst_pat_secret" }),
         read({}),

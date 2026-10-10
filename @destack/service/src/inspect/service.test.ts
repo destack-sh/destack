@@ -30,7 +30,7 @@ const entry = (description: unknown, version: string) => ({
 const procedure = (convert?: Readonly<Record<string, Readonly<Record<string, Expression>>>>) =>
     defineProcedure({
         authentication: "public",
-        permission: null,
+        permission: "anyone",
         audit: false,
         ...(convert === undefined ? {} : { convert }),
     });
@@ -49,7 +49,7 @@ test("plan a service's changes between releases, converting narrowed inputs and 
         }),
     );
 
-    // rename the search input and narrow the count input with conversions, drop the total earlier callers read, and add suggestions
+    // rename the search input and narrow the count input
     const release = (count: ReturnType<typeof procedure>) =>
         describeService(
             defineService("search", {
@@ -84,7 +84,7 @@ test("plan a service's changes between releases, converting narrowed inputs and 
         }
     };
 
-    // plan the release's steps, and refuse the narrowing without a conversion
+    // plan the release's steps
     expect([outcome(before), outcome(converted), outcome(unconverted)]).toEqual([
         [],
         [

@@ -4,40 +4,54 @@ import {
     createLocalJWKSet,
     createRemoteJWKSet,
     customFetch,
-    errors,
     jwtVerify,
     type JSONWebKeySet,
+    type JWTVerifyGetKey,
 } from "jose";
 import { schema } from "@destack/schema";
+import { Subject } from "@destack/sync";
 import {
-    Authentication,
-    AuthenticationClaims,
-    AUTHENTICATION_LIFETIME_MILLISECONDS,
-    AUTHENTICATION_CLOCK_TOLERANCE_MILLISECONDS,
-} from "./authentication.ts";
+    Caller,
+    CallerCredential,
+    CLOCK_TOLERANCE_MILLISECONDS,
+    isPrincipal,
+    principal,
+} from "@destack/access";
 import { ServiceError } from "../error/index.ts";
 
 /** The longest interval between public key refreshes, in milliseconds. */
-const KEY_CACHE_MILLISECONDS = 60000;
+export const KEY_CACHE_MILLISECONDS = 60000;
 /** The longest key discovery wait and the pause after a failed one, in milliseconds. */
-const KEY_TIMEOUT_MILLISECONDS = 5000;
+export const KEY_TIMEOUT_MILLISECONDS = 5000;
+/** The longest lifetime of a token and the verified identity and membership records it carries, unless an audience accepts longer. */
+export const TOKEN_LIFETIME_MILLISECONDS = 60000;
+/** The longest lifetime of a token a space exchanged for a caller, lending its authority to an installation: an hour, above an outbox's delivery of a sent call. */
+export const EXCHANGE_LIFETIME_MILLISECONDS = 60 * 60_000;
+/** The credential kind of an installation's key, which code running outside Destack signs with as its installation. */
+export const INSTALLATION_KEY = "installation-key";
+/** The credential kind of a token a space's own key signs for the space or one of its installations. */
+export const SPACE_KEY = "space-key";
 
-/** The signed identity and restrictions of a caller in one space or the universe: its authentication without its receiver and times. */
-export const TokenAuthentication = AuthenticationClaims.omit({
-    scope: true,
-    audience: true,
-    verifiedAt: true,
-    expiresAt: true,
-}).extend({
+/** The caller an access token signs: its identity and restrictions in one space or the universe, its credential without receiver or times. */
+export const TokenCaller = Caller.schema.extend({
+    /** The represented identity. */
+    subject: Subject,
+    /** The credential the caller presented to the token's issuer. */
+    credential: CallerCredential.pick({ kind: true, id: true, client: true }),
     /** The space, absent for a call to a universe service. */
     spaceId: schema.identifier("space").exactOptional(),
 });
+/** The caller an access token signs. */
+export type TokenCaller = schema.Infer<typeof TokenCaller>;
+
+/** A caller a token verified: its subject and its credential, both present. */
+type VerifiedCaller = Caller & Required<Pick<Caller, "subject" | "credential">>;
 
 /** The claims of a verified access token, in their RFC 7519 names. */
 const AccessTokenClaims = schema
     .object({
         /** The signed caller. */
-        caller: TokenAuthentication,
+        caller: TokenCaller,
         /** The token's use, always an access token. */
         token_use: schema.literal("access"),
         /** The caller's subject. */
@@ -58,7 +72,7 @@ export class TokenVerifier {
     /** The verifier configuration. */
     readonly options: TokenVerifierOptions;
     /** The cached public keys. */
-    readonly keys: ReturnType<typeof createLocalJWKSet> | ReturnType<typeof createRemoteJWKSet>;
+    readonly keys: JWTVerifyGetKey;
 
     /** Create the verifier. */
     constructor(options: TokenVerifierOptions) {
@@ -79,33 +93,27 @@ export class TokenVerifier {
             }
         }
 
-        // cache keys through JOSE
+        // cache keys through JOSE, or take a key set a directory keeps
         this.keys =
-            options.keys instanceof URL
-                ? createRemoteJWKSet(options.keys, {
-                      cacheMaxAge: KEY_CACHE_MILLISECONDS,
-                      cooldownDuration: KEY_TIMEOUT_MILLISECONDS,
-                      timeoutDuration: KEY_TIMEOUT_MILLISECONDS,
-                      ...(options.fetch === undefined ? {} : { [customFetch]: options.fetch }),
-                  })
-                : createLocalJWKSet(options.keys);
+            typeof options.keys === "function"
+                ? options.keys
+                : options.keys instanceof URL
+                  ? createRemoteJWKSet(options.keys, {
+                        cacheMaxAge: KEY_CACHE_MILLISECONDS,
+                        cooldownDuration: KEY_TIMEOUT_MILLISECONDS,
+                        timeoutDuration: KEY_TIMEOUT_MILLISECONDS,
+                        ...(options.fetch === undefined ? {} : { [customFetch]: options.fetch }),
+                    })
+                  : createLocalJWKSet(options.keys);
     }
 
-    /** Verify a request's bearer token, optionally for one space. */
-    async authenticate(
-        request: Request,
-        spaceId?: string,
-        now = Date.now(),
-    ): Promise<Authentication<schema.Infer<typeof TokenAuthentication>["credential"]>> {
-        return this.verify(Bearer.require(request.headers), spaceId, now);
+    /** Verify a request's bearer token at a time, optionally for one space. */
+    async authenticate(request: Request, now: number, spaceId?: string): Promise<VerifiedCaller> {
+        return this.verify(Bearer.require(request.headers), now, spaceId);
     }
 
-    /** Verify an access token, optionally for one space. */
-    async verify(
-        token: string,
-        spaceId?: string,
-        now = Date.now(),
-    ): Promise<Authentication<schema.Infer<typeof TokenAuthentication>["credential"]>> {
+    /** Verify an access token at a time, optionally for one space, its credential lapsing within its audience's lifetime. */
+    async verify(token: string, now: number, spaceId?: string): Promise<VerifiedCaller> {
         // verify the signature and registered claims
         const payload = await this.#verifySignature(token, now);
 
@@ -116,26 +124,38 @@ export class TokenVerifier {
             (spaceId !== undefined && result.data.caller.spaceId !== spaceId) ||
             result.data.sub !== result.data.caller.subject.id ||
             result.data.aud !== this.options.audience ||
-            result.data.exp <= result.data.iat ||
-            (result.data.exp - result.data.iat) * 1000 > AUTHENTICATION_LIFETIME_MILLISECONDS
+            result.data.exp <= result.data.iat
         ) {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid access token claims" });
         }
 
-        // build the caller in the space it calls
+        // refuse a token outliving its audience's lifetime
         const claims = result.data;
-        const { spaceId: scope, ...identity } = claims.caller;
-        const caller = new Authentication({
-            ...identity,
-            ...(scope === undefined ? {} : { scope }),
-            audience: this.options.audience,
-            verifiedAt: claims.iat * 1000,
-            expiresAt: claims.exp * 1000,
-        });
+        const { spaceId: scope, credential, ...identity } = claims.caller;
+        const verifiedAt = claims.iat * 1000;
+        const lifetime = Caller.isExchanged(identity)
+            ? EXCHANGE_LIFETIME_MILLISECONDS
+            : (this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS);
+        if ((claims.exp - claims.iat) * 1000 > lifetime) {
+            throw new ServiceError("UNAUTHORIZED", { message: "invalid access token claims" });
+        }
 
-        // require a current caller within the issuer's authority
-        caller.requireCurrent(this.options.audience, now, scope);
-        caller.requireAuthority(this.options.authority);
+        // verify it for this audience in the space it calls
+        const caller: VerifiedCaller = {
+            ...identity,
+            credential: {
+                ...credential,
+                audience: this.options.audience,
+                ...(scope === undefined ? {} : { scope }),
+                verifiedAt,
+                expiresAt: Math.min(claims.exp * 1000, verifiedAt + lifetime),
+                token: claims.jti,
+            },
+        };
+
+        // require it current and within its issuer's authority
+        Caller.requireCurrent(caller, this.options.audience, now, scope);
+        TokenIssuerAuthority.require(this.options.authority, caller);
 
         return caller;
     }
@@ -148,35 +168,14 @@ export class TokenVerifier {
                 audience: this.options.audience,
                 algorithms: ["ES256"],
                 requiredClaims: ["iss", "aud", "sub", "iat", "exp", "jti"],
-                maxTokenAge: AUTHENTICATION_LIFETIME_MILLISECONDS / 1000,
-                clockTolerance: AUTHENTICATION_CLOCK_TOLERANCE_MILLISECONDS / 1000,
+                maxTokenAge: EXCHANGE_LIFETIME_MILLISECONDS / 1000,
+                clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
                 currentDate: new Date(now),
             });
 
             return payload;
         } catch (error) {
-            // report a failed verification as unauthorized
-            if (
-                error instanceof errors.JWTClaimValidationFailed ||
-                error instanceof errors.JWTExpired ||
-                error instanceof errors.JWTInvalid ||
-                error instanceof errors.JWSInvalid ||
-                error instanceof errors.JWSSignatureVerificationFailed ||
-                error instanceof errors.JOSEAlgNotAllowed ||
-                error instanceof errors.JOSENotSupported ||
-                error instanceof errors.JWKSNoMatchingKey
-            ) {
-                throw new ServiceError("UNAUTHORIZED", {
-                    message: "invalid access token",
-                    cause: error,
-                });
-            }
-
-            // report other failures as unavailable
-            throw new ServiceError("SERVICE_UNAVAILABLE", {
-                message: "authentication keys are unavailable",
-                cause: error,
-            });
+            throw Bearer.refusal(error, "invalid access token");
         }
     }
 }
@@ -189,10 +188,12 @@ export interface TokenVerifierOptions {
     readonly issuer: string;
     /** The receiving package. */
     readonly audience: PackageId;
-    /** The public keys, or an HTTPS JWKS endpoint. */
-    readonly keys: URL | JSONWebKeySet;
+    /** The public keys, an HTTPS JWKS endpoint, or a key set a directory keeps. */
+    readonly keys: URL | JSONWebKeySet | JWTVerifyGetKey;
     /** The fetch of key discovery. */
     readonly fetch?: (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;
+    /** The longest lifetime of the tokens it accepts, such as the relay's ten minutes between tunnel renewals, a minute by default. */
+    readonly lifetime?: number;
 }
 
 /** The identities an issuer's keys may assert. */
@@ -202,8 +203,120 @@ export type TokenIssuerAuthority =
           readonly kind: "universe";
       }
     | {
-          /** An authority over workload identities of one space. */
+          /** The authority of one space over itself and its installations. */
           readonly kind: "space";
           /** The space. */
-          readonly spaceId: string;
+          readonly space: string;
       };
+
+/** The identities an issuer's keys may assert, and the check of a caller against them. */
+export const TokenIssuerAuthority = {
+    /** Require a caller's claims within an issuer's authority: its space's subjects, one deployment per installation, an acyclic chain of single principals. */
+    require(authority: TokenIssuerAuthority, caller: Caller): void {
+        // limit a space's key to the space, its installations and exchanges in it
+        const subjects = [
+            ...(caller.subject === undefined ? [] : [caller.subject]),
+            ...caller.subjects,
+        ];
+        if (authority.kind === "space") {
+            requireSpaceSubjects(authority.space, caller, subjects);
+        }
+
+        // bind each asserted installation to one deployment
+        requireDeployments(caller, subjects);
+
+        // require an acyclic chain of single principals
+        requireDelegation(caller);
+    },
+};
+
+/** Require a space key's claims to assert the space or its installations, with no contacts or delegates, or a person lent to one installation of the space in the space alone. */
+function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly Subject[]): void {
+    // accept a person lent to one of the space's installations within the space
+    const lent = caller.delegates?.[0]?.subject;
+    if (
+        Caller.isExchanged(caller) &&
+        lent !== undefined &&
+        "scope" in lent &&
+        lent.scope === space
+    ) {
+        if (caller.credential?.scope !== space) {
+            throw new ServiceError("UNAUTHORIZED", {
+                message: "an exchanged token lends authority in its issuer's space alone",
+            });
+        }
+
+        return;
+    }
+
+    // accept only the space and its installations otherwise
+    const isOwn = (subject: Subject) =>
+        (principal.space.is(subject) && subject.id === space) ||
+        (principal.installation.is(subject) && subject.scope === space);
+    if (
+        (caller.contacts ?? []).length > 0 ||
+        (caller.delegates ?? []).length > 0 ||
+        !subjects.every(isOwn)
+    ) {
+        throw new ServiceError("UNAUTHORIZED", { message: "token exceeds issuer authority" });
+    }
+}
+
+/** Require one deployment per asserted installation, except the subject its own key or its space's key authenticated and at most one for an installation an exchange lent a person's authority to, and no other. */
+function requireDeployments(caller: Caller, subjects: readonly Subject[]): void {
+    // list the asserted installations a deployment binds
+    const kind = caller.credential?.kind;
+    const isKeyed = kind === INSTALLATION_KEY || kind === SPACE_KEY;
+    const lent = Caller.isExchanged(caller) ? caller.delegates?.[0]?.subject : undefined;
+    const workloads = [
+        ...subjects,
+        ...(caller.delegates ?? []).map((delegate) => delegate.subject),
+    ].filter(
+        (subject) =>
+            principal.installation.is(subject) &&
+            !(isKeyed && caller.subject !== undefined && Subject.same(subject, caller.subject)),
+    );
+
+    // bind each one to one deployment
+    const deployments = caller.deployments ?? [];
+    for (const subject of workloads) {
+        const matching = deployments.filter((deployment) =>
+            Subject.same(deployment.subject, subject),
+        ).length;
+        const isLent = lent !== undefined && Subject.same(lent, subject);
+        if (matching > 1 || (matching === 0 && !isLent)) {
+            throw new ServiceError("UNAUTHORIZED", { message: "invalid workload token identity" });
+        }
+    }
+
+    // reject deployments of no asserted workload
+    if (
+        deployments.some(
+            (deployment) => !workloads.some((subject) => Subject.same(subject, deployment.subject)),
+        )
+    ) {
+        throw new ServiceError("UNAUTHORIZED", { message: "unexpected workload token identity" });
+    }
+}
+
+/** Require an acyclic delegation chain of single principals, lending full authority only from its first user. */
+function requireDelegation(caller: Caller): void {
+    const delegates = caller.delegates ?? [];
+    const chain = [
+        ...(caller.subject === undefined ? [] : [caller.subject]),
+        ...delegates.map((delegate) => delegate.subject),
+    ];
+    if (
+        delegates.some(
+            (delegate, position) =>
+                !isPrincipal(delegate.subject) ||
+                (delegate.authority === "full" &&
+                    (position !== 0 || !principal.user.is(delegate.subject))),
+        ) ||
+        chain.some((entry, position) =>
+            chain.slice(position + 1).some((other) => Subject.same(entry, other)),
+        )
+    ) {
+        throw new ServiceError("UNAUTHORIZED", { message: "invalid token delegation" });
+    }
+}

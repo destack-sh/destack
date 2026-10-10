@@ -1,4 +1,5 @@
-import { expect, test } from "@destack/test";
+import { Caller, principal } from "@destack/access";
+import { expect, onTestFinished, test, vi } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Health, health } from "../health/index.ts";
 import { implementHealth } from "./health.ts";
@@ -6,12 +7,11 @@ import { createClient } from "../client/index.ts";
 import { defineService } from "../declare/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
-import { createAuthentication, hosting } from "../test/fixture.ts";
+import { createCaller, hosting } from "../test/fixture.ts";
 import { Observable } from "../observable/index.ts";
 import { ServiceError } from "../error/index.ts";
 import type { ServiceContext } from "./context.ts";
 import { Bookmark, Watermark } from "../bookmark/index.ts";
-import { Authentication } from "../authentication/index.ts";
 
 /** The authentication lifetime of the lapsing callers, short enough for a fast test. */
 const LAPSE_MILLISECONDS = 200;
@@ -29,7 +29,11 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
     // serve a finite snapshot subscription
     let requests = 0;
     const service = {
-        watch: defineProcedure({ authentication: "identity", permission: null, audit: false })
+        watch: defineProcedure({
+            authentication: "identity",
+            permission: { principals: [principal.user, principal.machine, principal.installation] },
+            audit: false,
+        })
             .route({ method: "GET", path: "/watch" })
             .output(eventIterator(schema.number())),
     };
@@ -50,8 +54,8 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         },
         router: implementation.router({
             watch: implementation.watch.handler(async function* ({ context }) {
-                expect(context.requireAuthentication().claims.subject.id).toBe("alice");
-                expect(context.access().subject?.id).toBe("alice");
+                expect(context.requireCaller().subject?.id).toBe("alice");
+                expect(context.caller().subject?.id).toBe("alice");
                 expect(context.application).toBe("snapshot");
                 yield requests;
             }),
@@ -97,7 +101,13 @@ test.for([
         // serve a run of two values with the second after the caller's lapse
         let isRevoked = false;
         const service = {
-            watch: defineProcedure({ authentication: "identity", permission: null, audit: false })
+            watch: defineProcedure({
+                authentication: "identity",
+                permission: {
+                    principals: [principal.user, principal.machine, principal.installation],
+                },
+                audit: false,
+            })
                 .route({ method: "GET", path: "/watch" })
                 .output(eventIterator(schema.number())),
         };
@@ -107,14 +117,17 @@ test.for([
             health: new Health("lapse"),
             drainTimeout: 1000,
             authenticate: async () => {
-                const { claims } = createAuthentication("alice");
+                const alice = createCaller("alice");
 
-                return new Authentication({
-                    ...claims,
-                    expiresAt: Date.now() + LAPSE_MILLISECONDS,
-                });
+                return {
+                    ...alice,
+                    credential: {
+                        ...Caller.requireCredential(alice),
+                        expiresAt: Date.now() + LAPSE_MILLISECONDS,
+                    },
+                };
             },
-            authorizeHost: async () => {
+            authorizeMachine: async () => {
                 if (isRevoked) {
                     throw new ServiceError("FORBIDDEN", { message: "permission denied: watch" });
                 }
@@ -148,7 +161,7 @@ test.for([
                 (failure: ServiceError<string, unknown>) => failure.code,
             );
 
-            // complete the run as verified, unless revoked meanwhile
+            // complete the run as verified
             expect({ values, error }).toEqual(outcome);
         } finally {
             await server.close();
@@ -162,7 +175,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
     const readiness = new Health("reader");
     const service = {
         health,
-        read: defineProcedure({ authentication: "public", permission: null, audit: false })
+        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
             .route({ method: "GET", path: "/read" })
             .output(eventIterator(schema.string())),
     };
@@ -178,7 +191,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         }),
     });
 
-    for (const callback of ["authenticate", "authorizeHost"] as const) {
+    for (const callback of ["authenticate", "authorizeMachine"] as const) {
         const missing: ServerOptions = {
             ...hosting,
             router,
@@ -194,14 +207,14 @@ test("drain complete HTTP response streams before reporting the server stopped",
         ...hosting,
         router,
         health: readiness,
-        route: async (request, context) => {
+        fetch: async (request, context) => {
             const path = new URL(request.url).pathname;
             if (path === "/auth/redirect") {
                 return Response.redirect("https://identity.local/sign-in", 303);
             } else if (path === "/auth/keys") {
                 return Response.json({ keys: [] });
             } else if (path === "/auth/caller") {
-                return Response.json({ subject: context.access().subject?.id ?? null });
+                return Response.json({ subject: context.caller().subject?.id ?? null });
             } else {
                 return undefined;
             }
@@ -218,7 +231,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         { keys: [] },
     ]);
 
-    // give the protocol the authenticated caller, and its credential failure
+    // give the protocol the authenticated caller and its credential failure
     const caller = async (headers: Record<string, string>) => {
         const response = await server.fetch(
             new Request("https://test.local/auth/caller", { headers }),
@@ -281,12 +294,56 @@ test("drain complete HTTP response streams before reporting the server stopped",
     expect(server.health.check()).toEqual({ name: "reader", status: "stopped" });
 });
 
+test("end a stream that follows its context signal once the server drains, stopping within the deadline", async () => {
+    // declare a stream that yields until its context signal aborts
+    const service = {
+        follow: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+            .route({ method: "GET", path: "/follow" })
+            .output(eventIterator(schema.string())),
+    };
+    const implementation = implement(service).$context<ServiceContext>();
+    const router = implementation.router({
+        follow: implementation.follow.handler(async function* ({ context }) {
+            yield "first";
+            await new Promise((resolve) => {
+                context.signal.addEventListener("abort", resolve, { once: true });
+            });
+            yield "last";
+        }),
+    });
+    const server = Server.start({
+        ...hosting,
+        router,
+        health: new Health("follower"),
+        drainTimeout: 5000,
+    });
+
+    // open the stream, then drain the server
+    const client = createClient(defineService("fixture", service), {
+        url: "https://test.local",
+        headers: { authorization: "alice" },
+        fetch: (request) => server.fetch(request),
+    });
+    const stream = await client.follow();
+    const first = await stream.next();
+    const closing = server.close();
+
+    // end the stream with its last value and stop
+    expect([first, await stream.next(), await stream.next()]).toEqual([
+        { done: false, value: "first" },
+        { done: false, value: "last" },
+        { done: true, value: undefined },
+    ]);
+    await closing;
+    expect(server.health.status).toBe("stopped");
+});
+
 test("serialize authentication failures and preserve drain timeout causes", async () => {
     // keep a request open past the drain deadline
     const waiting = Promise.withResolvers<void>();
     const entered = Promise.withResolvers<void>();
     const service = {
-        get: defineProcedure({ authentication: "public", permission: null, audit: false })
+        get: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
             .route({ method: "GET", path: "/work" })
             .output(schema.string()),
     };
@@ -363,10 +420,18 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
 test("return observed watermarks and require them on the client's later requests", async () => {
     // observe write watermarks and require read watermarks
     const service = {
-        write: defineProcedure({ authentication: "identity", permission: null, audit: false })
+        write: defineProcedure({
+            authentication: "identity",
+            permission: { principals: [principal.user, principal.machine, principal.installation] },
+            audit: false,
+        })
             .route({ method: "POST", path: "/write" })
             .output(schema.object({})),
-        read: defineProcedure({ authentication: "identity", permission: null, audit: false })
+        read: defineProcedure({
+            authentication: "identity",
+            permission: { principals: [principal.user, principal.machine, principal.installation] },
+            audit: false,
+        })
             .route({ method: "GET", path: "/read" })
             .output(schema.array(Watermark)),
     };
@@ -408,7 +473,13 @@ test.for(["before the call", "during the call", "between events"] as const)(
         // count the running generators
         let running = 0;
         const service = {
-            follow: defineProcedure({ authentication: "identity", permission: null, audit: false })
+            follow: defineProcedure({
+                authentication: "identity",
+                permission: {
+                    principals: [principal.user, principal.machine, principal.installation],
+                },
+                audit: false,
+            })
                 .route({ method: "GET", path: "/follow" })
                 .output(eventIterator(schema.number())),
         };
@@ -481,7 +552,7 @@ async function collectGarbage(): Promise<void> {
         throw new TypeError("collecting garbage needs the runtime's gc");
     }
 
-    // collect a few rounds, letting finalizers run in between
+    // collect a few rounds
     for (let round = 0; round < 3; round++) {
         collect();
         await new Promise((resolve) => {
@@ -490,32 +561,10 @@ async function collectGarbage(): Promise<void> {
     }
 }
 
-test("refuse starting a server whose procedures carry payloads the HTTP layer cannot describe", () => {
-    // declare a procedure with a custom input check
-    const readiness = new Health("reader");
-    const service = {
-        health,
-        read: defineProcedure({ authentication: "public", permission: null, audit: false })
-            .route({ method: "GET", path: "/read" })
-            .input(schema.object({ name: schema.string().refine((name) => name !== "latest") }))
-            .output(schema.string()),
-    };
-    const implementation = implement(service);
-    const router = implementation.router({
-        health: implementHealth(readiness),
-        read: implementation.read.handler(async () => "read"),
-    });
-
-    // refuse it at start instead of answering every request with a failure
-    expect(() =>
-        Server.start({ ...hosting, router, health: readiness, drainTimeout: 1000 }),
-    ).toThrow("unsupported schema check: custom");
-});
-
 test("report a handler's invalid output as an internal failure and a caller's invalid input as its own", async () => {
     // serve a procedure whose handler breaks its output schema
     const routes = {
-        echo: defineProcedure({ authentication: "public", permission: null, audit: false })
+        echo: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
             .route({ method: "POST", path: "/echo" })
             .input(schema.object({ text: schema.string().min(3) }))
             .output(schema.object({ text: schema.string().min(3) })),
@@ -542,4 +591,73 @@ test("report a handler's invalid output as an internal failure and a caller's in
         "INTERNAL_SERVER_ERROR: internal server error",
         "BAD_REQUEST: invalid input: text: too small: expected string to have >=3 characters",
     ]);
+});
+
+test("hold a request while starting and answer it once ready, and refuse it with a retry pause past the window", async () => {
+    // serve a procedure behind a readiness the test opens
+    const routes = {
+        echo: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+            .route({ method: "POST", path: "/echo" })
+            .input(schema.object({ text: schema.string() }))
+            .output(schema.object({ text: schema.string() })),
+    };
+    const implementation = implement(routes);
+    const opened = Promise.withResolvers<void>();
+    vi.useFakeTimers();
+    onTestFinished(() => {
+        vi.useRealTimers();
+    });
+    await using server = Server.start({
+        ...hosting,
+        health: new Health("echo"),
+        drainTimeout: 1000,
+        ready: () => opened.promise,
+        router: implementation.router({
+            echo: implementation.echo.handler(({ input }) => input),
+        }),
+    });
+    const client = createClient(defineService("fixture", routes), {
+        url: "https://test.local",
+        headers: { authorization: "alice" },
+        fetch: (request) => server.fetch(request),
+    });
+
+    // refuse a request still starting once the window passes
+    const refused = server.fetch(new Request("https://test.local/echo", { method: "POST" }));
+    await vi.advanceTimersByTimeAsync(1000);
+    const starting = await refused;
+
+    // hold a call within the window and answer it once the service opens
+    const answered = client.echo({ text: "hello" });
+    await vi.advanceTimersByTimeAsync(100);
+    opened.resolve();
+
+    expect([
+        starting.status,
+        starting.headers.get("retry-after"),
+        await answered,
+        server.health.status,
+    ]).toEqual([503, "1", { text: "hello" }, "serving"]);
+});
+
+test("refuse starting a server whose procedures carry payloads the HTTP layer cannot describe", () => {
+    // declare a procedure with a custom input check
+    const readiness = new Health("reader");
+    const service = {
+        health,
+        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+            .route({ method: "GET", path: "/read" })
+            .input(schema.object({ name: schema.string().refine((name) => name !== "latest") }))
+            .output(schema.string()),
+    };
+    const implementation = implement(service);
+    const router = implementation.router({
+        health: implementHealth(readiness),
+        read: implementation.read.handler(async () => "read"),
+    });
+
+    // refuse it at start instead of answering every request with a failure
+    expect(() =>
+        Server.start({ ...hosting, router, health: readiness, drainTimeout: 1000 }),
+    ).toThrow("unsupported schema check: custom");
 });

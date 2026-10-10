@@ -20,6 +20,10 @@ export interface Service<
 
 /** A declaration that derives procedures, such as an object type. */
 export interface Routed {
+    /** The package declaring it. */
+    readonly package: { readonly name: string };
+    /** Its name, which a Loan identifies its methods by. */
+    readonly name: string;
     /** The declaration's own procedures. */
     readonly procedures: ServiceRouter;
     /** The procedures every declaration of its kind shares. */

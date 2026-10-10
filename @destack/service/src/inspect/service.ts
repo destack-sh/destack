@@ -15,7 +15,7 @@ const CONVERSIONS = schema.record(schema.string(), schema.json());
 
 /** Describe a service. */
 export function describeService(service: Service): ServiceDescription {
-    // list the routes the objects derive, shared ones included
+    // list the routes the objects derive
     const derived = new Set(Object.keys(service.objects));
     for (const routed of Object.values(service.objects)) {
         for (const route of Object.keys(routed.shared)) {
@@ -79,7 +79,7 @@ export const compareService: Comparator = (earlier, later) => {
         if (previous === undefined) {
             step({ action: "create", target: at, risk: "safe", detail: `add procedure ${name}` });
         }
-        // read earlier callers' inputs, and let earlier callers read the outputs
+        // plan the payloads for earlier callers
         else {
             plans.push(...payloadPlans(previous, procedure, at, { from, release }));
         }
