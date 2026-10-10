@@ -32,7 +32,7 @@ export const Schedule = {
         until: number,
         limit: number,
     ): { readonly due: number[]; readonly earlier: number | "many" } {
-        // count fixed intervals arithmetically, within the end
+        // count fixed intervals within the end
         if (timing.timing === "interval") {
             const end = timing.endsAt === undefined ? until : Math.min(until, timing.endsAt - 1);
             const first = Math.max(0, Math.floor((after - timing.startsAt) / timing.interval) + 1);
@@ -52,7 +52,7 @@ export const Schedule = {
             return { due: isDue ? [timing.startsAt] : [], earlier: 0 };
         }
 
-        // walk the calendar back from the end within its bounds, one past the limit to learn whether more were missed
+        // walk the calendar back from the end within its bounds
         const end = timing.endsAt === undefined ? until : Math.min(until, timing.endsAt - 1);
         const start = timing.startsAt === undefined ? after : Math.max(after, timing.startsAt - 1);
         const calendar = CronExpressionParser.parse(timing.cron, {
@@ -74,7 +74,7 @@ export const Schedule = {
 
     /** Find the next occurrence after a time, absent once none follows. */
     following(timing: ScheduleTiming, after: number): number | undefined {
-        // step to the next interval, within the end
+        // step to the next interval within the end
         if (timing.timing === "interval") {
             const index = Math.max(0, Math.floor((after - timing.startsAt) / timing.interval) + 1);
             const next = timing.startsAt + index * timing.interval;
@@ -86,7 +86,7 @@ export const Schedule = {
             return timing.startsAt > after ? timing.startsAt : undefined;
         }
 
-        // follow the calendar, within its bounds
+        // follow the calendar within its bounds
         const start = timing.startsAt === undefined ? after : Math.max(after, timing.startsAt - 1);
         const next = CronExpressionParser.parse(timing.cron, {
             currentDate: start,

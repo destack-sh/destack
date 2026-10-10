@@ -24,6 +24,14 @@
         }
     },
     "declarations": {
+        "defineHttps": {
+            "describes": [
+                {
+                    "kind": "resource",
+                    "function": "./inspect#describeHttps"
+                }
+            ]
+        },
         "defineService": {
             "describes": [
                 {
@@ -62,6 +70,7 @@
         }
     },
     "stamps": {
+        "defineHttps": { "module": 2 },
         "defineService": { "module": 2 },
         "defineServiceBinding": { "module": 3 },
         "defineTrigger": { "module": 1 },

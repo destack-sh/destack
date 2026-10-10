@@ -5,13 +5,15 @@ import { WebhookOn } from "./webhook.ts";
 import { defineTrigger, Trigger } from "./trigger.ts";
 import { StandardSignature, type WebhookDelivery } from "./webhook.ts";
 import { GitHubSignature } from "../github/index.ts";
+import { CallKey } from "../request/index.ts";
+import { testCallKey } from "../test/index.ts";
 
-/** Push the delivered branch to the repository its route names. */
+/** Push the delivered branch to the repository its path names. */
 function push(delivery: WebhookDelivery) {
-    // require the route's repository
+    // require the path's repository
     const repository = delivery.parameters["repository"];
     if (repository === undefined) {
-        throw new TypeError("a push delivery's route has a repository");
+        throw new TypeError("a push delivery's path has a repository");
     }
 
     return {
@@ -102,13 +104,13 @@ test("verify a Standard Webhooks delivery and refuse forged, stale and unsigned 
     ]);
 });
 
-test("describe a declared webhook trigger with its verification and route for the manifest", () => {
+test("describe a declared webhook trigger with its verification and path for the manifest", () => {
     const trigger = defineTrigger({
         name: "github",
         on: {
             webhook: {
                 signature: new GitHubSignature(),
-                route: "/{repository}",
+                path: "/{repository}",
                 secret: async () => "secret",
             },
         },
@@ -117,11 +119,11 @@ test("describe a declared webhook trigger with its verification and route for th
 
     expect(describeTrigger(trigger)).toEqual({
         name: "github",
-        on: { webhook: { verification: "github", route: "/{repository}" } },
+        on: { webhook: { verification: "github", path: "/{repository}" } },
     });
 });
 
-test("receive a delivery with its route's parameters and the secret they resolve, and build its call", async () => {
+test("receive a delivery with its path's parameters and the secret they resolve, and build its call", async () => {
     // resolve each repository's secret
     const requested: unknown[] = [];
     const declared = defineTrigger({
@@ -129,7 +131,7 @@ test("receive a delivery with its route's parameters and the secret they resolve
         on: {
             webhook: {
                 signature: new GitHubSignature(),
-                route: "/repositories/{repository}",
+                path: "/repositories/{repository}",
                 secret: async (parameters) => {
                     requested.push(parameters);
 
@@ -145,7 +147,10 @@ test("receive a delivery with its route's parameters and the secret they resolve
     if (trigger === undefined) {
         throw new TypeError("a trigger on webhooks fires on webhooks");
     }
-    const resources = new ResourceContext();
+    const context = {
+        resources: new ResourceContext(),
+        deriver: await CallKey.deriver(await testCallKey()),
+    };
 
     // accept the repository's signed delivery
     const body = '{"ref":"refs/heads/main"}';
@@ -156,7 +161,7 @@ test("receive a delivery with its route's parameters and the secret they resolve
         post(headers, body),
         "/repositories/acme%20site",
         NOW,
-        resources,
+        context,
     );
     expect([delivery, trigger.call(delivery)]).toEqual([
         {
@@ -173,10 +178,10 @@ test("receive a delivery with its route's parameters and the secret they resolve
         },
     ]);
 
-    // refuse another repository's secret and paths outside the route
+    // refuse another repository's secret and paths outside the path template
     const verdict = (path: string) =>
         refusal(
-            WebhookOn.receive(trigger.on.webhook, post(headers, body), path, NOW, resources),
+            WebhookOn.receive(trigger.on.webhook, post(headers, body), path, NOW, context),
         ).then((refused) => (refused === "done" ? "accepted" : refused.join(": ")));
     expect([
         await verdict("/repositories/other"),
@@ -186,23 +191,23 @@ test("receive a delivery with its route's parameters and the secret they resolve
         await verdict("/repositories/%E0"),
     ]).toEqual([
         "UNAUTHORIZED: webhook signature does not match",
-        "NOT_FOUND: webhook route does not match: /repositories",
-        "NOT_FOUND: webhook route does not match: /repositories/acme/site",
-        "NOT_FOUND: webhook route does not match: /projects/acme",
-        "NOT_FOUND: webhook route does not match: /repositories/%E0",
+        "NOT_FOUND: webhook path does not match: /repositories",
+        "NOT_FOUND: webhook path does not match: /repositories/acme/site",
+        "NOT_FOUND: webhook path does not match: /projects/acme",
+        "NOT_FOUND: webhook path does not match: /repositories/%E0",
     ]);
     expect(requested).toEqual([{ repository: "acme site" }, { repository: "other" }]);
 });
 
-test("refuse webhook routes with malformed segments or a repeated parameter", () => {
-    const verdict = (route: string) => {
+test("refuse webhook paths with malformed segments or a repeated parameter", () => {
+    const verdict = (path: string) => {
         try {
             defineTrigger({
                 name: "pushes",
                 on: {
                     webhook: {
                         signature: new GitHubSignature(),
-                        route,
+                        path,
                         secret: async () => "secret",
                     },
                 },
@@ -211,7 +216,7 @@ test("refuse webhook routes with malformed segments or a repeated parameter", ()
 
             return "accepted";
         } catch (error) {
-            return error instanceof TypeError ? error.message : "invalid route";
+            return error instanceof TypeError ? error.message : "invalid path";
         }
     };
 
@@ -223,9 +228,9 @@ test("refuse webhook routes with malformed segments or a repeated parameter", ()
         verdict("/{repository}/{repository}"),
     ]).toEqual([
         "accepted",
-        "invalid route",
-        "invalid route",
-        "invalid route",
-        "webhook route repeats a parameter: /{repository}/{repository}",
+        "invalid path",
+        "invalid path",
+        "invalid path",
+        "webhook path repeats a parameter: /{repository}/{repository}",
     ]);
 });

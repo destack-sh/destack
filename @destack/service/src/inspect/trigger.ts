@@ -6,7 +6,7 @@ import { type Trigger, TriggerDescription } from "../trigger/index.ts";
 
 /** Describe a trigger, checking a schedule's timing. */
 export function describeTrigger(trigger: Trigger): TriggerDescription {
-    // describe a schedule with its call, checking its timing
+    // describe a schedule with its call
     const on = trigger.on;
     if ("schedule" in on) {
         Schedule.require(on.schedule.timing);
@@ -23,12 +23,12 @@ export function describeTrigger(trigger: Trigger): TriggerDescription {
         });
     }
 
-    // describe a webhook by its signature's name, without its secret
-    const { signature, route } = on.webhook;
+    // describe a webhook by its signature's name
+    const { signature, path } = on.webhook;
 
     return TriggerDescription.parse({
         name: trigger.name,
-        on: { webhook: { verification: signature.name, route } },
+        on: { webhook: { verification: signature.name, path } },
     });
 }
 
@@ -40,7 +40,7 @@ export function triggerSymbols(input: Record<string, JsonValue>): graph.MemberSy
         return [];
     }
 
-    // split the object type and method the call names, as in `note.get`
+    // split the object type and method the call targets
     const { call } = on.schedule;
     const separator = call.method.indexOf(".");
     if (separator === -1) {

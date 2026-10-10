@@ -1,4 +1,5 @@
 import { ServiceError } from "../error/index.ts";
+import { RequestBody } from "../request/body.ts";
 import {
     WebhookDelivery,
     WebhookSignature,
@@ -14,7 +15,7 @@ export class GitHubSignature implements WebhookSignature {
     /** The scheme's name. */
     readonly name: string;
 
-    /** Name the GitHub scheme. */
+    /** Create the GitHub scheme. */
     constructor() {
         this.name = "github";
     }
@@ -36,7 +37,7 @@ export class GitHubSignature implements WebhookSignature {
     /** Verify the body's signature and read the delivery. */
     async verify(
         request: Request,
-        secret: string,
+        secret: string | undefined,
         parameters: WebhookParameters,
         now: number,
     ): Promise<WebhookDelivery> {
@@ -48,8 +49,9 @@ export class GitHubSignature implements WebhookSignature {
         }
 
         // match the signature
-        const body = await request.text();
-        const key = await WebhookSignature.key(new TextEncoder().encode(secret), "verify");
+        const body = await RequestBody.text(request, "a webhook delivery");
+        const shared = WebhookSignature.secret(secret, this.name);
+        const key = await WebhookSignature.key(new TextEncoder().encode(shared), "verify");
         const digest = signature.startsWith(SIGNATURE_PREFIX)
             ? decodeHex(signature.slice(SIGNATURE_PREFIX.length))
             : undefined;

@@ -35,7 +35,7 @@ test("count intervals and one-off occurrences arithmetically", () => {
         Schedule.following(minutely, 90_000),
     ]).toEqual([{ due: [240_000, 300_000], earlier: 3 }, 120_000]);
 
-    // occur once, after which nothing follows
+    // occur once
     const once: ScheduleTiming = { timing: "once", startsAt: 60_000 };
     expect([
         Schedule.recent(once, 0, 60_000, 2),

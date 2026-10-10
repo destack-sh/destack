@@ -18,7 +18,7 @@ test("relate a scheduled trigger to the object method it invokes, and other trig
 
     // receive signed deliveries instead
     const webhook = description({
-        webhook: { verification: "github", route: "/{repository}" },
+        webhook: { verification: "github", path: "/{repository}" },
     });
 
     expect([triggerSymbols(scheduled), triggerSymbols(webhook)]).toEqual([

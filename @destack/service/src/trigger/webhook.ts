@@ -1,9 +1,11 @@
+import type { Deriver } from "@destack/identity";
 import type { ResourceContext } from "@destack/resource/context";
 import { aligned, defineSchema, Instant, schema, type JsonValue } from "@destack/schema";
 import { ServiceError } from "../error/index.ts";
+import { RequestBody } from "../request/body.ts";
 
-/** A route of literal and `{name}` segments, or `/` alone. */
-const ROUTE_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/u;
+/** A path template of literal and `{name}` segments, or `/` alone. */
+const PATH_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/u;
 
 /** The Standard Webhooks timestamp tolerance, five minutes as in the reference libraries. */
 const STANDARD_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
@@ -14,11 +16,11 @@ const STANDARD_SECRET_PREFIX = "whsec_";
 /** The version tag of a Standard Webhooks HMAC-SHA256 signature. */
 const STANDARD_SIGNATURE_VERSION = "v1";
 
-/** The values of a webhook route's parameters, by name. */
+/** The values of a webhook path's parameters, by name. */
 export const WebhookParameters = defineSchema(
     schema.record(schema.string(), schema.string().min(1)),
 );
-/** The values of a webhook route's parameters, by name. */
+/** The values of a webhook path's parameters, by name. */
 export type WebhookParameters = schema.Infer<typeof WebhookParameters>;
 
 /** One verified webhook delivery. */
@@ -30,7 +32,7 @@ export const WebhookDelivery = defineSchema(
         event: schema.string().min(1),
         /** The decoded body. */
         payload: schema.json(),
-        /** The route's parameters. */
+        /** The path's parameters. */
         parameters: WebhookParameters,
         /** The receiving time, in UTC epoch milliseconds. */
         receivedAt: Instant,
@@ -39,13 +41,21 @@ export const WebhookDelivery = defineSchema(
 /** One verified webhook delivery. */
 export type WebhookDelivery = schema.Infer<typeof WebhookDelivery>;
 
+/** What a webhook trigger reads its secrets from: the installation's resources and its own derived secrets. */
+export interface WebhookContext {
+    /** The installation's resources, such as a bound vault secret. */
+    readonly resources: ResourceContext;
+    /** Derive the installation's own secrets, such as the tokens it gave the subscriptions it opened. */
+    readonly deriver: Deriver;
+}
+
 /** The signed webhook deliveries a trigger fires on, as the manifest describes them. */
 const shape = defineSchema(
     schema.object({
         /** The name of the signature scheme, such as standard. */
         verification: schema.string().min(1),
         /** The path template below the trigger, such as `/{repository}`. */
-        route: schema.string().regex(ROUTE_PATTERN),
+        path: schema.string().regex(PATH_PATTERN),
     }),
 );
 /** The signed webhook deliveries a trigger fires on, as the manifest describes them. */
@@ -53,41 +63,41 @@ export type WebhookOn = schema.Infer<typeof shape>;
 
 /** The signed webhook deliveries a trigger fires on, and how it verifies them. */
 export const WebhookOn = Object.assign(shape, {
-    /** Read a route's parameter names, refusing a repeated one. */
-    parameters(route: string): readonly string[] {
-        const names = segments(route).filter((segment) => segment.startsWith("{"));
+    /** Read a path template's parameter names, refusing a repeated one. */
+    parameters(path: string): readonly string[] {
+        const names = segments(path).filter((segment) => segment.startsWith("{"));
         if (new Set(names).size !== names.length) {
-            throw new TypeError(`webhook route repeats a parameter: ${route}`);
+            throw new TypeError(`webhook path repeats a parameter: ${path}`);
         }
 
         return names;
     },
 
-    /** Verify a request to a path below a trigger's route with its secret, and read its delivery. */
+    /** Verify a request to a path below a trigger matching its path template with its secret or the keys its scheme reads, and read its delivery. */
     async receive(
-        on: Pick<WebhookOn, "route"> & {
+        on: Pick<WebhookOn, "path"> & {
             readonly signature: WebhookSignature;
-            secret(parameters: WebhookParameters, resources: ResourceContext): Promise<string>;
+            secret?(parameters: WebhookParameters, context: WebhookContext): Promise<string>;
         },
         request: Request,
-        path: string,
+        pathname: string,
         now: number,
-        resources: ResourceContext,
+        context: WebhookContext,
     ): Promise<WebhookDelivery> {
-        const parameters = match(on.route, path);
-        const secret = await on.secret(parameters, resources);
+        const parameters = match(on.path, pathname);
+        const secret = on.secret === undefined ? undefined : await on.secret(parameters, context);
 
-        return on.signature.verify(request, secret, parameters, now);
+        return on.signature.verify(request, secret, parameters, now, context);
     },
 });
 
-/** Read a path's parameters from a route. */
-function match(route: string, path: string): WebhookParameters {
+/** Read a path's parameters from a path template. */
+function match(template: string, path: string): WebhookParameters {
     // require a path of as many segments
-    const expected = segments(route);
+    const expected = segments(template);
     const actual = segments(path);
     if (!path.startsWith("/") || actual.length !== expected.length) {
-        throw new ServiceError("NOT_FOUND", { message: `webhook route does not match: ${path}` });
+        throw new ServiceError("NOT_FOUND", { message: `webhook path does not match: ${path}` });
     }
 
     // bind parameters and compare literals
@@ -96,14 +106,14 @@ function match(route: string, path: string): WebhookParameters {
         const value = segment.startsWith("{")
             ? decode(aligned(actual, index))
             : aligned(actual, index);
-        // refuse an empty or undecodable parameter, or another literal
+        // refuse an empty or undecodable parameter or another literal
         if (
             value === undefined ||
             value === "" ||
             (!segment.startsWith("{") && segment !== value)
         ) {
             throw new ServiceError("NOT_FOUND", {
-                message: `webhook route does not match: ${path}`,
+                message: `webhook path does not match: ${path}`,
             });
         }
         // bind a parameter
@@ -115,9 +125,9 @@ function match(route: string, path: string): WebhookParameters {
     return parameters;
 }
 
-/** Split a route or path into its segments. */
-function segments(route: string): string[] {
-    return route === "/" ? [] : route.slice(1).split("/");
+/** Split a path or path template into its segments. */
+function segments(path: string): string[] {
+    return path === "/" ? [] : path.slice(1).split("/");
 }
 
 /** Decode a path segment. */
@@ -141,18 +151,19 @@ export interface WebhookMessage {
     readonly sentAt: number;
 }
 
-/** A webhook signature scheme. */
+/** A webhook signature scheme: an HMAC under a shared secret, or a token verified against keys the sender publishes. */
 export interface WebhookSignature {
     /** The scheme's name, which the manifest lists as a trigger's verification. */
     readonly name: string;
-    /** Sign a message, returning the headers. */
+    /** Sign a message with the shared secret or the private key, returning the headers. */
     sign(message: WebhookMessage, secret: string): Promise<Headers>;
-    /** Verify a request's signature and read its delivery. */
+    /** Verify a request's signature with the trigger's secret or the keys the installation's resources hold, and read its delivery. */
     verify(
         request: Request,
-        secret: string,
+        secret: string | undefined,
         parameters: WebhookParameters,
         now: number,
+        context: WebhookContext,
     ): Promise<WebhookDelivery>;
 }
 
@@ -163,6 +174,17 @@ export const WebhookSignature = {
         return crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-256" }, false, [
             usage,
         ]);
+    },
+
+    /** Require the shared secret a keyed scheme verifies with. */
+    secret(secret: string | undefined, scheme: string): string {
+        if (secret === undefined) {
+            throw new ServiceError("UNAUTHORIZED", {
+                message: `${scheme} webhooks verify with a secret the trigger reads`,
+            });
+        }
+
+        return secret;
     },
 
     /** Parse a verified body as JSON. */
@@ -180,7 +202,7 @@ export class StandardSignature implements WebhookSignature {
     /** The scheme's name. */
     readonly name: string;
 
-    /** Name the Standard Webhooks scheme. */
+    /** Create the Standard Webhooks scheme. */
     constructor() {
         this.name = "standard";
     }
@@ -203,7 +225,7 @@ export class StandardSignature implements WebhookSignature {
     /** Verify a v1 signature within the timestamp tolerance. */
     async verify(
         request: Request,
-        secret: string,
+        secret: string | undefined,
         parameters: WebhookParameters,
         now: number,
     ): Promise<WebhookDelivery> {
@@ -222,8 +244,11 @@ export class StandardSignature implements WebhookSignature {
         }
 
         // match any v1 signature
-        const body = await request.text();
-        const key = await StandardSignature.#key(secret, "verify");
+        const body = await RequestBody.text(request, "a webhook delivery");
+        const key = await StandardSignature.#key(
+            WebhookSignature.secret(secret, this.name),
+            "verify",
+        );
         const content = new TextEncoder().encode(`${id}.${timestamp}.${body}`);
         let isSigned = false;
         for (const entry of signatures.split(" ")) {

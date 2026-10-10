@@ -10,3 +10,4 @@ export {
 export { TriggerDescription } from "../trigger/index.ts";
 export * from "./trigger.ts";
 export * from "./workload.ts";
+export * from "./https.ts";

@@ -2,7 +2,6 @@ import { defineSchema, Instant, schema } from "@destack/schema";
 import { DeclarationName, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { LogPosition, type Condition } from "@destack/db";
-import type { ResourceContext } from "@destack/resource/context";
 import { Call } from "@destack/sync";
 import {
     ChangeOn,
@@ -10,9 +9,15 @@ import {
     MAX_LAG_MILLISECONDS,
     type ObjectChange,
 } from "./change.ts";
-import type { WebhookDelivery, WebhookParameters, WebhookSignature } from "./webhook.ts";
+import type {
+    WebhookContext,
+    WebhookDelivery,
+    WebhookParameters,
+    WebhookSignature,
+} from "./webhook.ts";
 import { WebhookOn } from "./webhook.ts";
 import { ScheduleOn } from "./schedule.ts";
+import { RequestId } from "../request/request.ts";
 
 /** The digits a run event's numbers take in its request: every safe integer. */
 const NUMBER_DIGITS = 16;
@@ -92,13 +97,13 @@ export interface WebhookTrigger extends Declaration {
     readonly kind: "trigger";
     /** The signed deliveries that fire. */
     readonly on: {
-        readonly webhook: Pick<WebhookOn, "route"> & {
+        readonly webhook: Pick<WebhookOn, "path"> & {
             /** The scheme verifying each delivery's signature. */
             readonly signature: WebhookSignature;
-            /** Read the signing secret of a delivery's route parameters from the installation's resources. */
-            readonly secret: (
+            /** Read the signing secret of a delivery's route parameters from the installation's resources or derived secrets. */
+            readonly secret?: (
                 parameters: WebhookParameters,
-                resources: ResourceContext,
+                context: WebhookContext,
             ) => Promise<string>;
         };
     };
@@ -132,7 +137,7 @@ type WrittenTrigger = { readonly name: string } & (
 export const Trigger = {
     /** Read the kind of event a trigger fires on. */
     kind(on: TriggerOn | Trigger["on"] | TriggerOnDefinition): TriggerKind {
-        // read the key naming the kind
+        // read the key holding the kind
         if ("schedule" in on) {
             return "schedule";
         } else if ("change" in on) {
@@ -209,6 +214,11 @@ export const RunEvent = Object.assign(event, {
             return `${position.epoch}/${sequence}/${key ?? ""}`;
         }
     },
+
+    /** Derive the journal request of the run an event fires of a package's trigger, one however often the event fires it. */
+    derive(packageId: string, triggerName: string, fired: RunEvent, at: number): Promise<string> {
+        return RequestId.derive(at, `${packageId}/${triggerName} ${RunEvent.requestId(fired)}`);
+    },
 });
 
 /** A call sent to run later, on the lent authority of the caller whose call sent it. */
@@ -241,7 +251,7 @@ export const RunRequest = Object.assign(defineSchema(schema.union([SENT, FIRED])
 /** A call to run later. */
 export type RunRequest = schema.Infer<typeof RunRequest>;
 
-/** How a request reaches the cell. */
+/** How a request reaches the machine. */
 export interface RunDelivery {
     /** The request recording the run once however often it is delivered, a new one when absent. */
     readonly requestId?: string;
@@ -249,7 +259,7 @@ export interface RunDelivery {
     readonly signal?: AbortSignal;
 }
 
-/** The cell recording an installation's runs, as its workload reaches it. */
+/** The machine recording an installation's runs, as its workload reaches it. */
 export interface RunClient {
     /** Record a call to run later, once per request and per event of a trigger. */
     send(request: RunRequest, delivery?: RunDelivery): Promise<void>;
@@ -294,13 +304,13 @@ export function defineTrigger(definition: WrittenTrigger, module?: ModuleMetadat
 
         return Object.freeze(trigger);
     }
-    // check a webhook's route
+    // check a webhook's path template
     else if (Trigger.is(definition, "webhook")) {
-        const { signature, route, secret } = definition.on.webhook;
-        WebhookOn.parameters(WebhookOn.parse({ verification: signature.name, route }).route);
+        const { signature, path, secret } = definition.on.webhook;
+        WebhookOn.parameters(WebhookOn.parse({ verification: signature.name, path }).path);
         const trigger: WebhookTrigger = {
             ...declared,
-            on: { webhook: { signature, route, secret } },
+            on: { webhook: { signature, path, ...(secret === undefined ? {} : { secret }) } },
             call: definition.call,
         };
 
@@ -311,7 +321,7 @@ export function defineTrigger(definition: WrittenTrigger, module?: ModuleMetadat
         throw new TypeError(`trigger ${name} fires on no known event`);
     }
 
-    // default where a change trigger starts and how far it may lag, requiring creations for a snapshot
+    // default where a change trigger starts and how far it may lag
     const { object, where, ...fields } = definition.on.change;
     const change = ChangeOn.omit({ object: true, where: true }).parse({
         from: "now",

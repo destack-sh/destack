@@ -51,7 +51,7 @@ test("verify a GitHub delivery and refuse a signature made with another secret",
     };
     const headers = await signature.sign(message, GITHUB_EXAMPLE.secret);
 
-    // know the delivery by its signed body, since GitHub signs no delivery header
+    // know the delivery by its signed body
     expect(await signature.verify(post(headers, body), GITHUB_EXAMPLE.secret, {}, NOW)).toEqual({
         id: digestOf(headers),
         event: "push",
