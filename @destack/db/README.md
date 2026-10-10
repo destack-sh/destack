@@ -3,11 +3,18 @@
 `@destack/db` is Drizzle's query builder and relational queries v2 on SQLite and PostgreSQL, `/bun`, `/postgres` and `/cloudflare` are its drivers for Bun SQLite, Postgres.js and Durable Object storage, `/browser` is SQLite Wasm shared between tabs, and `Filter` reads Google's AIP-160 filters.
 
 ```ts
-const notes = await database.select().from(note).where(eq(note.scope, spaceId)).limit(50); // Drizzle's select
-await database.insert(note).values(row).onConflictDoUpdate({ target: note.id, set: { title } }); // Drizzle's insert
-await database.query.project.findMany({ with: { tasks: { limit: 3 } } }); // Drizzle's relational queries v2
+// Drizzle's select
+const notes = await database.select().from(note).where(eq(note.scope, spaceId)).limit(50);
+// Drizzle's insert
+await database.insert(note).values(row).onConflictDoUpdate({ target: note.id, set: { title } });
+// Drizzle's relational queries v2
+await database.query.project.findMany({ with: { tasks: { limit: 3 } } });
 type NoteRow = Select<typeof note>; // Drizzle's $inferSelect
-await database.select().from(note).where(Condition.render({ title: { ilike: "q_%" } }, note)); // Drizzle's relational filters as JSON
+// Drizzle's relational filters as JSON
+await database
+    .select()
+    .from(note)
+    .where(Condition.render({ title: { ilike: "q_%" } }, note));
 Filter.parse('status = open AND -title:"draft"', { fields, values }); // AIP-160
 await database.transaction(async (transaction) => transaction.update(note).set({ title }));
 ```
@@ -52,12 +59,12 @@ const database = work.get(context);
 
 ## Connections
 
-`connectBunSqlite`, `connectPostgres` and `connectDurableObject` open a database on Bun, PostgreSQL and a Durable Object's storage.
+`connectBunSqlite` and `connectPostgres` open a database on Bun and PostgreSQL, and a `DurableObjectDatabaseHost` opens the databases of a Durable Object's storage behind its one queue.
 
 ```ts
 const file = await connectBunSqlite("work.db", work);
 const pool = await connectPostgres(url, work);
-const storage = connectDurableObject(state.storage, work, { namespace: "work" });
+const storage = new DurableObjectDatabaseHost(state.storage).connect(work, { namespace: "work" });
 ```
 
 ## Migrations
@@ -66,7 +73,7 @@ const storage = connectDurableObject(state.storage, work, { namespace: "work" })
 
 ```ts
 const plan = await database.plan(mergeStates([previous.tables.sqlite, next.tables.sqlite]));
-// { steps: [{ action: "create", target: "table/note/column/priority", risk: "safe", detail: "add column priority" }] }
+// { steps: [{ action: "create", target: "table/note/column/priority", risk: "safe", … }] }
 await database.apply(plan);
 ```
 
@@ -76,7 +83,10 @@ await database.apply(plan);
 
 ```ts
 const position = await database.log.position();
-for await (const page of database.log.follow({ tables: [note], scopes: [spaceId], after: position.sequence }, signal)) {
+for await (const page of database.log.follow(
+    { tables: [note], scopes: [spaceId], after: position.sequence },
+    signal,
+)) {
     apply(page.changes);
 }
 await database.log.at(position).rows(note, { scope: spaceId });
@@ -91,7 +101,9 @@ export const folder = defineTable("folder", columns, {
     tree: { id: "id", scope: "scope", parent: "parentId" },
 });
 export const note = defineTable("note", columns, {
-    aggregates: [{ into: () => folder, column: "noteCount", key: "folderId", function: "count", where: {} }],
+    aggregates: [
+        { into: () => folder, column: "noteCount", key: "folderId", function: "count", where: {} },
+    ],
     dependents: [{ from: () => comment, key: "noteId", where: {}, onDelete: "cascade" }],
 });
 ```

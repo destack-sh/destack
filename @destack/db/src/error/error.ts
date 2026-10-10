@@ -7,6 +7,7 @@ const SERVICE_CODES = {
     PLAN_CHANGED: "INTERNAL_SERVER_ERROR",
     NOT_APPLIED: "INTERNAL_SERVER_ERROR",
     CONNECTION_CLOSED: "SERVICE_UNAVAILABLE",
+    CONNECTION_TIMEOUT: "SERVICE_UNAVAILABLE",
     OWNER_CHANGED: "SERVICE_UNAVAILABLE",
     TRANSACTION_CLOSED: "INTERNAL_SERVER_ERROR",
     TRANSACTION_REQUIRED: "INTERNAL_SERVER_ERROR",
@@ -26,16 +27,60 @@ const SERVICE_CODES = {
 /** The database failure codes. */
 export type DatabaseErrorCode = keyof typeof SERVICE_CODES;
 
+/** The unique key a duplicate violates: its table and key columns, by their SQL names. */
+export interface UniqueKey {
+    /** The table's SQL name. */
+    readonly table: string;
+    /** The key columns' SQL names. */
+    readonly columns: readonly string[];
+}
+
+/** Read unique keys. */
+export const UniqueKey = {
+    /** Read the key a driver's duplicate failure violates, as SQLite's message or PostgreSQL's table and detail list it, absent when neither does. */
+    violated(error: Error): UniqueKey | undefined {
+        // read SQLite's "UNIQUE constraint failed: table.column, …", a namespaced table as "namespace.table.column"
+        const failed = /^UNIQUE constraint failed: (.+)$/u.exec(error.message)?.[1];
+        if (failed !== undefined) {
+            const named = failed.split(", ").map((entry) => entry.split("."));
+            const tables = new Set(named.map((parts) => parts.at(-2)));
+            const [table] = tables;
+
+            return tables.size === 1 && table !== undefined
+                ? { table, columns: named.map((parts) => parts.at(-1) ?? "") }
+                : undefined;
+        }
+
+        // read PostgreSQL's table and "Key (column, column)=(…) already exists.", none for an expression key
+        const table = "table_name" in error ? error.table_name : undefined;
+        const detail = "detail" in error ? error.detail : undefined;
+        const keys =
+            typeof detail === "string" ? /^Key \((.*?)\)=\(/u.exec(detail)?.[1] : undefined;
+
+        return typeof table === "string" && keys !== undefined && !keys.includes("(")
+            ? { table, columns: keys.split(", ") }
+            : undefined;
+    },
+};
+
 /** A database failure with a stable code. */
 export class DatabaseError extends Error implements DomainError {
     /** The failure code. */
     readonly code: DatabaseErrorCode;
+    /** The unique key a duplicate violates, absent for other failures and drivers naming none. */
+    readonly key: UniqueKey | undefined;
 
     /** Create a database failure. */
-    constructor(code: DatabaseErrorCode, message: string, options?: ErrorOptions) {
+    constructor(
+        code: DatabaseErrorCode,
+        message: string,
+        options?: ErrorOptions & { readonly key?: UniqueKey | undefined },
+    ) {
+        // keep the code and the violated key beside the message and cause
         super(message, options);
         this.name = "DatabaseError";
         this.code = code;
+        this.key = options?.key;
     }
 
     /** Convert the failure to the service error a caller receives. */
@@ -74,6 +119,7 @@ export function classifyError(error: unknown): unknown {
     } else if (code === "23505" || error.message.includes("UNIQUE constraint failed")) {
         return new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
             cause: error,
+            key: UniqueKey.violated(error),
         });
     } else if (
         code === "23503" ||

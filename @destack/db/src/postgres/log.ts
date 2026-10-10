@@ -16,7 +16,7 @@ const STAMPED_SETTING = "destack.stamped";
 /** The bytes of table names one commit notification carries: below PostgreSQL's payload limit of 8000, leaving room for the message around them. */
 const NOTIFICATION_BYTES = 7_800;
 
-// TODO #Architecture: replace the one lock per log with PgQ positions over a ticker's snapshots
+// TODO #Performance: PgQ positions over a ticker's snapshots would remove the one lock per log serialising commit stamping
 /** The advisory lock class serialising PostgreSQL commit stamping, keyed by the log's schema. */
 const COMMIT_LOCK = 471_026_381;
 

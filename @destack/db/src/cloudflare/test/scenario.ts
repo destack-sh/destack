@@ -8,7 +8,6 @@ import { DurableObjectDatabaseHost, DurableObjectMeasurement } from "../host.ts"
 import { defineTable } from "../../table/table.ts";
 import { text } from "../../table/column.ts";
 import type { DurableObjectStorage } from "../client.ts";
-import { connectDurableObject } from "../connection.ts";
 
 /** The module the scenario's table belongs to. */
 const MODULE = ModuleMetadata.parse({
@@ -53,12 +52,12 @@ const UNKEPT = () => ({
 
 /** A Durable Object keeping notes in its SQLite storage through a Destack connection. */
 export class Notes {
-    /** The object's storage. */
-    readonly storage: DurableObjectStorage;
+    /** The databases the object keeps in its storage. */
+    readonly databases: DurableObjectDatabaseHost;
 
-    /** Keep the object's storage. */
+    /** Keep the object's databases in its storage. */
     constructor(state: { readonly storage: DurableObjectStorage }) {
-        this.storage = state.storage;
+        this.databases = new DurableObjectDatabaseHost(state.storage);
     }
 
     /** Answer the scenario a request's path names. */
@@ -70,8 +69,8 @@ export class Notes {
             return await this.host();
         } else if (pathname === "/parameters") {
             return await this.parameters();
-        } else if (pathname === "/joined") {
-            return await this.joined();
+        } else if (pathname === "/leaked") {
+            return await this.leaked();
         } else if (pathname === "/rows") {
             return await this.rows();
         }
@@ -79,10 +78,38 @@ export class Notes {
         return await this.notes();
     }
 
+    /** Write within a transaction, then refuse its client kept past the transaction while another runs. */
+    async leaked(): Promise<Response> {
+        // keep the client of a committed transaction
+        const database = this.databases.connect([note]);
+        await database.migrate([note]);
+        const kept = await database.transaction(async (transaction) => {
+            await transaction.insert(note).values({ id: "a", title: "Kept" });
+
+            return transaction;
+        });
+
+        // refuse the kept client while a later transaction is open, which keeps only its own write
+        const refused = await database.transaction(async (transaction) => {
+            await transaction.insert(note).values({ id: "b", title: "Later" });
+
+            return kept
+                .insert(note)
+                .values({ id: "c", title: "Leaked" })
+                .then(
+                    () => "written",
+                    (error: unknown) => (error instanceof Error ? error.message : String(error)),
+                );
+        });
+        const rows = await database.select().from(note).orderBy(note.id);
+
+        return Response.json({ refused, rows });
+    }
+
     /** Write and read rows in statements binding more values than the storage takes at once. */
     async parameters(): Promise<Response> {
         // write 80 notes with a quote and a marker in their titles in one statement of 160 values
-        const database = connectDurableObject(this.storage, [note]);
+        const database = this.databases.connect([note]);
         await database.migrate([note]);
         const notes = Array.from({ length: 80 }, (_, index) => ({
             id: `n${index.toString().padStart(2, "0")}`,
@@ -108,11 +135,10 @@ export class Notes {
     /** Provision, plan through a sent operation, apply, open, write, measure and destroy a workload's database. */
     async host(): Promise<Response> {
         // provision the database and plan its tables as another object asks
-        const host = new DurableObjectDatabaseHost(this.storage);
-        const placed = await host.provision(RECORD);
+        const placed = await this.databases.provision(RECORD);
         const record = { ...RECORD, reference: placed.reference };
         const desired = [entries.state()];
-        const answered = await host.answer(
+        const answered = await this.databases.answer(
             new Request("https://instance.test/.destack/database", {
                 method: "POST",
                 body: JSON.stringify({ operation: "plan", record, desired }),
@@ -122,15 +148,15 @@ export class Notes {
         const plan = Plan.parse(await answered.json());
 
         // apply the plan and write through the workload's connector
-        await host.apply(record, desired, await Plan.digest(plan));
+        await this.databases.apply(record, desired, await Plan.digest(plan));
         const binding = {
             resource: RECORD.id,
             kind: "database",
-            provider: host.provider,
+            provider: this.databases.provider,
             reference: placed.reference,
         };
         const rows = await (async () => {
-            await using database = await durableObjectConnector(this.storage).connect(
+            await using database = await durableObjectConnector(this.databases).connect(
                 binding,
                 entries,
             );
@@ -140,7 +166,7 @@ export class Notes {
         })();
 
         // measure the object's databases as another object asks
-        const measuring = await host.answer(
+        const measuring = await this.databases.answer(
             new Request("https://instance.test/.destack/database", {
                 method: "POST",
                 body: JSON.stringify({ operation: "measure" }),
@@ -148,11 +174,11 @@ export class Notes {
             UNKEPT,
         );
         const { bytes } = DurableObjectMeasurement.parse(await measuring.json());
-        const isMeasured = bytes > 0 && bytes === this.storage.sql.databaseSize;
+        const isMeasured = bytes > 0 && bytes === this.databases.storage.sql.databaseSize;
 
         // destroy the database with every relation of its namespace
-        await host.destroy(record);
-        const remaining = this.storage.sql
+        await this.databases.destroy(record);
+        const remaining = this.databases.storage.sql
             .exec(
                 "SELECT count(*) AS count FROM sqlite_schema WHERE substr(name, 1, ?) = ?",
                 RECORD.id.length + 1,
@@ -172,53 +198,27 @@ export class Notes {
     /** Count the rows the storage's statements write and read, each in the one measure following them. */
     async rows(): Promise<Response> {
         // migrate the notes, leaving the migration's rows to a first measure
-        const host = new DurableObjectDatabaseHost(this.storage);
-        const database = connectDurableObject(this.storage, [note]);
+        const database = this.databases.connect([note]);
         await database.migrate([note]);
-        host.measure();
+        this.databases.measure();
 
         // write three notes, read them back, then measure nothing more
         await database.insert(note).values(["a", "b", "c"].map((id) => ({ id, title: id })));
-        const written = host.measure();
+        const written = this.databases.measure();
         const rows = await database.select().from(note);
-        const read = host.measure();
-        const none = host.measure();
+        const read = this.databases.measure();
+        const none = this.databases.measure();
         const counts = [written, read, none].map((each) => [each.rowsRead, each.rowsWritten]);
 
         return Response.json({ counts, notes: rows.length });
-    }
-
-    /** Read and write another database of the storage from within a transaction of one, joining the storage's open transaction. */
-    async joined(): Promise<Response> {
-        // keep a note in each of two namespaces
-        const [first, second] = [
-            connectDurableObject(this.storage, [note], { namespace: "first" }),
-            connectDurableObject(this.storage, [note], { namespace: "second" }),
-        ];
-        for (const database of [first, second]) {
-            await database.migrate([note]);
-            await database.insert(note).values({ id: "a", title: "Kept" });
-        }
-
-        // read and write the second database from within a transaction of the first
-        const read = await first.transaction(async (transaction) => {
-            await second.insert(note).values({ id: "b", title: "Joined" });
-
-            return [
-                await transaction.select().from(note),
-                await second.select().from(note).orderBy(note.id),
-            ];
-        });
-
-        return Response.json(read);
     }
 
     /** Keep two databases of one declaration in the storage, each in its own namespace with its own log. */
     async namespaces(): Promise<Response> {
         // migrate the same table in two namespaces, each logged in its own scope
         const databases = [
-            connectDurableObject(this.storage, [entry], { namespace: "first" }),
-            connectDurableObject(this.storage, [entry], { namespace: "second" }),
+            this.databases.connect([entry], { namespace: "first" }),
+            this.databases.connect([entry], { namespace: "second" }),
         ];
         for (const [index, database] of databases.entries()) {
             await database.log.create(`space-${index + 1}`);
@@ -243,7 +243,7 @@ export class Notes {
     /** Migrate, write, roll back a failed nested transaction, and read the notes back. */
     async notes(): Promise<Response> {
         // migrate the table and write a note
-        const database = connectDurableObject(this.storage, [note]);
+        const database = this.databases.connect([note]);
         await database.migrate([note]);
         await database.insert(note).values({ id: "a", title: "Kept" });
 

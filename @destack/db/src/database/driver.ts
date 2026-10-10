@@ -5,10 +5,19 @@ import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverStatement } from "../sql/index.ts";
 import type { Session } from "./session.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
-import { type Span, trace } from "@destack/telemetry";
+import { telemetry } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
-/** The statements each span ran and their summed duration, in milliseconds. */
-const TOTALS = new WeakMap<Span, { statements: number; milliseconds: number }>();
+/** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
+const MILLISECONDS_PER_SECOND = 1000;
+
+/** The duration of each statement, in seconds, as OpenTelemetry's database conventions name it. */
+const operationDuration = telemetry
+    .scope(import.meta.destack.package)
+    .metric.histogram("db.client.operation.duration", {
+        unit: "s",
+        attributes: { "db.system.name": ["sqlite", "postgresql"] },
+    });
 
 /** A session and its statements' lifetime, counting and failures. */
 export class DatabaseDriver {
@@ -36,18 +45,16 @@ export class DatabaseDriver {
         // count the statement
         this.state.statements += 1;
 
-        // classify failures, and add the statement to the active span's totals
+        // classify failures, and record the statement's duration
         const reported = async () => {
-            const span = trace.getActiveSpan();
             const started = performance.now();
             try {
                 return await operation();
             } catch (error) {
                 throw classifyError(error);
             } finally {
-                if (span !== undefined) {
-                    total(span, performance.now() - started);
-                }
+                const seconds = (performance.now() - started) / MILLISECONDS_PER_SECOND;
+                operationDuration.record(seconds, { "db.system.name": this.dialect });
             }
         };
 
@@ -184,8 +191,9 @@ async function failing<Value>(statement: DriverStatement, pending: Promise<Value
     try {
         return await pending;
     } catch (error) {
+        // keep a classified failure, and report another with its statement
         const classified = classifyError(error);
-        if (classified !== error) {
+        if (classified instanceof DatabaseError) {
             throw classified;
         }
 
@@ -193,19 +201,4 @@ async function failing<Value>(statement: DriverStatement, pending: Promise<Value
             cause: error,
         });
     }
-}
-
-/** Add a statement to a span's totals and stamp them on it. */
-function total(span: Span, milliseconds: number): void {
-    // add to the running totals
-    const totals = TOTALS.get(span) ?? { statements: 0, milliseconds: 0 };
-    totals.statements += 1;
-    totals.milliseconds += milliseconds;
-    TOTALS.set(span, totals);
-
-    // stamp them on the span, replacing the previous totals
-    span.setAttributes({
-        "destack.db.statements": totals.statements,
-        "destack.db.duration": totals.milliseconds,
-    });
 }

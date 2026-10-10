@@ -155,7 +155,8 @@ test.for(TEST_DIALECTS)(
         const position = await database.log.position();
         await database.update(revision).set({ title: "Second" }).where(eq(revision.id, "r"));
         await database.delete(item).where(eq(item.id, "a"));
-        await database.log.compact(Date.now() + 1);
+        const now = Date.now();
+        await database.log.compact(now + 1, now);
         const snapshot = database.log.at(position);
 
         // restore the history table and refuse the window table

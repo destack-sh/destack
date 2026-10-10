@@ -88,20 +88,20 @@ test("write and read rows in statements binding more values than a Durable Objec
     expect([response.status, await response.json()]).toEqual([200, { isEqual: true }]);
 });
 
-test("read and write another database of a Durable Object's storage from within a transaction of one, joining it", async () => {
+test("refuse a transaction's client kept past it, even while a later transaction is open", async () => {
     const worker = await start();
 
-    // read the first database's note and both of the second's, the joined write included
-    const response = await worker.dispatchFetch("https://notes.test/joined");
+    // keep the later transaction's write alone
+    const response = await worker.dispatchFetch("https://notes.test/leaked");
     expect([response.status, await response.json()]).toEqual([
         200,
-        [
-            [{ id: "a", title: "Kept" }],
-            [
+        {
+            refused: "the transaction has finished",
+            rows: [
                 { id: "a", title: "Kept" },
-                { id: "b", title: "Joined" },
+                { id: "b", title: "Later" },
             ],
-        ],
+        },
     ]);
 });
 

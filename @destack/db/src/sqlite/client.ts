@@ -1,4 +1,8 @@
+import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
+
+/** How long work waits behind earlier work before it fails, as HikariCP's default acquisition timeout: 30 s. */
+const TURN_WAIT_MILLISECONDS = 30_000;
 
 /** The statements of a SQLite connection or one of its transactions. */
 export interface SqliteQueryClient {
@@ -32,17 +36,61 @@ export interface SqliteConnectionClient extends SqliteQueryClient {
     };
 }
 
-/** Work run one piece at a time, in arrival order. */
+/** Work run one piece at a time, in arrival order, each waiting for its turn a bounded time. */
 export class SqliteWorkQueue {
+    /** How long work waits for its turn before failing, in milliseconds. */
+    readonly #wait: number;
     /** The tail of the waiting work. */
     #tail: Promise<unknown> = Promise.resolve();
+    /** The work queued or running now. */
+    #pending = 0;
 
-    /** Run work after the earlier work. */
+    /** Queue work, failing work whose turn does not come within the wait. */
+    constructor(wait = TURN_WAIT_MILLISECONDS) {
+        this.#wait = wait;
+    }
+
+    /** Run work after the earlier work, refusing it once its turn takes longer than the wait. */
     run<Value>(work: () => Promise<Value>): Promise<Value> {
-        const result = this.#tail.then(work);
-        this.#tail = result.catch(() => undefined);
+        // run work at once on an idle queue, and wait a bounded time behind earlier work
+        const turn = this.#tail;
+        const result = this.#pending === 0 ? turn.then(work) : this.#waited(turn, work);
+        this.#pending += 1;
+
+        // queue later work behind both the earlier work and this one
+        const settled = result.then(
+            () => undefined,
+            () => undefined,
+        );
+        this.#tail = Promise.all([turn, settled]);
+        void settled.then(() => {
+            this.#pending -= 1;
+        });
 
         return result;
+    }
+
+    /** Run work in its turn after earlier work, or refuse it once the wait ends first. */
+    #waited<Value>(turn: Promise<unknown>, work: () => Promise<Value>): Promise<Value> {
+        // wait for the earlier work or the end of the wait, whichever comes first
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const reached = new Promise<boolean>((resolve) => {
+            timer = setTimeout(() => resolve(false), this.#wait);
+            void turn.then(() => resolve(true));
+        });
+
+        // run the work in its turn, or refuse it
+        return reached.then((isTurn) => {
+            clearTimeout(timer);
+            if (!isTurn) {
+                throw new DatabaseError(
+                    "CONNECTION_TIMEOUT",
+                    `waited ${this.#wait} ms for the connection, which a transaction still holds`,
+                );
+            }
+
+            return work();
+        });
     }
 }
 

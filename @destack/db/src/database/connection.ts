@@ -246,8 +246,11 @@ export class DatabaseConnection<
         tables: readonly Table[],
         options: DeclareOptions & { readonly states?: readonly (readonly TableState[])[] } = {},
     ): Promise<TablePlan> {
-        // plan the declared tables beside the given states, then apply the plan
-        const declared = declareState(tables, this.dialect, options);
+        // plan the declared tables beside the given states, its copies as copies, then apply the plan
+        const declared = declareState(tables, this.dialect, {
+            copies: this.state.copies,
+            ...options,
+        });
         const plan = await this.plan(mergeStates([...(options.states ?? []), declared]));
         await this.apply(plan);
 
@@ -257,7 +260,10 @@ export class DatabaseConnection<
     /** List the tables with an unapplied declaration, by their names within the database's namespace. */
     async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
         const { namespace } = this.state;
-        const declared = declareState(tables, this.dialect, options);
+        const declared = declareState(tables, this.dialect, {
+            copies: this.state.copies,
+            ...options,
+        });
 
         return unappliedTables(
             await readState(this),
@@ -417,7 +423,7 @@ export interface ConnectionOptions {
     /** The dialect the tables render in. */
     readonly dialect: Dialect;
     /** The SQL names of the tables the database copies from elsewhere. */
-    readonly copies: readonly string[];
+    readonly copies: ReadonlySet<string>;
     /** The namespace of the database's relations, absent for none. */
     readonly namespace?: string;
 }
@@ -452,7 +458,7 @@ export class ConnectionState {
         // keep the channels, the namespace and what writes to the declared tables change
         const { openChannel, tables } = options;
         this.locality = options.locality;
-        this.copies = new Set(options.copies);
+        this.copies = options.copies;
         this.openChannel = openChannel;
         this.namespace = options.namespace;
         this.cascades = listCascades(tables, options.dialect);

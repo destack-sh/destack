@@ -61,7 +61,7 @@ export class PostgresDatabase<
                     announcer: "database",
                     tables: declared,
                     dialect: "postgresql",
-                    copies: "tables" in tables ? tables.spec.copies : [],
+                    copies: "tables" in tables ? tables.copied : new Set(),
                 }),
             ),
             declared,

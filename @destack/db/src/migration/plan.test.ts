@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Change, defineTable, index, integer, json, sql, text } from "../index.ts";
+import { Change, defineTable, index, integer, json, sql, text, uniqueIndex } from "../index.ts";
 import { schema } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
 import { qualify } from "../table/namespace.ts";
@@ -647,6 +647,44 @@ test.each(TEST_DIALECTS)(
                 ["id", false],
                 ["name", false],
                 ["secret", true],
+            ],
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "declare a copied table without its unique constraints or the foreign keys to it, on %s",
+    (dialect) => {
+        // declare an owned list whose items reference it, both copied by a reader
+        const list = defineTable(
+            "list",
+            { id: text("id").primaryKey(), name: text("name").notNull() },
+            { constraints: (columns) => [uniqueIndex("list_name").on(columns.name)] },
+        );
+        const item = defineTable("item", {
+            id: text("id").primaryKey(),
+            listId: text("list_id")
+                .notNull()
+                .references(() => list.id, { onDelete: "cascade" }),
+        });
+        const shape = (copies: readonly string[]) =>
+            declareState([list, item], dialect, { copies: new Set(copies) }).map((state) => [
+                state.table.name,
+                state.table.constraints.map((constraint) => constraint.kind),
+                state.table.indexes.map((described) => [described.name, described.unique]),
+            ]);
+
+        // keep the owner's keys, and leave a copy's to its owning service, SQLite checking its primary key is not null besides
+        const [lists, items] = [list[TABLE].sqlName, item[TABLE].sqlName];
+        const checks = dialect === "sqlite" ? ["check"] : [];
+        expect([shape([]), shape([lists])]).toEqual([
+            [
+                [lists, ["primaryKey", ...checks], [[`${lists}_name`, true]]],
+                [items, ["primaryKey", "foreignKey", ...checks], []],
+            ],
+            [
+                [lists, ["primaryKey", ...checks], [[`${lists}_name`, false]]],
+                [items, ["primaryKey", ...checks], []],
             ],
         ]);
     },

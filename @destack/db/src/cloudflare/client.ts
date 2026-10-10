@@ -1,11 +1,7 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import type { DriverValue } from "../table/column.ts";
-import {
-    SqliteWorkQueue,
-    type SqliteConnectionClient,
-    type SqliteQueryClient,
-} from "../sqlite/client.ts";
+import { type SqliteConnectionClient, type SqliteQueryClient } from "../sqlite/client.ts";
 import { SqliteScript } from "../sqlite/script.ts";
+import type { DurableObjectDatabaseHost, StorageTransaction } from "./host.ts";
 
 /** The rows one statement of a Durable Object's SQL storage yields. */
 export interface DurableObjectCursor {
@@ -16,14 +12,6 @@ export interface DurableObjectCursor {
     /** The rows the statement read so far, all of them once its rows are read. */
     readonly rowsRead: number;
     /** The rows the statement wrote. */
-    readonly rowsWritten: number;
-}
-
-/** The rows an object's SQLite storage read and wrote through its clients since they were last taken, as Cloudflare bills them. */
-export interface RowCount {
-    /** The rows read. */
-    readonly rowsRead: number;
-    /** The rows written. */
     readonly rowsWritten: number;
 }
 
@@ -43,59 +31,27 @@ export interface DurableObjectStorage {
 /** The most parameters a Durable Object's SQLite storage binds to one statement, as Cloudflare limits it. */
 const MAX_PARAMETERS = 100;
 
-/** The work queue of each object's storage, shared by the databases it keeps since its one SQLite connection runs one transaction at a time. */
-const QUEUES = new WeakMap<DurableObjectStorage, SqliteWorkQueue>();
-
-/** The storage transaction the current work runs in, which the work of the storage's other databases joins. */
-const TRANSACTIONS = new AsyncLocalStorage<StorageTransaction>();
-
-/** The rows each object's storage read and wrote through its clients since the last take, added to in place. */
-const ROWS = new WeakMap<DurableObjectStorage, { rowsRead: number; rowsWritten: number }>();
-
-/** The rows each object's storage read and wrote, counted in memory per object until the meters take them. */
-export const RowCount = {
-    /** Add the rows a statement read and wrote, once its rows are read, to its storage's count. */
-    add(storage: DurableObjectStorage, cursor: DurableObjectCursor): void {
-        // start the storage's count once per take
-        let counted = ROWS.get(storage);
-        if (counted === undefined) {
-            counted = { rowsRead: 0, rowsWritten: 0 };
-            ROWS.set(storage, counted);
-        }
-
-        // add the statement's rows
-        counted.rowsRead += cursor.rowsRead;
-        counted.rowsWritten += cursor.rowsWritten;
-    },
-
-    /** Take the rows a storage read and wrote since the last take, starting its count again from zero. */
-    take(storage: DurableObjectStorage): RowCount {
-        const counted = ROWS.get(storage) ?? { rowsRead: 0, rowsWritten: 0 };
-        ROWS.delete(storage);
-
-        return counted;
-    },
-};
-
-/** A transaction of an object's storage, open while its work runs. */
-interface StorageTransaction {
-    /** The storage. */
-    readonly storage: DurableObjectStorage;
-    /** Whether the transaction's work still runs. */
-    isOpen: boolean;
-}
+/** How a client's statements run: behind the storage's queue, or within one open storage transaction. */
+export type DurableObjectMode =
+    | { readonly kind: "queued" }
+    | { readonly kind: "joined"; readonly transaction: StorageTransaction };
 
 /** Statements over a Durable Object's SQLite storage. */
 export class DurableObjectQuery implements SqliteQueryClient {
-    /** The storage. */
-    readonly storage: DurableObjectStorage;
-    /** The work queue, absent within a transaction. */
-    readonly queue: SqliteWorkQueue | undefined;
+    /** The object's one storage host, which the object's clients share. */
+    readonly host: DurableObjectDatabaseHost;
+    /** How the statements run. */
+    readonly mode: DurableObjectMode;
 
-    /** Create the client. */
-    constructor(storage: DurableObjectStorage, queue?: SqliteWorkQueue) {
-        this.storage = storage;
-        this.queue = queue;
+    /** Create the client over the object's host, behind its queue or within its open transaction. */
+    constructor(host: DurableObjectDatabaseHost, mode: DurableObjectMode) {
+        this.host = host;
+        this.mode = mode;
+    }
+
+    /** The object's storage. */
+    get storage(): DurableObjectStorage {
+        return this.host.storage;
     }
 
     /** Read every row as an array of values, integers as the storage returns them. */
@@ -146,66 +102,46 @@ export class DurableObjectQuery implements SqliteQueryClient {
     /** Read a statement's rows, then count the rows it read and wrote. */
     #read<Rows>(cursor: DurableObjectCursor, read: (cursor: DurableObjectCursor) => Rows): Rows {
         const rows = read(cursor);
-        RowCount.add(this.storage, cursor);
+        this.host.count(cursor);
 
         return rows;
     }
 
-    /** Run work behind the queue, or at once within a transaction. */
+    /** Run work behind the queue, or at once within the open transaction a joined client requires. */
     #schedule<Value>(work: () => Promise<Value>): Promise<Value> {
-        return this.queue === undefined ? work() : schedule(this.storage, this.queue, work);
+        // queue the work of a queued client
+        if (this.mode.kind === "queued") {
+            return this.host.queue.run(work);
+        }
+        // run a joined client's work within its open transaction
+        else {
+            return this.mode.transaction.within(work);
+        }
     }
 }
 
-/** A connection client over a Durable Object's SQLite storage, one transaction at a time across the databases it keeps. */
+/** A connection client over a Durable Object's SQLite storage, one transaction at a time across its databases. */
 export class DurableObjectClient extends DurableObjectQuery implements SqliteConnectionClient {
-    /** The storage's work queue. */
-    readonly #queue: SqliteWorkQueue;
-
-    /** Create the client, queueing behind the other clients of the storage. */
-    constructor(storage: DurableObjectStorage) {
-        // share the storage's queue with its other clients
-        const queue = QUEUES.get(storage) ?? new SqliteWorkQueue();
-        QUEUES.set(storage, queue);
-        super(storage, queue);
-        this.#queue = queue;
-    }
-
-    /** Close nothing: the storage belongs to its Durable Object. */
+    /** Wait for a queued client's work, leaving the storage to its Durable Object. */
     async close(): Promise<void> {
-        await this.#queue.run(async () => undefined);
+        // wait for the queued work of a queued client
+        if (this.mode.kind === "queued") {
+            await this.host.queue.run(async () => undefined);
+        }
     }
 
-    /** Run a callback in a storage transaction, whatever its requested locking mode, nested in the open one it runs in. */
+    /** Run a callback in a storage transaction, whatever its requested locking mode, nested in the open one a joined client runs in. */
     transactionAsync<Value>(operation: (client: SqliteQueryClient) => Promise<Value>) {
+        const { mode } = this;
         const begin = () =>
-            schedule(this.storage, this.#queue, async () => {
-                // mark the transaction open while its work runs
-                const transaction = { storage: this.storage, isOpen: true };
-                try {
-                    return await TRANSACTIONS.run(transaction, () =>
-                        this.storage.transaction(() =>
-                            operation(new DurableObjectQuery(this.storage)),
-                        ),
-                    );
-                } finally {
-                    transaction.isOpen = false;
-                }
-            });
+            mode.kind === "queued"
+                ? this.host.transaction((transaction) =>
+                      operation(new DurableObjectQuery(this.host, { kind: "joined", transaction })),
+                  )
+                : mode.transaction.within(() => this.storage.transaction(() => operation(this)));
 
         return { deferred: begin, immediate: begin, exclusive: begin };
     }
-}
-
-/** Run work of a storage's database in the storage's open transaction it runs in, behind the storage's queue otherwise. */
-function schedule<Value>(
-    storage: DurableObjectStorage,
-    queue: SqliteWorkQueue,
-    work: () => Promise<Value>,
-): Promise<Value> {
-    const current = TRANSACTIONS.getStore();
-
-    return current?.storage === storage && current.isOpen ? work() : queue.run(work);
 }
 
 /** Write a statement's values into its text in place of its numbered parameter markers, skipping quoted text and names. */

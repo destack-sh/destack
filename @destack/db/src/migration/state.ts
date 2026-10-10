@@ -83,6 +83,8 @@ export type DatabaseState = schema.Infer<typeof DatabaseState>;
 export interface DeclareOptions {
     /** Whether the database keeps a partial copy, without foreign keys and tree indexes. */
     readonly isReplica?: boolean;
+    /** The SQL names of the tables the database copies, which keep no unique constraints or foreign keys. */
+    readonly copies?: ReadonlySet<string>;
 }
 
 /** List the declared tables with an unapplied declaration. */
@@ -166,6 +168,7 @@ export function declareState(
     // keep foreign keys to tables this database has and leave other references logical
     const declared = isReplica ? tables : expandTrees(tables);
     const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
+    const copies = options.copies ?? new Set<string>();
 
     return declared.map((table) => {
         // describe the table with its log and tree
@@ -177,11 +180,13 @@ export function declareState(
         const dependents = isReplica ? [] : describeDependents(table, tables);
         const aggregated = aggregates.get(definition.sqlName);
 
+        // leave a copied table's uniqueness and references to its owning service
+        const described = withinDatabase(describeTable(table, dialect), local, copies);
+        const kept = copies.has(definition.sqlName) ? copied(described) : described;
+
         return {
             package: definition.package,
-            table: isReplica
-                ? replicated(table, withinDatabase(describeTable(table, dialect), local))
-                : withinDatabase(describeTable(table, dialect), local),
+            table: isReplica ? replicated(table, kept) : kept,
             ...(log === undefined ? {} : { log }),
             ...(tree === undefined ? {} : { tree }),
             ...(aggregated === undefined ? {} : { aggregates: aggregated }),
@@ -469,12 +474,42 @@ function replicated(table: Table, described: TableDescription): TableDescription
     };
 }
 
-/** Keep only a table's foreign keys to tables within the database. */
-function withinDatabase(table: TableDescription, local: ReadonlySet<string>): TableDescription {
+/** Keep only a table's foreign keys to tables within the database that it owns, leaving references to copies logical. */
+function withinDatabase(
+    table: TableDescription,
+    local: ReadonlySet<string>,
+    copies: ReadonlySet<string>,
+): TableDescription {
     return {
         ...table,
         constraints: table.constraints.filter(
-            (constraint) => constraint.kind !== "foreignKey" || local.has(constraint.table),
+            (constraint) =>
+                constraint.kind !== "foreignKey" ||
+                (local.has(constraint.table) && !copies.has(constraint.table)),
         ),
+    };
+}
+
+/** Describe a copied table as its copy keeps it: its unique keys as plain indexes, without foreign keys. */
+function copied(table: TableDescription): TableDescription {
+    // turn unique constraints into plain indexes over the same columns
+    const unique = table.constraints.flatMap((constraint) =>
+        constraint.kind === "unique"
+            ? [
+                  {
+                      name: constraint.name,
+                      unique: false,
+                      columns: constraint.columns.map((column) => ({ column })),
+                  },
+              ]
+            : [],
+    );
+
+    return {
+        ...table,
+        constraints: table.constraints.filter(
+            (constraint) => constraint.kind !== "unique" && constraint.kind !== "foreignKey",
+        ),
+        indexes: [...table.indexes.map((index) => ({ ...index, unique: false })), ...unique],
     };
 }

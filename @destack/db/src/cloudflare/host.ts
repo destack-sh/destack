@@ -8,8 +8,15 @@ import { DatabaseState } from "../migration/state.ts";
 import type { DatabaseHost } from "../provider/provider.ts";
 import { relation } from "../table/namespace.ts";
 import { Table } from "../table/table.ts";
-import { type DurableObjectStorage, RowCount } from "./client.ts";
-import { connectDurableObject } from "./connection.ts";
+import type * as declaration from "../declare/database.ts";
+import type { Model } from "../query/model.ts";
+import { SqliteWorkQueue } from "../sqlite/client.ts";
+import { type SqliteConnectOptions, SqliteDatabase } from "../sqlite/database.ts";
+import {
+    type DurableObjectCursor,
+    DurableObjectClient,
+    type DurableObjectStorage,
+} from "./client.ts";
 import { DurableObjectContentStore } from "./content.ts";
 
 /** The provider code of databases in Durable Objects' SQLite storage. */
@@ -104,8 +111,34 @@ export const DurableObjectMeasurement = defineSchema(
 /** The bytes an object's databases keep, and the rows they read and wrote since it was last measured. */
 export type DurableObjectMeasurement = schema.Infer<typeof DurableObjectMeasurement>;
 
+/** The options of a database in a Durable Object's SQLite storage. */
+export interface DurableObjectConnectOptions extends SqliteConnectOptions {
+    /** The database's namespace in the storage several databases share, such as its identifier; absent for the storage's only database. */
+    readonly namespace?: string;
+}
+
 /** The prefix of the references naming databases in an object's storage. */
 const REFERENCE_PREFIX = `${DURABLE_OBJECT_PROVIDER}:`;
+
+/** One storage transaction of a host, open while its work runs. */
+export class StorageTransaction {
+    /** Whether the transaction's work still runs. */
+    #isOpen = true;
+
+    /** Run work within the transaction, refusing it once the transaction closed. */
+    within<Value>(work: () => Promise<Value>): Promise<Value> {
+        return this.#isOpen
+            ? work()
+            : Promise.reject(
+                  new DatabaseError("TRANSACTION_REQUIRED", "the storage transaction closed"),
+              );
+    }
+
+    /** Close the transaction once its work settled. */
+    close(): void {
+        this.#isOpen = false;
+    }
+}
 
 /** Keep databases in one Durable Object's SQLite storage, each in a namespace named by its resource. */
 export class DurableObjectDatabaseHost implements DatabaseHost {
@@ -113,10 +146,56 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     readonly provider = DURABLE_OBJECT_PROVIDER;
     /** The object's SQLite storage. */
     readonly storage: DurableObjectStorage;
+    /** The work queue the storage's one connection runs its databases' work in, one transaction at a time. */
+    readonly queue = new SqliteWorkQueue();
+    /** The rows the databases read and wrote since the last measure. */
+    #rows = { rowsRead: 0, rowsWritten: 0 };
 
     /** Keep databases in an object's storage. */
     constructor(storage: DurableObjectStorage) {
         this.storage = storage;
+    }
+
+    /** Open a database in the storage, the object being its sole writer, its work behind the storage's queue. */
+    connect<Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>>(
+        tables: declaration.Database<Models> | readonly Table[] = [],
+        options: DurableObjectConnectOptions = {},
+    ): SqliteDatabase<DurableObjectClient, Models> {
+        return this.#open(tables, options);
+    }
+
+    /** Run work in a storage transaction behind the queue, the transaction closing once the work settles. */
+    transaction<Value>(work: (transaction: StorageTransaction) => Promise<Value>): Promise<Value> {
+        return this.queue.run(async () => {
+            const transaction = new StorageTransaction();
+            try {
+                return await this.storage.transaction(() => work(transaction));
+            } finally {
+                transaction.close();
+            }
+        });
+    }
+
+    /** Open a database of the storage whose statements run in a mode. */
+    #open<Models extends Readonly<Record<string, Model>>>(
+        tables: declaration.Database<Models> | readonly Table[],
+        options: DurableObjectConnectOptions,
+    ): SqliteDatabase<DurableObjectClient, Models> {
+        const { openChannel, namespace } = options;
+
+        return new SqliteDatabase(
+            new DurableObjectClient(this, { kind: "queued" }),
+            tables,
+            "embedded",
+            openChannel,
+            namespace,
+        );
+    }
+
+    /** Add the rows a statement read and wrote, once its rows are read. */
+    count(cursor: DurableObjectCursor): void {
+        this.#rows.rowsRead += cursor.rowsRead;
+        this.#rows.rowsWritten += cursor.rowsWritten;
     }
 
     /** Name a database in the storage of the object keeping it: `durable-object:<resource>`. */
@@ -140,7 +219,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     async provision(record: ResourceRecord<typeof DatabaseKind>): Promise<{ reference: string }> {
         // start the log unless an earlier provisioning started it
         const reference = DurableObjectDatabaseHost.reference(record.id);
-        await using database = connectDurableObject(this.storage, [], { namespace: record.id });
+        await using database = this.connect([], { namespace: record.id });
         const isLogged = (await this.relations(record.id)).length > 0;
         if (!isLogged) {
             await database.log.create(record.scope);
@@ -156,9 +235,12 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
 
     /** Drop every relation of a namespace, such as a database a runtime keeps only while an instance runs. */
     async drop(namespace: string): Promise<void> {
-        for (const name of await this.relations(namespace)) {
-            this.storage.sql.exec(`DROP TABLE IF EXISTS "${name.replaceAll('"', '""')}"`);
-        }
+        // read and drop each relation behind the storage's queue
+        await this.queue.run(async () => {
+            for (const name of await this.relations(namespace)) {
+                this.storage.sql.exec(`DROP TABLE IF EXISTS "${name.replaceAll('"', '""')}"`);
+            }
+        });
     }
 
     /** Diff the applied state against the desired states. */
@@ -166,7 +248,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
-        await using database = connectDurableObject(this.storage, [], { namespace: record.id });
+        await using database = this.connect([], { namespace: record.id });
 
         return await database.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
     }
@@ -178,7 +260,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         digest: Digest,
     ): Promise<void> {
         // plan again and apply the plan only while it matches the reviewed digest
-        await using database = connectDurableObject(this.storage, [], { namespace: record.id });
+        await using database = this.connect([], { namespace: record.id });
         const plan = await database.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
         if ((await Plan.digest(plan)) !== digest) {
             throw new DatabaseError("PLAN_CHANGED", `plan of ${record.id} changed since review`);
@@ -195,7 +277,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         const states = desired.map((state) => state.tables.sqlite);
         const described = mergeStates(states).declared.map((state) => Table.describe(state));
         const namespace = record.id;
-        let database = connectDurableObject(this.storage, described, { namespace });
+        let database = this.connect(described, { namespace });
 
         return {
             get database() {
@@ -204,7 +286,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             migrate: async (beside) => {
                 await database.migrate(beside, { states });
                 await database.close();
-                database = connectDurableObject(this.storage, [...described, ...beside], {
+                database = this.connect([...described, ...beside], {
                     namespace,
                 });
             },
@@ -229,7 +311,10 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
 
     /** Count the bytes of every database the object keeps, and take the rows they read and wrote since the last measure. */
     measure(): DurableObjectMeasurement {
-        return { bytes: this.bytes(), ...RowCount.take(this.storage) };
+        const rows = this.#rows;
+        this.#rows = { rowsRead: 0, rowsWritten: 0 };
+
+        return { bytes: this.bytes(), ...rows };
     }
 
     /** Answer an operation another object sends on the databases this object keeps, copying through the content the object keeping a resource's space keeps under the request's credential. */
@@ -334,34 +419,37 @@ export interface DurableObjectNamespace {
     jurisdiction(name: Exclude<Jurisdiction, "local">): DurableObjectNamespace;
 }
 
-/** The bindings a database's object reads: the spaces' objects keeping the content its copies read and write. */
+/** The bindings a database's object reads: the partitions' objects keeping the content its copies read and write. */
 export interface DurableObjectDatabaseEnvironment {
-    /** The spaces' objects, each named by its space. */
-    readonly SPACE: DurableObjectNamespace;
-    /** The jurisdiction keeping the spaces' objects. */
+    /** The partitions' objects, a space's own named by its space. */
+    readonly PARTITION: DurableObjectNamespace;
+    /** The jurisdiction keeping the partitions' objects. */
     readonly DESTACK_JURISDICTION: Jurisdiction;
 }
 
-/** A Durable Object answering operations on the databases it keeps, such as an instance's object before its workload first starts, copying through its databases' spaces' objects. */
+/** A Durable Object answering operations on the databases it keeps, such as an instance's object before its workload first starts, copying through its databases' partitions' objects. */
 export class DurableObjectDatabase {
     /** The databases the object keeps. */
-    readonly #databases: DurableObjectDatabaseHost;
-    /** The spaces' objects, in their jurisdiction. */
-    readonly #spaces: DurableObjectNamespace;
+    readonly host: DurableObjectDatabaseHost;
+    /** The partitions' objects, in their jurisdiction. */
+    readonly #partitions: DurableObjectNamespace;
 
-    /** Keep databases in the object's storage, reaching the spaces' objects through the Worker's bindings. */
+    /** Keep databases in the object's storage, reaching the partitions' objects through the Worker's bindings. */
     constructor(
         state: { readonly storage: DurableObjectStorage },
         environment: DurableObjectDatabaseEnvironment,
     ) {
-        this.#databases = new DurableObjectDatabaseHost(state.storage);
-        this.#spaces = Jurisdiction.narrow(environment.SPACE, environment.DESTACK_JURISDICTION);
+        this.host = new DurableObjectDatabaseHost(state.storage);
+        this.#partitions = Jurisdiction.narrow(
+            environment.PARTITION,
+            environment.DESTACK_JURISDICTION,
+        );
     }
 
-    /** Answer an operation on a database the object keeps, copying through the object of the database's space. */
+    /** Answer an operation on a database the object keeps, copying through the object of the database's partition. */
     fetch(request: Request): Promise<Response> {
-        return this.#databases.answer(request, (scope) =>
-            this.#spaces.get(this.#spaces.idFromName(scope)),
+        return this.host.answer(request, (scope) =>
+            this.#partitions.get(this.#partitions.idFromName(scope)),
         );
     }
 }

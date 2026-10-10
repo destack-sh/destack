@@ -121,6 +121,7 @@ export class TestDatabase<
         if (options.isMigrated === true) {
             const state = declareState(declared, "postgresql", {
                 isReplica: options.isReplica ?? false,
+                copies: copiesOf(tables),
             });
             const schema = await cluster.claim(state, tables);
             const open: TestConnector = (connected) => schema.connect(connected);
@@ -151,7 +152,10 @@ export class TestDatabase<
         const directory = await mkdtemp(join(tmpdir(), "destack-test-"));
         const file = join(directory, "test.db");
         if (options.isMigrated === true) {
-            await copyFile(await sqliteTemplate(declared, options.isReplica ?? false), file);
+            await copyFile(
+                await sqliteTemplate(declared, options.isReplica ?? false, copiesOf(tables)),
+                file,
+            );
         }
 
         // share each named channel through one hub
@@ -543,10 +547,19 @@ interface TestRelation {
     readonly kind: "r" | "p" | "S";
 }
 
+/** Read the SQL names of the tables a declared database copies, none for bare tables. */
+function copiesOf(tables: declaration.Database | readonly Table[]): ReadonlySet<string> {
+    return "tables" in tables ? tables.copied : new Set<string>();
+}
+
 /** Migrate a SQLite template once per process and return its path. */
-function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<string> {
+function sqliteTemplate(
+    tables: readonly Table[],
+    isReplica: boolean,
+    copies: ReadonlySet<string>,
+): Promise<string> {
     // reuse the template of the same state
-    const key = JSON.stringify(declareState(tables, "sqlite", { isReplica }));
+    const key = JSON.stringify(declareState(tables, "sqlite", { isReplica, copies }));
     const known = templates.get(key);
     if (known !== undefined) {
         return known;
@@ -558,7 +571,7 @@ function sqliteTemplate(tables: readonly Table[], isReplica: boolean): Promise<s
         const directory = await mkdtemp(join(tmpdir(), "destack-template-"));
         const file = join(directory, "template.db");
         const database = await sqlite.connectBunSqlite(file, tables);
-        await database.migrate(tables, { isReplica });
+        await database.migrate(tables, { isReplica, copies });
         await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
         await database.close();
 

@@ -121,7 +121,7 @@ export type TableDescription = schema.Infer<typeof TableDescription>;
 const BYTE_COLLATION = "C";
 
 /** A primary key or unique constraint over some columns. */
-interface UniqueKey {
+interface KeyConstraint {
     /** The constraint category. */
     readonly kind: "primaryKey" | "unique";
     /** The declared name. */
@@ -201,7 +201,7 @@ function describeColumn(column: Column, dialect: Dialect): ColumnDescription {
 }
 
 /** Gather a table's primary key and unique constraints. */
-function uniqueKeys(table: Table, constraints: readonly TableConstraint[]): UniqueKey[] {
+function uniqueKeys(table: Table, constraints: readonly TableConstraint[]): KeyConstraint[] {
     const definition = table[TABLE];
 
     return [
@@ -230,7 +230,7 @@ function uniqueKeys(table: Table, constraints: readonly TableConstraint[]): Uniq
 }
 
 /** Describe a primary key or unique constraint. */
-function describeKey(table: Table, key: UniqueKey): ConstraintDescription {
+function describeKey(table: Table, key: KeyConstraint): ConstraintDescription {
     const definition = table[TABLE];
 
     return {

@@ -52,6 +52,8 @@ export class Database<
     readonly tables: readonly Table[];
     /** The relations of the tables, which relational reads name. */
     readonly relations: Relations<Models>;
+    /** The SQL names of the tables the database copies from their owning service. */
+    readonly copied: ReadonlySet<string>;
 
     /** Create the declaration. */
     constructor(
@@ -60,9 +62,11 @@ export class Database<
         tables: readonly Table[],
         relations: Relations<Models>,
     ) {
+        // keep the tables, their relations and the copied tables' names
         super(owner, description);
         this.tables = tables;
         this.relations = relations;
+        this.copied = new Set(description.spec.copies);
     }
 
     /** The connectors opening databases on the running runtime. */
@@ -72,17 +76,17 @@ export class Database<
         return connectors;
     }
 
-    /** Decide whether the database keeps a table's rows as copies from their owning service. */
+    /** Decide whether the database keeps a table's rows as copies. */
     copies(table: Table): boolean {
-        return this.spec.copies.includes(table[TABLE].sqlName);
+        return this.copied.has(table[TABLE].sqlName);
     }
 
     /** Describe the required tables. */
     override state(): DatabaseState {
         return {
             tables: {
-                sqlite: declareState(this.tables, "sqlite"),
-                postgresql: declareState(this.tables, "postgresql"),
+                sqlite: declareState(this.tables, "sqlite", { copies: this.copied }),
+                postgresql: declareState(this.tables, "postgresql", { copies: this.copied }),
             },
         };
     }

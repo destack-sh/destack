@@ -564,7 +564,7 @@ export class Log {
     }
 
     /** Delete old windowed changes no slot keeps, and advance the horizon. */
-    async compact(before: number, now = Date.now()): Promise<void> {
+    async compact(before: number, now: number): Promise<void> {
         await this.database.transaction(async (transaction) => {
             // find the newest removable change
             const log = sql.relation(LOG);

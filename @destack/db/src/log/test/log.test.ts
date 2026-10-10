@@ -124,7 +124,8 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
     expect(filtered.sequence).toBe((await database.log.position()).sequence);
 
     // compact windowed changes, keep history, and fail stale readers
-    await database.log.compact(Date.now() + 1);
+    const now = Date.now();
+    await database.log.compact(now + 1, now);
     await expect(database.log.read({ tables, after: 0 })).rejects.toMatchObject({
         code: "CHANGES_COMPACTED",
     });
@@ -220,7 +221,8 @@ test.for(TEST_DIALECTS)(
         const latest = (await database.log.position()).sequence;
 
         // compact every windowed change
-        await database.log.compact(Date.now() + 1);
+        const now = Date.now();
+        await database.log.compact(now + 1, now);
         expect([
             (await database.log.position()).sequence,
             (await database.log.position()).sequence,
