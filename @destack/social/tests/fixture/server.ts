@@ -161,7 +161,7 @@ async function serveInstallation(
     database: DatabaseConnection,
     ephemeral: EphemeralStorage,
     spaceId: Identifier<"space">,
-): Promise<ObjectStore<typeof objects>> {
+): Promise<ObjectStore> {
     return new ObjectStore({
         principal: principal.installation.reference(spaceId, INSTALLATION),
         objects,
@@ -197,7 +197,7 @@ function unfetched(address: string) {
 
 /** List the objects of a type an actor may list in the space, oldest first. */
 async function list<Type extends ObjectType>(
-    store: ObjectStore<typeof objects>,
+    store: ObjectStore,
     spaceId: string,
     actor: Actor,
     object: Type,
@@ -217,7 +217,7 @@ async function list<Type extends ObjectType>(
 
 /** Expand the space's announcements batch by batch as their controller does, until none waits. */
 async function expand(
-    store: ObjectStore<typeof objects>,
+    store: ObjectStore,
     database: DatabaseConnection,
     spaceId: string,
 ): Promise<void> {
@@ -302,7 +302,7 @@ function durable(dialect: Dialect): Promise<TestDatabase> {
 export type Follower = ReturnType<typeof follow>;
 
 /** Follow the space's presence as an actor's client, returning the rows kept after each page. */
-function follow(store: ObjectStore<typeof objects>, spaceId: string, actor: Actor) {
+function follow(store: ObjectStore, spaceId: string, actor: Actor) {
     // read the pages in the background into the rows kept, waking whoever waits for the next
     const { context: followed, controller } = context(spaceId, actor);
     const pages = store.source.relayed(
