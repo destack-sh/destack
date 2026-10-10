@@ -6,9 +6,9 @@ import {
 } from "@orpc/client";
 import { type MaybeOptionalOptions, resolveMaybeOptionalOptions } from "@orpc/shared";
 import { ValidationError, type SchemaIssue } from "@orpc/contract";
-import { type JsonValue, schema } from "@destack/schema";
+import { JsonValue, schema } from "@destack/schema";
 import { DomainError, SERVICE_ERROR_STATUSES, type ServiceErrorCode } from "@destack/error";
-import type { Failure } from "@destack/sync";
+import { Failure } from "@destack/sync";
 
 /** The failures every procedure declares with their statuses and data, which callers handle by their codes. */
 export const DECLARED_ERRORS = {
@@ -178,6 +178,17 @@ export function errorOf(failure: Failure): ORPCError<string, JsonValue | undefin
         message: failure.message,
         ...(failure.data === undefined ? {} : { data: failure.data }),
     });
+}
+
+/** Read the failure a failed response answers: the service's own, or one of its status and body text. */
+export async function failureOf(response: Response): Promise<Failure> {
+    // read the service's own failure, else describe the status by the body
+    const text = await response.text();
+    const answered = Failure.strip().safeParse(JsonValue.parse(text));
+
+    return answered.success
+        ? { ...answered.data, status: response.status }
+        : { code: `HTTP_${response.status}`, status: response.status, message: text };
 }
 
 /** Read the denial of a failure: itself for a 401 or 403, the cause of a concealed one. */
