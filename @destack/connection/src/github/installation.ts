@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import type { Fetch } from "@destack/service";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
@@ -26,16 +26,21 @@ export class GitHubIssuer implements InstallationIssuer {
     readonly api: string;
     /** Send requests to GitHub. */
     readonly #fetch: Fetch;
+    /** The clock the app's JWTs are issued by. */
+    readonly #clock: Clock;
 
-    /** Call github.com, or a GitHub Enterprise Server at its origin and API. */
+    /** Call github.com, or a GitHub Enterprise Server at its origin and API, on the system clock unless given another. */
     constructor(options: {
         readonly issuer?: string;
         readonly api?: string;
         readonly fetch: Fetch;
+        readonly clock?: Clock;
     }) {
+        // keep the instance, the fetch and the clock
         this.issuer = options.issuer ?? "https://github.com";
         this.api = options.api ?? "https://api.github.com";
         this.#fetch = options.fetch;
+        this.#clock = options.clock ?? Clock.system;
     }
 
     /** Write the app's installation page, returning with the state. */
@@ -91,7 +96,7 @@ export class GitHubIssuer implements InstallationIssuer {
         const response = await this.request(
             "POST",
             path,
-            await appToken(clientId, privateKey),
+            await appToken(clientId, privateKey, this.#clock.now()),
             body,
         );
         const answered = InstallationToken.parse(await response.json());
@@ -105,7 +110,7 @@ export class GitHubIssuer implements InstallationIssuer {
 
     /** Uninstall the app from the account. */
     async revoke(clientId: string, installation: string, privateKey: string): Promise<void> {
-        const bearer = await appToken(clientId, privateKey);
+        const bearer = await appToken(clientId, privateKey, this.#clock.now());
         await this.request("DELETE", `/app/installations/${installation}`, bearer);
     }
 
@@ -138,7 +143,7 @@ export class GitHubIssuer implements InstallationIssuer {
     }
 }
 
-/** Sign the app's JWT with its private key, issued by its client identifier. */
-function appToken(clientId: string, privateKey: string): Promise<string> {
-    return Assertion.sign({ issuer: clientId, key: privateKey });
+/** Sign the app's JWT with its private key, issued now by its client identifier. */
+function appToken(clientId: string, privateKey: string, now: number): Promise<string> {
+    return Assertion.sign({ issuer: clientId, key: privateKey }, now);
 }

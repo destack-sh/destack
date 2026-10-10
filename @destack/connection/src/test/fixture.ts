@@ -1,5 +1,6 @@
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/service/authentication";
 import { space } from "@destack/account/object";
-import { principal, relation, Role } from "@destack/access";
+import { type Caller, principal, relation, Role } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { journal } from "@destack/audit/stack";
 import {
@@ -17,12 +18,11 @@ import { defineObject, INTRINSIC } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import type {} from "@destack/package/import-meta";
 import { present, schema } from "@destack/schema";
-import { binding, capture, deployment, installation } from "@destack/space/object";
+import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { VaultKeystore } from "@destack/vault/key";
 import { Secret, secret, serveSecrets, vault } from "@destack/vault/server";
 import { vaultTables } from "@destack/vault/stack";
 import { ResourceContext } from "@destack/resource/context";
-import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
 import { Server, ServiceContext } from "@destack/service/server";
@@ -56,9 +56,6 @@ const TOKEN_SECONDS = 3600;
 
 /** The origin clients call a fixture's connection service at, in process. */
 const ORIGIN = "https://connection.test";
-
-/** How long a caller's authentication lasts, in milliseconds. */
-const AUTHENTICATION_MILLISECONDS = 60_000;
 
 /** The machine serving the fixture's space, the consumer of its credentials and the holder of its vault keys. */
 const MACHINE = schema.identifier("machine").parse("machine-01a1134b-0000-7000-8000-00000000c4ed");
@@ -525,14 +522,17 @@ export class ConnectionFixture {
         return new ServiceContext(new Request("https://test.local"), {
             audience: connectionService.package.id,
             scope: this.scope.id,
-            authentication: new Authentication({
-                credential: { kind: "session", id: session },
-                audience: connectionService.package.id,
+            caller: {
                 subject,
                 subjects: [subject],
-                verifiedAt: now,
-                expiresAt: now + AUTHENTICATION_MILLISECONDS,
-            }),
+                credential: {
+                    kind: "session",
+                    id: session,
+                    audience: connectionService.package.id,
+                    verifiedAt: now,
+                    expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
+                },
+            },
             resources: new ResourceContext(),
         });
     }
@@ -634,7 +634,7 @@ export class ConnectionFixture {
     }
 
     /** Authenticate a request as the principal in its bearer token. */
-    static #authenticate(request: Request): Authentication {
+    static #authenticate(request: Request): Caller {
         const subject = Subject.read(TestBearer.read(request));
 
         return TestBearer.authenticate(subject, connectionService.package.id, Date.now());

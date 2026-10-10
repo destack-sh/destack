@@ -1,7 +1,7 @@
 import type { connect } from "../client/client.ts";
 import { and, eq } from "@destack/db";
 import type { Condition } from "@destack/object";
-import { aligned, type Identifier, type JsonValue, present, schema } from "@destack/schema";
+import { aligned, type Identifier, type JsonValue, present, schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import type { ObjectReference, Subject } from "@destack/sync";
 import { Credential, type Token } from "../credential/credential.ts";
@@ -82,11 +82,7 @@ export class TokenSource {
     }
 
     /** Read a connection's credential, refreshing a token that expires within the margin. */
-    async current(
-        system: Omit<ObjectStore, "router">,
-        row: Connection,
-        now: number,
-    ): Promise<Credential> {
+    async current(system: ObjectStore, row: Connection, now: number): Promise<Credential> {
         // send supplied material and a token that stays valid
         const credential = await this.read(system, row);
         const expiresAt = credential.token?.expiresAt;
@@ -102,11 +98,7 @@ export class TokenSource {
     }
 
     /** Refresh a connection's token once at a time, writing it to the vault and the expiry to the connection. */
-    refresh(
-        system: Omit<ObjectStore, "router">,
-        row: Connection,
-        now: number,
-    ): Promise<Credential> {
+    refresh(system: ObjectStore, row: Connection, now: number): Promise<Credential> {
         // join a refresh in flight as a rotated refresh token is used once (RFC 9700 4.14)
         const flying = this.#refreshing.get(row.id);
         if (flying !== undefined) {
@@ -124,7 +116,7 @@ export class TokenSource {
 
     /** Read a connection's credential from its vault, empty before the first write. */
     async read(
-        system: Omit<ObjectStore, "router">,
+        system: ObjectStore,
         row: { readonly id: string; readonly vault: ObjectReference },
     ): Promise<Credential> {
         const { consumer } = this.options;
@@ -135,7 +127,7 @@ export class TokenSource {
 
     /** Read an integration as its connections' client: here with the secret its vault keeps, or through its home for a copy. */
     async integration(
-        system: Omit<ObjectStore, "router">,
+        system: ObjectStore,
         reference: ObjectReference | null,
     ): Promise<IntegrationClient> {
         // require the integration
@@ -172,15 +164,12 @@ export class TokenSource {
         // request a kept integration's tokens with the secret its vault keeps
         const secret = await this.#secret(system, row);
 
-        return { integration: row, server: this.server(row, secret), secret };
+        return { integration: row, server: this.server(row, secret, system.clock), secret };
     }
 
     /** Address a kept integration's authorization server as its client, with the secret its vault keeps. */
-    async local(
-        system: Omit<ObjectStore, "router">,
-        row: Integration,
-    ): Promise<AuthorizationServer> {
-        return this.server(row, await this.#secret(system, row));
+    async local(system: ObjectStore, row: Integration): Promise<AuthorizationServer> {
+        return this.server(row, await this.#secret(system, row), system.clock);
     }
 
     /** Register a client in a scope at the authorization server of a resource, at the home of the scope's integrations, or here where they are kept. */
@@ -191,7 +180,7 @@ export class TokenSource {
             readonly redirectUri: string;
             readonly vault: ObjectReference | null;
         },
-        system: Omit<ObjectStore, "router">,
+        system: ObjectStore,
     ): Promise<Integration> {
         // register at the home as this space
         const home = this.options.home;
@@ -204,7 +193,7 @@ export class TokenSource {
         }
 
         // register here as the system of the scope
-        const [registered] = await system.mutate(Caller.of(system.principal, system.clock()), {
+        const [registered] = await system.mutate(Caller.of(system.principal, system.clock.now()), {
             id: RequestId.create(),
             calls: [
                 integration.call("register", {
@@ -232,7 +221,7 @@ export class TokenSource {
 
     /** Keep a credential in a connection's vault. */
     async write(
-        system: Omit<ObjectStore, "router">,
+        system: ObjectStore,
         row: { readonly id: string; readonly vault: ObjectReference },
         credential: Credential,
     ): Promise<void> {
@@ -247,7 +236,7 @@ export class TokenSource {
 
     /** Record a connection's Authorized condition with the fields an authorization writes, refusing a connection gone meanwhile. */
     async observe(
-        system: Omit<ObjectStore, "router">,
+        system: ObjectStore,
         row: Connection,
         authorized: Condition,
         fields: Readonly<Record<string, JsonValue>>,
@@ -276,10 +265,11 @@ export class TokenSource {
         });
     }
 
-    /** Address an integration's authorization server as its client, with its secret or as a public client. */
+    /** Address an integration's authorization server as its client, with its secret or as a public client, on a store's clock. */
     server(
         row: Pick<Integration, "issuer" | "endpoints" | "clientId" | "authentication">,
         secret: string | undefined,
+        clock: Clock,
     ): AuthorizationServer {
         return new AuthorizationServer({
             issuer: row.issuer,
@@ -290,25 +280,19 @@ export class TokenSource {
                 ...(secret === undefined ? {} : { secret }),
             },
             fetch: this.options.fetch,
+            clock,
         });
     }
 
     /** Read a kept integration's secret from its vault, absent for a public client. */
-    async #secret(
-        system: Omit<ObjectStore, "router">,
-        row: Integration,
-    ): Promise<string | undefined> {
+    async #secret(system: ObjectStore, row: Integration): Promise<string | undefined> {
         return row.vault === null
             ? undefined
             : Secret.read(system, row.vault, TokenSource.secret(row.id), this.options.consumer);
     }
 
     /** Obtain a new token for a connection, keep it, and mark the connection authorized or its grant expired. */
-    async #refresh(
-        system: Omit<ObjectStore, "router">,
-        row: Connection,
-        now: number,
-    ): Promise<Credential> {
+    async #refresh(system: ObjectStore, row: Connection, now: number): Promise<Credential> {
         // obtain the token and mark a refused grant expired for a person to authorize again
         const credential = await this.read(system, row);
         let token: Token;
@@ -350,7 +334,7 @@ export class TokenSource {
 
     /** Obtain a new token the way a connection's kind does. */
     async #obtain(
-        system: Omit<ObjectStore, "router">,
+        system: ObjectStore,
         row: Connection,
         credential: Credential,
         now: number,
@@ -369,7 +353,7 @@ export class TokenSource {
         }
         // request a token at the token endpoint for a grant the connection holds itself
         else if (protocol.kind === "client-credentials" || protocol.kind === "jwt") {
-            return this.#grant(client.server, row, credential);
+            return this.#grant(client.server, row, credential, now);
         }
         // exchange the source connection's token (RFC 8693)
         else if (protocol.kind === "token-exchange") {
@@ -387,11 +371,12 @@ export class TokenSource {
         return refreshGrant(client.server, row, credential);
     }
 
-    /** Request a client credentials token (RFC 6749 4.4) or a JWT bearer token (RFC 7523 2.1). */
+    /** Request a client credentials token (RFC 6749 4.4) or a JWT bearer token (RFC 7523 2.1) issued now. */
     async #grant(
         server: AuthorizationClient,
         row: Connection,
         credential: Credential,
+        now: number,
     ): Promise<Token> {
         // request a client credentials token for the resource
         const protocol = row.protocol;
@@ -410,23 +395,22 @@ export class TokenSource {
         if (material?.kind !== "jwt") {
             throw new ConnectionError("UNAUTHORIZED", "the connection holds no signing key");
         }
-        const assertion = await Assertion.sign({
-            issuer: protocol.issuer,
-            subject: protocol.subject,
-            audience: server.endpoints.token ?? server.issuer,
-            key: material.privateKey,
-            ...scopeParameter(row),
-        });
+        const assertion = await Assertion.sign(
+            {
+                issuer: protocol.issuer,
+                subject: protocol.subject,
+                audience: server.endpoints.token ?? server.issuer,
+                key: material.privateKey,
+                ...scopeParameter(row),
+            },
+            now,
+        );
 
         return server.token({ grant_type: JWT_BEARER, assertion, ...scopeParameter(row) });
     }
 
     /** Read the current access token of a token exchange's source connection. */
-    async #source(
-        system: Omit<ObjectStore, "router">,
-        reference: ObjectReference,
-        now: number,
-    ): Promise<string> {
+    async #source(system: ObjectStore, reference: ObjectReference, now: number): Promise<string> {
         // read the source connection's current token
         const rows = await system.database
             .select()

@@ -69,7 +69,10 @@ async function startPage(
     const client =
         registered === undefined
             ? await tokens.integration(call.requireStore(), target.integration)
-            : { integration: registered, server: tokens.server(registered, undefined) };
+            : {
+                  integration: registered,
+                  server: tokens.server(registered, undefined, call.requireStore().clock),
+              };
     if (!client.integration.redirectUris.includes(redirectUri)) {
         throw new ServiceError("BAD_REQUEST", {
             message: `integration ${client.integration.clientId} registered no redirect URI ${redirectUri}`,
@@ -349,7 +352,8 @@ function requirePerson(call: CallOf<typeof connection, "authorize" | "complete">
     readonly session: string;
 } {
     // require a person calling in a session
-    const { subject, session } = call.caller;
+    const { subject } = call.caller;
+    const session = Caller.session(call.caller);
     if (subject === undefined || !principal.user.is(subject) || session === undefined) {
         throw new ServiceError("FORBIDDEN", {
             message: "a person authorizes a connection in a signed-in session",

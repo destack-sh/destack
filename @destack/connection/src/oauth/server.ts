@@ -1,4 +1,4 @@
-import { aligned, defineSchema, Duration, schema } from "@destack/schema";
+import { aligned, defineSchema, Duration, schema, Clock } from "@destack/schema";
 import type { Fetch } from "@destack/service";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
@@ -139,19 +139,23 @@ export class AuthorizationServer implements AuthorizationClient {
     readonly client: Client;
     /** Send requests to the server. */
     readonly #fetch: Fetch;
+    /** The clock assertions are issued and tokens expire by. */
+    readonly #clock: Clock;
 
-    /** Call a server as a client. */
+    /** Call a server as a client, on the system clock unless given another. */
     constructor(options: {
         readonly issuer: string;
         readonly endpoints: AuthorizationEndpoints;
         readonly client: Client;
         readonly fetch: Fetch;
+        readonly clock?: Clock;
     }) {
-        // keep the server, the client and the fetch
+        // keep the server, the client, the fetch and the clock
         this.issuer = options.issuer;
         this.endpoints = options.endpoints;
         this.client = options.client;
         this.#fetch = options.fetch;
+        this.#clock = options.clock ?? Clock.system;
     }
 
     /** Find a protected resource's authorization server (RFC 9728 3) and read its metadata (RFC 8414 3). */
@@ -281,7 +285,9 @@ export class AuthorizationServer implements AuthorizationClient {
                 : { refreshToken: answered.refresh_token }),
             ...(expiresIn === undefined
                 ? {}
-                : { expiresAt: Date.now() + Duration.milliseconds({ seconds: expiresIn }) }),
+                : {
+                      expiresAt: this.#clock.now() + Duration.milliseconds({ seconds: expiresIn }),
+                  }),
             ...(answered.scope === undefined ? {} : { scopes: answered.scope.split(" ") }),
         };
     }
@@ -347,12 +353,15 @@ export class AuthorizationServer implements AuthorizationClient {
             form.set("client_assertion_type", CLIENT_ASSERTION_TYPE);
             form.set(
                 "client_assertion",
-                await Assertion.sign({
-                    issuer: clientId,
-                    subject: clientId,
-                    audience: endpoint,
-                    key: this.#secret(),
-                }),
+                await Assertion.sign(
+                    {
+                        issuer: clientId,
+                        subject: clientId,
+                        audience: endpoint,
+                        key: this.#secret(),
+                    },
+                    this.#clock.now(),
+                ),
             );
         } else {
             form.set("client_id", clientId);

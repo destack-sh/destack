@@ -11,12 +11,12 @@ import type { TokenSource } from "./token.ts";
 /** The machine side of lending: it applies a connection's current credential to an installation's outbound request, which never sees the credential. */
 export class Lender {
     /** The object store keeping the connections. */
-    readonly #system: Omit<ObjectStore, "router">;
+    readonly #system: ObjectStore;
     /** The connections' current tokens, refreshed once per connection with the controller. */
     readonly #tokens: TokenSource;
 
     /** Lend the connections an object store keeps. */
-    constructor(system: Omit<ObjectStore, "router">, tokens: TokenSource) {
+    constructor(system: ObjectStore, tokens: TokenSource) {
         this.#system = system;
         this.#tokens = tokens;
     }
@@ -78,7 +78,7 @@ export class Lender {
     async #isConsumer(row: Connection, consumer: Subject): Promise<boolean> {
         // decide the consumer's lend permission on the connection
         const { database } = this.#system;
-        const now = this.#system.clock();
+        const now = this.#system.clock.now();
         const authorization = await this.#system.authorize(
             database,
             row.scope,

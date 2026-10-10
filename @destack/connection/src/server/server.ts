@@ -138,7 +138,7 @@ async function revoke(
 
 /** Revoke a committed revocation's tokens at their server, or uninstall its integration, then destroy its credential. */
 async function withdraw(
-    system: Omit<ObjectStore, "router">,
+    system: ObjectStore,
     prepared: unknown,
     tokens: TokenSource,
 ): Promise<void> {
@@ -265,7 +265,7 @@ async function awaitPerson(
 
 /** Obtain a connection's token, or refresh it before it expires, returning when to look again. */
 async function keepToken(
-    system: Omit<ObjectStore, "router">,
+    system: ObjectStore,
     current: Connection,
     tokens: TokenSource,
     now: number,
@@ -289,7 +289,7 @@ async function keepToken(
 
 /** Refresh a connection's token, recording a failure other than a refused grant and waiting before the next try. */
 async function refresh(
-    system: Omit<ObjectStore, "router">,
+    system: ObjectStore,
     row: Connection,
     tokens: TokenSource,
     now: number,
@@ -323,7 +323,7 @@ async function refresh(
 async function lend(
     row: Connection,
     tokens: TokenSource,
-    system: Omit<ObjectStore, "router">,
+    system: ObjectStore,
     now: number,
 ): Promise<Token> {
     // require an authorized connection holding a token

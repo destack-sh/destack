@@ -41,6 +41,6 @@
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
-        "@destack/space": "workspace:*"
+        "@destack/stack": "workspace:*"
     }
 }

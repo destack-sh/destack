@@ -28,25 +28,28 @@ export const PrivateJwk = schema.looseObject({
 
 /** JWT assertions a client or a service account signs for an authorization server (RFC 7523). */
 export const Assertion = {
-    /** Sign an assertion with a private key given as a JWK's JSON or a PKCS #1 or PKCS #8 PEM, the PEM signing with RS256 unless named, without a subject and audience for a GitHub app JWT. */
-    async sign(claims: {
-        readonly issuer: string;
-        readonly subject?: string;
-        readonly audience?: string;
-        readonly key: string;
-        readonly algorithm?: string;
-        readonly scope?: string;
-    }): Promise<string> {
+    /** Sign an assertion issued now, in Unix milliseconds, with a private key given as a JWK's JSON or a PKCS #1 or PKCS #8 PEM, the PEM signing with RS256 unless named, without a subject and audience for a GitHub app JWT. */
+    async sign(
+        claims: {
+            readonly issuer: string;
+            readonly subject?: string;
+            readonly audience?: string;
+            readonly key: string;
+            readonly algorithm?: string;
+            readonly scope?: string;
+        },
+        now: number,
+    ): Promise<string> {
         // import the key with its algorithm
         const { key, algorithm } = await Assertion.importKey(claims.key, claims.algorithm);
 
         // write the short-lived claims with a fresh identifier
-        const now = Math.floor(Date.now() / 1000);
+        const seconds = Math.floor(now / 1000);
         const jwt = new SignJWT(claims.scope === undefined ? {} : { scope: claims.scope })
             .setProtectedHeader({ alg: algorithm })
             .setIssuer(claims.issuer)
-            .setIssuedAt(now - DRIFT_SECONDS)
-            .setExpirationTime(now + LIFETIME_SECONDS)
+            .setIssuedAt(seconds - DRIFT_SECONDS)
+            .setExpirationTime(seconds + LIFETIME_SECONDS)
             .setJti(crypto.randomUUID());
 
         // set the subject and audience an authorization server checks (RFC 7523 3)

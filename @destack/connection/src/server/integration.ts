@@ -123,7 +123,7 @@ async function register(
         readonly vault: ObjectReference | null;
     },
     tokens: TokenSource,
-    system: Omit<ObjectStore, "router">,
+    system: ObjectStore,
 ): Promise<Registration> {
     // find the resource's authorization server and its registration endpoint
     const { fetch, consumer } = tokens.options;

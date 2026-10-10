@@ -17,7 +17,7 @@ export interface ConnectionOptions extends TokenSourceOptions {
 /** The connection extension of a space, with the lender the machine's egress lends its connections through. */
 export interface ConnectionImplementation extends ObjectExtension {
     /** Lend the space's connections through its store, applying their credentials to its installations' outbound calls. */
-    lender(store: Omit<ObjectStore, "router">): Lender;
+    lender(store: ObjectStore): Lender;
 }
 
 /** Implement the connection service: keep a space's connections, their credentials current, and lend them to the machine's egress; keep the space's integrations where it has no home, else copy them from it. */
