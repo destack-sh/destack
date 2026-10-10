@@ -4,16 +4,22 @@
 
 ```tsx
 <Button variant="outline" xstyle={styles.wide} />; // shadcn's className as StyleX styles
-<Button render={(part) => <a href="/notes" {...part} />} />; // Base UI's render as a function of the part's attributes
+// Base UI's render as a function of the part's attributes
+<Button render={(part) => <a href="/notes" {...part} />} />;
 mergeProperties(part, caller); // Base UI's mergeProps
 <TooltipContent side="right" sideOffset={8} />; // Radix's placement, through CSS anchor positioning
-<Calendar mode="range" selected={trip()} onSelect={setTrip} disabled={isPast} />; // react-day-picker on PlainDate, where it takes Date
-<InputOTP maxLength={6} onValueChange={setCode} />; // input-otp's onChange, which Solid keeps for the native change event
-<Drawer activeSnapPoint={point()} onActiveSnapPointChange={setPoint} />; // vaul's setActiveSnapPoint
-<Carousel loop autoplay={5000} setApi={setApi} />; // shadcn's Carousel on scroll snapping, without Embla's opts and plugins
+// react-day-picker on PlainDate, where it takes Date
+<Calendar mode="range" selected={trip()} onSelect={setTrip} disabled={isPast} />;
+// input-otp's onChange, which Solid keeps for the native change event
+<InputOTP maxLength={6} onValueChange={setCode} />;
+// vaul's setActiveSnapPoint
+<Drawer activeSnapPoint={point()} onActiveSnapPointChange={setPoint} />;
+// shadcn's Carousel on scroll snapping, without Embla's opts and plugins
+<Carousel loop autoplay={5000} setApi={setApi} />;
 <Stack space="4" splitAfter={2} />; // Every Layout's space as a spacing step
 <SortableContainer id="todo" />; // dnd-kit's SortableContext, where Dice UI has one SortableContent
-<Chart definition={defineChart({ marks: [barY(rows, { x: "day", y: "notes" })] })} />; // TanStack Charts in the theme's series colors
+// TanStack Charts in the theme's series colors
+<Chart definition={defineChart({ marks: [barY(rows, { x: "day", y: "notes" })] })} />;
 ```
 
 ## Parts
@@ -92,9 +98,11 @@ Text the components write themselves renders in the reader's locale through `use
         },
         required: ["title"],
     }}
-    renderField={(field, held) => (field.name === "ownerId" ? <OwnerPicker {...held} /> : undefined)}
+    renderField={(field, held) =>
+        field.name === "ownerId" ? <OwnerPicker {...held} /> : undefined
+    }
     onSubmit={file}
-/>
+/>;
 ```
 
 ## Color swatch picker
@@ -123,9 +131,13 @@ export const tabsSelectWithArrowKeys = defineScenario({
     of: Tabs,
     interaction: viewInteraction,
     name: "select-with-arrow-keys",
-    description: "select tabs as the arrow keys move the focus, skipping disabled tabs and wrapping",
+    description:
+        "select tabs as the arrow keys move the focus, skipping disabled tabs and wrapping",
     given: { examples: [tabsHistoryUnavailable] },
-    when: [{ action: "focus", target: { role: "tab", name: "Edit" } }, { action: "press", key: "ArrowRight" }],
+    when: [
+        { action: "focus", target: { role: "tab", name: "Edit" } },
+        { action: "press", key: "ArrowRight" },
+    ],
     then: {
         observe: { selected: { kind: "name", target: { role: "tab", selected: true } } },
         each: [{ selected: "Edit" }, { selected: "Preview" }],
