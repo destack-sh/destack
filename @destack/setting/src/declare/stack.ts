@@ -3,7 +3,7 @@ import { SettingReference } from "../setting/setting.ts";
 import { SettingMode } from "../setting/mode.ts";
 
 /** A setting value a stack places in its space. */
-export const SpaceSetting = defineSchema(
+export const StackSetting = defineSchema(
     schema.object({
         /** The setting. */
         setting: SettingReference,
@@ -14,4 +14,4 @@ export const SpaceSetting = defineSchema(
     }),
 );
 /** A setting value a stack places in its space. */
-export type SpaceSetting = schema.Infer<typeof SpaceSetting>;
+export type StackSetting = schema.Infer<typeof StackSetting>;

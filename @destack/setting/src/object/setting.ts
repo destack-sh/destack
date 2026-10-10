@@ -14,7 +14,7 @@ import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
 import { schema, Version } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import { SpaceSetting } from "../declare/space.ts";
+import { StackSetting } from "../declare/stack.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
 import { SettingName } from "../setting/setting.ts";
 
@@ -22,7 +22,7 @@ import { SettingName } from "../setting/setting.ts";
 export const setting = defineObject({
     name: "setting",
     plural: "settings",
-    declarable: { schema: SpaceSetting },
+    declarable: { schema: StackSetting },
     // hand every value down to the scopes inside its scope
     inherited: {},
     fields: {

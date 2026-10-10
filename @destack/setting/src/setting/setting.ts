@@ -200,13 +200,14 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         const candidates = [
             ...values.map((value) => this.#candidate(value, selection, chain)),
             ...client.map((value) => this.#clientCandidate(value)),
-        ];
+        ].filter((candidate) => candidate !== undefined);
         for (const candidate of candidates) {
-            if (candidate === undefined) {
-                continue;
-            } else if (candidate.source.kind === "invalid") {
+            // an invalid value, kept apart
+            if (candidate.source.kind === "invalid") {
                 invalid.push(candidate.source);
-            } else {
+            }
+            // a requirement or an ordinary value
+            else {
                 (candidate.mode === "require" ? required : ordinary).push(candidate);
             }
         }

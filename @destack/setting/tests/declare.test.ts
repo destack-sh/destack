@@ -35,7 +35,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await Storage.open(dialect, [editor, template]);
         onTestFinished(() => storage.close());
-        await new AccessFixture(storage.database).copyScope(
+        await new AccessFixture(storage.database).copyPartition(
             space.reference(Scope.universe.id, spaceId),
         );
         const objects = [serveSettings(storage.catalog, []).setting];

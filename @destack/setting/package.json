@@ -35,6 +35,6 @@
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/space": "workspace:*"
+        "@destack/stack": "workspace:*"
     }
 }

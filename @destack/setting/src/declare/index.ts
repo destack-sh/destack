@@ -1,2 +1,2 @@
 export * from "./setting.ts";
-export * from "./space.ts";
+export * from "./stack.ts";

@@ -1,4 +1,4 @@
-import { SpaceSetting } from "../declare/space.ts";
+import { StackSetting } from "../declare/stack.ts";
 import { setting, type SettingValue } from "../object/index.ts";
 import {
     SettingCatalog,
@@ -39,8 +39,8 @@ export function serveSettings(
                 after,
                 keys: ["settings"],
                 collect: (document) =>
-                    schema.record(schema.string(), SpaceSetting).parse(document["settings"] ?? {}),
-                resolve: async (_name, desired: SpaceSetting, stack) => {
+                    schema.record(schema.string(), StackSetting).parse(document["settings"] ?? {}),
+                resolve: async (_name, desired: StackSetting, stack) => {
                     // read the release declaring the setting: the stack's own for its package, else the one the space installs
                     const isOwn = desired.setting.packageId === stack.manager.packageId;
                     const reader = isOwn

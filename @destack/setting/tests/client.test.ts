@@ -5,7 +5,6 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
 import { canonicalize, Identifier, schema } from "@destack/schema";
-import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { Observable } from "@destack/service/observable";
 import { Server } from "@destack/service/server";
@@ -209,23 +208,30 @@ async function follow(
 > {
     // serve the scope as Alice
     const server = Server.start({
-        ...storage.objects.implement(settingService, storage.objects.routed, storage.objects.controllers(), {}),
+        ...storage.objects.implement(
+            settingService,
+            storage.objects.routed,
+            storage.objects.controllers(),
+            {},
+        ),
         audience: notes.id,
         scope,
         resources: new ResourceContext(),
         health: new Health("setting"),
         drainTimeout: 100,
         authorizeMachine: async () => {},
-        authenticate: async () =>
-            new Authentication({
-                subject: storage.subject,
-                subjects: [storage.subject],
-                credential: { kind: "session", id: "test-session" },
+        authenticate: async () => ({
+            subject: storage.subject,
+            subjects: [storage.subject],
+            credential: {
+                kind: "session",
+                id: "test-session",
                 audience: notes.id,
                 scope,
                 verifiedAt: Date.now(),
                 expiresAt: Date.now() + 60_000,
-            }),
+            },
+        }),
     });
     onTestFinished(() => server.close());
 

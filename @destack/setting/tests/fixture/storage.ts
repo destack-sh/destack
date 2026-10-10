@@ -37,7 +37,7 @@ export class Storage {
     /** Open the fixture release's settings for every written value. */
     readonly catalog: ReturnType<typeof SettingCatalog.cached>;
     /** The served setting values. */
-    readonly objects: ObjectStore<ReturnType<typeof serveSettings>>;
+    readonly objects: ObjectStore;
 
     /** Serve values checked against a release declaring some settings. */
     constructor(test: TestDatabase, declarations: readonly Setting[]) {
