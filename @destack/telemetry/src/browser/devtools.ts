@@ -22,11 +22,16 @@ export class DevtoolsExporter {
                     typeof record.body === "string" ? record.body : JSON.stringify(record.body);
                 const name = record.eventName ?? body;
                 const severity = record.severityNumber ?? SeverityNumber.UNSPECIFIED;
+                // an error
                 if (severity >= SeverityNumber.ERROR) {
                     console.error(name, record.attributes);
-                } else if (severity >= SeverityNumber.WARN) {
+                }
+                // a warning
+                else if (severity >= SeverityNumber.WARN) {
                     console.warn(name, record.attributes);
-                } else {
+                }
+                // anything milder
+                else {
                     console.info(name, record.attributes);
                 }
             }

@@ -11,19 +11,19 @@ export const SESSION_STATUSES = ["ok", "errored", "crashed"] as const;
 /** How a session ended. */
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
-/** One run of an application a person uses, such as a page load or a desktop window, from its start to its end. */
+/** One run of an application a person uses, such as a page load or a desktop window, as of one moment of it. */
 export interface Session {
     /** The session's identifier, which every signal it records carries. */
     readonly id: string;
     /** When it started, in Unix milliseconds. */
     readonly startedAt: number;
-    /** How it goes so far: failed by the worst exception it recorded. */
-    status: SessionStatus;
+    /** How it went until this snapshot: failed by the worst exception it recorded. */
+    readonly status: SessionStatus;
 }
 
 /** Stamps signals with the running session and marks it by the exceptions it records, after OpenTelemetry's session processors. */
 export class SessionProcessor {
-    /** The running session, absent between sessions. */
+    /** The running session as of its last exception, absent between sessions. */
     #session: Session | undefined;
 
     /** The span processor stamping spans with the running session. */
@@ -51,7 +51,7 @@ export class SessionProcessor {
     }
 
     /** Start a session, replacing the running one. */
-    start(now = Date.now()): Session {
+    start(now: number): Session {
         this.#session = { id: crypto.randomUUID(), startedAt: now, status: "ok" };
 
         return this.#session;
@@ -75,12 +75,11 @@ export class SessionProcessor {
         record.setAttribute(SESSION_ATTRIBUTE, session.id);
 
         // mark the session by the worst exception it records
-        if (record.eventName !== "exception") {
-            return;
-        }
-        const status = record.attributes["exception.escaped"] === true ? "crashed" : "errored";
-        if (SESSION_STATUSES.indexOf(status) > SESSION_STATUSES.indexOf(session.status)) {
-            session.status = status;
+        if (record.eventName === "exception") {
+            const status = record.attributes["exception.escaped"] === true ? "crashed" : "errored";
+            if (SESSION_STATUSES.indexOf(status) > SESSION_STATUSES.indexOf(session.status)) {
+                this.#session = { ...session, status };
+            }
         }
     }
 }

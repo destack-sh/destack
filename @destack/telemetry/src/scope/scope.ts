@@ -3,8 +3,6 @@ import {
     type Counter,
     type Gauge,
     type Histogram,
-    type Meter,
-    metrics,
     type Span,
     SpanStatusCode,
     trace,
@@ -13,6 +11,7 @@ import {
 import { type Logger, logs, SeverityNumber } from "@opentelemetry/api-logs";
 import type { Package } from "@destack/package";
 import { DomainError } from "@destack/error";
+import { type PackageMeter, ProxyMeter } from "./meter.ts";
 import {
     ACTION_EVENT,
     ANALYTICS_ATTRIBUTES,
@@ -29,15 +28,15 @@ const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> 
     info: [SeverityNumber.INFO, "INFO"],
 };
 
-/** The failures captured already: here, or by the service that answered with them. */
-const CAPTURED = new WeakSet<object>();
+/** The property a failure carries once captured: here, or by the service that answered with it. */
+const CAPTURED = Symbol.for("destack.telemetry.captured");
 
 /** Trace, metric, and log instruments attributed to one package. */
 export interface TelemetryScope {
     /** Create spans attributed to the package. */
     readonly tracer: Tracer;
     /** Create metric instruments attributed to the package. */
-    readonly meter: Meter;
+    readonly meter: PackageMeter;
     /** Emit logs attributed to the package. */
     readonly logger: Logger;
     /** Emit structured log records named by literal event names. */
@@ -94,10 +93,10 @@ export interface MetricDefinition<Domain extends AttributeDomain> {
 /** Declares a package's metric instruments with bounded attributes, checked by the compiler. */
 export class MetricFactory {
     /** The package's meter. */
-    readonly #meter: Meter;
+    readonly #meter: PackageMeter;
 
     /** Declare instruments on a package's meter. */
-    constructor(meter: Meter) {
+    constructor(meter: PackageMeter) {
         this.#meter = meter;
     }
 
@@ -189,13 +188,13 @@ export class Log {
 export function scope(source: Package): TelemetryScope {
     return instrument(
         trace.getTracer(source.name, source.version),
-        metrics.getMeter(source.name, source.version),
+        new ProxyMeter(source.name, source.version),
         logs.getLogger(source.name, source.version),
     );
 }
 
 /** Bundle a package's tracer, meter and logger with its log records and spans. */
-export function instrument(tracer: Tracer, meter: Meter, logger: Logger): TelemetryScope {
+export function instrument(tracer: Tracer, meter: PackageMeter, logger: Logger): TelemetryScope {
     return {
         tracer,
         meter,
@@ -244,13 +243,13 @@ export function instrument(tracer: Tracer, meter: Meter, logger: Logger): Teleme
 /** Mark a failure captured where it happened, such as a service's answer the service captured, so no capture records it again. */
 export function markCaptured(error: unknown): void {
     if (typeof error === "object" && error !== null) {
-        CAPTURED.add(error);
+        Object.defineProperty(error, CAPTURED, { value: true });
     }
 }
 
 /** Report whether a failure was captured already. */
 function isCaptured(error: unknown): boolean {
-    return typeof error === "object" && error !== null && CAPTURED.has(error);
+    return typeof error === "object" && error !== null && CAPTURED in error;
 }
 
 /** Emit an exception record in the active span's context with its level, details, tags and fingerprint. */
@@ -323,11 +322,16 @@ export function exceptionAttributes(error: unknown, isEscaped: boolean): Attribu
 
 /** Read a failure's error type: the service error code it reports, else its own code, else its name. */
 function errorType(exception: Error): string {
+    // the service error code a domain error reports
     if (DomainError.is(exception)) {
         return exception.toServiceError().code;
-    } else if ("code" in exception && typeof exception.code === "string") {
+    }
+    // the failure's own code, such as a system error's
+    else if ("code" in exception && typeof exception.code === "string") {
         return exception.code;
     }
-
-    return exception.name;
+    // the failure's name
+    else {
+        return exception.name;
+    }
 }

@@ -5,6 +5,7 @@ import { ROOT_CONTEXT } from "@opentelemetry/api";
 import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { BatchSpanProcessor, SamplingDecision } from "@opentelemetry/sdk-trace";
 import { startTelemetry } from "../bun/index.ts";
+import type { TelemetryScope } from "../scope/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
 import { RatioSampler } from "./sampler.ts";
 import { TailSampler } from "./tail.ts";
@@ -42,7 +43,10 @@ const Named = schema.looseObject({
         .exactOptional(),
 });
 
-test("keep failed and slow unsampled traces with their records, warnings alone, and records outside traces", async () => {
+/** Run work under a tail sampler behind a sampler keeping no trace by ratio, reading what it exports. */
+async function exportThroughTail(
+    work: (scope: TelemetryScope) => Promise<void>,
+): Promise<string[]> {
     // export through a tail sampler behind a sampler keeping no trace by ratio
     const exported: string[] = [];
     const exporter = new OtlpExporter(
@@ -83,9 +87,20 @@ test("keep failed and slow unsampled traces with their records, warnings alone, 
         },
     });
 
-    // run a quiet trace, a failed one, a slow one and a quiet one with a warning, and log outside any trace
+    // run the work and export what the sampler keeps
     try {
-        const { log, span } = telemetry.scope(source);
+        await work(telemetry.scope(source));
+        await telemetry.flush();
+    } finally {
+        await telemetry.shutdown();
+    }
+
+    return exported;
+}
+
+test("keep failed and slow unsampled traces with their records, warnings alone, and records outside traces", async () => {
+    // run a quiet trace, a failed one, a slow one and a quiet one with a warning, and log outside any trace
+    const exported = await exportThroughTail(async ({ log, span }) => {
         await span("quiet", {}, () => log.info("quiet.saved"));
         await span("failed", {}, () => {
             log.info("failed.started");
@@ -99,10 +114,7 @@ test("keep failed and slow unsampled traces with their records, warnings alone, 
         });
         await span("warned", {}, () => log.warn("warned.conflict"));
         log.info("outside.started");
-        await telemetry.flush();
-    } finally {
-        await telemetry.shutdown();
-    }
+    });
 
     // keep the failed and slow traces whole, the warning without its span, and the record outside traces
     expect(exported.toSorted()).toEqual(
@@ -115,6 +127,28 @@ test("keep failed and slow unsampled traces with their records, warnings alone, 
             "log outside.started",
         ].toSorted(),
     );
+});
+
+test("keep a failed trace's root and its first spans and records up to its bound", async () => {
+    // run a failed trace with more child spans and records than an undecided trace buffers
+    const exported = await exportThroughTail(async ({ log, span }) => {
+        await span("failed", {}, async () => {
+            for (let index = 0; index < 1001; index += 1) {
+                await span("child", {}, () => log.info("child.saved"));
+            }
+            throw new Error("broken");
+        }).catch(() => {});
+    });
+
+    // keep the root beside the first thousand children and records
+    const counts = Object.groupBy(exported, (name) => name);
+    expect(
+        Object.fromEntries(Object.entries(counts).map(([name, all]) => [name, all?.length])),
+    ).toEqual({
+        "span child": 1000,
+        "log child.saved": 1000,
+        "span failed": 1,
+    });
 });
 
 test("sample a ratio of root traces by their random identifier bits and let children follow", () => {
@@ -133,4 +167,24 @@ test("sample a ratio of root traces by their random identifier bits and let chil
         SamplingDecision.RECORD_AND_SAMPLED,
         SamplingDecision.RECORD,
     ]);
+});
+
+test("keep a trace once it outlives the slow threshold, passing every later span past the bound", async () => {
+    // run a root that turns slow, then ends more children than a pending trace buffers
+    const exported = await exportThroughTail(async ({ span }) => {
+        await span("stream", {}, async () => {
+            await new Promise((resolve) => {
+                setTimeout(resolve, 30);
+            });
+            for (let index = 0; index < 1500; index += 1) {
+                await span("page", {}, () => undefined);
+            }
+        });
+    });
+
+    // keep the root and every child, as the trace was kept at its first slow child
+    const counts = Object.groupBy(exported, (name) => name);
+    expect(
+        Object.fromEntries(Object.entries(counts).map(([name, all]) => [name, all?.length])),
+    ).toEqual({ "span page": 1500, "span stream": 1 });
 });

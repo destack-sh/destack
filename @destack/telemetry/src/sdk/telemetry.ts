@@ -33,19 +33,19 @@ import { type Session, SessionProcessor } from "../session/index.ts";
 /** Configure one application's identity and its three telemetry providers. */
 export interface TelemetryOptions {
     /** The running service or frontend name. */
-    name: string;
+    readonly name: string;
     /** The deployed package version, the release every signal names. */
-    version: string;
+    readonly version: string;
     /** The HTTP propagator, W3C trace context and baggage by default. */
-    propagator?: TextMapPropagator;
+    readonly propagator?: TextMapPropagator;
     /** Trace processors, sampling, and limits. */
-    traces: Omit<TracerProviderOptions, "resource">;
+    readonly traces: Omit<TracerProviderOptions, "resource">;
     /** Metric readers, aggregation, and limits. */
-    metrics: Omit<MeterProviderOptions, "resource">;
+    readonly metrics: Omit<MeterProviderOptions, "resource">;
     /** Log processors and limits. */
-    logs: Omit<LoggerProviderOptions, "resource">;
+    readonly logs: Omit<LoggerProviderOptions, "resource">;
     /** Report the SDK's own warnings and failures, such as dropped spans. */
-    report: (error: Error) => void;
+    readonly report: (error: Error) => void;
 }
 
 /** Install a realm's capture of uncaught failures into running telemetry, returning how to remove it. */
@@ -62,17 +62,17 @@ export class Telemetry {
     /** The structured log provider. */
     readonly logs: LoggerProvider;
     /** The application's own logger, recording uncaught failures and sessions. */
-    private readonly logger: Logger;
+    readonly #logger: Logger;
     /** The counter of ended sessions by status. */
-    private readonly sessionCount: Counter;
+    readonly #sessionCount: Counter;
     /** The processor stamping signals with the running session. */
-    private readonly sessionProcessor = new SessionProcessor();
+    readonly #sessionProcessor = new SessionProcessor();
     /** Remove only registrations made by this instance. */
-    private readonly unregister: (() => void)[] = [];
-    /** The shared shutdown operation. */
-    private shutdownPromise?: Promise<void>;
+    readonly #unregister: (() => void)[] = [];
+    /** The shared shutdown operation, absent before the first shutdown. */
+    #stopped: Promise<void> | undefined;
     /** The flush in progress, settled. */
-    private flushing: Promise<void> = Promise.resolve();
+    #flushing: Promise<void> = Promise.resolve();
 
     /** Construct providers without changing process globals. */
     constructor(options: TelemetryOptions) {
@@ -91,17 +91,20 @@ export class Telemetry {
         this.traces = new TracerProvider({
             idGenerator: new TraceIdGenerator(),
             ...options.traces,
-            spanProcessors: [this.sessionProcessor.spans, ...(options.traces.spanProcessors ?? [])],
+            spanProcessors: [
+                this.#sessionProcessor.spans,
+                ...(options.traces.spanProcessors ?? []),
+            ],
             resource,
         });
         this.metrics = new MeterProvider({ ...options.metrics, resource });
         this.logs = new LoggerProvider({
             ...options.logs,
-            processors: [this.sessionProcessor.logs, ...(options.logs.processors ?? [])],
+            processors: [this.#sessionProcessor.logs, ...(options.logs.processors ?? [])],
             resource,
         });
-        this.logger = this.logs.getLogger(options.name, options.version);
-        this.sessionCount = this.metrics
+        this.#logger = this.logs.getLogger(options.name, options.version);
+        this.#sessionCount = this.metrics
             .getMeter(options.name, options.version)
             .createCounter("session.count", {
                 unit: "{session}",
@@ -121,15 +124,15 @@ export class Telemetry {
 
     /** Record an uncaught failure as an error log record in the active trace. */
     capture(error: unknown): void {
-        emitException(this.logger, exceptionAttributes(error, true));
+        emitException(this.#logger, exceptionAttributes(error, true));
     }
 
     /** Start a session of a person using the application, ending the running one, after OpenTelemetry's session events. */
     startSession(): Session {
         // end the running session and start the next one
         this.endSession();
-        const session = this.sessionProcessor.start();
-        this.logger.emit({
+        const session = this.#sessionProcessor.start(Date.now());
+        this.#logger.emit({
             eventName: "session.start",
             severityNumber: SeverityNumber.INFO,
             severityText: "INFO",
@@ -141,19 +144,19 @@ export class Telemetry {
     /** End the running session, recording how it ended and counting it by its status. */
     endSession(): Session | undefined {
         // record the end in the session before closing it
-        const session = this.sessionProcessor.session;
+        const session = this.#sessionProcessor.session;
         if (session === undefined) {
             return undefined;
         }
-        this.logger.emit({
+        this.#logger.emit({
             eventName: "session.end",
             severityNumber: SeverityNumber.INFO,
             severityText: "INFO",
             attributes: { "session.status": session.status },
         });
-        this.sessionCount.add(1, { "session.status": session.status });
+        this.#sessionCount.add(1, { "session.status": session.status });
 
-        return this.sessionProcessor.end();
+        return this.#sessionProcessor.end();
     }
 
     /** Register providers, the host's context manager and the realm's capture once per application. */
@@ -166,25 +169,31 @@ export class Telemetry {
 
         // reject competing global providers and undo partial registration on failure
         try {
-            telemetry.register(context.setGlobalContextManager(manager), () => context.disable());
+            telemetry.#register(context.setGlobalContextManager(manager), () => context.disable());
             manager.enable();
-            telemetry.register(propagation.setGlobalPropagator(telemetry.propagator), () =>
+            telemetry.#register(propagation.setGlobalPropagator(telemetry.propagator), () =>
                 propagation.disable(),
             );
-            telemetry.register(trace.setGlobalTracerProvider(telemetry.traces), () =>
+            telemetry.#register(trace.setGlobalTracerProvider(telemetry.traces), () =>
                 trace.disable(),
             );
-            telemetry.register(metrics.setGlobalMeterProvider(telemetry.metrics), () =>
+            telemetry.#register(metrics.setGlobalMeterProvider(telemetry.metrics), () =>
                 metrics.disable(),
             );
-            telemetry.register(
+            telemetry.#register(
                 logs.setGlobalLoggerProvider(telemetry.logs) === telemetry.logs,
                 () => logs.disable(),
             );
 
             // report the SDK's warnings once no competing application's logger can be replaced
-            const report = (message: string, ...details: unknown[]) =>
-                options.report(new Error([message, ...details.map(String)].join(" ")));
+            const report = (message: string, ...details: unknown[]) => {
+                // keep an error the SDK passes as the cause, so its stack reaches the report
+                const cause = details.find((detail) => detail instanceof Error);
+                const text = details.filter((detail) => detail !== cause).map(String);
+                options.report(
+                    new Error([message, ...text].join(" "), cause === undefined ? {} : { cause }),
+                );
+            };
             const logger = {
                 error: report,
                 warn: report,
@@ -192,9 +201,9 @@ export class Telemetry {
                 debug: () => {},
                 verbose: () => {},
             };
-            telemetry.register(diag.setLogger(logger, DiagLogLevel.WARN), () => diag.disable());
+            telemetry.#register(diag.setLogger(logger, DiagLogLevel.WARN), () => diag.disable());
             if (capture !== undefined) {
-                telemetry.unregister.push(capture(telemetry));
+                telemetry.#unregister.push(capture(telemetry));
             }
         } catch (error) {
             // preserve the registration failure if cleanup also fails
@@ -214,46 +223,46 @@ export class Telemetry {
 
     /** Export buffered signals before a request or application finishes, after the flush in progress. */
     flush(): Promise<void> {
-        if (this.shutdownPromise) {
+        if (this.#stopped) {
             return Promise.reject(new Error("telemetry is shut down"));
         }
 
         // run after the flush in progress, whose processors skip a concurrent one
-        const flushing = this.flushing.then(() =>
+        const flushing = this.#flushing.then(() =>
             complete([this.traces.forceFlush(), this.metrics.forceFlush(), this.logs.forceFlush()]),
         );
-        this.flushing = flushing.catch(() => {});
+        this.#flushing = flushing.catch(() => {});
 
         return flushing;
     }
 
     /** Remove global registrations, export buffered signals, and stop providers. */
     shutdown(): Promise<void> {
-        if (this.shutdownPromise) {
-            return this.shutdownPromise;
+        if (this.#stopped) {
+            return this.#stopped;
         }
 
         // release registrations in reverse order
-        for (const unregister of this.unregister.splice(0).toReversed()) {
+        for (const unregister of this.#unregister.splice(0).toReversed()) {
             unregister();
         }
 
         // stop every provider once
-        this.shutdownPromise = complete([
+        this.#stopped = complete([
             this.traces.shutdown(),
             this.metrics.shutdown(),
             this.logs.shutdown(),
         ]);
 
-        return this.shutdownPromise;
+        return this.#stopped;
     }
 
     /** Track a successful registration or fail without replacing another provider. */
-    private register(isRegistered: boolean, unregister: () => void): void {
+    #register(isRegistered: boolean, unregister: () => void): void {
         if (!isRegistered) {
             throw new Error("OpenTelemetry is already initialized in this application");
         }
-        this.unregister.push(unregister);
+        this.#unregister.push(unregister);
     }
 }
 

@@ -1,4 +1,4 @@
-import { type Context, trace } from "@opentelemetry/api";
+import { type Context, trace, TraceFlags } from "@opentelemetry/api";
 import { type Sampler, SamplingDecision, type SamplingResult } from "@opentelemetry/sdk-trace";
 
 /** The trailing hexadecimal digits of a trace identifier the decision reads, all random. */
@@ -19,7 +19,7 @@ export class RatioSampler implements Sampler {
         // follow the parent's decision, recording an unsampled child for tail sampling
         const parent = trace.getSpanContext(context);
         if (parent !== undefined) {
-            const isSampled = (parent.traceFlags & 1) === 1;
+            const isSampled = (parent.traceFlags & TraceFlags.SAMPLED) !== 0;
 
             return {
                 decision: isSampled ? SamplingDecision.RECORD_AND_SAMPLED : SamplingDecision.RECORD,
