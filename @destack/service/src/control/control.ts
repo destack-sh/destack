@@ -5,7 +5,7 @@ import {
     DatabaseError,
     type Change,
 } from "@destack/db";
-import { aligned, found } from "@destack/schema";
+import { aligned, Clock, found } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { RetryPolicy, wait } from "../timer/index.ts";
@@ -17,6 +17,9 @@ const { span } = telemetry.scope(import.meta.destack.package);
 
 /** The retry of a failed reconciliation, doubling from a second up to 5 minutes. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
+
+/** How long a key's peer may answer unavailable before its failures are reported: a minute, as alert rules wait a pending duration, far longer than a peer restarting takes. */
+const UNAVAILABLE_REPORT_MILLISECONDS = 60_000;
 
 /** A loop keeping the actual state of each listed key matching its rows. */
 export interface Controller {
@@ -106,6 +109,8 @@ export class ControlLoop {
     readonly #queue = new DueQueue();
     /** The consecutive failures by controller and key. */
     readonly #failures = new Map<Controller, Map<string, number>>();
+    /** When each key's peer first answered unavailable in its current run of failures, by controller and key. */
+    readonly #unavailable = new Map<Controller, Map<string, number>>();
     /** The keys reconciling now by controller with their abort controllers. */
     readonly #running = new Map<Controller, Map<string, AbortController>>();
     /** The running reconciliations. */
@@ -114,6 +119,10 @@ export class ControlLoop {
     readonly #lease?: { readonly holder: string; readonly duration: number };
     /** The wake-up the host keeps for the earliest due key. */
     readonly #alarm?: Alarm;
+    /** The clock keys come due at. */
+    readonly #clock: Clock;
+    /** How long a key's peer may answer unavailable before its failures are reported, in milliseconds. */
+    readonly #unavailableFor: number;
     /** The earliest due time the alarm keeps, absent for none. */
     #alarmed: number | undefined;
     /** The due time of the key that began the running reconciliations, where the alarm stays while any runs. */
@@ -126,8 +135,8 @@ export class ControlLoop {
     #isStopped = false;
     /** The waiters for a change of each reconciling key, by controller. */
     readonly #changes = new Map<Controller, Map<string, (() => void)[]>>();
-    /** Wake the worker waiting for due work. */
-    #wake: () => void = () => {};
+    /** Aborts once work arrives after the worker last looked for it, ending its next sleep at once. */
+    #woken = new AbortController();
 
     /** Create the loop. */
     constructor(
@@ -142,6 +151,10 @@ export class ControlLoop {
             readonly lease?: { readonly holder: string; readonly duration?: number };
             /** Keep a wake-up for the earliest due key, so an evicted instance runs it. */
             readonly alarm?: Alarm;
+            /** The clock keys come due at, the system clock by default. */
+            readonly clock?: Clock;
+            /** How long a key's peer may answer unavailable before its failures are reported, a minute by default. */
+            readonly unavailableFor?: number;
         },
     ) {
         // start with no key due and no failure
@@ -149,6 +162,8 @@ export class ControlLoop {
         this.controllers = controllers;
         this.#report = options.report;
         this.#retry = { ...RETRY, ...options.retry };
+        this.#clock = options.clock ?? Clock.system;
+        this.#unavailableFor = options.unavailableFor ?? UNAVAILABLE_REPORT_MILLISECONDS;
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
         }
@@ -180,7 +195,7 @@ export class ControlLoop {
                 [this.#follow(running), this.#list(running), this.#work(running)].map(stopping),
             );
         }
-        // release this instance's leases, and settle the idle waiters of a loop that runs nothing more
+        // release this instance's leases and settle the idle waiters
         finally {
             this.#isStopped = true;
             for (const resolve of this.#idle.splice(0)) {
@@ -208,13 +223,13 @@ export class ControlLoop {
         }
 
         // settle at the deadline at the latest while late keys keep running and the alarm stays due
-        const timer = setTimeout(resolve, Math.max(0, deadline - Date.now()));
+        const timer = setTimeout(resolve, Math.max(0, deadline - this.#clock.now()));
 
         return promise.finally(() => clearTimeout(timer));
     }
 
-    /** Name a key due. */
-    enqueue(controller: Controller, key: string, at = Date.now()): void {
+    /** Mark a key due. */
+    enqueue(controller: Controller, key: string, at = this.#clock.now()): void {
         // tell a reconciliation of the key that it changed
         for (const resolve of this.#changes.get(controller)?.get(key)?.splice(0) ?? []) {
             resolve();
@@ -265,7 +280,7 @@ export class ControlLoop {
                                 await this.#relist(controller);
                             }
                         }
-                        // enqueue the keys each change names
+                        // enqueue the keys each change touches
                         else {
                             for (const change of changes) {
                                 for (const key of await this.#keys(controller, change)) {
@@ -284,7 +299,7 @@ export class ControlLoop {
         }
     }
 
-    /** List the keys a change names, reporting a failing key function and listing every key of its controller again in their place. */
+    /** List the keys a change touches, reporting a failing key function and listing every key of its controller again in their place. */
     async #keys(controller: Controller, change: Change): Promise<readonly string[]> {
         try {
             return (await controller.keys?.(change)) ?? [];
@@ -295,15 +310,25 @@ export class ControlLoop {
         }
     }
 
-    /** List the controllers of unlogged tables after each commit. */
+    /** List the controllers of unlogged tables again after each commit to one of those tables. */
     async #list(signal: AbortSignal): Promise<void> {
-        const listed = this.controllers.filter((controller) =>
-            (controller.watches ?? []).some((table) => table[TABLE].retention === "none"),
+        // find each controller's unlogged tables
+        const unlogged = new Map(
+            this.controllers.map((controller) => [
+                controller,
+                (controller.watches ?? [])
+                    .filter((table) => table[TABLE].retention === "none")
+                    .map((table) => table[TABLE].sqlName),
+            ]),
         );
-        if (listed.length === 0) {
+        if (![...unlogged.values()].some((tables) => tables.length > 0)) {
             return;
         }
-        await this.database.log.until(async () => {
+        await this.database.log.until(async (committed) => {
+            // pick the controllers whose unlogged tables the commits wrote
+            const listed = this.controllers.filter((controller) =>
+                found(unlogged, controller).some((table) => committed.has(table)),
+            );
             for (const controller of listed) {
                 // stop and start a following controller's keys
                 if (controller.mode === "follow") {
@@ -356,7 +381,8 @@ export class ControlLoop {
     async #work(signal: AbortSignal): Promise<void> {
         while (!signal.aborted) {
             // start the earliest runnable key
-            const now = Date.now();
+            this.#woken = new AbortController();
+            const now = this.#clock.now();
             const { runnable, due, skipped } = this.#take(now);
             if (runnable !== undefined) {
                 this.#start(runnable);
@@ -418,7 +444,7 @@ export class ControlLoop {
             this.#queue.push(entry);
         }
 
-        // name the earliest skipped key, which the host's wake-up keeps while it waits
+        // find the earliest skipped key
         const [earliest] = skipped;
 
         return earliest === undefined || taken.runnable !== undefined
@@ -428,7 +454,7 @@ export class ControlLoop {
 
     /** Start a reconciliation. */
     #start(work: Due): void {
-        // mark the key running with the controller aborting it, the first running key holding the wake-up at its due time
+        // mark the key running with the controller aborting it
         const running = found(this.#running, work.controller);
         const stop = new AbortController();
         running.set(work.key, stop);
@@ -452,12 +478,12 @@ export class ControlLoop {
 
     /** Reconcile one key until settled, or follow it until stopped, retrying failures. */
     async #reconcile(work: Work, stopped: AbortSignal): Promise<void> {
-        // reconcile under the lease and requeue when asked, or follow again once a follow ends
+        // reconcile under the lease and requeue when asked
         const { controller, key } = work;
         const failures = found(this.#failures, controller);
         try {
             const delay = await this.#leased(work, stopped, async (reconciliation) => {
-                // follow until stopped, retrying a lost lease at once and a follow that ended as a failure
+                // follow until stopped
                 if (controller.mode === "follow") {
                     await controller.reconcile(key, reconciliation);
                     if (!reconciliation.signal.aborted) {
@@ -475,11 +501,12 @@ export class ControlLoop {
                 );
             });
             failures.delete(work.key);
+            this.#unavailable.get(work.controller)?.delete(work.key);
             if (delay !== undefined) {
-                this.enqueue(work.controller, work.key, Date.now() + delay);
+                this.enqueue(work.controller, work.key, this.#clock.now() + delay);
             }
         }
-        // end a reconciliation the loop stopped without a failure, forgetting earlier ones
+        // end a reconciliation the loop stopped without a failure
         catch (error) {
             if (stopped.aborted) {
                 failures.delete(work.key);
@@ -487,16 +514,37 @@ export class ControlLoop {
                 return;
             }
 
-            // report and retry the failure
+            // report and retry the failure, a peer's unavailability once it persists
             const failed = (failures.get(work.key) ?? 0) + 1;
             failures.set(work.key, failed);
-            this.#report(work.controller, work.key, error);
+            if (this.#isReported(work, error)) {
+                this.#report(work.controller, work.key, error);
+            }
             this.enqueue(
                 work.controller,
                 work.key,
-                Date.now() + RetryPolicy.interval(this.#retry, failed),
+                this.#clock.now() + RetryPolicy.interval(this.#retry, failed),
             );
         }
+    }
+
+    /** Decide whether to report a failure: at once, or for a peer answering unavailable once it stays so past the window, as alert rules wait their duration. */
+    #isReported(work: Work, error: unknown): boolean {
+        // report any failure but a peer's unavailability at once
+        const now = this.#clock.now();
+        const since = this.#unavailable.get(work.controller) ?? new Map<string, number>();
+        this.#unavailable.set(work.controller, since);
+        if (!isUnavailable(error)) {
+            since.delete(work.key);
+
+            return true;
+        }
+
+        // report an unavailable peer once it stayed so past the window
+        const first = since.get(work.key) ?? now;
+        since.set(work.key, first);
+
+        return now - first >= this.#unavailableFor;
     }
 
     /** Reconcile a key under this instance's lease, stopped by the loop or a lost lease. */
@@ -525,10 +573,17 @@ export class ControlLoop {
         // take the lease or wait for it to lapse
         const { holder, duration } = options;
         const acquire = () =>
-            Leases.acquire(this.database, work.controller.name, work.key, holder, duration);
+            Leases.acquire(
+                this.database,
+                work.controller.name,
+                work.key,
+                holder,
+                duration,
+                this.#clock.now(),
+            );
         const acquired = await acquire();
         if ("lapsesAt" in acquired) {
-            return Math.max(0, acquired.lapsesAt - Date.now());
+            return Math.max(0, acquired.lapsesAt - this.#clock.now());
         }
 
         // renew the lease at a third of its duration
@@ -560,7 +615,7 @@ export class ControlLoop {
             return;
         }
 
-        // move the wake-up, or clear it once nothing is due
+        // move the wake-up or clear it once nothing is due
         this.#alarmed = due;
         await (due === undefined ? alarm.deleteAlarm() : alarm.setAlarm(due));
     }
@@ -577,12 +632,15 @@ export class ControlLoop {
         return undefined;
     }
 
+    /** Wake the worker for work that arrived, at once when it sleeps or after its current look. */
+    #wake(): void {
+        this.#woken.abort();
+    }
+
     /** Sleep for a delay or until woken. */
     async #sleep(delay: number | undefined, signal: AbortSignal): Promise<void> {
-        // wake at the due time, on work or on stop
-        const woken = new AbortController();
-        this.#wake = () => woken.abort();
-        const until = AbortSignal.any([signal, woken.signal]);
+        // wake at the due time or on work or stop
+        const until = AbortSignal.any([signal, this.#woken.signal]);
         try {
             await wait(delay ?? Number.POSITIVE_INFINITY, { signal: until });
         } catch (error) {
@@ -590,8 +648,6 @@ export class ControlLoop {
             if (!until.aborted) {
                 throw error;
             }
-        } finally {
-            this.#wake = () => {};
         }
     }
 }
@@ -660,4 +716,20 @@ class DueQueue {
             index = smallest;
         }
     }
+}
+
+/** Report whether a failure is a peer answering unavailable or refusing the connection, which retrying is expected to outlast, as gRPC retries UNAVAILABLE. */
+function isUnavailable(error: unknown): boolean {
+    // read the failure's status and code
+    const status =
+        typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+    const code =
+        typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+
+    return (
+        status === 503 ||
+        code === "SERVICE_UNAVAILABLE" ||
+        code === "ConnectionRefused" ||
+        code === "ECONNREFUSED"
+    );
 }

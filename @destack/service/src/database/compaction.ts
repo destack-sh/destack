@@ -1,5 +1,6 @@
 import type { DatabaseConnection } from "@destack/db";
 import type { Controller } from "../control/index.ts";
+import { Clock } from "@destack/schema";
 
 /** How long a database keeps windowed changes: a week, longer than clients stay offline between syncs. */
 const CHANGE_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60_000;
@@ -16,10 +17,13 @@ export class CompactionController implements Controller {
     readonly name = "compaction";
     /** The database whose log it compacts. */
     readonly #database: DatabaseConnection;
+    /** The clock, its store's. */
+    readonly #clock: Clock;
 
-    /** Compact a database's log. */
-    constructor(database: DatabaseConnection) {
+    /** Compact a database's log on its store's clock. */
+    constructor(database: DatabaseConnection, clock: Clock) {
         this.#database = database;
+        this.#clock = clock;
     }
 
     /** List the log, compacted on start. */
@@ -29,7 +33,8 @@ export class CompactionController implements Controller {
 
     /** Compact the log and look again after the compaction interval. */
     async reconcile(): Promise<number> {
-        await this.#database.log.compact(Date.now() - CHANGE_WINDOW_MILLISECONDS);
+        const now = this.#clock.now();
+        await this.#database.log.compact(now - CHANGE_WINDOW_MILLISECONDS, now);
 
         return COMPACTION_INTERVAL_MILLISECONDS;
     }

@@ -52,33 +52,8 @@ export class AlarmClock {
             return;
         }
 
-        // move the wake-up, or clear it once no alarm is set
+        // move the wake-up or clear it once no alarm is set
         this.#current = earliest;
         await (earliest === undefined ? this.#alarm.deleteAlarm() : this.#alarm.setAlarm(earliest));
-    }
-}
-
-/** A process's wake-up on a timer, for hosts that keep no durable alarms. */
-export class TimerAlarm implements Alarm {
-    /** Wake the process. */
-    readonly #wake: () => void;
-    /** The pending timer, absent for none. */
-    #timer: ReturnType<typeof setTimeout> | undefined;
-
-    /** Wake a process through a callback. */
-    constructor(wake: () => void) {
-        this.#wake = wake;
-    }
-
-    /** Wake the process at a time, replacing the earlier wake-up. */
-    async setAlarm(at: number): Promise<void> {
-        clearTimeout(this.#timer);
-        this.#timer = setTimeout(() => this.#wake(), Math.max(0, at - Date.now()));
-    }
-
-    /** Wake the process at no time. */
-    async deleteAlarm(): Promise<void> {
-        clearTimeout(this.#timer);
-        this.#timer = undefined;
     }
 }

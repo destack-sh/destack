@@ -13,7 +13,7 @@ test("keep one host alarm at the earliest time any loop sharing it needs, and cl
     });
     const [first, second] = [clock.alarm(), clock.alarm()];
 
-    // move the alarm to the earliest need, leaving it for a later one
+    // move the alarm to the earliest need
     await first.setAlarm(100);
     await second.setAlarm(50);
     await second.setAlarm(70);

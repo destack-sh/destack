@@ -9,9 +9,13 @@ import {
     text,
     type DatabaseConnection,
 } from "@destack/db";
+import { present } from "@destack/schema";
 
-/** The default lease duration in milliseconds, as Kubernetes leases last 15 seconds and renew at a third of that. */
+/** The default lease duration in milliseconds, renewed at a third of it. */
 export const LEASE_MILLISECONDS = 15_000;
+
+/** The share of a lease's duration left below which its holder renews it: two thirds, renewing once a third passed. */
+const RENEWAL_REMAINING = 2 / 3;
 
 /** The instance reconciling a controller's key, and until when. */
 export const controllerLease = defineTable("controller_lease", {
@@ -36,9 +40,22 @@ export const Leases = {
         key: string,
         holder: string,
         duration: number,
+        now: number,
     ): Promise<{ readonly epoch: number } | { readonly lapsesAt: number }> {
+        // keep a recent lease of ours without writing
+        const [held] = await database
+            .select({
+                holder: controllerLease.holder,
+                epoch: controllerLease.epoch,
+                expiresAt: controllerLease.expiresAt,
+            })
+            .from(controllerLease)
+            .where(and(eq(controllerLease.controller, controller), eq(controllerLease.key, key)));
+        if (held?.holder === holder && held.expiresAt - now > duration * RENEWAL_REMAINING) {
+            return { epoch: held.epoch };
+        }
+
         // take the lease when free, lapsed or already ours
-        const now = Date.now();
         const [taken] = await database
             .insert(controllerLease)
             .values({ controller, key, holder, epoch: 1, expiresAt: now + duration })
@@ -59,13 +76,13 @@ export const Leases = {
             return { epoch: taken.epoch };
         }
 
-        // read the other holder's lapse time
+        // read when the other holder's lease lapses
         const [other] = await database
             .select({ expiresAt: controllerLease.expiresAt })
             .from(controllerLease)
             .where(and(eq(controllerLease.controller, controller), eq(controllerLease.key, key)));
 
-        return { lapsesAt: other?.expiresAt ?? now };
+        return { lapsesAt: present(other, "the other holder's lease").expiresAt };
     },
 
     /** Release a holder's leases. */

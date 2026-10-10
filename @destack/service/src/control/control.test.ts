@@ -4,6 +4,7 @@ import { TestDatabase } from "@destack/db/test";
 import { aligned, found } from "@destack/schema";
 import { ControlLoop, type Controller, Reconciliation } from "./control.ts";
 import { controllerLease } from "./lease.ts";
+import { wait } from "../timer/index.ts";
 
 /** The jobs a controller reconciles. */
 const job = defineTable(
@@ -18,6 +19,18 @@ const job = defineTable(
     },
     { log: {} },
 );
+
+/** Unlogged claims one controller lists. */
+const claim = defineTable("controller_claim", {
+    /** The claim's name. */
+    id: text("id").primaryKey(),
+});
+
+/** Unlogged tickets another controller lists. */
+const ticket = defineTable("controller_ticket", {
+    /** The ticket's name. */
+    id: text("id").primaryKey(),
+});
 
 /** Read a reported failure's message, refusing a failure that is no error. */
 function message(error: unknown): string {
@@ -81,12 +94,63 @@ test("reconcile listed keys, keys changes name, keys due again, and failed keys 
     expect(reported).toEqual(["flaky: unavailable"]);
 });
 
+test("report a key whose peer answers unavailable only once it stays so past the window, and any other failure at once", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // keep "peer" unavailable until told otherwise, and fail "broken" once
+    const started = Date.now();
+    const reported: [string, boolean][] = [];
+    let isDown = true;
+    let isBroken = true;
+    const controller: Controller = {
+        name: "job",
+        watches: [],
+        keys: () => [],
+        list: async () => ["peer", "broken"],
+        reconcile: async (key) => {
+            if (key === "peer" && isDown) {
+                throw Object.assign(new Error("service unavailable"), { status: 503 });
+            } else if (key === "broken" && isBroken) {
+                isBroken = false;
+                throw new Error("broken");
+            }
+
+            return undefined;
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(storage.database, [controller], {
+        report: (_controller, key) => reported.push([key, Date.now() - started >= 40]),
+        retry: { initialInterval: 5, maximumInterval: 5 },
+        unavailableFor: 40,
+    });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // report "broken" at once, and "peer" only past the window
+    await expect.poll(() => reported.some(([key]) => key === "peer")).toBe(true);
+    isDown = false;
+    expect(
+        reported.filter(
+            ([key], index) =>
+                key === "broken" || index === reported.findIndex(([other]) => other === "peer"),
+        ),
+    ).toEqual([
+        ["broken", false],
+        ["peer", true],
+    ]);
+});
+
 test("report a key function that fails on a change and reconcile every listed key in its place, following later changes", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
-    // name each changed job, failing on the broken one
+    // key each changed job
     const reconciled: string[] = [];
     const reported: string[] = [];
     const controller: Controller = {
@@ -118,12 +182,59 @@ test("report a key function that fails on a change and reconcile every listed ke
     });
     await loop.idle();
 
-    // report the failing change, reconcile the listed keys instead, and keep following
+    // report the failing change and reconcile the listed keys
     await database.insert(job).values({ id: "broken", scope: "space", runs: 1 });
     await expect.poll(() => reconciled).toEqual(["broken"]);
     await database.insert(job).values({ id: "later", scope: "space", runs: 1 });
     await expect.poll(() => reconciled.toSorted()).toEqual(["broken", "later"]);
     expect(reported).toEqual(["controller_job: unreadable change"]);
+});
+
+test("list a controller of an unlogged table again after a commit to its table alone", async () => {
+    const storage = await TestDatabase.create("sqlite", [claim, ticket], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+
+    // count each controller's listings
+    const listings = { claims: 0, tickets: 0 };
+    const claims: Controller = {
+        name: "claims",
+        watches: [claim],
+        list: async () => {
+            listings.claims += 1;
+
+            return [];
+        },
+        reconcile: async () => undefined,
+    };
+    const tickets: Controller = {
+        name: "tickets",
+        watches: [ticket],
+        list: async () => {
+            listings.tickets += 1;
+
+            return [];
+        },
+        reconcile: async () => undefined,
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [claims, tickets], { report: ignore });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // list each controller at the start and once more before any commit
+    await expect.poll(() => ({ ...listings })).toEqual({ claims: 2, tickets: 2 });
+
+    // list the tickets again after a ticket commit, in the same pass leaving the claims alone
+    await database.insert(ticket).values({ id: "first" });
+    await expect.poll(() => ({ ...listings })).toEqual({ claims: 2, tickets: 3 });
+
+    // list the claims again after a claim commit, leaving the tickets alone
+    await database.insert(claim).values({ id: "first" });
+    await expect.poll(() => ({ ...listings })).toEqual({ claims: 3, tickets: 3 });
 });
 
 test("reconcile keys up to a controller's concurrency, never one key twice at once", async () => {
@@ -162,7 +273,7 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
         await looping;
     });
 
-    // name the first key again while it runs and finish the second
+    // enqueue the first key again while it runs and finish the second
     await expect.poll(() => started.length).toBe(2);
     const first = aligned(started, 0);
     const second = aligned(started, 1);
@@ -263,14 +374,14 @@ test("follow each listed key until its list drops it or the loop stops", async (
     });
     const running = loop.run(stopping.signal);
 
-    // start both, stop the one the list drops and start the one it adds
+    // stop the key the list drops and start the one it adds
     await expect.poll(() => started.toSorted()).toEqual(["dropped", "kept"]);
     await database.delete(job).where(eq(job.id, "dropped"));
     await database.insert(job).values({ id: "added", scope: "space", runs: 1 });
     await expect.poll(() => stopped).toEqual(["dropped"]);
     await expect.poll(() => started.toSorted()).toEqual(["added", "dropped", "kept"]);
 
-    // stop the rest with the loop, reporting no failure
+    // stop the rest with the loop
     stopping.abort();
     await running;
     expect(stopped.toSorted()).toEqual(["added", "dropped", "kept"]);
@@ -283,7 +394,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     const database = storage.database;
     await database.insert(job).values({ id: "brief", scope: "space", runs: 1 });
 
-    // end each follow at once, as a broken follower does
+    // end each follow at once
     const started: number[] = [];
     const reported: string[] = [];
     const controller: Controller = {
@@ -304,7 +415,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     });
     const running = loop.run(stopping.signal);
 
-    // follow twice, the second only after the backoff, reporting each end
+    // follow twice with a backoff between
     await expect.poll(() => reported.length).toBe(2);
     stopping.abort();
     await running;
@@ -321,7 +432,7 @@ test("follow a key again once its list names it after it failed and was dropped"
     const database = storage.database;
     await database.insert(job).values({ id: "flaky", scope: "space", runs: 1 });
 
-    // fail the first follow and follow until stopped, throwing the abort reason as streams do
+    // fail the first follow and follow until stopped
     const started: string[] = [];
     const controller: Controller = {
         name: "flaky",
@@ -350,7 +461,7 @@ test("follow a key again once its list names it after it failed and was dropped"
         await running;
     });
 
-    // retry the failed follow, drop the key and follow it again once listed
+    // retry the failed follow and follow the key again once listed
     await expect.poll(() => started).toEqual(["flaky", "flaky"]);
     await database.delete(job);
     await database.insert(job).values({ id: "other", scope: "space", runs: 1 });
@@ -363,7 +474,7 @@ test("keep the host's alarm at the earliest due or skipped key, clear it once no
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
-    // look at "later" again after a moment, and at "soon" never again
+    // look at "later" again after a moment and at "soon" never again
     const alarms: (number | null)[] = [];
     const reconciled: string[] = [];
     const controller: Controller = {
@@ -394,7 +505,7 @@ test("keep the host's alarm at the earliest due or skipped key, clear it once no
     const stopping = new AbortController();
     const running = loop.run(stopping.signal);
 
-    // settle once both keys ran: the alarm stayed at "soon" while "later" ran, waking the instance for "later" after
+    // settle once both keys ran
     await loop.idle();
     const settled = [reconciled.toSorted(), alarms.length];
 
@@ -414,13 +525,57 @@ test("keep the host's alarm at the earliest due or skipped key, clear it once no
     await expect(loop.idle()).resolves.toBeUndefined();
 });
 
+test("reconcile a key named due while the worker keeps its alarm, before it sleeps", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // mark "late" due while the worker keeps its alarm at "first"
+    const reconciled: string[] = [];
+    const { promise: ran, resolve: run } = Promise.withResolvers<void>();
+    const controller: Controller = {
+        name: "job",
+        list: async () => ["first"],
+        reconcile: async (key) => {
+            reconciled.push(key);
+            run();
+
+            return undefined;
+        },
+    };
+    const loop: ControlLoop = new ControlLoop(storage.database, [controller], {
+        report: (_controller, _key, error) => {
+            throw error;
+        },
+        alarm: {
+            setAlarm: async () => {
+                // enqueue it once
+                await ran;
+                await wait(0);
+                if (!reconciled.includes("late")) {
+                    loop.enqueue(controller, "late");
+                }
+            },
+            deleteAlarm: async () => {},
+        },
+    });
+    const stopping = new AbortController();
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // reconcile "late" without another change waking the worker
+    await expect.poll(() => reconciled, { timeout: 1000 }).toEqual(["first", "late"]);
+});
+
 test("settle an alarm at its deadline while a follow runs, keep the alarm due, and resume the follow from its recorded position after eviction", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(job).values({ id: "copy", scope: "space", runs: 0 });
 
-    // follow a growing source, recording the position reached in the job's row as a replica records its copy's
+    // follow a growing source
     const source = ["first", "second"];
     const applied: string[] = [];
     let follows = 0;
@@ -441,7 +596,7 @@ test("settle an alarm at its deadline while a follow runs, keep the alarm due, a
         },
     };
 
-    // run the follow in a loop on the object's alarm, recording where the alarm is due
+    // run the follow in a loop on the object's alarm
     const alarms: number[] = [];
     const alarm = {
         setAlarm: async (at: number) => {
@@ -459,7 +614,7 @@ test("settle an alarm at its deadline while a follow runs, keep the alarm due, a
     };
     const evicted = start();
 
-    // settle the alarm at its deadline with the follow running, its wake-up due at once
+    // settle the alarm at its deadline with the follow running
     await evicted.loop.idle(Date.now() + 20);
     const settled = Date.now();
     const isDue = alarms.length === 1 && aligned(alarms, 0) <= settled;
@@ -493,7 +648,7 @@ test("run work until a change shows it ended elsewhere, and settle unchanged wor
     };
     const change = () => changes.splice(0).forEach((resolve) => resolve());
 
-    // abort work once a change shows it was cancelled, keeping the reason
+    // abort work once a change shows it was cancelled
     let isCancelled = false;
     const cancelled = Reconciliation.runUntil(
         reconciliation,

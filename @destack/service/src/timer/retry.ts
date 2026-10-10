@@ -1,6 +1,6 @@
 import { wait } from "./timer.ts";
 
-/** How a failed operation retries, as Temporal's retry policy. */
+/** How a failed operation retries. */
 export interface RetryPolicy {
     /** The wait before the second attempt, in milliseconds. */
     readonly initialInterval: number;
@@ -10,11 +10,11 @@ export interface RetryPolicy {
     readonly maximumInterval: number;
     /** The most attempts, the first included, absent to retry until stopped. */
     readonly maximumAttempts?: number;
-    /** Spread each wait uniformly below its interval, as AWS's full jitter does. */
+    /** Spread each wait uniformly below its interval, as full jitter. */
     readonly jitter?: "full";
 }
 
-/** Temporal's default policy: a second, doubling, at most 100 seconds apart. */
+/** The default policy: a second, doubling, at most 100 seconds apart. */
 const DEFAULT_POLICY: RetryPolicy = {
     initialInterval: 1000,
     backoffCoefficient: 2,
