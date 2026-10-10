@@ -10,6 +10,8 @@ export interface Keychain {
     remove(name: string): Promise<void>;
     /** Forget a secret if the kept one equals the expected one, and report whether it did. */
     removeIf(name: string, expected: string): Promise<boolean>;
+    /** Hold a name exclusively until disposed, as work replacing its secret outside the keychain does. */
+    lock(name: string): Promise<AsyncDisposable>;
 }
 
 /** The operations every keychain shares. */
@@ -43,6 +45,28 @@ async function update(
 export class MemoryKeychain implements Keychain {
     /** The kept secrets, by name. */
     readonly secrets = new Map<string, string>();
+    /** The last hold of each name, which the next one waits for. */
+    readonly #holds = new Map<string, Promise<void>>();
+
+    /** Hold a name exclusively until disposed, after its earlier holds. */
+    async lock(name: string): Promise<AsyncDisposable> {
+        // queue behind the name's last hold
+        const previous = this.#holds.get(name) ?? Promise.resolve();
+        const released = Promise.withResolvers<void>();
+        const held = previous.then(() => released.promise);
+        this.#holds.set(name, held);
+        await previous;
+
+        // release the hold on disposal, forgetting it once last
+        return {
+            [Symbol.asyncDispose]: async () => {
+                released.resolve();
+                if (this.#holds.get(name) === held) {
+                    this.#holds.delete(name);
+                }
+            },
+        };
+    }
 
     /** Read a secret. */
     async load(name: string): Promise<string | undefined> {

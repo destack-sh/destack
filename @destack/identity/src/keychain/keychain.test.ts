@@ -36,3 +36,26 @@ test("apply both of two racing changes by retrying the loser over the winner's s
         "ab",
     ]);
 });
+
+test("hold a name exclusively, letting its next holder in once the first disposes, and other names at once", async () => {
+    // hold a name, then ask for it again and for another name
+    const keychain = new MemoryKeychain();
+    const order: string[] = [];
+    const first = await keychain.lock("root");
+    const second = keychain.lock("root").then((held) => {
+        order.push("second");
+
+        return held;
+    });
+    const other = await keychain.lock("other");
+    order.push("other");
+
+    // let the second holder in once the first disposes
+    await Promise.resolve();
+    order.push("first released");
+    await first[Symbol.asyncDispose]();
+    await (await second)[Symbol.asyncDispose]();
+    await other[Symbol.asyncDispose]();
+
+    expect(order).toEqual(["other", "first released", "second"]);
+});

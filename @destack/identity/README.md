@@ -3,10 +3,15 @@
 `IdentityOperation` is a did:plc operation with signing and rotation keys, `PublicKey` is a JWK with its RFC 7638 thumbprint and JWKS, `Proof` is RFC 9449's DPoP proof, `Keyring` and `Ciphertext` are AWS KMS's `Encrypt` and `Decrypt` with an encryption context as compact JWE, `Derivation` is HKDF, and `/aws` is AWS Signature Version 4.
 
 ```ts
-await IdentityOperation.sign({ subject: spaceId, previous: null, signingKeys, rotationKeys }, rotationPrivateKey); // a did:plc operation
+// a did:plc operation
+await IdentityOperation.sign(
+    { subject: spaceId, previous: null, signingKeys, rotationKeys },
+    rotationPrivateKey,
+);
 await PublicKey.thumbprint(key); // RFC 7638
 await PublicKey.keySet([key]); // a JWKS
-await Proof.sign(privateKey, publicKey, machineId, Date.now(), { method: "POST", url }); // a DPoP proof
+// a DPoP proof
+await Proof.sign(privateKey, publicKey, machineId, Date.now(), { method: "POST", url });
 await keyring.encrypt(dataKey, context); // KMS Encrypt with an EncryptionContext
 await root.derive("destack s3 v1"); // HKDF under a label
 await signer.authorize(request, new Date()); // AWS4-HMAC-SHA256
@@ -18,7 +23,8 @@ An `Identity` is a space's or the universe's signing keys, the active one first,
 
 ```ts
 const operation = IdentityOperation.read(signed); // unverified, refusing a malformed one
-const priority = await IdentityOperation.verify(signed, identity.rotationKeys); // the signing key's priority
+// the signing key's priority
+const priority = await IdentityOperation.verify(signed, identity.rotationKeys);
 ```
 
 ## Keyrings
@@ -40,7 +46,10 @@ A `Keychain` keeps a host's secrets by name, `BunKeychain` in the operating syst
 import { BunKeychain } from "@destack/identity/bun";
 
 const keychain = new BunKeychain("app.destack.host");
-await Keychain.update(keychain, "root", (current) => current ?? generated); // retries a racing writer
+// retries a racing writer
+await Keychain.update(keychain, "root", (current) => current ?? generated);
+// holds the name across processes while replacing its key elsewhere
+await using _held = await keychain.lock("root");
 ```
 
 ## Recipients

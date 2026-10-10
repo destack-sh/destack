@@ -59,6 +59,13 @@ export class BunKeychain implements Keychain {
         return isExpected;
     }
 
+    /** Hold a name exclusively across processes until disposed. */
+    async lock(name: string): Promise<AsyncDisposable> {
+        const directory = await runtimeDirectory({ environment: this.#environment });
+
+        return FileLock.acquire(join(directory, `${this.service}.${name}.lock`));
+    }
+
     /** Lock the service's writes across processes. */
     async #lock(): Promise<FileLock> {
         const directory = await runtimeDirectory({ environment: this.#environment });
