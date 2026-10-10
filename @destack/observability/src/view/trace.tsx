@@ -10,15 +10,17 @@ import {
     Loading,
     onCleanup,
     Show,
+    useLocale,
     useService,
     useView,
 } from "@destack/view";
-import type { Event } from "@destack/event";
+import { type Event, EventTime } from "@destack/event";
+import { t } from "@destack/locale";
 import * as kinds from "../event/index.ts";
 import { eventService } from "@destack/event/service";
 import { observabilityService } from "../service/index.ts";
 import { EventFeed, useEvents } from "./feed.ts";
-import { FilterField, MoreButton, OpenButton, styles, timeOf, useFilter } from "./page.tsx";
+import { Elapsed, FilterField, MoreButton, OpenButton, styles, Time, useFilter } from "./page.tsx";
 
 /** The time line of a trace: each span a row indented below its parent, its bar placed by its start and length. */
 const spanStyles = style.create({
@@ -49,9 +51,6 @@ const spanStyles = style.create({
     }),
 });
 
-/** The microseconds in a millisecond, as events time themselves in microseconds. */
-const MICROSECONDS = 1000;
-
 /** One span of a trace as the time line shows it. */
 interface TraceSpan {
     /** The span, as 16 hexadecimal digits. */
@@ -73,6 +72,7 @@ interface TraceSpan {
 /** List a space's recent traces by their root spans the typed filter selects, newest first, opening the one chosen. */
 export default function Traces() {
     // follow the root spans the filter selects, and the open trace
+    const locale = useLocale();
     const view = useView();
     const filter = useFilter();
     const [open, setOpen] = createSignal<string>();
@@ -92,7 +92,7 @@ export default function Traces() {
     );
 
     return (
-        <main {...style.attrs(text.footnote, styles.page)} aria-label="Traces">
+        <main {...style.attrs(text.footnote, styles.page)} aria-label={locale.render(t`Traces`)}>
             {/* Filter */}
             <header {...style.attrs(styles.header)}>
                 <FilterField filter={filter} placeholder="status = error AND duration > 500000" />
@@ -100,7 +100,7 @@ export default function Traces() {
 
             {/* Traces beside the open one */}
             <div {...style.attrs(styles.split)}>
-                <Loading fallback={<p>Loading traces</p>}>
+                <Loading fallback={<p>{locale.render(t`Loading traces`)}</p>}>
                     <div {...style.attrs(styles.detail)}>
                         <TraceList traces={roots().events} open={open()} choose={setOpen} />
                         <MoreButton more={roots().more} />
@@ -121,8 +121,10 @@ function TraceList(properties: {
     /** Open a trace. */
     choose: (id: string) => void;
 }) {
+    const locale = useLocale();
+
     return (
-        <ol {...style.attrs(styles.list)} aria-label="Traces">
+        <ol {...style.attrs(styles.list)} aria-label={locale.render(t`Traces`)}>
             <For each={properties.traces}>
                 {(event) => {
                     const row = spanOf(event);
@@ -146,8 +148,8 @@ function TraceList(properties: {
                                         </Badge>
                                     </ItemTitle>
                                     <ItemDescription>
-                                        {timeOf(row.time / MICROSECONDS)} ·{" "}
-                                        {row.duration / MICROSECONDS} ms
+                                        <Time at={EventTime.milliseconds(row.time)} /> ·{" "}
+                                        <Elapsed microseconds={row.duration} />
                                     </ItemDescription>
                                 </ItemContent>
                             </OpenButton>
@@ -165,6 +167,7 @@ function TraceDetail(properties: {
     id: string;
 }) {
     // read the trace through observability, then follow its spans
+    const locale = useLocale();
     const events = useService(eventService);
     const observability = useService(observabilityService);
     const view = useView();
@@ -188,17 +191,18 @@ function TraceDetail(properties: {
     const failed = () => read().filter((span) => span.status === "error").length;
 
     return (
-        <Loading fallback={<p>Loading the trace</p>}>
-            <article {...style.attrs(styles.detail)} aria-label="Trace">
+        <Loading fallback={<p>{locale.render(t`Loading the trace`)}</p>}>
+            <article {...style.attrs(styles.detail)} aria-label={locale.render(t`Trace`)}>
                 {/* Root and totals */}
                 <h2>{root()?.name}</h2>
                 <p {...style.attrs(styles.muted)}>
-                    {timeOf(start() / MICROSECONDS)} · {length() / MICROSECONDS} ms · {failed()}{" "}
-                    failed of {read().length}
+                    <Time at={EventTime.milliseconds(start())} /> ·{" "}
+                    <Elapsed microseconds={length()} /> ·{" "}
+                    {locale.render(t`${failed()} of ${read().length} failed`)}
                 </p>
 
                 {/* Time line */}
-                <ol {...style.attrs(styles.list)} aria-label="Spans">
+                <ol {...style.attrs(styles.list)} aria-label={locale.render(t`Spans`)}>
                     <For each={tree(read())}>
                         {({ span, depth }) => (
                             <SpanRow
@@ -234,7 +238,7 @@ function SpanRow(properties: {
     return (
         <li data-slot="span" data-depth={properties.depth} {...style.attrs(spanStyles.span)}>
             <span {...style.attrs(spanStyles.indent(properties.depth))}>
-                {properties.span.name} · {properties.span.duration / MICROSECONDS} ms
+                {properties.span.name} · <Elapsed microseconds={properties.span.duration} />
             </span>
             <span {...style.attrs(spanStyles.track)}>
                 <span

@@ -6,7 +6,7 @@ import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, present, schema } from "@destack/schema";
 import type { OtlpEmitter, OtlpReceiver } from "@destack/telemetry/otlp";
-import { installationRevision } from "@destack/space/object";
+import { installationRevision } from "@destack/stack/object";
 
 /** The note module's source: a class whose rename method fails, and the module's path. */
 export const NOTE_SOURCE = [

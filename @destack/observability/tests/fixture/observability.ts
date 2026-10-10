@@ -1,6 +1,6 @@
 import { space } from "@destack/account/object";
 import { onTestFinished } from "@destack/test";
-import { accessRole, Authorization, Authorizer, principal } from "@destack/access";
+import { accessRole, Authorization, Authorizer, type Caller, principal } from "@destack/access";
 import { and, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { type Event, EventStore, DatabasePersonalKeyring, type Route } from "@destack/event";
 import { eventTables } from "@destack/event/stack";
@@ -12,7 +12,6 @@ import { PackageId } from "@destack/package";
 import { MemoryBucket } from "@destack/bucket/test";
 import { ResourceContext } from "@destack/resource/context";
 import { present, schema } from "@destack/schema";
-import type { Authentication } from "@destack/service/authentication";
 import { TestBearer } from "@destack/service/test";
 import { createClient } from "@destack/service/client";
 import { implementEvents } from "@destack/event/server";
@@ -23,11 +22,11 @@ import { Health } from "@destack/service/health";
 import { Outbox, outbox } from "@destack/service/outbox";
 import { Server, type ServiceImplementation } from "@destack/service/server";
 import { socialTables } from "@destack/social/stack";
-import { installation } from "@destack/space/object";
-import type { OpenBuild } from "@destack/space/server";
-import { serveSpace } from "@destack/space/server";
-import { spaceCopies } from "@destack/space/stack";
-import { openBuild, SpaceFixture, spaceDatabase } from "@destack/space/test";
+import { installation } from "@destack/stack/object";
+import type { OpenBuild } from "@destack/stack/server";
+import { serveSpace } from "@destack/stack/server";
+import { spaceCopies } from "@destack/stack/stack";
+import { openBuild, StackFixture, spaceDatabase } from "@destack/stack/test";
 import type { OtlpReceiver } from "@destack/telemetry/otlp";
 import { OBSERVABILITY_KINDS } from "../../src/event/index.ts";
 import { implementObservability, type Reading, TelemetryPolicy } from "../../src/server/index.ts";
@@ -108,25 +107,26 @@ export interface ObservabilityTestOptions {
 /** Serve a space's observability over its space's events, where alice owns the space and notes is installed, authenticating by bearer name. */
 export async function serveObservability(options: ObservabilityTestOptions = {}) {
     // keep alice's space with the notes installation
-    const fixture = await SpaceFixture.open({ database: observedDatabase });
+    const fixture = await StackFixture.open({ database: observedDatabase });
     const database = fixture.database;
     await createSpace(database);
 
     // keep the space's events over its database, a memory bucket and a generated keyring, on a clock the test sets
     const clock = { now: Date.now() };
     const failures: unknown[] = [];
-    const bucket = new MemoryBucket(() => clock.now);
+    const bucket = new MemoryBucket({ now: () => clock.now });
     const keyring = await LocalKeyring.read(LocalKeyring.generate());
     const events = new EventStore({
         database,
         kinds: KINDS,
         files: () => bucket,
         personal: new DatabasePersonalKeyring(database, keyring),
-        outbox: new Outbox(database),
-        targets: options.targets ?? (async () => []),
-        deliver: async (kind, copies) => options.deliver?.(kind, copies),
+        forwarder: {
+            targets: options.targets ?? (async () => []),
+            deliver: async (kind, copies) => options.deliver?.(kind, copies),
+        },
         policy: TelemetryPolicy.of(database),
-        now: () => clock.now,
+        clock: { now: () => clock.now },
         report: (error) => failures.push(error),
     });
 
@@ -146,15 +146,16 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     });
     const { store: objects, services } = served;
     const observed = implementation.receiver(objects);
-    const server = listen(present(services[1], "the observability service"));
+    const server = listen(present(services[1], "the observability service"), failures);
 
     // serve the space's events to readers as the event service
     const eventServer = listen(
         implementEvents({ store: events, access: objects.access, unmasked: objects.unmasked }),
+        failures,
     );
 
     // run the space server's controllers of observability's objects, which serve beside its first service
-    const controlled = present(services[0], "the space service").controllers ?? [];
+    const controlled = present(services[0], "the stack service").controllers ?? [];
     run(
         database,
         controlled.filter((controller) => OBJECT_CONTROLLERS.has(controller.name)),
@@ -188,8 +189,8 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     };
 }
 
-/** Serve an observability implementation over HTTP to callers authenticating by bearer name, closed as the test finishes. */
-function listen(implementation: ServiceImplementation): Server {
+/** Serve an observability implementation over HTTP to callers authenticating by bearer name, keeping its controllers' failures, closed as the test finishes. */
+function listen(implementation: ServiceImplementation, failures: unknown[]): Server {
     // serve at once, as the fixture writes the copies itself and no snapshot ever arrives
     const { ready: _ready, ...served } = implementation;
     const server = Server.start({
@@ -200,6 +201,7 @@ function listen(implementation: ServiceImplementation): Server {
         resources: new ResourceContext(),
         authorizeMachine: async () => {},
         authenticate: async (request) => authenticate(request),
+        report: (error) => failures.push(error),
     });
     onTestFinished(() => server.close());
 
@@ -238,7 +240,7 @@ export async function createSpace(database: DatabaseConnection): Promise<void> {
 }
 
 /** Authenticate the installation and the users by the bearer name. */
-export function authenticate(request: Request): Authentication {
+export function authenticate(request: Request): Caller {
     // authenticate notes as its installation and other names as users
     const name = TestBearer.read(request);
     const subject =

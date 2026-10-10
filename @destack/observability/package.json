@@ -39,7 +39,7 @@
         "@destack/service": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/social": "workspace:*",
-        "@destack/space": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",

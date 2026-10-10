@@ -1,9 +1,9 @@
 import { principal } from "@destack/access";
-import { bucket } from "@destack/space/object";
+import { bucket } from "@destack/stack/object";
 import { and, type DatabaseConnection, eq, gt, isNotNull, isNull, lt, or } from "@destack/db";
 import type { Meter } from "@destack/finance";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
-import { database, deployment, instance } from "@destack/space/object";
+import { database, deployment, instance } from "@destack/stack/object";
 import { Subject } from "@destack/sync";
 import { bucketStorage, compute, databaseStorage, egress, operations } from "./meter.ts";
 
@@ -92,7 +92,7 @@ export const Reading = {
         );
     },
 
-    /** Read the bytes of the object a machine keeps a space in as the space's own databases: its kinds' and its space service's beside the databases no installation owns. */
+    /** Read the bytes of the object a machine keeps a space in as the space's own databases: its kinds' and its stack service's beside the databases no installation owns. */
     async space(scope: Identifier<"space">, bytes: () => Promise<number>): Promise<Reading[]> {
         return [{ meter: databaseStorage, scope, value: await bytes() }];
     },

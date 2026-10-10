@@ -1,6 +1,6 @@
 import type { DatabaseConnection, JsonCondition } from "@destack/db";
 import type { EventStore } from "@destack/event";
-import { type Digest, type Identifier, schema } from "@destack/schema";
+import { Clock, type Digest, type Identifier, schema } from "@destack/schema";
 import type { OtlpEmitter, OtlpReceiver, OtlpSignal } from "@destack/telemetry/otlp";
 import { action, log, metric, span, visit } from "../event/index.ts";
 import { Exception } from "../issue/exception.ts";
@@ -21,8 +21,8 @@ export interface ReceiverOptions {
     readonly salt?: DatabaseConnection;
     /** Report a failure grouping exceptions, which keeps the export as it came. */
     readonly report: (error: unknown) => void;
-    /** Read the current time in Unix milliseconds, the server's clock. */
-    readonly clock: () => number;
+    /** The server's clock. */
+    readonly clock: Clock;
 }
 
 /** One exception a decoded export recorded, once per trace, with the events recording it. */
@@ -97,7 +97,7 @@ export class ObservabilityReceiver implements OtlpReceiver {
             const grouped = await grouper.group(
                 space.data,
                 fresh.map((each) => each.occurrence),
-                this.#options.clock(),
+                this.#options.clock.now(),
             );
             for (const each of fresh) {
                 const issue = grouped.get(each.occurrence);
@@ -176,7 +176,7 @@ export class ObservabilityReceiver implements OtlpReceiver {
         ) {
             return decoded;
         }
-        const hashed = await VisitorSalt.hash(salt, this.#options.clock(), {
+        const hashed = await VisitorSalt.hash(salt, this.#options.clock.now(), {
             installation,
             ...visitor,
         });

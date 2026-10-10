@@ -9,29 +9,31 @@ import {
 } from "@destack/ui/item";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { For, Loading, useQuery, useSpace } from "@destack/view";
+import { type Localization, t } from "@destack/locale";
+import { For, Loading, useLocale, useQuery, useSpace } from "@destack/view";
 import { alert, type Alert, alertRule, type AlertRule } from "../object/index.ts";
-import { PAGE_ROWS, styles, timeOf } from "./page.tsx";
+import { PAGE_ROWS, styles, Time } from "./page.tsx";
 
 /** List a space's alert rules with their evaluation beside the alerts they fired, newest first, resolving firing ones by hand. */
 export default function Alerts() {
-    // follow the rules by name and the alerts newest first
+    // follow the rules by title and the alerts newest first
+    const locale = useLocale();
     const objects = useSpace({ alertRule, alert });
     const rules = useQuery(
-        objects.query.alertRule.findMany({ orderBy: { name: "asc" }, limit: PAGE_ROWS }),
+        objects.query.alertRule.findMany({ orderBy: { title: "asc" }, limit: PAGE_ROWS }),
     );
     const alerts = useQuery(
         objects.query.alert.findMany({ orderBy: { createdAt: "desc" }, limit: PAGE_ROWS }),
     );
 
     return (
-        <main {...style.attrs(text.footnote, styles.page)} aria-label="Alerts">
+        <main {...style.attrs(text.footnote, styles.page)} aria-label={locale.render(t`Alerts`)}>
             {/* Rules beside alerts */}
             <div {...style.attrs(styles.split)}>
-                <Loading fallback={<p>Loading alert rules</p>}>
+                <Loading fallback={<p>{locale.render(t`Loading alert rules`)}</p>}>
                     <RuleList rules={rules()} />
                 </Loading>
-                <Loading fallback={<p>Loading alerts</p>}>
+                <Loading fallback={<p>{locale.render(t`Loading alerts`)}</p>}>
                     <AlertList
                         alerts={alerts()}
                         resolve={(id) => void objects.mutate.alert.resolve({ id }).confirmed}
@@ -42,13 +44,15 @@ export default function Alerts() {
     );
 }
 
-/** List alert rules with what fires them and whether their controller evaluates them. */
+/** List alert rules with what fires them and whether their controller evaluated them yet. */
 function RuleList(properties: {
-    /** The rules, by name. */
-    rules: readonly Pick<AlertRule, "name" | "condition" | "conditions">[];
+    /** The rules, by title. */
+    rules: readonly Pick<AlertRule, "title" | "condition" | "conditions">[];
 }) {
+    const locale = useLocale();
+
     return (
-        <ol {...style.attrs(styles.list)} aria-label="Alert rules">
+        <ol {...style.attrs(styles.list)} aria-label={locale.render(t`Alert rules`)}>
             <For each={properties.rules}>
                 {(rule) => (
                     <li
@@ -56,17 +60,13 @@ function RuleList(properties: {
                         {...style.attrs(itemVariants({ variant: "outline", size: "sm" }))}
                     >
                         <ItemContent>
-                            <ItemTitle>{rule.name}</ItemTitle>
-                            <ItemDescription>{conditionOf(rule)}</ItemDescription>
+                            <ItemTitle>{rule.title}</ItemTitle>
+                            <ItemDescription>{conditionOf(rule, locale)}</ItemDescription>
                         </ItemContent>
-                        <Badge
-                            variant={
-                                rule.conditions["Ready"]?.status === "false"
-                                    ? "destructive"
-                                    : "secondary"
-                            }
-                        >
-                            {rule.conditions["Ready"]?.reason ?? "Pending"}
+                        <Badge variant="secondary">
+                            {rule.conditions["Ready"] === undefined
+                                ? locale.render(t`Pending`)
+                                : locale.render(t`Evaluated`)}
                         </Badge>
                     </li>
                 )}
@@ -82,8 +82,10 @@ function AlertList(properties: {
     /** Resolve a firing alert. */
     resolve: (id: Alert["id"]) => void;
 }) {
+    const locale = useLocale();
+
     return (
-        <ol {...style.attrs(styles.list)} aria-label="Alerts">
+        <ol {...style.attrs(styles.list)} aria-label={locale.render(t`Alerts`)}>
             <For each={properties.alerts}>
                 {(row) => (
                     <li
@@ -99,7 +101,9 @@ function AlertList(properties: {
                                     {row.status}
                                 </Badge>
                             </ItemTitle>
-                            <ItemDescription>{timeOf(row.createdAt)}</ItemDescription>
+                            <ItemDescription>
+                                <Time at={row.createdAt} />
+                            </ItemDescription>
                         </ItemContent>
                         <ItemActions>
                             <Button
@@ -108,7 +112,7 @@ function AlertList(properties: {
                                 disabled={row.status !== "firing"}
                                 onClick={() => properties.resolve(row.id)}
                             >
-                                Resolve
+                                {locale.render(t`Resolve`)}
                             </Button>
                         </ItemActions>
                     </li>
@@ -118,20 +122,37 @@ function AlertList(properties: {
     );
 }
 
-/** Describe what fires a rule as people read it. */
-function conditionOf(rule: Pick<AlertRule, "condition">): string {
+/** Describe what fires a rule as people read it, in their locale. */
+function conditionOf(rule: Pick<AlertRule, "condition">, locale: Localization): string {
     const { condition } = rule;
 
-    // an issue condition
+    // an issue condition, over the issues a filter selects when it has one
     if (condition.kind === "issue") {
-        const where = condition.filter === undefined ? "" : ` where ${condition.filter}`;
+        const changed = {
+            open: t`When an issue opens`,
+            regress: t`When an issue regresses`,
+            escalate: t`When an issue escalates`,
+        }[condition.on];
+        const described = locale.render(changed);
 
-        return `When an issue ${condition.on}s${where}`;
+        return condition.filter === undefined
+            ? described
+            : locale.render(t`${described} where ${condition.filter}`);
     }
-    // an events condition
+    // an events condition, of a measured key when it folds one
     else {
-        const measured = condition.measure === undefined ? "" : ` of ${condition.measure}`;
+        const threshold = locale.number(condition.threshold);
+        const folded =
+            condition.measure === undefined
+                ? condition.fold
+                : locale.render(t`${condition.fold} of ${condition.measure}`);
 
-        return `When the ${condition.fold}${measured} of ${condition.event} events is ${condition.comparison} ${condition.threshold}`;
+        return condition.comparison === "above"
+            ? locale.render(
+                  t`When the ${folded} of ${condition.event} events is above ${threshold}`,
+              )
+            : locale.render(
+                  t`When the ${folded} of ${condition.event} events is below ${threshold}`,
+              );
     }
 }

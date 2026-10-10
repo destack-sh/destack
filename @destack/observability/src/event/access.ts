@@ -1,6 +1,6 @@
 import type { EventAccess } from "@destack/event/declare";
 import { schema } from "@destack/schema";
-import { installation } from "@destack/space/object";
+import { installation } from "@destack/stack/object";
 import { analytics, telemetry } from "../access/index.ts";
 
 /** The installation a read of a scope's telemetry or analytics narrows to, whose own grants then decide. */

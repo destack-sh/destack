@@ -2,7 +2,8 @@ import { expect, refusal, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
-import { installation } from "@destack/space/object";
+import { ServiceError } from "@destack/service/error";
+import { installation } from "@destack/stack/object";
 import { alertRule, type AlertRuleDefinition } from "../src/object/index.ts";
 import { client, ids, serveObservability } from "./fixture/observability.ts";
 import {
@@ -70,11 +71,11 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
     await receive(NOTES_EMITTER, "metrics", renderDuration(now));
 
     // watch the errors per installation, their share of every record, and the slowest renders
-    const rule = (name: string, condition: AlertRuleDefinition["condition"]) =>
+    const rule = (title: string, condition: AlertRuleDefinition["condition"]) =>
         alice.alertRule.create({
             spaceId: ids.space,
             requestId: RequestId.create(),
-            name,
+            title,
             condition,
             actions: [{ kind: "notify" }],
         });
@@ -173,7 +174,7 @@ test("refuse an events rule calling an installation its group names none of", as
         client(server, "alice").alertRule.create({
             spaceId: ids.space,
             requestId: RequestId.create(),
-            name: "Refused",
+            title: "Refused",
             condition: {
                 kind: "events",
                 event: "log",
@@ -213,7 +214,7 @@ test("roll an installation back through installation.rollBack when a rule watchi
     await alice.alertRule.create({
         spaceId: ids.space,
         requestId: RequestId.create(),
-        name: "Roll back new issues",
+        title: "Roll back new issues",
         condition: { kind: "issue", on: "open" },
         actions: [{ kind: "call", method: "rollBack" }],
     });
@@ -238,7 +239,7 @@ test("roll an installation back through installation.rollBack when a rule watchi
 test("keep the alert rules an installation's applied revision declares, and retire one a later revision drops", async () => {
     // serve observability with a notes revision declaring a rule, and a later one declaring none
     const rollback: AlertRuleDefinition = {
-        name: "Roll back new fatal issues",
+        title: "Roll back new fatal issues",
         condition: { kind: "issue", on: "open", filter: "level = fatal" },
         actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
     };
@@ -261,7 +262,7 @@ test("keep the alert rules an installation's applied revision declares, and reti
     // keep the declared rule, managed by the notes installation
     const kept = async () =>
         (await database.select().from(alertRule.table)).map((row) => ({
-            name: row.name,
+            title: row.title,
             manager: row.managerInstallationId,
             declaration: row.managerName,
             isRetiring: row.deletionRequestedAt !== null,
@@ -269,7 +270,7 @@ test("keep the alert rules an installation's applied revision declares, and reti
     await revision("c".repeat(64), Date.now() - 60_000);
     await expect.poll(kept, { timeout: 4000 }).toEqual([
         {
-            name: "Roll back new fatal issues",
+            title: "Roll back new fatal issues",
             manager: ids.notes,
             declaration: "rollback",
             isRetiring: false,
@@ -279,4 +280,43 @@ test("keep the alert rules an installation's applied revision declares, and reti
     // retire it once a later revision declares none
     await revision("d".repeat(64), Date.now());
     await expect.poll(async () => (await kept()).every((rule) => rule.isRetiring)).toBe(true);
+});
+
+test("refuse a declared alert rule over an event kind the space keeps none of, keeping no rule", async () => {
+    // serve observability with a notes revision declaring a rule over an unknown kind
+    const unknown: AlertRuleDefinition = {
+        title: "Count nothing",
+        condition: {
+            kind: "events",
+            event: "nothing",
+            fold: "count",
+            group: [],
+            window: { minutes: 5 },
+            comparison: "above",
+            threshold: 1,
+        },
+        actions: [{ kind: "notify" }],
+    };
+    const build = await openNotesBuild({ unknown });
+    const { database, failures } = await serveObservability({ openBuild: async () => build });
+    const id = await recordNotesRevision(database, Date.now());
+    await database
+        .update(installation.table)
+        .set({ revisionId: id, appliedRevisionId: id })
+        .where(eq(installation.table.id, ids.notes));
+
+    // report the refusal, each time the controller tries again, and keep no rule
+    await expect
+        .poll(
+            () =>
+                failures
+                    .slice(0, 1)
+                    .map((failure) => [
+                        ServiceError.of(failure)?.code,
+                        ServiceError.of(failure)?.message,
+                    ]),
+            { timeout: 4000 },
+        )
+        .toEqual([["BAD_REQUEST", "this store keeps no event kind named nothing"]]);
+    expect(await database.select().from(alertRule.table)).toEqual([]);
 });

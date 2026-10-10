@@ -5,7 +5,22 @@ import * as style from "@destack/style";
 import { color, space } from "@destack/theme/tokens.stylex";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@destack/ui/input-group";
 import { itemVariants } from "@destack/ui/item";
-import { createMemo, createSignal, type JSX, Show } from "@destack/view";
+import { t } from "@destack/locale";
+import { createMemo, createSignal, type JSX, Show, useLocale } from "@destack/view";
+
+/** The microseconds in a millisecond, as events time themselves and their lengths in microseconds. */
+const MICROSECONDS = 1000;
+
+/** How the pages write an instant: the date and the time to the second. */
+export const INSTANT: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "medium" };
+
+/** How the pages write a length of time: milliseconds to a tenth. */
+const ELAPSED: Intl.NumberFormatOptions = {
+    style: "unit",
+    unit: "millisecond",
+    unitDisplay: "short",
+    maximumFractionDigits: 1,
+};
 
 /** The most rows a page lists, and the rows each older page adds. */
 export const PAGE_ROWS = 100;
@@ -99,16 +114,18 @@ export function useFilter(fields?: ReadonlySet<string>) {
 export function FilterField(properties: {
     /** The filter the field types. */
     filter: ReturnType<typeof useFilter>;
-    /** An example filter. */
+    /** An example filter, as people type it in every language. */
     placeholder: string;
 }): JSX.Element {
+    const locale = useLocale();
+
     return (
         <InputGroup>
             <InputGroupAddon>
                 <Icon name="magnifying-glass" />
             </InputGroupAddon>
             <InputGroupInput
-                aria-label="Filter"
+                aria-label={locale.render(t`Filter`)}
                 placeholder={properties.placeholder}
                 aria-invalid={properties.filter.condition() === undefined ? "true" : undefined}
                 value={properties.filter.text()}
@@ -150,18 +167,39 @@ export function MoreButton(properties: {
     /** Read the next older page, absent once no older row remains. */
     more: (() => void) | undefined;
 }): JSX.Element {
+    const locale = useLocale();
+
     return (
         <Show when={properties.more}>
             {(more) => (
                 <Button variant="outline" size="sm" onClick={() => more()()}>
-                    Load older
+                    {locale.render(t`Load older`)}
                 </Button>
             )}
         </Show>
     );
 }
 
-/** Write a time in Unix milliseconds as people read it in their locale. */
-export function timeOf(time: number): string {
-    return new Date(time).toLocaleString();
+/** Render an instant as a time element in the reader's locale. */
+export function Time(properties: {
+    /** The instant, in Unix milliseconds. */
+    at: number;
+}): JSX.Element {
+    const locale = useLocale();
+
+    return (
+        <time datetime={new Date(properties.at).toISOString()}>
+            {locale.date(properties.at, INSTANT)}
+        </time>
+    );
+}
+
+/** Render a length of time, given in microseconds, in milliseconds in the reader's locale. */
+export function Elapsed(properties: {
+    /** The length, in microseconds. */
+    microseconds: number;
+}): JSX.Element {
+    const locale = useLocale();
+
+    return <>{locale.number(properties.microseconds / MICROSECONDS, ELAPSED)}</>;
 }

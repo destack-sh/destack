@@ -5,6 +5,7 @@ import type { Controller } from "@destack/service/control";
 import type { Identifier } from "@destack/schema";
 import type { Reading } from "./reading.ts";
 import { CatalogReference } from "@destack/finance";
+import { Clock } from "@destack/schema";
 
 /** How often machines measure their spaces by default: hourly, as usage is billed. */
 const INTERVAL_MILLISECONDS = 3_600_000;
@@ -27,8 +28,8 @@ export interface MeterOptions {
     readonly skus: readonly Sku[];
     /** How often the machine measures, in milliseconds, hourly by default. */
     readonly interval?: number;
-    /** Read the current time in Unix milliseconds. */
-    readonly clock?: () => number;
+    /** The clock intervals end by, the system clock by default. */
+    readonly clock?: Clock;
 }
 
 /** Measures what a machine's spaces use each interval, ending on its multiples within a month, and appends it as usage events stamped at the interval's start, once each, which their route copies to the accounts paying for them: bytes as their share of the month, amounts as measured. */
@@ -43,8 +44,8 @@ export class MeterController implements Controller {
     readonly #skus: readonly Sku[];
     /** How often the machine measures, in milliseconds. */
     readonly #interval: number;
-    /** Read the current time in Unix milliseconds. */
-    readonly #clock: () => number;
+    /** The clock intervals end by. */
+    readonly #clock: Clock;
     /** The end of the last measured interval, in Unix milliseconds. */
     #measuredAt: number;
     /** The measurements not appended yet, oldest first, kept across a failed append so no count is dropped. */
@@ -61,8 +62,8 @@ export class MeterController implements Controller {
         this.#measure = measure;
         this.#skus = options.skus;
         this.#interval = options.interval ?? INTERVAL_MILLISECONDS;
-        this.#clock = options.clock ?? Date.now;
-        this.#measuredAt = this.#clock();
+        this.#clock = options.clock ?? Clock.system;
+        this.#measuredAt = this.#clock.now();
     }
 
     /** List the one key the machine measures under. */
@@ -74,7 +75,7 @@ export class MeterController implements Controller {
     async reconcile(): Promise<number> {
         // wait for the next multiple of the interval, or the month's end before it
         const from = this.#measuredAt;
-        const now = this.#clock();
+        const now = this.#clock.now();
         const monthEnd = nextMonth(from);
         const boundary = Math.min(
             (Math.floor(from / this.#interval) + 1) * this.#interval,

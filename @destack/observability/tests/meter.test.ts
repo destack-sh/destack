@@ -77,7 +77,7 @@ test("append a space's measured use as usage events once, a failed round's count
     const meters = new MeterController(events, async () => rounds.shift() ?? [], {
         skus: [databaseSku, computeSku],
         interval: 1,
-        clock: () => now,
+        clock: { now: () => now },
     });
     now = (start + end) / 2;
     const failed = await meters.reconcile().then(

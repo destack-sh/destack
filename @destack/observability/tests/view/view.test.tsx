@@ -257,7 +257,7 @@ test("list a space's alert rules beside its alerts, and resolve a firing alert b
     await alice.alertRule.create({
         spaceId: ids.space,
         requestId: RequestId.create(),
-        name: "Errors",
+        title: "Errors",
         condition: {
             kind: "events",
             event: "log",

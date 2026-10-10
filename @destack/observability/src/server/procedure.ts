@@ -1,6 +1,6 @@
 import type { JsonCondition } from "@destack/db";
 import { type EventStore } from "@destack/event";
-import { authorizeRead, type UnmaskedRead } from "@destack/event/server";
+import { EventRead, type UnmaskedRead } from "@destack/event/server";
 import { FilterText } from "@destack/event/service";
 import { ServiceError } from "@destack/service";
 import { implement, type ServiceContext } from "@destack/service/server";
@@ -25,7 +25,7 @@ export function observabilityProcedures(
         trace: implementation.trace.handler(async ({ input, context }) => {
             // read the trace's spans and logs from the time its identifier carries
             const selection = { ...input, within: true };
-            const read = await authorizeRead(context, {
+            const read = await EventRead.authorize(context, {
                 store: events,
                 kind: span,
                 selection,
@@ -46,7 +46,7 @@ export function observabilityProcedures(
         }),
         percentiles: implementation.percentiles.handler(async ({ input, context }) => {
             // fold the selected histogram points into percentiles as the caller may read metrics
-            const read = await authorizeRead(context, {
+            const read = await EventRead.authorize(context, {
                 store: events,
                 kind: metric,
                 selection: input,

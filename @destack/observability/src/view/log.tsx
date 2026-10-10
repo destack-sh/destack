@@ -1,20 +1,19 @@
-import type { Event } from "@destack/event";
+import { type Event, EventTime } from "@destack/event";
+import { t } from "@destack/locale";
 import { Badge } from "@destack/ui/badge";
 import { Switch } from "@destack/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@destack/ui/table";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { createSignal, For, Loading, useView } from "@destack/view";
+import { createSignal, For, Loading, useLocale, useView } from "@destack/view";
 import { levelOf, log } from "../event/index.ts";
 import { useEvents } from "./feed.ts";
-import { FilterField, MoreButton, styles, timeOf, useFilter } from "./page.tsx";
-
-/** The microseconds in a millisecond, as events time themselves in microseconds. */
-const MICROSECONDS = 1000;
+import { FilterField, MoreButton, styles, Time, useFilter } from "./page.tsx";
 
 /** Search a space's log records with the field query language, newest first, following new ones while live. */
 export default function Logs() {
     // follow the records the filter selects while live
+    const locale = useLocale();
     const view = useView();
     const filter = useFilter();
     const [isLive, setLive] = createSignal(true);
@@ -27,18 +26,18 @@ export default function Logs() {
     }, isLive);
 
     return (
-        <main {...style.attrs(text.footnote, styles.page)} aria-label="Logs">
+        <main {...style.attrs(text.footnote, styles.page)} aria-label={locale.render(t`Logs`)}>
             {/* Filter and live switch */}
             <header {...style.attrs(styles.header)}>
                 <FilterField filter={filter} placeholder="severity >= 17 AND name : note" />
                 <label {...style.attrs(styles.header)}>
                     <Switch checked={isLive()} onCheckedChange={setLive} />
-                    Live
+                    {locale.render(t`Live`)}
                 </label>
             </header>
 
             {/* Records */}
-            <Loading fallback={<p>Loading logs</p>}>
+            <Loading fallback={<p>{locale.render(t`Loading logs`)}</p>}>
                 <RecordTable records={records().events} />
                 <MoreButton more={records().more} />
             </Loading>
@@ -51,15 +50,17 @@ function RecordTable(properties: {
     /** The log events, newest first. */
     records: readonly Event[];
 }) {
+    const locale = useLocale();
+
     return (
-        <Table aria-label="Records">
+        <Table aria-label={locale.render(t`Records`)}>
             {/* Columns */}
             <TableHeader>
                 <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Level</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Body</TableHead>
+                    <TableHead>{locale.render(t`Time`)}</TableHead>
+                    <TableHead>{locale.render(t`Level`)}</TableHead>
+                    <TableHead>{locale.render(t`Name`)}</TableHead>
+                    <TableHead>{locale.render(t`Body`)}</TableHead>
                 </TableRow>
             </TableHeader>
 
@@ -83,7 +84,9 @@ function RecordRow(properties: {
 
     return (
         <TableRow data-slot="log">
-            <TableCell>{timeOf(properties.event.time / MICROSECONDS)}</TableCell>
+            <TableCell>
+                <Time at={EventTime.milliseconds(properties.event.time)} />
+            </TableCell>
             <TableCell>
                 <Badge variant={isFailure() ? "destructive" : "secondary"}>
                     {level() ?? "unset"}

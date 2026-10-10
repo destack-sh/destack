@@ -9,10 +9,10 @@ import {
     not,
     sql,
 } from "@destack/db";
-import type { EventFilter, EventStore, Series } from "@destack/event";
+import { EventFilter, type EventStore, type Series } from "@destack/event";
 import { type ObjectReconciliation } from "@destack/object";
 import { Duration, present, schema } from "@destack/schema";
-import { installation } from "@destack/space/object";
+import { installation } from "@destack/stack/object";
 import { EventKey } from "../event/key.ts";
 import { MetricFold } from "../metric/fold.ts";
 import { FilterText } from "@destack/event/service";
@@ -54,6 +54,25 @@ export interface AlertOptions {
     readonly events: EventStore;
 }
 
+/** The checks a rule passes before it is written, so its evaluation reads only rules the space can evaluate. */
+export const AlertRuleCheck = {
+    /** Refuse a condition naming fields, kinds or folds the space cannot evaluate, or a call action naming no installation. */
+    require(rule: Pick<AlertRule, "condition" | "actions">, events: EventStore): void {
+        const { condition } = rule;
+        const isCalling = rule.actions.some((action) => action.kind === "call");
+        // a filter over the issues' fields
+        if (condition.kind === "issue") {
+            if (condition.filter !== undefined) {
+                Filter.parse(condition.filter, { fields: ISSUE_FILTER_FIELDS });
+            }
+        }
+        // a kind the space keeps, filters over its keys, and a fold it takes
+        else {
+            requireEvents(condition, isCalling, events);
+        }
+    },
+};
+
 /** Evaluate a space's alert rules: fire alerts for the subjects crossing each condition, settle those that cleared and report each rule's evaluation. */
 export async function evaluateRules(
     reconciliation: ObjectReconciliation<typeof alertRule>,
@@ -64,25 +83,17 @@ export async function evaluateRules(
         // retire a deleted rule
         if (rule.deletionRequestedAt !== null) {
             await reconciliation.mutate([alertRule.call("finalize", alertRule.target(rule))]);
-            continue;
         }
-
-        // read the subjects crossing the condition, refusing an unreadable rule
-        let crossings: Crossing[];
-        try {
+        // fire for the subjects crossing the condition, settle the alerts whose subject cleared, and report the evaluation
+        else {
             const { condition } = rule;
-            crossings =
+            const crossings =
                 condition.kind === "issue"
                     ? await issueCrossings(store.database, rule, condition)
                     : await eventCrossings(options.events, rule, condition, now);
-        } catch (error) {
-            await observe(reconciliation, rule, now, "InvalidRule", String(error));
-            continue;
+            await fireAndSettle(reconciliation, rule, crossings);
+            await observe(reconciliation, rule);
         }
-
-        // fire for the crossings, and settle the alerts whose subject cleared
-        await fireAndSettle(reconciliation, rule, crossings);
-        await observe(reconciliation, rule, now, "Evaluated", "");
     }
 
     return EVALUATION_MILLISECONDS;
@@ -338,30 +349,51 @@ function isInstallationMethod(name: string): name is keyof typeof installation.m
     return Object.hasOwn(installation.methods, name);
 }
 
-/** Report a rule's evaluation at its generation, up to a time. */
+/** Report a rule evaluated at its generation. */
 async function observe(
     reconciliation: ObjectReconciliation<typeof alertRule>,
     rule: AlertRule,
-    now: number,
-    reason: string,
-    message: string,
 ): Promise<void> {
     // report only a new generation or a changed readiness, so the report wakes no evaluation of its own
     const ready = rule.conditions["Ready"];
-    if (
-        rule.observedGeneration === rule.generation &&
-        ready?.reason === reason &&
-        ready.message === message
-    ) {
-        return;
+    const isReported = rule.observedGeneration === rule.generation && ready?.reason === "Evaluated";
+    if (!isReported) {
+        await reconciliation.mutate([
+            alertRule.call("observe", {
+                ...alertRule.target(rule),
+                observedGeneration: rule.generation,
+                conditions: { Ready: { status: "true", reason: "Evaluated", message: "" } },
+            }),
+        ]);
     }
-    await reconciliation.mutate([
-        alertRule.call("observe", {
-            ...alertRule.target(rule),
-            observedGeneration: rule.generation,
-            conditions: {
-                Ready: { status: reason === "Evaluated" ? "true" : "false", reason, message },
-            },
-        }),
-    ]);
+}
+
+/** Refuse an events condition over a kind the space lacks, keys the kind lacks, a fold it cannot take, or a call naming no installation. */
+function requireEvents(
+    condition: Extract<AlertCondition, { kind: "events" }>,
+    isCalling: boolean,
+    events: EventStore,
+): void {
+    // require filters over the kind's keys
+    const kind = events.kind(condition.event);
+    for (const where of [condition.where, condition.per?.where]) {
+        const parsed = FilterText.condition(where);
+        if (parsed !== undefined) {
+            EventFilter.check(kind, { scope: "", where: parsed });
+        }
+    }
+
+    // require percentiles of metric histograms alone, a measure for folds but count, and a group naming what a call calls
+    const isQuantile = MetricFold.isQuantile(condition.fold);
+    if (isQuantile && (kind.name !== "metric" || condition.per !== undefined)) {
+        throw new TypeError(`a ${condition.fold} fold reads metric histograms alone`);
+    } else if (condition.measure === undefined && condition.fold !== "count" && !isQuantile) {
+        throw new TypeError(`a ${condition.fold} fold measures a key`);
+    } else if (
+        isCalling &&
+        !condition.group.includes("installation") &&
+        !condition.group.includes("issue")
+    ) {
+        throw new TypeError("a call action needs a group naming an installation or an issue");
+    }
 }

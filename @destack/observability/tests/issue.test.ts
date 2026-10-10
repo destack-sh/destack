@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
-import { installationRevision } from "@destack/space/object";
+import { installationRevision } from "@destack/stack/object";
 import { log, span } from "../src/index.ts";
 import { client, eventClient, ids, serveObservability } from "./fixture/observability.ts";
 import {

@@ -7,7 +7,7 @@ import { defineObject, field, type ObjectType } from "@destack/object";
 import { graph } from "@destack/package";
 import { defineSchema, Digest, Instant, schema } from "@destack/schema";
 import { comment } from "@destack/social";
-import { installation, installationRevision } from "@destack/space/object";
+import { installation, installationRevision } from "@destack/stack/object";
 
 /** The levels of an issue, from its most severe exception. */
 export const ISSUE_LEVELS = ["fatal", "error", "warning", "info"] as const;

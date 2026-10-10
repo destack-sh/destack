@@ -1,10 +1,10 @@
 import { EventTime } from "@destack/event";
-import { and, count, eq, inArray, sql, type DatabaseConnection } from "@destack/db";
+import { and, count, dialectSQL, eq, inArray, sql, type DatabaseConnection } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { BuildCache } from "@destack/package/manifest";
 import type { Digest, Identifier } from "@destack/schema";
-import { installation, installationRevision } from "@destack/space/object";
-import type { OpenBuild } from "@destack/space/server";
+import { installation, installationRevision } from "@destack/stack/object";
+import type { OpenBuild } from "@destack/stack/server";
 import { ISSUE_LEVELS, issue, type Issue } from "../object/index.ts";
 import { issuePerson } from "../stack/db.ts";
 import { Exception } from "./exception.ts";
@@ -304,30 +304,30 @@ export class Grouper {
         const people = new Map<string, number>();
         await this.#objects.database.transaction(async (transaction) => {
             for (const { row, group } of counted) {
-                // keep the people with their latest time
+                // keep the people with their latest time, and count them
                 const affected = peopleOf(group);
-                if (affected.size === 0) {
-                    continue;
+                if (affected.size > 0) {
+                    await transaction
+                        .insert(issuePerson)
+                        .values(
+                            [...affected].map(([person, lastSeenAt]) => ({
+                                scope,
+                                issueId: row.id,
+                                person,
+                                lastSeenAt,
+                            })),
+                        )
+                        .onConflictDoUpdate({
+                            target: [issuePerson.issueId, issuePerson.person],
+                            set: {
+                                lastSeenAt: dialectSQL({
+                                    sqlite: sql`max(${issuePerson.lastSeenAt}, excluded.last_seen_at)`,
+                                    postgresql: sql`greatest(${issuePerson.lastSeenAt}, excluded.last_seen_at)`,
+                                }),
+                            },
+                        });
+                    people.set(row.id, await countPeople(transaction, row.id));
                 }
-                await transaction
-                    .insert(issuePerson)
-                    .values(
-                        [...affected].map(([person, lastSeenAt]) => ({
-                            scope,
-                            issueId: row.id,
-                            person,
-                            lastSeenAt,
-                        })),
-                    )
-                    .onConflictDoUpdate({
-                        target: [issuePerson.issueId, issuePerson.person],
-                        set: {
-                            lastSeenAt: sql`max(${issuePerson.lastSeenAt}, excluded.last_seen_at)`,
-                        },
-                    });
-
-                // count them
-                people.set(row.id, await countPeople(transaction, row.id));
             }
         });
 

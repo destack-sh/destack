@@ -2,12 +2,11 @@ import type { DatabaseConnection } from "@destack/db";
 import type { EventKind, EventPolicy, EventStore } from "@destack/event";
 import type { Sku } from "@destack/finance";
 import { usage } from "@destack/finance/declare";
-import type { ObjectType } from "@destack/object";
 import type { ObjectStore, ObjectExtension } from "@destack/object/server";
 import { schema } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
 import { SettingValue } from "@destack/setting/object";
-import type { OpenBuild } from "@destack/space/server";
+import type { OpenBuild } from "@destack/stack/server";
 import type { OtlpReceiver } from "@destack/telemetry/otlp";
 import { analytics, telemetry } from "../access/index.ts";
 import { ANALYTICS_KINDS, DAY, OBSERVABILITY_KINDS, TELEMETRY_KINDS } from "../event/index.ts";
@@ -36,12 +35,10 @@ export interface SpaceObservation {
     readonly skus?: readonly Sku[];
 }
 
-/** The events, scopes and spaces a space or a machine serves observability with. */
+/** The events and spaces a space or a machine serves observability with. */
 export interface ObservabilityOptions {
     /** The event store keeping the kinds the implementation lists, over the space's or the machine's database. */
     readonly events: EventStore;
-    /** The kinds of the scopes whose telemetry it keeps beside spaces, such as the machine itself. */
-    readonly scopes?: readonly ObjectType[];
     /**
      * What a machine observes of its spaces beside their telemetry.
      *
@@ -60,14 +57,14 @@ export interface ObservabilityImplementation extends ObjectExtension {
     receiver(store: Pick<ObjectStore, "database" | "principal" | "mutate" | "clock">): OtlpReceiver;
 }
 
-/** Implement observability over a space's or a machine's events, deciding reads by the policies of the scopes it observes. */
+/** Implement observability over a space's or a machine's events, deciding reads by the policies of the store's scopes. */
 export function implementObservability(options: ObservabilityOptions): ObservabilityImplementation {
     const { events, spaces } = options;
 
     return {
         service: observabilityService,
         objects: spaces === undefined ? {} : serveIssues({ events }),
-        policies: [...(options.scopes ?? []), telemetry, analytics],
+        policies: [telemetry, analytics],
         events:
             spaces === undefined
                 ? TELEMETRY_KINDS

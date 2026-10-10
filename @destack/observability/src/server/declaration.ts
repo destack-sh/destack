@@ -1,8 +1,8 @@
 import { and, Change, eq, isNotNull, isNull } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { Controller } from "@destack/service/control";
-import { installation, installationRevision } from "@destack/space/object";
-import type { OpenBuild } from "@destack/space/server";
+import { installation, installationRevision } from "@destack/stack/object";
+import type { OpenBuild } from "@destack/stack/server";
 import { type Identifier, schema } from "@destack/schema";
 import { AlertRuleDefinition, alertRule } from "../object/index.ts";
 import { Caller } from "@destack/access";
@@ -102,7 +102,7 @@ export class DeclarationController implements Controller {
         ];
         if (calls.length > 0) {
             const store = this.#store;
-            const now = store.clock();
+            const now = store.clock.now();
             await store.mutate(
                 Caller.of(store.principal, now),
                 { id: RequestId.create(now), calls },

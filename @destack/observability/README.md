@@ -26,7 +26,7 @@ await client.issue.update({
 await client.alertRule.create({
     spaceId,
     requestId,
-    name: "Error rate",
+    title: "Error rate",
     condition,
     actions: [{ kind: "notify" }],
 });
@@ -58,13 +58,13 @@ const observability = implementObservability({
 
 ## Alert rules
 
-`defineAlertRule` declares an alert rule that each installation of the package keeps in its space, and a `call` action runs a method of the installation.
+`defineAlertRule` declares an alert rule that each installation of the package keeps in its space, named by its export and shown by its title, and a `call` action runs a method of the installation.
 
 ```ts
 import { defineAlertRule } from "@destack/observability/declare";
 
 export const rollback = defineAlertRule({
-    name: "Roll back new fatal issues",
+    title: "Roll back new fatal issues",
     condition: { kind: "issue", on: "open", filter: "level = fatal" },
     actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
 });
@@ -91,7 +91,7 @@ import {
 ```ts
 import { telemetryRetention, traceSampling } from "@destack/observability/setting";
 
-export const personal = defineSpace({
+export const personal = defineStack({
     settings: {
         retention: { setting: telemetryRetention, value: 90, mode: "set" },
         sampling: { setting: traceSampling, value: 0.1, mode: "set" },

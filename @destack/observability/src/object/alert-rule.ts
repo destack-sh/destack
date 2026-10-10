@@ -3,7 +3,7 @@ import { type Select } from "@destack/db";
 import { activity, announcement, subscription } from "@destack/notification";
 import { defineObject, field } from "@destack/object";
 import { Duration, defineSchema, present, schema } from "@destack/schema";
-import { installation } from "@destack/space/object";
+import { installation } from "@destack/stack/object";
 import { FilterText } from "@destack/event/service";
 import { EVENT_FOLDS } from "../query/query.ts";
 
@@ -85,8 +85,8 @@ export type AlertAction = schema.Infer<typeof AlertAction>;
 /** An alert rule a package declares, which each installation of the package keeps in its space. */
 export const AlertRuleDefinition = defineSchema(
     schema.object({
-        /** The rule's name. */
-        name: schema.string().min(1).max(100),
+        /** The rule's title, shown to people. */
+        title: schema.string().min(1).max(100),
         /** What fires the rule. */
         condition: AlertCondition,
         /** What a firing alert does. */
@@ -106,8 +106,8 @@ export const alertRule = defineObject({
     controlled: true,
     declarable: { schema: AlertRuleDefinition },
     fields: {
-        /** The rule's name. */
-        name: field.string(schema.string().min(1).max(100)),
+        /** The rule's title, shown to people. */
+        title: field.string(schema.string().min(1).max(100)),
         /** What fires the rule. */
         condition: field.json(AlertCondition),
         /** What a firing alert does. */
@@ -125,10 +125,10 @@ export const alertRule = defineObject({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("edit", {
-            fields: ["name", "condition", "actions", "interval"],
+            fields: ["title", "condition", "actions", "interval"],
         }),
         update: method.update("edit", {
-            fields: ["name", "condition", "actions", "interval"],
+            fields: ["title", "condition", "actions", "interval"],
         }),
         delete: method.delete("manage"),
     }),

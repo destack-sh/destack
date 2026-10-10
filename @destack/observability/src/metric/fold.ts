@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import type { EventFilter, EventStore, Series } from "@destack/event";
 import { EventKey } from "../event/key.ts";
 import { metric } from "../event/index.ts";
@@ -51,11 +52,8 @@ export const MetricFold = {
             where: { AND: [filter.where ?? {}, { instrument: "histogram" }] },
         };
         for await (const event of store.export(metric, histograms)) {
-            // read the point's group and step
-            const { histogram } = event.data;
-            if (histogram === undefined) {
-                continue;
-            }
+            // read the point's histogram, group and step
+            const histogram = present(event.data.histogram, "a histogram point's buckets");
             const group = Object.fromEntries(
                 request.group.map((name) => [name, EventKey.read(event.keys, name)]),
             );
