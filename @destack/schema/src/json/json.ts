@@ -29,6 +29,18 @@ export const JsonValue = {
 
         return json().parse(JSON.parse(text));
     },
+
+    /** Parse JSON text, absent for text that is no JSON, such as an untrusted header a schema then refuses. */
+    parse(text: string): unknown {
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                return undefined;
+            }
+            throw error;
+        }
+    },
 };
 
 /** Serialize a JSON value with object keys sorted by UTF-16 code units, omitting undefined fields. */
