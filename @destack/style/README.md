@@ -11,7 +11,7 @@ media.pointerCoarse; // Tailwind pointer-coarse:
 
 ## Builds
 
-`styleExtension` compiles the styles of a package and every dependency into the stylesheet its entry loads, served as `virtual:stylex.css` in development.
+`styleExtension` compiles the styles of a package and every dependency into `virtual:stylex.css`, served as a module in development and appended to its chunk's stylesheet in builds, one build's rules at a time.
 
 ```ts
 import "virtual:stylex.css";

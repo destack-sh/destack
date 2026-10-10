@@ -27,6 +27,14 @@ function fixtures(): Plugin {
                 return `import "virtual:stylex.css";\nimport "/fixture/teal";\nvoid import("/fixture/page");\n`;
             } else if (id.endsWith("/fixture/bare.ts")) {
                 return `void import("/fixture/page");\n`;
+            } else if (id.endsWith("/fixture/solo.ts")) {
+                return `import "virtual:stylex.css";\nimport "/fixture/teal";\n`;
+            }
+            // write two entries sharing the module that loads the sheet and a style
+            else if (id.endsWith("/fixture/one.ts") || id.endsWith("/fixture/two.ts")) {
+                return `import "/fixture/shared";\nvoid import("/fixture/page");\n`;
+            } else if (id.endsWith("/fixture/shared.ts")) {
+                return `import "virtual:stylex.css";\nimport "/fixture/teal";\n`;
             }
             // write the lazy page, with a stylesheet of its own and a style
             else if (id.endsWith("/fixture/page.ts")) {
@@ -46,8 +54,8 @@ function fixtures(): Plugin {
     };
 }
 
-/** Build an entry with styles compiled as a package that uses `@destack/style` does. */
-async function bundle(entry: string): ReturnType<typeof build> {
+/** Build entries with styles compiled as a package that uses `@destack/style` does. */
+async function bundle(entry: string | readonly string[]): ReturnType<typeof build> {
     return await build({
         root: ROOT,
         configFile: false,
@@ -61,7 +69,7 @@ async function bundle(entry: string): ReturnType<typeof build> {
                 options: {},
             }),
         ],
-        build: { write: false, minify: false, rolldownOptions: { input: entry } },
+        build: { write: false, minify: false, rolldownOptions: { input: [entry].flat() } },
     });
 }
 
@@ -96,6 +104,26 @@ async function serve(): Promise<ViteDevServer> {
     return server;
 }
 
+/** Build entries and read each stylesheet by the names of the chunks that load it. */
+async function stylesheets(entry: string | readonly string[]): Promise<Record<string, string>> {
+    // build the entries
+    const output = await bundle(entry);
+    const results = Array.isArray(output) ? output : [output];
+    const files = results.flatMap(
+        (result): readonly (Rolldown.OutputChunk | Rolldown.OutputAsset)[] =>
+            "output" in result ? result.output : [],
+    );
+
+    return Object.fromEntries(
+        files
+            .filter(
+                (file): file is Rolldown.OutputAsset =>
+                    file.type === "asset" && file.fileName.endsWith(".css"),
+            )
+            .map((file): [string, string] => [file.names.join(", "), String(file.source)]),
+    );
+}
+
 test("serve the collected rules as a stylesheet module, reloading it when transforms add rules", async () => {
     // compile one style, request the sheet and read its rules, then compile the style again
     const server = await serve();
@@ -121,33 +149,39 @@ test("serve the collected rules as a stylesheet module, reloading it when transf
 });
 
 test("append every rule to the entry's stylesheet, leaving lazy pages' stylesheets", async () => {
-    // build the entry and its lazy page
-    const output = await bundle("/fixture/entry");
-
-    // read each stylesheet by the chunk that loads it
-    const results = Array.isArray(output) ? output : [output];
-    const files = results.flatMap(
-        (result): readonly (Rolldown.OutputChunk | Rolldown.OutputAsset)[] =>
-            "output" in result ? result.output : [],
-    );
-    const sheets = Object.fromEntries(
-        files
-            .filter(
-                (file): file is Rolldown.OutputAsset =>
-                    file.type === "asset" && file.fileName.endsWith(".css"),
-            )
-            .map((file): [string, string] => [file.names.join(", "), String(file.source)]),
-    );
-
-    expect(sheets).toEqual({
+    expect(await stylesheets("/fixture/entry")).toEqual({
         "entry.css":
             "\n@layer base;\n\n@layer priority1 {\n  .xjjgwud {\n    color: plum;\n  }\n\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
         "page.css": ".page { margin: 0 }\n",
     });
 });
 
-test("refuse rules in a bundle whose only stylesheets belong to lazy pages", async () => {
-    await expect(bundle("/fixture/bare")).rejects.toThrow(
-        "styles need a stylesheet the entry loads",
+test("append every rule to the stylesheet of a chunk several entries share", async () => {
+    // read the sheets whatever the bundler names the shared chunk
+    const sheets = await stylesheets(["/fixture/one", "/fixture/two"]);
+
+    expect(Object.values(sheets).toSorted()).toEqual([
+        "\n@layer base;\n\n@layer priority1 {\n  .xjjgwud {\n    color: plum;\n  }\n\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
+        ".page { margin: 0 }\n",
+    ]);
+});
+
+test("refuse rules in a bundle with stylesheets that never imports the sheet module", async () => {
+    // read the plugin errors the bundler gathers
+    const refused = await bundle("/fixture/bare").then(
+        () => [],
+        (error: { readonly errors: readonly Error[] }) => error.errors.map((each) => each.message),
     );
+
+    expect(refused).toEqual(["styles need a module that imports virtual:stylex.css"]);
+});
+
+test("keep only a build's own rules after an earlier build in the same process", async () => {
+    // build a bundle using plum and teal, then one using teal alone
+    await bundle("/fixture/entry");
+    const sheets = await stylesheets("/fixture/solo");
+
+    expect(sheets).toEqual({
+        "solo.css": "\n@layer base;\n\n@layer priority1 {\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
+    });
 });

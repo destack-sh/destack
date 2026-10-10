@@ -37,12 +37,16 @@ export function attributes(styles: Styles, inline?: InlineStyle | false | null):
 
 /** Write an inline style as CSS text, with every property name as written. */
 function cssText(inline: InlineStyle | false | null | undefined): string {
+    // no style
     if (inline === undefined || inline === null || inline === false) {
         return "";
-    } else if (typeof inline === "string") {
+    }
+    // CSS text as written
+    else if (typeof inline === "string") {
         return inline;
     }
 
+    // properties, skipping the ones a caller left unset
     return Object.entries(inline)
         .flatMap(([name, value]: [string, unknown]) =>
             typeof value === "string" || typeof value === "number" ? [`${name}:${value}`] : [],

@@ -13,8 +13,11 @@ const RESOLVED_SHEET_ID = `\0${SHEET_ID}`;
 interface StylexPlugin extends Plugin {
     /** Write every rule collected so far as one stylesheet. */
     readonly __stylexCollectCss: () => string;
-    /** Read the rule store, whose version grows with each transform that changes rules. */
-    readonly __stylexGetSharedStore: () => { readonly version: number };
+    /** Read the rule store the plugin keeps on `globalThis` for the whole process, whose version grows with each transform that changes rules. */
+    readonly __stylexGetSharedStore: () => {
+        readonly version: number;
+        readonly rulesById: Map<string, unknown>;
+    };
 }
 
 /** Compile StyleX styles in builds of packages that depend on `@destack/style`. */
@@ -42,11 +45,11 @@ export const styleExtension = {
 
 /** The stylesheet a build appends the StyleX rules to, set before StyleX writes them. */
 interface SheetTarget {
-    /** The stylesheet the entry chunk loads, absent before the bundle is written. */
+    /** The stylesheet of the chunk importing the sheet module, absent before the bundle is written. */
     file: string | undefined;
 }
 
-/** Serve the collected StyleX rules as a stylesheet module in development, and aim builds at the entry's stylesheet. */
+/** Serve the collected StyleX rules as a stylesheet module in development, and append them to that module's stylesheet in builds. */
 function sheetPlugin(stylex: StylexPlugin, sheet: SheetTarget): Plugin {
     // hold the development server, the rule version the sheet last carried and a queued reload
     let server: ViteDevServer | undefined;
@@ -58,9 +61,13 @@ function sheetPlugin(stylex: StylexPlugin, sheet: SheetTarget): Plugin {
         configureServer: (devServer) => {
             server = devServer;
         },
+        buildStart: () => {
+            // forget the rules earlier builds of this process collected, as StyleX keeps them for the whole process
+            stylex.__stylexGetSharedStore().rulesById.clear();
+        },
         resolveId: (id) => (withoutQuery(id) === SHEET_ID ? RESOLVED_SHEET_ID : undefined),
         load: (id) => {
-            // serve the rules in development, and nothing in builds, where StyleX appends the rules to the entry's stylesheet
+            // serve the rules in development, and nothing in builds, where StyleX appends them to this module's stylesheet
             if (withoutQuery(id) !== RESOLVED_SHEET_ID) {
                 return undefined;
             }
@@ -71,22 +78,17 @@ function sheetPlugin(stylex: StylexPlugin, sheet: SheetTarget): Plugin {
         generateBundle: {
             order: "pre",
             handler(_options, bundle) {
-                // aim StyleX at the stylesheet the entry chunk loads, which every page of the bundle loads
+                // aim StyleX at the stylesheet of the chunk importing the sheet module
                 const chunks = Object.values(bundle).filter((output) => output.type === "chunk");
-                const stylesheets = chunks.flatMap((chunk) => [
-                    ...(chunk.viteMetadata?.importedCss ?? []),
-                ]);
-                sheet.file = chunks
-                    .filter((chunk) => chunk.isEntry)
-                    .flatMap((chunk) => [...(chunk.viteMetadata?.importedCss ?? [])])[0];
+                const holder = chunks.find((chunk) => chunk.moduleIds.includes(RESOLVED_SHEET_ID));
+                sheet.file = holder?.viteMetadata?.importedCss.values().next().value;
 
-                // refuse rules in a bundle whose stylesheets all belong to lazy chunks
-                if (
-                    stylesheets.length > 0 &&
-                    sheet.file === undefined &&
-                    stylex.__stylexCollectCss() !== ""
-                ) {
-                    this.error("styles need a stylesheet the entry loads");
+                // refuse rules in a bundle with stylesheets that never imports the sheet module
+                const isStyled = chunks.some(
+                    (chunk) => (chunk.viteMetadata?.importedCss.size ?? 0) > 0,
+                );
+                if (isStyled && sheet.file === undefined && stylex.__stylexCollectCss() !== "") {
+                    this.error(`styles need a module that imports ${SHEET_ID}`);
                 }
             },
         },
