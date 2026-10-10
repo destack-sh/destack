@@ -16,7 +16,7 @@ export function implementAudit(options: AuditOptions): AuditImplementation {
         router: implementation.router({
             ingest: implementation.ingest.handler(async ({ input, context }) => {
                 // admit the sender for every scope the calls ran in
-                context.requireAuthentication();
+                context.requireCaller();
                 const scopes = [
                     ...new Set(input.calls.map((each) => each.execution.context.scope)),
                 ];

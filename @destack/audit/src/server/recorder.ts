@@ -3,7 +3,7 @@ import { AuditCall, JournalEntry } from "../record/call.ts";
 import { AuditContext } from "../record/context.ts";
 import { AuditExecution, type AuditTarget } from "../record/execution.ts";
 import { v7 } from "uuid";
-import { schema, canonicalize, JsonValue, type JsonObject } from "@destack/schema";
+import { canonicalize, Clock, type JsonObject, JsonValue, schema } from "@destack/schema";
 import { Failure, Outcome, Subject } from "@destack/sync";
 import { denialOf, ServiceError } from "@destack/service";
 import type { Caller } from "@destack/access";
@@ -26,8 +26,8 @@ export interface AuditCalled {
 
 /** The durable store of recorded calls. */
 export interface AuditWriter<Transaction = never> {
-    /** Read the current time in Unix milliseconds, which calls start and end at. */
-    readonly clock: () => number;
+    /** The clock calls start and end at. */
+    readonly clock: Clock;
     /** Record a call, or its outcome once it ends, inside a transaction when given. */
     record(
         call: JournalEntry,
@@ -155,24 +155,13 @@ export class AuditRecorder<Transaction = never> {
         return async (event) => {
             // choose the category, skipping unaudited reads
             const { access } = event.call;
-            const category =
-                event.outcome === "denied"
-                    ? "denial"
-                    : access.audit === "activity" ||
-                        (access.audit === "access" && options.isAccessAudited === true)
-                      ? access.audit
-                      : undefined;
+            const category = categoryOf(event, options.isAccessAudited === true);
             if (category === undefined) {
                 return;
             }
 
             // map how the procedure ended to an outcome, recording a concealed denial's own code
-            const outcome: Outcome =
-                event.outcome === "success"
-                    ? { kind: "success" }
-                    : event.outcome === "cancelled"
-                      ? CANCELLED
-                      : AuditRecorder.outcome(event.error);
+            const outcome = outcomeOf(event);
 
             // record the call
             const writer = await recorder(event.call);
@@ -203,16 +192,18 @@ export class AuditRecorder<Transaction = never> {
         else if (known !== undefined) {
             return { kind: "failure", error: Failure.of(known) };
         }
-
-        return {
-            kind: "failure",
-            error: { code: "INTERNAL_SERVER_ERROR", status: 500, message: "internal error" },
-        };
+        // report any other failure as internal, keeping its message out of the history
+        else {
+            return {
+                kind: "failure",
+                error: { code: "INTERNAL_SERVER_ERROR", status: 500, message: "internal error" },
+            };
+        }
     }
 
     /** Create the recorder. */
     constructor(origin: AuditContext, writer: AuditWriter<Transaction>, requestId?: string) {
-        this.#context = structuredClone(AuditContext.parse(origin));
+        this.#context = AuditContext.parse(origin);
         this.#requestId = requestId;
         this.#writer = writer;
     }
@@ -247,7 +238,7 @@ export class AuditRecorder<Transaction = never> {
         values: Omit<Ended<Target, Details>, "outcome">,
     ): JournalEntry {
         return JournalEntry.parse(
-            this.#call(action, values, "activity", { startedAt: this.#writer.clock() }),
+            this.#call(action, values, "activity", { startedAt: this.#writer.clock.now() }),
         );
     }
 
@@ -275,7 +266,7 @@ export class AuditRecorder<Transaction = never> {
                         ? execution.details
                         : mergeDetails(execution.details, details),
                 outcome,
-                finishedAt: this.#writer.clock(),
+                finishedAt: this.#writer.clock.now(),
             },
         });
     }
@@ -401,7 +392,7 @@ export class AuditRecorder<Transaction = never> {
         request?: CallRequest,
     ): Promise<AuditCall> {
         // build the call, ended now
-        const now = this.#writer.clock();
+        const now = this.#writer.clock.now();
         const call = AuditCall.parse(
             this.#call(
                 action,
@@ -460,15 +451,15 @@ export class AuditRecorder<Transaction = never> {
         >,
         request?: CallRequest,
     ): object {
+        const requestId = request?.requestId ?? this.#requestId;
+
         return {
             method: action.name,
             input: request?.input ?? {},
             release: request?.release ?? action.package.version,
             execution: {
                 id: `call-${v7()}`,
-                ...((request?.requestId ?? this.#requestId) === undefined
-                    ? {}
-                    : { requestId: request?.requestId ?? this.#requestId }),
+                ...(requestId === undefined ? {} : { requestId }),
                 category,
                 context: this.#context,
                 target: action.target.parse(values.target),
@@ -476,6 +467,42 @@ export class AuditRecorder<Transaction = never> {
                 ...execution,
             },
         };
+    }
+}
+
+/** Choose the category a procedure call is recorded under, absent for a read nobody audits. */
+function categoryOf<State extends object>(
+    event: ProcedureAudit<State>,
+    isAccessAudited: boolean,
+): AuditExecution["category"] | undefined {
+    const { audit } = event.call.access;
+    // a refused call
+    if (event.outcome === "denied") {
+        return "denial";
+    }
+    // a write, or a read when reads are audited
+    else if (audit === "activity" || (audit === "access" && isAccessAudited)) {
+        return audit;
+    }
+    // a read nobody audits
+    else {
+        return undefined;
+    }
+}
+
+/** Map how a procedure call ended to its outcome. */
+function outcomeOf<State extends object>(event: ProcedureAudit<State>): Outcome {
+    // a success
+    if (event.outcome === "success") {
+        return { kind: "success" };
+    }
+    // a cancellation
+    else if (event.outcome === "cancelled") {
+        return CANCELLED;
+    }
+    // a failure or a denial, with its own code
+    else {
+        return AuditRecorder.outcome(event.error);
     }
 }
 

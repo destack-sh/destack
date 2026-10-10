@@ -8,6 +8,7 @@ import { AuditRecorder } from "../src/server/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { eq } from "@destack/db";
 import { Scope } from "@destack/sync";
+import { RequestId } from "@destack/service/request";
 
 test("keep each call in the history of its scope", async () => {
     const storage = await AuditStorage.open();
@@ -276,6 +277,38 @@ test("keep a moved scope's earlier calls within it, and within the scope that en
         expect([await within(account.id), await within(first.id), await within(second.id)]).toEqual(
             [[before, after], [before], [after]],
         );
+    } finally {
+        await storage.close();
+    }
+});
+
+test("replay derived requests of one key at different times as one request, and another key as another", async () => {
+    const storage = await AuditStorage.open();
+    try {
+        // record a call under a request derived for a key
+        const now = Date.now();
+        const first = await RequestId.derive(now - 60_000, "trigger-1 event-1");
+        const later = await RequestId.derive(now, "trigger-1 event-1");
+        const other = await RequestId.derive(now, "trigger-1 event-2");
+        const request = { caller: "machine-1", position: 0, digest: "digest-1" };
+        await storage.recorder.record(
+            undefined,
+            documentRename,
+            { ...rename, outcome: { kind: "success", value: "renamed" } },
+            "activity",
+            { ...request, requestId: first },
+        );
+
+        // replay the key's later request, and run another key's
+        const replayed = await Promise.all(
+            [later, other].map((requestId) =>
+                storage.journal.replay(
+                    { caller: request.caller, scope: "universe", requestId },
+                    request.digest,
+                ),
+            ),
+        );
+        expect(replayed).toEqual([["renamed"], undefined]);
     } finally {
         await storage.close();
     }

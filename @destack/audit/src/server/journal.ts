@@ -11,9 +11,8 @@ import {
     inArray,
     type DatabaseConnection,
     type TransactionOptions,
-    CHAIN_TERMS,
 } from "@destack/db";
-import { Digest, Duration, canonicalize } from "@destack/schema";
+import { canonicalize, Clock, Digest, Duration } from "@destack/schema";
 import { errorOf, ServiceError } from "@destack/service/error";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
@@ -57,8 +56,8 @@ export interface JournalOptions {
     readonly batch?: number;
     /** How long delivered calls stay for retries: a request identifier's retry lifetime. */
     readonly lifetime?: Duration;
-    /** Read the current time in Unix milliseconds, the clock of the server keeping the journal, the system clock by default. */
-    readonly clock?: () => number;
+    /** The clock of the server keeping the journal, the system clock by default. */
+    readonly clock?: Clock;
 }
 
 /** The calls of one service database: executed once per request, replayed on retries, and delivered to the audit history. */
@@ -73,8 +72,8 @@ export class Journal {
     readonly batch: number;
     /** How long delivered calls stay, in milliseconds. */
     readonly lifetime: number;
-    /** Read the current time in Unix milliseconds, which retry periods and lifetimes run on. */
-    readonly clock: () => number;
+    /** The clock retry periods and lifetimes run on. */
+    readonly clock: Clock;
 
     /** Keep a database's calls, fingerprinting sensitive inputs under the deployment's key. */
     constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions = {}) {
@@ -83,7 +82,7 @@ export class Journal {
         this.#key = key;
         this.batch = options.batch ?? DELIVERY_CALLS;
         this.lifetime = Duration.milliseconds(options.lifetime ?? LIFETIME);
-        this.clock = options.clock ?? Date.now;
+        this.clock = options.clock ?? Clock.system;
     }
 
     /** Fingerprint a redacted input and the sensitive values it left out, the latter under the key. */
@@ -201,7 +200,7 @@ export class Journal {
         options: TransactionOptions = {},
     ): Promise<unknown[]> {
         // reject a key expired or in the future on the journal's clock
-        RequestId.expiry(request.requestId, this.clock());
+        RequestId.expiry(request.requestId, this.clock.now());
 
         try {
             return await this.database.transaction(async (transaction) => {
@@ -268,7 +267,7 @@ export class Journal {
     }
 
     /** Remove delivered calls past their lifetime, up to a limit, returning how many. */
-    async prune(limit: number, now = this.clock()): Promise<number> {
+    async prune(limit: number, now = this.clock.now()): Promise<number> {
         // bound the batch
         if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PRUNE_CALLS) {
             throw new ServiceError("BAD_REQUEST", {
@@ -317,19 +316,15 @@ export class Journal {
                 signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
             },
         );
-        const now = this.clock();
-        for (let start = 0; start < rows.length; start += CHAIN_TERMS) {
-            await this.database
-                .update(journal)
-                .set({ deliveredAt: now })
-                .where(
-                    or(
-                        ...rows
-                            .slice(start, start + CHAIN_TERMS)
-                            .map((row) => eq(journal.id, row.id)),
-                    ),
-                );
-        }
+        await this.database
+            .update(journal)
+            .set({ deliveredAt: this.clock.now() })
+            .where(
+                inArray(
+                    journal.id,
+                    rows.map((row) => row.id),
+                ),
+            );
 
         return rows.length;
     }
@@ -374,7 +369,7 @@ export class Journal {
                 }
 
                 // remove a batch and look again at the earliest removable expiry, or a lifetime on when no later call expires sooner
-                const now = this.clock();
+                const now = this.clock.now();
                 if ((await this.prune(MAX_PRUNE_CALLS, now)) === MAX_PRUNE_CALLS) {
                     return 0;
                 }
@@ -409,9 +404,9 @@ export class Journal {
         return rows.map((row) => row.call);
     }
 
-    /** Key a request by its caller, scope and identifier. */
+    /** Key a request by its caller, scope and identifier's key, a derived identifier's key the same at every time. */
     static #request(request: RequestIdentity): string {
-        return canonicalize([request.caller, request.scope, request.requestId]);
+        return canonicalize([request.caller, request.scope, RequestId.key(request.requestId)]);
     }
 
     /** Read the oldest audited calls that ended and wait for delivery. */

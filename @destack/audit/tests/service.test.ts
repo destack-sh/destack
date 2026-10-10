@@ -1,7 +1,6 @@
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { schema } from "@destack/schema";
-import { Authentication } from "@destack/service/authentication";
 import { Health } from "@destack/service/health";
 import { ServiceError } from "@destack/service/error";
 import { Server } from "@destack/service/server";
@@ -77,15 +76,17 @@ test("take ended calls an admitted machine delivers into the history, refusing a
             scope: "universe",
             resources: new ResourceContext(),
             health: new Health("audit"),
-            authenticate: async () =>
-                new Authentication({
-                    credential: { kind: "fixture", id: "fixture" },
+            authenticate: async () => ({
+                subject: principal.machine.reference("universe", "machine-1"),
+                subjects: [principal.machine.reference("universe", "machine-1")],
+                credential: {
+                    kind: "fixture",
+                    id: "fixture",
                     audience: documentPublish.package.id,
-                    subject: principal.machine.reference("universe", "machine-1"),
-                    subjects: [principal.machine.reference("universe", "machine-1")],
                     verifiedAt: Date.now(),
                     expiresAt: Date.now() + 60000,
-                }),
+                },
+            }),
             authorizeMachine: async () => {},
             drainTimeout: 1000,
         });

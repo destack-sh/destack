@@ -1,5 +1,4 @@
 import { expect, test } from "@destack/test";
-import { Authentication } from "@destack/service/authentication";
 import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service";
@@ -7,7 +6,7 @@ import { schema } from "@destack/schema";
 import { AuditActor, AuditCaller } from "../src/record/index.ts";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./storage.ts";
-import { anyone, principal } from "@destack/access";
+import { anyone, type Caller, principal } from "@destack/access";
 
 test("persist verified caller identities, record an unauthenticated caller as anyone, and tell apart identities of different scopes", async () => {
     const storage = await AuditStorage.open();
@@ -41,18 +40,20 @@ test("persist verified caller identities, record an unauthenticated caller as an
         const calls = [];
         const credential = { kind: "token", id: "token-1", secret: "must never be recorded" };
         for (const claims of requests) {
-            const authentication = new Authentication({
+            const caller: Caller = {
                 ...claims,
-                credential,
-                audience: origin.package.id,
                 subjects: [claims.subject],
-                verifiedAt: now,
-                expiresAt: now + 60000,
-            });
+                credential: {
+                    ...credential,
+                    audience: origin.package.id,
+                    verifiedAt: now,
+                    expiresAt: now + 60000,
+                },
+            };
             const request = new ServiceContext(new Request("https://example.test"), {
                 audience: origin.package.id,
                 scope: "universe",
-                authentication,
+                caller,
                 resources: new ResourceContext(),
             });
             const recorder = AuditRecorder.from(
@@ -72,7 +73,6 @@ test("persist verified caller identities, record an unauthenticated caller as an
         const rejected = new ServiceContext(new Request("https://example.test"), {
             audience: origin.package.id,
             scope: "universe",
-            authentication: null,
             resources: new ResourceContext(),
             authenticationError: new ServiceError("UNAUTHORIZED", {
                 message: "invalid bearer credential",
