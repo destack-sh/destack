@@ -7,8 +7,8 @@ export const VERSION_HEADER = "Destack-Version";
 
 /** The retry lifetime of a request identifier. */
 export const REQUEST_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
-/** The clock tolerance for new request identifiers. */
-const CLOCK_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
+/** How far a client's clock may run ahead when it creates a request identifier: five minutes, as Kerberos tolerates client skew. */
+const CLIENT_CLOCK_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
 
 /** The version digit of a time-ordered request identifier: 7 created, 8 derived (RFC 9562 5.7 and 5.8). */
 const TIME_ORDERED = /^.{14}[78]/u;
@@ -85,7 +85,7 @@ export const RequestId = {
         const expiresAt = createdAt + REQUEST_LIFETIME_MILLISECONDS;
 
         // reject keys outside the retry period
-        if (createdAt > now + CLOCK_TOLERANCE_MILLISECONDS || expiresAt <= now) {
+        if (createdAt > now + CLIENT_CLOCK_TOLERANCE_MILLISECONDS || expiresAt <= now) {
             throw new ServiceError("PRECONDITION_FAILED", {
                 message: "request identifier is outside its retry period",
             });

@@ -121,7 +121,7 @@ export class ServiceContext {
         Caller.requireCurrent(
             caller,
             this.audience,
-            Caller.within(caller, this.clock.now()),
+            Caller.clamp(caller, this.clock.now()),
             this.scope,
         );
 
@@ -149,7 +149,7 @@ export class ServiceContext {
         Caller.requireCurrent(
             caller,
             this.audience,
-            Caller.within(caller, this.clock.now()),
+            Caller.clamp(caller, this.clock.now()),
             scope,
         );
 

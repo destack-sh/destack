@@ -26,7 +26,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         token_use: "access",
         caller: {
             spaceId,
-            credential: { kind: "user", id: "session-example" },
+            credential: { kind: "session", id: "session-example" },
             subject,
             subjects: [subject],
         },

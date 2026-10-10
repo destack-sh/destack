@@ -7,7 +7,7 @@ import type { RunClient, Trigger } from "../trigger/index.ts";
 import { type Alarm, AlarmClock } from "../control/index.ts";
 import { Health } from "../health/index.ts";
 import { ServiceError } from "../error/index.ts";
-import type { AuditHistory, InstallationContext, Workload, WorkloadContext } from "./workload.ts";
+import type { AuditHistory, EphemeralHost, InstallationContext, Workload } from "./workload.ts";
 import { CallKey } from "../request/index.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
 
@@ -233,8 +233,8 @@ export interface WorkloadInstanceOptions {
     readonly callKey: CallKey;
     /** Keep a wake-up for the services' earliest due controller key, such as a Durable Object's alarm. */
     readonly alarm?: Alarm;
-    /** Open the database the instance's ephemeral objects live in, absent where the workload opens its own. */
-    readonly ephemeral?: WorkloadContext["ephemeral"];
+    /** Where the instance keeps its ephemeral objects, absent outside a runner. */
+    readonly ephemeral?: EphemeralHost;
     /** The WebSockets the host keeps open for the instance, absent where the host keeps none. */
     readonly hibernation?: Hibernation;
     /** Report a failure of the workload's background work to its host. */

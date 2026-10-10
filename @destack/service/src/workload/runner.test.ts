@@ -9,7 +9,7 @@ import { ServiceMount } from "../service/mount.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { WorkloadRunner } from "./runner.ts";
 import type { WorkloadStart } from "./start.ts";
-import { defineWorkload, type InstallationDirectory } from "./workload.ts";
+import { defineWorkload, type EphemeralHost, type InstallationDirectory } from "./workload.ts";
 import { FORWARDED_URL_HEADER, ROUTE_PATH, WEBHOOK_PATH } from "./start.ts";
 import { SOCKET_HEADER, SOCKET_PATH } from "./socket.ts";
 import { defineTrigger, type WebhookParameters } from "../trigger/index.ts";
@@ -61,6 +61,14 @@ const LogsExport = schema
             .exactOptional(),
     })
     .loose();
+
+/** The ephemeral host of runners whose workloads keep no ephemeral objects. */
+const refusingEphemeral: EphemeralHost = {
+    open: () => Promise.reject(new Error("the fixture runner keeps no ephemeral objects")),
+    channel: () => {
+        throw new Error("the fixture runner replicates no ephemeral objects");
+    },
+};
 
 /** The runner's own service. */
 const notes = defineService("notes", {});
@@ -146,6 +154,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     };
     const runner = await WorkloadRunner.start(
         {
+            ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
                     name: "main",
@@ -288,6 +297,7 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
     const recorded: RunRequest[] = [];
     const runner = await WorkloadRunner.start(
         {
+            ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
                     name: "main",
@@ -417,6 +427,7 @@ test("accept a held socket, hand its messages and close to the workload, and sen
     };
     const runner = await WorkloadRunner.start(
         {
+            ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
                     name: "main",
@@ -503,6 +514,7 @@ test("hand a routed request to the service its route names at the route path bel
     // start a workload whose service answers its route path and the URL a request asked for
     const runner = await WorkloadRunner.start(
         {
+            ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
                     name: "main",

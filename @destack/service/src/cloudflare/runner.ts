@@ -1,3 +1,4 @@
+import { channelHub } from "@destack/db";
 import {
     DATABASE_PATH,
     DURABLE_OBJECT_PROVIDER,
@@ -97,9 +98,11 @@ export class DurableObjectRunner {
     /** The partition's object. */
     readonly #partition: DurableObjectRunnerEnvironment["PARTITION"];
     /** What the workload runs with. */
-    readonly #runner: RunnerOptions;
+    readonly #runner: Omit<RunnerOptions, "ephemeral">;
     /** The databases the object keeps. */
     readonly #databases: DurableObjectDatabaseHost;
+    /** The channel the object's instances replicate their ephemeral writes over, one per object. */
+    readonly #channels = channelHub<unknown>();
     /** The running workload, absent before a start and after a stop. */
     #running: Promise<WorkloadRunner | undefined>;
 
@@ -107,7 +110,7 @@ export class DurableObjectRunner {
     constructor(
         state: DurableObjectRunnerState,
         environment: DurableObjectRunnerEnvironment,
-        runner: RunnerOptions,
+        runner: Omit<RunnerOptions, "ephemeral">,
     ) {
         // keep the storage, the partition's object and the databases
         this.#storage = state.storage;
@@ -202,11 +205,15 @@ export class DurableObjectRunner {
                     url: `https://partition${SOCKET_PATH}`,
                     fetch: (request) => this.#partition.fetch(request),
                 },
-                ephemeral: async (tables) => {
-                    // start the ephemeral objects' database empty in the object's storage
-                    await this.#databases.drop(EPHEMERAL_NAMESPACE);
+                ephemeral: {
+                    open: async (tables) => {
+                        // start the ephemeral objects' database empty in the object's storage
+                        await this.#databases.drop(EPHEMERAL_NAMESPACE);
 
-                    return this.#databases.connect(tables, { namespace: EPHEMERAL_NAMESPACE });
+                        return this.#databases.connect(tables, { namespace: EPHEMERAL_NAMESPACE });
+                    },
+                    // replicate between the object's instances, such as the one a deploy replaces
+                    channel: () => this.#channels(),
                 },
                 connectors: { [DURABLE_OBJECT_PROVIDER]: durableObjectConnector(this.#databases) },
             },

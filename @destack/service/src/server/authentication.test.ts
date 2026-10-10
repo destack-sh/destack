@@ -196,7 +196,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                 subject,
                 subjects: [subject],
                 credential: {
-                    kind: "user",
+                    kind: "session",
                     id: subject.id,
                     audience: packageId,
                     scope: spaceId,

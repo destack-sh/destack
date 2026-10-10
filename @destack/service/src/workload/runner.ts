@@ -36,7 +36,7 @@ import type {
     AuditHistory,
     InstallationDirectory,
     InstallationContext,
-    WorkloadContext,
+    EphemeralHost,
     Workload,
 } from "./workload.ts";
 import { CallKey } from "../request/index.ts";
@@ -68,8 +68,8 @@ export interface RunnerOptions {
     readonly alarm?: Alarm;
     /** Where the instance reaches the sockets its host keeps open, such as its partition's object, below its egress when absent. */
     readonly socketHost?: SocketHost;
-    /** Open the database the instance's ephemeral objects live in, such as in a Durable Object's storage, absent where the workload opens its own. */
-    readonly ephemeral?: WorkloadContext["ephemeral"];
+    /** Where the runtime keeps the instance's ephemeral objects, such as in a Durable Object's storage. */
+    readonly ephemeral: EphemeralHost;
     /** The connectors the runtime supplies by provider code, such as a Durable Object's for the databases it keeps, ahead of the declarations' own. */
     readonly connectors?: Readonly<Record<string, Connector>>;
     /** The clock, the system clock by default. */
@@ -157,7 +157,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 callKey: () => callKey,
                 report,
                 ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
-                ...(runner.ephemeral === undefined ? {} : { ephemeral: runner.ephemeral }),
+                ephemeral: runner.ephemeral,
                 hibernation,
                 service: () => WorkloadRunner.#serve(runner, start),
             });

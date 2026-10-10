@@ -1,4 +1,4 @@
-import type { DatabaseConnection, Table } from "@destack/db";
+import type { Channel, DatabaseConnection, Table } from "@destack/db";
 import type { JsonValue } from "@destack/schema";
 import type { Publisher, Uplink } from "@destack/sync";
 import {
@@ -46,6 +46,14 @@ export function defineWorkload(
     return Object.freeze({ ...WorkloadDefinition.parse(fields), start, package: owner });
 }
 
+/** Where an instance keeps its ephemeral objects: a memory database and a channel between instances. */
+export interface EphemeralHost {
+    /** Open the memory database with tables. */
+    open(tables: readonly Table[]): Promise<DatabaseConnection & { close(): Promise<void> }>;
+    /** Open the channel replicating ephemeral writes between the installation's instances. */
+    channel(durable: DatabaseConnection): Channel<unknown>;
+}
+
 /** The context of a starting workload. */
 export interface WorkloadContext {
     /** The installation's resource and service clients. */
@@ -60,10 +68,8 @@ export interface WorkloadContext {
     readonly callKey: CallKey;
     /** Derive the installation's own secrets under labels, the same on every instance of the installation. */
     readonly deriver: Deriver;
-    /** Open the database the instance's ephemeral objects live in, absent where the workload opens its own. */
-    readonly ephemeral?: (
-        tables: readonly Table[],
-    ) => Promise<DatabaseConnection & { close(): Promise<void> }>;
+    /** Where the instance keeps its ephemeral objects, absent outside a runner. */
+    readonly ephemeral?: EphemeralHost;
     /** The WebSockets the host keeps open for the instance, absent where the host keeps none. */
     readonly hibernation?: Hibernation;
     /** The shutdown signal. */

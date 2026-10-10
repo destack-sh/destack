@@ -34,7 +34,7 @@ export function createCaller(name: string): Caller {
         subject,
         subjects: [subject],
         credential: {
-            kind: "user",
+            kind: "session",
             id: name,
             audience: hosting.audience,
             scope: hosting.scope,

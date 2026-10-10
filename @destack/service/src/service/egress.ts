@@ -1,12 +1,16 @@
+import { type Identifier, schema } from "@destack/schema";
 import { copyRequest } from "../request/request.ts";
 
 /** The path below which a host takes a workload's calls to addresses. */
 const EGRESS_PATH = "/.destack/egress";
 
+/** The separator between an installation's identifier and its space's in its address. */
+const INSTALLATION_SEPARATOR = "--";
+
 /** An address followed by the path below it: a scoped package as two segments, an installation as one. */
 const ADDRESSED = /^\/(@[^/]+\/[^/]+|[^/@][^/]*)(\/.*)?$/u;
 
-/** The paths at which a host takes its workloads' calls: `<egress>/<address>/<path>`, the address an installation its space binds (`notes`), an installation by identifiers (`<installation>--<space>`) or a package's service (`@destack/audit`). */
+/** The paths at which a host takes its workloads' calls: `<egress>/<address>/<path>`, the address an installation its space binds (`notes`), an installation in a space by identifier or alias (`<installation>--<space>`) or a package's service (`@destack/audit`). */
 export const Egress = {
     /** The path of a host's egress on its loopback origin. */
     path: EGRESS_PATH,
@@ -28,9 +32,26 @@ export const Egress = {
         return url.href;
     },
 
-    /** Write the address of an installation by its identifiers, which any space's workloads call it at. */
+    /** Write the address of an installation in a space, by its identifier or its alias. */
     address(installationId: string, spaceId: string): string {
-        return `${installationId}--${spaceId}`;
+        return `${installationId}${INSTALLATION_SEPARATOR}${spaceId}`;
+    },
+
+    /** Read an installation's identifiers from its address, absent for any other address. */
+    installation(address: string):
+        | {
+              readonly installationId: Identifier<"installation">;
+              readonly spaceId: Identifier<"space">;
+          }
+        | undefined {
+        // split the address into the two identifiers
+        const [installationId, spaceId, ...rest] = address.split(INSTALLATION_SEPARATOR);
+        const installation = schema.identifier("installation").safeParse(installationId);
+        const space = schema.identifier("space").safeParse(spaceId);
+
+        return installation.success && space.success && rest.length === 0
+            ? { installationId: installation.data, spaceId: space.data }
+            : undefined;
     },
 
     /** Split a request to a host's egress into the address and the request below it, absent outside the egress. */

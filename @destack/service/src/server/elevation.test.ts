@@ -87,7 +87,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
                 subject,
                 subjects: [subject],
                 credential: {
-                    kind: "user",
+                    kind: "session",
                     id: "alice",
                     audience: hosting.audience,
                     scope: hosting.scope,
