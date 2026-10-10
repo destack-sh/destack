@@ -18,14 +18,17 @@ export class AccessFixture {
         this.database = database;
     }
 
-    /** Record a scope object below the scopes containing it, as a copy of its home's access keeps it. */
-    async copyScope(scope: ObjectReference): Promise<void> {
-        // read the ancestry of the containing scope
+    /** Record a scope object below the scopes containing it, in its parent's partition or its own, as a copy of its home's access keeps it. */
+    async copyScope(scope: ObjectReference, partition: "parent" | "own" = "parent"): Promise<void> {
+        // read the ancestry and partition of the containing scope
         const [parent] =
             scope.scope === Scope.universe.id
-                ? [{ ancestors: [] }]
+                ? [{ ancestors: [], partition: Scope.universe.id }]
                 : await this.database
-                      .select({ ancestors: Scope.table.ancestors })
+                      .select({
+                          ancestors: Scope.table.ancestors,
+                          partition: Scope.table.partition,
+                      })
                       .from(Scope.table)
                       .where(eq(Scope.table.scope, scope.scope));
         if (parent === undefined) {
@@ -36,6 +39,7 @@ export class AccessFixture {
         await this.database.insert(Scope.table).values({
             scope: scope.id,
             parent: scope.scope,
+            partition: partition === "own" ? scope.id : parent.partition,
             packageId: scope.packageId,
             type: scope.type,
             ancestors: scope.scope === Scope.universe.id ? [] : [scope.scope, ...parent.ancestors],

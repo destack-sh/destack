@@ -101,6 +101,8 @@ export const PolicyDescription = defineSchema(
         administration: schema.array(AccessName).exactOptional(),
         /** Whether the objects are scopes. */
         scope: schema.literal(true).exactOptional(),
+        /** Whether each object is a partition. */
+        partition: schema.literal(true).exactOptional(),
         /** Whether the type's objects live in the universe and an identifier alone refers to each. */
         isGlobal: schema.literal(true).exactOptional(),
     }),

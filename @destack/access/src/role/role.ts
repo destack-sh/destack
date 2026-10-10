@@ -1,5 +1,5 @@
 import type { ObjectReference, Subject } from "@destack/sync";
-import { and, asc, eq, type DatabaseConnection, type Select } from "@destack/db";
+import { and, asc, eq, inArray, type DatabaseConnection, type Select } from "@destack/db";
 import { defineSchema, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
@@ -156,15 +156,36 @@ export async function permit(
     }
 }
 
-/** Replace the permissions a role grants with a declared set. */
+/** Replace the permissions a role grants with a declared set, keeping the rows of the ones it grants already. */
 export async function replace(
     database: DatabaseConnection,
     roleId: Select<typeof accessRole>["id"],
     scope: string,
     granted: readonly PermissionReference[],
 ): Promise<void> {
-    await database.delete(accessRolePermission).where(eq(accessRolePermission.roleId, roleId));
-    await permit(database, roleId, scope, granted);
+    // read the permissions the role grants
+    const existing = await database
+        .select({
+            id: accessRolePermission.id,
+            packageId: accessRolePermission.packageId,
+            type: accessRolePermission.type,
+            name: accessRolePermission.name,
+        })
+        .from(accessRolePermission)
+        .where(eq(accessRolePermission.roleId, roleId));
+    const declared = new Set(granted.map((permission) => PermissionReference.key(permission)));
+    const current = new Set(existing.map((permission) => PermissionReference.key(permission)));
+
+    // remove the ones no longer declared and add the new ones
+    const removed = existing.filter(
+        (permission) => !declared.has(PermissionReference.key(permission)),
+    );
+    if (removed.length > 0) {
+        const ids = removed.map((permission) => permission.id);
+        await database.delete(accessRolePermission).where(inArray(accessRolePermission.id, ids));
+    }
+    const added = granted.filter((permission) => !current.has(PermissionReference.key(permission)));
+    await permit(database, roleId, scope, added);
 }
 
 /** Describe a role row and its permissions. */

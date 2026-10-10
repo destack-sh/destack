@@ -63,8 +63,8 @@ export const accessRelationship = defineTable(
         expiresAt: integer("expires_at"),
         /** The request the relationship applies to alone, until it commits. */
         requestId: text("request_id"),
-        /** The session or agent instance the relationship applies within. */
-        sessionId: text("session_id"),
+        /** The credential a call presents for the relationship to apply, such as a session or an agent instance. */
+        credential: text("credential"),
         /** The digest of the link secret a request must present. */
         linkSecret: text("link_secret"),
         /** The minimum authentication assurance level. */
@@ -104,7 +104,7 @@ export const accessRelationship = defineTable(
                 sql`coalesce(${relationship.subjectRelation}, '')`,
                 sql`coalesce(${relationship.onBehalfOf}, '')`,
                 sql`coalesce(${relationship.requestId}, '')`,
-                sql`coalesce(${relationship.sessionId}, '')`,
+                sql`coalesce(${relationship.credential}, '')`,
                 sql`coalesce(${relationship.linkSecret}, '')`,
                 sql`coalesce(${relationship.assurance}, 0)`,
                 sql`coalesce(${relationship.maxAge}, 0)`,
@@ -160,7 +160,7 @@ export type RelationshipColumnMap = Readonly<
         | "createdAt"
         | "expiresAt"
         | "requestId"
-        | "sessionId"
+        | "credential"
         | "linkSecret"
         | "assurance"
         | "maxAge"

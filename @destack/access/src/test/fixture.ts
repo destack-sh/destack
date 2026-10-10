@@ -70,6 +70,7 @@ export const space = new Policy(module4.package, {
     grantedBy: "share",
     elevated: { delete: RECENT },
     scope: true,
+    partition: true,
 });
 
 /** A set of users, installations, nested groups and account members. */

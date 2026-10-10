@@ -26,7 +26,7 @@ import {
     team,
     teamTable,
 } from "../test/fixture.ts";
-import { openFixture } from "../test/database.ts";
+import { openFixture, sessionCredential } from "../test/database.ts";
 import { GrantTree } from "./grant.ts";
 import { relationship } from "../declare/principal.ts";
 
@@ -120,7 +120,7 @@ test.for(TEST_DIALECTS)(
             { assurance: 2 },
             { maxAge: 100 },
             { request: "request-1" },
-            { session: "session-1" },
+            { credential: "session:1" },
             { onBehalfOf: user("bob") },
         ];
 
@@ -148,7 +148,7 @@ test.for(TEST_DIALECTS)(
                 attributes,
                 assurance: { level: 2, authenticatedAt: NOW - 50 },
                 request: "request-1",
-                session: "session-1",
+                credential: sessionCredential("1", NOW),
             },
             {
                 subjects: [user("bob")],

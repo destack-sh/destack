@@ -1,4 +1,5 @@
-import { defineSchema, Instant, schema } from "@destack/schema";
+import { defineSchema, type Identifier, Instant, schema } from "@destack/schema";
+import { PackageId } from "@destack/package";
 import { Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
@@ -6,9 +7,19 @@ import { isPrincipal, principal } from "../declare/principal.ts";
 import { Restriction } from "./restriction.ts";
 import { Attribute } from "../declare/expression.ts";
 
-
 /** The assurance of a principal proven by its server's key: phishing-resistant, as level 3 is. */
 export const KEY_ASSURANCE = 3;
+
+/**
+ * The largest clock difference between a credential's verifier and the service it reaches.
+ *
+ * Five seconds is far above the few milliseconds NTP keeps hosts apart and below the minute JWT libraries default to.
+ */
+export const CLOCK_TOLERANCE_MILLISECONDS = 5000;
+
+/** The header a host forwards a verified caller to its runner in. */
+export const CALLER_HEADER = "Destack-Caller";
+
 /** The schema of a contact. */
 const contactSchema = defineSchema(
     schema.object({
@@ -80,16 +91,14 @@ export interface Caller {
     readonly contacts?: readonly Contact[];
     /** The permissions a restricted credential allows, intersected with every grant. */
     readonly permissions?: readonly Restriction[];
-    /** The session or agent instance the caller belongs to, matched by grants bound to one session. */
-    readonly session?: string;
+    /** The procedure paths of the audience the space granted the installation. */
+    readonly calls?: readonly string[];
     /** Digests of the link secrets the caller presented. */
     readonly linkSecrets?: readonly string[];
     /** Trusted attributes access policies read. */
     readonly attributes?: Readonly<Record<string, Attribute>>;
     /** The token a space exchanged for the caller, lending its authority to one installation (RFC 8693). */
     readonly delegation?: string;
-    /** The one scope a scoped credential acts in, absent for a credential acting anywhere. */
-    readonly scope?: string;
     /** The credential the caller presented, absent for an anonymous caller or a principal running its own code. */
     readonly credential?: CallerCredential;
     /** The deployments the workload identities among the subjects run in. */
@@ -98,14 +107,24 @@ export interface Caller {
     readonly loan?: CallerLoan;
 }
 
-/** A credential a caller presented: its kind, its identifier and the client whose key it is bound to. */
+/** A credential a caller presented, verified for one audience until it lapses (RFC 7662 introspection). */
 export const CallerCredential = schema.object({
-    /** The credential kind. */
+    /** The credential kind, such as session. */
     kind: schema.string().min(1),
     /** The credential identifier. */
     id: schema.string().min(1),
     /** The client whose key the credential is bound to, absent for an unbound credential. */
     client: schema.identifier("client").exactOptional(),
+    /** The package the credential was verified for. */
+    audience: PackageId,
+    /** The scope the credential acts within, with the scopes inside it, absent for a credential acting anywhere. */
+    scope: schema.string().min(1).exactOptional(),
+    /** The verification time in UTC epoch milliseconds. */
+    verifiedAt: Instant,
+    /** The time the credential lapses: its expiry, capped by its audience's lifetime. */
+    expiresAt: Instant,
+    /** The identifier of the access token that carried the credential (RFC 7519 jti), absent for a credential presented directly. */
+    token: schema.string().min(1).exactOptional(),
 });
 /** A credential a caller presented. */
 export type CallerCredential = schema.Infer<typeof CallerCredential>;
@@ -148,16 +167,14 @@ export const Caller = {
         contacts: schema.array(Contact).exactOptional(),
         /** The permissions a restricted credential allows. */
         permissions: schema.array(Restriction.schema).exactOptional(),
-        /** The session or agent instance the caller belongs to. */
-        session: schema.string().min(1).exactOptional(),
+        /** The procedures of the audience an installation's space granted it. */
+        calls: schema.array(schema.string().min(1)).exactOptional(),
         /** Digests of the link secrets the caller presented. */
         linkSecrets: schema.array(schema.string().min(1)).exactOptional(),
         /** Trusted attributes access policies read. */
         attributes: schema.record(schema.string(), Attribute).exactOptional(),
         /** The token a space exchanged for the caller, lending its authority to one installation (RFC 8693). */
         delegation: schema.string().min(1).exactOptional(),
-        /** The one scope a scoped credential acts in. */
-        scope: schema.string().min(1).exactOptional(),
         /** The credential the caller presented. */
         credential: CallerCredential.exactOptional(),
         /** The deployments the workload identities among the subjects run in. */
@@ -213,6 +230,16 @@ export const Caller = {
         return caller.delegates?.at(-1)?.subject ?? caller.subject;
     },
 
+    /** Require the principal sending the call, refusing an anonymous caller. */
+    requireSender(caller: Pick<Caller, "subject" | "delegates">): Subject {
+        const sender = Caller.sender(caller);
+        if (sender === undefined) {
+            throw new AccessError("UNAUTHORIZED", "the request needs an authenticated sender");
+        }
+
+        return sender;
+    },
+
     /** Pair each delegate with the principal it acts for, from the represented subject to the principal sending the request. */
     delegation(
         caller: Caller,
@@ -250,6 +277,111 @@ export const Caller = {
         const isLent = caller.delegates?.some((delegate) => delegate.authority === "lent") ?? false;
 
         return isLent ? [] : (caller.contacts ?? []);
+    },
+
+    /** Read the key of the credential a caller presents, `<kind>:<id>`, which grants bound to one credential match, absent without a credential. */
+    credentialKey(caller: Pick<Caller, "credential">): string | undefined {
+        const { credential } = caller;
+
+        return credential === undefined ? undefined : `${credential.kind}:${credential.id}`;
+    },
+
+    /** Read the deployment a workload identity among the caller's subjects runs in, absent for none. */
+    deployment(caller: Caller, subject: Subject): Identifier<"deployment"> | undefined {
+        const deployments = caller.deployments ?? [];
+
+        return deployments.find((entry) => Subject.same(entry.subject, subject))?.id;
+    },
+
+    /** Report whether a space lent a person's authority to an installation by token exchange (RFC 8693). */
+    isExchanged(caller: Caller): boolean {
+        const { subject, delegates = [], contacts = [], loan } = caller;
+        const [lent, ...rest] = delegates;
+
+        return (
+            loan === undefined &&
+            subject !== undefined &&
+            principal.user.is(subject) &&
+            contacts.length === 0 &&
+            rest.length === 0 &&
+            lent?.authority === "lent" &&
+            principal.installation.is(lent.subject)
+        );
+    },
+
+    /** Require the credential a caller presented, refusing a caller without one. */
+    requireCredential(caller: Caller): CallerCredential {
+        if (caller.credential === undefined) {
+            throw new AccessError("UNAUTHORIZED", "missing caller credential");
+        }
+
+        return caller.credential;
+    },
+
+    /** Require a caller's credential verified and unlapsed at a time; a principal running its own code has none and never lapses. */
+    requireLive(caller: Caller, now: number): void {
+        const { credential } = caller;
+        if (
+            credential !== undefined &&
+            (credential.verifiedAt > now + CLOCK_TOLERANCE_MILLISECONDS ||
+                now >= credential.expiresAt)
+        ) {
+            throw new AccessError("UNAUTHORIZED", "caller authentication is not current");
+        }
+    },
+
+    /** Require a caller current at a time for an audience and a scope, its subject among its verified ones. */
+    requireCurrent(caller: Caller, audience: PackageId, now: number, scope?: string): void {
+        // refuse a credential for another audience or scope
+        const { credential, subject } = caller;
+        if (
+            credential !== undefined &&
+            (credential.audience !== audience ||
+                (credential.scope !== undefined && credential.scope !== scope))
+        ) {
+            throw new AccessError(
+                "UNAUTHORIZED",
+                "caller authentication has a different audience or scope",
+            );
+        }
+
+        // refuse a lapsed credential and a subject outside the verified ones
+        Caller.requireLive(caller, now);
+        if (subject !== undefined && !caller.subjects.some((each) => Subject.same(each, subject))) {
+            throw new AccessError(
+                "UNAUTHORIZED",
+                "caller subject is missing from verified identities",
+            );
+        }
+    },
+
+    /** Clamp a time to a caller's lifetime: the time itself, or just before its credential lapses. */
+    clamp(caller: Caller, now: number): number {
+        return caller.credential === undefined
+            ? now
+            : Math.min(now, caller.credential.expiresAt - 1);
+    },
+
+    /** Read the caller a host forwarded with a request, absent for a request without one. */
+    forwarded(request: Request): Caller | undefined {
+        // read no caller without the header
+        const forwarded = request.headers.get(CALLER_HEADER);
+        if (forwarded === null) {
+            return undefined;
+        }
+
+        // refuse a header that is no JSON caller
+        const parsed = Caller.schema.safeParse(parseJson(forwarded));
+        if (!parsed.success) {
+            throw new AccessError("INVALID_CONTEXT", "the forwarded caller is malformed");
+        }
+
+        return parsed.data;
+    },
+
+    /** Forward a caller to a runner in a request's headers. */
+    forward(caller: Caller, headers: Headers): void {
+        headers.set(CALLER_HEADER, JSON.stringify(caller));
     },
 };
 
@@ -290,3 +422,15 @@ export const AccessContext = {
         return value;
     },
 };
+
+/** Parse JSON text, reading text that is no JSON as undefined for its schema to refuse. */
+function parseJson(text: string): unknown {
+    try {
+        return JSON.parse(text);
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            return undefined;
+        }
+        throw error;
+    }
+}

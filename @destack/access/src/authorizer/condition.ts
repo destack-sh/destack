@@ -1,14 +1,14 @@
 import { jsonElements, sql, type SQL, type SQLWrapper } from "@destack/db";
 import { Subject } from "@destack/sync";
 import { ACCESS_PACKAGE_ID, anyone } from "../declare/principal.ts";
-import type { AccessContext } from "../context/context.ts";
+import { type AccessContext, Caller } from "../context/context.ts";
 import type { RelationshipColumnMap, RelationshipRow } from "../relationship/table.ts";
 import type { GrantFailure } from "./decision.ts";
 
 /** The request values a relationship's conditions compare against. */
 export type ConditionContext = Pick<
     AccessContext,
-    "now" | "request" | "session" | "linkSecrets" | "assurance"
+    "now" | "request" | "credential" | "linkSecrets" | "assurance"
 >;
 
 /** The request values a relationship's conditions compare against, as SQL values, null where the request has none. */
@@ -17,8 +17,8 @@ export interface ConditionValues {
     readonly now: SQLWrapper;
     /** The request's identifier. */
     readonly request: SQLWrapper;
-    /** The request's session. */
-    readonly session: SQLWrapper;
+    /** The key of the credential the request presents. */
+    readonly credential: SQLWrapper;
     /** The digests of the link secrets the request presented, as a JSON list of one-element lists. */
     readonly linkSecrets: SQLWrapper;
     /** The request's authentication assurance level. */
@@ -41,8 +41,8 @@ export class GrantCondition {
     readonly expiresAt: number | null;
     /** The request the relationship applies to alone. */
     readonly requestId: string | null;
-    /** The session the relationship applies within. */
-    readonly sessionId: string | null;
+    /** The key of the credential a call presents for the relationship to apply. */
+    readonly credential: string | null;
     /** The digest of the link secret a request must present. */
     readonly linkSecret: string | null;
     /** The minimum authentication assurance level. */
@@ -58,7 +58,7 @@ export class GrantCondition {
         this.createdAt = row.createdAt;
         this.expiresAt = row.expiresAt;
         this.requestId = row.requestId;
-        this.sessionId = row.sessionId;
+        this.credential = row.credential;
         this.linkSecret = row.linkSecret;
         this.assurance = row.assurance;
         this.maxAge = row.maxAge;
@@ -79,11 +79,11 @@ export class GrantCondition {
             return "expired";
         }
 
-        // require its request, session and link secret to match
+        // require its request, credential and link secret to match
         if (!isBound(this.requestId, context.request)) {
             return "request";
-        } else if (!isBound(this.sessionId, context.session)) {
-            return "session";
+        } else if (!isBound(this.credential, Caller.credentialKey(context))) {
+            return "credential";
         } else if (
             this.linkSecret !== null &&
             !(context.linkSecrets ?? []).includes(this.linkSecret)
@@ -147,12 +147,12 @@ export class GrantCondition {
         // type the request time for engines that type parameters
         const now = castInteger(values.now);
 
-        // require a started, unexpired relationship with a matching request, session and link secret
+        // require a started, unexpired relationship with a matching request, credential and link secret
         const conditions = [
             sql`${relationship.createdAt} <= ${now}`,
             sql`(${relationship.expiresAt} IS NULL OR ${relationship.expiresAt} > ${now})`,
             sql`(${relationship.requestId} IS NULL OR ${relationship.requestId} = ${castText(values.request)})`,
-            sql`(${relationship.sessionId} IS NULL OR ${relationship.sessionId} = ${castText(values.session)})`,
+            sql`(${relationship.credential} IS NULL OR ${relationship.credential} = ${castText(values.credential)})`,
             sql`(${relationship.linkSecret} IS NULL OR EXISTS (
                 SELECT 1 FROM ${jsonElements(values.linkSecrets, "link_secret")}
                 WHERE link_secret.value ->> 0 = ${relationship.linkSecret}
@@ -193,7 +193,7 @@ export class GrantCondition {
         return {
             now: context.now,
             request: context.request ?? null,
-            session: context.session ?? null,
+            credential: Caller.credentialKey(context) ?? null,
             linkSecrets: JSON.stringify((context.linkSecrets ?? []).map((digest) => [digest])),
             level: context.assurance?.level ?? null,
             authenticatedAt: context.assurance?.authenticatedAt ?? null,
@@ -213,7 +213,7 @@ export class GrantCondition {
         return {
             now: value("now"),
             request: value("request"),
-            session: value("session"),
+            credential: value("credential"),
             linkSecrets: value("linkSecrets"),
             level: value("level"),
             authenticatedAt: value("authenticatedAt"),

@@ -14,7 +14,7 @@ import {
     type RelationshipCondition,
 } from "../index.ts";
 import { cell, entity, item, mappings, node, policies, rows } from "../test/fixture.ts";
-import { openFixture, userSubject } from "../test/database.ts";
+import { openFixture, sessionCredential, userSubject } from "../test/database.ts";
 
 /** Provide an isolated database with notes and an explicit editor grant. */
 const databaseTest = test.extend<{
@@ -412,19 +412,20 @@ databaseTest(
         const readable = async (context: AccessContext) =>
             readableNodes(database, authorizer, context);
 
-        // bind a grant to one request and one session
+        // bind a grant to one request and one credential
         const once = await grant({ request: "request-1" });
         expect(await readable(carol)).toEqual([]);
         expect(await readable({ ...carol, request: "request-1" })).toEqual(["c"]);
         await authorizer.release(database, "request-1");
         expect(await readable({ ...carol, request: "request-1" })).toEqual([]);
-        const session = await grant({ session: "session-1" });
-        expect(await readable({ ...carol, session: "session-2" })).toEqual([]);
-        expect(await readable({ ...carol, session: "session-1" })).toEqual(["c"]);
-        await new Authorization(authorizer, database, () => alice).revoke(
-            session.object,
-            session.id,
+        const bound = await grant({ credential: "session:1" });
+        expect(await readable({ ...carol, credential: sessionCredential("2", carol.now) })).toEqual(
+            [],
         );
+        expect(await readable({ ...carol, credential: sessionCredential("1", carol.now) })).toEqual(
+            ["c"],
+        );
+        await new Authorization(authorizer, database, () => alice).revoke(bound.object, bound.id);
 
         // require strong and recent authentication
         await grant({ assurance: 2, maxAge: 300 });

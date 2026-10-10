@@ -143,11 +143,9 @@ test("relay an account's access through the space's database into an app's, and 
     await owner.revoke(object, binding.id);
     const revoked = await global.database.log.position();
     const impatient = new Authorizer(policies, mappings, { lag: 50 });
-    await new Promise((resolve) => {
-        setTimeout(resolve, 60);
-    });
+    const late = { ...carol, now: Date.now() + 60 };
     await expect(
-        impatient.resolve(Snapshot.live(app.database), "personal", carol),
+        impatient.resolve(Snapshot.live(app.database), "personal", late),
     ).rejects.toMatchObject({
         code: "STALE",
     });

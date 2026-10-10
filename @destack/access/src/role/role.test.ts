@@ -169,7 +169,7 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
     const copies = new AccessFixture(database);
     await copies.copyScope(account.reference("universe", "account-1"));
     await copies.copyOwner(account.reference("universe", "account-1"), carolMembership, 1);
-    await copies.copyScope(space.reference("account-1", "personal"));
+    await copies.copyScope(space.reference("account-1", "personal"), "own");
 
     // bind an editor role including the reader role on the account
     const reader = await defineRole(1, [node.permission("read")], "account-1");
@@ -426,7 +426,7 @@ test("list the spaces an account contains to the account's owner", async () => {
         ["space-2", "account-1"],
         ["space-3", "account-2"],
     ] as const) {
-        await new AccessFixture(database).copyScope(space.reference(owner, id));
+        await new AccessFixture(database).copyScope(space.reference(owner, id), "own");
         await database.insert(spaceTable).values({ id, account: owner });
     }
 
@@ -548,6 +548,47 @@ test("keep a role by name, replace its purpose and permissions, then keep it ide
         Role.describe(record, await Role.permissions(database, kept.id)),
         record.updatedAt,
     ]).toEqual([expected, expected, 2000]);
+});
+
+test("keep an inherent role's permissions as declared, keeping the rows of the ones it grants already", async () => {
+    const { database, place } = await openOwnedSpace();
+    const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
+    const update = { ...read, name: "update" };
+    const remove = { ...read, name: "delete" };
+    const dave = principal.user.reference("universe", "dave");
+    const keep = (permissions: (typeof read)[], now: number) =>
+        Role.keepInherent(
+            database,
+            place,
+            { name: "keeper", description: "Keep nodes", permissions },
+            dave,
+            now,
+        );
+    const rows = async (id: string) =>
+        database
+            .select({ id: accessRolePermission.id, name: accessRolePermission.name })
+            .from(accessRolePermission)
+            .where(eq(accessRolePermission.roleId, schema.identifier("role").parse(id)))
+            .orderBy(asc(accessRolePermission.name));
+
+    // keep the role, then keep it with one permission swapped
+    const keeper = await keep([read, update], 1000);
+    const first = await rows(keeper);
+    await keep([update, remove], 2000);
+    const second = await rows(keeper);
+
+    // keep the update permission's row and replace the read one with a new delete row
+    const [readRow, updateRow] = first;
+    const [added] = second;
+    const ids = [...first, ...second].map((row) => row.id);
+    expect({ first, second, distinct: new Set(ids).size }).toEqual({
+        first: [
+            { id: readRow?.id, name: "read" },
+            { id: updateRow?.id, name: "update" },
+        ],
+        second: [{ id: added?.id, name: "delete" }, updateRow],
+        distinct: 3,
+    });
 });
 
 test("assign a role to one subject alone, revoking the previous subject and keeping an identical binding", async () => {

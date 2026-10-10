@@ -5,6 +5,7 @@ import {
     or,
     type DatabaseConnection,
     type Row,
+    type RowImage,
     type Select,
     Snapshot,
 } from "@destack/db";
@@ -70,8 +71,8 @@ export class Authorization {
     readonly database: DatabaseConnection;
     /** The database as its decisions read it, as each read finds it. */
     readonly snapshot: Snapshot;
-    /** Bind the verified caller to a scope it acts in, rejecting scopes its credential excludes. */
-    readonly #bind: (scope: string) => AccessContext;
+    /** Read the verified caller at the time it acts, as its decisions see it. */
+    readonly #context: () => AccessContext;
     /** The caller's access resolved in each scope during this call, until renewed. */
     readonly #resolved = new Map<string, Promise<Access>>();
     /** The caller's access in the scopes below each scope, absent for a scope it does not enclose, until renewed. */
@@ -79,18 +80,18 @@ export class Authorization {
     /** The declaration this authorization applies, whose rows it alone changes, null for a caller changing access itself. */
     #manager: Manager | null = null;
 
-    /** Authorize one caller, bound to each scope it acts in, with its access already resolved in some scope. */
+    /** Authorize one caller, read when it acts, with its access already resolved in some scope. */
     constructor(
         authorizer: Authorizer,
         database: DatabaseConnection,
-        bind: (scope: string) => AccessContext,
+        context: () => AccessContext,
         resolved?: Access,
     ) {
-        // bind the caller per scope, reusing the access resolved in one scope
+        // keep the caller, reusing the access resolved in one scope
         this.authorizer = authorizer;
         this.database = database;
         this.snapshot = Snapshot.live(database);
-        this.#bind = bind;
+        this.#context = context;
         if (resolved !== undefined) {
             this.#resolved.set(resolved.scope, Promise.resolve(resolved));
         }
@@ -98,7 +99,7 @@ export class Authorization {
 
     /** Authorize the same caller within a transaction, resolving afresh there. */
     within(transaction: DatabaseConnection): Authorization {
-        const within = new Authorization(this.authorizer, transaction, this.#bind);
+        const within = new Authorization(this.authorizer, transaction, this.#context);
         within.#manager = this.#manager;
 
         return within;
@@ -106,15 +107,15 @@ export class Authorization {
 
     /** Authorize the same caller applying a declaration: its writes are managed by it, and it changes the rows the declaration manages. */
     applying(manager: Manager): Authorization {
-        const applying = new Authorization(this.authorizer, this.database, this.#bind);
+        const applying = new Authorization(this.authorizer, this.database, this.#context);
         applying.#manager = manager;
 
         return applying;
     }
 
-    /** Bind the verified caller to a scope it acts in. */
-    context(scope: string): AccessContext {
-        return this.#bind(scope);
+    /** Read the verified caller as it acts now. */
+    context(): AccessContext {
+        return this.#context();
     }
 
     /** Resolve the caller's access in a scope once per call: its subject sets, roles and scope chain. */
@@ -124,7 +125,7 @@ export class Authorization {
         if (known !== undefined) {
             return known;
         }
-        const resolved = this.authorizer.resolve(this.snapshot, scope, this.context(scope));
+        const resolved = this.authorizer.resolve(this.snapshot, scope, this.context());
         this.#resolved.set(scope, resolved);
 
         return resolved;
@@ -191,11 +192,6 @@ export class Authorization {
             for (const enclosed of missing) {
                 known.set(enclosed, resolved.get(enclosed));
             }
-
-            // refuse a credential pinned to another scope in each enclosed scope
-            for (const enclosed of resolved.keys()) {
-                this.context(enclosed);
-            }
         }
 
         // keep the scopes the scope encloses
@@ -214,17 +210,10 @@ export class Authorization {
     async create(object: ObjectReference, creation: Creation): Promise<void> {
         // read the containing scopes of a new scope, none below the universe
         const isScope = this.authorizer.policy(object).definition.scope === true;
-        let ancestors: string[] = [];
-        if (isScope && object.scope !== Scope.universe.id) {
-            const [parent] = await this.database
-                .select({ ancestors: Scope.table.ancestors })
-                .from(Scope.table)
-                .where(eq(Scope.table.scope, object.scope));
-            if (parent === undefined) {
-                throw new AccessError("NOT_FOUND", `unknown scope: ${object.scope}`);
-            }
-            ancestors = [object.scope, ...parent.ancestors];
-        }
+        const ancestors =
+            isScope && object.scope !== Scope.universe.id
+                ? [object.scope, ...(await this.#parent(object.scope)).ancestors]
+                : [];
 
         // record its access below them
         await this.receive(object, ancestors, creation);
@@ -253,14 +242,18 @@ export class Authorization {
         if (!isScope && creation.owner !== undefined) {
             throw new AccessError("INVALID_CONTEXT", "only a new scope has owners");
         }
-        const scope = this.authorizer.governingScope(object);
-        const context = this.context(scope);
+        const context = this.context();
 
-        // record a scope below the scopes containing it
+        // record a scope below the scopes containing it, in its own partition or its parent's
         if (isScope) {
+            const partition =
+                definition.partition === true
+                    ? object.id
+                    : (await this.#parent(object.scope)).partition;
             await this.database.insert(Scope.table).values({
                 scope: object.id,
                 parent: object.scope,
+                partition,
                 packageId: object.packageId,
                 type: object.type,
                 ancestors: [...ancestors],
@@ -280,9 +273,19 @@ export class Authorization {
         this.renew();
     }
 
+    /** Read the row of a scope a new scope lives in, refusing a scope this database does not record. */
+    async #parent(scope: string): Promise<RowImage<typeof Scope.table>> {
+        const [row] = await Scope.read(this.snapshot, [scope]);
+        if (row === undefined) {
+            throw new AccessError("NOT_FOUND", `unknown scope: ${scope}`);
+        }
+
+        return row;
+    }
+
     /** Suspend a scope and withhold every permission in it except administration until resumed. */
     async suspend(object: ObjectReference): Promise<void> {
-        await this.#suspension(object, this.context(object.id).now);
+        await this.#suspension(object, this.context().now);
     }
 
     /** Resume a suspended scope as a caller with the permission to. */
@@ -351,7 +354,7 @@ export class Authorization {
             const authorization = this.within(transaction);
             const invited = request.relationship;
             await this.authorizer.requireLocal(transaction, invited.object);
-            const context = this.context(this.authorizer.governingScope(invited.object));
+            const context = this.context();
             const inviter = Caller.principal(context) ?? null;
 
             // validate the relationship, checking an invited contact's principal once it accepts
@@ -405,7 +408,7 @@ export class Authorization {
         return this.database.transaction(async (transaction) => {
             // load the pending invitation inside the authorization transaction
             const authorization = this.within(transaction);
-            const context = this.context(this.authorizer.governingScope(object));
+            const context = this.context();
             const invitation = await Invitation.read(transaction, object, id);
             if (invitation.expiresAt <= context.now) {
                 throw new AccessError("FORBIDDEN", "invitation has lapsed");
@@ -447,7 +450,7 @@ export class Authorization {
         return this.database.transaction(async (transaction) => {
             // let the inviting principal and the addressee withdraw without grant authority
             const authorization = this.within(transaction);
-            const context = this.context(this.authorizer.governingScope(object));
+            const context = this.context();
             const invitation = await Invitation.read(transaction, object, id);
             const acting = Caller.principal(context);
             const isInviter =
@@ -523,7 +526,7 @@ export class Authorization {
     ): Promise<Invitation[]> {
         return this.database.transaction(async (transaction) => {
             // require the grant permission before reading the object's invitations after the cursor
-            const context = this.context(this.authorizer.governingScope(request.object));
+            const context = this.context();
             await this.within(transaction).#requireGrant(request.object, request.relation);
             const rows = await transaction
                 .select()
@@ -565,7 +568,7 @@ export class Authorization {
     ): Promise<Role> {
         return this.database.transaction(async (transaction) => {
             // require an editable role at the revision, permission to change roles, and every permission granted
-            const context = this.context(scope.id);
+            const context = this.context();
             const record = await Role.read(transaction, scope.id, id);
             if (record.revision !== changes.revision) {
                 throw new AccessError("CONFLICT", "role revision has changed");
@@ -653,7 +656,7 @@ export class Authorization {
     async keepRole(scope: ObjectReference, request: RoleRequest): Promise<Role> {
         return this.database.transaction(async (transaction) => {
             // read the role holding the name, defining it when none does
-            const now = this.context(scope.id).now;
+            const now = this.context().now;
             const [kept] = await transaction
                 .select()
                 .from(accessRole)
@@ -713,7 +716,7 @@ export class Authorization {
         ]);
 
         // define the role under a name free in the scope
-        const now = this.context(scope.id).now;
+        const now = this.context().now;
         const record = await define(transaction, scope.id, request, now, this.#manager);
         if (record === undefined) {
             throw new AccessError("CONFLICT", "role name is already in use");
@@ -848,7 +851,7 @@ export class Authorization {
 
         // require every permission in the scope
         const snapshot = Snapshot.live(transaction);
-        const access = await this.authorizer.resolve(snapshot, scope.id, this.context(scope.id));
+        const access = await this.authorizer.resolve(snapshot, scope.id, this.context());
         await this.authorizer.require(snapshot, permissions, scope, access);
     }
 
@@ -859,7 +862,7 @@ export class Authorization {
 
         // lend only the caller's own authority, and only to one principal
         const scope = this.authorizer.governingScope(request.object);
-        const context = this.context(scope);
+        const context = this.context();
         const onBehalfOf = request.conditions?.onBehalfOf;
         if (onBehalfOf !== undefined) {
             if (!this.#lends(request)) {
@@ -921,7 +924,7 @@ export class Authorization {
     /** Require the permission granting a relation, or binding roles, on an object. */
     async #requireGrant(object: ObjectReference, relation: string | undefined): Promise<void> {
         const scope = this.authorizer.governingScope(object);
-        const access = await this.authorizer.resolve(this.snapshot, scope, this.context(scope));
+        const access = await this.authorizer.resolve(this.snapshot, scope, this.context());
         await this.authorizer.require(
             this.snapshot,
             [this.#grantPermission(object, relation)],
@@ -934,7 +937,7 @@ export class Authorization {
     async #insert(request: RelationshipRequest): Promise<Relationship> {
         // build the relationship
         const scope = this.authorizer.governingScope(request.object);
-        const context = this.context(scope);
+        const context = this.context();
         this.authorizer.validate(request, context.now);
         const relationship: Relationship = {
             id: schema.identifier("relationship").parse(`relationship-${v7()}`),
@@ -965,9 +968,7 @@ export class Authorization {
     /** Determine whether the caller is the principal a delegation lends authority from. */
     #lends(request: RelationshipFields): boolean {
         const onBehalfOf = request.conditions?.onBehalfOf;
-        const caller = Caller.principal(
-            this.context(this.authorizer.governingScope(request.object)),
-        );
+        const caller = Caller.principal(this.context());
 
         return onBehalfOf !== undefined && caller !== undefined && Subject.same(caller, onBehalfOf);
     }

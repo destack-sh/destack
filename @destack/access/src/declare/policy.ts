@@ -38,6 +38,8 @@ export interface PolicyDefinition {
     readonly administration?: readonly string[];
     /** Whether the type's objects are scopes that contain other objects. */
     readonly scope?: true;
+    /** Whether each of the type's objects is a partition, whose contents' rows live and run apart from its parent's. */
+    readonly partition?: true;
     /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: true;
     /** The open relations of other types this type's objects may be subjects of. */
@@ -258,8 +260,25 @@ export interface RelationInput {
     readonly concealed?: true;
 }
 
-/** A policy as declared. */
-export interface PolicyInput<Name extends string> {
+/** A policy as declared: a type of objects, of scopes, or of scopes each a partition. */
+export type PolicyInput<Name extends string> = PolicyFields<Name> &
+    (
+        | {
+              /** Whether the type's objects contain others: no. */
+              readonly scope?: false;
+              /** Whether each object is a partition: never outside scopes. */
+              readonly partition?: never;
+          }
+        | {
+              /** Whether the type's objects contain others: yes, as scopes. */
+              readonly scope: true;
+              /** Whether each of the type's objects is a partition. */
+              readonly partition?: boolean;
+          }
+    );
+
+/** The fields of a declared policy beside whether its objects are scopes. */
+interface PolicyFields<Name extends string> {
     /** The declaration-local object type name. */
     readonly name: string;
     /** Required object attributes used by permission expressions. */
@@ -280,8 +299,6 @@ export interface PolicyInput<Name extends string> {
     readonly elevated?: Readonly<Partial<Record<NoInfer<Name>, Elevation>>>;
     /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly NoInfer<Name>[];
-    /** Whether the type's objects are scopes that contain other objects. */
-    readonly scope?: boolean;
     /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: boolean;
     /** The open relations of other types this type's objects may be subjects of, such as an attachment's parent. */
@@ -349,6 +366,7 @@ function describe<Name extends string>(
             ? {}
             : { administration: [...input.administration] }),
         ...(input.scope === true ? { scope: true } : {}),
+        ...(input.partition === true ? { partition: true } : {}),
         ...(input.isGlobal === true ? { isGlobal: true } : {}),
         ...(input.contributes === undefined || input.contributes.length === 0
             ? {}

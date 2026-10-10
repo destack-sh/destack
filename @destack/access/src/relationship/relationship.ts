@@ -21,8 +21,8 @@ export const RelationshipCondition = defineSchema(
     schema.object({
         /** Apply only to this request, and only until it commits. */
         request: schema.string().min(1).exactOptional(),
-        /** Apply only within this session or agent instance. */
-        session: schema.string().min(1).exactOptional(),
+        /** Apply only to calls presenting this credential, as `<kind>:<id>`. */
+        credential: schema.string().min(1).exactOptional(),
         /** Apply only when the request presents the link secret with this digest. */
         linkSecret: schema
             .string()
@@ -129,7 +129,7 @@ function encode(relationship: Relationship, scope: string) {
         ...subjectColumns(relationship.subject),
         expiresAt: relationship.expiresAt,
         requestId: relationship.conditions?.request ?? null,
-        sessionId: relationship.conditions?.session ?? null,
+        credential: relationship.conditions?.credential ?? null,
         linkSecret: relationship.conditions?.linkSecret ?? null,
         assurance: relationship.conditions?.assurance ?? null,
         maxAge: relationship.conditions?.maxAge ?? null,
@@ -155,7 +155,7 @@ function subjectColumns(subject: Subject) {
 function decode(row: Select<typeof accessRelationship>): Relationship {
     const conditions = {
         ...(row.requestId === null ? {} : { request: row.requestId }),
-        ...(row.sessionId === null ? {} : { session: row.sessionId }),
+        ...(row.credential === null ? {} : { credential: row.credential }),
         ...(row.linkSecret === null ? {} : { linkSecret: row.linkSecret }),
         ...(row.assurance === null ? {} : { assurance: row.assurance }),
         ...(row.maxAge === null ? {} : { maxAge: row.maxAge }),

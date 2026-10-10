@@ -42,6 +42,8 @@ export class Access {
     readonly isCapped: boolean;
     /** The fenced scope nearest in the chain and the machine it moves to. */
     readonly moved: { readonly scope: string; readonly machine: string } | undefined;
+    /** The partition the scope's objects live in, absent for a scope this database does not record. */
+    readonly partition: string | undefined;
     /** The next moment time changes the caller's subject sets, roles or elevation. */
     readonly until: number | undefined;
     /** The roles along the scope chain under each permission key they grant as one JSON list, each `[permission, role]`, the roles granting every permission under `*`. */
@@ -77,10 +79,12 @@ export class Access {
         this.grants = resolved.grants;
         this.isSuspended = resolved.links.some((link) => link.isSuspended);
         this.isCapped = resolved.links.some((link) => link.isCapped);
-        const [moved] = resolved.links.flatMap((link) =>
-            link.movedTo === undefined ? [] : [{ scope: link.object.id, machine: link.movedTo }],
-        );
-        this.moved = moved;
+        const fenced = Scope.fenced(resolved.links);
+        this.moved =
+            fenced?.movedTo === undefined
+                ? undefined
+                : { scope: fenced.object.id, machine: fenced.movedTo };
+        this.partition = resolved.links[0]?.partition;
         this.until = resolved.until;
 
         // index the roles by the permissions they grant, apart from the roles granting everything
@@ -130,11 +134,20 @@ export class Access {
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
         const scopes = links.map((link) => link.object);
 
+        // refuse a credential bound to a scope the chain leaves out
+        const bound = context.credential?.scope;
+        if (bound !== undefined && !chain.includes(bound)) {
+            throw new AccessError(
+                "UNAUTHORIZED",
+                `the caller's credential acts within ${bound} alone`,
+            );
+        }
+
         // read the roles and the subject sets of the caller and every lent delegate with their containing scopes
         const [roles, , represented, delegates] = await Promise.all([
             readRoles(snapshot, chain, context),
             snapshot.position === undefined
-                ? requireConfirmed(snapshot.database, chain, authorizer.lag)
+                ? requireConfirmed(snapshot.database, chain, authorizer.lag, context.now)
                 : undefined,
             Access.expand(
                 snapshot,
@@ -233,7 +246,7 @@ export class Access {
                 ids.map((id) => [id]),
             ),
             snapshot.position === undefined
-                ? requireConfirmed(snapshot.database, ids, this.#authorizer.lag)
+                ? requireConfirmed(snapshot.database, ids, this.#authorizer.lag, this.context.now)
                 : undefined,
         ]);
         const defined = new Set(defining.map((row) => row.scope));
@@ -288,18 +301,7 @@ export class Access {
         ) {
             // link the row, ending at this scope
             visited.add(current.scope);
-            links.push({
-                object: {
-                    packageId: current.packageId,
-                    type: current.type,
-                    scope: current.parent,
-                    id: current.scope,
-                },
-                parent: current.parent,
-                isSuspended: current.suspendedAt !== null,
-                isCapped: current.cappedAt !== null,
-                movedTo: current.movedTo ?? undefined,
-            });
+            links.push(Scope.link(current));
             if (current.parent === this.scope) {
                 return links;
             }
@@ -599,8 +601,8 @@ async function requireConfirmed(
     database: DatabaseConnection,
     chain: readonly string[],
     lag: number,
+    now: number,
 ): Promise<void> {
-    const now = Date.now();
     for (const [scope, origin] of await Replica.origins(database, CHAIN_SHAPE, chain)) {
         if (now - origin.confirmedAt > lag) {
             throw new AccessError(

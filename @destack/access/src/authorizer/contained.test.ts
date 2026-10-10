@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Snapshot, sql } from "@destack/db";
 import { schema } from "@destack/schema";
@@ -13,6 +13,7 @@ import {
     teamTable,
 } from "../test/fixture.ts";
 import { AccessFixture } from "../test/access.ts";
+import { sessionCredential } from "../test/database.ts";
 
 /** Realms, root scopes holding districts, read by the principals inside them. */
 const realm = new Policy(module4.package, {
@@ -159,5 +160,39 @@ test.for(TEST_DIALECTS)(
             ["inside", false, false],
             ["sibling", false, false],
         ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "resolve a credential bound to a scope within that scope and the scopes inside it, refusing every other scope, on %s",
+    async (dialect) => {
+        // place a district in each of two realms
+        const opened = await TestDatabase.create(dialect, fixtureDatabase, { isMigrated: true });
+        onTestFinished(() => opened.close());
+        const { database } = opened;
+        const authorizer = new Authorizer([realm, district, parcel, lot], mappings);
+        for (const scope of [
+            realm.reference("universe", "near"),
+            realm.reference("universe", "far"),
+            district.reference("near", "inside"),
+            district.reference("far", "outside"),
+        ]) {
+            await new AccessFixture(database).copyScope(scope);
+        }
+
+        // resolve a caller whose credential is bound to the near realm in each scope
+        const subject = principal.user.reference("universe", "ada");
+        const credential = { ...sessionCredential("1", 1000), scope: "near" };
+        const caller = { subjects: [subject], credential, now: 1000, attributes: {} };
+        const snapshot = Snapshot.live(database);
+        const resolved = await Promise.all(
+            ["near", "inside", "far", "outside", "universe"].map((scope) =>
+                refusal(authorizer.resolve(snapshot, scope, caller)),
+            ),
+        );
+
+        // resolve the realm and its district, refusing the other realm, its district and the universe above
+        const refused = ["UNAUTHORIZED", "the caller's credential acts within near alone"];
+        expect(resolved).toEqual(["done", "done", refused, refused, refused]);
     },
 );
