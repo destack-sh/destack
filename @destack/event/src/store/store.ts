@@ -72,8 +72,8 @@ export interface EventStoreOptions {
     readonly forwarder?: EventForwarder;
     /** Read a scope's policy for a kind, the kind's own when absent. */
     readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy | undefined>;
-    /** The clock segments flush, compact and expire by, the system clock by default. */
-    readonly clock?: Clock;
+    /** The clock segments flush, compact and expire by. */
+    readonly clock: Clock;
     /** Report the failed write of events kept at most once, which were dropped. */
     readonly report: (error: unknown) => void;
 }
@@ -137,7 +137,7 @@ export class EventStore {
         this.#forwarding = forwarding;
         this.#report = options.report;
         this.controllers = [
-            new ArchiveController(this.#archive, kinds, options.clock ?? Clock.system),
+            new ArchiveController(this.#archive, kinds, options.clock),
             ...(forwarding === undefined
                 ? []
                 : kinds

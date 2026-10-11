@@ -6,7 +6,7 @@ import { LocalKeyring } from "@destack/identity";
 import { MemoryBucket } from "@destack/bucket/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { createClient } from "@destack/service/client";
 import { isServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
@@ -80,6 +80,7 @@ async function serve(admit?: (context: ServiceContext, kind: EventKind) => Promi
     await database.migrate(tables);
     const bucket = new MemoryBucket();
     const store = new EventStore({
+        clock: Clock.system,
         database,
         kinds: [meterReading],
         files: () => bucket,
@@ -108,34 +109,35 @@ async function serve(admit?: (context: ServiceContext, kind: EventKind) => Promi
         ],
     );
     const owner = principal.user.reference("universe", "owner");
-    const asOwner = new Authorization(authorizer, database, () => ({
-        subjects: [owner],
-        now: Date.now(),
-        attributes: {},
-    }));
     await new AccessFixture(database).copyScope(owner);
     await database.insert(accountRecord).values({ id: ACCOUNT, scope: "owner" });
     const accountObject = account.reference("owner", ACCOUNT);
-    await asOwner.create(accountObject, { owner });
-    for (const [name, permissions] of [
-        ["reader", [reading.permission("read")]],
-        ["alice", [reading.permission("read"), reading.permission("unmask")]],
-    ] as const) {
-        const role = await asOwner.createRole(accountObject, {
-            name,
-            description: `What ${name} reads`,
-            permissions: [...permissions],
-        });
-        await asOwner.grant({
-            object: accountObject,
-            role: role.id,
-            subject: principal.user.reference("universe", name),
-        });
-    }
+
+    // create the account as its owner with a role for each reader, committed
+    const asOwner = () => ({ subjects: [owner], now: Date.now(), attributes: {} });
+    await Authorization.run(authorizer, database, asOwner, async (authorization) => {
+        await authorization.create(accountObject, { owner });
+        for (const [name, permissions] of [
+            ["reader", [reading.permission("read")]],
+            ["alice", [reading.permission("read"), reading.permission("unmask")]],
+        ] as const) {
+            const role = await authorization.createRole(accountObject, {
+                name,
+                description: `What ${name} reads`,
+                permissions: [...permissions],
+            });
+            await authorization.grant({
+                object: accountObject,
+                role: role.id,
+                subject: principal.user.reference("universe", name),
+            });
+        }
+    });
 
     // serve the readings, recording each unmasked read
     const unmasked: UnmaskedRead[] = [];
     const server = Server.start({
+        clock: Clock.system,
         ...implementEvents({
             store,
             access: { authorizer, database },

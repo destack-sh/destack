@@ -218,6 +218,8 @@ function numericFields(predicate: Predicate): string[] {
             return numericFields(predicate.predicate);
         case "missing":
         case "like":
+        case "characters":
+        case "length":
         case "exists":
             return [];
     }

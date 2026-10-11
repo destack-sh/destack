@@ -146,7 +146,7 @@ export interface EventAccess {
 export type EventKeyType = "text" | "integer" | "real" | "json";
 
 /** The pattern of an event kind's name, which names its table. */
-const KIND_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u;
+const KIND_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 /** The columns every event has, which no query key may name. */
 const RESERVED_KEYS: ReadonlySet<string> = new Set(["scope", "id", "source", "time", "data"]);
