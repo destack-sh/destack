@@ -2,6 +2,7 @@ import type { Rule } from "@oxlint/plugins";
 import { booleanPrefix } from "./boolean-prefix.ts";
 import { branchCommentPosition } from "./branch-comment-position.ts";
 import { commentStyle } from "./comment-style.ts";
+import { deterministicHandler } from "./deterministic-handler.ts";
 import { errorMessageStyle } from "./error-message-style.ts";
 import { exactOptional } from "./exact-optional.ts";
 import { jsdocSentence } from "./jsdoc-sentence.ts";
@@ -39,6 +40,7 @@ export const rules = {
     "boolean-prefix": booleanPrefix,
     "branch-comment-position": branchCommentPosition,
     "comment-style": commentStyle,
+    "deterministic-handler": deterministicHandler,
     "error-message-style": errorMessageStyle,
     "exact-optional": exactOptional,
     "jsdoc-sentence": jsdocSentence,

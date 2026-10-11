@@ -223,6 +223,46 @@ tester.run("error-message-style", rules["error-message-style"], {
     ],
 });
 
+tester.run("deterministic-handler", rules["deterministic-handler"], {
+    valid: [
+        "task.implement({ methods: { archive: (call) => call.update({ archivedAt: call.now }) } });",
+        "task.implement({ methods: { export: { prepare: async () => fetch(url), handle: (call) => call.prepared } } });",
+        "const startedAt = Date.now();",
+        "task.implement({ methods: { archive: (call) => call.update({ at: new Date(call.now) }) } });",
+    ],
+    invalid: [
+        {
+            code: "task.implement({ methods: { archive: (call) => call.update({ archivedAt: Date.now() }) } });",
+            errors: [{ messageId: "call", data: { name: "Date.now()", replacement: "call.now" } }],
+        },
+        {
+            code: "task.implement({ methods: { draw: { handle: async () => Math.random() } } });",
+            errors: [
+                {
+                    messageId: "call",
+                    data: { name: "Math.random()", replacement: "call.random()" },
+                },
+            ],
+        },
+        {
+            code: "task.implement({ methods: { check: { authorize: async () => { await fetch(url); } } } });",
+            errors: [
+                { messageId: "call", data: { name: "fetch()", replacement: "a prepare phase" } },
+            ],
+        },
+        {
+            code: "task.implement({ methods: { create: (call, next) => next(call.with({ id: crypto.randomUUID(), at: new Date() })) } });",
+            errors: [
+                {
+                    messageId: "call",
+                    data: { name: "crypto.randomUUID()", replacement: "call.generateId(type)" },
+                },
+                { messageId: "call", data: { name: "new Date()", replacement: "call.now" } },
+            ],
+        },
+    ],
+});
+
 tester.run("exact-optional", rules["exact-optional"], {
     valid: [
         "const title = schema.string().exactOptional();",
@@ -328,6 +368,10 @@ tester.run("valid-declaration", rules["valid-declaration"], {
             code: 'import { defineDatabase } from "@destack/db";\nexport const main = defineDatabase({});',
             filename: SOURCE,
         },
+        {
+            code: 'import { defineDatabase } from "@destack/db";\nexport const main = defineDatabase({}).implement({});',
+            filename: SOURCE,
+        },
         { code: "const main = defineDatabase({});", filename: SOURCE },
         {
             code: 'import { valueOf } from "@destack/db";\nfunction f() {\n    return valueOf({});\n}',
@@ -337,6 +381,11 @@ tester.run("valid-declaration", rules["valid-declaration"], {
     invalid: [
         {
             code: 'import { defineDatabase } from "@destack/db";\nconst main = defineDatabase({});',
+            filename: SOURCE,
+            errors: [{ messageId: "export" }],
+        },
+        {
+            code: 'import { defineDatabase } from "@destack/db";\nconst main = defineDatabase({}).implement({});',
             filename: SOURCE,
             errors: [{ messageId: "export" }],
         },

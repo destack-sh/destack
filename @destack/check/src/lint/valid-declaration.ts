@@ -120,14 +120,29 @@ function specifierName(imported: ESTree.Node): string | undefined {
           : undefined;
 }
 
-/** Report whether a call initializes an exported module-level const. */
+/** Find the last call chained on a call's result, or the call itself. */
+function chainEnd(node: ESTree.Node): ESTree.Node {
+    const member = node.parent;
+    const chained = member?.parent;
+
+    return member?.type === "MemberExpression" &&
+        member.object === node &&
+        chained?.type === "CallExpression" &&
+        chained.callee === member
+        ? chainEnd(chained)
+        : node;
+}
+
+/** Report whether a call, or a chain on its result, initializes an exported const. */
 function isExportedConstant(node: ESTree.Node): boolean {
-    const declarator = node.parent;
+    // read the declaration the chain's last call initializes
+    const end = chainEnd(node);
+    const declarator = end.parent;
     const declaration = declarator?.parent;
 
     return (
         declarator?.type === "VariableDeclarator" &&
-        declarator.init === node &&
+        declarator.init === end &&
         declaration?.type === "VariableDeclaration" &&
         declaration.kind === "const" &&
         declaration.parent?.type === "ExportNamedDeclaration" &&
