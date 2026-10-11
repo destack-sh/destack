@@ -765,7 +765,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             {/* draw the frame and the legend's rule over the water, so no line breaks where it rises */}
             <span aria-hidden="true" {...style.attrs(styles.frameRules)} />
             <span aria-hidden="true" {...style.attrs(styles.columnRule)} />
-            {/* list the layers' claims under the drawing on phones, where words over the wires would not read */}
+            {/* list the layers' claims under the drawing below desktop, where words over the wires would not read */}
             <ol data-component="LayerList" {...style.attrs(styles.list)}>
                 <For each={layers}>
                     {(layer, index) => (
@@ -1009,7 +1009,7 @@ const styles = style.create({
     },
     list: {
         backgroundColor: color.background,
-        display: { default: "none", [media.maxMd]: "grid" },
+        display: { default: "none", [screen.belowDesktop]: "grid" },
         position: "relative",
         zIndex: 4,
         gridColumn: "1 / -1",
@@ -1039,7 +1039,7 @@ const styles = style.create({
         lineHeight: "1.125rem",
     },
     claim: {
-        display: { default: "flex", [media.maxMd]: "none" },
+        display: { default: "flex", [screen.belowDesktop]: "none" },
         flexDirection: { default: "column", [screen.belowDesktop]: "row" },
         gap: "0.25rem",
         gridColumn: { default: "9 / span 4", [screen.belowDesktop]: "1 / -1" },

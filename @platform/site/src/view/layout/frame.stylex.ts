@@ -19,8 +19,8 @@ const ENTRY = "12.5rem";
 /** The stack figure's row on desktop: six rows fill the section under the entry and its 50px figure label. */
 const STAGE = `calc((${SECTION} - ${ENTRY} - 50px) / 6)`;
 
-/** The stack figure's row below the desktop width: sixteen breadboard holes, between 136px and 164px. */
-const NARROW_STAGE = `clamp(136px, calc(${WIDTH} / 88 * 16), 164px)`;
+/** The stack figure's row below the desktop width, which carries only the cards: thirteen breadboard holes, between 112px and 134px. */
+const NARROW_STAGE = `clamp(112px, calc(${WIDTH} / 88 * 13), 134px)`;
 
 /** The stack figure's row on phones, which carries only the cards since the claims list under the drawing. */
 const PHONE_STAGE = "120px";

@@ -1,20 +1,25 @@
-import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { LaunchBoard, services } from "./board";
-import { Inspector } from "../figure/inspector";
+import { assistants, LaunchBoard, services } from "./board";
+import { Favicon } from "../figure/glyph";
+import { Tile } from "../figure/tile";
 import { Label } from "../entry/label";
 import { createSteps } from "../figure/stagger";
 import { StackSwitch } from "../entry/switch";
 import { Window } from "../figure/window";
 import { screen } from "../../layout/screen.stylex";
+import { present } from "@destack/schema";
 import { createSignal } from "@destack/view";
+import { createTimer } from "@destack/view/primitives/timer";
 import { createReducedMotion } from "@destack/view/motion";
 
 /** The milliseconds between the steps of the figure's switch, one per service. */
 const stepTime = 80;
+
+/** The milliseconds each rented assistant holds the chat before it turns to the next. */
+const assistantTime = 5200;
 
 /** The adjective every app answers to. */
 const destackable: Form = {
@@ -41,6 +46,15 @@ export function Adjective(properties: { isOpen: boolean }) {
         stepTime,
         isReduced,
     );
+
+    // turn between the rented assistants while stacked, held while motion is reduced
+    const [turn, setTurn] = createSignal(0);
+    createTimer(
+        () => setTurn((count) => count + 1),
+        () => (isReduced() || properties.isOpen ? false : assistantTime),
+        setInterval,
+    );
+    const assistant = () => present(assistants[turn() % assistants.length], "shown assistant");
 
     return (
         <section
@@ -69,12 +83,24 @@ export function Adjective(properties: { isOpen: boolean }) {
                         : "A launch board, on their roadmap"}
                 </Label>
                 <Window
-                    title={<span {...style.attrs(styles.title)}>Chat</span>}
+                    title={
+                        <span {...style.attrs(styles.title)}>
+                            {isOpenAt(0) ? (
+                                <>
+                                    <Tile name="chat" />
+                                    Chat
+                                </>
+                            ) : (
+                                <>
+                                    <Favicon icon={assistant().icon} tint={assistant().tint} />
+                                    {assistant().name}
+                                </>
+                            )}
+                        </span>
+                    }
                     xstyle={styles.window}
                 >
-                    <Inspector isOpenAt={isOpenAt} services={services}>
-                        <LaunchBoard isOpenAt={isOpenAt} />
-                    </Inspector>
+                    <LaunchBoard isOpenAt={isOpenAt} assistant={assistant()} />
                 </Window>
             </div>
         </section>
@@ -93,7 +119,7 @@ const styles = style.create({
     },
     window: {
         minHeight: 0,
-        height: { default: null, [screen.belowDesktop]: "32rem", [media.maxMd]: "44rem" },
+        height: { default: null, [screen.belowDesktop]: "48rem" },
     },
     title: {
         alignItems: "center",
