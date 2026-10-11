@@ -6,7 +6,7 @@ import { Journal } from "@destack/audit/server";
 import { Scope } from "@destack/sync";
 import { asc, eq, defineDatabase, type Change } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, present } from "@destack/schema";
+import { schema, present, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
@@ -32,23 +32,26 @@ const reminder = defineObject({
     methods: (method) => ({
         get: method.get("read"),
         create: method.create("write", { fields: ["topic", "dueAt"] }),
-        send: method
-            .mutation({ permission: "send", isInternal: true })
-            .handle((call) => call.update({ sentAt: call.now })),
+        send: method.mutation({ permission: "send", isInternal: true }),
     }),
-}).control({
-    pending: { sentAt: { isNull: true } },
-    key: (row) => ({ topic: row.topic }),
-    async reconcile(reconciling) {
-        // send the due reminders of the topic together, and wait for the next one
-        const { rows, now } = reconciling;
-        const due = rows.filter((row) => row.dueAt <= now);
-        if (due.length > 0) {
-            await reconciling.mutate(due.map((row) => reminder.call("send", reminder.target(row))));
-        }
-        const next = rows.filter((row) => row.dueAt > now).map((row) => row.dueAt - now);
+}).implement({
+    methods: { send: (call) => call.update({ sentAt: call.now }) },
+    controller: {
+        pending: { sentAt: { isNull: true } },
+        key: (row) => ({ topic: row.topic }),
+        async reconcile(reconciling) {
+            // send the due reminders of the topic together, and wait for the next one
+            const { rows, now } = reconciling;
+            const due = rows.filter((row) => row.dueAt <= now);
+            if (due.length > 0) {
+                await reconciling.mutate(
+                    due.map((row) => reminder.call("send", reminder.target(row))),
+                );
+            }
+            const next = rows.filter((row) => row.dueAt > now).map((row) => row.dueAt - now);
 
-        return next.length === 0 ? undefined : Math.min(...next);
+            return next.length === 0 ? undefined : Math.min(...next);
+        },
     },
 });
 
@@ -66,6 +69,7 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         await openSpace(database, spaceId);
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { reminder },
             database,
@@ -141,14 +145,17 @@ test.each(TEST_DIALECTS)(
 
 test("select a changed pending object's own key beside the keys a watch of its own table declares", async () => {
     // wake the earliest unsent reminder of a topic once another of its reminders changes
-    const queued = reminder.control({
-        pending: { sentAt: { isNull: true } },
-        watches: [ObjectWatch.of(reminder.table, () => [{ id: "head" }])],
-        reconcile: async () => undefined,
+    const queued = reminder.implement({
+        controller: {
+            pending: { sentAt: { isNull: true } },
+            watches: [ObjectWatch.of(reminder.table, () => [{ id: "head" }])],
+            reconcile: async () => undefined,
+        },
     });
     const storage = await TestDatabase.create("sqlite", reminderDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { reminder: queued },
         database: storage.database,
@@ -191,6 +198,7 @@ test("run a controller's calls as the space, audited as the space with the contr
     const database = storage.database;
     await openSpace(database, spaceId);
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { reminder },
         database,
@@ -210,9 +218,9 @@ test("run a controller's calls as the space, audited as the space with the contr
         })
         .then(([written]) => written);
     await controller.reconcile('{"topic":"tea"}', reconciliation(AbortSignal.timeout(5000)));
-    const sends = (await new Journal(database, testCallKey).read({ limit: 10 })).filter(
-        (call) => call.method === "reminder.send",
-    );
+    const sends = (
+        await new Journal(database, testCallKey, { clock: Clock.system }).read({ limit: 10 })
+    ).filter((call) => call.method === "reminder.send");
 
     // refuse the send to its owner, who reads it, and conceal it from another user
     const [row] = await database.select().from(reminder.table);

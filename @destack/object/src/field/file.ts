@@ -19,23 +19,3 @@ export type FileBucket = ResourceDeclaration<
     unknown,
     ResourceDescription & { readonly kind: "bucket" }
 >;
-
-/** A bucket as the manifest refers to it: its declaring package and its name. */
-export const BucketName = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The declaring package's identifier. */
-            package: schema.string().min(1),
-            /** The bucket's declaration name. */
-            name: schema.string().min(1),
-        }),
-    ),
-    {
-        /** Refer to a bucket declaration as the manifest does. */
-        of(bucket: FileBucket): { readonly package: string; readonly name: string } {
-            return { package: bucket.package.id, name: bucket.name };
-        },
-    },
-);
-/** A bucket as the manifest refers to it. */
-export type BucketName = schema.Infer<typeof BucketName>;

@@ -3,7 +3,7 @@ import { principal, relation } from "@destack/access";
 import { Journal } from "@destack/audit/server";
 import { journal } from "@destack/audit/stack";
 import { TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { present, schema, Clock } from "@destack/schema";
 import { testCallKey } from "@destack/service/test";
 import { v7 } from "uuid";
 import { ObjectStore } from "../src/server/index.ts";
@@ -51,10 +51,13 @@ test("name the version a read disclosed in its recorded call, apart from its val
         .returning();
 
     // record each audited read in the journal
-    const handled = locker.handle({
-        open: async (opening) => ({ version: opening.target.version, value: "secret" }),
+    const handled = locker.implement({
+        methods: {
+            open: async (opening) => ({ version: opening.target.version, value: "secret" }),
+        },
     });
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
         objects: { locker: handled },
         database,
@@ -74,7 +77,7 @@ test("name the version a read disclosed in its recorded call, apart from its val
         version: 3,
         value: "secret",
     });
-    const recorded = await new Journal(database, testCallKey).read();
+    const recorded = await new Journal(database, testCallKey, { clock: Clock.system }).read();
     expect(
         recorded.map((read) => [
             read.method,

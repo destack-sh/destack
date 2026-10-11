@@ -2,7 +2,7 @@ import { type Policy, principal, type TableMapping } from "@destack/access";
 import type { Table } from "@destack/db";
 import type { Identifier } from "@destack/schema";
 import { Egress, type Service, type ServiceRouter } from "@destack/service";
-import type { ServiceImplementation } from "@destack/service/server";
+import type { Router, ServiceContext, ServiceImplementation } from "@destack/service/server";
 import type { Shape, Subject, Uplink } from "@destack/sync";
 import type { InstallationContext } from "@destack/service/workload";
 import { ProjectionParameters } from "../replica/replica.ts";
@@ -11,13 +11,13 @@ import type { ExternalStorage } from "./external.ts";
 import type { ProvisionedOptions } from "./provisioned.ts";
 import { ObjectStore, type ObjectStoreOptions, type SubscriberEntry } from "./store.ts";
 
-/** What an extension adds once the space's one store exists: its service's own procedures beside its objects, its controllers, access, response headers and routes. */
+/** What an extension adds once the space's one store exists: its service's own procedures beside its objects, its controllers, access, response headers and fetch handler. */
 export interface ObjectExtensionImplementation extends Pick<
     ServiceImplementation,
-    "access" | "responseHeaders" | "route" | "controllers"
+    "access" | "responseHeaders" | "fetch" | "controllers"
 > {
     /** The service's own procedures, routed beside its objects. */
-    readonly procedures?: Readonly<Record<string, unknown>>;
+    readonly procedures?: Readonly<Record<string, Router<ServiceRouter, ServiceContext>>>;
 }
 
 /** One package's contribution to a space's one store: its service, the handled types it serves, what it adds to the store, and what it serves once the store exists. */
@@ -166,7 +166,7 @@ function compose(
     options: CompositionOptions,
 ): { readonly store: ObjectStore; readonly services: readonly ServiceImplementation[] } {
     // require the machine keeping any provisioned resources, and one uplink
-    const { uplink, machine, policies = [], shapes = [], subscriptions, ...rest } = options;
+    const { uplink, machine, policies = [], shapes = [], subscriptions, branch, ...rest } = options;
     const providers = extensions.flatMap((each) => each.providers ?? []);
     if (providers.length > 0 && machine === undefined) {
         throw new TypeError("provisioned resources need the machine keeping them");
@@ -174,8 +174,15 @@ function compose(
         throw new TypeError("an installation's copies leave through its publisher alone");
     }
 
-    // serve every extension's objects, policies, providers and shapes over the one database
+    // serve every extension's objects, refusing branches of an object none serves
     const { installation } = options;
+    const objects = Object.fromEntries(extensions.flatMap((each) => Object.entries(each.objects)));
+    if (
+        branch !== undefined &&
+        !Object.values(objects).some((object) => object.same(branch.object))
+    ) {
+        throw new TypeError(`no extension serves ${branch.object.name}, which branches name`);
+    }
     const external = extensions.flatMap((each) =>
         each.external === undefined ? [] : [each.external],
     );
@@ -186,7 +193,8 @@ function compose(
                 ? options.principal
                 : principal.installation.reference(installation.scope, installation.id),
         ...(installation?.partition === undefined ? {} : { partition: installation.partition }),
-        objects: Object.fromEntries(extensions.flatMap((each) => Object.entries(each.objects))),
+        objects,
+        ...(branch === undefined ? {} : { branch }),
         policies: [...policies, ...extensions.flatMap((each) => each.policies ?? [])],
         shapes: [...shapes, ...extensions.flatMap((each) => each.shapes ?? [])],
         ...(external.length === 0 ? {} : { external }),

@@ -2,16 +2,15 @@ import { Address, type Plan, type Step } from "@destack/resource";
 import { Scope, type Subject } from "@destack/sync";
 import { Authorizer, Manager, type Policy } from "@destack/access";
 import {
-    and,
     type ColumnValue,
     type DatabaseConnection,
-    eq,
+    Transaction,
     type Insert,
     type Row,
     type ColumnBuilder,
     type TableColumnMap,
-    isNull,
     type Select,
+    type Snapshot,
     TABLE,
     type Table,
 } from "@destack/db";
@@ -24,12 +23,11 @@ import {
     type JsonValue,
 } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
-import type { ObjectOf, ObjectType } from "../object/object.ts";
+import { type ObjectOf, ObjectType } from "../object/object.ts";
 import { isManaging, managedColumns } from "../trait/declarable.ts";
 import type { RecordBuilderMap } from "../trait/record.ts";
 import type { FieldColumn } from "../field/field.ts";
-import type { Directory } from "@destack/directory";
-import { Reservation } from "./reservation.ts";
+import { type ClaimStore, Reservation } from "../claim/store.ts";
 import type { ObjectStore } from "./store.ts";
 import type { Authorization } from "./authorization.ts";
 import { Call, type ObjectCall, type ResultsOf } from "../method/call.ts";
@@ -38,6 +36,7 @@ import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
+import { Claimant } from "../claim/claim.ts";
 
 /** The columns a declared record has, whichever table keeps it: its identity, revision and manager. */
 type ManagedColumns = TableColumnMap<
@@ -53,13 +52,11 @@ const DECLARED = schema.record(schema.string(), schema.unknown());
 export type ManagedTable = Table<string, ManagedColumns> & ManagedColumns;
 
 /** How a stack's declarations of one object type become its managed records. */
-export interface ObjectDeclaration<
+export interface DeclarationHandler<
     Object extends ObjectType = ObjectType,
     Collected = unknown,
     Resolved = unknown,
 > {
-    /** The database with the records, the document's database when absent. */
-    readonly database?: DatabaseConnection;
     /** The object types applied before and retired after this one, or "every". */
     readonly after?: readonly ObjectType[] | "every";
     /** The document keys read, the object's plural by default. */
@@ -72,7 +69,7 @@ export interface ObjectDeclaration<
     values(name: string, resolved: Resolved, stack: Stack): Partial<Insert<Object["table"]>>;
     /** Report changes kept outside the record's own columns. */
     changed?(
-        database: DatabaseConnection,
+        transaction: Transaction,
         row: Select<Object["table"]>,
         resolved: Resolved,
     ): Promise<boolean>;
@@ -83,7 +80,7 @@ export interface ObjectDeclaration<
     /** Retire records through their own deletion. */
     readonly retire?: {
         /** Report whether a record is already retiring. */
-        isRetiring(database: DatabaseConnection, row: Select<Object["table"]>): Promise<boolean>;
+        isRetiring(transaction: Transaction, row: Select<Object["table"]>): Promise<boolean>;
         /** Begin retiring a record the manager no longer declares. */
         start(stack: Stack, row: Select<Object["table"]>): Promise<void>;
     };
@@ -108,22 +105,26 @@ export interface ApplyOptions {
     readonly as: Subject;
     /** The scope containing the declared records. */
     readonly scope: string;
+    /** The time the stack applies at, in UTC epoch milliseconds. */
+    readonly now: number;
     /** The stack's document, keyed by collection. */
     readonly document: JsonObject;
-    /** Report the changes to records in other databases without writing them. */
-    readonly isDry?: boolean;
     /** Further policies of declared objects. */
     readonly policies?: readonly Policy[];
-    /** The directory with the claims of unique indexes, kept by the account service. */
-    readonly directory?: Directory;
+    /** The claims of unique indexes, kept by the account service. */
+    readonly claims?: ClaimStore;
     /** The object store running the declarations' calls, applying each record where its rows live. */
     readonly store?: Pick<ObjectStore, "mutate" | "admit">;
-    /** Open the build of a package's release in the scope, the installation's when given. */
-    readonly release?: Stack["release"];
+    /** Open the build of a package's release in the scope through a snapshot, the installation's when given. */
+    readonly release?: (
+        snapshot: Snapshot,
+        packageId: PackageId,
+        installation?: Identifier<"installation">,
+    ) => Promise<BuildReader>;
 }
 
 /** An object type beside how its declarations become records. */
-type TypeDeclaration = ObjectDeclaration & { readonly object: ObjectOf<{ table: ManagedTable }> };
+type TypeDeclaration = DeclarationHandler & { readonly object: ObjectOf<{ table: ManagedTable }> };
 
 /** A stack applied in one scope: its manager's document, and the lookups and calls its declarations use. */
 export class Stack {
@@ -139,23 +140,20 @@ export class Stack {
     readonly now: number;
     /** The policies validating declared access. */
     readonly authorizer: Authorizer;
-    /** The transaction writing one object type's records, the stack's database outside one. */
-    readonly database: DatabaseConnection;
+    /** The transaction the stack's records are written through. */
+    readonly transaction: Transaction;
     /** What the machine applies the stack with. */
     readonly #options: ApplyOptions;
     /** The declared object types in dependency order. */
     readonly #ordered: readonly TypeDeclaration[];
-    /** The object type whose records the transaction writes, absent outside one. */
-    readonly #writing: TypeDeclaration | undefined;
 
-    /** Keep a stack's inputs, its ordered object types and the transaction of one of them. */
+    /** Keep a stack's inputs, its ordered object types and the transaction writing them. */
     private constructor(
         options: ApplyOptions,
         ordered: readonly TypeDeclaration[],
         authorizer: Authorizer,
         now: number,
-        database: DatabaseConnection,
-        writing?: TypeDeclaration,
+        transaction: Transaction,
     ) {
         // keep the stack
         this.scope = options.scope;
@@ -166,14 +164,56 @@ export class Stack {
         this.authorizer = authorizer;
 
         // keep the transaction and what applies it
-        this.database = database;
+        this.transaction = transaction;
         this.#options = options;
         this.#ordered = ordered;
-        this.#writing = writing;
     }
 
-    /** Apply a stack: write each object type's declared records and retire undeclared ones, as steps addressed `<type>/<name>`. */
+    /** Plan a stack: the steps applying it would take, as steps addressed `<type>/<name>`, writing nothing. */
+    static async plan(options: ApplyOptions): Promise<Plan> {
+        const ordered = Stack.#declare(options);
+        const transaction = await Transaction.open(options.database);
+
+        return (await Stack.#open(options, ordered, transaction)).#apply();
+    }
+
+    /** Apply a stack: write each object type's declared records and retire undeclared ones in one transaction, reserving and confirming the names they claim, as steps addressed `<type>/<name>`. */
     static async apply(options: ApplyOptions): Promise<Plan> {
+        // run the steps over one transaction, again while it loses a race, reserving the names the written objects claim
+        const ordered = Stack.#declare(options);
+        const { claims } = options;
+        const requestId = crypto.randomUUID();
+        let reservation: Reservation | undefined;
+        let plan: Plan;
+        try {
+            plan = await Transaction.run(options.database, async (transaction) => {
+                // apply the steps and reserve the claimed names as the transaction commits
+                const stack = await Stack.#open(options, ordered, transaction);
+                const applied = await stack.#apply();
+                const claimants = await Claimant.written(transaction, options.objects);
+                transaction.record(async (committing) => {
+                    reservation =
+                        claims &&
+                        (await Reservation.reserve(claims, committing, claimants, options.objects, requestId));
+                });
+
+                return applied;
+            });
+        }
+        // release the names once the commit fails
+        catch (error) {
+            await claims?.release(requestId);
+            throw error;
+        }
+
+        // confirm the reserved names
+        await reservation?.confirm();
+
+        return plan;
+    }
+
+    /** Order a stack's declarations, refusing collections and entries no declaration collects and entries several collect. */
+    static #declare(options: ApplyOptions): TypeDeclaration[] {
         // pair each object type with its declaration
         const declared = options.objects.map((object) => {
             // require a declaration on a declarable type
@@ -186,11 +226,11 @@ export class Stack {
             return { ...declaration, object: managed };
         });
 
-        // require the directory for declared objects with indexes
+        // require claims for declared objects with indexes
         const indexed = declared.find((entry) => Object.keys(entry.object.indexes).length > 0);
-        if (indexed !== undefined && options.directory === undefined) {
+        if (indexed !== undefined && options.claims === undefined) {
             throw new TypeError(
-                `object ${indexed.object.name} declares indexes but no directory keeps their claims`,
+                `object ${indexed.object.name} declares indexes but no claim store keeps their names`,
             );
         }
 
@@ -217,14 +257,32 @@ export class Stack {
             }
         }
 
+        return ordered;
+    }
+
+    /** Open a stack over a transaction of its database with its ordered declarations, refusing a moved scope. */
+    static async #open(
+        options: ApplyOptions,
+        ordered: TypeDeclaration[],
+        transaction: Transaction,
+    ): Promise<Stack> {
         // apply in order under the declared object types' policies
         const authorizer = new Authorizer([
             ...options.objects.map((object) => object.policy),
             ...(options.policies ?? []),
         ]);
-        const stack = new Stack(options, ordered, authorizer, Date.now(), options.database);
 
-        return stack.#apply();
+        // refuse a moved scope
+        for (const link of await Scope.chain(transaction.view(), options.scope)) {
+            if (link.movedTo !== undefined) {
+                throw new ServiceError("MISDIRECTED_REQUEST", {
+                    message: `${link.object.id} moves to ${link.movedTo}`,
+                    data: { scope: link.object.id, machine: link.movedTo },
+                });
+            }
+        }
+
+        return new Stack(options, ordered, authorizer, options.now, transaction);
     }
 
     /** Resolve an object type the machine applies declarations of, by name. */
@@ -247,25 +305,14 @@ export class Stack {
 
     /** Find the identifier of the record the manager declared under a name. */
     async find(object: ObjectType | string, name: string): Promise<string | undefined> {
-        // read through the transaction when the record lives in its database
-        const target = this.#select(object);
-        const root = this.#writing?.database ?? this.#options.database;
-        const targetRoot = target.database ?? this.#options.database;
-        const database = targetRoot === root ? this.database : targetRoot;
-
         // match by manager and name
-        const table = target.object.table;
-        const [row] = await database
-            .select({ id: table.id })
-            .from(table)
-            .where(
-                and(
-                    eq(table.scope, this.scope),
-                    eq(table.managerInstallationId, this.manager.installationId),
-                    eq(table.managerPackageId, this.manager.packageId),
-                    eq(table.managerName, name),
-                ),
-            );
+        const table = this.#select(object).object.table;
+        const [row] = await this.transaction.images(table, {
+            scope: this.scope,
+            managerInstallationId: this.manager.installationId,
+            managerPackageId: this.manager.packageId,
+            managerName: name,
+        });
 
         return row?.id;
     }
@@ -275,7 +322,7 @@ export class Stack {
         // wait for a record kept where its rows live until its copy arrives, and refuse an unknown one
         const id = await this.find(object, name);
         const target = this.#select(object).object;
-        if (id === undefined && (await target.isCopy(this.database, this.scope))) {
+        if (id === undefined && (await target.isCopy(this.transaction.view(), this.scope))) {
             this.wait(`${target.name} ${name} waits for its copy`);
         } else if (id === undefined) {
             throw new ObjectError("INVALID_DECLARATION", `unknown ${target.name}: ${name}`);
@@ -300,7 +347,7 @@ export class Stack {
         return this.#store().mutate(
             this.caller,
             { id: RequestId.create(this.now), calls },
-            { transaction: this.database, scope: this.scope },
+            { transaction: this.transaction, scope: this.scope },
         );
     }
 
@@ -309,7 +356,7 @@ export class Stack {
         return Caller.of(this.as, this.now);
     }
 
-    /** Open the build of a package's release in the scope, the installation's when given. */
+    /** Open the build of a package's release in the scope, the installation's when given, reading through the step's database. */
     release(packageId: PackageId, installation?: Identifier<"installation">): Promise<BuildReader> {
         // require the machine opening releases
         const { release } = this.#options;
@@ -319,32 +366,29 @@ export class Stack {
             );
         }
 
-        return release(packageId, installation);
+        return release(this.transaction.view(), packageId, installation);
     }
 
     /** Write each object type's declarations and retire undeclared records. */
     async #apply(): Promise<Plan> {
-        // write each type in order
+        // write each type in order, resolving before writing the difference
         const steps: Step[] = [];
         const resolved = new Map<TypeDeclaration, ReadonlyMap<string, unknown>>();
         for (const declaration of this.#ordered) {
             try {
-                await this.#transact(declaration, async (stack) => {
-                    // resolve before writing the difference
-                    const desired = new Map<string, unknown>();
-                    for (const [name, declared] of Object.entries(
-                        collect(declaration, this.document),
-                    )) {
-                        desired.set(
-                            name,
-                            declaration.resolve
-                                ? await declaration.resolve(name, declared, stack)
-                                : declared,
-                        );
-                    }
-                    resolved.set(declaration, desired);
-                    steps.push(...(await stack.#write(declaration, desired)));
-                });
+                const desired = new Map<string, unknown>();
+                for (const [name, declared] of Object.entries(
+                    collect(declaration, this.document),
+                )) {
+                    desired.set(
+                        name,
+                        declaration.resolve
+                            ? await declaration.resolve(name, declared, this)
+                            : declared,
+                    );
+                }
+                resolved.set(declaration, desired);
+                steps.push(...(await this.#write(declaration, desired)));
             } catch (error) {
                 // stop at a wait
                 if (error instanceof DependencyWait) {
@@ -356,64 +400,10 @@ export class Stack {
 
         // retire in reverse order
         for (const declaration of this.#ordered.toReversed()) {
-            await this.#transact(declaration, async (stack) => {
-                steps.push(...(await stack.#retire(declaration, found(resolved, declaration))));
-            });
+            steps.push(...(await this.#retire(declaration, found(resolved, declaration))));
         }
 
         return { steps };
-    }
-
-    /** Run a step in a transaction on an object type's database, reserving and confirming its index keys. */
-    async #transact(
-        declaration: TypeDeclaration,
-        step: (stack: Stack) => Promise<void>,
-    ): Promise<void> {
-        // pick the database and the directory
-        const options = this.#options;
-        const root = declaration.database ?? options.database;
-        const directory = options.isDry === true ? undefined : options.directory;
-        const requestId = crypto.randomUUID();
-        let reservation: Reservation | undefined;
-        try {
-            reservation = await root.transaction(async (database) => {
-                // guard the scope chain and refuse a moved scope
-                const chain = await Scope.guard(database, this.scope);
-                for (const link of chain) {
-                    if (link.movedTo !== undefined) {
-                        throw new ServiceError("MISDIRECTED_REQUEST", {
-                            message: `${link.object.id} moves to ${link.movedTo}`,
-                            data: { scope: link.object.id, machine: link.movedTo },
-                        });
-                    }
-                }
-
-                // run the step in the transaction
-                await step(
-                    new Stack(
-                        options,
-                        this.#ordered,
-                        this.authorizer,
-                        this.now,
-                        database,
-                        declaration,
-                    ),
-                );
-
-                // reserve the names the written objects claim
-                return (
-                    directory &&
-                    (await Reservation.open(directory, database, options.objects, requestId))
-                );
-            });
-        } catch (error) {
-            // release the reserved names
-            await directory?.release(requestId);
-            throw error;
-        }
-
-        // confirm the reserved names
-        await reservation?.confirm();
     }
 
     /** Select an object type's declaration by type or name. */
@@ -433,19 +423,16 @@ export class Stack {
     async #records(declaration: TypeDeclaration): Promise<Map<string, Select<ManagedTable>>> {
         // read the records the manager declared, leaving out purged ones
         const table = declaration.object.table;
-        const rows = await this.database
-            .select()
-            .from(table)
-            .where(
-                and(
-                    eq(table.scope, this.scope),
-                    eq(table.managerInstallationId, this.manager.installationId),
-                    eq(table.managerPackageId, this.manager.packageId),
-                    "purgedAt" in table[TABLE].columns
-                        ? isNull(table[TABLE].column("purgedAt"))
-                        : undefined,
-                ),
-            );
+        const managed = await this.transaction.rows(table, {
+            scope: this.scope,
+            managerInstallationId: this.manager.installationId,
+            managerPackageId: this.manager.packageId,
+        });
+        const rows = managed.filter((row) => {
+            const record: Row = row;
+
+            return !("purgedAt" in table[TABLE].columns) || record["purgedAt"] === null;
+        });
 
         // key each record by the name its manager declared it under
         return new Map(
@@ -459,11 +446,6 @@ export class Stack {
                 return [row.managerName, row];
             }),
         );
-    }
-
-    /** Whether to only report an object type's changes. */
-    #isDry(declaration: TypeDeclaration): boolean {
-        return this.#options.isDry === true && declaration.database !== undefined;
     }
 
     /** Create missing records and update changed attached ones. */
@@ -499,12 +481,9 @@ export class Stack {
         values: ReturnType<TypeDeclaration["values"]>,
     ): Promise<Step> {
         // plan the creation
-        const { database, manager } = this;
+        const { transaction, manager } = this;
         const target = Address.join(declaration.object.name, name);
         const step: Step = { action: "create", target, risk: "safe", detail: "declare" };
-        if (this.#isDry(declaration)) {
-            return step;
-        }
 
         // keep the record through its table's owner, or apply it under a fresh identifier where its rows live
         const { object } = declaration;
@@ -515,8 +494,8 @@ export class Stack {
         }
         const id = object.generateId();
         await this.#applyRecord(object, name, values, id);
-        if (!(await object.isCopy(database, this.scope))) {
-            await declaration.written?.(this, await read(database, object.table, id), resolved);
+        if (!(await object.isCopy(transaction.view(), this.scope))) {
+            await declaration.written?.(this, await read(transaction, object.table, id), resolved);
         }
 
         return step;
@@ -531,7 +510,7 @@ export class Stack {
         values: ReturnType<TypeDeclaration["values"]>,
     ): Promise<Step[]> {
         // skip a detached or unchanged record
-        const { database } = this;
+        const { transaction } = this;
         const table = declaration.object.table;
         const changed = difference(table, row, values);
         const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
@@ -543,7 +522,7 @@ export class Stack {
             !isManaging(row) ||
             (Object.keys(changed).length === 0 &&
                 deletion === null &&
-                (await declaration.changed?.(database, row, resolved)) !== true)
+                (await declaration.changed?.(transaction, row, resolved)) !== true)
         ) {
             return [];
         }
@@ -562,10 +541,6 @@ export class Stack {
             detail: Object.keys(fields).length > 0 ? "change declared fields" : "refresh",
             fields,
         };
-        if (this.#isDry(declaration)) {
-            return [step];
-        }
-
         // keep the record through its table's owner, or apply the declared values as its next revision where its rows live
         if (declaration.keep) {
             await declaration.keep(this, { ...this.manager, name }, resolved);
@@ -573,8 +548,8 @@ export class Stack {
             return [step];
         }
         await this.#applyRecord(declaration.object, name, values);
-        if (!(await declaration.object.isCopy(database, this.scope))) {
-            await declaration.written?.(this, await read(database, table, row.id), resolved);
+        if (!(await declaration.object.isCopy(transaction.view(), this.scope))) {
+            await declaration.written?.(this, await read(transaction, table, row.id), resolved);
         }
 
         return [step];
@@ -602,7 +577,7 @@ export class Stack {
 
     /** Admit the stack's principal in its scope inside the stack's transaction, as its access declarations write. */
     authorization(): Promise<Authorization> {
-        return this.#store().admit(this.database, this.scope, this.caller);
+        return this.#store().admit(this.transaction, this.scope, this.caller);
     }
 
     /** Require the object store running the declarations' calls. */
@@ -621,8 +596,7 @@ export class Stack {
         desired: ReadonlyMap<string, unknown>,
     ): Promise<Step[]> {
         // read existing records
-        const isDry = this.#isDry(declaration);
-        const { database } = this;
+        const { transaction } = this;
         const table = declaration.object.table;
         const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
         const steps: Step[] = [];
@@ -633,15 +607,12 @@ export class Stack {
                 desired.has(name) ||
                 !isManaging(row) ||
                 (isDeletable && record["deletionRequestedAt"] !== null) ||
-                (await declaration.retire?.isRetiring(database, row)) === true
+                (await declaration.retire?.isRetiring(transaction, row)) === true
             ) {
                 continue;
             }
             const target = Address.join(declaration.object.name, name);
             steps.push({ action: "delete", target, risk: "destructive", detail: "retire" });
-            if (isDry) {
-                continue;
-            }
 
             // retire through the declaration, or where the record's rows live
             if (declaration.retire) {
@@ -782,12 +753,12 @@ function visit(
 
 /** Read one record a declaration just wrote, by identifier. */
 async function read(
-    database: DatabaseConnection,
+    transaction: Transaction,
     table: ManagedTable,
     id: Identifier<string>,
 ): Promise<Select<ManagedTable>> {
-    const [row] = await database.select().from(table).where(eq(table.id, id));
-    if (row === undefined) {
+    const row = await transaction.row(table, { id });
+    if (row === null) {
         throw new TypeError(`the written ${table[TABLE].name} ${id} is missing`);
     }
 

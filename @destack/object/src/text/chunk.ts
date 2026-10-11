@@ -1,23 +1,14 @@
 import { included, type ObjectReference, type Item, type Query } from "@destack/sync";
 import { through } from "@destack/access";
-import {
-    and,
-    asc,
-    eq,
-    gt,
-    gte,
-    inArray,
-    lte,
-    or,
-    type DatabaseConnection,
-    type SQL,
-} from "@destack/db";
+import { TABLE, type Transaction, type Snapshot } from "@destack/db";
 import { schema, canonicalize, Identifier, present } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { FractionalIndex } from "../field/fractional-index.ts";
+import { ObjectReader } from "../method/reader.ts";
 import type { Call } from "../method/call.ts";
-import { method } from "../method/method.ts";
-import { ObjectType } from "../object/object.ts";
+import { method } from "../method/record.ts";
+import { ObjectType, type ObjectSource } from "../object/object.ts";
+import { INTRINSIC } from "../object/intrinsic.ts";
 import { Run, Sequence, SequenceEdit, type Element } from "../sequence/index.ts";
 import { chunk, chunkRun } from "./table.ts";
 
@@ -84,42 +75,48 @@ export const Chunk = {
             throw new TypeError("objects with text live in one kind of scope per database");
         }
 
-        // declare chunks read through their owner
-        return ObjectType.assemble(
-            import.meta.destack.package,
-            {
-                name: "chunk",
-                plural: CHUNKS,
-                scope: first.scope,
+        // declare chunks read through their owner, kept in the chunk table text owns
+        const methods = { list: method.list("read") };
+        const definition: ObjectSource = {
+            name: "chunk",
+            plural: CHUNKS,
+            scope: first.scope,
+            nested: { in: "any", receive: TEXT_READ },
+            relations: { parent: { subjects: [...owners], grantedBy: null } },
+            permissions: { read: through("parent", TEXT_READ) },
+            methods,
+            [INTRINSIC]: {
                 table: chunk,
-                nested: { in: "any", receive: TEXT_READ },
-                relations: { parent: { subjects: [...owners], grantedBy: null } },
-                permissions: { read: through("parent", TEXT_READ) },
-                methods: { list: method.list("read") },
-            },
-            [],
-            {
-                table: chunk,
-                id: "id",
-                scope: "scope",
-                attributes: {},
-                relations: {
-                    parent: {
-                        column: "parentId",
-                        subject: {
-                            packageId: "parentPackageId",
-                            type: "parentType",
-                            scope: "scope",
+                mapping: {
+                    table: chunk,
+                    id: "id",
+                    scope: "scope",
+                    attributes: {},
+                    relations: {
+                        parent: {
+                            column: "parentId",
+                            subject: {
+                                packageId: "parentPackageId",
+                                type: "parentType",
+                                scope: "scope",
+                            },
                         },
                     },
                 },
             },
-        );
+        };
+
+        return ObjectType.assemble(import.meta.destack.package, {
+            ...definition,
+            table: chunk,
+            methods,
+            source: definition,
+        });
     },
 
     /** Report whether an owner's text field contains every element. */
     async contains(
-        database: DatabaseConnection,
+        view: Transaction | Snapshot,
         owner: ObjectReference,
         field: string,
         elements: readonly Element[],
@@ -131,18 +128,10 @@ export const Chunk = {
             parentId: owner.id,
             field,
         };
-        const runs = await database
-            .select({ run: chunkRun.run, start: chunkRun.start, end: chunkRun.end })
-            .from(chunkRun)
-            .where(
-                and(
-                    scoped(chunkRun, parent),
-                    inArray(
-                        chunkRun.run,
-                        elements.map((element) => element.run),
-                    ),
-                ),
-            );
+        const runs = await new ObjectReader(chunkRun, view).rows({
+            ...parent,
+            run: { in: elements.map((element) => element.run) },
+        });
 
         return elements.every((element) =>
             runs.some(
@@ -156,7 +145,7 @@ export const Chunk = {
 
     /** Read the texts of some owners, by owner identifier. */
     async texts(
-        database: DatabaseConnection,
+        transaction: Transaction,
         owner: ObjectType,
         scope: string,
         ids: readonly string[],
@@ -165,17 +154,12 @@ export const Chunk = {
         const rows =
             ids.length === 0
                 ? []
-                : await database
-                      .select()
-                      .from(chunk)
-                      .where(
-                          and(
-                              eq(chunk.scope, scope),
-                              eq(chunk.parentPackageId, owner.policy.definition.packageId),
-                              eq(chunk.parentType, owner.name),
-                              inArray(chunk.parentId, [...ids]),
-                          ),
-                      );
+                : await transaction.images(chunk, {
+                      scope,
+                      parentPackageId: owner.policy.definition.packageId,
+                      parentType: owner.name,
+                      parentId: { in: [...ids] },
+                  });
 
         return new Map(
             ids.map((id) => [
@@ -242,8 +226,8 @@ export const Chunk = {
             field,
         };
         const rows = call.isPredicted
-            ? await read(call.database, parent, undefined)
-            : await touched(call.database, parent, edits);
+            ? await read(call, parent, undefined)
+            : await touched(call, parent, edits);
 
         // apply each edit, inverting it against the text before
         const { sequence, inverse } = applyEdits(rows, edits, field);
@@ -266,40 +250,23 @@ interface ChunkChange {
     readonly created: Chunk[];
 }
 
-/** Match one text field's rows of a chunk or index table. */
-function scoped(table: typeof chunk | typeof chunkRun, parent: Parent): SQL {
-    return and(
-        eq(table.scope, parent.scope),
-        eq(table.parentPackageId, parent.parentPackageId),
-        eq(table.parentType, parent.parentType),
-        eq(table.parentId, parent.parentId),
-        eq(table.field, parent.field),
-    );
-}
-
 /** Read a text field's chunks in position order, within positions when given. */
 async function read(
-    database: DatabaseConnection,
+    call: Call,
     parent: Parent,
     within: { readonly from: string; readonly to: string } | undefined,
 ): Promise<Chunk[]> {
-    const rows = await database
-        .select()
-        .from(chunk)
-        .where(
-            and(
-                scoped(chunk, parent),
-                within === undefined ? undefined : gte(chunk.position, within.from),
-                within === undefined ? undefined : lte(chunk.position, within.to),
-            ),
-        );
+    const rows = await call.read(chunk).rows({
+        ...parent,
+        ...(within === undefined ? {} : { position: { gte: within.from, lte: within.to } }),
+    });
 
     return ordered(rows);
 }
 
 /** Read the contiguous chunks containing the elements some edits refer to. */
 async function touched(
-    database: DatabaseConnection,
+    call: Call,
     parent: Parent,
     edits: readonly SequenceEdit[],
 ): Promise<Chunk[]> {
@@ -308,13 +275,13 @@ async function touched(
     const found =
         named.length === 0 && inserted.size === 0
             ? []
-            : await containing(database, parent, named, inserted);
+            : await containing(call, parent, named, inserted);
     requireContained(found, named, inserted, parent.field);
 
     // add the field's first chunk for an insertion at the start
     const positions = found.map((entry) => entry.position);
     if (isAtStart) {
-        positions.push(...(await firstPosition(database, parent)));
+        positions.push(...(await firstPosition(call, parent)));
     }
 
     // read the range from the first touched chunk to the last
@@ -322,7 +289,7 @@ async function touched(
     const [from] = sorted;
     const to = sorted.at(-1);
 
-    return from === undefined || to === undefined ? [] : read(database, parent, { from, to });
+    return from === undefined || to === undefined ? [] : read(call, parent, { from, to });
 }
 
 /** Collect the elements some edits refer to, skipping the runs they insert, and whether one inserts at the start. */
@@ -351,36 +318,35 @@ function editedElements(edits: readonly SequenceEdit[]): {
 }
 
 /** Read the indexed runs containing some elements, and any run of some inserted ones. */
-function containing(
-    database: DatabaseConnection,
+async function containing(
+    call: Call,
     parent: Parent,
     named: readonly Element[],
     inserted: ReadonlySet<string>,
 ) {
-    return database
-        .select({
-            run: chunkRun.run,
-            start: chunkRun.start,
-            end: chunkRun.end,
-            position: chunk.position,
-        })
-        .from(chunkRun)
-        .innerJoin(chunk, eq(chunk.id, chunkRun.chunk))
-        .where(
-            and(
-                scoped(chunkRun, parent),
-                or(
-                    ...named.map((element) =>
-                        and(
-                            eq(chunkRun.run, element.run),
-                            lte(chunkRun.start, element.offset),
-                            gt(chunkRun.end, element.offset),
-                        ),
-                    ),
-                    inserted.size === 0 ? undefined : inArray(chunkRun.run, [...inserted]),
-                ),
-            ),
-        );
+    // read the runs containing the named elements and the inserted runs
+    const runs = await call.read(chunkRun).rows({
+        ...parent,
+        OR: [
+            ...named.map((element) => ({
+                run: element.run,
+                start: { lte: element.offset },
+                end: { gt: element.offset },
+            })),
+            ...(inserted.size === 0 ? [] : [{ run: { in: [...inserted] } }]),
+        ],
+    });
+
+    // place each run at its chunk's position
+    const chunks = await call.read(chunk).rows({ id: { in: runs.map((entry) => entry.chunk) } });
+    const positions = new Map(chunks.map((row) => [row.id, row.position]));
+
+    return runs.map((entry) => ({
+        run: entry.run,
+        start: entry.start,
+        end: entry.end,
+        position: present(positions.get(entry.chunk), `the chunk of run ${entry.run}`),
+    }));
 }
 
 /** Refuse a run the text already contains and an element no chunk contains. */
@@ -416,13 +382,10 @@ function requireContained(
 }
 
 /** Read the position of a text field's first chunk, none for an empty field. */
-async function firstPosition(database: DatabaseConnection, parent: Parent): Promise<string[]> {
-    const [first] = await database
-        .select({ position: chunk.position })
-        .from(chunk)
-        .where(scoped(chunk, parent))
-        .orderBy(asc(chunk.position))
-        .limit(1);
+async function firstPosition(call: Call, parent: Parent): Promise<string[]> {
+    const [first] = await call
+        .read(chunk)
+        .rows({ ...parent }, { orderBy: { position: "asc" }, limit: 1 });
 
     return first === undefined ? [] : [first.position];
 }
@@ -491,7 +454,7 @@ async function recut(
         let after: string | undefined;
         if (groups.length > 0) {
             after = isLast
-                ? await next(call.database, parent, current?.position)
+                ? await next(call, parent, current?.position)
                 : rows[index + 1]?.position;
         }
         for (const runs of groups) {
@@ -510,23 +473,37 @@ async function recut(
 
 /** Write the changed and new chunks, and index their runs on the server. */
 async function writeChunks(call: Call, chunks: ChunkChange): Promise<void> {
-    // write the changed and new chunks
-    for (const row of chunks.changed) {
-        await call.database.update(chunk).set({ runs: row.runs }).where(eq(chunk.id, row.id));
-    }
-    if (chunks.created.length > 0) {
-        await call.database.insert(chunk).values(chunks.created);
-    }
+    // read the changed chunks at once
+    const changed = chunks.changed.map((row) => row.id);
+    const before = new Map(
+        (changed.length === 0 ? [] : await call.read(chunk).rows({ id: { in: changed } })).map(
+            (row) => [row.id, row],
+        ),
+    );
+
+    // write the changed and new chunks together
+    await call.write(
+        ...chunks.changed.map((row) => {
+            const current = present(before.get(row.id), `the chunk ${row.id}`);
+
+            return { table: chunk, before: current, after: { ...current, ...row } };
+        }),
+        ...chunks.created.map((row) => ({
+            table: chunk,
+            before: null,
+            after: chunk[TABLE].complete(row),
+        })),
+    );
 
     // index the runs of changed and new chunks on the server
     if (!call.isPredicted) {
-        await reindex(call.database, [...chunks.reranged, ...chunks.created]);
+        await reindex(call, [...chunks.reranged, ...chunks.created]);
     }
 }
 
 /** Read the position of the chunk after one, absent after the last. */
 async function next(
-    database: DatabaseConnection,
+    call: Call,
     parent: Parent,
     position: string | undefined,
 ): Promise<string | undefined> {
@@ -534,40 +511,40 @@ async function next(
     if (position === undefined) {
         return undefined;
     }
-    const [after] = await database
-        .select({ position: chunk.position })
-        .from(chunk)
-        .where(and(scoped(chunk, parent), gt(chunk.position, position)))
-        .orderBy(asc(chunk.position))
-        .limit(1);
+    const [after] = await call
+        .read(chunk)
+        .rows(
+            { ...parent, position: { gt: position } },
+            { orderBy: { position: "asc" }, limit: 1 },
+        );
 
     return after?.position;
 }
 
 /** Replace the index rows of some chunks with their runs' ranges. */
-async function reindex(database: DatabaseConnection, rows: readonly Chunk[]): Promise<void> {
-    // drop the chunks' old ranges
+async function reindex(call: Call, rows: readonly Chunk[]): Promise<void> {
+    // read the chunks' old ranges
     if (rows.length === 0) {
         return;
     }
-    await database.delete(chunkRun).where(
-        inArray(
-            chunkRun.chunk,
-            rows.map((row) => row.id),
-        ),
-    );
+    const old = await call.read(chunkRun).rows({ chunk: { in: rows.map((row) => row.id) } });
 
-    // insert their current ranges at once
-    await database.insert(chunkRun).values(
-        rows.flatMap((row) =>
+    // replace them with their current ranges together
+    await call.write(
+        ...old.map((range) => ({ table: chunkRun, before: range, after: null })),
+        ...rows.flatMap((row) =>
             ranges(row.runs).map((range) => ({
-                chunk: row.id,
-                scope: row.scope,
-                parentPackageId: row.parentPackageId,
-                parentType: row.parentType,
-                parentId: row.parentId,
-                field: row.field,
-                ...range,
+                table: chunkRun,
+                before: null,
+                after: chunkRun[TABLE].complete({
+                    chunk: row.id,
+                    scope: row.scope,
+                    parentPackageId: row.parentPackageId,
+                    parentType: row.parentType,
+                    parentId: row.parentId,
+                    field: row.field,
+                    ...range,
+                }),
             })),
         ),
     );

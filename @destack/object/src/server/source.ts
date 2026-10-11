@@ -23,6 +23,7 @@ import {
     Snapshot,
     TABLE,
     type Table,
+    Transaction,
 } from "@destack/db";
 
 import { PackageId } from "@destack/package";
@@ -68,12 +69,12 @@ const SENT_EVENT = ObjectReference.extend({ event: schema.json() });
 /** The copies a store's objects stream: client feeds of a scope's queries, and replicas of scopes for databases below. */
 export class ObjectSource {
     /** The store whose objects the copies keep. */
-    readonly store: Omit<ObjectStore, "router">;
+    readonly store: ObjectStore;
     /** The copies streaming now, by the scope or principal below they are for. */
     readonly #streaming = new Map<string, number>();
 
     /** Stream the copies of a store's objects. */
-    constructor(store: Omit<ObjectStore, "router">) {
+    constructor(store: ObjectStore) {
         this.store = store;
     }
 
@@ -164,7 +165,7 @@ export class ObjectSource {
 
     /** Require the caller to be the home a projection follows, or one of its installations. */
     static #requireHome(subscription: sync.Subscription, context: ServiceContext): void {
-        const { subjects } = context.requireAuthentication().claims;
+        const { subjects } = context.requireCaller();
         const isHome = subjects.some(
             (subject) =>
                 subject.id === subscription.below ||
@@ -186,7 +187,7 @@ export class ObjectSource {
         const standing = await this.#standing(request.below);
 
         // decide for the principal a served object stands for when it follows itself
-        const caller = Caller.principal(context.requireAuthentication().claims);
+        const caller = Caller.principal(context.requireCaller());
         if (
             standing !== undefined &&
             caller !== undefined &&
@@ -229,7 +230,7 @@ export class ObjectSource {
     ): Promise<void> {
         // list the permissions on the caller's own objects
         const authorization = await this.store.authorize(
-            this.store.database,
+            Transaction.reading(this.store.database),
             below,
             context.caller(below),
         );
@@ -393,13 +394,15 @@ export class ObjectSource {
             // project the source's rows into the home the copy is for, through the served types projecting them
             const projectors = this.store.objects.flatMap((object) => {
                 // keep a projecting type's projector for the given source
-                const projector =
-                    object.projected === undefined
-                        ? undefined
-                        : new ScopeProjector(object, object.projected, name);
-                if (object.projected === undefined || projector === undefined) {
+                if (object.projected === undefined) {
                     return [];
                 }
+                const projector = new ScopeProjector(
+                    object,
+                    object.projected,
+                    name,
+                    this.store.clock,
+                );
                 const source = projected.sourceOf(object.projected);
                 const isSource =
                     source.name === parameters.type &&
@@ -707,6 +710,7 @@ export class ObjectSource {
         const feed = new sync.Feed(
             await external.open(scope),
             external.objects.map((object) => object.table),
+            { clock: this.store.clock },
         );
         const compiled = ObjectType.queries(external.objects, queries, [scope]);
         const earlier =
@@ -839,7 +843,7 @@ export class ObjectSource {
         await this.store.enter(context, scope);
         const reference = { ...target, scope };
         const authorization = await this.store.admit(
-            this.store.database,
+            Transaction.reading(this.store.database),
             scope,
             context.caller(scope),
         );
@@ -1012,7 +1016,7 @@ export class ObjectSource {
                 this.store.database,
                 (from, stream) => publisher.stream({ ...subscription, ...from }, stream),
                 revised,
-                { subscription },
+                { subscription, clock: this.store.clock },
             );
         } catch (error) {
             // list again once a source refuses a follow, failing it unless its request changed
@@ -1261,8 +1265,8 @@ export class ObjectSource {
 
         // decide for the principal standing for the follower, or for the caller
         const authorization = !Caller.isRemote(reader)
-            ? await this.store.authorize(database, via, reader, { within: [] })
-            : await this.store.authorize(database, via, reader);
+            ? await this.store.authorize(Transaction.reading(database), via, reader, { within: [] })
+            : await this.store.authorize(Transaction.reading(database), via, reader);
         await authorization.require(policy.permission(REPLICATE), scope);
     }
 
@@ -1282,7 +1286,7 @@ export class ObjectSource {
             return ObjectAudience.of(
                 this.store,
                 Scope.universe.id,
-                Caller.of(follower.subject, this.store.clock()),
+                Caller.of(follower.subject, this.store.clock.now()),
                 {
                     isContained,
                     within: await this.#within(follower.parent ?? request.below),
@@ -1298,7 +1302,7 @@ export class ObjectSource {
             return ObjectAudience.of(
                 this.store,
                 request.scope,
-                Caller.of(follower.subject, this.store.clock()),
+                Caller.of(follower.subject, this.store.clock.now()),
                 { within },
             );
         }
@@ -1319,7 +1323,9 @@ export class ObjectSource {
             const { database } = this.store;
             const { tables } = shape.replica(request);
             const copied = await Promise.all(
-                tables.map((table) => sync.Replica.isCopied(database, request.scope, table)),
+                tables.map((table) =>
+                    sync.Replica.isCopied(Snapshot.live(database), request.scope, table),
+                ),
             );
             const scope = copied.every(Boolean) ? request.below : request.scope;
 

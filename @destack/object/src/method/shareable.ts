@@ -1,5 +1,5 @@
 import { Explanation, Invitation, Relationship } from "@destack/access";
-import { and, eq, TABLE, type Row } from "@destack/db";
+import { type Row } from "@destack/db";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { Page, page } from "@destack/service/page";
@@ -270,14 +270,9 @@ function requireReading(object: ObjectType) {
 /** Require the given object to exist, outside the trash when live. */
 async function requirePresent(call: Call, state: "live" | "stored"): Promise<void> {
     // read the object
-    const table = call.object.table;
-    const rows: readonly Row[] = await call.database
-        .select()
-        .from(table)
-        .where(
-            and(eq(table[TABLE].column("id"), call.requireId()), call.object.inScope(call.scope)),
-        );
-    const [row] = rows;
+    const [row]: readonly Row[] = await call
+        .read(call.object.table)
+        .rows({ id: call.requireId(), scope: call.scope });
 
     // refuse a missing or trashed object
     if (row === undefined) {

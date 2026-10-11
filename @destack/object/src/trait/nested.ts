@@ -13,7 +13,7 @@ import {
     type TargetShape,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
-import { keyColumn } from "../field/field.ts";
+import { idColumn } from "../field/field.ts";
 import type { FieldColumn } from "../field/field.ts";
 import type { Trait } from "./trait.ts";
 
@@ -103,8 +103,8 @@ export const nested: Trait<NestedDefinition> = {
             keyed === undefined
                 ? identifier("parent_id", owner?.identity ?? object.identity)
                 : validated("parent_id", keyed)
-        ).references(() => keyColumn(owner?.table ?? object.table()), {
-            onDelete: options.delete ?? "cascade",
+        ).references(() => idColumn(owner?.table ?? object.table()), {
+            onDelete: options.delete === "restrict" ? "no action" : "cascade",
         });
 
         return { parentId: options.optional === true ? column : column.notNull() };

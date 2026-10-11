@@ -43,7 +43,7 @@ export const chunkRun = defineTable(
     {
         /** The chunk with the elements. */
         chunk: identifier("chunk", "chunk")
-            .notNull()
+            .primaryKey()
             .references(() => chunk.id, { onDelete: "cascade" }),
         /** The scope with the owner. */
         scope: text("scope").notNull(),
@@ -56,9 +56,9 @@ export const chunkRun = defineTable(
         /** The owner's text field. */
         field: text("field").notNull(),
         /** The run the elements belong to. */
-        run: text("run").notNull(),
+        run: text("run").primaryKey(),
         /** The first element's offset. */
-        start: integer("start").notNull(),
+        start: integer("start").primaryKey(),
         /** The offset after the last element. */
         end: integer("end").notNull(),
     },
@@ -71,7 +71,6 @@ export const chunkRun = defineTable(
                 columns.field,
                 columns.run,
             ),
-            index("chunk_run_chunk").on(columns.chunk),
         ],
     },
 );

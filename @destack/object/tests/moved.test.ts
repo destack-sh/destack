@@ -1,8 +1,10 @@
+import { Transaction } from "@destack/db";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope } from "@destack/sync";
 import { principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
+import { Identifier, Clock } from "@destack/schema";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
@@ -11,13 +13,17 @@ test("send a client's writes on to the machine serving a moved scope", async () 
     // serve the space on its source and on the machine it moves to, and fence the source
     const source = await serveNotes("sqlite");
     const target = await serveNotes("sqlite");
-    await Scope.fence(source.database, spaceId, "host-b", Date.now());
+    const moved = Identifier.create("machine");
+    await Transaction.run(source.database, (transaction) =>
+        Scope.fence(transaction, spaceId, moved, Date.now()),
+    );
 
     // push through the source, reconnecting to the machine its refusal refers to
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, note }));
     onTestFinished(() => storage.close());
     const machines: string[] = [];
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: storage.database,
         objects: { notebook, note },
         scope: spaceId,
@@ -44,7 +50,7 @@ test("send a client's writes on to the machine serving a moved scope", async () 
         errors,
         await titles(source.database),
         await titles(target.database),
-    ]).toEqual([["host-b"], [], [], ["Ideas"]]);
+    ]).toEqual([[moved], [], [], ["Ideas"]]);
 });
 
 /** Read the titles of the notes a database keeps. */

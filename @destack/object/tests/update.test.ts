@@ -4,7 +4,7 @@ import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
@@ -50,6 +50,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { chore },
             database: storage.database,

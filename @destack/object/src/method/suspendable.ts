@@ -1,4 +1,5 @@
-import { method, type Method } from "./method.ts";
+import type { Method } from "./method.ts";
+import { method } from "./record.ts";
 
 /** Suspend or resume a scope object on the server. */
 export function change<const Permission extends string>(

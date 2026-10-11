@@ -1,8 +1,8 @@
 import { Scope } from "@destack/sync";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test, TestClock } from "@destack/test";
 import { none, principal, relation, Caller } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { defineDatabase } from "@destack/db";
+import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 
@@ -50,7 +50,7 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, machineDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        let now = 0;
+        const clock = new TestClock(0);
         const store = new ObjectStore({
             principal: spacePrincipal(spaceId),
             objects: { machine },
@@ -60,10 +60,10 @@ test.each(TEST_DIALECTS)(
                 package: machine.package,
                 service: "test",
             },
-            clock: () => now,
+            clock,
         });
         const at = (time: number) => {
-            now = time;
+            clock.set(time);
 
             return Caller.of(spacePrincipal(spaceId), time);
         };
@@ -75,7 +75,7 @@ test.each(TEST_DIALECTS)(
 
         // create a machine as the system on behalf of its owner
         await store.mutate(at(1_000), {
-            id: RequestId.create(now),
+            id: RequestId.create(clock.now()),
             calls: [
                 machine.call("provision", {
                     ...machine.target({ scope: spaceId, id: MACHINE }),
@@ -89,7 +89,7 @@ test.each(TEST_DIALECTS)(
         // observe it twice and keep the transition time while the status stays
         const ready = { status: "false", reason: "Provisioning", message: "" } as const;
         await store.mutate(at(2_000), {
-            id: RequestId.create(now),
+            id: RequestId.create(clock.now()),
             calls: [
                 machine.call("observe", {
                     ...machine.target(created),
@@ -99,7 +99,7 @@ test.each(TEST_DIALECTS)(
             ],
         });
         await store.mutate(at(3_000), {
-            id: RequestId.create(now),
+            id: RequestId.create(clock.now()),
             calls: [
                 machine.call("observe", {
                     ...machine.target(present(await read(), "the machine")),
@@ -113,36 +113,38 @@ test.each(TEST_DIALECTS)(
 
         // delete it through its controller, requesting and finalizing inside an open transaction
         await store.mutate(at(4_000), {
-            id: RequestId.create(now),
+            id: RequestId.create(clock.now()),
             calls: [machine.call("delete", machine.target(observed))],
         });
         const requested = present(await read(), "the machine");
-        await storage.database.transaction(async (transaction) => {
-            await store.mutate(
-                at(5_000),
-                {
-                    id: RequestId.create(now),
-                    calls: [machine.call("finalize", { spaceId, id: created.id })],
-                },
-                { transaction },
-            );
-        });
+        const transaction = await Transaction.open(storage.database);
+        await store.mutate(
+            at(5_000),
+            {
+                id: RequestId.create(clock.now()),
+                calls: [machine.call("finalize", { spaceId, id: created.id })],
+            },
+            { transaction },
+        );
+        await transaction.commit();
         const finalized = await read();
 
         // refuse system work once the space moves to another machine
         await store.mutate(at(6_000), {
-            id: RequestId.create(now),
+            id: RequestId.create(clock.now()),
             calls: [
                 machine.call("provision", {
-                    ...machine.target({ scope: spaceId }),
+                    ...machine.in(spaceId),
                     ownerId: "global:user-1",
                     size: "large",
                 }),
             ],
         });
-        await Scope.fence(storage.database, spaceId, "host-2", 7_000);
+        await Transaction.run(storage.database, (transaction) =>
+            Scope.fence(transaction, spaceId, "host-2", 7_000),
+        );
         const moved = store.mutate(at(8_000), {
-            id: RequestId.create(now),
+            id: RequestId.create(clock.now()),
             calls: [
                 machine.call("observe", {
                     ...machine.target(present(await read(), "the machine")),
@@ -195,17 +197,17 @@ test("answer a repeated system request from the journal, provisioning once, and 
     const storage = await TestDatabase.create("sqlite", machineDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    let now = 0;
+    const clock = new TestClock(0);
     const store = new ObjectStore({
         principal: spacePrincipal(spaceId),
         objects: { machine },
         database: storage.database,
         callKey: testCallKey,
         origin: { package: machine.package, service: "test" },
-        clock: () => now,
+        clock,
     });
     const at = (time: number) => {
-        now = time;
+        clock.set(time);
 
         return Caller.of(spacePrincipal(spaceId), time);
     };
@@ -217,7 +219,7 @@ test("answer a repeated system request from the journal, provisioning once, and 
             id: requestId,
             calls: [
                 machine.call("provision", {
-                    ...machine.target({ scope: spaceId }),
+                    ...machine.in(spaceId),
                     ownerId: "global:user-1",
                     size,
                 }),

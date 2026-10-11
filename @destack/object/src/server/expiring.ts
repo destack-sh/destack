@@ -16,7 +16,7 @@ import {
 } from "@destack/db";
 import type { Controller, Reconciliation } from "@destack/service/control";
 import { Replica } from "@destack/sync";
-import type { ObjectType } from "../object/object.ts";
+import { ObjectKey, type ObjectType } from "../object/object.ts";
 import type { ExpiryRule } from "../trait/expiring.ts";
 import type { ObjectStore } from "./store.ts";
 import { RequestId } from "@destack/service/request";
@@ -35,12 +35,12 @@ export class ExpiringController implements Controller {
     /** The tables of the expiring objects. */
     readonly watches: readonly Table[];
     /** The store the expiry runs through. */
-    readonly #store: Omit<ObjectStore, "router">;
+    readonly #store: ObjectStore;
     /** The expiring object types. */
     readonly #types: readonly ObjectType[];
 
     /** Watch the expiring objects a store serves. */
-    constructor(store: Omit<ObjectStore, "router">) {
+    constructor(store: ObjectStore) {
         this.#store = store;
         // leave the copied rows to the deletes their home sends
         this.#types = store.objects.filter(
@@ -74,7 +74,7 @@ export class ExpiringController implements Controller {
     /** Expire what passed and schedule the earliest window end. */
     async reconcile(_key: string, _reconciliation: Reconciliation): Promise<number | undefined> {
         // expire what passed and read each rule's earliest window end
-        const now = this.#store.clock();
+        const now = this.#store.clock.now();
         await ExpiringController.expire(this.#store, now);
         const passes = await Promise.all(
             this.#types.flatMap((object) =>
@@ -89,7 +89,7 @@ export class ExpiringController implements Controller {
     }
 
     /** Remove expired objects as the store's principal, returning the count. */
-    static async expire(store: Omit<ObjectStore, "router">, now: number): Promise<number> {
+    static async expire(store: ObjectStore, now: number): Promise<number> {
         // remove each rule's rows in batches until one comes back short
         let removed = 0;
         for (const object of store.objects.filter((each) => !store.database.copies(each.table))) {
@@ -101,7 +101,7 @@ export class ExpiringController implements Controller {
                         {
                             id: RequestId.create(now),
                             calls: rows.map((row) =>
-                                Call.record(object, "expire", object.target(row)),
+                                Call.record(object, "expire", object.target(ObjectKey.parse(row))),
                             ),
                         },
                         { component: EXPIRY },

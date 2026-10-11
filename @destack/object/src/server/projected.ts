@@ -12,11 +12,12 @@ import {
     type SQL,
     type Table,
 } from "@destack/db";
-import { present } from "@destack/schema";
+import { Clock, present } from "@destack/schema";
 import type { Projector } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 
 import { projected, type ProjectedDefinition, SourceReference } from "../trait/projected.ts";
+
 /** The projector writing a type's objects into one scope from its source's rows. */
 export class ScopeProjector implements Projector {
     /** The source table whose rows the objects project. */
@@ -31,12 +32,15 @@ export class ScopeProjector implements Projector {
     readonly #kept: readonly (readonly [string, string])[];
     /** The own fields a change of the kept fields clears, each set to null. */
     readonly #cleared: Readonly<Record<string, null>>;
+    /** The store's clock, which projections stamp their writes by. */
+    readonly #clock: Clock;
     /** Whether a conflicting row's kept fields changed, absent without kept fields. */
     readonly #changed: SQL | undefined;
 
     /** Prepare the writes of a type's objects into one scope. */
-    constructor(object: ObjectType, options: ProjectedDefinition, into: string) {
-        // keep the type, the scope and the fields the objects copy and clear
+    constructor(object: ObjectType, options: ProjectedDefinition, into: string, clock: Clock) {
+        // keep the type, the scope, the clock and the copied and cleared fields
+        this.#clock = clock;
         const definition = object.table[TABLE];
         this.source = projected.sourceOf(options).table;
         this.#object = object;
@@ -72,7 +76,7 @@ export class ScopeProjector implements Projector {
         }
 
         // project each kept row once
-        const now = Date.now();
+        const now = this.#clock.now();
         for (const row of kept) {
             await this.#project(transaction, scope, row, now);
         }

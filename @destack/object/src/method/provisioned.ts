@@ -1,6 +1,7 @@
 import { Risk } from "@destack/resource";
 import { schema } from "@destack/schema";
-import { method, type MethodBuilder } from "./method.ts";
+import type { MethodBuilder } from "./method.ts";
+import { method } from "./record.ts";
 
 import type { ProvisionedTable } from "../trait/provisioned.ts";
 /** The method declarations of provisioned resources. */

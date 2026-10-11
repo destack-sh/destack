@@ -1,8 +1,7 @@
 import type { Page } from "@destack/sync";
-import { present, schema } from "@destack/schema";
+import { present, schema, Clock } from "@destack/schema";
 import { unique, type Dialect, defineDatabase, Expression } from "@destack/db";
-import { expect, onTestFinished, test } from "@destack/test";
-import { vi } from "vitest";
+import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -12,16 +11,13 @@ import { subjectContext, testCallKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
 import { EphemeralStorage, ObjectStore } from "../src/server/index.ts";
-import { ObjectClient } from "../src/client/index.ts";
+import { type LiveQuery, ObjectClient } from "../src/client/index.ts";
 import type { ClientOptions } from "@destack/service/client";
 import { defineService } from "@destack/service/declare";
 import { serveObjects } from "./fixture/device.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { request } from "./fixture/request.ts";
-
-/** How long a check may take to pass, in milliseconds: well within the 5 s test timeout. */
-const UNTIL_MILLISECONDS = 2000;
 
 /** The space with the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
@@ -123,20 +119,19 @@ test.for(TEST_DIALECTS)(
 
         // record the writer on the row, once per board and writer
         expect(mine.writerId).toBe("writer-a");
-        await expect(
-            east.call("alice", presence, "create", {
-                writerId: "writer-a",
-                parent: {
-                    packageId: board.policy.definition.packageId,
-                    type: "board",
-                    id: plans.id,
-                },
-                activity: "viewing",
-            }),
-        ).rejects.toMatchObject({
-            code: "DUPLICATE",
-            message: "a record with the same unique key exists",
-        });
+        expect(
+            await refusal(
+                east.call("alice", presence, "create", {
+                    writerId: "writer-a",
+                    parent: {
+                        packageId: board.policy.definition.packageId,
+                        type: "board",
+                        id: plans.id,
+                    },
+                    activity: "viewing",
+                }),
+            ),
+        ).toEqual(["CONFLICT", "another presence has the same parent and writerId"]);
 
         // show the owner's moving cursor to the viewer on the other instance
         const bob = west.follow("bob", "writer-b");
@@ -272,7 +267,7 @@ test.for(TEST_DIALECTS)(
             activity: "editing",
             cursor: 3,
         }).confirmed;
-        await until(async () => (await seen.read()).length === 1);
+        await reach(seen, (rows) => rows.length === 1);
         expect((await seen.read()).map((row) => [row["memberId"], row["cursor"]])).toEqual([
             ["alice", 3],
         ]);
@@ -287,7 +282,7 @@ test.for(TEST_DIALECTS)(
 
         // let her presence go once her client stops following
         alice.stop();
-        await until(async () => (await seen.read()).length === 0);
+        await reach(seen, (rows) => rows.length === 0);
     },
 );
 
@@ -312,7 +307,7 @@ test.for(TEST_DIALECTS)(
             relation: "viewer",
             subject: principal.user.reference("universe", "bob"),
         });
-        await until(async () => (await boards.read()).length === 1);
+        await reach(boards, (rows) => rows.length === 1);
         await alice.client.broadcast(board, plans.id, { reaction: "👋" });
         expect((await received).value).toEqual({ reaction: "👋" });
     },
@@ -354,11 +349,14 @@ test.for(TEST_DIALECTS)(
             })
             .subscribe();
         await boards.ready;
-        const shown = async () =>
-            (await boards.read()).map((row) =>
-                row.presences.map((entry) => [entry.activity, entry.profile?.name]),
-            );
-        await until(async () => (await shown()).flat().some(([, name]) => name === "Alice"));
+        const present = (rows: Awaited<ReturnType<typeof boards.read>>) =>
+            rows.map((row) => row.presences.map((entry) => [entry.activity, entry.profile?.name]));
+        const shown = async () => present(await boards.read());
+        await reach(boards, (rows) =>
+            present(rows)
+                .flat()
+                .some(([, name]) => name === "Alice"),
+        );
         expect(await shown()).toEqual([[["editing", "Alice"]], []]);
 
         // keep only the presences the relation's own condition selects
@@ -385,8 +383,8 @@ test.for(TEST_DIALECTS)(
 
         // count none once the viewer's presence goes, and forget her profile
         alice.stop();
-        await until(async () => (await viewers())[0]?.count === 0);
-        await until(async () => (await shown()).flat().length === 0);
+        await reach(counts, (rows) => rows[0]?.viewers === 0);
+        await reach(boards, (rows) => present(rows).flat().length === 0);
         expect(await shown()).toEqual([[], []]);
 
         // refuse conditions relating the other storage's objects
@@ -426,6 +424,7 @@ async function serveBoards(dialect: Dialect) {
                 EphemeralStorage.channel(durable),
                 (tables) => sqlite.connectBunSqlite(":memory:", tables),
                 {
+                    clock: Clock.system,
                     heartbeat: 1000,
                     report: (error) => {
                         throw error;
@@ -436,6 +435,7 @@ async function serveBoards(dialect: Dialect) {
         );
         onTestFinished(() => ephemeral[Symbol.asyncDispose]());
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { presence, board, profile },
             database: durable,
@@ -558,6 +558,7 @@ async function clientOf(instance: { endpoint(user: string): ClientOptions }, as:
     );
 
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: storage.database,
         objects: { board, profile, presence },
         scope: spaceId,
@@ -581,18 +582,22 @@ async function clientOf(instance: { endpoint(user: string): ClientOptions }, as:
     return { client, stop: () => controller.abort() };
 }
 
-/** Wait until a check passes, giving timers and messages a turn between checks. */
-async function until(check: () => Promise<boolean>): Promise<void> {
-    const deadline = Date.now() + UNTIL_MILLISECONDS;
-    while (!(await check())) {
-        // fail a check that never passes, well within the test's own timeout
-        if (Date.now() > deadline) {
-            throw new Error(`the check did not pass within ${UNTIL_MILLISECONDS} ms`);
+/** Wait until a live query's value passes a check, reading it again after every local commit. */
+async function reach<Value>(
+    query: LiveQuery<Value>,
+    check: (value: Value) => boolean,
+): Promise<void> {
+    const stop = new AbortController();
+    try {
+        for await (const value of query.watch(stop.signal)) {
+            if (check(value)) {
+                return;
+            }
         }
-        await new Promise((resolve) => {
-            setTimeout(resolve, 2);
-        });
+    } finally {
+        stop.abort();
     }
+    throw new Error("the query stopped before its value passed the check");
 }
 
 /** Wait for nothing, until a reader waiting for the next page replaces it. */

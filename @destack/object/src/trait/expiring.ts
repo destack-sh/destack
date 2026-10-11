@@ -35,11 +35,14 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
 
         // copy the type with the rules
         requireRules(object, rules);
-        const traits = object.traits.map((applied) =>
-            applied.trait === expiring ? { trait: applied.trait, options: rules } : applied,
-        );
 
-        return object.with({ lifecycle: { ...object.lifecycle, expiring: rules }, traits });
+        return object.with({
+            definition: {
+                ...object.definition,
+                expiring: rules,
+                source: { ...object.source, expiring: rules },
+            },
+        });
     },
 };
 

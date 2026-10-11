@@ -16,7 +16,6 @@
         "@destack/access": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/directory": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/package": "workspace:*",

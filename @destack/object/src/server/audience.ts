@@ -4,6 +4,7 @@ import {
     type Audience,
     Watch,
     replica,
+    replicaPosition,
     Scope,
     Subject,
     SyncError,
@@ -23,6 +24,7 @@ import {
     type Change,
     type LogPosition,
     Snapshot,
+    Transaction,
 } from "@destack/db";
 import { schema, canonicalize } from "@destack/schema";
 import type { ObjectStorage, ObjectType } from "../object/object.ts";
@@ -39,7 +41,7 @@ const PARENT_COLUMNS = ["parentPackageId", "parentType", "parentId"] as const;
 /** The caller's access to one stream of a scope's objects. */
 export class ObjectAudience implements Audience {
     /** The store serving the objects. */
-    readonly #store: Omit<ObjectStore, "router">;
+    readonly #store: ObjectStore;
     /** The scope the stream follows. */
     readonly #scope: string;
     /** Admit the subscriber again, as it resolves access once access changes. */
@@ -67,7 +69,7 @@ export class ObjectAudience implements Audience {
 
     /** Serve a caller of a scope with resolved access. */
     private constructor(
-        store: Omit<ObjectStore, "router">,
+        store: ObjectStore,
         scope: string,
         admit: () => Promise<Authorization>,
         authorization: Authorization,
@@ -92,7 +94,7 @@ export class ObjectAudience implements Audience {
 
     /** Resolve a reader's access to a scope's objects: an admitted remote caller, or a principal the kept copies are decided for. */
     static async of(
-        store: Omit<ObjectStore, "router">,
+        store: ObjectStore,
         scope: string,
         reader: Caller,
         options: {
@@ -116,12 +118,12 @@ export class ObjectAudience implements Audience {
         // authorize the reader as a principal, a contained caller or an admitted caller
         const admit = async () => {
             const authorization = await (!Caller.isRemote(reader)
-                ? store.authorize(store.database, scope, reader, {
+                ? store.authorize(Transaction.reading(store.database), scope, reader, {
                       within: options.within ?? [],
                   })
                 : isContained
-                  ? store.authorize(store.database, scope, reader)
-                  : store.admit(store.database, scope, reader));
+                  ? store.authorize(Transaction.reading(store.database), scope, reader)
+                  : store.admit(Transaction.reading(store.database), scope, reader));
 
             // require the follower to replicate the scopes it copies chains via
             await Promise.all(via.map((relay) => relay.require()));
@@ -143,7 +145,7 @@ export class ObjectAudience implements Audience {
 
     /** Read the rows deciding whether a follower may replicate the scopes it copies chains via: each scope's own row and the access rows of its chain. */
     static async #relays(
-        store: Omit<ObjectStore, "router">,
+        store: ObjectStore,
         via: readonly string[],
         reader: Caller,
     ): Promise<Relay[]> {
@@ -464,7 +466,12 @@ export class ObjectAudience implements Audience {
         table: Table,
     ): { readonly object: ObjectType; readonly permission: Permission } | "query" {
         // leave the journal and the copies' records to their queries, and every row to a follower keeping it by containment
-        if (this.#isContained || table === journal || table === replica) {
+        if (
+            this.#isContained ||
+            table === journal ||
+            table === replica ||
+            table === replicaPosition
+        ) {
             return "query";
         }
 
@@ -508,7 +515,7 @@ export class RecipientAudience implements Audience {
 
     /** Resolve each recipient's access to a scope's objects. */
     static async of(
-        store: Omit<ObjectStore, "router">,
+        store: ObjectStore,
         scope: string,
         field: string,
         recipients: readonly string[],
@@ -519,7 +526,7 @@ export class RecipientAudience implements Audience {
                 await ObjectAudience.of(
                     store,
                     scope,
-                    Caller.of(Subject.read(recipient), store.clock()),
+                    Caller.of(Subject.read(recipient), store.clock.now()),
                 ),
             ]),
         );

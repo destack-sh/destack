@@ -87,7 +87,7 @@ export function checkpoint<const Scope extends ObjectScope>(scope: Scope) {
                             call.with({
                                 input: {
                                     ...call.input,
-                                    position: await call.database.log.position(),
+                                    position: call.requireTransaction().base,
                                 },
                             }),
                         ),

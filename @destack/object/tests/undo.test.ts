@@ -1,23 +1,14 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { journal } from "@destack/audit/stack";
-import {
-    bigint,
-    binary,
-    defineDatabase,
-    eq,
-    type ColumnBuilder,
-    type ColumnDefinition,
-    type ColumnValue,
-    type DatabaseConnection,
-} from "@destack/db";
+import { defineDatabase, eq, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { defineService } from "@destack/service";
 import { RequestId } from "@destack/service/request";
 import { testCallKey } from "@destack/service/test";
 import { ObjectClient } from "../src/client/index.ts";
-import { defineObject, Field, field, type Step } from "../src/index.ts";
+import { defineObject, field, type Step } from "../src/index.ts";
 import { ObjectExtension } from "../src/server/index.ts";
-import { found } from "@destack/schema";
+import { found, Clock } from "@destack/schema";
 import { Device, serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
@@ -67,7 +58,7 @@ const tally = defineObject({
     name: "tally",
     plural: "tallies",
     scope: space,
-    fields: { count: kept(bigint), label: field.string() },
+    fields: { count: field.bigint(), label: field.string() },
     shareable: {},
     methods: (method) => ({
         get: method.get("read"),
@@ -82,7 +73,7 @@ const stamp = defineObject({
     name: "stamp",
     plural: "stamps",
     scope: space,
-    fields: { bytes: kept(binary), label: field.string() },
+    fields: { bytes: field.binary(), label: field.string() },
     shareable: {},
     methods: (method) => ({
         get: method.get("read"),
@@ -91,36 +82,6 @@ const stamp = defineObject({
         update: method.update("edit"),
     }),
 });
-
-/** The flags of a required field callers write, kept in a column of a value. */
-type Kept<Value extends ColumnValue> = {
-    readonly value: Value;
-    readonly required: true;
-    readonly default: false;
-    readonly guarded: false;
-    readonly written: true;
-    readonly sensitive: false;
-    readonly caller: false;
-    readonly reference: false;
-    readonly relation: never;
-};
-
-/** Build a required field callers write, kept in a column a column constructor builds. */
-function kept<Value extends ColumnValue>(
-    build: (name: string) => ColumnBuilder<ColumnDefinition<Value>>,
-): Field<Kept<Value>> {
-    return new Field<Kept<Value>>({
-        type: "json",
-        build,
-        required: true,
-        isDefault: false,
-        guarded: false,
-        written: true,
-        isSensitive: false,
-        isCallerFilled: false,
-        isReference: false,
-    });
-}
 
 test("invert each trait's methods into the calls that undo them, and leave the rest undoable by nothing", () => {
     // invert a call of the page type
@@ -256,6 +217,7 @@ test.each(TEST_DIALECTS)(
         // keep the party's stack across a restart, and redo the update from it
         await device.offline();
         const restarted = await ObjectClient.open({
+            clock: Clock.system,
             database: await device.storage.connect(ObjectClient.tables({ notebook, note })),
             objects: { notebook, note },
             scope: spaceId,
@@ -299,6 +261,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
     const service = defineService("tallies", { objects: { tally } });
     const served = serveObjects(
         ObjectExtension.compose([ObjectExtension.of(service, [])], {
+            clock: Clock.system,
             origin: { package: service.package, service: service.name },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
@@ -313,6 +276,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
     });
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: local.database,
         objects: { tally },
         scope: spaceId,
@@ -363,6 +327,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     const service = defineService("stamps", { objects: { stamp } });
     const served = serveObjects(
         ObjectExtension.compose([ObjectExtension.of(service, [])], {
+            clock: Clock.system,
             origin: { package: service.package, service: service.name },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
@@ -377,6 +342,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     });
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: local.database,
         objects: { stamp },
         scope: spaceId,

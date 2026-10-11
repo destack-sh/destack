@@ -1,39 +1,29 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Table, TABLE } from "@destack/db";
+import { TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { DynamicObjectClient } from "../src/client/index.ts";
-import { describeObject } from "../src/inspect/index.ts";
+import { ObjectType } from "../src/index.ts";
+import { space } from "./fixture/space.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook, notesDatabase, notesService } from "./fixture/note.ts";
+import { note, notebook, notesService } from "./fixture/note.ts";
 
 /** A row's identifier. */
 const Identified = schema.looseObject({ id: schema.string() });
 
-/** Reach the served notes as a user by their descriptions and the database's declared tables. */
+/** Reach the served notes as a user by the types their descriptions declare. */
 async function reachNotes(
     endpoint: ReturnType<Awaited<ReturnType<typeof serveNotes>>["endpoint"]>,
 ) {
-    // build each type's table from the database's declared SQLite states, under the type's properties
-    const states = notesDatabase.state().tables.sqlite;
-    const objects = [notebook, note].map((type) => {
-        const description = describeObject(type);
-        const state = present(
-            states.find((entry) => entry.table.name === description.table),
-            `the state of ${description.table}`,
-        );
-        const properties = Object.fromEntries(
-            Object.entries(description.columns).map(([property, column]) => [column, property]),
-        );
-
-        return { description, table: Table.describe(state, properties) };
-    });
+    // declare the types from their descriptions, as a manifest lists them
+    const objects = ObjectType.ofAll([notebook.describe(), note.describe()], [space]);
 
     // keep watched rows in a local database
     const local = await TestDatabase.create("sqlite", []);
     onTestFinished(() => local.close());
 
     return new DynamicObjectClient({
+        clock: Clock.system,
         package: notesService.package,
         objects,
         scope: spaceId,
@@ -114,9 +104,9 @@ test.for(TEST_DIALECTS)(
         // stop on abort and drop the copy's rows
         controller.abort();
         expect(await watched.next()).toEqual({ done: true, value: undefined });
-        expect(
-            await client.installation.database.select().from(client.object("note").table),
-        ).toEqual([]);
+        expect(await client.options.database.select().from(client.object("note").table)).toEqual(
+            [],
+        );
         expect(client.object("note").table[TABLE].sqlName).toBe(note.table[TABLE].sqlName);
     },
 );

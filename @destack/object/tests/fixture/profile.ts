@@ -25,7 +25,7 @@ export const profile = defineObject({
     }),
 });
 
-/** Profiles, with handles the directory keeps unique. */
+/** Profiles, with handles unique across the universe. */
 export const profilesService = defineService("profiles", { objects: { profile } });
 
 /** The database of one space's profiles. */

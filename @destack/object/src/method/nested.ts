@@ -1,5 +1,5 @@
 import type * as sync from "@destack/sync";
-import { and, eq, TABLE } from "@destack/db";
+import { TABLE } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import type { Call } from "./call.ts";
 import { Step } from "./step.ts";
@@ -94,31 +94,9 @@ async function requireOutside(call: Call, parentId: string): Promise<void> {
         return;
     }
 
-    // check the ancestor index on the server
+    // climb from the new parent through the call's view, which has the call's own moves
     const moved = call.requireId();
-    if (!call.isPredicted) {
-        const ancestors = call.object.tree.ancestors;
-        const [below] = await call.database
-            .select({ depth: ancestors.depth })
-            .from(ancestors)
-            .where(
-                and(
-                    eq(ancestors.scope, call.scope),
-                    eq(ancestors.ancestor, moved),
-                    eq(ancestors.descendant, parentId),
-                ),
-            );
-        if (below !== undefined) {
-            throw new ServiceError("CONFLICT", {
-                message: `${call.object.name} cannot move into its own subtree`,
-            });
-        }
-
-        return;
-    }
-
-    // climb from the new parent on a client
-    const table = call.object.table;
+    const reader = call.read(call.object.table);
     const visited = new Set<string>();
     for (let node: string | null = parentId; node !== null && !visited.has(node);) {
         if (node === moved) {
@@ -127,10 +105,7 @@ async function requireOutside(call: Call, parentId: string): Promise<void> {
             });
         }
         visited.add(node);
-        const [row] = await call.database
-            .select({ parentId: table[TABLE].column("parentId") })
-            .from(table)
-            .where(eq(table[TABLE].column("id"), node));
-        node = PARENT.parse(row?.parentId ?? null);
+        const row = await reader.row({ id: node });
+        node = PARENT.parse(row?.["parentId"] ?? null);
     }
 }

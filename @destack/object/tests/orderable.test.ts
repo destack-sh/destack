@@ -2,7 +2,7 @@ import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { present, schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -63,6 +63,7 @@ async function serve(dialect: (typeof TEST_DIALECTS)[number]) {
     await openSpace(storage.database, spaceId);
 
     return new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { item, card },
         database: storage.database,

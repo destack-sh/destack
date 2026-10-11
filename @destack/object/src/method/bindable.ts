@@ -1,8 +1,8 @@
 import { accessRelationship, principal } from "@destack/access";
-import { and, eq } from "@destack/db";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { defineMethod, method, type Method } from "./method.ts";
+import { defineMethod, type Method } from "./method.ts";
+import { method } from "./record.ts";
 import { Call } from "./call.ts";
 
 import { CONSUMER } from "../trait/bindable.ts";
@@ -87,21 +87,16 @@ export function consumerMethod<const Permission extends string>(
             // read the consumer's objects of the type in the scope
             const { consumer } = call.input;
             const { packageId } = call.object.policy.definition;
-            const rows = await call.database
-                .select({ objectId: accessRelationship.objectId })
-                .from(accessRelationship)
-                .where(
-                    and(
-                        eq(accessRelationship.scope, call.scope),
-                        eq(accessRelationship.packageId, packageId),
-                        eq(accessRelationship.type, call.object.name),
-                        eq(accessRelationship.relation, CONSUMER),
-                        eq(accessRelationship.subjectPackageId, consumer.packageId),
-                        eq(accessRelationship.subjectType, consumer.type),
-                        eq(accessRelationship.subjectScope, consumer.scope),
-                        eq(accessRelationship.subjectId, consumer.id),
-                    ),
-                );
+            const rows = await call.read(accessRelationship).rows({
+                scope: call.scope,
+                packageId,
+                type: call.object.name,
+                relation: CONSUMER,
+                subjectPackageId: consumer.packageId,
+                subjectType: consumer.type,
+                subjectScope: consumer.scope,
+                subjectId: consumer.id,
+            });
 
             // bind exactly them with the target added or removed, as the store's own work binds
             const id = call.requireId();

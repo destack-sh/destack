@@ -1,7 +1,7 @@
 import type { CallableName, CallOutput } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
@@ -34,6 +34,7 @@ test.each(TEST_DIALECTS)(
 
         // create versions numbered from one, taking the number the runtime assigns
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { task, taskVersion },
             database,

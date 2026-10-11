@@ -40,7 +40,7 @@ export async function openSpace(
     // record the space's scope, owned by the space as its creation binds it
     const object = space.reference(Scope.universe.id, id);
     const fixture = new AccessFixture(database);
-    await fixture.copyPartition(object);
+    await fixture.copyScope(object, "own");
     const owner = await fixture.copyOwner(object, spacePrincipal(id), 0);
 
     // relate anyone to a public space as its reader

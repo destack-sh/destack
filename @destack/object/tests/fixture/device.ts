@@ -1,3 +1,4 @@
+import { bearerUser } from "./user.ts";
 import { ObjectExtension } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
@@ -5,8 +6,7 @@ import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, present } from "@destack/schema";
-import { Authentication } from "@destack/service/authentication";
+import { schema, present, Clock } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { Server, type ServiceImplementation } from "@destack/service/server";
@@ -26,7 +26,7 @@ const DEVICE_OBJECTS = { notebook, note };
 const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e238");
 
 /** Serve a space's notes to bearer-identified users, returning a client per user. */
-export async function serveNotes(dialect: Dialect) {
+export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) {
     // keep the space's notes in memory
     const storage = await TestDatabase.create(dialect, notesDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
@@ -40,6 +40,7 @@ export async function serveNotes(dialect: Dialect) {
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             database,
+            clock,
         }).services[0],
         spaceId,
     );
@@ -53,6 +54,7 @@ export async function serveNotes(dialect: Dialect) {
 export function serveObjects(implementation: ServiceImplementation, scope: string) {
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
+        clock: Clock.system,
         ...implementation,
         audience,
         scope,
@@ -60,24 +62,7 @@ export function serveObjects(implementation: ServiceImplementation, scope: strin
         health: new Health(implementation.service.name),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: async (request) => {
-            const id = present(
-                request.headers.get("authorization"),
-                "the authorization header",
-            ).slice("Bearer ".length);
-            const subject = principal.user.reference("universe", id);
-            const now = Date.now();
-
-            return new Authentication({
-                subject,
-                subjects: [subject],
-                credential: { kind: "user", id },
-                audience,
-                scope,
-                verifiedAt: now,
-                expiresAt: now + 60_000,
-            });
-        },
+        authenticate: bearerUser(audience, scope),
     });
     onTestFinished(() => server.close());
 
@@ -118,6 +103,7 @@ export class Device {
         options: {
             readonly storage?: { readonly rows: number };
             readonly push?: { readonly mutations: number };
+            readonly clock?: Clock;
         } = {},
     ) {
         // create the local database and keep the space's notebooks and notes in it
@@ -131,6 +117,7 @@ export class Device {
             endpoint,
             reconnect: unmoved,
             ...options,
+            clock: options.clock ?? Clock.system,
         });
         for (const object of queried) {
             client.queryOf(object).findMany().subscribe();

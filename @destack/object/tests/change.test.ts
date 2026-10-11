@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, test, TestClock } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     defineTrigger,
@@ -229,7 +229,7 @@ test.each(TEST_DIALECTS)(
         );
         const recorded: string[] = [];
         const reports: string[] = [];
-        let now = Date.now();
+        const clock = new TestClock(Date.now());
         const controller = new ChangeController(
             database,
             [lagging],
@@ -239,17 +239,17 @@ test.each(TEST_DIALECTS)(
                 },
             },
             (error) => reports.push(messageOf(error)),
-            () => now,
+            clock,
         );
         const create = async (title: string) =>
             (await alice.note.create({ spaceId, title, requestId: RequestId.create() })).id;
 
         // advance the slot of a quiet trigger before it lapses, so compaction keeps the changes after it
         const delay = await controller.reconcile(keyOf(lagging));
-        now += 50_000;
+        clock.advance(50_000);
         await controller.reconcile(keyOf(lagging));
         const kept = await create("Kept");
-        await database.log.compact(Date.now() + 1, now + 20_000);
+        await database.log.compact(Date.now() + 1, clock.now() + 20_000);
         await controller.reconcile(keyOf(lagging));
 
         // pass over a change the trigger builds no call of, reporting it
@@ -258,7 +258,7 @@ test.each(TEST_DIALECTS)(
 
         // continue at the head once a lapsed slot let compaction take changes, reporting the loss
         const lost = await create("Lost");
-        await database.log.compact(Date.now() + 1, now + 10 * 60_000);
+        await database.log.compact(Date.now() + 1, clock.now() + 10 * 60_000);
         await controller.reconcile(keyOf(lagging));
         const next = await create("Next");
         await controller.reconcile(keyOf(lagging));

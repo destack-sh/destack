@@ -1,9 +1,10 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { ACCENT_PRESETS, type AccentPreset } from "@destack/theme";
 import { defineSchema, type JsonValue, present, schema } from "@destack/schema";
 import { field, type Field } from "../field/field.ts";
 import type { ObjectDefinition } from "../object/object.ts";
 import type { Erasure } from "./trait.ts";
-import { BucketName, type FileBucket, ObjectFile } from "../field/file.ts";
+import { type FileBucket, ObjectFile } from "../field/file.ts";
 
 /** The fields an object is titled by when it sets none, the first one it has. */
 const TITLE_FIELDS = ["title", "name"] as const;
@@ -111,7 +112,7 @@ const PresentationSchema = defineSchema(
             .union([
                 schema.object({
                     field: schema.string().min(1),
-                    bucket: BucketName.exactOptional(),
+                    bucket: DeclarationReference.exactOptional(),
                 }),
                 schema.object({ fixed: IconName }),
             ])
@@ -119,7 +120,9 @@ const PresentationSchema = defineSchema(
         /** The field keeping each object's accent. */
         color: schema.object({ field: schema.string().min(1) }).exactOptional(),
         /** The field keeping each object's cover and the bucket keeping it. */
-        cover: schema.object({ field: schema.string().min(1), bucket: BucketName }).exactOptional(),
+        cover: schema
+            .object({ field: schema.string().min(1), bucket: DeclarationReference })
+            .exactOptional(),
     }),
 );
 /** The presentation of an object type. */
@@ -203,13 +206,13 @@ export const Presentable = {
                   : {
                         icon: {
                             field: "icon",
-                            ...(icon === true ? {} : { bucket: BucketName.of(icon) }),
+                            ...(icon === true ? {} : { bucket: DeclarationReference.of(icon) }),
                         },
                     }),
             ...(options.color === false ? {} : { color: { field: "color" } }),
             ...(options.cover === undefined
                 ? {}
-                : { cover: { field: "cover", bucket: BucketName.of(options.cover) } }),
+                : { cover: { field: "cover", bucket: DeclarationReference.of(options.cover) } }),
         });
     },
 

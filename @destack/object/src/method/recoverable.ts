@@ -2,7 +2,8 @@ import { Duration, present, type schema } from "@destack/schema";
 import { type Row, type Select } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import type { Call } from "./call.ts";
-import { defineMethod, method, type Method, type MethodBuilder } from "./method.ts";
+import { defineMethod, type Method, type MethodBuilder } from "./method.ts";
+import { method } from "./record.ts";
 import { Step } from "./step.ts";
 import { Empty } from "./procedure.ts";
 

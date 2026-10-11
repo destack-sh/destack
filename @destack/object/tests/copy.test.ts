@@ -15,7 +15,7 @@ import { journal } from "@destack/audit/stack";
 import { AccessFixture } from "@destack/access/test";
 import { asc, defineDatabase, eq, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { present, schema, Clock } from "@destack/schema";
 
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
@@ -119,7 +119,7 @@ test.each(TEST_DIALECTS)(
         const accountObject = account.reference(Scope.universe.id, accountId);
         const accessCopies = new AccessFixture(home.database);
         await accessCopies.copyScope(accountObject);
-        await accessCopies.copyPartition(space.reference(accountId, spaceId));
+        await accessCopies.copyScope(space.reference(accountId, spaceId), "own");
         await accessCopies.copyOwner(accountObject, alice);
         await accessCopies.copyRole(
             accountObject,
@@ -149,8 +149,9 @@ test.each(TEST_DIALECTS)(
         );
 
         // serve the documents of one space over the installation's database to each call's user, copying its chain from the home database
-        const feed = new Feed(home.database, accessTables);
-        const store: ObjectStore<{ document: typeof document }> = new ObjectStore({
+        const feed = new Feed(home.database, accessTables, { clock: Clock.system });
+        const store: ObjectStore = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { document },
             database: installed.database,
@@ -254,7 +255,7 @@ test("keep one copy record per followed space of one account, and drop one space
     const loop = new ControlLoop(
         machine.database,
         store.controllers().filter((each) => each.name === "replica"),
-        { report: failing },
+        { clock: Clock.system, report: failing },
     );
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
@@ -287,8 +288,9 @@ test("keep one copy record per followed space of one account, and drop one space
 
     // stop following the other space once the scope rows change, dropping its copies alone, and keep the account's role
     requested.delete(otherSpaceId);
-    await new AccessFixture(machine.database).copyPartition(
+    await new AccessFixture(machine.database).copyScope(
         space.reference(accountId, thirdSpaceId),
+        "own",
     );
     await machine.database.log.until(
         async () => (await Replica.subscriptions(machine.database)).length === 3,
@@ -321,7 +323,7 @@ test("drop a copy no request names under the lease its follow holds, whichever o
         new ControlLoop(
             machine.database,
             store.controllers().filter((each) => each.name === "replica"),
-            { report: failing, lease: { holder } },
+            { clock: Clock.system, report: failing, lease: { holder } },
         );
     const [first, second] = [loop("first"), loop("second")];
     const running = [first.run(controller.signal)];
@@ -338,8 +340,9 @@ test("drop a copy no request names under the lease its follow holds, whichever o
 
     // stop requesting the space's chain once the scope rows change, and wait for its copies to drop
     requested.delete(spaceId);
-    await new AccessFixture(machine.database).copyPartition(
+    await new AccessFixture(machine.database).copyScope(
         space.reference(accountId, otherSpaceId),
+        "own",
     );
     await machine.database.log.until(
         async () => (await Replica.subscriptions(machine.database)).length === 0,
@@ -364,7 +367,7 @@ test("drop a copy once its source refuses its follow and no request names it any
     const loop = new ControlLoop(
         machine.database,
         store.controllers().filter((each) => each.name === "replica"),
-        { report: (_controller, _key, error) => failures.push(error) },
+        { clock: Clock.system, report: (_controller, _key, error) => failures.push(error) },
     );
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
@@ -396,11 +399,12 @@ test("follow copies as a server serving no methods, which keeps no journal and t
     });
     const accessCopies = new AccessFixture(home.database);
     await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
-    await accessCopies.copyPartition(space.reference(accountId, spaceId));
+    await accessCopies.copyScope(space.reference(accountId, spaceId), "own");
 
     // follow the space's chain without a journal
-    const feed = new Feed(home.database, accessTables);
+    const feed = new Feed(home.database, accessTables, { clock: Clock.system });
     const store: ObjectStore = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: {},
         policies: [document],
@@ -420,7 +424,10 @@ test("follow copies as a server serving no methods, which keeps no journal and t
         origin: { package: document.package, service: "test" },
     });
     const controller = new AbortController();
-    const loop = new ControlLoop(follower.database, store.controllers(), { report: failing });
+    const loop = new ControlLoop(follower.database, store.controllers(), {
+        clock: Clock.system,
+        report: failing,
+    });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
@@ -453,7 +460,7 @@ test("copy the chains of an installation's two served spaces in one copy via bot
     await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
     await accessCopies.copyScope(account.reference(Scope.universe.id, otherAccountId));
     for (const id of [spaceId, otherSpaceId]) {
-        await new AccessFixture(home.database).copyPartition(space.reference(accountId, id));
+        await new AccessFixture(home.database).copyScope(space.reference(accountId, id), "own");
         await home.database
             .insert(space.table)
             .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -461,6 +468,7 @@ test("copy the chains of an installation's two served spaces in one copy via bot
 
     // let the installation read both spaces and replicate the first
     const source = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { space },
         policies: [document],
@@ -478,7 +486,8 @@ test("copy the chains of an installation's two served spaces in one copy via bot
 
     // copy the universe's spaces to the installation, decided at home for it
     const follower = { subject, parent: Scope.universe.id };
-    const copying: ObjectStore<{ document: typeof document }> = new ObjectStore({
+    const copying: ObjectStore = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { document },
         policies: [space],
@@ -579,7 +588,7 @@ test("copy a scoped table an installation's database declares beside its followe
     const accessCopies = new AccessFixture(home.database);
     await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
     for (const id of [spaceId, otherSpaceId]) {
-        await accessCopies.copyPartition(space.reference(accountId, id));
+        await accessCopies.copyScope(space.reference(accountId, id), "own");
         await home.database
             .insert(space.table)
             .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -594,6 +603,7 @@ test("copy a scoped table an installation's database declares beside its followe
 
     // let the installation read and replicate the first space only
     const source = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { space, document },
         database: home.database,
@@ -608,7 +618,8 @@ test("copy a scoped table an installation's database declares beside its followe
 
     // follow the universe's rows and the followed space's chain from home
     const follower = { subject, parent: Scope.universe.id };
-    const copying: ObjectStore<{ comment: typeof comment }> = new ObjectStore({
+    const copying: ObjectStore = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { comment },
         policies: [space, document],
@@ -629,9 +640,10 @@ test("copy a scoped table an installation's database declares beside its followe
         "the replica controller",
     );
     const controller = new AbortController();
-    const loop = new ControlLoop(installed.database, [replica], { report: failing }).run(
-        controller.signal,
-    );
+    const loop = new ControlLoop(installed.database, [replica], {
+        clock: Clock.system,
+        report: failing,
+    }).run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
         await loop;
@@ -671,8 +683,8 @@ async function openCopies() {
     const accountObject = account.reference(Scope.universe.id, accountId);
     const accessCopies = new AccessFixture(home.database);
     await accessCopies.copyScope(accountObject);
-    await accessCopies.copyPartition(space.reference(accountId, spaceId));
-    await accessCopies.copyPartition(space.reference(accountId, otherSpaceId));
+    await accessCopies.copyScope(space.reference(accountId, spaceId), "own");
+    await accessCopies.copyScope(space.reference(accountId, otherSpaceId), "own");
     await accessCopies.copyRole(
         accountObject,
         { name: "member", description: "Reads the account's spaces", permissions: [] },
@@ -680,11 +692,12 @@ async function openCopies() {
     );
 
     // follow each requested space's chain from home, failing every stream once home refuses the machine
-    const feed = new Feed(home.database, accessTables);
+    const feed = new Feed(home.database, accessTables, { clock: Clock.system });
     const requested = new Set<string>();
     const refused = new AbortController();
     const refuse = () => refused.abort(new ServiceError("FORBIDDEN", { message: "refused" }));
-    const store: ObjectStore<{ document: typeof document }> = new ObjectStore({
+    const store: ObjectStore = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { document },
         database: machine.database,

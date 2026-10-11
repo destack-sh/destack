@@ -1,7 +1,7 @@
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { principal, through } from "@destack/access";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { subjectContext, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -48,6 +48,7 @@ test("read external objects named by their key from the database their files ope
     onTestFinished(() => files.close());
     const opened: string[] = [];
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { notebook, entry },
         database: durable.database,
@@ -100,6 +101,7 @@ test("read external objects named by their key from the database their files ope
                 },
             ],
             {
+                clock: Clock.system,
                 origin: { package: service.package, service: service.name },
                 principal: spacePrincipal(spaceId),
                 database: durable.database,
@@ -111,6 +113,7 @@ test("read external objects named by their key from the database their files ope
     const local = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, entry }));
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: local.database,
         objects: { notebook, entry },
         scope: spaceId,

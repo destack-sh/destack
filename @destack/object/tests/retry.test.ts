@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
-import { aligned } from "@destack/schema";
+import { aligned, Clock } from "@destack/schema";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
@@ -29,6 +29,7 @@ test("push again after transient failures, waiting twice as long after each", as
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, note }));
     onTestFinished(() => storage.close());
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: storage.database,
         objects: { notebook, note },
         scope: spaceId,

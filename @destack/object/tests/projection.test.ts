@@ -6,7 +6,7 @@ import { testCallKey } from "@destack/service/test";
 import type { InstallationContext } from "@destack/service/workload";
 import { asc, defineDatabase, eq, type LogPosition } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { Clock, present, schema } from "@destack/schema";
 import { Feed, Replica, replica, Subject } from "@destack/sync";
 import { none, principal } from "@destack/access";
 import { v7 } from "uuid";
@@ -120,7 +120,7 @@ test.for(TEST_DIALECTS)(
         const extra = await create("Extra");
 
         // follow the memos, projecting them into receipts in the home
-        const feed = new Feed(database, [memo.table, replica]);
+        const feed = new Feed(database, [memo.table, replica], { clock: Clock.system });
         const receipts = new Replica({
             name: "receipts",
             scope: MEMOS,
@@ -131,6 +131,7 @@ test.for(TEST_DIALECTS)(
                     receipt,
                     present(receipt.projected, "the receipt's projection"),
                     HOME,
+                    Clock.system,
                 ),
             ],
         });
@@ -145,6 +146,7 @@ test.for(TEST_DIALECTS)(
                         signal,
                     ),
                 controller.signal,
+                { clock: Clock.system },
             );
 
             return async () => {
@@ -275,6 +277,7 @@ test("settle the address of a recipient without a user, and record it again once
             }
         });
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(MEMOS),
         objects: { memo },
         database,
@@ -286,7 +289,7 @@ test("settle the address of a recipient without a user, and record it again once
     const loop = new ControlLoop(
         database,
         [present(store.source.addresses(), "the address controller")],
-        { report: (_controller, _key, error) => failures.push(error) },
+        { clock: Clock.system, report: (_controller, _key, error) => failures.push(error) },
     );
     const controller = new AbortController();
     const running = loop.run(controller.signal);

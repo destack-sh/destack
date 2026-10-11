@@ -11,7 +11,7 @@ import {
 import { journal } from "@destack/audit/stack";
 import { AccessFixture } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Identifier, schema } from "@destack/schema";
+import { Identifier, schema, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
@@ -97,6 +97,7 @@ test.each(TEST_DIALECTS)(
 
         // serve the documents to the user each call refers to, through the delegates it lists
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { document },
             database,
@@ -186,6 +187,7 @@ test.each(TEST_DIALECTS)(
 
         // serve documents and desks to alice, unpinned to any scope
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { document, desk },
             database,

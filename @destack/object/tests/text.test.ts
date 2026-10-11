@@ -1,11 +1,11 @@
+import { bearerUser } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { type DatabaseConnection, type Dialect, defineDatabase } from "@destack/db";
+import { type DatabaseConnection, type Dialect, defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Authentication } from "@destack/service/authentication";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { defineService } from "@destack/service";
@@ -17,7 +17,7 @@ import { ObjectExtension } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/service/test";
-import { aligned, present } from "@destack/schema";
+import { aligned, present, Clock } from "@destack/schema";
 
 /** The space with the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
@@ -68,7 +68,9 @@ async function serveDocuments(dialect: Dialect) {
 
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
+        clock: Clock.system,
         ...ObjectExtension.compose([ObjectExtension.of(documentsService, [])], {
+            clock: Clock.system,
             origin: { package: documentsService.package, service: documentsService.name },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
@@ -80,24 +82,7 @@ async function serveDocuments(dialect: Dialect) {
         health: new Health("documents"),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: async (request) => {
-            const id = present(
-                request.headers.get("authorization"),
-                "the authorization header",
-            ).slice("Bearer ".length);
-            const subject = principal.user.reference("universe", id);
-            const now = Date.now();
-
-            return new Authentication({
-                subject,
-                subjects: [subject],
-                credential: { kind: "user", id },
-                audience,
-                scope: spaceId,
-                verifiedAt: now,
-                expiresAt: now + 60_000,
-            });
-        },
+        authenticate: bearerUser(audience, spaceId),
     });
     onTestFinished(() => server.close());
     const endpoint = (name: string): ClientOptions => ({
@@ -117,6 +102,7 @@ async function openClient(name: string, endpoint: ClientOptions) {
     const storage = await TestDatabase.create("sqlite", tables, { storage: "file" });
     onTestFinished(() => storage.close());
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: storage.database,
         objects: { document },
         scope: spaceId,
@@ -285,12 +271,16 @@ test.for(TEST_DIALECTS)(
         // report which elements the text contains, deleted ones included
         const owner = document.reference(spaceId, created.id);
         const contained = [
-            await Chunk.contains(database, owner, "body", [{ run: "alice.1", offset: 2999 }]),
-            await Chunk.contains(database, owner, "body", [
+            await Chunk.contains(Transaction.reading(database), owner, "body", [
+                { run: "alice.1", offset: 2999 },
+            ]),
+            await Chunk.contains(Transaction.reading(database), owner, "body", [
                 { run: "alice.2", offset: 0 },
                 { run: "alice.2", offset: 4999 },
             ]),
-            await Chunk.contains(database, owner, "body", [{ run: "alice.1", offset: 3000 }]),
+            await Chunk.contains(Transaction.reading(database), owner, "body", [
+                { run: "alice.1", offset: 3000 },
+            ]),
         ];
         expect(contained).toEqual([true, true, false]);
 

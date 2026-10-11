@@ -68,9 +68,10 @@ export function revertMethod(permission: string): Method {
     });
 }
 
-/** Read the call's object at the input's position, where the caller may read it then and now. */
+/** Read the call's object at the input's position, where the caller may read it then and now, a past position no commit changes. */
 function earlier(call: Call, permission: Permission): Promise<Row> {
-    const snapshot = call.database.log.at(LogPosition.parse(call.input["at"]));
+    const database = call.requireTransaction().database;
+    const snapshot = database.log.at(LogPosition.parse(call.input["at"]));
 
     return call.requireAuthorization().readIn(call, call.requireId(), snapshot, permission);
 }

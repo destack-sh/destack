@@ -11,9 +11,8 @@ import {
     Predicate,
     type Match,
 } from "@destack/db";
-import { found, schema } from "@destack/schema";
+import { Clock, found, schema } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
-import { RequestId } from "@destack/service/request";
 import {
     type ChangeOperation,
     type ChangeTrigger,
@@ -48,8 +47,8 @@ export class ChangeController implements Controller {
     readonly #followed: ReadonlyMap<string, ChangeTrigger>;
     /** Report a change a trigger passes over or loses. */
     readonly #report: (error: unknown) => void;
-    /** Read the current time. */
-    readonly #now: () => number;
+    /** The clock each change's lag deadline runs on. */
+    readonly #clock: Clock;
 
     /** Follow change triggers over a database, recording runs in a machine. */
     constructor(
@@ -57,13 +56,13 @@ export class ChangeController implements Controller {
         triggers: readonly ChangeTrigger[],
         runs: RunClient,
         report: (error: unknown) => void,
-        now: () => number = Date.now,
+        clock: Clock = Clock.system,
     ) {
         // keep the database, the machine, the report and the clock
         this.#database = database;
         this.#runs = runs;
         this.#report = report;
-        this.#now = now;
+        this.#clock = clock;
 
         // require each trigger to follow a served object type, under a name its package gives no other trigger
         const followed = new Map<string, ChangeTrigger>();
@@ -126,7 +125,7 @@ export class ChangeController implements Controller {
                 });
                 await this.#record(trigger, seen);
                 after = Math.max(after, page.sequence);
-                await log.advance(slot, after, this.#now() + change.maxLag);
+                await log.advance(slot, after, this.#clock.now() + change.maxLag);
                 if (page.changes.length === 0) {
                     break;
                 }
@@ -137,7 +136,7 @@ export class ChangeController implements Controller {
                 throw error;
             }
             const head = (await log.position()).sequence;
-            await log.advance(slot, head, this.#now() + change.maxLag);
+            await log.advance(slot, head, this.#clock.now() + change.maxLag);
             this.#report(
                 new Error(`trigger ${trigger.name} lost the changes after ${after} to compaction`, {
                     cause: error,
@@ -158,18 +157,18 @@ export class ChangeController implements Controller {
         const begun = change.from === "snapshot" ? await log.slot(snapshotSlot) : undefined;
         const sequence = begun ?? (await log.position()).sequence;
         if (change.from === "now") {
-            await log.advance(slot, sequence, this.#now() + change.maxLag);
+            await log.advance(slot, sequence, this.#clock.now() + change.maxLag);
 
             return sequence;
         }
 
         // record the snapshot's matching rows as created at the snapshot's reading, page by page
         const snapshot = log.at({ epoch, sequence });
-        const at = this.#now();
+        const at = this.#clock.now();
         const table = ChangeController.#table(trigger);
         let last: Row | undefined;
         for (;;) {
-            await log.advance(snapshotSlot, sequence, this.#now() + change.maxLag);
+            await log.advance(snapshotSlot, sequence, this.#clock.now() + change.maxLag);
             const rows = await snapshot.ordered(table, {
                 where: change.where ?? {},
                 orderBy: { id: "asc" },
@@ -193,7 +192,7 @@ export class ChangeController implements Controller {
         }
 
         // follow the log after the snapshot
-        await log.advance(slot, sequence, this.#now() + change.maxLag);
+        await log.advance(slot, sequence, this.#clock.now() + change.maxLag);
         await log.drop(snapshotSlot);
 
         return sequence;
@@ -231,10 +230,11 @@ export class ChangeController implements Controller {
             await Promise.all(
                 chunk.map(async ({ request, at }) => {
                     // send under the request derived from the trigger and the change, one however often sent
-                    const event = RunEvent.requestId(request.event);
-                    const requestId = await RequestId.derive(
+                    const requestId = await RunEvent.derive(
+                        trigger.package.id,
+                        trigger.name,
+                        request.event,
                         at,
-                        `${ChangeController.#key(trigger)} ${event}`,
                     );
                     await this.#runs.send(request, { requestId });
                 }),

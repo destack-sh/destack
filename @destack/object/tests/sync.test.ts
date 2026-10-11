@@ -3,7 +3,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { Page } from "@destack/sync";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
@@ -48,6 +48,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
 
     // serve methods as each user and follow the tasks the second user sees
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { task, team, comment, taskVersion, folder },
         database,

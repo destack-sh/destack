@@ -12,15 +12,14 @@ import {
 } from "@destack/access";
 import {
     and,
-    eq,
     Key,
     ne,
     or,
     TABLE,
-    type DatabaseConnection,
     type SQL,
     Snapshot,
     type Row,
+    type Transaction,
 } from "@destack/db";
 import { aligned, schema } from "@destack/schema";
 import { conceal, ServiceError } from "@destack/service/error";
@@ -41,12 +40,12 @@ export class Authorization extends access.Authorization {
     /** Authorize a caller in one transaction. */
     constructor(
         authorizer: Authorizer,
-        database: DatabaseConnection,
-        bind: (scope: string) => AccessContext,
+        transaction: Transaction,
+        context: () => AccessContext,
         resolved: Access,
         delegation?: string,
     ) {
-        super(authorizer, database, bind, resolved);
+        super(authorizer, transaction, context, resolved);
         this.access = resolved;
         if (delegation !== undefined) {
             this.delegation = delegation;
@@ -100,7 +99,7 @@ export class Authorization extends access.Authorization {
         // admit the durable copies of universe rows kept for the scope, and resolve the scopes of the other rows
         else if (object.storage === "durable" && others.length > 0) {
             const included = await Replica.keysIncluded(
-                this.database,
+                this.transaction.database,
                 scope,
                 table,
                 others.map((entry) => entry.row),
@@ -170,7 +169,7 @@ export class Authorization extends access.Authorization {
                         snapshot,
                         permission,
                         reference,
-                        await this.authorizer.resolve(snapshot, governing, this.context(governing)),
+                        await this.authorizer.resolve(snapshot, governing, this.context()),
                     )
                 ).isAllowed);
 
@@ -228,26 +227,8 @@ export class Authorization extends access.Authorization {
         permission: Permission,
         evaluated: Access,
     ): Promise<readonly Row[]> {
-        // decide ephemeral and external objects in memory
-        const { object, scope } = call;
-        if (object.storage !== "durable") {
-            return this.#decide(call, id, permission, evaluated);
-        }
-
-        // select a durable object where the permission holds
-        const table = object.table;
-        const target = object.reference(scope, id);
-
-        return this.database
-            .select()
-            .from(table)
-            .where(
-                and(
-                    eq(table[TABLE].column("id"), id),
-                    object.inScope(scope),
-                    this.authorizer.permits(permission, target, evaluated),
-                ),
-            );
+        // read the object through the call's transaction, its own writes included, and decide in memory
+        return this.#decide(call, id, permission, evaluated);
     }
 
     /** Refuse a target a lent delegate lacks the grant for, which the delegation before it reads. */
@@ -356,7 +337,7 @@ export class Authorization extends access.Authorization {
             const permitted = object.permissions.map((name) =>
                 this.authorizer.where(object.permission(name), evaluated, table),
             );
-            const [row] = await this.database
+            const [row] = await this.transaction.database
                 .select({ id: table[TABLE].column("id") })
                 .from(table)
                 .where(and(object.inScope(scope), or(...permitted)))
@@ -477,12 +458,9 @@ export class Authorization extends access.Authorization {
         permission: access.PermissionReference,
         evaluated: Access,
     ): Promise<Row[]> {
-        // read the row
-        const table = call.object.table;
-        const rows: readonly Row[] = await call.database
-            .select()
-            .from(table)
-            .where(and(eq(table[TABLE].column("id"), id), call.object.inScope(call.scope)));
+        // read the row in the call's scope through its transaction
+        const row = await call.requireTransaction().row(call.object.table, { id });
+        const rows: readonly Row[] = row === null || row["scope"] !== call.scope ? [] : [row];
 
         return this.keep(rows, permission, evaluated);
     }
@@ -494,7 +472,7 @@ export class Authorization extends access.Authorization {
         snapshot: Snapshot,
         scope: string,
     ): Promise<Kept[]> {
-        const then = await this.authorizer.resolve(snapshot, scope, this.context(scope));
+        const then = await this.authorizer.resolve(snapshot, scope, this.context());
         const { permitted } = await this.authorizer.checkRows(snapshot, permission, then, rows);
 
         return rows.filter((_, position) => permitted.has(position));

@@ -79,6 +79,7 @@ export const task = defineObject({
         read: union(relation("owner"), relation("viewer"), relation("editor")),
         write: union(relation("owner"), relation("editor")),
         plan: relation("owner"),
+        tidy: through("scope", "share"),
     },
     shareable: { by: "write" },
     methods: (method) => ({
@@ -88,6 +89,14 @@ export const task = defineObject({
         update: method.update("write", { fields: ["title", "estimate", "currentId"] }),
         archive: method.mutation({ permission: "write" }),
         export: method.mutation({ permission: "write", prepared: schema.string() }),
+        archiveAll: method.mutation({
+            permission: "tidy",
+            target: "none",
+            output: schema.object({
+                /** The tasks archived. */
+                archived: schema.number().int().nonnegative(),
+            }),
+        }),
     }),
 });
 
@@ -137,6 +146,18 @@ export const folder = defineObject({
     nested: { in: "self", optional: true, receive: "write" },
     fields: { name: field.string(schema.string().min(1)) },
     permissions: ["read", "write"],
+    methods: (method) => ({
+        draw: method.mutation({
+            permission: "write",
+            target: "none",
+            output: schema.object({
+                /** A task identifier the call generated. */
+                id: schema.string(),
+                /** The numbers the call drew. */
+                draws: schema.array(schema.number()),
+            }),
+        }),
+    }),
 });
 
 /** The example database with the objects, their access and the journal journal. */

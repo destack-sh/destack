@@ -1,7 +1,7 @@
 import { type AccessExpression, type Authorizer } from "@destack/access";
 import { Duration, Identifier, present } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { and, desc, eq, TABLE, type Row, LogPosition } from "@destack/db";
+import { TABLE, type Row, LogPosition } from "@destack/db";
 import type { Call } from "../method/call.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectType } from "../object/object.ts";
@@ -44,33 +44,39 @@ export const TrackedHistory = {
         const session = Duration.milliseconds(options.session ?? SESSION);
         if (latest !== undefined && latest.endedAt >= call.now - session) {
             const fields = [...new Set([...latest.fields, ...changed])];
-            await call.database
-                .update(table)
-                .set({
+            await call.write({
+                table,
+                before: latest,
+                after: {
+                    ...latest,
                     endedAt: call.now,
                     fields,
                     changes: latest.changes + 1,
                     revision: latest.revision + 1,
                     updatedAt: call.now,
-                })
-                .where(eq(table.id, latest.id));
+                },
+            });
         }
         // start an activity from the position before the change
         else {
-            await call.database.insert(table).values({
-                id: Identifier.create("activity"),
-                scope: call.scope,
-                parentPackageId: object.policy.definition.packageId,
-                parentType: object.name,
-                parentId: call.requireId(),
-                caller,
-                startedAt: call.now,
-                endedAt: call.now,
-                from,
-                fields: changed,
-                changes: 1,
-                createdAt: call.now,
-                updatedAt: call.now,
+            await call.write({
+                table,
+                before: null,
+                after: table[TABLE].complete({
+                    id: Identifier.create("activity"),
+                    scope: call.scope,
+                    parentPackageId: object.policy.definition.packageId,
+                    parentType: object.name,
+                    parentId: call.requireId(),
+                    caller,
+                    startedAt: call.now,
+                    endedAt: call.now,
+                    from,
+                    fields: changed,
+                    changes: 1,
+                    createdAt: call.now,
+                    updatedAt: call.now,
+                }),
             });
         }
     },
@@ -151,19 +157,16 @@ async function latestActivity(options: TrackedDefinition, call: Call, caller: st
     // read the newest activity of the caller on the object
     const { object } = call;
     const table = options.activity.table;
-    const [latest] = await call.database
-        .select()
-        .from(table)
-        .where(
-            and(
-                eq(table.parentPackageId, object.policy.definition.packageId),
-                eq(table.parentType, object.name),
-                eq(table.parentId, call.requireId()),
-                eq(table.caller, caller),
-            ),
-        )
-        .orderBy(desc(table.endedAt))
-        .limit(1);
+    const [latest] = await call.requireTransaction().rows(
+        table,
+        {
+            parentPackageId: object.policy.definition.packageId,
+            parentType: object.name,
+            parentId: call.requireId(),
+            caller,
+        },
+        { orderBy: { endedAt: "desc" }, limit: 1 },
+    );
 
     return latest;
 }

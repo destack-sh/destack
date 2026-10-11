@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
@@ -64,6 +65,7 @@ test.for(TEST_DIALECTS)(
 /** Serve the notes over one connection as alice. */
 function serve(database: DatabaseConnection) {
     return new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { notebook, note },
         database,

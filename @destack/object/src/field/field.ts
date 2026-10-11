@@ -1,4 +1,7 @@
+import { DeclarationReference } from "@destack/package/declare";
 import {
+    bigint,
+    binary,
     boolean,
     ColumnBuilder,
     TABLE,
@@ -14,7 +17,8 @@ import {
     type Select,
     type Table,
 } from "@destack/db";
-import { schema, type Identifier, type JsonValue } from "@destack/schema";
+import { canonicalize, schema, type Identifier, type JsonValue } from "@destack/schema";
+import type { BuilderCall } from "../object/description.ts";
 import type { IdentityOf, ObjectStorage, ObjectType } from "../object/object.ts";
 import { Policy } from "@destack/access";
 import { FractionalIndex } from "./fractional-index.ts";
@@ -24,8 +28,10 @@ import { type FileBucket, ObjectFile } from "./file.ts";
 export const FIELD_TYPES = [
     "string",
     "integer",
+    "bigint",
     "number",
     "boolean",
+    "binary",
     "time",
     "enum",
     "json",
@@ -39,6 +45,29 @@ export const FIELD_TYPES = [
 
 /** The meaning of a field beyond its stored value. */
 export type FieldType = (typeof FIELD_TYPES)[number];
+
+/** The meaning of the fields each builder makes: an aggregate's value type, else the builder's own. */
+const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
+    string: "string",
+    integer: "integer",
+    bigint: "bigint",
+    number: "number",
+    binary: "binary",
+    boolean: "boolean",
+    time: "time",
+    fractionalIndex: "fractionalIndex",
+    text: "text",
+    count: "integer",
+    sum: "number",
+    min: "number",
+    max: "number",
+    enum: "enum",
+    json: "json",
+    file: "file",
+    subject: "subject",
+    state: "state",
+    reference: "reference",
+};
 
 /** The extra permissions reading or writing one field requires. */
 export interface FieldAccess {
@@ -67,6 +96,44 @@ export interface StateMachine {
         >
     >;
 }
+
+/** The builder call a field came from: the builder's name and its arguments as written, which its description records and decoding replays. */
+export type FieldSource =
+    | { readonly builder: "string"; readonly arguments: readonly [schema.Schema<string>] }
+    | {
+          readonly builder:
+              | "integer"
+              | "bigint"
+              | "number"
+              | "binary"
+              | "boolean"
+              | "time"
+              | "fractionalIndex"
+              | "text"
+              | "count"
+              | "sum"
+              | "min"
+              | "max";
+          readonly arguments: readonly [];
+      }
+    | { readonly builder: "enum"; readonly arguments: readonly [readonly [string, ...string[]]] }
+    | { readonly builder: "json"; readonly arguments: readonly [schema.Schema] }
+    | { readonly builder: "file"; readonly arguments: readonly [FileBucket] }
+    | { readonly builder: "subject"; readonly arguments: readonly Policy[] }
+    | { readonly builder: "state"; readonly arguments: readonly [StateMachine] }
+    | { readonly builder: "reference"; readonly arguments: ReferenceArguments };
+
+/** The modifiers a field's description records after its builder call, in the order decoding applies them. */
+export const FIELD_MODIFIERS = [
+    "optional",
+    "default",
+    "sensitive",
+    "personal",
+    "caller",
+    "guard",
+    "guardWrite",
+    "relate",
+] as const;
 
 /** Every state a state machine lists. */
 export type StateOf<Machine extends StateMachine> =
@@ -218,16 +285,10 @@ type BuildColumn<Value extends ColumnValue> = (
 
 /** What a field keeps beside its flags. */
 interface FieldOptions<Configuration extends FieldConfiguration> {
-    /** The field's meaning. */
-    readonly type: FieldType;
+    /** The builder call the field came from. */
+    readonly source: FieldSource;
     /** Create the nullable column storing the field. */
     readonly build: BuildColumn<Configuration["value"]>;
-    /** The referenced object type, for references to objects. */
-    readonly target?: (() => ObjectType) | undefined;
-    /** The principal kinds a principal reference or subject field accepts. */
-    readonly principals?: readonly Policy[] | undefined;
-    /** Whether a reference keeps the scope beside the identifier. */
-    readonly qualified?: boolean | undefined;
     /** The relation a reference declares. */
     readonly relation?: Configuration["relation"] | undefined;
     /** The value creation supplies when the caller omits the field. */
@@ -236,24 +297,12 @@ interface FieldOptions<Configuration extends FieldConfiguration> {
     readonly isPersonal?: boolean | undefined;
     /** The permissions reading or writing the value requires. */
     readonly access?: FieldAccess | undefined;
-    /** The aggregate function keeping the value current. */
-    readonly aggregate?: AggregateFunction | undefined;
-    /** The state machine the value follows. */
-    readonly machine?: StateMachine | undefined;
-    /** The bucket a file field keeps its files in. */
-    readonly bucket?: FileBucket | undefined;
 }
 
 /** A field of an object. */
 export class Field<Configuration extends FieldConfiguration = FieldConfiguration> {
-    /** The field's meaning. */
-    readonly type: FieldType;
-    /** The referenced object type, for references to objects. */
-    readonly target: (() => ObjectType) | undefined;
-    /** The principal kinds a principal reference or subject field accepts. */
-    readonly principals: readonly Policy[] | undefined;
-    /** Whether a reference keeps the scope beside the identifier. */
-    readonly qualified: boolean;
+    /** The builder call the field came from, which its meaning, target and storage follow. */
+    readonly source: FieldSource;
     /** The relation a reference declares, absent until its object keys it. */
     readonly relation: Configuration["relation"] | undefined;
     /** Whether every object must have a value. */
@@ -276,30 +325,29 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly isPersonal: boolean;
     /** The permissions reading or writing the value requires. */
     readonly access: FieldAccess | undefined;
-    /** The aggregate function keeping the value current. */
-    readonly aggregate: AggregateFunction | undefined;
-    /** The state machine the value follows. */
-    readonly machine: StateMachine | undefined;
-    /** The bucket a file field keeps its files in. */
-    readonly bucket: FileBucket | undefined;
     /** Create the nullable column storing the field. */
     readonly #build: BuildColumn<Configuration["value"]>;
+    /** What a reference refers to, absent for other fields. */
+    readonly #reference: ReferenceTarget | undefined;
+    /** The referenced object type, resolved on each call, absent for other fields. */
+    readonly #target: (() => ObjectType) | undefined;
 
     /** Retain the field's meaning, storage and flags. */
     constructor(definition: FieldOptions<Configuration> & FieldFlags<Configuration>) {
-        // retain the declaration and its column builder
-        this.type = definition.type;
-        this.target = definition.target;
-        this.principals = definition.principals;
-        this.qualified = definition.qualified ?? false;
+        // retain the source, the modifiers and the column builder
+        this.source = definition.source;
         this.relation = definition.relation;
         this.initial = definition.initial;
         this.isPersonal = definition.isPersonal ?? false;
         this.access = definition.access;
-        this.aggregate = definition.aggregate;
-        this.machine = definition.machine;
-        this.bucket = definition.bucket;
         this.#build = definition.build;
+
+        // read what a reference refers to once
+        this.#reference =
+            definition.source.builder === "reference"
+                ? ReferenceTarget.of(definition.source.arguments)
+                : undefined;
+        this.#target = this.#reference && ReferenceTarget.resolver(this.#reference);
 
         // retain the flags
         this.required = definition.required;
@@ -309,6 +357,53 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         this.isSensitive = definition.isSensitive;
         this.isCallerFilled = definition.isCallerFilled;
         this.isReference = definition.isReference;
+    }
+
+    /** The field's meaning, as its builder declares it. */
+    get type(): FieldType {
+        return BUILDER_TYPES[this.source.builder];
+    }
+
+    /** The referenced object type, for references to objects. */
+    get target(): (() => ObjectType) | undefined {
+        return this.#target;
+    }
+
+    /** The principal kinds a principal reference or subject field accepts. */
+    get principals(): readonly Policy[] | undefined {
+        // accept a subject field's kinds, or a principal reference's kind
+        const { source } = this;
+        if (source.builder === "subject") {
+            return source.arguments.length === 0 ? undefined : source.arguments;
+        }
+
+        return this.#reference?.kind === "principal" ? [this.#reference.target] : undefined;
+    }
+
+    /** Whether a reference keeps the scope beside the identifier. */
+    get qualified(): boolean {
+        return this.#reference?.kind === "qualified";
+    }
+
+    /** The aggregate function keeping the value current. */
+    get aggregate(): AggregateFunction | undefined {
+        const { builder } = this.source;
+
+        return builder === "count" || builder === "sum" || builder === "min" || builder === "max"
+            ? builder
+            : undefined;
+    }
+
+    /** The state machine the value follows. */
+    get machine(): StateMachine | undefined {
+        return this.source.builder === "state" ? this.source.arguments[0] : undefined;
+    }
+
+    /** The bucket a file field keeps its files in, by its declaring package and name. */
+    get bucket(): DeclarationReference | undefined {
+        return this.source.builder === "file"
+            ? DeclarationReference.of(this.source.arguments[0])
+            : undefined;
     }
 
     /** Create the column storing the field, its definition following the field's flags. */
@@ -420,6 +515,56 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         });
     }
 
+    /** Build the field a builder call alone makes, before any modifier. */
+    static #replay(source: FieldSource): Field;
+    /**
+     * Replay a field's builder call.
+     *
+     * @construct each source records a builder of `field` with the arguments it took, so replaying it builds a field.
+     */
+    static #replay(source: FieldSource): unknown {
+        const built: unknown = Reflect.apply(field[source.builder], field, source.arguments);
+
+        return built;
+    }
+
+    /** Describe the field as the builder calls making it: its builder's, then each modifier's that changes what the builder made. */
+    describe(): readonly [FieldSource, ...BuilderCall[]] {
+        // compare with the field the builder call alone makes
+        const plain = Field.#replay(this.source);
+        const { initial, access } = this;
+        const isDefaulted =
+            initial !== undefined &&
+            !this.isCallerFilled &&
+            (plain.initial === undefined ||
+                canonicalize(initial.value) !== canonicalize(plain.initial.value));
+        const modifiers: BuilderCall[] = [
+            ...(plain.required && !this.required ? [{ builder: "optional", arguments: [] }] : []),
+            ...(isDefaulted ? [{ builder: "default", arguments: [initial.value] }] : []),
+            ...(this.isSensitive && !plain.isSensitive
+                ? [{ builder: "sensitive", arguments: [] }]
+                : []),
+            ...(this.isPersonal && !plain.isPersonal
+                ? [{ builder: "personal", arguments: [] }]
+                : []),
+            ...(this.isCallerFilled && !plain.isCallerFilled
+                ? [{ builder: "caller", arguments: [] }]
+                : []),
+        ];
+
+        // guard reads and writes, and declare the reference's relation
+        const guarded =
+            access?.read !== undefined
+                ? [{ builder: "guard", arguments: [access] }]
+                : access?.write !== undefined
+                  ? [{ builder: "guardWrite", arguments: [access.write] }]
+                  : [];
+        const related =
+            this.relation === undefined ? [] : [{ builder: "relate", arguments: [this.relation] }];
+
+        return [this.source, ...modifiers, ...guarded, ...related];
+    }
+
     /** Read the relation the field keeps under a property: a reference's declared relation, any other field's property. */
     relationAt(property: string): string {
         return this.relation ?? property;
@@ -439,17 +584,12 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     /** Read what the field keeps beside its flags. */
     get #options(): FieldOptions<Configuration> {
         return {
-            type: this.type,
+            source: this.source,
             build: this.#build,
-            target: this.target,
-            principals: this.principals,
-            qualified: this.qualified,
             relation: this.relation,
             initial: this.initial,
             isPersonal: this.isPersonal,
             access: this.access,
-            aggregate: this.aggregate,
-            machine: this.machine,
         };
     }
 
@@ -493,10 +633,10 @@ export type ReferenceValue = string | QualifiedValue;
 
 /** Build a required, written field of one type from a nullable column. */
 function required<Value extends ColumnValue>(
-    type: FieldType,
+    source: FieldSource,
     build: BuildColumn<Value>,
 ): FieldOf<{ value: Value }> {
-    return new Field<FieldConfigurationOf<{ value: Value }>>({ type, build, ...WRITTEN });
+    return new Field<FieldConfigurationOf<{ value: Value }>>({ source, build, ...WRITTEN });
 }
 
 /** Define the nullable text column a string schema validates, typed by the schema's output. */
@@ -521,15 +661,13 @@ export function validated<Validator extends schema.Schema<string>>(
 /** Declare a field an aggregate keeps, starting at a value. */
 function aggregated(
     aggregate: "count" | "sum",
-    type: FieldType,
     build: (name: string) => ColumnBuilder<ColumnDefinition<number>>,
     initial: number,
 ): FieldOf<{ value: number; default: true; written: false }> {
     return new Field<FieldConfigurationOf<{ value: number; default: true; written: false }>>({
-        type,
+        source: { builder: aggregate, arguments: [] },
         build,
         initial: { value: initial },
-        aggregate,
         ...WRITTEN,
         isDefault: true,
         written: false,
@@ -539,13 +677,11 @@ function aggregated(
 /** Declare a field an extreme keeps, absent until a belonging object has a value. */
 function extreme(
     aggregate: "min" | "max",
-    type: FieldType,
     build: (name: string) => ColumnBuilder<ColumnDefinition<number>>,
 ): FieldOf<{ value: number; required: false; written: false }> {
     return new Field<FieldConfigurationOf<{ value: number; required: false; written: false }>>({
-        type,
+        source: { builder: aggregate, arguments: [] },
         build,
-        aggregate,
         ...WRITTEN,
         required: false,
         written: false,
@@ -599,64 +735,141 @@ function reference(target: Policy): FieldOf<{ value: string; reference: true }>;
  * @construct each form returns the field of the builder its signature refers to, typed by the values it keeps.
  */
 function reference(
+    ...written: ReferenceArguments
+): FieldOf<{ value: string; reference: true }> | FieldOf<{ value: QualifiedValue }> {
+    const referenced = ReferenceTarget.of(written);
+    switch (referenced.kind) {
+        case "principal":
+            return referencePrincipal(referenced.target, written);
+        case "object":
+            return referenceObject(referenced.target, referenced.options, written);
+        case "later":
+            return referenceLater(
+                referenced.identity,
+                referenced.target,
+                referenced.options,
+                written,
+            );
+        case "qualified":
+            return referenceQualified(referenced.target, written);
+    }
+}
+
+/** The arguments of `field.reference` as written: the target, then options or a later type, then options. */
+type ReferenceArguments = readonly [
     target: ObjectType | Policy | (() => ObjectType) | string,
     second?: ReferenceOptions | (() => ObjectType),
     third?: UnqualifiedOptions,
-): FieldOf<{ value: string; reference: true }> | FieldOf<{ value: QualifiedValue }> {
-    // reference a global principal kind
-    if (target instanceof Policy) {
-        return referencePrincipal(target, typeof second === "function" ? {} : (second ?? {}));
-    }
-    // reference a type declared later by its identity
-    else if (typeof second === "function") {
-        if (typeof target !== "string") {
+];
+
+/** What a reference refers to: a global principal kind, an object type now or declared later, or objects in any scope. */
+type ReferenceTarget =
+    | { readonly kind: "principal"; readonly target: Policy }
+    | { readonly kind: "object"; readonly target: ObjectType; readonly options: ReferenceOptions }
+    | {
+          readonly kind: "later";
+          readonly identity: string;
+          readonly target: () => ObjectType;
+          readonly options: ReferenceOptions;
+      }
+    | { readonly kind: "qualified"; readonly target: ObjectType | (() => ObjectType) | "self" };
+
+/** Read what a reference's arguments refer to. */
+const ReferenceTarget = {
+    /** Read the target of a reference's arguments, refusing a combination no form takes. */
+    of(written: ReferenceArguments): ReferenceTarget {
+        // reference a global principal kind
+        const [target, second, third] = written;
+        if (target instanceof Policy) {
+            if (second !== undefined || third !== undefined) {
+                throw new TypeError(
+                    `a reference to principal kind ${target.name} keeps a global identifier, without a scope or deletion`,
+                );
+            }
+
+            return { kind: "principal", target };
+        }
+        // reference a type declared later by its identity
+        else if (typeof second === "function") {
+            if (typeof target !== "string") {
+                throw new TypeError(
+                    "a reference to a type declared later names its identity first",
+                );
+            }
+
+            return { kind: "later", identity: target, target: second, options: third ?? {} };
+        }
+
+        // keep the scope beside the identifier
+        const options = second ?? {};
+        if (options.qualified === true) {
+            if (typeof target === "string" && target !== "self") {
+                throw new TypeError(
+                    `a qualified reference takes an object type or "self", not ${target}`,
+                );
+            }
+
+            return { kind: "qualified", target };
+        }
+        // refuse an unqualified reference without an object type
+        else if (typeof target === "string") {
+            throw new TypeError(
+                "a reference to its own type must be qualified; use a parent for trees",
+            );
+        } else if (typeof target === "function") {
             throw new TypeError("a reference to a type declared later names its identity first");
         }
 
-        return referenceLater(target, second, third ?? {});
-    }
+        return { kind: "object", target, options };
+    },
 
-    // keep the scope beside the identifier
-    const options = second ?? {};
-    if (options.qualified === true) {
-        if (typeof target === "string" && target !== "self") {
+    /** Resolve the object type a reference refers to, absent for a principal kind or the field's own type. */
+    resolver(referenced: ReferenceTarget): (() => ObjectType) | undefined {
+        switch (referenced.kind) {
+            case "principal":
+                return undefined;
+            case "object":
+                return () => referenced.target;
+            case "later":
+                return () => ReferenceTarget.resolve(referenced.identity, referenced.target);
+            case "qualified": {
+                const { target } = referenced;
+
+                return target === "self"
+                    ? undefined
+                    : typeof target === "function"
+                      ? target
+                      : () => target;
+            }
+        }
+    },
+
+    /** Resolve a type declared later, refusing one of another identity than its reference has. */
+    resolve(identity: string, target: () => ObjectType): ObjectType {
+        const resolved = target();
+        if (resolved.identity !== identity) {
             throw new TypeError(
-                `a qualified reference takes an object type or "self", not ${target}`,
+                `a reference to ${identity} resolves to object type ${resolved.name} of identity ${resolved.identity}`,
             );
         }
 
-        return referenceQualified(target);
-    }
-    // refuse an unqualified reference without an object type
-    else if (typeof target === "string") {
-        throw new TypeError(
-            "a reference to its own type must be qualified; use a parent for trees",
-        );
-    } else if (typeof target === "function") {
-        throw new TypeError("a reference to a type declared later names its identity first");
-    }
-
-    return referenceObject(target, options);
-}
+        return resolved;
+    },
+};
 
 /** Reference a global principal kind by its identifier. */
 function referencePrincipal(
     target: Policy,
-    options: ReferenceOptions,
+    written: ReferenceArguments,
 ): FieldOf<{ value: string; reference: true }> {
     if (target.definition.isGlobal !== true) {
         throw new TypeError(
             `principal kind ${target.name} lives in scopes; keep it with field.subject(principal.${target.name})`,
         );
-    } else if (options.qualified !== undefined || options.delete !== undefined) {
-        throw new TypeError(
-            `a reference to principal kind ${target.name} keeps a global identifier, without a scope or deletion`,
-        );
     }
 
     return new Field<FieldConfigurationOf<{ value: string; reference: true }>>({
-        type: "reference",
-        principals: [target],
+        source: { builder: "reference", arguments: written },
         build: (name) => text(name).validate(schema.string().min(1)),
         ...WRITTEN,
         isReference: true,
@@ -667,10 +880,10 @@ function referencePrincipal(
 function referenceObject(
     target: ObjectType,
     options: ReferenceOptions,
+    written: ReferenceArguments,
 ): FieldOf<{ value: string; reference: true }> {
     return new Field<FieldConfigurationOf<{ value: string; reference: true }>>({
-        type: "reference",
-        target: () => target,
+        source: { builder: "reference", arguments: written },
         build: (name, _owner, storage) =>
             keyed(
                 target.keyed === undefined
@@ -690,22 +903,13 @@ function referenceLater(
     identity: string,
     target: () => ObjectType,
     options: ReferenceOptions,
+    written: ReferenceArguments,
 ): FieldOf<{ value: string; reference: true }> {
-    // resolve the type, checking the identity the reference carries
-    const resolve = (): ObjectType => {
-        const resolved = target();
-        if (resolved.identity !== identity) {
-            throw new TypeError(
-                `a reference to ${identity} resolves to object type ${resolved.name} of identity ${resolved.identity}`,
-            );
-        }
-
-        return resolved;
-    };
+    // resolve the type, checking the identity the reference has
+    const resolve = (): ObjectType => ReferenceTarget.resolve(identity, target);
 
     return new Field<FieldConfigurationOf<{ value: string; reference: true }>>({
-        type: "reference",
-        target: resolve,
+        source: { builder: "reference", arguments: written },
         build: (name, _owner, storage) =>
             keyed(
                 validated(
@@ -724,14 +928,12 @@ function referenceLater(
 /** Reference objects in any scope by scope and identifier, of the field's own type for `"self"`. */
 function referenceQualified(
     target: ObjectType | (() => ObjectType) | "self",
+    written: ReferenceArguments,
 ): FieldOf<{ value: QualifiedValue }> {
-    const resolve =
-        target === "self" ? undefined : typeof target === "function" ? target : () => target;
+    const resolve = ReferenceTarget.resolver({ kind: "qualified", target });
 
     return new Field<FieldConfigurationOf<{ value: QualifiedValue }>>({
-        type: "reference",
-        target: resolve,
-        qualified: true,
+        source: { builder: "reference", arguments: written },
         build: (name, owner) =>
             json(
                 name,
@@ -747,13 +949,13 @@ function referenceQualified(
 }
 
 /** Read the identifier column of an object type's table, which holds the values its references hold. */
-export function keyColumn<Value extends ColumnValue>(table: Table): Column<ColumnDefinition<Value>>;
+export function idColumn<Value extends ColumnValue>(table: Table): Column<ColumnDefinition<Value>>;
 /**
  * Read the identifier column of an object type's table.
  *
  * @construct every object type keys its rows by its identifiers in an `id` column, and a reference resolves only to a type of the identity its values carry.
  */
-export function keyColumn(table: Table): Column {
+export function idColumn(table: Table): Column {
     return table[TABLE].column("id");
 }
 
@@ -769,8 +971,13 @@ function keyed<Definition extends ColumnDefinition>(
         return column;
     }
 
-    return column.references(() => keyColumn(target().table), {
-        onDelete: options.delete === "null" ? "set null" : (options.delete ?? "restrict"),
+    return column.references(() => idColumn(target().table), {
+        onDelete:
+            options.delete === "cascade"
+                ? "cascade"
+                : options.delete === "null"
+                  ? "set null"
+                  : "no action",
     });
 }
 
@@ -784,7 +991,9 @@ function string<Validator extends schema.Schema<string> = schema.Schema<string>>
  * @construct a string field omits its schema only when its validator type admits any string, which the signature's rest tuple requires.
  */
 function string(validator: schema.Schema<string> = schema.string()): FieldOf<{ value: string }> {
-    return required("string", (name) => validated(name, validator));
+    return required({ builder: "string", arguments: [validator] }, (name) =>
+        validated(name, validator),
+    );
 }
 
 /** Declare a field following a state machine, keeping the machine it follows. */
@@ -805,9 +1014,8 @@ function state(machine: StateMachine): FieldOf<{ value: string; default: true; w
     const names: [string, ...string[]] = [machine.initial, ...others];
 
     return new Field<FieldConfigurationOf<{ value: string; default: true; written: false }>>({
-        type: "state",
+        source: { builder: "state", arguments: [machine] },
         initial: { value: machine.initial },
-        machine,
         build: (name) => text(name, { enum: names }),
         ...WRITTEN,
         isDefault: true,
@@ -824,7 +1032,7 @@ function textField(): TextField;
  */
 function textField(): FieldOf<{ value: string; default: true; written: false }> {
     return new Field<FieldConfigurationOf<{ value: string; default: true; written: false }>>({
-        type: "text",
+        source: { builder: "text", arguments: [] },
         initial: { value: "" },
         build: () => {
             throw new TypeError("a text field keeps its characters in chunks, not a column");
@@ -842,47 +1050,59 @@ export const field = {
 
     /** A whole number within the exactly representable range. */
     integer() {
-        return required("integer", integer);
+        return required({ builder: "integer", arguments: [] }, integer);
+    },
+
+    /** A whole number of 64 bits, beyond the range a double holds exactly. */
+    bigint() {
+        return required({ builder: "bigint", arguments: [] }, bigint);
     },
 
     /** A double-precision number. */
     number() {
-        return required("number", real);
+        return required({ builder: "number", arguments: [] }, real);
     },
 
     /** The count of objects belonging to each object. */
     count(): FieldOf<{ value: number; default: true; written: false }> {
-        return aggregated("count", "integer", integer, 0);
+        return aggregated("count", integer, 0);
     },
 
     /** The sum of a field over each object's belonging objects. */
     sum(): FieldOf<{ value: number; default: true; written: false }> {
-        return aggregated("sum", "number", real, 0);
+        return aggregated("sum", real, 0);
     },
 
     /** The smallest value of a field over each object's belonging objects. */
     min(): FieldOf<{ value: number; required: false; written: false }> {
-        return extreme("min", "number", real);
+        return extreme("min", real);
     },
 
     /** The largest value of a field over each object's belonging objects. */
     max(): FieldOf<{ value: number; required: false; written: false }> {
-        return extreme("max", "number", real);
+        return extreme("max", real);
+    },
+
+    /** Bytes. */
+    binary() {
+        return required({ builder: "binary", arguments: [] }, binary);
     },
 
     /** True or false. */
     boolean() {
-        return required("boolean", boolean);
+        return required({ builder: "boolean", arguments: [] }, boolean);
     },
 
     /** An instant in UTC epoch milliseconds. */
     time() {
-        return required("time", integer);
+        return required({ builder: "time", arguments: [] }, integer);
     },
 
     /** One of a fixed set of strings. */
     enum<const Values extends readonly [string, ...string[]]>(values: Values) {
-        return required("enum", (name) => text(name, { enum: values }));
+        return required({ builder: "enum", arguments: [values] }, (name) =>
+            text(name, { enum: values }),
+        );
     },
 
     /** A state machine changed by its transition methods. */
@@ -890,15 +1110,16 @@ export const field = {
 
     /** A structured value validated by a schema. */
     json<Value extends JsonValue>(validator: schema.Schema<Value>) {
-        return required("json", (name) => json(name, validator));
+        return required({ builder: "json", arguments: [validator] }, (name) =>
+            json(name, validator),
+        );
     },
 
     /** A file kept in a bucket the package declares, by its key. */
-    file(bucket: FileBucket) {
+    file(bucket: FileBucket): FieldOf<{ value: ObjectFile }> {
         return new Field<FieldConfigurationOf<{ value: ObjectFile }>>({
-            type: "file",
+            source: { builder: "file", arguments: [bucket] },
             build: (name) => json(name, ObjectFile),
-            bucket,
             ...WRITTEN,
         });
     },
@@ -917,8 +1138,7 @@ export const field = {
                       .regex(new RegExp(`^(${prefixes.map(literally).join("|")}),`, "u"));
 
         return new Field<FieldConfigurationOf<{ value: string }>>({
-            type: "subject",
-            ...(kinds.length === 0 ? {} : { principals: kinds }),
+            source: { builder: "subject", arguments: kinds },
             build: (name) => text(name).validate(key),
             ...WRITTEN,
         });
@@ -929,7 +1149,9 @@ export const field = {
 
     /** A fractional index ordering objects among their siblings. */
     fractionalIndex() {
-        return required("fractionalIndex", (name) => text(name).validate(FractionalIndex));
+        return required({ builder: "fractionalIndex", arguments: [] }, (name) =>
+            text(name).validate(FractionalIndex),
+        );
     },
 
     /** A text kept in chunks and changed by edits, empty at first. */

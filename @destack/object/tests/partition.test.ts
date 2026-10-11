@@ -4,7 +4,7 @@ import { AccessFixture } from "@destack/access/test";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { present, schema, Clock } from "@destack/schema";
 import { defineService } from "@destack/service";
 import { testInstallation } from "@destack/service/test";
 import type { Uplink } from "@destack/sync";
@@ -71,6 +71,7 @@ test.each(TEST_DIALECTS)(
         await openSpace(storage.database, spaceId);
         const serve = (partition?: string) =>
             new ObjectStore({
+                clock: Clock.system,
                 principal: spacePrincipal(spaceId),
                 objects: { card },
                 database: storage.database,
@@ -103,7 +104,7 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, roomsDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        await new AccessFixture(storage.database).copyPartition(room.reference(spaceId, ROOM));
+        await new AccessFixture(storage.database).copyScope(room.reference(spaceId, ROOM), "own");
 
         // serve the installation at its root and in the room, recording the publishers it reaches
         const reached: string[] = [];
@@ -111,6 +112,7 @@ test.each(TEST_DIALECTS)(
         const root = idle("root");
         const subscriptions = async (partition: string) => {
             const { store } = ObjectExtension.compose([ObjectExtension.of(roomsService, [])], {
+                clock: Clock.system,
                 origin: { package: roomsService.package, service: roomsService.name },
                 callKey: testCallKey,
                 database: storage.database,

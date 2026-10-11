@@ -1,17 +1,15 @@
 import {
     TABLE,
     type DatabaseConnection,
-    type Table,
     DatabaseError,
-    Condition,
-    Order,
     type LogPosition,
     type Overlay,
     type Snapshot,
+    type Transaction,
 } from "@destack/db";
 import { Subject } from "@destack/sync";
 import { Replay } from "@destack/audit";
-import { schema } from "@destack/schema";
+import { found, schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
 import { Call } from "../method/index.ts";
@@ -35,36 +33,42 @@ export interface BranchState {
     /** The log position the branch's rows were last built at. */
     readonly built: LogPosition;
     /** The SQL names of the tables the branch's calls read or write. */
-    readonly reach: readonly string[];
+    readonly tables: readonly string[];
 }
 
 /** One branch of a scope, opened on a database: its calls, and the rows they change. */
 export class Branch {
     /** The scope type's branch types. */
     readonly types: BranchType;
-    /** The database keeping the branch. */
-    readonly database: DatabaseConnection;
+    /** The view the branch reads through: a call's view of the database keeping it. */
+    readonly snapshot: Snapshot;
     /** The branch's identifier. */
     readonly id: string;
 
-    /** Open a branch on a database. */
-    constructor(types: BranchType, database: DatabaseConnection, id: string) {
+    /** Open a branch in a view of its database. */
+    constructor(types: BranchType, snapshot: Snapshot, id: string) {
         this.types = types;
-        this.database = database;
+        this.snapshot = snapshot;
         this.id = id;
+    }
+
+    /** The database keeping the branch. */
+    get database(): DatabaseConnection {
+        return this.snapshot.database;
+    }
+
+    /** Count the branch's calls. */
+    async count(): Promise<number> {
+        return (await this.snapshot.rows(this.types.call.table, { parentId: this.id })).length;
     }
 
     /** Read the branch's calls in order, each with its author. */
     async calls(): Promise<BranchCall[]> {
-        const table = this.types.call.table;
-        const stored = await this.database
-            .select()
-            .from(table)
-            .where(this.#children(table))
-            .orderBy(...Order.render([{ column: "position", direction: "asc" }], table));
+        const stored = await this.snapshot.rows(this.types.call.table, { parentId: this.id });
 
         return stored
             .map((entry) => STORED_CALL.parse(entry))
+            .toSorted((left, right) => Number(left["position"]) - Number(right["position"]))
             .map(({ method, input, release, author }) => ({
                 method,
                 input,
@@ -75,8 +79,7 @@ export class Branch {
 
     /** Read the rows the branch changes. */
     async rows(): Promise<BranchWrite[]> {
-        const table = this.types.row.table;
-        const stored = await this.database.select().from(table).where(this.#children(table));
+        const stored = await this.snapshot.rows(this.types.change.table, { parentId: this.id });
 
         return stored.map((entry) => {
             const { id: _id, ...row } = BranchWrite.read(entry);
@@ -125,12 +128,12 @@ export class Branch {
         state: BranchState,
         calls: readonly BranchCall[],
         over: readonly BranchWrite[],
-    ): Promise<{ readonly reach: string[]; readonly built: LogPosition }> {
+    ): Promise<{ readonly tables: string[]; readonly built: LogPosition }> {
         const replayed = await this.#replay(call, calls, over);
         await this.store(call, replayed.rows);
 
         return {
-            reach: [...new Set([...state.reach, ...replayed.reach])].toSorted(),
+            tables: [...new Set([...state.tables, ...replayed.tables])].toSorted(),
             built: await this.database.log.position(),
         };
     }
@@ -138,8 +141,7 @@ export class Branch {
     /** Replace the branch's stored rows with some rows, writing only those that changed. */
     async store(call: Call, replaced: readonly BranchWrite[]): Promise<void> {
         // match the stored rows by table and key
-        const table = this.types.row.table;
-        const stored = await this.database.select().from(table).where(this.#children(table));
+        const stored = await this.snapshot.rows(this.types.change.table, { parentId: this.id });
         const byName = new Map(
             stored.map((entry) => BranchWrite.read(entry)).map((entry) => [named(entry), entry]),
         );
@@ -150,20 +152,20 @@ export class Branch {
             byName.delete(named(entry));
             if (existing !== undefined) {
                 await call.mutate(call.caller, [
-                    Call.record(this.types.row, "update", {
+                    Call.record(this.types.change, "update", {
                         id: existing.id,
-                        row: entry.row,
+                        after: entry.after,
                         before: entry.before,
                     }),
                 ]);
             } else {
                 await call.mutate(call.caller, [
-                    Call.record(this.types.row, "create", {
-                        id: `${this.types.row.identity}-${v7()}`,
+                    Call.record(this.types.change, "create", {
+                        id: `${this.types.change.identity}-${v7()}`,
                         parentId: this.id,
                         table: entry.table,
                         key: entry.key,
-                        ...(entry.row === null ? {} : { row: entry.row }),
+                        ...(entry.after === null ? {} : { after: entry.after }),
                         ...(entry.before === null ? {} : { before: entry.before }),
                     }),
                 ]);
@@ -171,7 +173,7 @@ export class Branch {
         }
         for (const entry of byName.values()) {
             await call.mutate(call.caller, [
-                Call.record(this.types.row, "delete", { id: entry.id }),
+                Call.record(this.types.change, "delete", { id: entry.id }),
             ]);
         }
     }
@@ -180,7 +182,7 @@ export class Branch {
     async isStale(objects: readonly ObjectType[], state: BranchState): Promise<boolean> {
         // read the reached tables, and require the same log epoch
         const tables = [...this.types.tables(objects).values()].filter((table) =>
-            state.reach.includes(table[TABLE].sqlName),
+            state.tables.includes(table[TABLE].sqlName),
         );
         if (tables.length === 0) {
             return false;
@@ -207,7 +209,7 @@ export class Branch {
 
     /** Read the rows the branch puts over the main line as a snapshot shows them, for reads. */
     async overlay(snapshot: Snapshot, objects: readonly ObjectType[]): Promise<Overlay> {
-        const stored = await snapshot.rows(this.types.row.table, { parentId: this.id });
+        const stored = await snapshot.rows(this.types.change.table, { parentId: this.id });
         const rows = stored.map((entry) => BranchWrite.read(entry));
 
         return BranchWrite.overlay(rows, this.types.tables(objects));
@@ -223,26 +225,31 @@ export class Branch {
         call: Call,
         calls: readonly BranchCall[],
         over: readonly BranchWrite[],
-    ): Promise<{ readonly rows: BranchWrite[]; readonly reach: string[] }> {
-        // replay in a savepoint rolled back after reading what it wrote
+    ): Promise<{ readonly rows: BranchWrite[]; readonly tables: string[] }> {
+        // rehearse over the call's transaction, dropping what the replay writes
         const tables = this.types.tables(call.objects);
+        const transaction = call.requireTransaction();
+        const reached = new Set(over.map((row) => row.table));
+        const { changes } = await transaction.rehearse(async () => {
+            // write the rows over the main line's
+            for (const entry of over) {
+                const table = found(tables, entry.table);
+                const key = table[TABLE].decode(entry.key);
+                const main = await transaction.row(table, key);
+                const after = entry.after === null ? null : table[TABLE].decode(entry.after);
+                await transaction.write({ table, before: main, after });
+            }
 
-        return this.database.rehearse(async (savepoint) => {
-            // write the rows and each call apart, skipping refused calls and external work
-            const before = (await savepoint.log.written([...tables.values()])).length;
-            await BranchWrite.write(savepoint, tables, over);
-            const reach = new Set(over.map((row) => row.table));
+            // run each call apart, skipping refused calls and external work
             for (const entry of calls) {
                 const resolved = this.types.resolve(call.objects, entry, call.scope);
                 const method = resolved.object.method(resolved.name);
-                reach.add(resolved.object.table[TABLE].sqlName);
-
-                // run the call unless it does external work
+                reached.add(resolved.object.table[TABLE].sqlName);
                 const run = call.run;
                 if (method.prepare === undefined && run === undefined) {
                     throw new TypeError("replaying branch calls needs a call that runs methods");
                 } else if (method.prepare === undefined && run !== undefined) {
-                    await Branch.#attempt(savepoint, () =>
+                    await Branch.#attempt(transaction, () =>
                         run(
                             Call.record(resolved.object, resolved.name, resolved.input),
                             Caller.of(entry.author, call.now),
@@ -251,31 +258,24 @@ export class Branch {
                     );
                 }
             }
-
-            // keep the rows the replay leaves changed
-            const rows = BranchWrite.capture(
-                (await savepoint.log.written([...tables.values()])).slice(before),
-            );
-
-            return {
-                rows,
-                reach: [...new Set([...reach, ...rows.map((row) => row.table)])].toSorted(),
-            };
         });
-    }
 
-    /** Match the rows nested in the branch. */
-    #children(table: Table) {
-        return Condition.render({ parentId: this.id }, table);
+        // keep the rows of the branch's tables the replay leaves changed
+        const names = new Set(tables.keys());
+        const rows = BranchWrite.capture(
+            changes.filter((change) => names.has(change.table[TABLE].sqlName)),
+        );
+
+        return {
+            rows,
+            tables: [...new Set([...reached, ...rows.map((row) => row.table)])].toSorted(),
+        };
     }
 
     /** Run a replayed call in its own savepoint, skipping a refusal the store would answer for good. */
-    static async #attempt(
-        database: DatabaseConnection,
-        run: () => Promise<unknown>,
-    ): Promise<void> {
+    static async #attempt(transaction: Transaction, run: () => Promise<unknown>): Promise<void> {
         try {
-            await database.transaction(run);
+            await transaction.savepoint(run);
         } catch (error) {
             if (Replay.failure(error) === undefined) {
                 throw error;

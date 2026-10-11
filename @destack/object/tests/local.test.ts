@@ -3,7 +3,7 @@ import { principal } from "@destack/access";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
-import { Identifier } from "@destack/schema";
+import { Identifier, Clock } from "@destack/schema";
 import { defineService } from "@destack/service";
 import { testCallKey } from "@destack/service/test";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
@@ -24,6 +24,7 @@ test("read a local object one tab writes in another tab over the shared database
     const host = browserHost(await WasmClient.memory());
     const open = () =>
         BrowserTab.open({
+            clock: Clock.system,
             name: "notes",
             objects: { notebook, note, draft },
             scope: spaceId,
@@ -72,6 +73,7 @@ test("keep a user's local objects from another user on the same client, and the 
     await ObjectClient.migrate(storage.database, objects);
     const clientOf = (person: string, device: string) =>
         ObjectClient.open({
+            clock: Clock.system,
             database: storage.database,
             objects,
             scope: spaceId,
@@ -115,6 +117,7 @@ test("refuse to serve local objects, and refuse local definitions reaching beyon
                 ObjectExtension.compose(
                     [ObjectExtension.of(defineService("drafts", { objects: { draft } }), [])],
                     {
+                        clock: Clock.system,
                         origin: {
                             package: defineService("drafts", { objects: { draft } }).package,
                             service: defineService("drafts", { objects: { draft } }).name,

@@ -2,7 +2,8 @@ import { Duration, type schema } from "@destack/schema";
 import { type ColumnBuilder, integer, text } from "@destack/db";
 import type { FieldColumn } from "../field/field.ts";
 import type { Call } from "../method/call.ts";
-import { method, type Method } from "../method/method.ts";
+import type { Method } from "../method/method.ts";
+import { method } from "../method/record.ts";
 import {
     Empty,
     type Procedure,
@@ -136,11 +137,14 @@ export const recoverable: Trait<RecoverableDefinition> & {
 
         // copy the type with the window
         const options: RecoverableDefinition = { ...declared, within };
-        const traits = object.traits.map((applied) =>
-            applied.trait === recoverable ? { trait: applied.trait, options } : applied,
-        );
 
-        return object.with({ lifecycle: { ...object.lifecycle, recoverable: options }, traits });
+        return object.with({
+            definition: {
+                ...object.definition,
+                recoverable: options,
+                source: { ...object.source, recoverable: options },
+            },
+        });
     },
 };
 

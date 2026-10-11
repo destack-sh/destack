@@ -1,16 +1,5 @@
 import { Manager } from "@destack/access";
-import {
-    and,
-    type DatabaseConnection,
-    eq,
-    type Insert,
-    isNull,
-    type Row,
-    type Select,
-    sql,
-    TABLE,
-    type Table,
-} from "@destack/db";
+import { type Condition, type Row, TABLE, type Transaction } from "@destack/db";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { defineMethod, type Method } from "./method.ts";
@@ -105,7 +94,9 @@ async function requireAdoptable(call: Call): Promise<void> {
     const { manager } = AdoptInput.parse(call.input);
     const target: Row | undefined = call.target;
     const managed = target === undefined ? null : Manager.read(ManagerColumns.parse(target));
-    const declared = await find(call.database, call.object, call.scope, manager);
+    const [declared] = await call
+        .read(call.object.table)
+        .rows(declaredBy(call.object, call.scope, manager));
 
     // refuse a managed record, a record of another declaration and a declaration with another record
     if (isManaging(target)) {
@@ -161,13 +152,17 @@ export const apply: Method<{
     handler: async (call: Call) => {
         // read the record the manager declared
         const { manager, values } = ApplyInput.parse(call.input);
-        const { object, database, now } = call;
-        const applied = await find(database, object, call.scope, manager);
+        const { object, now } = call;
+        const transaction = call.requireTransaction();
+        const [applied] = await transaction.rows(
+            object.table,
+            declaredBy(object, call.scope, manager),
+        );
 
         // retire a record no longer declared
         if (values === null) {
             if (applied !== undefined) {
-                await retire(database, object, applied, now);
+                await retire(transaction, object, applied, now);
             }
 
             return {};
@@ -175,131 +170,90 @@ export const apply: Method<{
 
         // create a missing record under the chosen identifier, or write the values over it as its next revision
         const decoded = object.table[TABLE].decode(values);
-        const id =
+        const row =
             applied === undefined
-                ? await insert(database, object, {
-                      id: call.id ?? object.generateId(),
+                ? created(object, {
+                      id: call.id ?? call.generateId(object),
                       scope: call.scope,
                       manager,
                       values: decoded,
                       now,
                   })
-                : await rewrite(database, object, applied, decoded, now);
+                : rewritten(object, applied, decoded, now);
+        await transaction.write({ table: object.table, before: applied ?? null, after: row });
 
-        return read(database, object, id);
+        return row;
     },
 });
 
-/** Find the record a manager declared in a scope, leaving out purged ones. */
-async function find(
-    database: DatabaseConnection,
-    object: ObjectType,
-    scope: string,
-    manager: Manager,
-): Promise<Row | undefined> {
-    const table = object.table[TABLE];
-    const [row] = await database
-        .select()
-        .from(object.table)
-        .where(
-            and(
-                eq(table.column("scope"), scope),
-                eq(table.column("managerInstallationId"), manager.installationId),
-                eq(table.column("managerPackageId"), manager.packageId),
-                eq(table.column("managerName"), manager.name),
-                "purgedAt" in table.columns ? isNull(table.column("purgedAt")) : undefined,
-            ),
-        );
+/** Match the record a manager declared in a scope, leaving out purged ones. */
+function declaredBy(object: ObjectType, scope: string, manager: Manager): Condition {
+    const isPurgeable = "purgedAt" in object.table[TABLE].columns;
 
-    return row;
+    return {
+        scope,
+        managerInstallationId: manager.installationId,
+        managerPackageId: manager.packageId,
+        managerName: manager.name,
+        ...(isPurgeable ? { purgedAt: { isNull: true } } : {}),
+    };
 }
 
-/** Insert a declared record under its manager, answering its identifier. */
-async function insert(
-    database: DatabaseConnection,
+/** Build a declared record under its manager. */
+function created(
     object: ObjectType,
     record: {
         readonly id: string;
         readonly scope: string;
         readonly manager: Manager;
-        readonly values: Partial<Insert<Table>>;
+        readonly values: Row;
         readonly now: number;
     },
-): Promise<string> {
-    const table: Table = object.table;
-    await database.insert(table).values({
-        id: record.id,
-        createdAt: record.now,
-        updatedAt: record.now,
-        ...record.values,
-        scope: record.scope,
-        ...Manager.values(record.manager),
-    });
+): Row {
+    const table = object.table[TABLE];
 
-    return record.id;
+    return table.complete(
+        table.values({
+            id: record.id,
+            createdAt: record.now,
+            updatedAt: record.now,
+            ...record.values,
+            scope: record.scope,
+            ...Manager.values(record.manager),
+        }),
+    );
 }
 
-/** Write declared values over a record as its next revision, advancing its generation and lifting a deletion request, answering its identifier. */
-async function rewrite(
-    database: DatabaseConnection,
-    object: ObjectType,
-    row: Row,
-    values: Partial<Insert<Table>>,
-    now: number,
-): Promise<string> {
-    // write the values with the next revision and generation, without a deletion request
+/** Write declared values over a record as its next revision, advancing its generation and lifting a deletion request. */
+function rewritten(object: ObjectType, row: Row, values: Row, now: number): Row {
     const table = object.table[TABLE];
-    const columns: Table = object.table;
-    const id = schema.string().parse(row["id"]);
-    await database
-        .update(columns)
-        .set({
-            ...values,
-            ...("generation" in table.columns
-                ? { generation: sql`${table.column("generation")} + 1` }
-                : {}),
-            ...("deletionRequestedAt" in table.columns
-                ? { deletionRequestedAt: null, deletedBy: null }
-                : {}),
-            revision: Number(row["revision"] ?? 0) + 1,
-            updatedAt: now,
-        })
-        .where(eq(table.column("id"), id));
 
-    return id;
+    return table.values({
+        ...row,
+        ...values,
+        ...("generation" in table.columns
+            ? { generation: schema.number().parse(row["generation"]) + 1 }
+            : {}),
+        ...("deletionRequestedAt" in table.columns
+            ? { deletionRequestedAt: null, deletedBy: null }
+            : {}),
+        revision: schema.number().parse(row["revision"]) + 1,
+        updatedAt: now,
+    });
 }
 
 /** Retire a record no longer declared: request its deletion where a trash or controller finishes it, or delete it. */
 async function retire(
-    database: DatabaseConnection,
+    transaction: Transaction,
     object: ObjectType,
     row: Row,
     now: number,
 ): Promise<void> {
-    // request the deletion of a deletable record, or delete it
     const table = object.table[TABLE];
-    const columns: Table = object.table;
-    const id = eq(table.column("id"), schema.string().parse(row["id"]));
-    if ("deletionRequestedAt" in table.columns) {
-        await database.update(columns).set({ deletionRequestedAt: now, deletedBy: null }).where(id);
-    } else {
-        await database.delete(columns).where(id);
-    }
-}
-
-/** Read one applied record by identifier. */
-async function read(
-    database: DatabaseConnection,
-    object: ObjectType,
-    id: string,
-): Promise<Select<Table>> {
-    const [row] = await database
-        .select()
-        .from(object.table)
-        .where(eq(object.table[TABLE].column("id"), id));
-    if (row === undefined) {
-        throw new TypeError(`the applied ${object.name} ${id} is missing`);
-    }
-
-    return row;
+    const requested = { ...row, deletionRequestedAt: now, deletedBy: null };
+    await transaction.write({
+        table: object.table,
+        before: row,
+        after: "deletionRequestedAt" in table.columns ? table.values(requested) : null,
+    });
 }

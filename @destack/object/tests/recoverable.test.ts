@@ -1,7 +1,7 @@
 import { type Change, eq, defineDatabase } from "@destack/db";
 import { Subject } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/service/test";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -59,24 +59,18 @@ test.each(TEST_DIALECTS)(
 
         // serve credentials restorable for a week with a purge handler that destroys the value
         const handled = recoverable.within(
-            credential.handle({
-                purge: async (call, next) => {
-                    await call.database
-                        .update(credential.table)
-                        .set({ value: null })
-                        .where(
-                            eq(
-                                credential.table.id,
-                                present(call.target, "the purged credential").id,
-                            ),
-                        );
+            credential.implement({
+                methods: {
+                    purge: async (call, next) => {
+                        await call.update({ value: null });
 
-                    return next();
+                        return next();
+                    },
                 },
             }),
             { days: 7 },
         );
-        let now = Date.now();
+        const clock = new TestClock(Date.now());
         const serve = (object: ObjectType) =>
             new ObjectStore({
                 principal: spacePrincipal(spaceId),
@@ -87,7 +81,7 @@ test.each(TEST_DIALECTS)(
                     package: credential.package,
                     service: "test",
                 },
-                clock: () => now,
+                clock,
             });
         let context = userContext("user-1", spaceId);
         const execute = <Object extends typeof credential, Name extends CallableName<Object>>(
@@ -164,7 +158,7 @@ test.each(TEST_DIALECTS)(
         await execute(handled, "delete", { id: expired.id, revision: expired.revision });
         const store = serve(handled);
         const later = Date.now() + 8 * 24 * 60 * 60 * 1000;
-        now = later;
+        clock.set(later);
         expect([
             await RecoverableController.purge(store, later),
             await RecoverableController.purge(store, later),
@@ -175,7 +169,7 @@ test.each(TEST_DIALECTS)(
             .from(credential.table)
             .where(eq(credential.table.id, expired.id));
         expect(kept).toEqual({ value: null, purgedAt: later });
-        now = Date.now();
+        clock.set(Date.now());
 
         // look again and purge after the next window ends
         const controller = new RecoverableController(store);
@@ -217,7 +211,7 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([[handled.table], ["trash"], [], ["trash"], true]);
         await database
             .update(credential.table)
-            .set({ deletionRequestedAt: now - week - 1 })
+            .set({ deletionRequestedAt: clock.now() - week - 1 })
             .where(eq(credential.table.id, pending.id));
         expect(
             await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),

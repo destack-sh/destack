@@ -101,7 +101,7 @@ export const Settlement = {
     },
 
     /** Settle one claimed settlement as its row records, committing a committed call's work and rolling back any other before forgetting it. */
-    async settle(store: Omit<ObjectStore, "router">, row: Settlement, now: number): Promise<void> {
+    async settle(store: ObjectStore, row: Settlement, now: number): Promise<void> {
         // find the method
         const object = store.objects.find((served) => served.name === row.object);
         if (object === undefined) {
@@ -128,23 +128,20 @@ export const Settlement = {
         });
         const prepared = row.prepared === null ? undefined : declared.parse(row.prepared.value);
 
-        // commit a committed call's work, and roll back the work of any other
+        // settle a committed call's work as committed, and any other's as rolled back
         if (row.committedAt !== null) {
             if (prepared === undefined) {
                 throw new TypeError(`settlement ${row.id} committed without its prepared value`);
             }
-            await method.commit?.(call, prepared);
+            await method.settle?.(call, { status: "committed", prepared });
         } else {
-            await method.rollback?.(call, prepared);
+            await method.settle?.(call, { status: "rolledBack", prepared });
         }
         await Settlement.forget(store.database, row.id);
     },
 
     /** Settle what servers left once the grace passes. */
-    controller(
-        store: Omit<ObjectStore, "router">,
-        options: { readonly grace?: Duration } = {},
-    ): Controller {
+    controller(store: ObjectStore, options: { readonly grace?: Duration } = {}): Controller {
         const grace =
             options.grace === undefined
                 ? SETTLE_GRACE_MILLISECONDS
@@ -164,7 +161,7 @@ export const Settlement = {
                     .select()
                     .from(settlement)
                     .where(eq(settlement.id, key));
-                const now = store.clock();
+                const now = store.clock.now();
                 if (row === undefined) {
                     return undefined;
                 } else if (row.createdAt > now - grace) {

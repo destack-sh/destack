@@ -32,17 +32,20 @@ import {
     declareState,
     type LogPosition,
     Snapshot,
+    Transaction,
 } from "@destack/db";
 import {
+    aligned,
+    canonicalize,
+    Clock,
     Digest,
     Duration,
-    schema,
-    canonicalize,
-    aligned,
     found,
-    present,
+    type Identifier,
     type JsonObject,
     type JsonValue,
+    present,
+    schema,
 } from "@destack/schema";
 import type { Client } from "@destack/service";
 import { createClient, type ClientOptions } from "@destack/service/client";
@@ -73,6 +76,7 @@ import {
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 import { ObjectType, type ObjectStorage, type PermissionOf } from "../object/object.ts";
+import { ObjectAccess } from "../object/access.ts";
 
 import type { NestedItem } from "../query/item.ts";
 import { related } from "../query/query.ts";
@@ -273,8 +277,10 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
     readonly client?: Subject;
     /** Where and how to reach the service serving the objects. */
     readonly endpoint: ClientOptions;
+    /** The clock the client reads time at: its log compaction, its queries' keep and its access decisions. */
+    readonly clock: Clock;
     /** Where and how to reach the machine serving a moved scope now. */
-    readonly reconnect: (machine: string) => ClientOptions;
+    readonly reconnect: (machine: Identifier<"machine">) => ClientOptions;
     /** The party sharing the database, a new one by default. */
     readonly origin?: string;
     /** How often merged changes arrive, such as for a background tab. */
@@ -335,7 +341,7 @@ export class ObjectClient<
     /** The replica procedures of the machine serving the scope now. */
     #service: Client<ReplicaProcedures>;
     /** Connect to the replica procedures of the machine serving a moved scope now. */
-    readonly #reconnect: (machine: string) => Client<ReplicaProcedures>;
+    readonly #reconnect: (machine: Identifier<"machine">) => Client<ReplicaProcedures>;
     /** Aborts the streams following the machine that served a moved scope before. */
     #moves = new AbortController();
     /** The local feed of watched queries. */
@@ -350,6 +356,8 @@ export class ObjectClient<
     readonly #logMilliseconds: number;
     /** How transient failures retry. */
     readonly #retry: RetryPolicy;
+    /** The clock the client reads time at. */
+    readonly #clock: Clock;
     /** Aborts outcome waits and lookups on close. */
     readonly #closing = new AbortController();
     /** The object rows the copy kept at a log sequence, absent before the first count. */
@@ -385,6 +393,7 @@ export class ObjectClient<
                 ? LOCAL_LOG_MILLISECONDS
                 : Duration.milliseconds(options.log.keep);
         this.#retry = { ...RETRY, ...options.retry };
+        this.#clock = options.clock;
         this.origin = options.origin;
         this.writerId = RequestId.create();
         this.#undoStack = new UndoStack(this);
@@ -396,12 +405,11 @@ export class ObjectClient<
         this.caller = options.caller;
         this.#owners = [options.caller, ...(options.client === undefined ? [] : [options.client])];
 
-        // reach the package serving the copied objects, requiring one scope field among them
+        // reach the package serving the copied objects
         const copied = this.objects.filter((object) => object.storage !== "local");
         const served = ObjectClient.#served(copied, options.package);
         this.#service = ObjectClient.#replica(served, options.endpoint);
         this.#reconnect = (machine) => ObjectClient.#replica(served, options.reconnect(machine));
-        requireOneScopeField(copied);
 
         // copy durable objects with their predictions, and ephemeral and external objects apart
         const tables = storedTables(this.objects, "durable");
@@ -417,7 +425,7 @@ export class ObjectClient<
             scope: options.scope,
             tables: decisionTables,
         });
-        this.#authorizer = ObjectType.authorizer(this.objects, [], (table) =>
+        this.#authorizer = ObjectAccess.authorizer(this.objects, [], (table) =>
             options.database.copies(table),
         );
 
@@ -425,6 +433,7 @@ export class ObjectClient<
         const others = SEPARATE_STORAGES.flatMap((storage) => this.#stored(storage));
         this.#local = new sync.Feed(options.database, [...tables, ...others, sync.replicaResult], {
             upstream: this.#upstream(this.objects),
+            clock: this.#clock,
         });
     }
 
@@ -573,13 +582,14 @@ export class ObjectClient<
         const branches = types.object.table;
 
         return {
-            tables: [branches[TABLE].sqlName, types.row.table[TABLE].sqlName],
+            tables: [branches[TABLE].sqlName, types.change.table[TABLE].sqlName],
             isOpen: async (transaction, id) => {
                 const row = await Snapshot.live(transaction).row(branches, { id });
 
                 return row === null || BranchType.record(row).state === "open";
             },
-            apply: (transaction, id) => new Branch(types, transaction, id).apply(objects),
+            apply: (transaction, id) =>
+                new Branch(types, Snapshot.live(transaction), id).apply(objects),
         };
     }
 
@@ -795,7 +805,7 @@ export class ObjectClient<
                 ? []
                 : [
                       this.#live(types.object, { where: { id: branch } }),
-                      this.#live(types.row, { where: { parentId: branch } }),
+                      this.#live(types.change, { where: { parentId: branch } }),
                   ];
 
         // show it over the main line
@@ -809,8 +819,9 @@ export class ObjectClient<
         if (types === undefined) {
             throw new TypeError("a client without branch types follows no branch");
         }
-        const rows = this.#live(types.row, { where: { parentId: branch } });
-        const read = () => new Branch(types, this.database, branch).changes(this.objects);
+        const rows = this.#live(types.change, { where: { parentId: branch } });
+        const read = () =>
+            new Branch(types, Snapshot.live(this.database), branch).changes(this.objects);
 
         return {
             ready: rows.ready,
@@ -1005,7 +1016,7 @@ export class ObjectClient<
     ): Promise<void> {
         // register the copy, and read its parameters as they are now
         const parameters = async () => PARAMETERS.parse(await copy.parameters());
-        await copy.replica.register(this.database);
+        await copy.replica.register(this.database, { clock: this.#clock });
         let failures = 0;
         const resetFailures = () => {
             failures = 0;
@@ -1058,7 +1069,7 @@ export class ObjectClient<
     async #dropExpired(): Promise<void> {
         await this.database
             .delete(subscription)
-            .where(lte(sql`${subscription.releasedAt} + ${subscription.keep}`, Date.now()));
+            .where(lte(sql`${subscription.releasedAt} + ${subscription.keep}`, this.#clock.now()));
     }
 
     /** Abort a follow once its parameters change, reporting a failed watch. */
@@ -1103,12 +1114,14 @@ export class ObjectClient<
         let isGrown = false;
         for await (const page of replica.apply(this.database, pages, {
             subscription: followed,
+            clock: this.#clock,
             ...(prediction === undefined ? {} : { prediction }),
         })) {
             // deliver broadcasts and compact the local log
             onPage();
             this.#broadcast(page);
-            await this.database.log.compact(Date.now() - this.#logMilliseconds);
+            const now = this.#clock.now();
+            await this.database.log.compact(now - this.#logMilliseconds, now);
 
             // evict once the predicted copy grew
             isGrown ||= page.reset || page.changes.some((change) => change.operation === "insert");
@@ -1134,11 +1147,15 @@ export class ObjectClient<
         id: string,
         permission: PermissionOf<Object>,
     ): Promise<boolean> {
-        const authorization = new Authorization(this.#authorizer, this.database, () => ({
-            subjects: [this.caller],
-            now: Date.now(),
-            attributes: {},
-        }));
+        const authorization = new Authorization(
+            this.#authorizer,
+            Transaction.reading(this.database),
+            () => ({
+                subjects: [this.caller],
+                now: this.#clock.now(),
+                attributes: {},
+            }),
+        );
         const decision = await authorization.check(
             object.permission(permission),
             object.reference(this.scope, id),
@@ -1241,7 +1258,7 @@ export class ObjectClient<
                     await this.database
                         .update(subscription)
                         .set({
-                            releasedAt: Date.now(),
+                            releasedAt: this.#clock.now(),
                             keep:
                                 options.keep === "always"
                                     ? null
@@ -1567,7 +1584,7 @@ export class ObjectClient<
                 or(
                     isNull(subscription.releasedAt),
                     isNull(subscription.keep),
-                    gt(sql`${subscription.releasedAt} + ${subscription.keep}`, Date.now()),
+                    gt(sql`${subscription.releasedAt} + ${subscription.keep}`, this.#clock.now()),
                 ),
             )
             .orderBy(asc(subscription.id));
@@ -2049,7 +2066,8 @@ export class ObjectClient<
                 this.caller === undefined
                     ? { subjects: [] }
                     : { subject: this.caller, subjects: [this.caller] },
-            now: Date.now(),
+            now: this.#clock.now(),
+            location: { kind: "client" },
             objects: this.objects,
             run: (entry, _caller, mutates) => {
                 const nested = Call.resolve(this.objects, entry, mutates, false);
@@ -2384,14 +2402,6 @@ function pushMutationsOf(push: { readonly mutations: number } | undefined): numb
     }
 
     return mutations;
-}
-
-/** Require one input field holding the scope of every copied object type, for a client keeping any. */
-function requireOneScopeField(objects: readonly ObjectType[]): void {
-    const fields = new Set(objects.map((object) => object.route.field));
-    if (fields.size > 1) {
-        throw new TypeError("a client keeps object types that name their scope in one field");
-    }
 }
 
 /** List the tables of the object types kept in one storage. */

@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import type { DatabaseConnection } from "@destack/db";
 import { testCallKey } from "@destack/service/test";
 import { Journal } from "@destack/audit/server";
@@ -10,7 +11,9 @@ export async function auditedActions(
     database: DatabaseConnection,
     actor: "caller" | "component",
 ): Promise<string[]> {
-    const calls = await new Journal(database, testCallKey).read({ limit: READ_CALLS });
+    const calls = await new Journal(database, testCallKey, { clock: Clock.system }).read({
+        limit: READ_CALLS,
+    });
 
     return calls
         .filter(

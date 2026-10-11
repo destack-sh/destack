@@ -22,7 +22,7 @@ const listed = client.query.page.findMany().subscribe(); // a client's live loca
 
 ## Objects
 
-`defineObject` declares a type inside its `scope`, the object type whose rows contain its rows, and `handle` implements its methods: a handler in the type's own module also runs on clients as a prediction, one in a server module runs on the server alone.
+`defineObject` declares a type inside its `scope`, the object type whose rows contain its rows, and `implement` attaches its code (method handlers, a controller, a declaration handler): a handler in the type's own module also runs on clients as a prediction, one in a server module runs on the server alone.
 
 ```ts
 import { relation } from "@destack/access";
@@ -52,15 +52,17 @@ export const page = defineObject({
             prepared: schema.object({ url: schema.string() }),
         }),
     }),
-}).handle({
-    archive: (call) => call.update({ archivedAt: call.now }),
+}).implement({
+    methods: { archive: (call) => call.update({ archivedAt: call.now }) },
 });
 
 // server/page.ts: prepare runs outside the transaction, so clients never predict publish
-export const servedPage = page.handle({
-    publish: {
-        prepare: (call) => cdn.publish(call.requireTarget()),
-        handler: (call) => call.update({ url: call.prepared.url }),
+export const servedPage = page.implement({
+    methods: {
+        publish: {
+            prepare: (call) => cdn.publish(call.requireTarget()),
+            handle: (call) => call.update({ url: call.prepared.url }),
+        },
     },
 });
 
@@ -87,18 +89,20 @@ defineObject({
 
 ## Controllers
 
-`control` adds a controller that works through a type's pending rows and says when to look again.
+A type's `controller` works through its pending rows and says when to look again.
 
 ```ts
-export const reminder = base.reminder.control({
-    pending: { sentAt: { isNull: true } },
-    key: (row) => ({ topic: row.topic }),
-    watches: [{ table: topic.table, keys: (row) => [{ topic: row.id }] }],
-    async reconcile({ rows, now, mutate }) {
-        const due = rows.filter((row) => row.dueAt <= now);
-        await mutate(due.map((row) => base.reminder.call("send", base.reminder.target(row))));
+export const reminder = base.reminder.implement({
+    controller: {
+        pending: { sentAt: { isNull: true } },
+        key: (row) => ({ topic: row.topic }),
+        watches: [{ table: topic.table, keys: (row) => [{ topic: row.id }] }],
+        async reconcile({ rows, now, mutate }) {
+            const due = rows.filter((row) => row.dueAt <= now);
+            await mutate(due.map((row) => base.reminder.call("send", base.reminder.target(row))));
 
-        return nextDue(rows, now);
+            return nextDue(rows, now);
+        },
     },
 });
 export const reminderConditions = new Conditions(["Sent"]);
@@ -125,6 +129,17 @@ const row = await store.query(caller, page.call("get", { spaceId, id }));
 const [renamed] = await store.mutate(caller, { id: requestId, calls: [rename] });
 // the store's own principal
 await store.mutate(Caller.of(space, Date.now()), { id: RequestId.create(), calls: [create] });
+```
+
+## Unique names
+
+An index declared `across` a scope keeps its names unique across databases: a `ClaimStore` reserves a write's names until it commits, and `lookup` finds the object owning a name.
+
+```ts
+indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
+
+const store = new ObjectStore({ objects: { profile }, claims, principal: space, database, callKey, origin });
+const owner = await profile.lookup(claims, "handle", ["ada"]); // { scope, type, id }
 ```
 
 ## Partitions
@@ -156,15 +171,26 @@ request.headers.set(PARTITION_HEADER, roomId);
 `call.mutate` runs calls inside a handler's transaction, as the same caller or as the service.
 
 ```ts
-export const shelf = base.shelf.handle({
-    lend: async (call) => {
-        const [slip] = await call.mutate(call.service, [
-            base.slip.call("issue", { shelf: call.target.name }),
-        ]);
+export const shelf = base.shelf.implement({
+    methods: {
+        lend: async (call) => {
+            const [slip] = await call.mutate(call.service, [
+                base.slip.call("issue", { shelf: call.target.name }),
+            ]);
 
-        return { slip: slip.id };
+            return { slip: slip.id };
+        },
     },
 });
+```
+
+## Descriptions
+
+`type.describe()` writes a type's definition as data, and `ObjectType.ofAll` declares the same types from it against the declarations it refers to.
+
+```ts
+const description = page.describe(); // { package, definition: { fields: { title: { $field: [...] } } } }
+const [declared] = ObjectType.ofAll([description], [space, principal.user]);
 ```
 
 ## Clients

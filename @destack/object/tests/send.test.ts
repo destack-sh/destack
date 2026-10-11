@@ -2,9 +2,9 @@ import { reconciliation, testCallKey } from "@destack/service/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessTables, principal, relation, Caller } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { asc, defineDatabase } from "@destack/db";
+import { asc, defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, present } from "@destack/schema";
+import { schema, present, Clock } from "@destack/schema";
 import { defineShape, type Mutation, Replica } from "@destack/sync";
 
 import { outbox } from "@destack/service/outbox";
@@ -32,16 +32,18 @@ const member = defineObject({
         create: method.create("write", { fields: ["name"] }),
         welcome: method.update("write", { fields: ["name"] }),
     }),
-}).handle({
-    // sign up, sending the welcome, and refuse a sign-up of the refused name after sending
-    create: async (call, next) => {
-        const name = call.input.name;
-        await call.send({ call: member.calls().welcome({ id: "member-1", name }) });
-        if (name === "Refused") {
-            throw new TypeError("the sign-up is refused");
-        }
+}).implement({
+    methods: {
+        // sign up, sending the welcome, and refuse a sign-up of the refused name after sending
+        create: async (call, next) => {
+            const name = call.input.name;
+            await call.send({ call: member.calls().welcome({ id: "member-1", name }) });
+            if (name === "Refused") {
+                throw new TypeError("the sign-up is refused");
+            }
 
-        return next();
+            return next();
+        },
     },
 });
 
@@ -87,6 +89,7 @@ test.each(TEST_DIALECTS)(
         const recorded: [RunRequest, RunDelivery | undefined][] = [];
         const reports: string[] = [];
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { member },
             database: storage.database,
@@ -163,6 +166,7 @@ test.each(TEST_DIALECTS)(
         });
         await openSpace(storage.database, spaceId);
         const home = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { note },
             database: storage.database,
@@ -179,6 +183,7 @@ test.each(TEST_DIALECTS)(
         // follow them as bob, whose uplink runs his changes at home
         const reports: string[] = [];
         const follower = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: {},
             policies: [note],
@@ -203,19 +208,19 @@ test.each(TEST_DIALECTS)(
         });
 
         // write a note and rename ada's through the copy, delivering the sends twice to show one delivery
-        await copies.database.transaction(async (transaction) => {
-            await follower.mutate(
-                Caller.of(spacePrincipal(spaceId), Date.now()),
-                {
-                    id: RequestId.create(),
-                    calls: [
-                        note.call("create", { spaceId, title: "Bob's" }),
-                        note.call("rename", { spaceId, id: written.id, title: "Bob's now" }),
-                    ],
-                },
-                { transaction },
-            );
-        });
+        const transaction = await Transaction.open(copies.database);
+        await follower.mutate(
+            Caller.of(spacePrincipal(spaceId), Date.now()),
+            {
+                id: RequestId.create(),
+                calls: [
+                    note.call("create", { spaceId, title: "Bob's" }),
+                    note.call("rename", { spaceId, id: written.id, title: "Bob's now" }),
+                ],
+            },
+            { transaction },
+        );
+        await transaction.commit();
         const sends = present(
             follower.controllers().find((controller) => controller.name === "sends"),
             "the sends controller",
@@ -257,6 +262,7 @@ test("refuse a pushed mutation of copied rows, alone or beside kept rows, which 
     await openSpace(storage.database, spaceId);
     await openSpace(copies.database, spaceId);
     const follower = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { member },
         policies: [note],
@@ -301,6 +307,7 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
     });
     await openSpace(storage.database, spaceId);
     const home = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { note },
         database: storage.database,
@@ -316,6 +323,7 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
     });
     const refused: string[] = [];
     const follower = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: {},
         policies: [note],

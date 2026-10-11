@@ -31,7 +31,7 @@ export const settlement = defineTable(
     { log: {} },
 );
 
-/** A call whose prepared work commits or rolls back, built from its settlement alike in process and in recovery. */
+/** A call whose prepared work settles, built from its settlement alike in process and in recovery. */
 export class SettlementCall {
     /** The object type. */
     readonly object: ObjectType;
@@ -48,7 +48,7 @@ export class SettlementCall {
     /** When the settlement runs, in UTC epoch milliseconds. */
     readonly now: number;
     /** The store settling the call, which the work's follow-ups run as its principal through. */
-    readonly store: Omit<ObjectStore, "router">;
+    readonly store: ObjectStore;
 
     /** Keep the recorded call. */
     constructor(fields: {
@@ -59,7 +59,7 @@ export class SettlementCall {
         readonly idempotencyKey: string;
         readonly database: DatabaseConnection;
         readonly now: number;
-        readonly store: Omit<ObjectStore, "router">;
+        readonly store: ObjectStore;
     }) {
         // keep the recorded fields
         this.object = fields.object;
@@ -73,7 +73,7 @@ export class SettlementCall {
     }
 
     /** Read the store settling the call. */
-    requireStore(): Omit<ObjectStore, "router"> {
+    requireStore(): ObjectStore {
         return this.store;
     }
 
@@ -86,3 +86,8 @@ export class SettlementCall {
         return this.id;
     }
 }
+
+/** How prepared work settles: committed with its value, or rolled back with the value recorded, absent when never recorded. */
+export type Settled<Prepared = unknown> =
+    | { readonly status: "committed"; readonly prepared: Prepared }
+    | { readonly status: "rolledBack"; readonly prepared: Prepared | undefined };

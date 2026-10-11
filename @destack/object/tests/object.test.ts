@@ -2,7 +2,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { type DatabaseConnection, eq } from "@destack/db";
 import { testCallKey } from "@destack/service/test";
-import { schema, type JsonObject } from "@destack/schema";
+import { schema, type JsonObject, Clock } from "@destack/schema";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { contained, Manager, principal, relation, through, union } from "@destack/access";
@@ -33,6 +33,7 @@ const card = defineObject({
 /** Serve the declared objects over a database, applying their records. */
 function serve(database: DatabaseConnection): ObjectStore {
     return new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { label, note, task },
         policies: [space],
@@ -49,6 +50,50 @@ const manager = Manager.schema.omit({ name: true }).parse({
 });
 
 test.each(TEST_DIALECTS)(
+    "read a declaration's release through its step's database while applying, on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
+        await openSpace(database, spaceId);
+        await database
+            .insert(space.table)
+            .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+
+        // resolve each note through a release that reads the notes, then refuses
+        const objects = [
+            note.implement({
+                declaration: {
+                    resolve: async (_name, declared, context) => {
+                        await context.release(manager.packageId);
+
+                        return declared;
+                    },
+                    values: (_name, declared) => ({ title: declared.title }),
+                },
+            }),
+        ];
+        const applied = Stack.apply({
+            now: Date.now(),
+            database,
+            objects,
+            manager,
+            as: spacePrincipal(spaceId),
+            scope: spaceId,
+            document: { notes: { one: { title: "first" } } },
+            store: serve(database),
+            release: async (step) => {
+                await step.rows(note.table, {});
+                throw new TypeError("no release in this test");
+            },
+        });
+
+        // refuse with the release's failure instead of waiting behind the step's own transaction
+        await expect(applied).rejects.toThrow(new TypeError("no release in this test"));
+    },
+);
+
+test.each(TEST_DIALECTS)(
     "apply declared objects in dependency order, wait, keep detached and retire in reverse on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
@@ -56,24 +101,28 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         const objects = [
             // list labels before notes
-            label.declare({
-                after: [note],
-                resolve: async (_name, declared, context) => {
-                    if (declared.note === "later") {
-                        context.wait("note later is not declared yet");
-                    }
+            label.implement({
+                declaration: {
+                    after: [note],
+                    resolve: async (_name, declared, context) => {
+                        if (declared.note === "later") {
+                            context.wait("note later is not declared yet");
+                        }
 
-                    return {
-                        noteId: schema
-                            .identifier("note")
-                            .parse(await context.require(note, declared.note)),
-                        text: declared.text,
-                    };
+                        return {
+                            noteId: schema
+                                .identifier("note")
+                                .parse(await context.require(note, declared.note)),
+                            text: declared.text,
+                        };
+                    },
+                    values: (_name, resolved) => resolved,
                 },
-                values: (_name, resolved) => resolved,
             }),
-            note.declare({
-                values: (_name, declared) => ({ title: declared.title }),
+            note.implement({
+                declaration: {
+                    values: (_name, declared) => ({ title: declared.title }),
+                },
             }),
         ];
         await openSpace(database, spaceId);
@@ -83,6 +132,7 @@ test.each(TEST_DIALECTS)(
         const store = serve(database);
         const apply = (document: JsonObject) =>
             Stack.apply({
+                now: Date.now(),
                 database,
                 objects,
                 manager,
@@ -199,9 +249,9 @@ test("refuse a containment grant on a type living in the universe alone, and kee
 test("refuse declarations that depend on themselves, also next to one depending on every other", async () => {
     // make notes and labels depend on each other, with a third type depending on every other
     const objects = [
-        label.declare({ after: [note], values: () => ({}) }),
-        note.declare({ after: [label], values: () => ({}) }),
-        task.declare({ after: "every", values: () => ({}) }),
+        label.implement({ declaration: { after: [note], values: () => ({}) } }),
+        note.implement({ declaration: { after: [label], values: () => ({}) } }),
+        task.implement({ declaration: { after: "every", values: () => ({}) } }),
     ];
 
     // report the cycle instead of overflowing the stack
@@ -209,6 +259,7 @@ test("refuse declarations that depend on themselves, also next to one depending 
     onTestFinished(() => storage.close());
     await expect(
         Stack.apply({
+            now: Date.now(),
             database: storage.database,
             objects,
             manager,
@@ -233,6 +284,7 @@ test.each(TEST_DIALECTS)(
         const { database } = storage;
         await openSpace(database, spaceId);
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { card },
             database,
@@ -268,8 +320,13 @@ test.each(TEST_DIALECTS)(
         // adopt the first card, and rewrite it with the declared values on the next apply
         const adopted = await hand("adopt", first.id);
         const applied = await Stack.apply({
+            now: Date.now(),
             database,
-            objects: [card.declare({ values: (_name, declared) => ({ title: declared.title }) })],
+            objects: [
+                card.implement({
+                    declaration: { values: (_name, declared) => ({ title: declared.title }) },
+                }),
+            ],
             manager,
             as: spacePrincipal(spaceId),
             scope: spaceId,

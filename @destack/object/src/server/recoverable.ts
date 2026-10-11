@@ -30,12 +30,12 @@ export class RecoverableController implements Controller {
     /** The tables of the recoverable objects. */
     readonly watches: readonly Table[];
     /** The store the purge runs through. */
-    readonly #store: Omit<ObjectStore, "router">;
+    readonly #store: ObjectStore;
     /** The recoverable object types with their recovery options. */
     readonly #types: ReturnType<typeof recoverables>;
 
     /** Watch the recoverable objects a store serves. */
-    constructor(store: Omit<ObjectStore, "router">) {
+    constructor(store: ObjectStore) {
         this.#store = store;
         this.#types = recoverables(store.objects);
         this.watches = this.#types.map(({ object }) => object.table);
@@ -59,7 +59,7 @@ export class RecoverableController implements Controller {
     /** Purge what passed its window and schedule the earliest window end. */
     async reconcile(_key: string, _reconciliation: Reconciliation): Promise<number | undefined> {
         // purge and read each type's earliest pending deletion
-        const now = this.#store.clock();
+        const now = this.#store.clock.now();
         await RecoverableController.purge(this.#store, now);
         const ends = await Promise.all(
             this.#types.map(({ object, options }) => ending(this.#store.database, object, options)),
@@ -70,7 +70,7 @@ export class RecoverableController implements Controller {
     }
 
     /** Purge expired deleted objects as the store's principal, returning the count. */
-    static async purge(store: Omit<ObjectStore, "router">, now: number): Promise<number> {
+    static async purge(store: ObjectStore, now: number): Promise<number> {
         // purge each type in batches until one comes back short
         let purged = 0;
         for (const { object, options } of recoverables(store.objects)) {

@@ -4,7 +4,7 @@ import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { eq, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { v7 } from "uuid";
 
 import { RequestId } from "@destack/service/request";
@@ -55,6 +55,7 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         await openSpace(database, spaceId);
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { alert },
             database,
@@ -117,6 +118,7 @@ test("leave the expired rows a database copies to the deletes their home sends",
     const database = storage.database;
     await openSpace(database, spaceId);
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { alert },
         database,

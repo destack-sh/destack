@@ -1,7 +1,7 @@
 import { type Insert, type JsonOf, type Select, TABLE } from "@destack/db";
 import type * as sync from "@destack/sync";
 import { Scope } from "@destack/sync";
-import { type Identifier, present, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { defineProcedure } from "@destack/service/procedure";
 import { RequestId } from "@destack/service/request";
 import { ParentReference } from "../trait/nested.ts";
@@ -101,10 +101,9 @@ export function objectProcedures(object: ObjectType): Readonly<Record<string, un
 export function callableProcedures(
     object: ObjectType,
 ): Readonly<Record<string, Procedure<InputSchema, ProcedureOutput>>> {
-    // build the shapes
+    // build the collection path
     const scope = scopeRoute(object);
     const collection: `/${string}` = `${scope.prefix}/${kebabCase(object.plural)}`;
-    const shapes = objectSchema(object);
 
     // derive each method's procedure
     const procedures: Record<string, Procedure<InputSchema, ProcedureOutput>> = {};
@@ -112,7 +111,7 @@ export function callableProcedures(
         if (method.isInternal === true) {
             continue;
         }
-        const { route, input, output } = method.procedure(name, shapes);
+        const { route, input, output } = object.procedure(name);
         procedures[name] = procedure(
             defineProcedure({
                 authentication: method.mutates ? "identity" : "public",
@@ -350,16 +349,6 @@ type ProcedureOf<
     readonly "~orpc": { readonly inputSchema: schema.Schema; readonly outputSchema: schema.Schema };
 };
 
-/** Read the schema that checks a method's input, its scope and request fields included. */
-export function inputSchemaOf<Object extends ObjectType>(
-    object: Object,
-    name: MethodName<Object>,
-): schema.Schema {
-    const contract = present(object.procedures[name], `the procedure of ${name}`)["~orpc"];
-
-    return present(contract.inputSchema, `the input of ${name}`);
-}
-
 /** The input a call of a method takes without its scope and the request's identifiers, each variant's for a sum type. */
 export type CallInput<Object extends ObjectType, Name extends MethodName<Object>> =
     string extends MethodName<Object>
@@ -371,16 +360,25 @@ export type CallInput<Object extends ObjectType, Name extends MethodName<Object>
               | ScopeField<Object>
           >;
 
+/** The input of an object call: the method's input with the scope it runs in, the running call's when absent. */
+export type ObjectCallInput<Object extends ObjectType, Name extends MethodName<Object>> =
+    string extends MethodName<Object>
+        ? Readonly<Record<string, unknown>>
+        : CallInput<Object, Name> & CallScope<Object>;
+
 /** The scope a call carries, the running call's when absent; a store requires it set. */
 export type CallScope<Object extends ObjectType> = {
     readonly [Field in ScopeField<Object>]?: string;
 };
 
-/** The input identifying one object as a call's target: its scope field and its identifier. */
-export type TargetInput<Object extends ObjectType> = {
+/** The input placing a call in a scope: the type's scope field. */
+export type ScopeInput<Object extends ObjectType> = {
     readonly [Field in ScopeField<Object>]: string;
-} & {
-    readonly id?: string;
+};
+
+/** The input identifying one object as a call's target: its scope field and its identifier. */
+export type TargetInput<Object extends ObjectType> = ScopeInput<Object> & {
+    readonly id: string;
 };
 
 /** Leave keys out of each member of a union. */
@@ -556,6 +554,21 @@ export type FieldShape<Declared extends Method> = [NonNullable<Declared["input"]
     : NonNullable<Declared["input"]> extends schema.Object<infer Shape>
       ? Shape
       : {};
+
+/** The schema a custom method takes: routing fields joined to its own input, to each variant's for a sum type. */
+export type CustomSchema<Shape extends Readonly<Record<string, schema.Schema>>, Input> = [
+    NonNullable<Input>,
+] extends [never]
+    ? schema.Object<Shape>
+    : NonNullable<Input> extends schema.DiscriminatedUnion<infer Options>
+      ? schema.DiscriminatedUnion<
+            (Options[number] extends infer Option
+                ? Option extends schema.Object<infer Own>
+                    ? schema.Object<Shape & Own>
+                    : never
+                : never)[]
+        >
+      : schema.Object<Shape & (NonNullable<Input> extends schema.Object<infer Own> ? Own : {})>;
 
 /** One object as callers see it, in its JSON form. */
 export type RowSchema<Object extends ObjectType> = schema.Object<

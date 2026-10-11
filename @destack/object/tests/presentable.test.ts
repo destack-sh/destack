@@ -5,10 +5,9 @@ import { journal } from "@destack/audit/stack";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
-import { present, schema } from "@destack/schema";
+import { present, schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
-import { describeObject } from "../src/inspect/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
@@ -56,6 +55,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { board },
         database: storage.database,
@@ -76,12 +76,11 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
             ],
         })
         .then(([written]) => written);
-    const described = describeObject(board);
 
     expect({
         stored: [created.name, created.icon, created.color, created.cover],
-        presentation: described.presentation,
-        search: described.search,
+        presentation: board.presentation,
+        search: board.search,
         indexes: board.table[TABLE]
             .constraints(storage.database.dialect)
             .flatMap((constraint) => (constraint.kind === "index" ? [constraint.name] : []))
@@ -98,7 +97,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
             subtitle: "summary",
             icon: { field: "icon" },
             color: { field: "color" },
-            cover: { field: "cover", bucket: { package: space.package.id, name: "media" } },
+            cover: { field: "cover", bucket: { packageId: space.package.id, name: "media" } },
         },
         search: { searchable: ["name", "summary"], filterable: ["ownerId"], sortable: ["rank"] },
         indexes: ["board_ownerId", "board_rank"],

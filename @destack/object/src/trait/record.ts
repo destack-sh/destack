@@ -1,5 +1,5 @@
 import { accessRelationship } from "@destack/access";
-import { identifier, integer, json, sql, text } from "@destack/db";
+import { identifier, integer, json, text } from "@destack/db";
 import { validated } from "../field/field.ts";
 import { schema } from "@destack/schema";
 import type { Trait } from "./trait.ts";
@@ -11,9 +11,7 @@ export type TagMap = schema.Infer<typeof TagMap>;
 
 /** Declare a label map with an empty database default. */
 export function tags(name = "tags") {
-    return json(name, TagMap)
-        .notNull()
-        .default(sql`'{}'`);
+    return json(name, TagMap).notNull().default({});
 }
 
 /** Declare the columns every record has. */
@@ -37,7 +35,7 @@ export function recordColumns<const Prefix extends string>(prefix: Prefix) {
 }
 
 /** Declare the identifier column of objects identified by their natural key. */
-export function keyColumn<Key extends schema.Schema<string>>(key: Key) {
+export function naturalKeyColumn<Key extends schema.Schema<string>>(key: Key) {
     return validated("id", key).primaryKey();
 }
 
@@ -45,7 +43,7 @@ export function keyColumn<Key extends schema.Schema<string>>(key: Key) {
 export type RecordBuilderMap<Prefix extends string = string, Key = undefined> =
     Key extends schema.Schema<string>
         ? Omit<ReturnType<typeof recordColumns<Prefix>>, "id"> & {
-              readonly id: ReturnType<typeof keyColumn<Key>>;
+              readonly id: ReturnType<typeof naturalKeyColumn<Key>>;
           }
         : ReturnType<typeof recordColumns<Prefix>>;
 
@@ -67,7 +65,7 @@ export const record: Trait<true> = {
     options: () => true,
     columns: (_options, object) => ({
         ...recordColumns(object.identity),
-        ...(object.key === undefined ? {} : { id: keyColumn(object.key) }),
+        ...(object.key === undefined ? {} : { id: naturalKeyColumn(object.key) }),
         ...(object.storage === "ephemeral" ? writerColumns() : {}),
     }),
     constraints: () => [],

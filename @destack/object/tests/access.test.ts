@@ -1,9 +1,9 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { defineDatabase } from "@destack/db";
+import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 
 import { subjectContext, testCallKey } from "@destack/service/test";
 import { RequestId } from "@destack/service/request";
@@ -39,6 +39,7 @@ test.for(TEST_DIALECTS)(
 
         // serve the space's roles and relationships to the owner
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(SPACE_ID),
             objects: { role, relationship },
             policies: [space],
@@ -52,11 +53,13 @@ test.for(TEST_DIALECTS)(
         await database
             .insert(space.table)
             .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
-        await new Authorization(store.authorizer, database, () => ({
+        const creating = await Transaction.open(database);
+        await new Authorization(store.authorizer, creating, () => ({
             subjects: [owner],
             now: Date.now(),
             attributes: {},
         })).create(object, { owner });
+        await creating.commit();
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
         const context = subjectContext(principal.user.reference("universe", "owner"), SPACE_ID, {
@@ -116,12 +119,14 @@ test.for(TEST_DIALECTS)(
             })
             .then(([written]) => written);
         expect(await next()).toEqual([["destack__access__role", "insert", "reviewer"]]);
-        const authorization = await store.authorize(database, SPACE_ID, context.caller());
+        const granting = await Transaction.open(database);
+        const authorization = await store.authorize(granting, SPACE_ID, context.caller());
         await authorization.grant({
             object,
             role: reviewer.id,
             subject: principal.user.reference("universe", "member"),
         });
+        await granting.commit();
         expect(await next()).toEqual([["destack__access__relationship", "insert", "member"]]);
     },
 );

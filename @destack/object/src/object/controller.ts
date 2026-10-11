@@ -15,7 +15,8 @@ import { Caller } from "@destack/access";
 import { RequestId } from "@destack/service/request";
 import { canonicalize, schema, type JsonValue } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
-import type { ObjectCall, ResultsOf } from "../method/call.ts";
+import { Observation, type ObservationReport, type ObservedRecord } from "./condition.ts";
+import { Call, type ObjectCall, type ResultsOf } from "../method/call.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
 
 /** The fields of a pending object's key, as its key name keeps them. */
@@ -77,8 +78,8 @@ export interface ObjectReconciliation<
     readonly now: number;
     /** The objects' database. */
     readonly database: DatabaseConnection;
-    /** The object store running the controller, without the router its served types type. */
-    readonly store: Omit<ObjectStore, "router">;
+    /** The object store running the controller. */
+    readonly store: ObjectStore;
     /** The caller the reconciliation acts as: the store's own principal. */
     readonly caller: Caller;
     /** Run calls in one transaction as the store's principal, under the controller's name, each result in order. */
@@ -86,16 +87,18 @@ export interface ObjectReconciliation<
         calls: Calls,
         options?: Pick<MutateOptions, "transaction" | "scope">,
     ): Promise<ResultsOf<Calls>>;
+    /** Record an object's conditions and observed fields at its current generation through its observe method, unless it has them already. */
+    observe(
+        object: ObjectType,
+        row: ObservedRecord & Readonly<Record<string, unknown>>,
+        observation: ObservationReport,
+    ): Promise<unknown>;
 }
 
 /** Build the controllers object types declare. */
 export const ObjectController = {
     /** Build the controller a type declares, reconciling or following its pending objects by key. */
-    control(
-        store: Omit<ObjectStore, "router">,
-        object: ObjectType,
-        declared: ObjectController,
-    ): Controller {
+    control(store: ObjectStore, object: ObjectType, declared: ObjectController): Controller {
         // key each pending object by its declared fields
         const table = object.table;
         const match = Predicate.compile(
@@ -141,7 +144,7 @@ export const ObjectController = {
 
 /** Reconcile one key's pending objects, if any are left. */
 async function reconcilePending(
-    store: Omit<ObjectStore, "router">,
+    store: ObjectStore,
     object: ObjectType,
     declared: ObjectController,
     key: string,
@@ -157,8 +160,14 @@ async function reconcilePending(
     }
 
     // reconcile them, running methods as the store's principal at one time
-    const now = store.clock();
+    const now = store.clock.now();
     const caller = Caller.of(store.principal, now);
+    const mutate: ObjectReconciliation["mutate"] = (calls, options) =>
+        store.mutate(
+            caller,
+            { id: RequestId.create(now), calls: [...calls] },
+            { ...options, component: object.name },
+        );
 
     return declared.reconcile({
         rows,
@@ -169,11 +178,17 @@ async function reconcilePending(
         signal: reconciliation.signal,
         ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
         changed: () => reconciliation.changed(),
-        mutate: (calls, options) =>
-            store.mutate(
-                caller,
-                { id: RequestId.create(now), calls: [...calls] },
-                { ...options, component: object.name },
-            ),
+        mutate,
+        observe: async (observed, row, observation) => {
+            // skip an observation the row has
+            if (Observation.isRecorded(row, observation)) {
+                return row;
+            }
+
+            // record the generation, the conditions and the fields
+            const [written] = await mutate([Call.observation(observed, row, observation)]);
+
+            return written;
+        },
     });
 }

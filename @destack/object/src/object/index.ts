@@ -3,11 +3,14 @@ export {
     ConditionMap,
     Conditions,
     Observation,
+    type ObservationReport,
+    type ObservedRecord,
     observeCondition,
     StatusCondition,
 } from "./condition.ts";
 export {
     defineObject,
+    ObjectKey,
     ObjectType,
     type ObjectOf,
     type ObjectConfiguration,
@@ -21,6 +24,7 @@ export {
     type ObjectScope,
     type ObjectStorage,
 } from "./object.ts";
+export { ObjectDescription, type BuilderCall, type KnownDeclaration } from "./description.ts";
 export {
     type KeyFields,
     ObjectController,
@@ -28,4 +32,5 @@ export {
     ObjectWatch,
 } from "./controller.ts";
 export { INTRINSIC, Intrinsic } from "./intrinsic.ts";
+export { ObjectAccess } from "./access.ts";
 export { client } from "./client.ts";

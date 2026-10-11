@@ -2,17 +2,16 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { journal } from "@destack/audit/stack";
 import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
-import { defineDatabase, eq } from "@destack/db";
-import { DirectoryStore, directoryTables } from "@destack/directory";
+import { defineDatabase, eq, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { canonicalize, present, schema } from "@destack/schema";
+import { canonicalize, Clock, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 
-import { CONSUMER, defineObject, type ProvisionedRecord } from "../src/index.ts";
-import { DRAINING, ObjectStore } from "../src/server/index.ts";
+import { claimTable, CONSUMER, defineObject, type ProvisionedRecord } from "../src/index.ts";
+import { DatabaseClaimStore, DRAINING, ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { RequestId } from "@destack/service/request";
 
@@ -150,8 +149,8 @@ async function serve(boxes: Boxes) {
         .insert(space.table)
         .values({ id: spaceId, scope: "universe", createdAt: 1, updatedAt: 1 });
 
-    // keep the claims of the resource names in a directory
-    const universe = await TestDatabase.create("sqlite", directoryTables, { isMigrated: true });
+    // keep the claims of the resource names in the universe
+    const universe = await TestDatabase.create("sqlite", [claimTable], { isMigrated: true });
     onTestFinished(() => universe.close());
 
     // serve the boxes through their memory provider and links through one provisioning nothing
@@ -160,10 +159,11 @@ async function serve(boxes: Boxes) {
         typeof link
     >;
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { box, link },
         database,
-        directory: new DirectoryStore(universe.database),
+        claims: new DatabaseClaimStore(universe.database, Clock.system),
         callKey: testCallKey,
         origin: { package: box.package, service: "test" },
         provisioned: { providers: [boxes.provider(), links], machine: machineId },
@@ -224,12 +224,14 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     await reconcile("box", ids.first);
     const unset = present(await read(ids.first), "the box without a threshold");
     await want(ids.first, [{ size: 2 }]);
-    await Scope.fence(database, spaceId, "machine-elsewhere", now);
+    await Transaction.run(database, (transaction) =>
+        Scope.fence(transaction, spaceId, "machine-elsewhere", now),
+    );
     await reconcile("box", ids.first);
     const fenced = present(await read(ids.first), "the fenced box");
 
     // provision it and grow it to the size its consumer requires
-    await Scope.unfence(database, spaceId);
+    await Transaction.run(database, (transaction) => Scope.unfence(transaction, spaceId));
     await reconcile("box", ids.first);
     const grown = present(await read(ids.first), "the grown box");
 
@@ -480,7 +482,7 @@ test("name a resource after another kind's resource in its space, refusing a sec
     const create = (kind: typeof box | typeof link) =>
         store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
             id: RequestId.create(),
-            calls: [kind.call("create", { ...kind.target({ scope }), ...written, name: "main" })],
+            calls: [kind.call("create", { ...kind.in(scope), ...written, name: "main" })],
         });
 
     // create a box and a link named main, and refuse another box of the name
@@ -490,7 +492,7 @@ test("name a resource after another kind's resource in its space, refusing a sec
 
     expect({ names: [created?.name, linked?.name], taken }).toEqual({
         names: ["main", "main"],
-        taken: ["DUPLICATE", "a record with the same unique key exists"],
+        taken: ["CONFLICT", "another box has the same scope and name"],
     });
 });
 

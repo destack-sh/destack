@@ -1,18 +1,9 @@
-import {
-    and,
-    type Column,
-    desc,
-    eq,
-    index,
-    isNull,
-    type DatabaseConnection,
-    type TableConstraint,
-    TABLE,
-} from "@destack/db";
+import { type Column, index, type TableConstraint } from "@destack/db";
 import { present } from "@destack/schema";
 import { field } from "../field/field.ts";
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
+import type { Call } from "../method/call.ts";
 import type { Erasure, Trait } from "./trait.ts";
 
 /** How an object type orders its objects: among the siblings under one parent, or among those holding one value of a field. */
@@ -86,30 +77,27 @@ export const Orderable = {
     async next(
         object: ObjectType,
         values: Readonly<Record<string, unknown>>,
-        database: DatabaseConnection,
+        call: Call,
     ): Promise<string> {
         // read the last sibling's position in the object's scope
-        const table = object.table;
         const ordering = present(object.ordering, `the ordering of ${object.name}`);
-        const siblings = ordering.within.map((name) => {
-            const column = table[TABLE].column(name);
-            const value = values[name];
+        const siblings = Object.fromEntries(
+            ordering.within.map((name) => {
+                const value = values[name];
 
-            return typeof value === "string" ? eq(column, value) : isNull(column);
-        });
+                return [name, typeof value === "string" ? value : { isNull: true }];
+            }),
+        );
         const scope = present(
             typeof values["scope"] === "string" ? values["scope"] : undefined,
             "the created object's scope",
         );
-        const [last] = await database
-            .select({ position: table[TABLE].column("position") })
-            .from(table)
-            .where(and(eq(table[TABLE].column("scope"), scope), ...siblings))
-            .orderBy(desc(table[TABLE].column("position")))
-            .limit(1);
+        const [last] = await call
+            .read(object.table)
+            .rows({ ...siblings, scope }, { orderBy: { position: "desc" }, limit: 1 });
 
         return FractionalIndex.place(
-            typeof last?.position === "string" ? last.position : undefined,
+            typeof last?.["position"] === "string" ? last["position"] : undefined,
             undefined,
         );
     },

@@ -6,7 +6,7 @@ import { TEST_DIALECTS } from "@destack/db/test";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
-import { schema, present } from "@destack/schema";
+import { schema, present, Clock } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { note, notebook } from "./fixture/note.ts";
 import { principal } from "@destack/access";
@@ -165,6 +165,7 @@ test.each(TEST_DIALECTS)(
         await device.offline();
         const reconnected = await device.storage.connect(ObjectClient.tables({ notebook, note }));
         const restarted = await ObjectClient.open({
+            clock: Clock.system,
             database: reconnected,
             objects: { notebook, note },
             scope: spaceId,
@@ -451,6 +452,7 @@ test("share one browser database between tabs, handing it over when the owning t
     });
     const open = () =>
         BrowserTab.open({
+            clock: Clock.system,
             name: "notes",
             objects: { notebook, note },
             scope: spaceId,

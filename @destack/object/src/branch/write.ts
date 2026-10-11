@@ -1,6 +1,5 @@
 import {
-    Change,
-    type Write,
+    type RowChange,
     Key,
     TABLE,
     type DatabaseConnection,
@@ -8,15 +7,15 @@ import {
     type Table,
     type Overlay,
 } from "@destack/db";
-import { found, schema, type JsonObject } from "@destack/schema";
+import { found, present, schema, type JsonObject } from "@destack/schema";
 import type { ObjectType } from "../object/index.ts";
 
 /** The columns a stored branch row keeps: its identifier, table, key, and both sides, absent or null when missing. */
-const STORED_ROW = schema.looseObject({
+const STORED_CHANGE = schema.looseObject({
     id: schema.string(),
     table: schema.string(),
     key: schema.record(schema.string(), schema.json()),
-    row: schema.record(schema.string(), schema.json()).nullish(),
+    after: schema.record(schema.string(), schema.json()).nullish(),
     before: schema.record(schema.string(), schema.json()).nullish(),
 });
 
@@ -27,7 +26,7 @@ export interface BranchWrite {
     /** The row's key columns. */
     readonly key: JsonObject;
     /** The row as the branch leaves it, null when the branch removes it. */
-    readonly row: JsonObject | null;
+    readonly after: JsonObject | null;
     /** The main line's row the branch replaces, null when the branch creates it. */
     readonly before: JsonObject | null;
 }
@@ -52,46 +51,22 @@ export interface BranchChange {
 export const BranchWrite = {
     /** Read a stored branch row with its identifier, a missing side as null. */
     read(stored: Row): BranchWrite & { readonly id: string } {
-        const { id, table, key, row, before } = STORED_ROW.parse(stored);
+        const { id, table, key, after, before } = STORED_CHANGE.parse(stored);
 
-        return { id, table, key, row: row ?? null, before: before ?? null };
+        return { id, table, key, after: after ?? null, before: before ?? null };
     },
 
     /** Capture the rows a transaction's changes leave different from the main line. */
-    capture(written: readonly Write[]): BranchWrite[] {
-        // keep each key's first image and last change
-        const first = new Map<string, Row | null>();
-        const last = new Map<
-            string,
-            { readonly table: Table; readonly change: (typeof written)[number] }
-        >();
-        for (const change of written) {
-            const table = change.table;
-            const name = Key.name(table, change.key);
-            if (!first.has(name)) {
-                first.set(name, Change.before(change));
-            }
-            last.set(name, { table, change });
-        }
+    capture(changes: readonly RowChange[]): BranchWrite[] {
+        return changes.map(({ table, before, after }) => {
+            const image = present(after ?? before, "a changed row's image");
 
-        // keep the rows that differ from the main line's
-        return [...last].flatMap(([name, { table, change }]) => {
-            // encode the main line's row and the branch's
-            const main = first.get(name) ?? null;
-            const before = main === null ? null : table[TABLE].encode(main);
-            const after = Change.after(change);
-            const row = after === null ? null : table[TABLE].encode(after);
-
-            return JSON.stringify(before) === JSON.stringify(row)
-                ? []
-                : [
-                      {
-                          table: table[TABLE].sqlName,
-                          key: table[TABLE].encode(change.key),
-                          row,
-                          before,
-                      },
-                  ];
+            return {
+                table: table[TABLE].sqlName,
+                key: table[TABLE].encode(Key.of(table, image)),
+                after: after === null ? null : table[TABLE].encode(after),
+                before: before === null ? null : table[TABLE].encode(before),
+            };
         });
     },
 
@@ -104,12 +79,12 @@ export const BranchWrite = {
         for (const entry of rows) {
             // remove a row the branch removes, and put the others
             const table = found(tables, entry.table);
-            if (entry.row === null) {
+            if (entry.after === null) {
                 await database
                     .delete(table)
                     .where(Key.match(table, table[TABLE].decode(entry.key)));
             } else {
-                await database.upsert(table, [table[TABLE].decode(entry.row)]);
+                await database.upsert(table, [table[TABLE].decode(entry.after)]);
             }
         }
     },
@@ -123,7 +98,7 @@ export const BranchWrite = {
             byTable.set(entry.table, keyed);
             keyed.set(
                 Key.name(table, table[TABLE].decode(entry.key)),
-                entry.row === null ? null : table[TABLE].decode(entry.row),
+                entry.after === null ? null : table[TABLE].decode(entry.after),
             );
         }
 
@@ -135,7 +110,7 @@ export const BranchWrite = {
         // decode both sides
         const table = object.table;
         const before = entry.before === null ? undefined : table[TABLE].decode(entry.before);
-        const after = entry.row === null ? undefined : table[TABLE].decode(entry.row);
+        const after = entry.after === null ? undefined : table[TABLE].decode(entry.after);
 
         // keep the written fields that differ, skipping derived changes alone
         const fields = object.written.filter(

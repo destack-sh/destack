@@ -5,14 +5,14 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { ServiceError } from "@destack/service/error";
 import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { aligned, present, schema, toJsonSchema } from "@destack/schema";
+import { aligned, present, schema, toJsonSchema, Clock } from "@destack/schema";
 import { AuditTarget } from "@destack/audit";
 
 import { RequestId } from "@destack/service/request";
 import { v7 } from "uuid";
 import { ObjectStore, RecoverableController, Settlement } from "../src/server/index.ts";
 import { Call, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
-import { describeObject } from "../src/inspect/index.ts";
+import { describeAuditAction } from "@destack/audit/inspect";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
 import { none, principal, Caller } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
@@ -50,6 +50,7 @@ test("derive routes and describe each method with its permission, input and audi
         update: "PATCH /spaces/{spaceId}/tasks/{id}",
         delete: "DELETE /spaces/{spaceId}/tasks/{id}",
         archive: "POST /spaces/{spaceId}/tasks/{id}/archive",
+        archiveAll: "POST /spaces/{spaceId}/tasks/archive-all",
         export: "POST /spaces/{spaceId}/tasks/{id}/export",
         complete: "POST /spaces/{spaceId}/tasks/{id}/complete",
         reopen: "POST /spaces/{spaceId}/tasks/{id}/reopen",
@@ -65,17 +66,9 @@ test("derive routes and describe each method with its permission, input and audi
         explain: "GET /spaces/{spaceId}/tasks/{id}/access",
     });
 
-    // describe each method statically with its route, permission, input and audit action
-    const description = describeObject(task);
-    expect(description.methods["archive"]).toEqual({
-        kind: "custom",
-        permission: "write",
-        mutates: true,
-        isPredicted: false,
-        route: { method: "POST", path: "/spaces/{spaceId}/tasks/{id}/archive" },
-        input: any(Object),
-        output: { kind: "value", schema: any(Object) },
-        audit: {
+    // audit each change with its target, and reads only of read-audited types
+    expect([describeAuditAction(task.audit("archive")), task.isReadAudited]).toEqual([
+        {
             name: "task.archive",
             package: {
                 id: task.policy.definition.packageId,
@@ -85,20 +78,21 @@ test("derive routes and describe each method with its permission, input and audi
             target: toJsonSchema(AuditTarget),
             details: any(Object),
         },
-    });
+        false,
+    ]);
 
     // take every writable field in an update, requiring only the target and request
+    const update = present(task.procedures["update"], "the update procedure")["~orpc"];
     const updateInput = schema
         .looseObject({
             properties: schema.record(schema.string(), schema.unknown()),
             required: schema.array(schema.string()),
         })
-        .parse(present(description.methods["update"], "the update method").input);
+        .parse(toJsonSchema(present(update.inputSchema, "the update input")));
     expect([Object.keys(updateInput.properties), updateInput.required]).toEqual([
         ["spaceId", "id", "requestId", "revision", "title", "estimate", "currentId"],
         ["spaceId", "id", "requestId"],
     ]);
-    expect(present(description.methods["get"], "the get method").audit).toBeUndefined();
 });
 
 test("route a creation other than create below its collection by name", () => {
@@ -635,41 +629,39 @@ test("prepare external work after the access check, settle it after commit, comp
     // archive through an external system by exporting
     const external: string[] = [];
     let isFailing = false;
-    const handled = task.handle({
-        export: {
-            prepare: async (call) => {
-                if (call.target.title === "Broken") {
-                    throw new Error("reservation failed");
-                }
-                external.push(`reserve ${call.target.title}`);
+    const handled = task.implement({
+        methods: {
+            export: {
+                prepare: async (call) => {
+                    if (call.target.title === "Broken") {
+                        throw new Error("reservation failed");
+                    }
+                    external.push(`reserve ${call.target.title}`);
 
-                return `reservation-${call.target.id}`;
-            },
-            handler: async ({ target, database, prepared }) => {
-                if (isFailing) {
-                    throw new Error("archive failed");
-                }
-                const [row] = await database
-                    .update(task.table)
-                    .set({
+                    return `reservation-${call.target.id}`;
+                },
+                handle: async (call) => {
+                    if (isFailing) {
+                        throw new Error("archive failed");
+                    }
+
+                    return call.update({
                         archived: true,
-                        title: `${target.title} (${prepared})`,
-                        revision: target.revision + 1,
-                    })
-                    .where(eq(task.table.id, target.id))
-                    .returning();
-
-                return present(row, "the exported task");
-            },
-            commit: async (_call, prepared) => {
-                external.push(`confirm ${prepared}`);
-            },
-            rollback: async (_call, prepared) => {
-                external.push(`release ${String(prepared)}`);
+                        title: `${call.target.title} (${call.prepared})`,
+                    });
+                },
+                settle: async (_call, settled) => {
+                    external.push(
+                        settled.status === "committed"
+                            ? `confirm ${settled.prepared}`
+                            : `release ${String(settled.prepared)}`,
+                    );
+                },
             },
         },
     });
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { task: handled, comment, taskVersion, folder },
         database: storage.database,
@@ -788,27 +780,32 @@ test("authorize a creation before its external work, and settle committed work t
     // record each version's external copy, failing the first confirmation after commit
     const external: string[] = [];
     let isSettling = false;
-    const copies = taskCopy.handle({
-        create: {
-            prepare: async (call) => {
-                external.push(`copy ${call.input["title"]}`);
+    const copies = taskCopy.implement({
+        methods: {
+            create: {
+                prepare: async (call) => {
+                    external.push(`copy ${call.input["title"]}`);
 
-                return `copy-${present(call.id, "the version's identifier")}`;
-            },
-            commit: async (_call, prepared) => {
-                if (!isSettling) {
-                    isSettling = true;
-                    throw new Error("confirmation failed");
-                }
-                external.push(`confirm ${prepared}`);
-            },
-            rollback: async (_call, prepared) => {
-                external.push(`release ${String(prepared)}`);
+                    return `copy-${present(call.id, "the version's identifier")}`;
+                },
+                settle: async (_call, settled) => {
+                    // fail the first confirmation, then confirm or release
+                    if (settled.status === "committed" && !isSettling) {
+                        isSettling = true;
+                        throw new Error("confirmation failed");
+                    }
+                    external.push(
+                        settled.status === "committed"
+                            ? `confirm ${settled.prepared}`
+                            : `release ${String(settled.prepared)}`,
+                    );
+                },
             },
         },
     });
     const reported: unknown[] = [];
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
@@ -877,17 +874,20 @@ test("name a system creation's prepared work by the fresh identifier it creates 
 
     // key the external copy by the identifier the system creation takes
     const external: string[] = [];
-    const copies = taskCopy.handle({
-        create: {
-            prepare: async (call) => {
-                const copy = `copy-${present(call.id, "the version's identifier")}`;
-                external.push(copy);
+    const copies = taskCopy.implement({
+        methods: {
+            create: {
+                prepare: async (call) => {
+                    const copy = `copy-${present(call.id, "the version's identifier")}`;
+                    external.push(copy);
 
-                return copy;
+                    return copy;
+                },
             },
         },
     });
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
@@ -904,7 +904,7 @@ test("name a system creation's prepared work by the fresh identifier it creates 
         id: RequestId.create(),
         calls: [
             copies.call("create", {
-                ...copies.target({ scope: spaceId }),
+                ...copies.in(spaceId),
                 parentId: created.id,
                 title: "Draft",
             }),
@@ -928,23 +928,29 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     // keep external copies by call key, pausing mid-copy
     const external: string[] = [];
     let during: () => Promise<void> = idle;
-    const copies = taskCopy.handle({
-        create: {
-            prepare: async (call) => {
-                external.push(`copy ${call.idempotencyKey === undefined ? "unkeyed" : "keyed"}`);
-                await during();
+    const copies = taskCopy.implement({
+        methods: {
+            create: {
+                prepare: async (call) => {
+                    external.push(
+                        `copy ${call.idempotencyKey === undefined ? "unkeyed" : "keyed"}`,
+                    );
+                    await during();
 
-                return present(call.idempotencyKey, "the copy's key");
-            },
-            commit: async () => {
-                external.push("confirm prepared");
-            },
-            rollback: async (_call, prepared) => {
-                external.push(`cancel ${prepared === undefined ? "by key" : "prepared"}`);
+                    return present(call.idempotencyKey, "the copy's key");
+                },
+                settle: async (_call, settled) => {
+                    external.push(
+                        settled.status === "committed"
+                            ? "confirm prepared"
+                            : `cancel ${settled.prepared === undefined ? "by key" : "prepared"}`,
+                    );
+                },
             },
         },
     });
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
@@ -994,6 +1000,72 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         await storage.database.select().from(settlement),
         await storage.database.select().from(taskCopy.table),
     ]).toEqual([["copy keyed", "cancel by key"], [], []]);
+});
+
+test.each(TEST_DIALECTS)(
+    "run a scoped mutation over its scope as a holder of the scope's permission, and refuse a caller without it on %s",
+    async (dialect) => {
+        // create two tasks as their owner and archive one
+        const { store, execute } = await serveTasks(dialect);
+        const first = await execute("create", { requestId: RequestId.create(), title: "First" });
+        await execute("create", { requestId: RequestId.create(), title: "Second" });
+        await execute("archive", { requestId: RequestId.create(), id: first.id });
+
+        // refuse the owner of the tasks, who does not own the space
+        const refused = await execute("archiveAll", { requestId: RequestId.create() }).catch(
+            (error: unknown) => error,
+        );
+
+        // archive the rest as the space, which owns it
+        const [archived] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            id: RequestId.create(),
+            calls: [task.call("archiveAll", task.in(spaceId))],
+        });
+        const left = await execute("list", { where: { archived: false } });
+        expect([refused, archived, left.items]).toEqual([
+            new ServiceError("FORBIDDEN", { defined: true, message: "permission denied: tidy" }),
+            { archived: 1 },
+            [],
+        ]);
+    },
+);
+
+test("create the same identifiers and draw the same numbers from the same request on every server, apart for each draw", async () => {
+    // create two tasks under one request and draw under another, on each of two servers
+    const [creation, drawing] = [RequestId.create(), RequestId.create()];
+    const run = async () => {
+        const { store } = await serveTasks("sqlite");
+        const caller = Caller.of(principal.user.reference("universe", "user-1"), Date.now());
+        const created = await store.mutate(caller, {
+            id: creation,
+            calls: [
+                task.call("create", { ...task.in(spaceId), title: "First" }),
+                task.call("create", { ...task.in(spaceId), title: "Second" }),
+            ],
+        });
+        const [drawn] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            id: drawing,
+            calls: [folder.call("draw", folder.in(spaceId))],
+        });
+
+        return [
+            ...created.map((row) => schema.looseObject({ id: schema.string() }).parse(row).id),
+            drawn,
+        ];
+    };
+    const first = await run();
+    const second = await run();
+
+    // repeat every identifier and draw, each apart from the others
+    const [one, two, drawn] = first;
+    const { id, draws } = schema
+        .object({ id: schema.string(), draws: schema.array(schema.number()) })
+        .parse(drawn);
+    expect({
+        isRepeated: JSON.stringify(first) === JSON.stringify(second),
+        distinct: new Set([one, two, id]).size + new Set(draws).size,
+        isUnit: draws.every((draw) => draw >= 0 && draw < 1),
+    }).toEqual({ isRepeated: true, distinct: 5, isUnit: true });
 });
 
 test("predict custom methods only where their handler is, and never a scope's suspension", () => {
@@ -1057,8 +1129,9 @@ async function serveTasks(dialect: Dialect) {
 
     // serve the objects, recording each audited change in the outbox
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task: handled, comment, taskVersion, folder },
+        objects: { task: handled, comment, taskVersion, folder: handleDraw() },
         database,
         callKey: testCallKey,
         origin: {
@@ -1099,7 +1172,7 @@ async function serveTasks(dialect: Dialect) {
     };
 }
 
-test("carry a key the method derives from its work, the same for every retry of it", async () => {
+test("carry a key of the call's place in its request, the same for every retry of the request", async () => {
     const storage = await TestDatabase.create(
         present(TEST_DIALECTS.at(-1), "the last test dialect"),
         objectDatabase,
@@ -1110,26 +1183,28 @@ test("carry a key the method derives from its work, the same for every retry of 
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
-    // copy each version under a key of its title, failing the first attempt after the copy
+    // copy each version under its call's key, failing the first attempt after the copy
     const keys: string[] = [];
     let isFailing = true;
-    const copies = taskCopy.handle({
-        create: {
-            idempotencyKey: (call) => `copy-${call.input["title"]}`,
-            prepare: async (call) => {
-                const key = present(call.idempotencyKey, "the call's key");
-                keys.push(key);
-                if (isFailing) {
-                    isFailing = false;
-                    throw new ServiceError("SERVICE_UNAVAILABLE", { message: "copy failed" });
-                }
+    const copies = taskCopy.implement({
+        methods: {
+            create: {
+                prepare: async (call) => {
+                    const key = present(call.idempotencyKey, "the call's key");
+                    keys.push(key);
+                    if (isFailing) {
+                        isFailing = false;
+                        throw new ServiceError("SERVICE_UNAVAILABLE", { message: "copy failed" });
+                    }
 
-                return key;
+                    return key;
+                },
+                settle: async () => {},
             },
-            rollback: async () => {},
         },
     });
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
@@ -1153,10 +1228,11 @@ test("carry a key the method derives from its work, the same for every retry of 
         parentId: created.id,
         title: "Draft",
     };
+    const requestId = RequestId.create();
     await expect(
         store
             .mutate(context.caller(), {
-                id: RequestId.create(),
+                id: requestId,
                 calls: [copies.call("create", version)],
             })
             .then(([written]) => written),
@@ -1165,14 +1241,14 @@ test("carry a key the method derives from its work, the same for every retry of 
     });
     await store
         .mutate(context.caller(), {
-            id: RequestId.create(),
+            id: requestId,
             calls: [copies.call("create", version)],
         })
         .then(([written]) => written);
-    expect(keys).toEqual(["copy-Draft", "copy-Draft"]);
+    expect(keys).toEqual([`${requestId}/0`, `${requestId}/0`]);
 });
 
-test("settle each call's prepared work once when two calls of one mutation share an idempotency key", async () => {
+test("settle each call's prepared work once under its own key in its request", async () => {
     const storage = await TestDatabase.create(
         present(TEST_DIALECTS.at(-1), "the last test dialect"),
         objectDatabase,
@@ -1183,18 +1259,20 @@ test("settle each call's prepared work once when two calls of one mutation share
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
-    // copy under a key of the title, confirming each copy
+    // copy under each call's key, confirming each copy
     const confirmed: unknown[] = [];
-    const copies = taskCopy.handle({
-        create: {
-            idempotencyKey: (call) => `copy-${call.input["title"]}`,
-            prepare: async (call) => present(call.idempotencyKey, "the call's key"),
-            commit: async (_call, prepared) => {
-                confirmed.push(prepared);
+    const copies = taskCopy.implement({
+        methods: {
+            create: {
+                prepare: async (call) => present(call.idempotencyKey, "the call's key"),
+                settle: async (_call, settled) => {
+                    confirmed.push(settled.prepared);
+                },
             },
         },
     });
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { task, comment, taskVersion, taskCopy: copies, folder },
         database: storage.database,
@@ -1212,14 +1290,15 @@ test("settle each call's prepared work once when two calls of one mutation share
         })
         .then(([written]) => written);
 
-    // create two copies of one title in one mutation, confirming both and keeping no settlement
+    // create two copies of one title in one mutation, confirming each under its own key and keeping no settlement
     const copy = { spaceId, parentId: created.id, title: "Draft" };
+    const requestId = RequestId.create();
     await store.mutate(context.caller(), {
-        id: RequestId.create(),
+        id: requestId,
         calls: [Call.record(copies, "create", copy), Call.record(copies, "create", copy)],
     });
     expect([confirmed, await storage.database.select().from(settlement)]).toEqual([
-        ["copy-Draft", "copy-Draft"],
+        [`${requestId}/0`, `${requestId}/1`],
         [],
     ]);
 });
@@ -1237,16 +1316,42 @@ async function openTaskDatabase(dialect: Dialect) {
 }
 
 /** Handle the task's archive method by marking its row archived. */
-function handleArchive() {
-    return task.handle({
-        archive: async ({ target, database: transaction }) => {
-            const [row] = await transaction
-                .update(task.table)
-                .set({ archived: true, revision: target.revision + 1 })
-                .where(eq(task.table.id, target.id))
-                .returning();
-
-            return present(row, "the archived task");
+/** Handle drawing an identifier and two numbers from a call's request. */
+function handleDraw() {
+    return folder.implement({
+        methods: {
+            draw: async (call) => ({
+                id: await call.generateId(task),
+                draws: [await call.random(), await call.random()],
+            }),
         },
     });
 }
+
+function handleArchive() {
+    return task.implement({
+        methods: {
+            archive: (call) => call.update({ archived: true }),
+            archiveAll: async (call) => {
+                // archive every open task of the scope in the call's transaction
+                const scope = schema.identifier("space").parse(call.scope);
+                const open = await call.read(task).rows({ scope, archived: false });
+                await call.mutate(
+                    call.caller,
+                    open.map((row) => task.call("archive", task.target(row))),
+                );
+
+                return { archived: open.length };
+            },
+        },
+    });
+}
+
+test("refuse a handler naming a key that is no phase, such as a misspelled handle", () => {
+    // pass phases the compiler cannot see, as an untyped caller would
+    const phases = { expand: async () => [], handler: async () => ({}) };
+
+    expect(() => Reflect.apply(task.implement, task, [{ methods: { archive: phases } }])).toThrow(
+        new TypeError("a method's handler has no phase handler"),
+    );
+});

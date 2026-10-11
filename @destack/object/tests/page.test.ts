@@ -1,3 +1,4 @@
+import { bearerUser } from "./fixture/user.ts";
 import { ObjectExtension } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
@@ -5,8 +6,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { present, schema } from "@destack/schema";
-import { Authentication } from "@destack/service/authentication";
+import { present, schema, Clock } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
@@ -36,7 +36,9 @@ async function servePages(dialect: Dialect) {
 
     // serve the space's pages
     const server = Server.start({
+        clock: Clock.system,
         ...ObjectExtension.compose([ObjectExtension.of(pagesService, [])], {
+            clock: Clock.system,
             origin: { package: pagesService.package, service: pagesService.name },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
@@ -48,25 +50,7 @@ async function servePages(dialect: Dialect) {
         health: new Health("pages"),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: async (request) => {
-            const bearer = request.headers.get("authorization");
-            if (bearer === null) {
-                return null;
-            }
-            const id = bearer.slice("Bearer ".length);
-            const subject = principal.user.reference("universe", id);
-            const now = Date.now();
-
-            return new Authentication({
-                subject,
-                subjects: [subject],
-                credential: { kind: "user", id },
-                audience,
-                scope: spaceId,
-                verifiedAt: now,
-                expiresAt: now + 60_000,
-            });
-        },
+        authenticate: bearerUser(audience, spaceId),
     });
     onTestFinished(() => server.close());
 
@@ -89,6 +73,7 @@ async function openDevice(user: string, endpoint: ClientOptions) {
         storage: "file",
     });
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: storage.database,
         objects: { page },
         scope: spaceId,

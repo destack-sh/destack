@@ -1,6 +1,5 @@
-import { check, integer, json, sql, text, type Column } from "@destack/db";
+import { check, integer, json, text } from "@destack/db";
 import { Plan, RISKS } from "@destack/resource";
-import { present } from "@destack/schema";
 import { deletionColumns } from "./recoverable.ts";
 import { traitPermissions, type Trait } from "./trait.ts";
 
@@ -33,9 +32,7 @@ export function controlledColumns() {
         /** The latest generation the controller evaluated. */
         observedGeneration: integer("observed_generation").notNull().default(0),
         /** The conditions the controller reports. */
-        conditions: json("conditions", ConditionMap)
-            .notNull()
-            .default(sql`'{}'`),
+        conditions: json("conditions", ConditionMap).notNull().default({}),
     };
 }
 
@@ -61,35 +58,19 @@ export const controlled: Trait<ControlledDefinition> = {
         ...deletionColumns(),
         ...(options === true ? {} : approvalColumns()),
     }),
-    constraints: (_options, table, columns) =>
-        controlledChecks(table, {
-            revision: present(columns["revision"], "the revision column"),
-            generation: present(columns["generation"], "the generation column"),
-            observedGeneration: present(columns["observedGeneration"], "the observed column"),
-        }),
+    constraints: (_options, table) => controlledChecks(table),
     policy: (options, _object, permissions) =>
         traitPermissions(permissions, ["control", ...(options === true ? [] : ["approve"])]),
     methods: (options) => ({ observe, finalize, ...(options === true ? {} : { approvePlan }) }),
 };
 
 /** Require valid revisions and generations, and refuse observations of future generations. */
-function controlledChecks(
-    name: string,
-    columns: {
-        /** The record revision, including observation changes. */
-        readonly revision: Column;
-        /** The desired generation. */
-        readonly generation: Column;
-        /** The observed generation. */
-        readonly observedGeneration: Column;
-    },
-) {
+function controlledChecks(name: string) {
     return [
-        check(`${name}_revision`, sql`${columns.revision} >= 1`),
-        check(`${name}_generation`, sql`${columns.generation} >= 1`),
-        check(
-            `${name}_observed_generation`,
-            sql`${columns.observedGeneration} BETWEEN 0 AND ${columns.generation}`,
-        ),
+        check(`${name}_revision`, { revision: { gte: 1 } }),
+        check(`${name}_generation`, { generation: { gte: 1 } }),
+        check(`${name}_observed_generation`, {
+            observedGeneration: { gte: 0, lte: { field: "generation" } },
+        }),
     ];
 }

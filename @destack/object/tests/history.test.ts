@@ -1,10 +1,10 @@
 import { Subject } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 
 import {
     defineObject,
@@ -165,10 +165,11 @@ test.for(TEST_DIALECTS)(
         const reverted = await call(page, "revert", { id: created.id, at: second.from });
         expect([reverted.title, reverted.body]).toEqual(["Plan", "outline"]);
         const latest = await call(activity, "list", {});
-        expect(latest.items.find((item) => item.endedAt === 30 * MINUTE)).toMatchObject({
-            changes: 2,
-            fields: ["body", "title"],
-        });
+        expect(
+            latest.items
+                .filter((item) => item.endedAt === 30 * MINUTE)
+                .map(({ changes, fields }) => ({ changes, fields })),
+        ).toEqual([{ changes: 2, fields: ["body", "title"] }]);
     },
 );
 
@@ -204,6 +205,7 @@ test("refuse serving history that reads through an object keeping none", async (
     expect(
         () =>
             new ObjectStore({
+                clock: Clock.system,
                 principal: spacePrincipal(spaceId),
                 objects: { activity, folder, sheet },
                 database: storage.database,
@@ -232,7 +234,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
 
     // decide every call as the current user at the current time
     let current = "alice";
-    let now = 0;
+    const clock = new TestClock(0);
     const store = new ObjectStore({
         principal: spacePrincipal(spaceId),
         objects,
@@ -242,12 +244,11 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
             package: activity.package,
             service: "test",
         },
-        clock: () => now,
+        clock,
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
-    const sign = () =>
-        userContext(current, spaceId, { signal: controller.signal, clock: () => now });
+    const sign = () => userContext(current, spaceId, { signal: controller.signal, clock: clock });
     let context = sign();
 
     return {
@@ -262,7 +263,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
             context = sign();
         },
         at: (time: number) => {
-            now = time;
+            clock.set(time);
             context = sign();
         },
     };

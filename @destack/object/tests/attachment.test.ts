@@ -1,5 +1,5 @@
-import { present, schema } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { present, schema, Clock } from "@destack/schema";
+import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { asc, eq, unique, type Dialect, defineDatabase } from "@destack/db";
@@ -235,10 +235,10 @@ test.for(TEST_DIALECTS)(
             subject: principal.user.reference("universe", "bob"),
         });
         const mine = await call(favourite, "create", host(board, plans.id));
-        await expect(call(favourite, "create", host(board, plans.id))).rejects.toMatchObject({
-            code: "DUPLICATE",
-            message: "a record with the same unique key exists",
-        });
+        expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
+            "CONFLICT",
+            "another favourite has the same parent and reader",
+        ]);
         as("bob");
         const theirs = await call(favourite, "create", host(board, plans.id));
 
@@ -280,6 +280,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
 
     // decide every call as the current user
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects,
         database: storage.database,

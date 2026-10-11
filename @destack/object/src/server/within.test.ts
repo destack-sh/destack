@@ -5,7 +5,7 @@ import { journal } from "@destack/audit/stack";
 import { AccessFixture } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, present, type Identifier } from "@destack/schema";
+import { schema, present, type Identifier, Clock } from "@destack/schema";
 
 import { Replica, Scope } from "@destack/sync";
 import { defineObject, field } from "../index.ts";
@@ -70,6 +70,7 @@ function serve(
     subscriber?: NonNullable<ConstructorParameters<typeof ObjectStore>[0]["subscriber"]>,
 ) {
     return new ObjectStore({
+        clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         objects: { person, profile },
         database,
@@ -142,7 +143,7 @@ test.each(TEST_DIALECTS)(
         await join(cy);
 
         // keep the space's copy of the universe in its database, decided at home for the space
-        const copying: ObjectStore<{ person: typeof person; profile: typeof profile }> = serve(
+        const copying: ObjectStore = serve(
             space.database,
             Subscriber.of(
                 {
@@ -263,6 +264,7 @@ test.each(TEST_DIALECTS)(
 
         // let the space read ada, and show it the first and the last badge
         const served = new ObjectStore({
+            clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, spaceId),
             objects: { person, team, badge },
             database: home.database,
@@ -287,37 +289,31 @@ test.each(TEST_DIALECTS)(
         }
 
         // copy the universe the space reads into its database, which serves people and badges alone
-        const copying: ObjectStore<{ person: typeof person; badge: typeof badge }> =
-            new ObjectStore({
-                principal: principal.space.reference(Scope.universe.id, spaceId),
-                objects: { person, badge },
-                database: space.database,
-                subscriber: Subscriber.of(
-                    {
-                        receive: refuseChanges,
-                        stream: (asked, signal) =>
-                            served.source.replicate(
-                                asked,
-                                asked.after,
-                                {
-                                    subject: principal.space.reference(
-                                        Scope.universe.id,
-                                        asked.below,
-                                    ),
-                                },
-                                signal,
-                            ),
-                    },
-                    async () => [
-                        present(
-                            copying.source.universeSubscription(spaceId),
-                            "the universe request",
+        const copying: ObjectStore = new ObjectStore({
+            clock: Clock.system,
+            principal: principal.space.reference(Scope.universe.id, spaceId),
+            objects: { person, badge },
+            database: space.database,
+            subscriber: Subscriber.of(
+                {
+                    receive: refuseChanges,
+                    stream: (asked, signal) =>
+                        served.source.replicate(
+                            asked,
+                            asked.after,
+                            {
+                                subject: principal.space.reference(Scope.universe.id, asked.below),
+                            },
+                            signal,
                         ),
-                    ],
-                ),
-                callKey: testCallKey,
-                origin: { package: person.package, service: "test" },
-            });
+                },
+                async () => [
+                    present(copying.source.universeSubscription(spaceId), "the universe request"),
+                ],
+            ),
+            callKey: testCallKey,
+            origin: { package: person.package, service: "test" },
+        });
         await follow(copying, home.database, space.database);
 
         // keep the shown badges of the team and of ada, and withhold the hidden one

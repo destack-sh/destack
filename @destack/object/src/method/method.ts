@@ -1,32 +1,40 @@
+import type { Creation } from "@destack/access";
+import type { InputSchema } from "./input.ts";
 import type { Version, schema } from "@destack/schema";
 import type { Expression, Table } from "@destack/db";
 import type * as sync from "@destack/sync";
-import type { Call, HandlerOf, Lifecycle } from "./call.ts";
+import type { Call, Handler, PhasedHandler } from "./call.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Empty, MethodProcedure, ObjectSchema } from "./procedure.ts";
-import {
-    create,
-    mutation,
-    query,
-    get,
-    list,
-    remove,
-    update,
-    updateMany,
-    type BatchPayload,
-    type CreateOptions,
-    type CustomDefinition,
-    type RemoveOptions,
-    type UpdateManyOptions,
-    type UpdateOptions,
-    type Variants,
+import type {
+    BatchPayload,
+    CreateOptions,
+    CustomDefinition,
+    CustomTarget,
+    RemoveOptions,
+    UpdateManyOptions,
+    UpdateOptions,
+    Variants,
 } from "./record.ts";
 import type { MethodKind } from "./kind.ts";
 import type { Step } from "./step.ts";
 import type { BranchCall } from "../branch/branch.ts";
-import type { SettlementCall } from "./settlement.ts";
+import type { Settled, SettlementCall } from "./settlement.ts";
 
 export { METHOD_KINDS, type MethodKind } from "./kind.ts";
+
+/** The brand every declared method keeps, through copies too. */
+const METHOD: unique symbol = Symbol("method");
+
+/** The phases a method's handler may name. */
+const HANDLER_PHASES: ReadonlySet<string> = new Set([
+    "authorize",
+    "creation",
+    "expand",
+    "prepare",
+    "handle",
+    "settle",
+]);
 
 /** A method's signature: its kind, permission, schemas and table, which type its calls and handlers. */
 export interface MethodConfiguration {
@@ -50,6 +58,8 @@ export interface MethodConfiguration {
     readonly table: Table;
     /** Whether the method stays out of the routes people call, run only by the principals' own code. */
     readonly internal: boolean;
+    /** Whether the method acts in its scope with no target object. */
+    readonly scoped: boolean;
 }
 
 /** One type a method declares: its own, or the default when it declares none. */
@@ -59,8 +69,52 @@ export type OptionOf<
     Absent,
 > = Configuration extends { readonly [Name in Key]: infer Value } ? Value : Absent;
 
+/** The builder call a declared method came from: the builder's name and its arguments as written, which its description records and decoding replays. */
+export type MethodSource =
+    | { readonly builder: "get" | "list"; readonly arguments: readonly [permission: string] }
+    | {
+          readonly builder: "create";
+          readonly arguments: readonly [
+              permission: string,
+              options: CreateOptions<string, schema.JsonObject, schema.Schema, boolean>,
+          ];
+      }
+    | {
+          readonly builder: "update";
+          readonly arguments: readonly [
+              permission: string,
+              options: UpdateOptions<string, schema.JsonObject, schema.Schema>,
+          ];
+      }
+    | {
+          readonly builder: "updateMany";
+          readonly arguments: readonly [
+              permission: string,
+              options: UpdateManyOptions<string, string>,
+          ];
+      }
+    | {
+          readonly builder: "delete";
+          readonly arguments: readonly [permission: string, options: RemoveOptions<schema.Schema>];
+      }
+    | {
+          readonly builder: "query" | "mutation";
+          readonly arguments: readonly [
+              definition: CustomDefinition<
+                  string,
+                  InputSchema,
+                  schema.Schema,
+                  schema.Schema,
+                  boolean,
+                  CustomTarget
+              >,
+          ];
+      };
+
 /** A named operation on an object type, typed by the input, output and prepared work it declares. */
 export interface Method<Configuration extends Partial<MethodConfiguration> = MethodConfiguration> {
+    /** The brand marking a declared method. */
+    readonly [METHOD]: true;
     /** The method's kind. */
     readonly kind: OptionOf<Configuration, "kind", MethodKind>;
     /** The permission the caller needs on the target. */
@@ -103,24 +157,26 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     execute(call: Call): Promise<unknown>;
     /** Authorize a call before its external work. */
     authorize?(call: Call): Promise<void>;
+    /** Derive a created object's first relationships and a new scope's owner, for creations. */
+    readonly creation?: (call: Call, object: sync.ObjectReference) => Creation | Promise<Creation>;
     /** List the calls a mutation runs before this one, each as its caller, read before the transaction. */
     expand?(call: Call): Promise<readonly BranchCall[]>;
     /** Do external work before the transaction, on the server only. */
     prepare?(call: Call): Promise<unknown>;
-    /** Confirm the prepared work once the transaction committed. */
-    commit?(call: SettlementCall, prepared: unknown): Promise<void>;
-    /** Undo the prepared work once the transaction failed, without it when it was never recorded. */
-    rollback?(call: SettlementCall, prepared: unknown): Promise<void>;
-    /** Derive the idempotency key of a call's external work. */
-    idempotencyKey?(call: Call): string;
+    /** The builder call a declared method came from, absent for a method a trait derives. */
+    readonly source?: MethodSource;
+    /** Settle the prepared work once the transaction committed or failed, at least once. */
+    settle?(call: SettlementCall, settled: Settled): Promise<void>;
     /** Whether the method stays out of the routes people call, run only by the principals' own code. */
     readonly isInternal?: OptionOf<Configuration, "internal", boolean>;
+    /** Whether the method acts in its scope with no target object. */
+    readonly isScoped?: OptionOf<Configuration, "scoped", boolean>;
     /** Refuse an object type the method cannot serve. */
     validate?(object: ObjectType): void;
     /** Derive the calls undoing a step. */
     inverse?(step: Step): readonly sync.Call[] | undefined;
-    /** Wrap the method in an object's own handler or phases. */
-    handle(handler: HandlerOf<Configuration>): Method<Configuration>;
+    /** Wrap the method in an object's own handler or phases, which leaves it no builder call as its source. */
+    handle(handler: Handler<Configuration>): Method<Configuration>;
 }
 
 /** The method declarations of one object type, typed by its table. */
@@ -128,12 +184,13 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
     /** Declare a method reading one object, as tRPC's `query`. */
     query<
         const Permission extends string,
-        Input extends schema.JsonObject = never,
+        Input extends InputSchema = never,
         Output extends schema.Schema = never,
         Prepared extends schema.Schema = never,
         const Internal extends boolean = false,
+        const Target extends CustomTarget = true,
     >(
-        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
+        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>,
     ): Method<{
         kind: "custom";
         permission: Permission;
@@ -143,16 +200,18 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         mutates: false;
         table: Definition;
         internal: NoInfer<Internal>;
+        scoped: Target extends "none" ? true : false;
     }>;
     /** Declare a method changing one object, as tRPC's `mutation`. */
     mutation<
         const Permission extends string,
-        Input extends schema.JsonObject = never,
+        Input extends InputSchema = never,
         Output extends schema.Schema = never,
         Prepared extends schema.Schema = never,
         const Internal extends boolean = false,
+        const Target extends CustomTarget = true,
     >(
-        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
+        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>,
     ): Method<{
         kind: "custom";
         permission: Permission;
@@ -162,6 +221,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         mutates: true;
         table: Definition;
         internal: NoInfer<Internal>;
+        scoped: Target extends "none" ? true : false;
     }>;
     /** Read one object. */
     get<const Permission extends string>(
@@ -181,7 +241,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         const Sum extends Variants<Written> = never,
     >(
         permission: Permission,
-        options?: CreateOptions<Fields, Input, Prepared, Internal, Definition, Sum>,
+        options?: CreateOptions<Fields, Input, Prepared, Internal, Sum>,
     ): Method<{
         kind: "create";
         permission: Permission;
@@ -244,7 +304,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
 /** A method as a trait declares it. */
 export type MethodDefinition<Configuration extends Partial<MethodConfiguration>> = Omit<
     Method<Configuration>,
-    "execute" | "handle" | "isPredicted"
+    typeof METHOD | "execute" | "handle" | "isPredicted"
 > & {
     /** Whether clients predict the method, true by default. */
     readonly isPredicted?: boolean;
@@ -257,22 +317,15 @@ export type MethodDefinition<Configuration extends Partial<MethodConfiguration>>
 
 /** What every method can report about itself. */
 export const Method = {
-    /** Decide whether a method settles its prepared work: it commits or rolls it back. */
-    settles(declared: Method): boolean {
-        return declared.commit !== undefined || declared.rollback !== undefined;
+    /** Decide whether a value is a declared method. */
+    is(value: unknown): value is Method {
+        return typeof value === "object" && value !== null && METHOD in value;
     },
-};
 
-/** Declare methods with `method.query(...)`, `method.mutation(...)`, `method.get(...)` and their siblings. */
-export const method: MethodBuilder = {
-    query,
-    mutation,
-    get,
-    list,
-    create,
-    update,
-    updateMany,
-    delete: remove,
+    /** Decide whether a method settles its prepared work. */
+    settles(declared: Method): boolean {
+        return declared.settle !== undefined;
+    },
 };
 
 /** Complete a method a trait declares. */
@@ -281,6 +334,7 @@ export function defineMethod<Configuration extends Partial<MethodConfiguration>>
 ): Method<Configuration> {
     const declared: Method<Configuration> = {
         ...definition,
+        [METHOD]: true,
         isPredicted: definition.isPredicted ?? true,
         execute:
             definition.execute ??
@@ -296,24 +350,28 @@ export function defineMethod<Configuration extends Partial<MethodConfiguration>>
 /** Wrap a method in an object's own handler or phases. */
 function handled<Configuration extends Partial<MethodConfiguration>>(
     declared: Method<Configuration>,
-    handler: HandlerOf<Configuration>,
+    handler: Handler<Configuration>,
 ): Method<Configuration> {
-    // normalize the handler
-    const handling: Lifecycle = typeof handler === "function" ? { handler } : handler;
-    if (
-        (handling.commit !== undefined || handling.rollback !== undefined) &&
-        handling.prepare === undefined
-    ) {
-        throw new TypeError("a method commits or rolls back only the work its prepare phase does");
+    // normalize the handler, refusing a key that is no phase
+    const handling: PhasedHandler = typeof handler === "function" ? { handle: handler } : handler;
+    const unknown = Object.keys(handling).find((key) => !HANDLER_PHASES.has(key));
+    if (unknown !== undefined) {
+        throw new TypeError(`a method's handler has no phase ${unknown}`);
+    }
+    if (handling.settle !== undefined && handling.prepare === undefined) {
+        throw new TypeError("a method settles only the work its prepare phase does");
     } else if (handling.prepare !== undefined && declared.prepared === undefined) {
         throw new TypeError("a method prepares only the work it declares");
+    } else if (handling.creation !== undefined && declared.creation !== undefined) {
+        throw new TypeError("a creation names a creator relation or a creation, not both");
     }
 
     // wrap the current handler, and run the declared authorization before the handler's
-    const wrapped = handling.handler;
+    const wrapped = handling.handle;
     const authorize = handling.authorize;
+    const { source: _source, ...unsourced } = declared;
     const wrapping: Method<Configuration> = {
-        ...declared,
+        ...unsourced,
         ...(wrapped === undefined
             ? {}
             : {
@@ -325,12 +383,9 @@ function handled<Configuration extends Partial<MethodConfiguration>>(
         ...(handling.prepare === undefined
             ? {}
             : { prepare: handling.prepare, isPredicted: false }),
-        ...(handling.commit === undefined ? {} : { commit: handling.commit }),
-        ...(handling.rollback === undefined ? {} : { rollback: handling.rollback }),
+        ...(handling.settle === undefined ? {} : { settle: handling.settle }),
         ...(handling.expand === undefined ? {} : { expand: handling.expand }),
-        ...(handling.idempotencyKey === undefined
-            ? {}
-            : { idempotencyKey: handling.idempotencyKey }),
+        ...(handling.creation === undefined ? {} : { creation: handling.creation }),
         ...(authorize === undefined
             ? {}
             : {

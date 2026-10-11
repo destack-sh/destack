@@ -1,3 +1,5 @@
+import { Clock } from "@destack/schema";
+import { Transaction } from "@destack/db";
 import { MemoryBuild } from "@destack/package/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
@@ -58,6 +60,7 @@ async function serveInstalledNotes() {
         },
     };
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { notebook, note },
         database,
@@ -81,7 +84,7 @@ test("refuse an installation's writes in a space whose storage is capped, keepin
     const tickets = await alice.note.create({ ...request(), title: "Tickets" });
 
     // cap the space's storage, as the copy of its scope row arrives from its machine
-    await Scope.cap(database, spaceId, Date.now());
+    await Transaction.run(database, (transaction) => Scope.cap(transaction, spaceId, Date.now()));
     const created = await refusal(alice.note.create({ ...request(), title: "Hotels" }));
     const updated = await refusal(
         alice.notebook.update({ ...request(), id: book.id, name: "Trips" }),
@@ -93,7 +96,7 @@ test("refuse an installation's writes in a space whose storage is capped, keepin
     const restored = await refusal(alice.note.restore({ ...request(), id: packing.id }));
 
     // lift the cap, writing again
-    await Scope.cap(database, spaceId, null);
+    await Transaction.run(database, (transaction) => Scope.cap(transaction, spaceId, null));
     const hotels = await alice.note.create({ ...request(), title: "Hotels" });
 
     // state the refused method and the way out of the cap

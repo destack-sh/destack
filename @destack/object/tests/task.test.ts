@@ -1,10 +1,10 @@
+import { bearerUser } from "./fixture/user.ts";
 import { ObjectExtension } from "../src/server/index.ts";
 import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, present } from "@destack/schema";
-import { Authentication } from "@destack/service/authentication";
+import { schema, present, Clock } from "@destack/schema";
 import { createClient } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { RequestId } from "@destack/service/request";
@@ -33,7 +33,9 @@ test.each(TEST_DIALECTS)(
 
         // serve the space's tasks to users identified by their bearer credential
         const server = Server.start({
+            clock: Clock.system,
             ...ObjectExtension.compose([ObjectExtension.of(tasksService, [])], {
+                clock: Clock.system,
                 origin: { package: tasksService.package, service: tasksService.name },
                 principal: spacePrincipal(spaceId),
                 callKey: testCallKey,
@@ -45,24 +47,7 @@ test.each(TEST_DIALECTS)(
             health: new Health("tasks"),
             drainTimeout: 1000,
             authorizeMachine: async () => {},
-            authenticate: async (request) => {
-                const id = present(
-                    request.headers.get("authorization"),
-                    "the authorization header",
-                ).slice("Bearer ".length);
-                const subject = principal.user.reference("universe", id);
-                const now = Date.now();
-
-                return new Authentication({
-                    subject,
-                    subjects: [subject],
-                    credential: { kind: "user", id },
-                    audience,
-                    scope: spaceId,
-                    verifiedAt: now,
-                    expiresAt: now + 60_000,
-                });
-            },
+            authenticate: bearerUser(audience, spaceId),
         });
         onTestFinished(() => server.close());
         const as = (caller: string) =>
@@ -212,18 +197,22 @@ test("serve a handled type in place of the service's own", async () => {
     await openSpace(storage.database, spaceId);
 
     // run the handled project's create in place of the plain one
-    const frozen = project.handle({
-        create: async () => {
-            throw new ServiceError("CONFLICT", { message: "projects are frozen" });
+    const frozen = project.implement({
+        methods: {
+            create: async () => {
+                throw new ServiceError("CONFLICT", { message: "projects are frozen" });
+            },
         },
     });
     const served = ObjectExtension.compose([ObjectExtension.of(tasksService, [frozen])], {
+        clock: Clock.system,
         origin: { package: tasksService.package, service: tasksService.name },
         principal: spacePrincipal(spaceId),
         callKey: testCallKey,
         database: storage.database,
     }).services[0];
     const server = Server.start({
+        clock: Clock.system,
         ...served,
         audience,
         scope: spaceId,
@@ -231,23 +220,12 @@ test("serve a handled type in place of the service's own", async () => {
         health: new Health("tasks"),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: async () => {
-            const subject = principal.user.reference("universe", "alice");
-
-            return new Authentication({
-                subject,
-                subjects: [subject],
-                credential: { kind: "user", id: "alice" },
-                audience,
-                scope: spaceId,
-                verifiedAt: Date.now(),
-                expiresAt: Date.now() + 60_000,
-            });
-        },
+        authenticate: bearerUser(audience, spaceId),
     });
     onTestFinished(() => server.close());
     const alice = createClient(tasksService, {
         url: "https://tasks.test",
+        headers: { authorization: "Bearer alice" },
         fetch: (request: Request) => server.fetch(request),
     });
     await expect(

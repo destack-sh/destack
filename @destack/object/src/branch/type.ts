@@ -5,13 +5,13 @@ import { schema } from "@destack/schema";
 import type * as sync from "@destack/sync";
 import { Call } from "../method/index.ts";
 import type { ObjectController } from "../object/controller.ts";
-import type { ObjectType } from "../object/index.ts";
+import { ObjectKey, type ObjectType } from "../object/index.ts";
 
 /** The columns every branch type's rows keep: the identifier, the state and the tables the branch's rows live in. */
 const BRANCH_RECORD = schema.looseObject({
     id: schema.string(),
     state: schema.string(),
-    reach: schema.array(schema.string()),
+    tables: schema.array(schema.string()),
 });
 
 /** A branch as its row records it. */
@@ -20,29 +20,29 @@ type BranchRecord = schema.Infer<typeof BRANCH_RECORD>;
 /** The type of a branch's calls, which branches append by creating them. */
 type BranchCallType = ObjectType & { readonly methods: { readonly create: Method } };
 
-/** The type of the rows a branch changes, which branches create, update and delete. */
-type BranchRowType = ObjectType & {
+/** The type of the changes a branch makes over the main line, which branches create, update and delete. */
+type BranchChangeType = ObjectType & {
     readonly methods: { readonly create: Method; readonly update: Method; readonly delete: Method };
 };
 
-/** A scope type's branches: the branch type, the type of its calls, and the type of the rows it changes. */
+/** A scope type's branches: the branch type, the type of its calls, and the type of its changes. */
 export class BranchType {
     /** The branch type, with push, merge, discard and rebuild methods. */
     readonly object: ObjectType;
     /** The type of a branch's calls, nested in the branch and ordered by position. */
     readonly call: BranchCallType;
-    /** The type of the rows a branch changes, nested in the branch. */
-    readonly row: BranchRowType;
+    /** The type of the changes a branch makes, nested in the branch. */
+    readonly change: BranchChangeType;
 
     /** Bring a scope type's branch types together. */
     constructor(types: {
         readonly object: ObjectType;
         readonly call: BranchCallType;
-        readonly row: BranchRowType;
+        readonly change: BranchChangeType;
     }) {
         this.object = types.object;
         this.call = types.call;
-        this.row = types.row;
+        this.change = types.change;
     }
 
     /** Read a branch row's identifier, state and the tables its rows live in, as every branch type keeps them. */
@@ -89,7 +89,7 @@ export class BranchType {
 
     /** Report whether an object type keeps branches themselves, whose calls stay on the main line. */
     keeps(object: ObjectType): boolean {
-        return [this.object, this.call, this.row].some((type) => type.same(object));
+        return [this.object, this.call, this.change].some((type) => type.same(object));
     }
 
     /** Read the tables branches change, by SQL name. */
@@ -130,14 +130,18 @@ export class BranchType {
 
                     return open
                         .map((entry) => BranchType.record(entry))
-                        .filter((entry) => entry.reach.includes(table[TABLE].sqlName))
+                        .filter((entry) => entry.tables.includes(table[TABLE].sqlName))
                         .map((entry) => ({ id: entry.id }));
                 },
             })),
             reconcile: async (reconciliation) => {
                 await reconciliation.mutate(
                     reconciliation.rows.map((row) =>
-                        Call.record(this.object, "rebuild", this.object.target(row)),
+                        Call.record(
+                            this.object,
+                            "rebuild",
+                            this.object.target(ObjectKey.parse(row)),
+                        ),
                     ),
                 );
 

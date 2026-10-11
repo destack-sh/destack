@@ -3,7 +3,7 @@ import type { AuditCall } from "@destack/audit";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { reconciliation, testCallKey } from "@destack/service/test";
 import { startTelemetry } from "@destack/telemetry/bun";
@@ -61,6 +61,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     onTestFinished(() => telemetry.shutdown());
     const spaceId = `space-${v7()}`;
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { holder },
         database: storage.database,
@@ -97,7 +98,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
             id: RequestId.create(),
             calls: [
                 holder.call("provision", {
-                    ...holder.target({ scope: spaceId }),
+                    ...holder.in(spaceId),
                     label: "deploy",
                     key: invalid,
                 }),

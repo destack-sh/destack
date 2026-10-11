@@ -1,13 +1,5 @@
 import { permission, principal, relation, union } from "@destack/access";
-import {
-    check,
-    type Select,
-    sql,
-    unique,
-    type Column,
-    type ColumnMap,
-    type Table,
-} from "@destack/db";
+import { check, type Select, unique, type Column, type ColumnMap, type Table } from "@destack/db";
 import { PackageId } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import {
@@ -22,7 +14,7 @@ import { Digest, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
 import { field, type FieldOf } from "../field/field.ts";
-import { method } from "../method/method.ts";
+import { method } from "../method/record.ts";
 import {
     ObjectPermissions,
     type ObjectDefinition,
@@ -31,7 +23,7 @@ import {
     type ScopeIdentityOf,
 } from "../object/object.ts";
 import type { ObjectTable } from "../object/table.ts";
-import type { ObjectDeclaration } from "../server/stack.ts";
+import type { DeclarationHandler } from "../server/stack.ts";
 import type { ControlledMethodMap } from "./controlled.ts";
 import type { DeclarableDefinition } from "./declarable.ts";
 import { CONSUMER } from "./bindable.ts";
@@ -245,25 +237,28 @@ export const Provisioned = {
                 present(columns["scope"], "the scope column"),
                 present(columns["id"], "the id column"),
             ),
-            check(
-                `${kind}_provider`,
-                sql`(${columns["provider"]} IS NULL) = (${columns["reference"]} IS NULL)`,
-            ),
-            check(
-                `${kind}_location`,
-                sql`${columns["location"]} IS NULL OR (${columns["provider"]} IS NOT NULL AND length(${columns["location"]}) > 0)`,
-            ),
-            check(
-                `${kind}_machine`,
-                sql`${columns["machineId"]} IS NULL OR ${columns["provider"]} IS NOT NULL`,
-            ),
+            check(`${kind}_provider`, {
+                OR: [
+                    { provider: { isNull: true }, reference: { isNull: true } },
+                    { provider: { isNotNull: true }, reference: { isNotNull: true } },
+                ],
+            }),
+            check(`${kind}_location`, {
+                OR: [
+                    { location: { isNull: true } },
+                    { provider: { isNotNull: true }, location: { length: { gt: 0 } } },
+                ],
+            }),
+            check(`${kind}_machine`, {
+                OR: [{ machineId: { isNull: true } }, { provider: { isNotNull: true } }],
+            }),
         ];
     },
 
     /** Declare how a stack's resources of a kind become their records, provisioned or declared at a reference. */
     declaration(
         kind: ResourceKind,
-    ): ObjectDeclaration<ObjectType, ResourceDefinition, ResourceDefinition> {
+    ): DeclarationHandler<ObjectType, ResourceDefinition, ResourceDefinition> {
         return {
             keys: ["resources"],
             collect: (document) =>

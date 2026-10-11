@@ -1,7 +1,8 @@
 import { TABLE } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import { Digest, schema } from "@destack/schema";
-import { method, type MethodBuilder } from "./method.ts";
+import type { MethodBuilder } from "./method.ts";
+import { method } from "./record.ts";
 
 import { Observation, observeCondition } from "../object/condition.ts";
 

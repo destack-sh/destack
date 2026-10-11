@@ -3,7 +3,7 @@ import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { check, sql, unique } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { type CallInput, defineObject, field } from "../src/index.ts";
@@ -49,6 +49,7 @@ test.each(TEST_DIALECTS)(
         // serve the handles to the user each call refers to
         let level = 2;
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { handle },
             database: storage.database,
@@ -58,7 +59,11 @@ test.each(TEST_DIALECTS)(
                 service: "test",
             },
         });
-        const create = (user: string, input: Record<string, unknown>, scope = spaceId) => {
+        const create = (
+            user: string,
+            input: { readonly holderId: string; readonly name: string; readonly id?: string },
+            scope = spaceId,
+        ) => {
             const context = userContext(user, scope, {
                 assurance: { level, authenticatedAt: Date.now() },
             });
@@ -75,10 +80,10 @@ test.each(TEST_DIALECTS)(
         const taken = await create("alice", { holderId: "alice", name: "notes" });
 
         // tell bob of the taken name and identifier only for a handle he may create
-        await expect(create("bob", { holderId: "bob", name: "notes" })).rejects.toMatchObject({
-            code: "DUPLICATE",
-            message: "a record with the same unique key exists",
-        });
+        expect(await refusal(create("bob", { holderId: "bob", name: "notes" }))).toEqual([
+            "CONFLICT",
+            "another handle has the same scope and name",
+        ]);
         await expect(
             create("bob", { holderId: "bob", name: "tasks", id: taken.id }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "handle identifier is taken" });
@@ -138,6 +143,7 @@ test("create an object the caller has the permission on only as the creator its 
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { team },
         database: storage.database,
@@ -167,6 +173,7 @@ test("run only the one method a Loan lends its caller, refusing every other", as
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { team },
         database: storage.database,
@@ -225,10 +232,22 @@ const contact = defineObject({
         }),
     }),
     constraints: (entry) => [
-        check(
-            "contact_kind",
-            sql`(${entry.kind} = 'email' AND ${entry.address} IS NOT NULL AND ${entry.number} IS NULL AND ${entry.region} IS NULL) OR (${entry.kind} = 'phone' AND ${entry.address} IS NULL AND ${entry.number} IS NOT NULL AND ${entry.region} IS NOT NULL)`,
-        ),
+        check("contact_kind", {
+            OR: [
+                {
+                    kind: "email",
+                    address: { isNotNull: true },
+                    number: { isNull: true },
+                    region: { isNull: true },
+                },
+                {
+                    kind: "phone",
+                    address: { isNull: true },
+                    number: { isNotNull: true },
+                    region: { isNotNull: true },
+                },
+            ],
+        }),
     ],
 });
 
@@ -239,6 +258,7 @@ test("create each variant of a sum type from its own fields beside the shared on
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: { contact },
         database: storage.database,
@@ -268,13 +288,17 @@ test("create each variant of a sum type from its own fields beside the shared on
             .mutate(userContext("alice", spaceId).caller(), {
                 id: RequestId.create(),
                 calls: [
-                    contact.call("create", {
-                        spaceId,
-                        label: "Both",
-                        kind: "email",
-                        address: "alice@example.com",
-                        number: "+4930123456",
-                    }),
+                    {
+                        method: "contact.create",
+                        release: contact.package.version,
+                        input: {
+                            spaceId,
+                            label: "Both",
+                            kind: "email",
+                            address: "alice@example.com",
+                            number: "+4930123456",
+                        },
+                    },
                 ],
             })
             .then(([written]) => written),

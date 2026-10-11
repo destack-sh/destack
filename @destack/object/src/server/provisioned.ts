@@ -10,14 +10,14 @@ import {
 } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import type { ResourceState } from "@destack/package/declare";
-import { aligned, canonicalize, Digest, Duration, type Identifier, present } from "@destack/schema";
+import { aligned, Digest, Duration, type Identifier } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import {
     ObjectWatch,
     type ObjectController,
     type ObjectReconciliation,
 } from "../object/controller.ts";
-import type { Condition } from "../object/condition.ts";
+import { type Condition, type ObservationReport } from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ProvisionedObject, type ProvisionedRecord } from "../trait/provisioned.ts";
@@ -183,7 +183,7 @@ async function isHeld(database: DatabaseConnection, scope: string): Promise<bool
     return (
         link !== undefined &&
         link.movedTo === undefined &&
-        !(await Replica.isCopied(database, scope))
+        !(await Replica.isCopied(Snapshot.live(database), scope))
     );
 }
 
@@ -509,40 +509,13 @@ async function observe(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
     reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    fields: Partial<Record<keyof ProvisionedRecord, unknown>>,
+    fields: NonNullable<ObservationReport["fields"]>,
     conditions: Readonly<Record<string, Condition>>,
 ): Promise<ProvisionedRecord> {
-    // skip an observation the row has
-    const columns: Readonly<Record<string, unknown>> = row;
-    const isObserved =
-        row.observedGeneration === row.generation &&
-        Object.entries(conditions).every(([name, condition]) => {
-            const current = row.conditions[name];
+    // observe the generation, the conditions and the fields once
+    const observed = await reconciliation.observe(object, row, { conditions, fields });
 
-            return (
-                current?.status === condition.status &&
-                current.reason === condition.reason &&
-                current.message === condition.message
-            );
-        }) &&
-        Object.entries(fields).every(
-            ([name, value]) => canonicalize(columns[name] ?? null) === canonicalize(value ?? null),
-        );
-    if (isObserved) {
-        return row;
-    }
-
-    // observe the generation, the conditions and the fields
-    const [observed] = await reconciliation.mutate([
-        Call.record(object, "observe", {
-            ...object.target(row),
-            observedGeneration: row.generation,
-            conditions,
-            fields,
-        }),
-    ]);
-
-    return object.rowSchema().parse(present(observed, `the observation of resource ${row.id}`));
+    return object.rowSchema().parse(observed);
 }
 
 /** Describe a condition that does not hold. */

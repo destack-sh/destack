@@ -1,4 +1,4 @@
-import { expect, test, onTestFinished } from "@destack/test";
+import { expect, test, onTestFinished, TestClock } from "@destack/test";
 import { Expression } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { RequestId } from "@destack/service/request";
@@ -309,8 +309,9 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "follow the newest notebooks and notes as one feed on %s",
     async (dialect) => {
-        const { endpoint } = await serveNotes(dialect);
-        const device = await Device.open("alice", endpoint("alice"), []);
+        const clock = new TestClock(Date.now());
+        const { endpoint } = await serveNotes(dialect, clock);
+        const device = await Device.open("alice", endpoint("alice"), [], { clock });
 
         // follow notebooks and notes together, newest first, three at most
         const { query } = device.client.of({ notebook, note });
@@ -332,14 +333,10 @@ test.for(TEST_DIALECTS)(
         // file a notebook with two notes, a millisecond apart, and read the newest three
         const book = await device.client.mutate(notebook).create({ name: "Home" }).predicted;
         for (const title of ["Chores", "Budget"]) {
-            await new Promise((resolve) => {
-                setTimeout(resolve, 2);
-            });
+            clock.advance(1);
             await device.client.mutate(note).create({ parentId: book.id, title }).predicted;
         }
-        await new Promise((resolve) => {
-            setTimeout(resolve, 2);
-        });
+        clock.advance(1);
         await device.client.mutate(notebook).create({ name: "Travel" }).predicted;
         expect(unionNames(await activity.read())).toEqual([
             "notebooks:Travel",

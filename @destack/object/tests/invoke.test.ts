@@ -4,7 +4,7 @@ import { none, principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { defineObject, field } from "../src/index.ts";
@@ -84,45 +84,49 @@ const shelf = defineObject({
             input: schema.object({ borrower: schema.string() }),
         }),
     }),
-}).handle({
-    // tidy the shelf's books as the caller
-    tidy: async (call) =>
-        call
-            .mutate(call.caller, [
-                book.call("tidy", { where: { shelf: call.target.name }, isTidy: true }),
-            ])
-            .then(([tidied]) => tidied),
-    // tidy one owned book as the caller
-    straighten: async (call) => {
-        await call.mutate(call.caller, [
-            book.call("update", { id: call.input.book, isTidy: true }),
-        ]);
+}).implement({
+    methods: {
+        // tidy the shelf's books as the caller
+        tidy: async (call) =>
+            call
+                .mutate(call.caller, [
+                    book.call("tidy", { where: { shelf: call.target.name }, isTidy: true }),
+                ])
+                .then(([tidied]) => tidied),
+        // tidy one owned book as the caller
+        straighten: async (call) => {
+            await call.mutate(call.caller, [
+                book.call("update", { id: call.input.book, isTidy: true }),
+            ]);
 
-        return call.target;
-    },
-    // issue a slip to the borrower as the space and close it
-    lend: async (call) => {
-        const [slipped] = await call.mutate(call.service, [
-            slip.call("issue", { borrowerId: call.input.borrower, shelf: call.target.name }),
-        ]);
-        const issued = schema.looseObject({ id: schema.string() }).parse(slipped);
-        await call.mutate(call.service, [slip.call("close", { id: issued.id, isReturned: true })]);
+            return call.target;
+        },
+        // issue a slip to the borrower as the space and close it
+        lend: async (call) => {
+            const [slipped] = await call.mutate(call.service, [
+                slip.call("issue", { borrowerId: call.input.borrower, shelf: call.target.name }),
+            ]);
+            const issued = schema.looseObject({ id: schema.string() }).parse(slipped);
+            await call.mutate(call.service, [
+                slip.call("close", { id: issued.id, isReturned: true }),
+            ]);
 
-        return { slip: issued.id };
-    },
-    // issue a slip as the caller, who holds no permission to
-    forge: async (call) => {
-        await call.mutate(call.caller, [
-            slip.call("issue", { borrowerId: call.input.borrower, shelf: call.target.name }),
-        ]);
+            return { slip: issued.id };
+        },
+        // issue a slip as the caller, who holds no permission to
+        forge: async (call) => {
+            await call.mutate(call.caller, [
+                slip.call("issue", { borrowerId: call.input.borrower, shelf: call.target.name }),
+            ]);
 
-        return call.target;
-    },
-    // shelve a book on an unnamed shelf, which the book's schema refuses
-    misfile: async (call) => {
-        await call.mutate(call.caller, [book.call("create", { shelf: "" })]);
+            return call.target;
+        },
+        // shelve a book on an unnamed shelf, which the book's schema refuses
+        misfile: async (call) => {
+            await call.mutate(call.caller, [book.call("create", { shelf: "" })]);
 
-        return call.target;
+            return call.target;
+        },
     },
 });
 
@@ -148,6 +152,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { book, shelf, slip },
             database: storage.database,
@@ -209,18 +214,21 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: {
                 book,
                 shelf,
                 // mark issued slips on the server when the base type is invoked
-                slip: slip.handle({
-                    issue: (call, next) =>
-                        next(
-                            call.with({
-                                input: { ...call.input, shelf: `${call.input["shelf"]}!` },
-                            }),
-                        ),
+                slip: slip.implement({
+                    methods: {
+                        issue: (call, next) =>
+                            next(
+                                call.with({
+                                    input: { ...call.input, shelf: `${call.input["shelf"]}!` },
+                                }),
+                            ),
+                    },
                 }),
             },
             database: storage.database,
@@ -302,6 +310,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: { book, shelf, slip },
             database: storage.database,

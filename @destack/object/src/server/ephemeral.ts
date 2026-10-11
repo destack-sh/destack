@@ -63,7 +63,7 @@ export class EphemeralStorage implements AsyncDisposable {
         this.#byType = new Map(objects.map((object) => [typeKey(object), object]));
         this.#report = options.report;
         this.tracker = new sync.Tracker(database, tables, channel, options);
-        this.feed = new sync.Feed(database, tables);
+        this.feed = new sync.Feed(database, tables, { clock: options.clock });
 
         // track owners
         this.#unwatch = this.tracker.watchTracked((owner, isTracked) =>

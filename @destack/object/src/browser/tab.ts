@@ -1,5 +1,5 @@
 import { broadcastChannel, type Channel } from "@destack/db";
-import type { Duration } from "@destack/schema";
+import type { Clock, Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import { connectShared } from "@destack/db/browser";
 import type { ClientOptions } from "@destack/service/client";
@@ -102,6 +102,8 @@ export class BrowserTab<
         readonly host?: BrowserHost;
         /** Report the owning tab's loop failures. */
         readonly report: (error: unknown) => void;
+        /** The clock the tab's client reads time at. */
+        readonly clock: Clock;
     }): Promise<BrowserTab<Objects>> {
         // connect to the shared database
         const host = options.host ?? BrowserTab.host(options.name);

@@ -8,27 +8,21 @@ import {
     type GrantReader,
 } from "@destack/access";
 import {
-    and,
-    eq,
-    inArray,
-    isNull,
-    sql,
     TABLE,
     type InsertValue,
     type Select,
-    type SQL,
     type Table,
     type Expression,
-    ColumnValue,
     DatabaseError,
-    isSQLWrapper,
-    type Row,
+    Row,
+    Condition,
+    Scalar,
 } from "@destack/db";
 import { aligned, canonicalize, schema, type JsonObject, type Version } from "@destack/schema";
 import { changesThroughLog, Dataflow, View, type ObjectReference, Subject } from "@destack/sync";
 import { conceal, isServiceError, ServiceError } from "@destack/service/error";
 import { Page, page } from "@destack/service/page";
-import { Call, type Bivariant } from "./call.ts";
+import { Call } from "./call.ts";
 import { Step } from "./step.ts";
 import type * as sync from "@destack/sync";
 import { defineMethod, type Method, type MethodBuilder, type MethodDefinition } from "./method.ts";
@@ -38,6 +32,7 @@ import {
     type MethodProcedure,
     type ObjectSchema,
     RevisionShape,
+    type CustomSchema,
     type FieldShape,
     type WrittenShape,
     type IdSchema,
@@ -69,7 +64,7 @@ export const BatchPayload = schema.object({ count: schema.number().int().nonnega
 const LIST_INPUT = schema.looseObject({ ...QueryShape, ...PageShape, ...ViewShape });
 
 /** The field values a bulk update matches objects by, by field name. */
-const MATCH = schema.record(schema.string(), schema.json());
+const MATCH = schema.record(schema.string(), Scalar);
 
 /** Read one object. */
 export function get<const Permission extends string, Definition extends Table = Table>(
@@ -79,6 +74,7 @@ export function get<const Permission extends string, Definition extends Table = 
     return defineMethod<{ kind: "get"; permission: Permission; mutates: false; table: Definition }>(
         {
             kind: "get",
+            source: { builder: "get", arguments: [permission] },
             permission,
             mutates: false,
             target: true,
@@ -105,6 +101,7 @@ export function list<const Permission extends string, Definition extends Table =
         table: Definition;
     }>({
         kind: "list",
+        source: { builder: "list", arguments: [permission] },
         permission,
         mutates: false,
         target: false,
@@ -118,11 +115,6 @@ export function list<const Permission extends string, Definition extends Table =
     });
 }
 
-/** Derive a new object's first relationships and a new scope's owner, taking any call of the creation as a method would. */
-export type CreationOf<Definition extends Table, Input extends schema.Schema> = Bivariant<
-    (call: Call<Definition, Input>, object: ObjectReference) => Creation | Promise<Creation>
->;
-
 /** The column sets of a sum type, by the field telling them apart and then by its value, such as `{ kind: { personal: ["platform"], cloud: ["location"] } }`. */
 export type Variants<Fields extends string = string> = Readonly<
     Record<string, Readonly<Record<string, readonly Fields[]>>>
@@ -134,7 +126,6 @@ export interface CreateOptions<
     Input extends schema.JsonObject,
     Prepared extends schema.Schema,
     Internal extends boolean,
-    Definition extends Table = Table,
     Sum extends Variants = Variants,
 > {
     /** Whether the creation stays out of the routes people call, setting the caller fields itself. */
@@ -149,8 +140,6 @@ export interface CreateOptions<
     readonly prepared?: Prepared;
     /** The relation the calling principal takes to the new object. */
     readonly creator?: string;
-    /** The new object's first relationships and a new scope's owner. */
-    readonly creation?: CreationOf<Definition, NoInfer<Input>>;
     /** Whether clients predict the creation. */
     readonly isPredicted?: false;
     /** The input fields each release computes from an earlier call's input, by the release introducing them. */
@@ -205,8 +194,9 @@ export function create<
     Definition extends Table = Table,
     const Sum extends Variants = never,
 >(
+    this: MethodBuilder<Definition>,
     permission: Permission,
-    options: CreateOptions<Fields, Input, Prepared, Internal, Definition, Sum> = {},
+    options: CreateOptions<Fields, Input, Prepared, Internal, Sum> = {},
 ): Method<{
     kind: "create";
     permission: Permission;
@@ -218,9 +208,8 @@ export function create<
     table: Definition;
     internal: NoInfer<Internal>;
 }> {
-    // resolve the creation from a creator relation or a declared creation
-    const { creator: _creator, creation: _creation, ...declared } = options;
-    const creation = resolveCreation(options);
+    // relate the creator a creation names
+    const { creator, ...declared } = options;
 
     return defineMethod<{
         kind: "create";
@@ -234,14 +223,16 @@ export function create<
         internal: Internal;
     }>({
         kind: "create",
+        source: { builder: "create", arguments: [permission, options] },
         permission,
         mutates: true,
         ...declared,
         target: false,
         result: "object",
         procedure: (name, shapes) => createProcedure(name, shapes, options),
-        handler: (call: Call<ObjectTable>) => createObject(call, creation),
-        authorize: (call: Call<ObjectTable>) => authorizeCreate(call, creation),
+        ...(creator === undefined ? {} : { creation: relateCreator(creator) }),
+        handler: (call: Call<ObjectTable>) => createObject(call),
+        authorize: (call: Call<ObjectTable>) => authorizeCreate(call),
         inverse: (step) => {
             // delete the created object
             const call = Step.call(step, "delete", Step.target(step));
@@ -296,6 +287,7 @@ export function update<
         table: Definition;
     }>({
         kind: "update",
+        source: { builder: "update", arguments: [permission, options] },
         permission,
         mutates: true,
         ...options,
@@ -353,6 +345,7 @@ export function updateMany<
         table: Definition;
     }>({
         kind: "updateMany",
+        source: { builder: "updateMany", arguments: [permission, options] },
         permission,
         output: BatchPayload,
         mutates: true,
@@ -399,6 +392,7 @@ export function remove<
         table: Definition;
     }>({
         kind: "delete",
+        source: { builder: "delete", arguments: [permission, options] },
         permission,
         output: Empty,
         mutates: true,
@@ -428,13 +422,17 @@ export function remove<
     });
 }
 
+/** What a custom method acts on: its target loaded where the caller holds the permission, its target unloaded for a verb its own access decides, or no target in its scope. */
+export type CustomTarget = true | false | "none";
+
 /** A custom method's permission, input, output and inverse. */
 export interface CustomDefinition<
     Permission extends string,
-    Input extends schema.JsonObject,
+    Input extends InputSchema,
     Output extends schema.Schema,
     Prepared extends schema.Schema,
     Internal extends boolean = false,
+    Target extends CustomTarget = true,
 > {
     /** The permission the caller needs on the target. */
     readonly permission: Permission;
@@ -450,8 +448,8 @@ export interface CustomDefinition<
     readonly audited?: true;
     /** The fields of the result an audited read's event records. */
     readonly audit?: { readonly details: schema.Object<Record<string, schema.Schema>> };
-    /** Whether the target loads where the caller holds the permission before the method runs, false for an invitation verb whose invitation access decides. */
-    readonly target?: false;
+    /** What the method acts on: its target loaded where the caller holds the permission by default, false for an invitation verb whose invitation access decides, "none" for its scope alone. */
+    readonly target?: Target;
     /** The inverse method name, or a function deriving inverse calls. */
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
     /** The input fields each release computes from an earlier call's input, by the release introducing them. */
@@ -461,14 +459,15 @@ export interface CustomDefinition<
 /** Declare a method reading one object, as tRPC's `query`. */
 export function query<
     const Permission extends string,
-    Input extends schema.JsonObject = never,
+    Input extends InputSchema = never,
     Output extends schema.Schema = never,
     Prepared extends schema.Schema = never,
     const Internal extends boolean = false,
+    const Target extends CustomTarget = true,
     Definition extends Table = Table,
 >(
     this: MethodBuilder<Definition>,
-    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
+    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>,
 ): Method<{
     kind: "custom";
     permission: Permission;
@@ -478,6 +477,7 @@ export function query<
     mutates: false;
     table: Definition;
     internal: Internal;
+    scoped: Target extends "none" ? true : false;
 }> {
     return defineMethod<{
         kind: "custom";
@@ -488,20 +488,22 @@ export function query<
         mutates: false;
         table: Definition;
         internal: Internal;
+        scoped: Target extends "none" ? true : false;
     }>(custom(definition, false));
 }
 
 /** Declare a method changing one object, as tRPC's `mutation`. */
 export function mutation<
     const Permission extends string,
-    Input extends schema.JsonObject = never,
+    Input extends InputSchema = never,
     Output extends schema.Schema = never,
     Prepared extends schema.Schema = never,
     const Internal extends boolean = false,
+    const Target extends CustomTarget = true,
     Definition extends Table = Table,
 >(
     this: MethodBuilder<Definition>,
-    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
+    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>,
 ): Method<{
     kind: "custom";
     permission: Permission;
@@ -511,6 +513,7 @@ export function mutation<
     mutates: true;
     table: Definition;
     internal: Internal;
+    scoped: Target extends "none" ? true : false;
 }> {
     return defineMethod<{
         kind: "custom";
@@ -521,19 +524,21 @@ export function mutation<
         mutates: true;
         table: Definition;
         internal: Internal;
+        scoped: Target extends "none" ? true : false;
     }>(custom(definition, true));
 }
 
 /** Describe a custom method on one object, reading or changing it. */
 function custom<
     const Permission extends string,
-    Input extends schema.JsonObject,
+    Input extends InputSchema,
     Output extends schema.Schema,
     Prepared extends schema.Schema,
     const Mutates extends boolean,
     const Internal extends boolean,
+    const Target extends CustomTarget,
 >(
-    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal>,
+    definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>,
     mutates: Mutates,
 ): MethodDefinition<{
     kind: "custom";
@@ -543,12 +548,17 @@ function custom<
     prepared: Prepared;
     mutates: Mutates;
     internal: Internal;
+    scoped: Target extends "none" ? true : false;
 }> {
     const { inverse, target, ...declared } = definition;
+    const isScoped = target === "none";
 
     return {
         kind: "custom",
+        source: { builder: mutates ? "mutation" : "query", arguments: [definition] },
         ...declared,
+        ...(isScoped ? { authorize: authorizeScoped } : {}),
+        isScoped: isScopedTarget(target),
         ...(inverse === undefined
             ? {}
             : {
@@ -559,14 +569,19 @@ function custom<
               }),
         mutates,
         isPredicted: false,
-        target: target ?? true,
+        target: target === undefined || target === true,
         result: definition.output === undefined ? "object" : "value",
         procedure: (name, shapes) => ({
-            route: { method: "POST", path: `/{id}/${kebabCase(name)}` },
-            input: shapes.target.extend({
-                ...(mutates ? shapes.replay : {}),
-                ...fields(definition.input),
-            }),
+            route: {
+                method: "POST",
+                path: isScoped ? `/${kebabCase(name)}` : `/{id}/${kebabCase(name)}`,
+            },
+            input: InputSchema.map(definition.input ?? schema.object({}), (input) =>
+                (isScoped ? shapes.scope : shapes.target).extend({
+                    ...(mutates ? shapes.replay : {}),
+                    ...input.shape,
+                }),
+            ),
             output: definition.output ?? shapes.row,
         }),
         handler: missingHandler,
@@ -629,34 +644,15 @@ function variantInput(
     return InputSchema.union(field, objects);
 }
 
-/** Resolve a creation from a creator relation or a declared creation, refusing both. */
-function resolveCreation(
-    options: Pick<
-        CreateOptions<string, schema.JsonObject, schema.Schema, boolean>,
-        "creator" | "creation"
-    >,
-): CreateOptions<string, schema.JsonObject, schema.Schema, boolean>["creation"] {
-    // refuse a creator relation beside a creation
-    const { creator, creation } = options;
-    if (creator !== undefined && creation !== undefined) {
-        throw new TypeError("a creation names a creator relation or a creation, not both");
-    }
-
-    return creator === undefined ? creation : relateCreator(creator);
-}
-
 /** Require the receiving parent and the create permission of a caller. */
-async function authorizeCreate(
-    call: Call<ObjectTable>,
-    creation: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
-): Promise<void> {
+async function authorizeCreate(call: Call<ObjectTable>): Promise<void> {
     // require the receiving parent and the creation
     const reader = await call.requireAuthorization().reader(call.scope);
     const parent = call.object.parent && call.parent();
     if (parent) {
         await call.requireReceiving(parent, reader);
     }
-    await requireCreatable(call, reader, creationOf(call, creation));
+    await requireCreatable(call, reader, creationOf(call));
 }
 
 /** Insert a created object under an unused identifier and require guarded writes. */
@@ -737,76 +733,44 @@ async function updateMatching(
             }),
         ),
     );
-    const matched = definition.decode(MATCH.parse(input["where"]));
+    const matched = MATCH.parse(input["where"]);
     const hasGeneration = Object.hasOwn(definition.columns, "generation");
 
-    // match by the given values, restricted to permitted objects
-    const matching = and(
-        call.object.inScope(call.scope),
-        ...Object.entries(matched).map(([name, value]) =>
-            value === null ? isNull(definition.column(name)) : eq(definition.column(name), value),
-        ),
-    );
-    const permitted = call.isPredicted ? undefined : await permittedMatches(call, matching);
+    // read the matches in the call's scope, keeping the permitted ones on the server
+    const where = Condition.equal({ ...matched, scope: call.scope });
+    const rows = call.isPredicted
+        ? await call.read(table).rows(where)
+        : await call
+              .requireAuthorization()
+              .keep(await call.requireTransaction().rows(table, where), call.permission());
 
-    // update the permitted matches
-    const columns: Table = table;
-    const changed = await call.database
-        .update(columns)
-        .set({
+    // write each match with the next revision and generation
+    for (const row of rows) {
+        const current: Row = row;
+        const updated = Row.parse({
+            ...row,
             ...values,
-            revision: sql`${table.revision} + 1`,
-            ...(hasGeneration ? { generation: sql`${definition.column("generation")} + 1` } : {}),
+            revision: row.revision + 1,
+            ...(hasGeneration
+                ? { generation: schema.number().parse(current["generation"]) + 1 }
+                : {}),
             updatedAt: call.now,
             updatedBy: call.caller.subject === undefined ? null : Subject.key(call.caller.subject),
-        })
-        .where(and(matching, permitted))
-        .returning({ id: table.id });
-
-    return { count: changed.length };
-}
-
-/** Restrict a served call's matches to the objects the caller may change. */
-async function permittedMatches(
-    call: Call<ObjectTable>,
-    matching: SQL | undefined,
-): Promise<SQL | undefined> {
-    // decide in SQL where the permission compiles
-    const served = call.requireAuthorization();
-    const required = call.permission();
-    const listable = served.listable(call.object, required);
-    if (listable !== "memory") {
-        return listable;
+        });
+        await call.write({ table, before: row, after: definition.values(updated) });
     }
 
-    // keep the matched rows decided in memory
-    const table = call.object.table;
-    const rows = await call.database.select().from(table).where(matching);
-    const kept = await served.keep(rows, required);
-
-    return inArray(
-        table.id,
-        kept.map((row) => row.id),
-    );
+    return { count: rows.length };
 }
 
 /** Insert a created object. */
-async function createObject(
-    call: Call<ObjectTable>,
-    creation: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
-): Promise<Select<Table>> {
-    // insert the created columns
-    const columns: Table = call.object.table;
-    const [row] = await call.database
-        .insert(columns)
-        .values(await createdValues(call))
-        .returning();
-    if (row === undefined) {
-        throw new TypeError(`the insert of ${call.object.name} returned no row`);
-    }
+async function createObject(call: Call<ObjectTable>): Promise<Select<Table>> {
+    // write the created row
+    const row = createdRow(call.object.table, await createdValues(call));
+    await call.write({ table: call.object.table, before: null, after: row });
 
     // record a new scope's chain and the first relationships with the row
-    const creating = creationOf(call, creation);
+    const creating = creationOf(call);
     const isScope = call.object.policy.definition.scope === true;
     if (!call.isPredicted && (isScope || creating !== undefined)) {
         const object = call.object.reference(call.scope, call.requireId());
@@ -841,7 +805,7 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
 
     // number versions within their parent
     const version = object.lifecycle.versioned
-        ? await nextVersion(object, call.requireParent().id, call.database)
+        ? await nextVersion(object, call.requireParent().id, call)
         : undefined;
 
     // place an ordered object after its last sibling unless the caller placed it
@@ -850,18 +814,19 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
     const position =
         object.ordering === undefined || call.input["position"] !== undefined
             ? undefined
-            : await Orderable.next(
-                  object,
-                  { ...decoded, ...parent, scope: call.scope },
-                  call.database,
-              );
+            : await Orderable.next(object, { ...decoded, ...parent, scope: call.scope }, call);
 
     // require the writer
     if (object.storage === "ephemeral" && call.writerId === undefined) {
         throw new TypeError(`ephemeral ${object.name} objects are created by a writer`);
     }
 
-    // assemble the columns
+    // assemble the columns, stamping the times and the author where the table records them
+    const author = caller === undefined ? null : Subject.key(caller);
+    const columns = object.table[TABLE].columns;
+    const isTimed = Object.hasOwn(columns, "createdAt");
+    const isAuthored = Object.hasOwn(columns, "createdBy");
+
     return {
         ...decoded,
         ...parent,
@@ -871,10 +836,8 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
         ...(version === undefined ? {} : { number: version }),
         ...(object.storage === "ephemeral" ? { writerId: call.writerId } : {}),
         ...callers,
-        createdAt: call.now,
-        createdBy: caller === undefined ? null : Subject.key(caller),
-        updatedAt: call.now,
-        updatedBy: caller === undefined ? null : Subject.key(caller),
+        ...(isTimed ? { createdAt: call.now, updatedAt: call.now } : {}),
+        ...(isAuthored ? { createdBy: author, updatedBy: author } : {}),
     };
 }
 
@@ -893,13 +856,12 @@ async function insertCreated(
 
     // insert within a savepoint
     try {
-        return await call.database.transaction(async (transaction) => {
+        return await call.requireTransaction().savepoint(async () => {
             // insert under an unused identifier
-            const inserting = call.with({ database: transaction });
-            const id = await createdId(inserting);
-            const row = await insert(inserting.with({ id }));
+            const id = await createdId(call);
+            const created = call.with({ id });
 
-            return { id, created: call.with({ id }), row };
+            return { id, created, row: await insert(created) };
         });
     } catch (error) {
         // report conflicts only to admitted callers
@@ -914,23 +876,9 @@ async function insertCreated(
     }
 }
 
-/** Read a created object's column values as a decision reads them before the row is written, leaving out values only the database computes. */
+/** Build a created object's complete row from its written values and the columns' defaults. */
 function createdRow(table: Table, values: InsertValue<Table>): Row {
-    const row: Record<string, ColumnValue> = {};
-    for (const [name, column] of Object.entries(table[TABLE].columns)) {
-        // take the written value, else the column's default
-        const written: unknown = Object.hasOwn(values, name) ? values[name] : undefined;
-        const value = written === undefined ? column.definition.default : written;
-
-        // keep a value, and leave out a missing one or one the database computes
-        if (value === null) {
-            row[name] = null;
-        } else if (value !== undefined && !isSQLWrapper(value)) {
-            row[name] = ColumnValue.parse(column.definition.schema.parse(value));
-        }
-    }
-
-    return row;
+    return table[TABLE].complete(table[TABLE].values(Row.parse(values)));
 }
 
 /** Require the create permission on the object as written. */
@@ -941,15 +889,49 @@ async function requireCreatable(
 ): Promise<void> {
     // build the row as it will be written, with column defaults
     const id = call.id ?? call.object.generateId();
-    const row = createdRow(call.object.table, await createdValues(call.with({ id })));
+    const definition = call.object.table[TABLE];
+    const values = await createdValues(call.with({ id }));
+    const row = definition.defaults(definition.values(Row.parse(values)));
 
-    // check the permission on the row
+    // grant the creation's first relationships, then check the permission on the row
     const authorization = call.requireAuthorization();
-    const { authorizer, snapshot } = authorization;
     const grants = reader ?? (await authorization.reader(call.scope));
     const created = call.object.reference(call.scope, id);
     const initial = (await creation?.(call.with({ id }), created)) ?? {};
+    const { authorizer } = authorization;
     grants.creating(created, authorizer.initialRelationships(created, initial, call.now));
+    await requirePermitted(call, row, grants);
+}
+
+/** Read whether a custom method's target declares it scoped: "none". */
+function isScopedTarget<Target extends CustomTarget>(
+    target: Target | undefined,
+): Target extends "none" ? true : false;
+/**
+ * Read whether a target is none.
+ *
+ * @construct the result is true exactly when the target is "none", as the signature's conditional reads.
+ */
+function isScopedTarget(target: CustomTarget | undefined): boolean {
+    return target === "none";
+}
+
+/** Require a scoped method's permission on its object type in the call's scope, as on a new object there. */
+async function authorizeScoped(call: Call<ObjectTable>): Promise<void> {
+    const definition = call.object.table[TABLE];
+    const row = definition.defaults({ id: call.object.generateId(), scope: call.scope });
+    await requirePermitted(call, row, await call.requireAuthorization().reader(call.scope));
+}
+
+/** Require the call's permission on a row of its object type, challenging for step-up authentication, refusing a caller without it: a reader openly, others with the object hidden unless the call names none. */
+async function requirePermitted(
+    call: Call<ObjectTable>,
+    row: Row,
+    grants: GrantReader,
+): Promise<void> {
+    // check the permission on the row
+    const authorization = call.requireAuthorization();
+    const { authorizer, snapshot } = authorization;
     const permission = call.permission();
     const admits = async (access: Access) =>
         (await authorizer.checkRows(snapshot, permission, access, [row], grants)).permitted.has(0);
@@ -968,11 +950,12 @@ async function requireCreatable(
         );
     }
 
-    // check whether the caller reads the object
+    // check whether the caller reads the object, which a scoped call names none of
     const reading = call.object.reading;
     const isReadable =
-        reading !== undefined &&
-        (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0);
+        call.method.isScoped === true ||
+        (reading !== undefined &&
+            (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0));
 
     // refuse a reader, and hide the object from others
     const denial = new ServiceError("FORBIDDEN", {
@@ -1022,28 +1005,24 @@ function deletingCall(call: Call<ObjectTable>): Call | undefined {
         : call;
 }
 
-/** Accept a caller's unused identifier for a created object, or generate one. */
+/** Accept a caller's unused identifier for a created object, or generate one: at random in a prediction, from the request on a server. */
 async function createdId(call: Call<ObjectTable>): Promise<string> {
     // generate a missing identifier
     const { object, id: chosen } = call;
     if (chosen === undefined) {
-        return object.generateId();
+        return call.isPredicted ? object.generateId() : call.generateId(object);
     }
 
     // find a row with the identifier, or a relationship a deleted object left under it
-    const table = object.table;
     const { packageId, name } = object.policy.definition;
-    const rows = sql`SELECT 1 FROM ${table} WHERE ${eq(table[TABLE].column("id"), chosen)}`;
-    const relationships = sql`SELECT 1 FROM ${accessRelationship} WHERE ${and(
-        eq(accessRelationship.packageId, packageId),
-        eq(accessRelationship.type, name),
-        eq(accessRelationship.objectId, chosen),
-    )}`;
-    const isTaken =
-        object.storage === "durable"
-            ? await call.database.exists(sql`${rows} UNION ALL ${relationships}`)
-            : (await call.database.exists(rows)) ||
-              (await call.requireAuthorization().database.exists(relationships));
+    const id = schema.anyIdentifier().parse(chosen);
+    const rows = await call.requireTransaction().images(object.table, { id });
+    const relationships = await call.requireAuthorization().transaction.images(accessRelationship, {
+        packageId,
+        type: name,
+        objectId: id,
+    });
+    const isTaken = rows.length > 0 || relationships.length > 0;
 
     // refuse a taken identifier
     if (isTaken) {
@@ -1222,10 +1201,12 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
         schema.Object<{}>
     >;
     custom: Procedure<
-        schema.Object<
-            TargetShape<Object> &
-                (Declared["mutates"] extends false ? {} : ReplayShape<Object>) &
-                FieldShape<Declared>
+        CustomSchema<
+            (NonNullable<Declared["isScoped"]> extends true
+                ? ScopeShape<Object>
+                : TargetShape<Object>) &
+                (Declared["mutates"] extends false ? {} : ReplayShape<Object>),
+            Declared["input"]
         >,
         [NonNullable<Declared["output"]>] extends [never]
             ? RowSchema<Object>
@@ -1259,12 +1240,11 @@ type CreationShape<Object extends ObjectType> = {
 /** Read how a call creates its object's first relationships: as declared, else relating the creator as owner of a scope shared through the roles. */
 function creationOf(
     call: Call,
-    declared: ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined,
 ): ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined {
     const isOwnedScope =
         call.object.roles !== undefined && call.object.policy.definition.scope === true;
 
-    return declared ?? (isOwnedScope ? relateCreator("owner") : undefined);
+    return call.method.creation ?? (isOwnedScope ? relateCreator("owner") : undefined);
 }
 
 /** Relate the calling principal to a new object, and a new scope's owner role to the relation's holders. */
@@ -1280,3 +1260,15 @@ function relateCreator(relation: string): (call: Call, object: ObjectReference) 
         };
     };
 }
+
+/** Declare methods with `method.query(...)`, `method.mutation(...)`, `method.get(...)` and their siblings. */
+export const method: MethodBuilder = {
+    query,
+    mutation,
+    get,
+    list,
+    create,
+    update,
+    updateMany,
+    delete: remove,
+};
