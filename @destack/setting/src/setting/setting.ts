@@ -33,7 +33,7 @@ const INSTALLATION_WEIGHT = 4;
 
 /** A package-local setting name, kept across releases. */
 export const SettingName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$(?![\s\S])/u),
+    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u),
 );
 
 /** The schema of a setting's identity: its package and name. */

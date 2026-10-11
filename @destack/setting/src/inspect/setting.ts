@@ -1,6 +1,7 @@
 import { type JsonValue, Version } from "@destack/schema";
 import { Address, Plan, type Comparator } from "@destack/resource";
 import { SettingDescription } from "../setting/catalog.ts";
+import type { Setting } from "../setting/setting.ts";
 
 /** Plan a setting's value change between two releases: newer readers read earlier values, converted by a conversion of a release between them. */
 export const compareSetting: Comparator = (before, after) => {
@@ -21,8 +22,6 @@ export const compareSetting: Comparator = (before, after) => {
 };
 
 /** List a setting's term: its name, with its scope. */
-export function settingVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
-    const declared = SettingDescription.parse(input);
-
-    return { [declared.name]: { scope: declared.scope } };
+export function settingVocabulary(setting: Setting): Record<string, JsonValue> {
+    return { [setting.name]: { scope: setting.definition.scope } };
 }

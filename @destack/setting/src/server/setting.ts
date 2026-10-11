@@ -21,8 +21,8 @@ export function serveSettings(
     const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
 
     return {
-        setting: setting
-            .handle({
+        setting: setting.implement({
+            methods: {
                 create: {
                     authorize: (call) =>
                         requireDeclared({ ...call.input, scope: call.scope }, declared),
@@ -34,8 +34,8 @@ export function serveSettings(
                             declared,
                         ),
                 },
-            })
-            .declare({
+            },
+            declaration: {
                 after,
                 keys: ["settings"],
                 collect: (document) =>
@@ -65,7 +65,8 @@ export function serveSettings(
                     value: desired.value,
                     release: desired.release,
                 }),
-            }),
+            },
+        }),
     };
 }
 

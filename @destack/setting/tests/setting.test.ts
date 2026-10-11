@@ -251,10 +251,7 @@ test("describe a setting and read the settings a build declares", async () => {
         overrides: ["space", "installation", "client"],
         apply: "immediate",
     });
-    const described = schema
-        .record(schema.string(), schema.json())
-        .parse(JSON.parse(JSON.stringify(describeSetting(editor))));
-    expect(settingVocabulary(described)).toEqual({
+    expect(settingVocabulary(editor)).toEqual({
         "editor.mode": { scope: "user" },
     });
 

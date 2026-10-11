@@ -39,7 +39,7 @@ export function describeSetting(setting: Setting): SettingDescription {
         ...definition,
         package: setting.package,
         default: schema.json().parse(definition.default),
-        schema: schema.record(schema.string(), schema.json()).parse(toJsonSchema(valueSchema)),
+        schema: toJsonSchema(valueSchema),
     };
 }
 

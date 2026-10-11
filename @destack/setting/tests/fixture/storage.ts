@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import { outbox } from "@destack/service/outbox";
 import { AccessFixture } from "@destack/access/test";
 import { Scope, type ObjectReference, Subject } from "@destack/sync";
@@ -53,6 +54,7 @@ export class Storage {
         this.reader = release(declarations);
         this.catalog = SettingCatalog.cached(() => this.reader);
         this.objects = new ObjectStore({
+            clock: Clock.system,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
             objects: serveSettings(this.catalog, []),
             // decide access in the scopes the values live in

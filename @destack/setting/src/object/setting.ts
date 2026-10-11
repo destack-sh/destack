@@ -4,7 +4,6 @@ import {
     index,
     Log,
     Snapshot,
-    sql,
     uniqueIndex,
     type Select,
 } from "@destack/db";
@@ -67,10 +66,12 @@ export const setting = defineObject({
             )
             .nullsNotDistinct(),
         index("setting_scope").on(value.scope, value.id),
-        check(
-            "setting_override",
-            sql`(${value.installation} IS NULL OR ${value.space} IS NULL) AND (${value.mode} = 'set' OR (${value.package} IS NULL AND ${value.space} IS NULL))`,
-        ),
+        check("setting_override", {
+            AND: [
+                { OR: [{ installation: { isNull: true } }, { space: { isNull: true } }] },
+                { OR: [{ mode: "set" }, { package: { isNull: true }, space: { isNull: true } }] },
+            ],
+        }),
     ],
 });
 

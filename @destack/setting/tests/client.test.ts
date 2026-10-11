@@ -4,7 +4,7 @@ import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
-import { canonicalize, Identifier, schema } from "@destack/schema";
+import { canonicalize, Identifier, schema, Clock } from "@destack/schema";
 import { Health } from "@destack/service/health";
 import { Observable } from "@destack/service/observable";
 import { Server } from "@destack/service/server";
@@ -210,6 +210,7 @@ async function follow(
 > {
     // serve the scope as Alice
     const server = Server.start({
+        clock: Clock.system,
         ...storage.objects.implement(
             settingService,
             storage.objects.routed,
@@ -241,6 +242,7 @@ async function follow(
     const local = await TestDatabase.create("sqlite", []);
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: local.database,
         objects: { setting, clientSetting },
         scope,
