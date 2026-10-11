@@ -96,7 +96,10 @@ test.each(TEST_DIALECTS)(
             await refusal(create({ mode: "recommend" })),
             await refusal(create({ ...named(lineNumbers), space, value: false })),
         ]).toEqual([
-            ["DUPLICATE", "a record with the same unique key exists"],
+            [
+                "CONFLICT",
+                "another setting has the same packageId, name, scope, package, space, and installation",
+            ],
             mismatch,
             mismatch,
             ["INVALID_VALUE", "setting value is at release 2026.10.0, its declaration at 2026.9.0"],

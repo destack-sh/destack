@@ -56,14 +56,16 @@ export const setting = defineObject({
         delete: method.delete("write"),
     }),
     constraints: (value) => [
-        uniqueIndex("setting_placement").on(
-            value.packageId,
-            value.name,
-            value.scope,
-            sql`coalesce(${value.package}, '')`,
-            sql`coalesce(${value.space}, '')`,
-            sql`coalesce(${value.installation}, '')`,
-        ),
+        uniqueIndex("setting_placement")
+            .on(
+                value.packageId,
+                value.name,
+                value.scope,
+                value.package,
+                value.space,
+                value.installation,
+            )
+            .nullsNotDistinct(),
         index("setting_scope").on(value.scope, value.id),
         check(
             "setting_override",
