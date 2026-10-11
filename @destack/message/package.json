@@ -40,7 +40,6 @@
         "@destack/bucket": "workspace:*"
     },
     "devDependencies": {
-        "@destack/directory": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",

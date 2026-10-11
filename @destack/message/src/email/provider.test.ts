@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, test, TestClock } from "@destack/test";
 import { MailFixture, UNQUERIED } from "../test/index.ts";
 import { emailProvider } from "./provider.ts";
 
@@ -30,7 +30,7 @@ test("send an email message through the transport, keyed by its identifier with 
                 html: "<p>On it</p>",
             },
         },
-        { ...UNQUERIED, clock: { now: () => NOW } },
+        { ...UNQUERIED, clock: new TestClock(NOW) },
     );
     expect({ outcome, sent: transport.sent }).toEqual({
         outcome: { kind: "sent" },

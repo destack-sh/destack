@@ -41,6 +41,9 @@ const endpointDatabase = defineDatabase({
     tables: [...messageTables, journal, ...eventTables([audit.call]), outbox],
 });
 
+/** The longest a test waits for an endpoint's delivery, far above three retries at 10 ms. */
+const SETTLE_MILLISECONDS = 5000;
+
 /** The keyring sealing people's personal values in the history. */
 const KEYRING = await LocalKeyring.read(LocalKeyring.generate());
 
@@ -111,17 +114,20 @@ const documentDelete = defineAuditAction(
 const Envelope = schema.looseObject({ type: schema.string(), data: schema.json() });
 
 /** Run some controllers over a database until the test ends, failing it on a reported failure. */
-function run(database: DatabaseConnection, controllers: readonly Controller[]): void {
+function run(database: DatabaseConnection, controllers: readonly Controller[]): ControlLoop {
     const stopping = new AbortController();
-    const running = new ControlLoop(database, controllers, {
+    const loop = new ControlLoop(database, controllers, {
         report: (_controller, _key, error) => {
             throw error;
         },
-    }).run(stopping.signal);
+    });
+    const running = loop.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
         await running;
     });
+
+    return loop;
 }
 
 /** Record a person's finished call in a scope. */
@@ -208,6 +214,12 @@ async function serveHistory(statuses: readonly number[]) {
         posts,
         reads,
         read: (id: Identifier<"endpoint">) => readDelivery(storage.database, id),
+        until: (id: Identifier<"endpoint">, check: (delivery: Delivery) => boolean) =>
+            TestDatabase.settle(
+                storage.database,
+                async () => check(await readDelivery(storage.database, id)),
+                SETTLE_MILLISECONDS,
+            ),
         start: () => run(storage.database, [...objects.controllers(), ...store.controllers]),
     };
 }
@@ -235,6 +247,9 @@ function openEvents(database: DatabaseConnection): EventStore {
 
     return store;
 }
+
+/** An endpoint's messages and Delivered condition as a test reads them. */
+type Delivery = Awaited<ReturnType<typeof readDelivery>>;
 
 /** Read how many messages an endpoint has and its Delivered condition. */
 async function readDelivery(database: DatabaseConnection, id: Identifier<"endpoint">) {
@@ -335,9 +350,11 @@ test("send each subscribed succeeded call of the scope and the scopes inside it 
     served.start();
 
     // post both renames once each in either order and mark the endpoint delivered
-    await expect
-        .poll(() => served.read(id), { timeout: 10_000 })
-        .toEqual({ messages: 2, delivered: ["true", "Delivered", ""] });
+    await served.until(
+        id,
+        (delivery) => delivery.messages === 2 && delivery.delivered?.[0] === "true",
+    );
+    expect(await served.read(id)).toEqual({ messages: 2, delivered: ["true", "Delivered", ""] });
     expect({ ...(await readEvents(served.posts)), reads: served.reads }).toEqual({
         data: [outer, nested]
             .map((delivered) => ({
@@ -369,9 +386,11 @@ test("send a page of calls as one NDJSON batch carrying the secret in the endpoi
     served.start();
 
     // post both calls as lines of JSON with the secret in the header and no signature
-    await expect
-        .poll(() => served.read(id), { timeout: 10_000 })
-        .toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
+    await served.until(
+        id,
+        (delivery) => delivery.messages === 1 && delivery.delivered?.[0] === "true",
+    );
+    expect(await served.read(id)).toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
     const [post] = served.posts;
     expect({
         posts: served.posts.length,
@@ -404,16 +423,16 @@ test("advance an endpoint past each page and create no message twice when a page
     // deliver one call and advance the endpoint past it
     await served.history.ingest({ calls: [finished(SCOPE, documentRename)] });
     served.start();
-    await expect.poll(async () => (await position()) !== before, { timeout: 10_000 }).toBe(true);
+    const isAdvanced = async () => (await position()) !== before;
+    await TestDatabase.settle(served.database, isAdvanced, SETTLE_MILLISECONDS);
 
     // repeat the page as a reconcile that failed to advance the endpoint does
     await served.database.log.advance(EndpointReader.of(id).name, before ?? 0, Date.now() + 60_000);
-    await expect.poll(async () => (await position()) !== before, { timeout: 10_000 }).toBe(true);
+    await TestDatabase.settle(served.database, isAdvanced, SETTLE_MILLISECONDS);
 
     // keep the one message the first page created, delivered once its attempt lands
-    await expect
-        .poll(() => served.read(id), { timeout: 10_000 })
-        .toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
+    await served.until(id, (delivery) => delivery.delivered?.[0] === "true");
+    expect(await served.read(id)).toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
 });
 
 test("keep a disabled endpoint's position and deliver only the calls after it once enabled again", async () => {
@@ -427,10 +446,12 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
     // deliver a first call
     const first = finished(SCOPE, documentRename);
     await served.history.ingest({ calls: [first] });
-    served.start();
-    await expect
-        .poll(() => served.read(id), { timeout: 10_000 })
-        .toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
+    const loop = served.start();
+    await served.until(
+        id,
+        (delivery) => delivery.messages === 1 && delivery.delivered?.[0] === "true",
+    );
+    expect(await served.read(id)).toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
 
     // disable the endpoint through the space's own settings and keep a second call while it rests
     const update = async (status: "enabled" | "disabled") =>
@@ -448,27 +469,25 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
             { component: "settings" },
         );
     const position = () => served.database.log.slot(EndpointReader.of(id).name);
-    const delivered = await position();
     await update("disabled");
+    await loop.idle();
+    const delivered = await position();
     const second = finished(SCOPE, documentDelete);
     await served.history.ingest({ calls: [second] });
+    await loop.idle();
     expect(await position()).toBe(delivered);
 
     // enable it and send the second call alone
     await update("enabled");
-    await expect
-        .poll(
-            async () => ({
-                ...(await served.read(id)),
-                types: served.posts.map((post) => Envelope.parse(JSON.parse(post.body)).type),
-            }),
-            { timeout: 10_000 },
-        )
-        .toEqual({
-            messages: 2,
-            delivered: ["true", "Delivered", ""],
-            types: [documentRename.name, documentDelete.name],
-        });
+    await served.until(id, (delivery) => delivery.messages === 2 && served.posts.length === 2);
+    expect({
+        ...(await served.read(id)),
+        types: served.posts.map((post) => Envelope.parse(JSON.parse(post.body)).type),
+    }).toEqual({
+        messages: 2,
+        delivered: ["true", "Delivered", ""],
+        types: [documentRename.name, documentDelete.name],
+    });
 });
 
 test("mark an endpoint failing once the message service gives up a message its URL keeps refusing", async () => {
@@ -482,7 +501,9 @@ test("mark an endpoint failing once the message service gives up a message its U
     // give the batch up after the retries and flag the endpoint with the URL's answer
     await served.history.ingest({ calls: [finished(SCOPE, documentRename)] });
     served.start();
-    await expect
-        .poll(() => served.read(id), { timeout: 10_000 })
-        .toEqual({ messages: 1, delivered: ["false", "Failing", "answered 500"] });
+    await served.until(id, (delivery) => delivery.delivered?.[1] === "Failing");
+    expect(await served.read(id)).toEqual({
+        messages: 1,
+        delivered: ["false", "Failing", "answered 500"],
+    });
 });

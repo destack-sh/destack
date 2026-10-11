@@ -1,5 +1,5 @@
 import { aligned, present, schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, test, TestClock } from "@destack/test";
 import { decrypt, encode, importBrowser, subscribeBrowser, UNQUERIED } from "../test/index.ts";
 import { PushEncryption } from "./encryption.ts";
 import { pushProvider } from "./push.ts";
@@ -129,7 +129,7 @@ async function pushTo(responses: Response[]) {
             topic: "019f55308000700080000000000000aa",
         },
     };
-    const send = () => provider.send(message, { ...UNQUERIED, clock: { now: () => NOW } });
+    const send = () => provider.send(message, { ...UNQUERIED, clock: new TestClock(NOW) });
 
     return { provider, vapid, keyed, browser, message, service, send };
 }

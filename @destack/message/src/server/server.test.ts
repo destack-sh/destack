@@ -53,6 +53,9 @@ const RETRY = {
     backoffCoefficient: 1,
 };
 
+/** The longest a test waits for a message to settle, far above three retries at 10 ms. */
+const SETTLE_MILLISECONDS = 5000;
+
 /** A database keeping messages, as a machine keeps its spaces'. */
 const messageDatabase = defineDatabase({ name: "message", tables: [...messageTables, journal] });
 
@@ -122,6 +125,16 @@ async function serveMessages(answers: readonly Outcome[], retention: Duration = 
 
     return {
         read: () => readSending(storage.database, id),
+        until: (check: (sending: Sending) => boolean) =>
+            TestDatabase.settle(
+                storage.database,
+                async () => {
+                    const sending = await readSending(storage.database, id);
+
+                    return sending !== undefined && check(sending);
+                },
+                SETTLE_MILLISECONDS,
+            ),
         leaks: () => listLeaks(storage.database),
         callers: () => listCallers(storage.database),
         sent,
@@ -144,6 +157,9 @@ function answerInTurn(answers: readonly Outcome[]) {
 
     return { provider, sent, texts };
 }
+
+/** A message's sending as a test reads it. */
+type Sending = NonNullable<Awaited<ReturnType<typeof readSending>>>;
 
 /** Read a message's sending: its status, its erasure, its attempts and its Sent condition. */
 async function readSending(database: DatabaseConnection, id: Identifier<"message">) {
@@ -203,13 +219,14 @@ async function listLeaks(database: DatabaseConnection): Promise<string[]> {
 }
 
 test("send a requested message through its channel's provider, retrying a temporary refusal, as the space and its message controller", async () => {
-    const { read, sent, callers } = await serveMessages([
+    const { read, until, sent, callers } = await serveMessages([
         { kind: "retry", error: { code: "Throttling", message: "slow down" } },
         { kind: "sent" },
     ]);
 
     // send it on the second attempt
-    await expect.poll(read, { timeout: 10_000 }).toEqual({
+    await until((sending) => sending.status !== "pending");
+    expect(await read()).toEqual({
         status: "sent",
         isErased: false,
         attempts: ["retry", "sent"],
@@ -245,13 +262,15 @@ test("fail a message its provider refuses for good, or that the retries exhaust"
     );
 
     // fail at once on a refusal for good, and after the policy's attempts on temporary refusals
-    await expect.poll(refused.read, { timeout: 10_000 }).toEqual({
+    await refused.until((sending) => sending.status !== "pending");
+    await exhausted.until((sending) => sending.status !== "pending");
+    expect(await refused.read()).toEqual({
         status: "failed",
         isErased: false,
         attempts: ["failed"],
         sent: { status: "false", reason: "MessageRejected" },
     });
-    await expect.poll(exhausted.read, { timeout: 10_000 }).toEqual({
+    expect(await exhausted.read()).toEqual({
         status: "failed",
         isErased: false,
         attempts: ["retry", "retry", "retry"],
@@ -260,10 +279,11 @@ test("fail a message its provider refuses for good, or that the retries exhaust"
 });
 
 test("keep a message's content sealed in its row alone, out of the journal and the change log, and open it only for its provider", async () => {
-    const { read, texts, leaks } = await serveMessages([{ kind: "sent" }]);
+    const { read, until, texts, leaks } = await serveMessages([{ kind: "sent" }]);
 
     // send the plaintext while no stored row holds it
-    await expect.poll(read, { timeout: 10_000 }).toEqual({
+    await until((sending) => sending.status !== "pending");
+    expect(await read()).toEqual({
         status: "sent",
         isErased: false,
         attempts: ["sent"],
@@ -283,13 +303,15 @@ test("erase a settled message's sealed content once its retention passes, leavin
     );
 
     // erase the content of a sent and a failed message
-    await expect.poll(sent.read, { timeout: 10_000 }).toEqual({
+    await sent.until((sending) => sending.isErased);
+    await failed.until((sending) => sending.isErased);
+    expect(await sent.read()).toEqual({
         status: "sent",
         isErased: true,
         attempts: ["sent"],
         sent: { status: "true", reason: "Sent" },
     });
-    await expect.poll(failed.read, { timeout: 10_000 }).toEqual({
+    expect(await failed.read()).toEqual({
         status: "failed",
         isErased: true,
         attempts: ["failed"],

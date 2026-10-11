@@ -204,7 +204,7 @@ async function recordAttempt(
     // record the try
     await reconciliation.mutate([
         messageAttempt.call("create", {
-            ...messageAttempt.target({ scope: whole.scope }),
+            ...messageAttempt.in(whole.scope),
             parentId: whole.id,
             outcome,
         }),
