@@ -1,2 +1,2 @@
 export * from "./scope.ts";
-export * from "./meter.ts";
+export * from "./proxy.ts";

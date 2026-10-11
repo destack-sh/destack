@@ -8,10 +8,10 @@ import {
     trace,
     type Tracer,
 } from "@opentelemetry/api";
-import { type Logger, logs, SeverityNumber } from "@opentelemetry/api-logs";
+import { type Logger, SeverityNumber } from "@opentelemetry/api-logs";
 import type { Package } from "@destack/package";
 import { DomainError } from "@destack/error";
-import { type PackageMeter, ProxyMeter } from "./meter.ts";
+import { type PackageMeter, ProxyLogger, ProxyMeter, ProxyTracer } from "./proxy.ts";
 import {
     ACTION_EVENT,
     ANALYTICS_ATTRIBUTES,
@@ -187,9 +187,9 @@ export class Log {
 /** Obtain package instruments from the providers registered by the host. */
 export function scope(source: Package): TelemetryScope {
     return instrument(
-        trace.getTracer(source.name, source.version),
+        new ProxyTracer(source.name, source.version),
         new ProxyMeter(source.name, source.version),
-        logs.getLogger(source.name, source.version),
+        new ProxyLogger(source.name, source.version),
     );
 }
 
