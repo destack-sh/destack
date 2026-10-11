@@ -66,3 +66,20 @@ export const BucketHttpMetadata = {
         };
     },
 };
+
+/** The most bytes of a file's custom metadata names and values together, S3's 2 KiB limit. */
+export const MAX_CUSTOM_METADATA_BYTES = 2 * 1024;
+
+/** A file's custom metadata, names and values a caller chooses. */
+export const BucketCustomMetadata = {
+    /** Count the UTF-8 bytes of the names and values together, as S3 limits them. */
+    bytes(metadata: Readonly<Record<string, string>>): number {
+        const encoder = new TextEncoder();
+
+        return Object.entries(metadata).reduce(
+            (total, [name, value]) =>
+                total + encoder.encode(name).byteLength + encoder.encode(value).byteLength,
+            0,
+        );
+    },
+};

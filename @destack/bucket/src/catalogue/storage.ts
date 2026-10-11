@@ -14,7 +14,7 @@ import {
     type Table,
 } from "@destack/db";
 import {
-    type BucketFile,
+    BucketEntry,
     type BucketListOptions,
     BucketKey,
     BucketListing,
@@ -25,6 +25,15 @@ import { file, part, segment, upload } from "./stack/index.ts";
 import { CatalogueFile } from "./file.ts";
 import type { Segment } from "./reader.ts";
 import type { BlobStore } from "./store.ts";
+
+/** The file columns a listing reads. */
+const LISTING_COLUMNS = {
+    key: file.key,
+    etag: file.etag,
+    size: file.size,
+    uploaded: file.uploaded,
+    storageClass: file.storageClass,
+};
 
 /** Bound blob reference queries and their SQL parameter counts. */
 const REFERENCE_BATCH_SIZE = 500;
@@ -421,7 +430,7 @@ export class CatalogueStorage implements AsyncDisposable {
 
             // fetch only the remaining page and one lookahead entry
             const remaining = limit - page.files.length - page.delimitedPrefixes.length;
-            const entries = await this.#entries(options, prefix, lower, remaining + 1);
+            const entries = await this.#entries(prefix, lower, remaining + 1);
             if (entries.length === 0) {
                 return { ...page, truncated: false };
             }
@@ -435,20 +444,15 @@ export class CatalogueStorage implements AsyncDisposable {
         }
     }
 
-    /** Read the files from a lower bound under a prefix in key order, with the metadata the caller requests. */
-    async #entries(
-        options: BucketListOptions,
-        prefix: string,
-        lower: SQL,
-        count: number,
-    ): Promise<ListingEntry[]> {
+    /** Read the files from a lower bound under a prefix in key order. */
+    async #entries(prefix: string, lower: SQL, count: number): Promise<ListingEntry[]> {
         // compare keys by their UTF-8 bytes, as every dialect collates text
         const key = file.key;
         const end = BucketKey.prefixEnd(prefix);
         const upper = end === undefined ? undefined : lt(key, end);
 
         return await this.database
-            .select(listingColumns(options))
+            .select(LISTING_COLUMNS)
             .from(file)
             .where(and(gte(key, prefix), lower, upper))
             .orderBy(asc(key))
@@ -489,35 +493,13 @@ export class CatalogueStorage implements AsyncDisposable {
 /** A listing page as it fills. */
 interface ListingPage {
     /** The listed files. */
-    readonly files: BucketFile[];
+    readonly files: BucketEntry[];
     /** The groups of keys sharing a prefix up to the delimiter. */
     readonly delimitedPrefixes: string[];
 }
 
-/** A listed catalogue entry, with its metadata absent unless requested. */
-type ListingEntry = Omit<CatalogueFile, "httpMetadata" | "customMetadata"> &
-    Partial<Pick<CatalogueFile, "httpMetadata" | "customMetadata">>;
-
-/** Select the listed file columns, reading metadata only when the caller requests it. */
-function listingColumns(options: BucketListOptions) {
-    return {
-        key: file.key,
-        version: file.version,
-        etag: file.etag,
-        size: file.size,
-        uploaded: file.uploaded,
-        digest: file.digest,
-        storageClass: file.storageClass,
-        ssecKeyMd5: file.ssecKeyMd5,
-        retainUntil: file.retainUntil,
-        ...(options.include?.includes("httpMetadata") === true
-            ? { httpMetadata: file.httpMetadata }
-            : {}),
-        ...(options.include?.includes("customMetadata") === true
-            ? { customMetadata: file.customMetadata }
-            : {}),
-    };
-}
+/** A listed catalogue row. */
+type ListingEntry = Pick<CatalogueFile, keyof typeof LISTING_COLUMNS>;
 
 /** Bound the next listing read after the last key or group, absent once no key can follow the last group. */
 function lowerBound(prefix: string, delimiter: string, after: string | undefined): SQL | undefined {
@@ -587,13 +569,7 @@ function addEntries(
         // emit the file itself
         else {
             after = entry.key;
-            page.files.push(
-                CatalogueFile.describe({
-                    ...entry,
-                    httpMetadata: entry.httpMetadata ?? {},
-                    customMetadata: entry.customMetadata ?? {},
-                }),
-            );
+            page.files.push(BucketEntry.of({ ...entry, uploaded: new Date(entry.uploaded) }));
         }
     }
 

@@ -3,6 +3,7 @@ import type { ContentStore } from "@destack/resource";
 import {
     type BucketBody,
     type BucketPutOptions,
+    ContentDigest,
     type DigestAlgorithm,
     DIGEST_ALGORITHMS,
 } from "../bucket/index.ts";
@@ -86,7 +87,7 @@ export class Content {
                 algorithm === undefined || (algorithm === "md5" && key === undefined)
                     ? undefined
                     : createHash(algorithm),
-            expected: expected === undefined ? undefined : hexadecimal(expected),
+            expected: expected === undefined ? undefined : ContentDigest.hex(expected),
             size: 0,
         };
         const cipher = key === undefined || nonce === null ? undefined : key.cipher(nonce);
@@ -137,13 +138,4 @@ async function* encode(
     if (hashes.expected !== undefined && hashes.actual !== hashes.expected) {
         throw new BucketError("INVALID_CHECKSUM", "object checksum does not match its contents");
     }
-}
-
-/** Read a supplied checksum as lowercase hexadecimal. */
-function hexadecimal(checksum: string | ArrayBuffer | ArrayBufferView): string {
-    return typeof checksum === "string"
-        ? checksum.toLowerCase()
-        : checksum instanceof ArrayBuffer
-          ? new Uint8Array(checksum).toHex()
-          : new Uint8Array(checksum.buffer, checksum.byteOffset, checksum.byteLength).toHex();
 }

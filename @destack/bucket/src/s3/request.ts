@@ -1,14 +1,8 @@
 import { aligned } from "@destack/schema";
-import {
-    type BucketHttpMetadata,
-    type BucketRange,
-    type StorageClass,
-    HTTP_METADATA_FIELDS,
-    STORAGE_CLASSES,
-    UploadedPart,
-} from "../bucket/index.ts";
+import { type BucketRange, UploadedPart } from "../bucket/index.ts";
 import { EntityTag, type S3Condition } from "./condition.ts";
 import { CryptoHasher } from "./hasher.ts";
+import { CUSTOMER_KEY_HEADERS, readCustomerKey } from "./headers.ts";
 import { S3Error } from "./error.ts";
 import { Payload } from "./payload.ts";
 import { PRESIGN_PARAMETERS, type S3Authorization } from "./signature.ts";
@@ -21,35 +15,6 @@ import { XmlNode } from "./xml.ts";
  * A DeleteObjects document lists 1000 keys of up to 1024 bytes, about 6 MiB when every byte is escaped.
  */
 const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
-/** The largest total size of user metadata names and values in bytes, the S3 limit. */
-const MAX_METADATA_BYTES = 2 * 1024;
-/** The prefix of user metadata headers. */
-const METADATA_PREFIX = "x-amz-meta-";
-/** The S3 name of each storage class, as R2 maps them. */
-export const S3_STORAGE_CLASSES: Record<StorageClass, string> = {
-    Standard: "STANDARD",
-    InfrequentAccess: "STANDARD_IA",
-};
-/** The length of a customer-provided AES-256 key in bytes. */
-const CUSTOMER_KEY_BYTES = 32;
-/** The headers of customer-provided encryption keys. */
-const CUSTOMER_KEY_HEADERS = {
-    algorithm: "x-amz-server-side-encryption-customer-algorithm",
-    key: "x-amz-server-side-encryption-customer-key",
-    md5: "x-amz-server-side-encryption-customer-key-md5",
-} as const;
-
-/** Write the SSE-C headers that send a base64 customer key with a request. */
-export function customerKeyHeaders(key: string): Record<string, string> {
-    const digest = new CryptoHasher("md5");
-    digest.update(readCustomerKey(key));
-
-    return {
-        [CUSTOMER_KEY_HEADERS.algorithm]: "AES256",
-        [CUSTOMER_KEY_HEADERS.key]: key,
-        [CUSTOMER_KEY_HEADERS.md5]: digest.digest().toBase64(),
-    };
-}
 
 /** An authenticated S3 request, addressed path-style to a bucket and optionally a key. */
 export class S3Request {
@@ -239,100 +204,6 @@ export class S3Request {
         return { bucketName: source.slice(0, separator), key: source.slice(separator + 1) };
     }
 
-    /** Read the stored HTTP headers of a write, without the aws-chunked content encoding. */
-    httpMetadata(): BucketHttpMetadata {
-        // copy the supported header fields
-        const metadata: BucketHttpMetadata = {};
-        for (const [field, name] of HTTP_METADATA_FIELDS) {
-            const value = this.headers.get(name);
-            if (value !== null) {
-                metadata[field] = value;
-            }
-        }
-
-        // drop the transfer coding S3 removes before storing
-        const encoding = metadata.contentEncoding
-            ?.split(",")
-            .map((entry) => entry.trim())
-            .filter((entry) => entry !== "aws-chunked")
-            .join(", ");
-        if (encoding === "") {
-            delete metadata.contentEncoding;
-        } else if (encoding !== undefined) {
-            metadata.contentEncoding = encoding;
-        }
-
-        // require a valid expiration date
-        const expires = this.headers.get("expires");
-        if (expires !== null) {
-            const time = Date.parse(expires);
-            if (!Number.isFinite(time)) {
-                throw new S3Error("InvalidArgument", "the expires header must be an HTTP date");
-            }
-            metadata.cacheExpiry = new Date(time);
-        }
-
-        return metadata;
-    }
-
-    /** Read the user metadata of a write, within S3's two KiB limit. */
-    customMetadata(): Record<string, string> {
-        // collect the x-amz-meta headers and measure their names and values
-        const metadata: Record<string, string> = {};
-        let size = 0;
-        for (const [name, value] of this.headers) {
-            if (name.startsWith(METADATA_PREFIX)) {
-                const field = name.slice(METADATA_PREFIX.length);
-                metadata[field] = value;
-                size += new TextEncoder().encode(field + value).length;
-            }
-        }
-
-        // refuse metadata beyond the limit
-        if (size > MAX_METADATA_BYTES) {
-            throw new S3Error("MetadataTooLarge", "user metadata exceeds the 2 KiB limit");
-        }
-
-        return metadata;
-    }
-
-    /** Read the retain-until date of a write's compliance-mode object lock, or undefined for an unlocked file. */
-    retainUntil(): Date | undefined {
-        // read the optional headers, accepting the compliance mode alone
-        const value = this.headers.get("x-amz-object-lock-retain-until-date");
-        const mode = this.headers.get("x-amz-object-lock-mode");
-        if (value === null) {
-            return undefined;
-        } else if (mode !== null && mode !== "COMPLIANCE") {
-            throw new S3Error("InvalidArgument", "object lock supports the COMPLIANCE mode alone");
-        }
-
-        // read the ISO 8601 date
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) {
-            throw new S3Error("InvalidArgument", `invalid object lock retain-until date: ${value}`);
-        }
-
-        return date;
-    }
-
-    /** Read the storage class of a write, or undefined for the default. */
-    storageClass(): StorageClass | undefined {
-        // read the optional header
-        const value = this.headers.get("x-amz-storage-class");
-        if (value === null) {
-            return undefined;
-        }
-
-        // map the S3 name to a storage class
-        const storageClass = STORAGE_CLASSES.find((entry) => S3_STORAGE_CLASSES[entry] === value);
-        if (storageClass === undefined) {
-            throw new S3Error("InvalidStorageClass", `the storage class ${value} is not supported`);
-        }
-
-        return storageClass;
-    }
-
     /** Read a customer-provided encryption key as hexadecimal, verifying its MD5 digest. */
     ssecKey(): string | undefined {
         // refuse server-managed encryption, which is out of scope
@@ -418,22 +289,4 @@ function readRange(first: string, last: string): BucketRange {
     else {
         return { offset: Number(first), length: Number(last) - Number(first) + 1 };
     }
-}
-
-/** Decode a customer key, which must be 32 bytes of base64. */
-function readCustomerKey(value: string): Uint8Array {
-    // decode the key, refusing malformed base64
-    let bytes: Uint8Array;
-    try {
-        bytes = Uint8Array.fromBase64(value);
-    } catch (cause) {
-        throw new S3Error("InvalidArgument", "the customer key must be 32 bytes of base64", {
-            cause,
-        });
-    }
-    if (bytes.length !== CUSTOMER_KEY_BYTES) {
-        throw new S3Error("InvalidArgument", "the customer key must be 32 bytes of base64");
-    }
-
-    return bytes;
 }

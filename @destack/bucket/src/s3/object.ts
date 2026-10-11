@@ -9,7 +9,14 @@ import type { BucketCopyOptions, S3Bucket } from "./bucket.ts";
 import { S3Condition } from "./condition.ts";
 import { S3Error } from "./error.ts";
 import { type CopySource, keyEncoder, xmlResponse } from "./operation.ts";
-import { S3_STORAGE_CLASSES, type S3Request } from "./request.ts";
+import type { S3Request } from "./request.ts";
+import {
+    CHECKSUM_HEADERS,
+    CHECKSUM_MODE_HEADER,
+    CUSTOMER_KEY_HEADERS,
+    S3_STORAGE_CLASSES,
+    S3Headers,
+} from "./headers.ts";
 import type { XmlElement } from "./xml.ts";
 
 /** The response headers GetObject overrides from query parameters. */
@@ -71,7 +78,7 @@ async function getObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
     }
 
     // describe the returned bytes, with the query's overrides
-    const headers = fileHeaders(file);
+    const headers = S3Headers.write(file, isChecksummed(call));
     headers.set("content-length", String(file.range?.length ?? file.size));
     if (file.range !== undefined) {
         const last = file.range.offset + file.range.length - 1;
@@ -98,7 +105,7 @@ async function headObject(call: S3Request, bucket: S3Bucket): Promise<Response> 
     }
 
     // describe the whole file, or the requested range of it
-    const headers = fileHeaders(file);
+    const headers = S3Headers.write(file, isChecksummed(call));
     const range = call.range();
     headers.set("content-length", String(file.size));
     if (range === undefined) {
@@ -125,16 +132,20 @@ async function putObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
     }
 
     // store the verified body with the request's metadata
-    const storageClass = call.storageClass();
+    const storageClass = S3Headers.storageClass(call.headers);
     const ssecKey = call.ssecKey();
-    const retainUntil = call.retainUntil();
-    const sha256 = call.headers.get("x-amz-checksum-sha256");
+    const retainUntil = S3Headers.retainUntil(call.headers);
+    const checksums = CHECKSUM_HEADERS.flatMap(([algorithm, name]) => {
+        const value = call.headers.get(name);
+
+        return value === null ? [] : [[algorithm, Uint8Array.fromBase64(value).buffer] as const];
+    });
     let file: BucketFile;
     try {
         file = await bucket.put(call.key, call.body(), {
-            ...(sha256 === null ? {} : { sha256: Uint8Array.fromBase64(sha256).buffer }),
-            httpMetadata: call.httpMetadata(),
-            customMetadata: call.customMetadata(),
+            ...Object.fromEntries(checksums),
+            httpMetadata: S3Headers.httpMetadata(call.headers),
+            customMetadata: S3Headers.customMetadata(call.headers),
             ...(storageClass === undefined ? {} : { storageClass }),
             ...(ssecKey === undefined ? {} : { ssecKey }),
             ...(retainUntil === undefined ? {} : { retainUntil }),
@@ -171,7 +182,7 @@ async function copyObject(
     if (directive !== "COPY" && directive !== "REPLACE") {
         throw new S3Error("InvalidArgument", "x-amz-metadata-directive must be COPY or REPLACE");
     }
-    const storageClass = call.storageClass();
+    const storageClass = S3Headers.storageClass(call.headers);
     if (
         source.isSameBucket &&
         source.key === call.key &&
@@ -190,7 +201,10 @@ async function copyObject(
     // copy under the source's conditions, with replaced metadata when asked
     const metadata =
         directive === "REPLACE"
-            ? { httpMetadata: call.httpMetadata(), customMetadata: call.customMetadata() }
+            ? {
+                  httpMetadata: S3Headers.httpMetadata(call.headers),
+                  customMetadata: S3Headers.customMetadata(call.headers),
+              }
             : {};
     const options = {
         ...metadata,
@@ -244,7 +258,7 @@ async function listObjects(call: S3Request, bucket: S3Bucket): Promise<Response>
         Contents: page.files.map((file) => ({
             Key: encode(file.key),
             LastModified: file.uploaded,
-            ETag: file.httpEtag,
+            ETag: `"${file.etag}"`,
             Size: file.size,
             StorageClass: S3_STORAGE_CLASSES[file.storageClass],
         })),
@@ -327,6 +341,11 @@ async function copyBetween(
     });
 }
 
+/** Report whether a read asks for the file's checksums. */
+function isChecksummed(call: S3Request): boolean {
+    return call.headers.get(CHECKSUM_MODE_HEADER) === "ENABLED";
+}
+
 /** Require an existing file. */
 function requireFile<File extends BucketFile>(file: File | null): File {
     if (file === null) {
@@ -374,43 +393,19 @@ function writeConditionFailure(call: S3Request, current: BucketFile | null): nev
     );
 }
 
-/** Describe a file in response headers. */
-function fileHeaders(file: BucketFile): Headers {
-    // describe the version and its stored HTTP metadata
+/** Describe a stored file in a write response: its entity tag, version, upload time and checksums. */
+export function writeHeaders(call: S3Request, file: BucketFile): Headers {
+    // answer the stored version, and echo the digest of a customer key
     const headers = new Headers({
         etag: file.httpEtag,
+        "x-amz-version-id": file.version,
         "last-modified": file.uploaded.toUTCString(),
-        "accept-ranges": "bytes",
+        ...S3Headers.checksums(file),
     });
-    file.writeHttpMetadata(headers);
-
-    // add user metadata, a non-standard storage class, the object lock and the customer key digest
-    for (const [name, value] of Object.entries(file.customMetadata)) {
-        headers.set(`x-amz-meta-${name}`, value);
-    }
-    if (file.storageClass !== "Standard") {
-        headers.set("x-amz-storage-class", S3_STORAGE_CLASSES[file.storageClass]);
-    }
-    if (file.retainUntil !== undefined) {
-        headers.set("x-amz-object-lock-mode", "COMPLIANCE");
-        headers.set("x-amz-object-lock-retain-until-date", file.retainUntil.toISOString());
-    }
-    if (file.ssecKeyMd5 !== undefined) {
-        headers.set("x-amz-server-side-encryption-customer-algorithm", "AES256");
-        headers.set("x-amz-server-side-encryption-customer-key-md5", file.ssecKeyMd5);
-    }
-
-    return headers;
-}
-
-/** Describe a stored file in a write response. */
-function writeHeaders(call: S3Request, file: BucketFile): Headers {
-    // answer the stored version, and echo the digest of a customer key
-    const headers = new Headers({ etag: file.httpEtag });
-    const md5 = call.headers.get("x-amz-server-side-encryption-customer-key-md5");
+    const md5 = call.headers.get(CUSTOMER_KEY_HEADERS.md5);
     if (md5 !== null) {
-        headers.set("x-amz-server-side-encryption-customer-algorithm", "AES256");
-        headers.set("x-amz-server-side-encryption-customer-key-md5", md5);
+        headers.set(CUSTOMER_KEY_HEADERS.algorithm, "AES256");
+        headers.set(CUSTOMER_KEY_HEADERS.md5, md5);
     }
 
     return headers;

@@ -169,7 +169,7 @@ export class R2Bucket implements Bucket {
         return new R2MultipartUpload(upload, this.#operations);
     }
 
-    /** List files with the selected metadata and delimiter. */
+    /** List files under a prefix, grouped at a delimiter. */
     async list(options: BucketListOptions = {}): Promise<BucketListing> {
         // validate the limit and bind cursors to the prefix and delimiter
         BucketListing.checkLimit(options.limit ?? MAX_BATCH_FILES);
@@ -189,7 +189,7 @@ export class R2Bucket implements Bucket {
         });
 
         return {
-            files: page.objects.map(R2File.describe),
+            files: page.objects.map(R2File.list),
             delimitedPrefixes: page.delimitedPrefixes,
             ...(page.truncated
                 ? {

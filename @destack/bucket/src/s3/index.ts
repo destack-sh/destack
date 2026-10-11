@@ -4,5 +4,7 @@ export * from "./location.ts";
 export * from "./host.ts";
 export { S3Signature, type S3Authorization } from "./signature.ts";
 export * from "./server.ts";
+export * from "./client.ts";
 export * from "./cors.ts";
-export { customerKeyHeaders } from "./request.ts";
+export * from "./lease.ts";
+export { customerKeyHeaders } from "./headers.ts";

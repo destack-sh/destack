@@ -71,6 +71,27 @@ const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
     FENCED: "ServiceUnavailable",
 };
 
+/** The storage failure each S3 error code answers, for codes exactly one storage failure answers with. */
+const STORAGE_FAILURES: ReadonlyMap<S3ErrorCode, BucketErrorCode> = new Map(
+    Object.entries(STORAGE_ERROR_CODE).flatMap(([failure, code]) => {
+        const answering = Object.values(STORAGE_ERROR_CODE).filter((each) => each === code);
+
+        return answering.length === 1 && BucketError.isCode(failure) ? [[code, failure]] : [];
+    }),
+);
+
+/** The S3 error code of each status a document-less answer, such as HEAD's, carries. */
+const STATUS_ERROR_CODES: Readonly<Record<number, S3ErrorCode>> = {
+    400: "BadRequest",
+    403: "AccessDenied",
+    404: "NoSuchKey",
+    405: "MethodNotAllowed",
+    412: "PreconditionFailed",
+    416: "InvalidRange",
+    501: "NotImplemented",
+    503: "ServiceUnavailable",
+};
+
 /** An S3 error code. */
 export type S3ErrorCode = keyof typeof S3_ERROR_STATUS;
 
@@ -96,6 +117,32 @@ export class S3Error extends Error implements DomainError {
         return { code: SERVICE_CODES[S3_ERROR_STATUS[this.code]], message: this.message };
     }
 
+    /** Read the S3 error an error document names, refusing a code S3 does not define. */
+    static named(code: string, message: string): S3Error {
+        if (!isCode(code)) {
+            throw new TypeError(`the bucket answered the unknown S3 error ${code}`);
+        }
+
+        return new S3Error(code, message);
+    }
+
+    /** Read the S3 error a status answers without a document, refusing a status S3 does not answer. */
+    static answered(status: number, message: string): S3Error {
+        const code = STATUS_ERROR_CODES[status];
+        if (code === undefined) {
+            throw new TypeError(`the bucket answered status ${status} without a document`);
+        }
+
+        return new S3Error(code, message);
+    }
+
+    /** Read the storage failure the error answers, absent for a code several or no storage failures answer with. */
+    toBucketError(): BucketError | undefined {
+        const failure = STORAGE_FAILURES.get(this.code);
+
+        return failure === undefined ? undefined : new BucketError(failure, this.message);
+    }
+
     /** Read a failure the request caused as an S3 error, and return undefined for host failures. */
     static read(error: unknown): S3Error | undefined {
         // keep S3 errors and translate storage failures the request caused
@@ -110,4 +157,9 @@ export class S3Error extends Error implements DomainError {
 
         return code === undefined ? undefined : new S3Error(code, error.message, { cause: error });
     }
+}
+
+/** Report whether a value names an S3 error code. */
+function isCode(value: string): value is S3ErrorCode {
+    return Object.hasOwn(S3_ERROR_STATUS, value);
 }

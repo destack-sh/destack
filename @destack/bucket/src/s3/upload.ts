@@ -3,7 +3,9 @@ import { MAX_BATCH_FILES, MAX_PART_NUMBER, UploadedPart } from "../bucket/index.
 import type { S3Bucket } from "./bucket.ts";
 import { S3Error } from "./error.ts";
 import { type CopySource, keyEncoder, xmlResponse } from "./operation.ts";
-import { S3_STORAGE_CLASSES, type S3Request } from "./request.ts";
+import type { S3Request } from "./request.ts";
+import { S3_STORAGE_CLASSES, S3Headers } from "./headers.ts";
+import { writeHeaders } from "./object.ts";
 
 /** The query parameters of ListMultipartUploads. */
 const LIST_PARAMETERS = [
@@ -30,12 +32,12 @@ export const S3Upload = {
 async function createUpload(call: S3Request, bucket: S3Bucket): Promise<Response> {
     // start the upload with the request's metadata, storage class and key
     call.checkParameters(["uploads"]);
-    const storageClass = call.storageClass();
+    const storageClass = S3Headers.storageClass(call.headers);
     const ssecKey = call.ssecKey();
-    const retainUntil = call.retainUntil();
+    const retainUntil = S3Headers.retainUntil(call.headers);
     const upload = await bucket.createMultipartUpload(call.key, {
-        httpMetadata: call.httpMetadata(),
-        customMetadata: call.customMetadata(),
+        httpMetadata: S3Headers.httpMetadata(call.headers),
+        customMetadata: S3Headers.customMetadata(call.headers),
         ...(storageClass === undefined ? {} : { storageClass }),
         ...(ssecKey === undefined ? {} : { ssecKey }),
         ...(retainUntil === undefined ? {} : { retainUntil }),
@@ -119,12 +121,17 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
     const upload = bucket.resumeMultipartUpload(call.key, call.uploadId());
     const file = await upload.complete(parts);
 
-    return xmlResponse("CompleteMultipartUploadResult", {
+    // answer the document with the assembled file's version, upload time and checksums
+    const answer = xmlResponse("CompleteMultipartUploadResult", {
         Location: `${call.url.origin}${call.url.pathname}`,
         Bucket: call.bucketName,
         Key: call.key,
         ETag: file.httpEtag,
     });
+    const headers = writeHeaders(call, file);
+    headers.set("content-type", "application/xml");
+
+    return new Response(answer.body, { headers });
 }
 
 /** Answer AbortMultipartUpload by discarding the upload and its parts. */

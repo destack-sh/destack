@@ -1,5 +1,5 @@
 /** The digest algorithms a file's content digest carries. */
-export const DIGEST_ALGORITHMS = ["md5", "sha1", "sha256", "sha384", "sha512"] as const;
+export const DIGEST_ALGORITHMS = ["md5", "sha1", "sha256"] as const;
 
 /** A digest algorithm a file's content digest carries. */
 export type DigestAlgorithm = (typeof DIGEST_ALGORITHMS)[number];
@@ -26,13 +26,14 @@ export class ContentDigest {
     get sha256(): ArrayBuffer | undefined {
         return this.#read("sha256");
     }
-    /** The SHA-384 digest. */
-    get sha384(): ArrayBuffer | undefined {
-        return this.#read("sha384");
-    }
-    /** The SHA-512 digest. */
-    get sha512(): ArrayBuffer | undefined {
-        return this.#read("sha512");
+
+    /** Read a checksum a caller supplies as lowercase hexadecimal. */
+    static hex(checksum: string | ArrayBuffer | ArrayBufferView): string {
+        return typeof checksum === "string"
+            ? checksum.toLowerCase()
+            : checksum instanceof ArrayBuffer
+              ? new Uint8Array(checksum).toHex()
+              : new Uint8Array(checksum.buffer, checksum.byteOffset, checksum.byteLength).toHex();
     }
 
     /** Encode the stored digests as hexadecimal text. */

@@ -15,7 +15,7 @@ export interface Bucket {
     put(key: string, body: BucketBody | null, options?: BucketPutOptions): Promise<BucketFile>;
     /** Delete up to 1000 files; absent keys remain absent. */
     delete(key: string | string[]): Promise<void>;
-    /** List a page of metadata. */
+    /** List a page of entries. */
     list(options?: BucketListOptions): Promise<BucketListing>;
     /** Create an incomplete file upload. */
     createMultipartUpload(key: string, options?: MultipartOptions): Promise<MultipartUpload>;
@@ -49,10 +49,6 @@ export interface BucketPutOptions {
     sha1?: string | ArrayBuffer | ArrayBufferView;
     /** The expected SHA-256 digest; hexadecimal text or raw bytes. */
     sha256?: string | ArrayBuffer | ArrayBufferView;
-    /** The expected SHA-384 digest; hexadecimal text or raw bytes. */
-    sha384?: string | ArrayBuffer | ArrayBufferView;
-    /** The expected SHA-512 digest; hexadecimal text or raw bytes. */
-    sha512?: string | ArrayBuffer | ArrayBufferView;
     /** The storage class, Standard by default. */
     storageClass?: StorageClass;
     /** The customer key encrypting the file, as 32 raw bytes or 64 hexadecimal digits. */
@@ -71,8 +67,6 @@ export interface BucketListOptions {
     limit?: number;
     /** Group keys at this delimiter after the prefix. */
     delimiter?: string;
-    /** Include the selected metadata in listed files. */
-    include?: ("httpMetadata" | "customMetadata")[];
 }
 
 /** Bytes accepted by file storage. */

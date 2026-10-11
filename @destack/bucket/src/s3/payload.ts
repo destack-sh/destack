@@ -1,8 +1,9 @@
 import { aligned, Digest } from "@destack/schema";
-import { Crc32, Crc32c, CryptoHasher, type Hasher } from "./hasher.ts";
+import { Crc32, Crc32c } from "./checksum.ts";
+import { CryptoHasher, type Hasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
 import { EMPTY_HASH, UNSIGNED_PAYLOAD } from "@destack/identity/aws";
-import type { S3Authorization } from "./signature.ts";
+import type { S3Authorization, S3ChunkChain } from "./signature.ts";
 
 /** The payload hash of aws-chunked bodies with signed chunks. */
 const SIGNED_CHUNKS = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
@@ -23,7 +24,7 @@ const CHECKSUMS = new Map<string, Checksum | undefined>([
     ["x-amz-checksum-crc32", { create: () => new Crc32(), length: 4 }],
     ["x-amz-checksum-crc32c", { create: () => new Crc32c(), length: 4 }],
     ["x-amz-checksum-sha256", { create: () => new CryptoHasher("sha256"), length: 32 }],
-    ["x-amz-checksum-sha1", undefined],
+    ["x-amz-checksum-sha1", { create: () => new CryptoHasher("sha1"), length: 20 }],
     ["x-amz-checksum-crc64nvme", undefined],
 ]);
 
@@ -50,8 +51,8 @@ type ChunkState = "header" | "data" | "data-end" | "final" | "trailer" | "done";
 
 /** A request body as the bytes the client sent, decoded from aws-chunked, with its hashes verified while streaming. */
 export class Payload implements Transformer<Uint8Array, Uint8Array> {
-    /** The verified signature whose key signs streamed chunks. */
-    readonly #authorization: S3Authorization;
+    /** The request signature signed chunks chain to, and the last signature in the chain. */
+    readonly #signing?: { readonly chain: S3ChunkChain; previous: string };
     /** The expected hexadecimal SHA-256 of a signed plain body. */
     readonly #payloadHash?: string;
     /** The SHA-256 of a signed plain body. */
@@ -76,17 +77,18 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
     #chunkSignature = "";
     /** The SHA-256 of the current chunk's data. */
     #chunkDigest = new CryptoHasher("sha256");
-    /** The signature of the previous chunk, seeded by the request signature. */
-    #previousSignature: string;
     /** The trailing headers by lowercase name. */
     readonly #trailers = new Map<string, string>();
 
     /** Read the payload hash, content length and checksums a request declares. */
     private constructor(headers: Headers, authorization: S3Authorization) {
-        // chain chunk signatures from the request signature
-        this.#authorization = authorization;
-        this.#previousSignature = authorization.signature;
-        const { payloadHash } = authorization;
+        // chain signed chunks to the request signature, refusing them on a request signed by none
+        const { payloadHash, chain } = authorization;
+        if (payloadHash === SIGNED_CHUNKS && chain === undefined) {
+            throw new S3Error("InvalidRequest", "signed chunks need a signed request");
+        } else if (payloadHash === SIGNED_CHUNKS && chain !== undefined) {
+            this.#signing = { chain, previous: chain.signature };
+        }
 
         // decode aws-chunked bodies, verify signed plain bodies, and pass unsigned ones
         if (payloadHash === SIGNED_CHUNKS || payloadHash === UNSIGNED_CHUNKS_WITH_TRAILER) {
@@ -308,28 +310,30 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
 
     /** Verify the signature of a signed chunk, chained to the previous one. */
     async #verifyChunk(): Promise<void> {
-        if (this.#chunks !== "signed") {
+        // pass over unsigned chunks
+        const signing = this.#signing;
+        if (signing === undefined) {
             return;
         }
 
         // sign the chunk's data hash after the previous signature
-        const { date, scope } = this.#authorization;
+        const { date, scope } = signing.chain;
         const stringToSign = [
             CHUNK_ALGORITHM,
             date,
             scope,
-            this.#previousSignature,
+            signing.previous,
             EMPTY_HASH,
             this.#chunkDigest.digest().toHex(),
         ].join("\n");
-        const expected = await this.#authorization.sign(stringToSign);
+        const expected = await signing.chain.sign(stringToSign);
         if (expected !== this.#chunkSignature) {
             throw new S3Error(
                 "SignatureDoesNotMatch",
                 "an aws-chunked chunk signature does not match",
             );
         }
-        this.#previousSignature = expected;
+        signing.previous = expected;
     }
 }
 

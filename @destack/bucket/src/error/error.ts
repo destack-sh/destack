@@ -39,6 +39,11 @@ export class BucketError extends Error implements DomainError {
         this.code = code;
     }
 
+    /** Report whether a value names a failure code of file storage. */
+    static isCode(value: string): value is BucketErrorCode {
+        return Object.hasOwn(SERVICE_CODES, value);
+    }
+
     /** Refuse a read or write whose precondition the current file, or its absence, failed. */
     static preconditionFailed(current: BucketFile | null): BucketPreconditionError {
         return new BucketPreconditionError(current);

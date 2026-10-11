@@ -1,9 +1,5 @@
 import type { Table } from "@destack/db";
-import {
-    connectDurableObject,
-    DurableObjectDatabaseHost,
-    type DurableObjectStorage,
-} from "@destack/db/cloudflare";
+import type { DurableObjectDatabaseHost } from "@destack/db/cloudflare";
 import { schema, type Identifier } from "@destack/schema";
 import type { Bucket } from "../bucket/index.ts";
 import {
@@ -152,9 +148,9 @@ export class DurableObjectCatalogueStore implements CatalogueStore {
     /** The object's databases. */
     readonly #databases: DurableObjectDatabaseHost;
 
-    /** Keep catalogues in an object's storage. */
-    constructor(storage: DurableObjectStorage) {
-        this.#databases = new DurableObjectDatabaseHost(storage);
+    /** Keep catalogues among the databases of an object's one storage host. */
+    constructor(databases: DurableObjectDatabaseHost) {
+        this.#databases = databases;
     }
 
     /** Report whether a bucket has a catalogue. */
@@ -164,7 +160,7 @@ export class DurableObjectCatalogueStore implements CatalogueStore {
 
     /** Connect to a bucket's catalogue declaring some tables in its namespace. */
     async connect(bucketId: Identifier<"bucket">, tables: readonly Table[]) {
-        return connectDurableObject(this.#databases.storage, tables, { namespace: bucketId });
+        return this.#databases.connect(tables, { namespace: bucketId });
     }
 
     /** Remove a bucket's catalogue. */

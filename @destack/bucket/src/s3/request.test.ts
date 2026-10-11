@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { expect, test } from "@destack/test";
 import { S3Error } from "./error.ts";
-import { customerKeyHeaders, S3Request } from "./request.ts";
+import { customerKeyHeaders } from "./headers.ts";
+import { S3Request } from "./request.ts";
 import type { S3Authorization } from "./signature.ts";
 
 test("write a customer key's SSE-C headers, which a request reads back as the key", async () => {
@@ -9,10 +10,6 @@ test("write a customer key's SSE-C headers, which a request reads back as the ke
     const headers = customerKeyHeaders(key.toBase64());
     const authorization: S3Authorization = {
         accessKeyId: "tester",
-        sign: async () => "0".repeat(64),
-        date: "20260929T100000Z",
-        scope: "20260929/auto/s3/aws4_request",
-        signature: "0".repeat(64),
         payloadHash: "UNSIGNED-PAYLOAD",
     };
     const request = new S3Request(

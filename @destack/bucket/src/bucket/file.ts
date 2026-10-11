@@ -109,6 +109,7 @@ export class BucketFileBody extends BucketFile {
             file.digest,
             file.storageClass,
             file.ssecKeyMd5,
+            file.retainUntil,
         );
         this.body = body;
         this.range = range;

@@ -1,7 +1,12 @@
 import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { type Bucket, type BucketFile, DIGEST_ALGORITHMS } from "../../src/bucket/index.ts";
+import {
+    type Bucket,
+    BucketEntry,
+    type BucketFile,
+    DIGEST_ALGORITHMS,
+} from "../../src/bucket/index.ts";
 import { BucketError, BucketPreconditionError } from "../../src/error/index.ts";
 
 /** Read the file a refused precondition met, null where none exists, failing when the precondition held. */
@@ -225,19 +230,17 @@ export async function exerciseListing(bucket: Bucket): Promise<void> {
     // match key prefixes as literal UTF-8 strings, apart from filesystem paths and SQL patterns
     await bucket.put("📁/two", "two");
     await bucket.put("../outside", "safe file key");
-    const page = await bucket.list({
-        prefix: "📁/",
-        limit: 1,
-        include: ["httpMetadata", "customMetadata"],
-    });
-    assert.deepStrictEqual(page.files, [await bucket.head("📁/one")]);
+    const page = await bucket.list({ prefix: "📁/", limit: 1 });
+    assert.deepStrictEqual(page.files, [
+        BucketEntry.of(present(await bucket.head("📁/one"), "one")),
+    ]);
     assert.strictEqual(page.truncated, true);
     await assert.rejects(async () => bucket.list({ prefix: "other/", cursor: page.cursor }), {
         code: "INVALID_CURSOR",
     });
     const last = await bucket.list({ prefix: "📁/", cursor: page.cursor, limit: 1 });
     assert.deepStrictEqual(last, {
-        files: [await bucket.head("📁/two")],
+        files: [BucketEntry.of(present(await bucket.head("📁/two"), "two"))],
         delimitedPrefixes: [],
         truncated: false,
     });
@@ -298,7 +301,7 @@ export async function exerciseGroups(bucket: Bucket): Promise<void> {
         cursor: nextGroup.cursor,
     });
     assert.deepStrictEqual(leaf, {
-        files: [await bucket.head("files/root")],
+        files: [BucketEntry.of(present(await bucket.head("files/root"), "root"))],
         delimitedPrefixes: [],
         truncated: false,
     });

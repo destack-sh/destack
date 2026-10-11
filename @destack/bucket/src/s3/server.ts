@@ -6,10 +6,15 @@ import { S3Error } from "./error.ts";
 import { S3Object } from "./object.ts";
 import { type CopySource } from "./operation.ts";
 import { S3Request } from "./request.ts";
-import { S3Signature } from "./signature.ts";
+import { PAYLOAD_HASH_HEADER, type S3Authorization, S3Signature } from "./signature.ts";
+import { UNSIGNED_PAYLOAD } from "@destack/identity/aws";
+import type {} from "@destack/package/import-meta";
 import { S3Upload } from "./upload.ts";
 import { decodeUri } from "./uri.ts";
 import { writeErrorXml } from "./xml.ts";
+
+/** The package serving buckets over S3, which a workload's calls to its buckets address. */
+export const S3_PACKAGE = import.meta.destack.package;
 
 /** How an S3 server authenticates requests and reaches buckets. */
 export interface S3ServerOptions {
@@ -48,14 +53,33 @@ export class S3Server {
         return this.signature.region;
     }
 
-    /** Answer one S3 request. */
-    async fetch(request: Request): Promise<Response> {
+    /** Answer one S3 request signed with SigV4. */
+    fetch(request: Request): Promise<Response> {
+        return this.#answer(request, () =>
+            this.signature.authenticate(
+                request,
+                (accessKeyId) => this.#credentials(accessKeyId),
+                Date.now(),
+            ),
+        );
+    }
+
+    /** Answer one S3 request its host already authorized for an access key, without SigV4. */
+    serve(request: Request, accessKeyId: string): Promise<Response> {
+        return this.#answer(request, async () => ({
+            accessKeyId,
+            payloadHash: request.headers.get(PAYLOAD_HASH_HEADER) ?? UNSIGNED_PAYLOAD,
+        }));
+    }
+
+    /** Authorize and run a request, answering failures with S3 error documents. */
+    async #answer(request: Request, authorize: () => Promise<S3Authorization>): Promise<Response> {
         // read the request and run it
         const requestId = crypto.getRandomValues(new Uint8Array(8)).toHex().toUpperCase();
         const url = new URL(request.url);
         let response: Response;
         try {
-            response = await this.#serve(request, url);
+            response = await this.#serve(request, url, authorize);
         } catch (error) {
             // answer failures the request caused and rethrow host failures
             const failure = S3Error.read(error);
@@ -75,8 +99,12 @@ export class S3Server {
         return new Response(response.body, { status: response.status, headers });
     }
 
-    /** Authenticate a request and run its operation. */
-    async #serve(request: Request, url: URL): Promise<Response> {
+    /** Authorize a request and run its operation. */
+    async #serve(
+        request: Request,
+        url: URL,
+        authorize: () => Promise<S3Authorization>,
+    ): Promise<Response> {
         // answer CORS preflights without authentication
         if (request.method === "OPTIONS") {
             return CorsRule.preflight(this.cors, request);
@@ -91,13 +119,8 @@ export class S3Server {
             throw new S3Error("NotImplemented", "listing buckets is not supported");
         }
 
-        // verify the signature, then open the bucket the key reaches
-        const authorization = await this.signature.authenticate(
-            request,
-            (accessKeyId) => this.#credentials(accessKeyId),
-            Date.now(),
-        );
-        const call = new S3Request(request, bucketName, key, authorization);
+        // authorize the request, then open the bucket its access key reaches
+        const call = new S3Request(request, bucketName, key, await authorize());
         const bucket = await this.#bucket(call, bucketName);
 
         return key === ""

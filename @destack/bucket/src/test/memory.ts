@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import {
     type Bucket,
     type BucketBody,
     BucketCondition,
+    BucketEntry,
     BucketFile,
     BucketFileBody,
     type BucketGetOptions,
@@ -10,10 +12,14 @@ import {
     type BucketListOptions,
     type BucketPutOptions,
     BucketRange,
+    ContentDigest,
+    type DigestAlgorithm,
+    DIGEST_ALGORITHMS,
     MAX_BATCH_FILES,
     type MultipartUpload,
 } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
+import { Clock } from "@destack/schema";
 
 /** A file a memory bucket keeps: its metadata and bytes. */
 interface MemoryFile {
@@ -27,12 +33,12 @@ interface MemoryFile {
 export class MemoryBucket implements Bucket {
     /** The files by key. */
     readonly #files = new Map<string, MemoryFile>();
-    /** Read the current time in Unix milliseconds, which object locks lapse by. */
-    readonly #now: () => number;
+    /** The clock object locks lapse by. */
+    readonly #clock: Clock;
 
     /** Keep files on a clock. */
-    constructor(now: () => number = Date.now) {
-        this.#now = now;
+    constructor(clock: Clock = Clock.system) {
+        this.#clock = clock;
     }
 
     /** Read a file's metadata, null when absent. */
@@ -89,16 +95,32 @@ export class MemoryBucket implements Bucket {
             ? new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
             : body;
         const bytes = new Uint8Array(await new Response(content).arrayBuffer());
-        const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+        const etag = createHash("md5").update(bytes).digest("hex");
+
+        // verify and record each checksum the caller supplies, as stored objects keep them
+        const digests: Partial<Record<DigestAlgorithm, string>> = { md5: etag };
+        for (const algorithm of DIGEST_ALGORITHMS) {
+            const supplied = options[algorithm];
+            if (supplied !== undefined) {
+                const actual = createHash(algorithm).update(bytes).digest("hex");
+                if (ContentDigest.hex(supplied) !== actual) {
+                    throw new BucketError(
+                        "INVALID_CHECKSUM",
+                        "object checksum does not match its contents",
+                    );
+                }
+                digests[algorithm] = actual;
+            }
+        }
         const file = new BucketFile(
             key,
             crypto.randomUUID(),
             bytes.byteLength,
-            digest.toHex().slice(0, 32),
-            new Date(this.#now()),
+            etag,
+            new Date(this.#clock.now()),
             options.httpMetadata,
             options.customMetadata,
-            undefined,
+            new ContentDigest(digests),
             options.storageClass,
             undefined,
             options.retainUntil,
@@ -142,7 +164,7 @@ export class MemoryBucket implements Bucket {
             .toSorted(([left], [right]) => (left < right ? -1 : 1));
 
         // fill the page with files and the prefixes the delimiter groups, each group's keys at once
-        const files: BucketFile[] = [];
+        const files: BucketEntry[] = [];
         const prefixes = new Set<string>();
         let last: string | undefined;
         for (const [key, kept] of entries) {
@@ -154,7 +176,7 @@ export class MemoryBucket implements Bucket {
                 if (files.length + prefixes.size === limit) {
                     break;
                 } else if (group === undefined) {
-                    files.push(kept.file);
+                    files.push(BucketEntry.of(kept.file));
                 } else {
                     prefixes.add(group);
                 }
@@ -189,7 +211,7 @@ export class MemoryBucket implements Bucket {
 
     /** Refuse to replace or delete a file its lock holds. */
     #requireUnlocked(file: BucketFile | null): void {
-        if (file?.isLocked(this.#now()) === true) {
+        if (file?.isLocked(this.#clock.now()) === true) {
             throw new BucketError("LOCKED", `file ${file.key} is locked`);
         }
     }

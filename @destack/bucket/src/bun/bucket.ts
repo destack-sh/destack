@@ -144,8 +144,10 @@ function openedStorage(
             opened = await connectBunSqlite(catalogue, tables);
         },
         close: async () => {
+            // release the lock after the catalogue, even when closing the catalogue fails
+            await using closing = new AsyncDisposableStack();
+            closing.defer(() => lock.close());
             await opened.close();
-            await lock.close();
         },
     });
 }

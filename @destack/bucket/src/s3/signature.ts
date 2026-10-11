@@ -32,7 +32,7 @@ const UNSIGNED_HEADERS: ReadonlySet<string> = new Set([
     "x-amzn-trace-id",
 ]);
 /** The header declaring the payload hash a signature covers. */
-const PAYLOAD_HASH_HEADER = "x-amz-content-sha256";
+export const PAYLOAD_HASH_HEADER = "x-amz-content-sha256";
 /** The query parameter carrying a presigned URL's signature. */
 const SIGNATURE_PARAMETER = "X-Amz-Signature";
 /** The query parameter listing the headers a presigned URL signs. */
@@ -54,10 +54,18 @@ export const PRESIGN_PARAMETERS = [
     "X-Amz-Security-Token",
 ] as const;
 
-/** A verified request signature, and how its streamed chunks chain their signatures to it. */
+/** An authorized request: its access key, its payload hash, and the signature its streamed chunks chain to. */
 export interface S3Authorization {
-    /** The verified access key. */
+    /** The authorized access key. */
     readonly accessKeyId: string;
+    /** The payload hash the request declares. */
+    readonly payloadHash: string;
+    /** The signature signed chunks chain to, absent for a request its host authorized without SigV4. */
+    readonly chain?: S3ChunkChain;
+}
+
+/** A verified request signature, which signed chunks chain their signatures to. */
+export interface S3ChunkChain {
     /** Sign a string with the key of the request's day, region and service, as streamed chunks are signed. */
     readonly sign: (value: string) => Promise<string>;
     /** The request time as SigV4 writes it. */
@@ -66,8 +74,6 @@ export interface S3Authorization {
     readonly scope: string;
     /** The verified signature, which seeds streamed chunk signatures. */
     readonly signature: string;
-    /** The payload hash the signature covers. */
-    readonly payloadHash: string;
 }
 
 /** What a client's signature covers, beside the request's path and query. */
@@ -395,11 +401,13 @@ export class S3Signature {
 
         return {
             accessKeyId: credentials.accessKeyId,
-            sign: (value) => chunks.signString(value, date),
-            date,
-            scope: `${date.slice(0, 8)}/${this.region}/${SERVICE}/${TERMINATOR}`,
-            signature,
             payloadHash,
+            chain: {
+                sign: (value) => chunks.signString(value, date),
+                date,
+                scope: `${date.slice(0, 8)}/${this.region}/${SERVICE}/${TERMINATOR}`,
+                signature,
+            },
         };
     }
 }
