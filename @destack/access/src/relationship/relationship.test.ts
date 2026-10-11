@@ -58,18 +58,23 @@ test.for(TEST_DIALECTS)(
         expect(await visible(carol)).toEqual([]);
 
         // let carol read node b, and alice add dave as its concealed auditor
-        const sharing = new Authorization(authorizer, fixture.database, () => fixture.alice);
+        const sharing = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+            Authorization.run(authorizer, fixture.database, () => fixture.alice, call);
         const object = node.reference("personal", "b");
-        await sharing.grant({
-            object,
-            relation: "viewer",
-            subject: principal.user.reference("universe", "carol"),
-        });
-        await sharing.grant({
-            object,
-            relation: "auditor",
-            subject: principal.user.reference("universe", "dave"),
-        });
+        await sharing((authorization) =>
+            authorization.grant({
+                object,
+                relation: "viewer",
+                subject: principal.user.reference("universe", "carol"),
+            }),
+        );
+        await sharing((authorization) =>
+            authorization.grant({
+                object,
+                relation: "auditor",
+                subject: principal.user.reference("universe", "dave"),
+            }),
+        );
         const dave: AccessContext = {
             ...fixture.alice,
             subjects: [principal.user.reference("universe", "dave")],
@@ -97,20 +102,32 @@ test.for(TEST_DIALECTS)(
 
         // let carol ask to view node b, and alice offer dave viewing it
         const object = node.reference("personal", "b");
-        await new Authorization(authorizer, fixture.database, () => as("carol")).invite({
-            relationship: {
-                object,
-                relation: "viewer",
-                subject: principal.user.reference("universe", "carol"),
-            },
-        });
-        await new Authorization(authorizer, fixture.database, () => fixture.alice).invite({
-            relationship: {
-                object,
-                relation: "viewer",
-                subject: principal.user.reference("universe", "dave"),
-            },
-        });
+        await Authorization.run(
+            authorizer,
+            fixture.database,
+            () => as("carol"),
+            (authorization) =>
+                authorization.invite({
+                    relationship: {
+                        object,
+                        relation: "viewer",
+                        subject: principal.user.reference("universe", "carol"),
+                    },
+                }),
+        );
+        await Authorization.run(
+            authorizer,
+            fixture.database,
+            () => fixture.alice,
+            (authorization) =>
+                authorization.invite({
+                    relationship: {
+                        object,
+                        relation: "viewer",
+                        subject: principal.user.reference("universe", "dave"),
+                    },
+                }),
+        );
 
         // list the invitations each caller may read, by inviting principal and addressee
         const visible = async (context: AccessContext) => {
@@ -158,7 +175,8 @@ test.for(TEST_DIALECTS)(
         const first = node.reference("personal", "a");
         const second = node.reference("personal", "b");
         const third = node.reference("personal", "c");
-        const owner = new Authorization(fixture.authorizer, fixture.database, () => fixture.alice);
+        const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+            Authorization.run(fixture.authorizer, fixture.database, () => fixture.alice, call);
         const wanting = (...objects: ObjectReference[]) =>
             objects.map((object) => ({ object, relation: "editor", subject: worker }));
         const related = async () =>
@@ -174,7 +192,9 @@ test.for(TEST_DIALECTS)(
             ).map((row) => `${row.objectId}:${row.subjectId}`);
 
         // relate the worker to a and b next to bob's grant
-        await owner.keepRelationships(selection, wanting(first, second));
+        await owner((authorization) =>
+            authorization.keepRelationships(selection, wanting(first, second)),
+        );
         expect(await related()).toEqual(["a:worker", "b:bob", "b:worker"]);
 
         // move the worker from a to c without touching b's relationship or bob's grant
@@ -188,7 +208,9 @@ test.for(TEST_DIALECTS)(
         if (kept === undefined) {
             throw new Error("node b keeps no worker relationship");
         }
-        await owner.keepRelationships(selection, wanting(second, third));
+        await owner((authorization) =>
+            authorization.keepRelationships(selection, wanting(second, third)),
+        );
         const [unchanged] = await fixture.database
             .select({ id: accessRelationship.id })
             .from(accessRelationship)
@@ -196,16 +218,17 @@ test.for(TEST_DIALECTS)(
         expect([await related(), unchanged]).toEqual([["b:bob", "b:worker", "c:worker"], kept]);
 
         // remove every relationship of the worker
-        await owner.keepRelationships(selection, wanting());
+        await owner((authorization) => authorization.keepRelationships(selection, wanting()));
         expect(await related()).toEqual(["b:bob"]);
 
         // refuse bob, who edits b without sharing it
         await expect(
-            new Authorization(
+            Authorization.run(
                 fixture.authorizer,
                 fixture.database,
                 () => fixture.bob,
-            ).keepRelationships(selection, wanting(second)),
+                (authorization) => authorization.keepRelationships(selection, wanting(second)),
+            ),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
     },
 );
@@ -216,13 +239,15 @@ test.for(TEST_DIALECTS)(
         // open the fixture, where alice owns every node
         const fixture = await openFixture(dialect);
         onTestFinished(() => fixture.close());
-        const owner = new Authorization(fixture.authorizer, fixture.database, () => fixture.alice);
+        const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+            Authorization.run(fixture.authorizer, fixture.database, () => fixture.alice, call);
         const manager = Manager.schema.parse({
             installationId: "installation-01996ab0-0000-7000-8000-000000000001",
             packageId: "package-01996ab0-0000-7000-8000-000000000002",
             name: "editor",
         });
-        const declaring = owner.applying(manager);
+        const declaring = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+            owner((authorization) => call(authorization.applying(manager)));
         const selection = { scope: "personal" };
         const managed = async () =>
             (
@@ -233,9 +258,13 @@ test.for(TEST_DIALECTS)(
             ).map((row) => [row.objectId, row.id]);
 
         // keep carol's managed grant on a twice under the same identifier
-        await declaring.keepRelationships(selection, [carolEditing("a")]);
+        await declaring((authorization) =>
+            authorization.keepRelationships(selection, [carolEditing("a")]),
+        );
         const first = await managed();
-        await declaring.keepRelationships(selection, [carolEditing("a")]);
+        await declaring((authorization) =>
+            authorization.keepRelationships(selection, [carolEditing("a")]),
+        );
         expect([first.length, aligned(first, 0)[0], await managed()]).toEqual([1, "a", first]);
 
         // refuse alice revoking the managed grant herself, and move it through its declaration
@@ -244,10 +273,12 @@ test.for(TEST_DIALECTS)(
             message: "record is managed by its source declaration",
         };
         const id = aligned(aligned(first, 0), 1);
-        await expect(owner.revoke(node.reference("personal", "a"), id)).rejects.toMatchObject(
-            refusal,
+        await expect(
+            owner((authorization) => authorization.revoke(node.reference("personal", "a"), id)),
+        ).rejects.toMatchObject(refusal);
+        await declaring((authorization) =>
+            authorization.keepRelationships(selection, [carolEditing("c")]),
         );
-        await declaring.keepRelationships(selection, [carolEditing("c")]);
         expect((await managed()).map(([objectId]) => objectId)).toEqual(["c"]);
     },
 );

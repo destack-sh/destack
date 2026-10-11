@@ -1,12 +1,11 @@
-import { eq, type DatabaseConnection } from "@destack/db";
+import { eq, Transaction, type DatabaseConnection } from "@destack/db";
 import { Scope, type ObjectReference, type Subject } from "@destack/sync";
 import { schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
-import { own, permit, type RoleRequest } from "../role/role.ts";
-import { accessRole } from "../role/table.ts";
+import { own, Role, type RoleRequest } from "../role/role.ts";
 
 /** A database keeping copies of other services' access, for tests of services that follow one. */
 export class AccessFixture {
@@ -47,8 +46,13 @@ export class AccessFixture {
     }
 
     /** Define a copied scope's owner role and bind it to an owner on the scope's object, returning the role. */
-    copyOwner(scope: ObjectReference, owner: Subject, now = Date.now()): Promise<string> {
-        return own(this.database, scope, owner, now);
+    async copyOwner(scope: ObjectReference, owner: Subject, now = Date.now()): Promise<string> {
+        // write the role and its binding in one transaction
+        const transaction = await Transaction.open(this.database);
+        const role = await own(transaction, scope, owner, now);
+        await transaction.commit();
+
+        return role;
     }
 
     /** Define a role in a copied scope and bind it to a subject on the scope's object, returning the role. */
@@ -58,32 +62,10 @@ export class AccessFixture {
         subject: Subject,
         now = Date.now(),
     ): Promise<string> {
-        // define the role in the scope
-        const id = schema.identifier("role").parse(`role-${v7()}`);
-        await this.database.insert(accessRole).values({
-            id,
-            createdAt: now,
-            updatedAt: now,
-            scope: scope.id,
-            name: role.name,
-            description: role.description,
-        });
-        await permit(this.database, id, scope.id, role.permissions);
-
-        // bind it on the scope's object
-        await this.database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    object: scope,
-                    role: id,
-                    subject,
-                    createdAt: now,
-                    expiresAt: null,
-                },
-                scope.id,
-            ),
-        );
+        // define the role with its permissions and bind it in one transaction
+        const transaction = await Transaction.open(this.database);
+        const id = await Role.keepInherent(transaction, scope, role, subject, now);
+        await transaction.commit();
 
         return id;
     }

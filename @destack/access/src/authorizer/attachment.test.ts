@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, defineTable, text, defineDatabase } from "@destack/db";
+import { asc, defineTable, Transaction, text, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import {
     accessTables,
@@ -153,7 +153,11 @@ test.for(TEST_DIALECTS)(
             now: 1000,
             attributes: {},
         };
-        const authorization = new Authorization(authorizer, database, () => alice);
+        const authorization = new Authorization(
+            authorizer,
+            await Transaction.open(database),
+            () => alice,
+        );
         const decided = [];
         for (const id of ["r1", "r2", "r3", "r4"]) {
             const decision = await authorization.check(

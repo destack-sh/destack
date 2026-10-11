@@ -1,6 +1,6 @@
 import type { ObjectReference, Subject } from "@destack/sync";
-import { and, asc, eq, inArray, type DatabaseConnection, type Select } from "@destack/db";
-import { defineSchema, schema } from "@destack/schema";
+import { TABLE, type Transaction, type Select } from "@destack/db";
+import { defineSchema, schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
@@ -64,128 +64,111 @@ export const Role = {
     keepInherent,
 };
 
-/** Read one role of a scope. */
+/** Read one role of a scope as a transaction sees it. */
 async function read(
-    database: DatabaseConnection,
+    transaction: Transaction,
     scope: string,
     id: string,
 ): Promise<Select<typeof accessRole>> {
-    const [record] = await database
-        .select()
-        .from(accessRole)
-        .where(
-            and(
-                eq(accessRole.scope, scope),
-                eq(accessRole.id, schema.identifier("role").parse(id)),
-            ),
-        );
-    if (!record) {
+    const record = await transaction.row(accessRole, { id: schema.identifier("role").parse(id) });
+    if (record === null || record.scope !== scope) {
         throw new AccessError("NOT_FOUND", "role not found");
     }
 
     return record;
 }
 
-/** Read the permissions a role grants itself. */
+/** Read the permissions a role grants itself as a transaction sees them. */
 async function permissions(
-    database: DatabaseConnection,
+    transaction: Transaction,
     roleId: Select<typeof accessRole>["id"],
 ): Promise<PermissionReference[]> {
-    const rows = await database
-        .select()
-        .from(accessRolePermission)
-        .where(eq(accessRolePermission.roleId, roleId))
-        .orderBy(
-            asc(accessRolePermission.packageId),
-            asc(accessRolePermission.type),
-            asc(accessRolePermission.name),
-        );
+    const rows = await transaction.rows(
+        accessRolePermission,
+        { roleId },
+        { orderBy: { packageId: "asc", type: "asc", name: "asc" } },
+    );
 
     return rows.map(referenceOf);
 }
 
 /** Define a role under a name free in its scope with its permissions and manager, absent when another role holds the name. */
 export async function define(
-    database: DatabaseConnection,
+    transaction: Transaction,
     scope: string,
     request: RoleRequest,
     now: number,
     manager: Manager | null,
-): Promise<Select<typeof accessRole> | undefined> {
-    // insert the role under a name free in the scope
-    const [record] = await database
-        .insert(accessRole)
-        .values({
-            id: schema.identifier("role").parse(`role-${v7()}`),
+): Promise<Identifier<"role"> | undefined> {
+    // refuse a name another role of the scope holds
+    const holding = await transaction.rows(accessRole, { scope, name: request.name }, { limit: 1 });
+    if (holding.length > 0) {
+        return undefined;
+    }
+
+    // write the role and its permissions
+    const id = schema.identifier("role").parse(`role-${v7()}`);
+    await transaction.write(
+        accessRole,
+        null,
+        accessRole[TABLE].complete({
+            id,
             createdAt: now,
             updatedAt: now,
             scope,
             name: request.name,
             description: request.description,
             ...Manager.values(manager),
-        })
-        .onConflictDoNothing()
-        .returning();
+        }),
+    );
+    await permit(transaction, id, scope, request.permissions);
 
-    // record its permissions
-    if (record !== undefined) {
-        await permit(database, record.id, scope, request.permissions);
-    }
-
-    return record;
+    return id;
 }
 
-/** Record the permissions a role grants. */
+/** Write the permissions a role grants. */
 export async function permit(
-    database: DatabaseConnection,
+    transaction: Transaction,
     roleId: Select<typeof accessRole>["id"],
     scope: string,
     granted: readonly PermissionReference[],
 ): Promise<void> {
-    if (granted.length > 0) {
-        await database.insert(accessRolePermission).values(
-            granted.map((permission) => ({
+    for (const permission of granted) {
+        await transaction.write(
+            accessRolePermission,
+            null,
+            accessRolePermission[TABLE].complete({
                 id: schema.identifier("role-permission").parse(`role-permission-${v7()}`),
                 roleId,
                 scope,
                 packageId: permission.packageId,
                 type: permission.type,
                 name: permission.name,
-            })),
+            }),
         );
     }
 }
 
 /** Replace the permissions a role grants with a declared set, keeping the rows of the ones it grants already. */
 export async function replace(
-    database: DatabaseConnection,
+    transaction: Transaction,
     roleId: Select<typeof accessRole>["id"],
     scope: string,
     granted: readonly PermissionReference[],
 ): Promise<void> {
     // read the permissions the role grants
-    const existing = await database
-        .select({
-            id: accessRolePermission.id,
-            packageId: accessRolePermission.packageId,
-            type: accessRolePermission.type,
-            name: accessRolePermission.name,
-        })
-        .from(accessRolePermission)
-        .where(eq(accessRolePermission.roleId, roleId));
+    const existing = await transaction.rows(accessRolePermission, { roleId });
     const declared = new Set(granted.map((permission) => PermissionReference.key(permission)));
     const current = new Set(existing.map((permission) => PermissionReference.key(permission)));
 
     // remove the ones no longer declared and add the new ones
-    const removed = existing.filter(
-        (permission) => !declared.has(PermissionReference.key(permission)),
-    );
-    if (removed.length > 0) {
-        const ids = removed.map((permission) => permission.id);
-        await database.delete(accessRolePermission).where(inArray(accessRolePermission.id, ids));
+    for (const permission of existing) {
+        if (!declared.has(PermissionReference.key(permission))) {
+            await transaction.write(accessRolePermission, permission, null);
+        }
     }
     const added = granted.filter((permission) => !current.has(PermissionReference.key(permission)));
-    await permit(database, roleId, scope, added);
+    await permit(transaction, roleId, scope, added);
 }
 
 /** Describe a role row and its permissions. */
@@ -206,127 +189,124 @@ function describe(
 
 /** Define a scope's owner role and bind it to an owner on the scope's object, returning the role. */
 export async function own(
-    database: DatabaseConnection,
+    transaction: Transaction,
     scope: ObjectReference,
     owner: Subject,
     now: number,
-): Promise<string> {
+): Promise<Identifier<"role">> {
     // define the owner role in the scope
     const role = schema.identifier("role").parse(`role-${v7()}`);
-    await database.insert(accessRole).values({
-        id: role,
-        createdAt: now,
-        updatedAt: now,
-        scope: scope.id,
-        ...OWNER_ROLE,
-        isUniversal: true,
-    });
+    await transaction.write(
+        accessRole,
+        null,
+        accessRole[TABLE].complete({
+            id: role,
+            createdAt: now,
+            updatedAt: now,
+            scope: scope.id,
+            ...OWNER_ROLE,
+            isUniversal: true,
+        }),
+    );
 
     // bind it on the scope's object
-    await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                object: scope,
-                role,
-                subject: owner,
-                createdAt: now,
-                expiresAt: null,
-            },
-            scope.id,
-        ),
-    );
+    await bind(transaction, scope, role, owner, now);
 
     return role;
 }
 
 /** Bind a scope's owner role to an owner once, as the scope's creation binds it, defining the role when the scope has none, and return the role. */
 async function keepOwner(
-    database: DatabaseConnection,
+    transaction: Transaction,
     scope: ObjectReference,
     owner: Subject,
     now: number,
 ): Promise<string> {
     // define the owner role with its binding when the scope has none
-    const [defined] = await database
-        .select({ id: accessRole.id })
-        .from(accessRole)
-        .where(and(eq(accessRole.scope, scope.id), eq(accessRole.name, OWNER_ROLE.name)));
+    const [defined] = await transaction.rows(accessRole, {
+        scope: scope.id,
+        name: OWNER_ROLE.name,
+    });
     if (defined === undefined) {
-        return own(database, scope, owner, now);
+        return own(transaction, scope, owner, now);
     }
 
     // bind the defined role to the owner unless bound already
-    await bindOnce(database, scope, defined.id, owner, now);
+    await bindOnce(transaction, scope, defined.id, owner, now);
 
     return defined.id;
 }
 
 /** Keep a role a scope's creation defines with exactly some permissions, bound to one subject on the scope, as the owner role is, and return the role. */
 async function keepInherent(
-    database: DatabaseConnection,
+    transaction: Transaction,
     scope: ObjectReference,
     request: RoleRequest,
     subject: Subject,
     now: number,
 ): Promise<string> {
     // define the role, or replace the permissions of the one defined
-    const [defined] = await database
-        .select({ id: accessRole.id })
-        .from(accessRole)
-        .where(and(eq(accessRole.scope, scope.id), eq(accessRole.name, request.name)));
-    const role = defined?.id ?? (await define(database, scope.id, request, now, null))?.id;
+    const [defined] = await transaction.rows(accessRole, { scope: scope.id, name: request.name });
+    const role = defined?.id ?? (await define(transaction, scope.id, request, now, null));
     if (role === undefined) {
         throw new AccessError("CONFLICT", "role name is already in use");
     }
     if (defined !== undefined) {
-        await replace(database, role, scope.id, request.permissions);
+        await replace(transaction, role, scope.id, request.permissions);
     }
 
     // bind it to the subject unless bound already
-    await bindOnce(database, scope, role, subject, now);
+    await bindOnce(transaction, scope, role, subject, now);
 
     return role;
 }
 
 /** Bind a role on a scope's object to a subject unless bound already. */
 async function bindOnce(
-    database: DatabaseConnection,
+    transaction: Transaction,
     scope: ObjectReference,
     role: Select<typeof accessRole>["id"],
     subject: Subject,
     now: number,
 ): Promise<void> {
     // read the subject's binding of the role
-    const bound = await database
-        .select({ id: accessRelationship.id })
-        .from(accessRelationship)
-        .where(
-            and(
-                eq(accessRelationship.roleId, role),
-                eq(accessRelationship.subjectPackageId, subject.packageId),
-                eq(accessRelationship.subjectType, subject.type),
-                eq(accessRelationship.subjectScope, subject.scope),
-                eq(accessRelationship.subjectId, subject.id),
-            ),
-        );
-    if (bound.length > 0) {
-        return;
-    }
+    const bound = await transaction.rows(accessRelationship, {
+        roleId: role,
+        subjectPackageId: subject.packageId,
+        subjectType: subject.type,
+        subjectScope: subject.scope,
+        subjectId: subject.id,
+    });
 
-    // bind it on the scope's object
-    await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                object: scope,
-                role,
-                subject,
-                createdAt: now,
-                expiresAt: null,
-            },
-            scope.id,
-        ),
+    // bind it on the scope's object when unbound
+    if (bound.length === 0) {
+        await bind(transaction, scope, role, subject, now);
+    }
+}
+
+/** Bind a role on a scope's object to a subject. */
+async function bind(
+    transaction: Transaction,
+    scope: ObjectReference,
+    role: Select<typeof accessRole>["id"],
+    subject: Subject,
+    now: number,
+): Promise<void> {
+    const relationship = Relationship.encode(
+        {
+            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+            object: scope,
+            role,
+            subject,
+            createdAt: now,
+            expiresAt: null,
+        },
+        scope.id,
+    );
+    await transaction.write(
+        accessRelationship,
+        null,
+        accessRelationship[TABLE].complete(relationship),
     );
 }
 

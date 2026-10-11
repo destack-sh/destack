@@ -6,6 +6,7 @@ import {
     or,
     sql,
     type DatabaseConnection,
+    type Transaction,
     type SQL,
     type Table,
     Condition,
@@ -725,20 +726,24 @@ export class Authorizer {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
     }
 
-    /** Decide whether this database keeps an object's access rows: those of the types it maps a table of, and the universe's where it keeps no copy of them. */
-    async isLocal(database: DatabaseConnection, object: ObjectReference): Promise<boolean> {
+    /** Decide whether the transaction's database keeps an object's access rows: those of the types it maps a table of, and the universe's where it keeps no copy of them. */
+    async isLocal(transaction: Transaction, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
         if (this.mappingOf(object)?.table === accessRole) {
-            const scope = await Scope.object(Snapshot.live(database), object.scope);
+            const scope = await Scope.object(transaction.view(), object.scope);
 
-            return this.isLocal(database, scope);
+            return this.isLocal(transaction, scope);
         }
         // keep the universe's access at its home, the database copying none of it
         else if (
             object.packageId === Scope.universe.packageId &&
             object.type === Scope.universe.type
         ) {
-            return !(await Replica.isCopied(database, Scope.universe.id, accessRelationship));
+            return !(await Replica.isCopied(
+                transaction.view(),
+                Scope.universe.id,
+                accessRelationship,
+            ));
         }
 
         return this.local.some(
@@ -747,8 +752,8 @@ export class Authorizer {
     }
 
     /** Refuse writing the access rows of an object another database keeps. */
-    async requireLocal(database: DatabaseConnection, object: ObjectReference): Promise<void> {
-        if (!(await this.isLocal(database, object))) {
+    async requireLocal(transaction: Transaction, object: ObjectReference): Promise<void> {
+        if (!(await this.isLocal(transaction, object))) {
             throw new AccessError(
                 "FORBIDDEN",
                 `access of ${object.type} ${object.id} is written in the database keeping it`,
@@ -1232,15 +1237,11 @@ export class Authorizer {
         access: Access,
         reader?: GrantReader,
     ): Promise<void> {
-        // decide in memory where reads are cheap, the database is past, or the target is the universe no table keeps
+        // decide in memory where reads are cheap, the snapshot is past, layered or recorded, or the target is the universe no table keeps
         const database = snapshot.database;
         const isUniverse =
             target.packageId === Scope.universe.packageId && target.type === Scope.universe.type;
-        if (
-            snapshot.position !== undefined ||
-            database.state.locality === "embedded" ||
-            isUniverse
-        ) {
+        if (!snapshot.isLive || database.state.locality === "embedded" || isUniverse) {
             const read = reader ?? this.reader(snapshot, access.scopes);
             for (const permission of permissions) {
                 const decision = await this.check(snapshot, permission, target, access, read);

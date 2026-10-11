@@ -34,11 +34,17 @@ export async function openFixture(dialect = aligned(TEST_DIALECTS, TEST_DIALECTS
 
     // populate the migrated database and grant bob one note
     await database.insert(item).values(rows);
-    await new Authorization(authorizer, database, () => alice).grant({
-        object: node.reference("personal", "b"),
-        relation: "editor",
-        subject: principal.user.reference("universe", "bob"),
-    });
+    await Authorization.run(
+        authorizer,
+        database,
+        () => alice,
+        (authorization) =>
+            authorization.grant({
+                object: node.reference("personal", "b"),
+                relation: "editor",
+                subject: principal.user.reference("universe", "bob"),
+            }),
+    );
 
     return { test, database, authorizer, alice, bob, close: () => test.close() };
 }

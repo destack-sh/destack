@@ -115,8 +115,6 @@ export function managerChecks(
         ),
         uniqueIndex(`${name}_manager`)
             .on(columns.managerInstallationId, columns.managerPackageId, columns.managerName)
-            .where(
-                sql`${columns.managerInstallationId} IS NOT NULL AND ${columns.detachedAt} IS NULL`,
-            ),
+            .where({ managerInstallationId: { isNotNull: true }, detachedAt: { isNull: true } }),
     ];
 }

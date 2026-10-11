@@ -4,7 +4,6 @@ import { aligned, schema } from "@destack/schema";
 import {
     AccessError,
     accessRelationship,
-    Authorization,
     Contact,
     Authorizer,
     LinkSecret,
@@ -14,6 +13,7 @@ import {
     type RelationshipCondition,
 } from "../index.ts";
 import { cell, entity, item, mappings, node, policies, rows } from "../test/fixture.ts";
+import { Authorization } from "./authorization.ts";
 import { openFixture, sessionCredential, userSubject } from "../test/database.ts";
 
 /** Provide an isolated database with notes and an explicit editor grant. */
@@ -61,11 +61,17 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             .orderBy(item.id),
     ).toEqual([{ id: "b" }]);
     await expect(
-        new Authorization(authorizer, database, () => bob).grant({
-            object: node.reference("personal", "b"),
-            relation: "editor",
-            subject: userSubject("alice"),
-        }),
+        Authorization.run(
+            authorizer,
+            database,
+            () => bob,
+            (authorization) =>
+                authorization.grant({
+                    object: node.reference("personal", "b"),
+                    relation: "editor",
+                    subject: userSubject("alice"),
+                }),
+        ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
         message: "permission denied: share",
@@ -156,11 +162,17 @@ databaseTest(
     async ({ fixture }) => {
         const { database, authorizer, alice } = fixture;
         // relate every user to a note, but no anonymous caller
-        await new Authorization(authorizer, database, () => alice).grant({
-            object: node.reference("personal", "a"),
-            relation: "viewer",
-            subject: principal.user.reference("*", "*"),
-        });
+        await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.grant({
+                    object: node.reference("personal", "a"),
+                    relation: "viewer",
+                    subject: principal.user.reference("*", "*"),
+                }),
+        );
         const carol = {
             ...alice,
             subjects: [principal.user.reference("universe", "carol")],
@@ -182,11 +194,17 @@ databaseTest(
                     ),
             ).toEqual(expected);
         }
-        const shared = await new Authorization(authorizer, database, () => alice).link({
-            object: node.reference("personal", "b"),
-            relation: "subtree-editor",
-            expiresAt: 2000,
-        });
+        const shared = await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.link({
+                    object: node.reference("personal", "b"),
+                    relation: "subtree-editor",
+                    expiresAt: 2000,
+                }),
+        );
 
         // let anyone presenting the link edit the subtree until it expires
         const visitor = {
@@ -202,28 +220,48 @@ databaseTest(
         await expectEditable(database, authorizer, node, stranger, []);
 
         // revoke the link by deleting its relationship
-        await new Authorization(authorizer, database, () => alice).revoke(
-            node.reference("personal", "b"),
-            shared.id,
+        await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) => authorization.revoke(node.reference("personal", "b"), shared.id),
         );
         await expectEditable(database, authorizer, node, visitor, []);
 
         // create a second link beside another, and refuse writing an existing relationship again
-        const first = await new Authorization(authorizer, database, () => alice).link({
-            object: node.reference("personal", "a"),
-            relation: "viewer",
-        });
-        const second = await new Authorization(authorizer, database, () => alice).link({
-            object: node.reference("personal", "a"),
-            relation: "viewer",
-        });
+        const first = await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.link({
+                    object: node.reference("personal", "a"),
+                    relation: "viewer",
+                }),
+        );
+        const second = await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.link({
+                    object: node.reference("personal", "a"),
+                    relation: "viewer",
+                }),
+        );
         expect(second.id).not.toBe(first.id);
         await expect(
-            new Authorization(authorizer, database, () => alice).grant({
-                object: node.reference("personal", "b"),
-                relation: "editor",
-                subject: userSubject("bob"),
-            }),
+            Authorization.run(
+                authorizer,
+                database,
+                () => alice,
+                (authorization) =>
+                    authorization.grant({
+                        object: node.reference("personal", "b"),
+                        relation: "editor",
+                        subject: userSubject("bob"),
+                    }),
+            ),
         ).rejects.toMatchObject({
             code: "CONFLICT",
             message: "relationship already exists",
@@ -246,90 +284,141 @@ databaseTest(
         };
 
         // let carol ask for access without it applying until the owner accepts
-        const asked = await new Authorization(authorizer, database, () => carol).invite({
-            relationship: {
-                object: node.reference("personal", "c"),
-                relation: "editor",
-                subject: userSubject("carol"),
-            },
-            purpose: "review the draft",
-        });
+        const asked = await Authorization.run(
+            authorizer,
+            database,
+            () => carol,
+            (authorization) =>
+                authorization.invite({
+                    relationship: {
+                        object: node.reference("personal", "c"),
+                        relation: "editor",
+                        subject: userSubject("carol"),
+                    },
+                    purpose: "review the draft",
+                }),
+        );
         await expectEditable(database, authorizer, node, carol, []);
         expect(
             (
-                await new Authorization(authorizer, database, () => alice).invitations(
-                    { object: node.reference("personal", "c") },
-                    {
-                        limit: 10,
-                    },
+                await Authorization.run(
+                    authorizer,
+                    database,
+                    () => alice,
+                    (authorization) =>
+                        authorization.invitations(
+                            { object: node.reference("personal", "c") },
+                            {
+                                limit: 10,
+                            },
+                        ),
                 )
             ).map((invitation) => [invitation.id, invitation.purpose]),
         ).toEqual([[asked.id, "review the draft"]]);
 
         // hide the lapsed invitation and refuse unbounded pages
         expect(
-            await new Authorization(authorizer, database, () => ({
-                ...alice,
-                now: asked.expiresAt,
-            })).invitations({ object: node.reference("personal", "c") }, { limit: 10 }),
+            await Authorization.run(
+                authorizer,
+                database,
+                () => ({
+                    ...alice,
+                    now: asked.expiresAt,
+                }),
+                (authorization) =>
+                    authorization.invitations(
+                        { object: node.reference("personal", "c") },
+                        { limit: 10 },
+                    ),
+            ),
         ).toEqual([]);
         await expect(
-            new Authorization(authorizer, database, () => alice).invitations(
-                { object: node.reference("personal", "c") },
-                { limit: 101 },
+            Authorization.run(
+                authorizer,
+                database,
+                () => alice,
+                (authorization) =>
+                    authorization.invitations(
+                        { object: node.reference("personal", "c") },
+                        { limit: 101 },
+                    ),
             ),
         ).rejects.toMatchObject({
             code: "INVALID_CONTEXT",
             message: "invitation page limit must be 1 to 100",
         });
         await expect(
-            new Authorization(authorizer, database, () => carol).accept(
-                asked.relationship.object,
-                asked.id,
+            Authorization.run(
+                authorizer,
+                database,
+                () => carol,
+                (authorization) => authorization.accept(asked.relationship.object, asked.id),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
             message: "permission denied: share",
         });
         await expect(
-            new Authorization(authorizer, database, () => carol).invitations(
-                { object: node.reference("personal", "c") },
-                { limit: 10 },
+            Authorization.run(
+                authorizer,
+                database,
+                () => carol,
+                (authorization) =>
+                    authorization.invitations(
+                        { object: node.reference("personal", "c") },
+                        { limit: 10 },
+                    ),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
             message: "permission denied: share",
         });
-        await new Authorization(authorizer, database, () => alice).accept(
-            asked.relationship.object,
-            asked.id,
+        await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) => authorization.accept(asked.relationship.object, asked.id),
         );
         await expectEditable(database, authorizer, node, carol, ["c"]);
 
         // offer access to an email address and bind it to whoever proves it
-        const offered = await new Authorization(authorizer, database, () => alice).invite({
-            relationship: {
-                object: node.reference("personal", "a"),
-                relation: "editor",
-                subject: Contact.subject(Contact.email("carol@example.com")),
-            },
-        });
+        const offered = await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.invite({
+                    relationship: {
+                        object: node.reference("personal", "a"),
+                        relation: "editor",
+                        subject: Contact.subject(Contact.email("carol@example.com")),
+                    },
+                }),
+        );
         await expect(
-            new Authorization(authorizer, database, () => dave).invite({
-                relationship: {
-                    object: node.reference("personal", "a"),
-                    relation: "editor",
-                    subject: Contact.subject(Contact.email("dave@example.com")),
-                },
-            }),
+            Authorization.run(
+                authorizer,
+                database,
+                () => dave,
+                (authorization) =>
+                    authorization.invite({
+                        relationship: {
+                            object: node.reference("personal", "a"),
+                            relation: "editor",
+                            subject: Contact.subject(Contact.email("dave@example.com")),
+                        },
+                    }),
+            ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
             message: "permission denied: share",
         });
         await expect(
-            new Authorization(authorizer, database, () => dave).accept(
-                offered.relationship.object,
-                offered.id,
+            Authorization.run(
+                authorizer,
+                database,
+                () => dave,
+                (authorization) => authorization.accept(offered.relationship.object, offered.id),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
@@ -337,58 +426,90 @@ databaseTest(
         });
         const agent = principal.installation.reference("personal", "assistant");
         await expect(
-            new Authorization(authorizer, database, () => ({
-                ...carol,
-                subject: userSubject("carol"),
-                delegates: [{ subject: agent, authority: "lent" }],
-            })).accept(offered.relationship.object, offered.id),
+            Authorization.run(
+                authorizer,
+                database,
+                () => ({
+                    ...carol,
+                    subject: userSubject("carol"),
+                    delegates: [{ subject: agent, authority: "lent" }],
+                }),
+                (authorization) => authorization.accept(offered.relationship.object, offered.id),
+            ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
             message: "invitation is addressed to someone else",
         });
-        await new Authorization(authorizer, database, () => carol).accept(
-            offered.relationship.object,
-            offered.id,
+        await Authorization.run(
+            authorizer,
+            database,
+            () => carol,
+            (authorization) => authorization.accept(offered.relationship.object, offered.id),
         );
         await expectEditable(database, authorizer, node, carol, ["a", "c"]);
 
         // let the addressee refuse an offer and a grantor reject a request
-        const refused = await new Authorization(authorizer, database, () => alice).invite({
-            relationship: {
-                object: node.reference("work", "d"),
-                relation: "editor",
-                subject: userSubject("bob"),
-            },
-        });
-        await new Authorization(authorizer, database, () => bob).withdraw(
-            refused.relationship.object,
-            refused.id,
+        const refused = await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.invite({
+                    relationship: {
+                        object: node.reference("work", "d"),
+                        relation: "editor",
+                        subject: userSubject("bob"),
+                    },
+                }),
         );
-        const rejected = await new Authorization(authorizer, database, () => dave).invite({
-            relationship: {
-                object: node.reference("work", "d"),
-                relation: "editor",
-                subject: userSubject("dave"),
-            },
-        });
+        await Authorization.run(
+            authorizer,
+            database,
+            () => bob,
+            (authorization) => authorization.withdraw(refused.relationship.object, refused.id),
+        );
+        const rejected = await Authorization.run(
+            authorizer,
+            database,
+            () => dave,
+            (authorization) =>
+                authorization.invite({
+                    relationship: {
+                        object: node.reference("work", "d"),
+                        relation: "editor",
+                        subject: userSubject("dave"),
+                    },
+                }),
+        );
         await expect(
-            new Authorization(authorizer, database, () => carol).withdraw(
-                rejected.relationship.object,
-                rejected.id,
+            Authorization.run(
+                authorizer,
+                database,
+                () => carol,
+                (authorization) =>
+                    authorization.withdraw(rejected.relationship.object, rejected.id),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
             message: "permission denied: share",
         });
-        await new Authorization(authorizer, database, () => alice).withdraw(
-            rejected.relationship.object,
-            rejected.id,
+        await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) => authorization.withdraw(rejected.relationship.object, rejected.id),
         );
         await expectEditable(database, authorizer, node, dave, []);
         expect(
-            await new Authorization(authorizer, database, () => alice).invitations(
-                { object: node.reference("work", "d") },
-                { limit: 10 },
+            await Authorization.run(
+                authorizer,
+                database,
+                () => alice,
+                (authorization) =>
+                    authorization.invitations(
+                        { object: node.reference("work", "d") },
+                        { limit: 10 },
+                    ),
             ),
         ).toEqual([]);
     },
@@ -399,12 +520,18 @@ databaseTest(
     async ({ fixture }) => {
         const { database, authorizer, alice, bob } = fixture;
         const grant = async (conditions: RelationshipCondition) =>
-            new Authorization(authorizer, database, () => alice).grant({
-                object: node.reference("personal", "c"),
-                relation: "viewer",
-                subject: principal.user.reference("universe", "carol"),
-                conditions,
-            });
+            Authorization.run(
+                authorizer,
+                database,
+                () => alice,
+                (authorization) =>
+                    authorization.grant({
+                        object: node.reference("personal", "c"),
+                        relation: "viewer",
+                        subject: principal.user.reference("universe", "carol"),
+                        conditions,
+                    }),
+            );
         const carol: AccessContext = {
             ...bob,
             subjects: [principal.user.reference("universe", "carol")],
@@ -425,7 +552,12 @@ databaseTest(
         expect(await readable({ ...carol, credential: sessionCredential("1", carol.now) })).toEqual(
             ["c"],
         );
-        await new Authorization(authorizer, database, () => alice).revoke(bound.object, bound.id);
+        await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) => authorization.revoke(bound.object, bound.id),
+        );
 
         // require strong and recent authentication
         await grant({ assurance: 2, maxAge: 300 });
@@ -470,11 +602,17 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
     } satisfies AccessContext;
 
     // ignore the agent's own grants while it acts for someone else
-    await new Authorization(authorizer, database, () => alice).grant({
-        object: node.reference("personal", "b"),
-        relation: "editor",
-        subject: assistant,
-    });
+    await Authorization.run(
+        authorizer,
+        database,
+        () => alice,
+        (authorization) =>
+            authorization.grant({
+                object: node.reference("personal", "b"),
+                relation: "editor",
+                subject: assistant,
+            }),
+    );
     await expectEditable(database, authorizer, node, delegated, []);
 
     // let only the lending principal lend what it may grant, and only to one principal
@@ -486,31 +624,53 @@ databaseTest("constrain delegated access and credential selections", async ({ fi
         conditions: { onBehalfOf: userSubject("alice") },
     };
     await expect(
-        new Authorization(authorizer, database, () => bob).grant(lending),
+        Authorization.run(
+            authorizer,
+            database,
+            () => bob,
+            (authorization) => authorization.grant(lending),
+        ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
         message: "only a principal may lend its own authority",
     });
     await expect(
-        new Authorization(authorizer, database, () => alice).grant({
-            ...lending,
-            subject: { ...userSubject("carol"), relation: "member" },
-        }),
+        Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.grant({
+                    ...lending,
+                    subject: { ...userSubject("carol"), relation: "member" },
+                }),
+        ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
         message: "a delegate must be one principal",
     });
     await expect(
-        new Authorization(authorizer, database, () => bob).grant({
-            ...lending,
-            object: node.reference("personal", "b"),
-            conditions: { onBehalfOf: userSubject("bob") },
-        }),
+        Authorization.run(
+            authorizer,
+            database,
+            () => bob,
+            (authorization) =>
+                authorization.grant({
+                    ...lending,
+                    object: node.reference("personal", "b"),
+                    conditions: { onBehalfOf: userSubject("bob") },
+                }),
+        ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
         message: "permission denied: share",
     });
-    await new Authorization(authorizer, database, () => alice).grant(lending);
+    await Authorization.run(
+        authorizer,
+        database,
+        () => alice,
+        (authorization) => authorization.grant(lending),
+    );
     await expectEditable(database, authorizer, node, delegated, ["b"]);
 
     // act with alice's whole authority while impersonating her, and through what she lent her agent
@@ -598,11 +758,17 @@ databaseTest("update inherited permissions when notes move or disappear", async 
     const { database, authorizer, alice, bob } = fixture;
 
     // share the root and its descendants while retaining the direct grant on b
-    await new Authorization(authorizer, database, () => alice).grant({
-        object: node.reference("personal", "a"),
-        relation: "subtree-editor",
-        subject: userSubject("bob"),
-    });
+    await Authorization.run(
+        authorizer,
+        database,
+        () => alice,
+        (authorization) =>
+            authorization.grant({
+                object: node.reference("personal", "a"),
+                relation: "subtree-editor",
+                subject: userSubject("bob"),
+            }),
+    );
     await expectEditable(database, authorizer, node, bob, ["a", "b", "c"]);
 
     // detach b: its direct grant remains, but c loses inherited root access

@@ -32,14 +32,28 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
         await Promise.all([home.close(), app.close()]);
     });
     const authorizer = new Authorizer(policies, homeMappings);
-    const owner = new Authorization(authorizer, home.database, () => ({
-        ...home.alice,
-        now: Date.now(),
-    }));
+    const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(
+            authorizer,
+            home.database,
+            () => ({
+                ...home.alice,
+                now: Date.now(),
+            }),
+            call,
+        );
     await home.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
-    await owner.create(account.reference("universe", "account-1"), { owner: userSubject("alice") });
+    await owner((authorization) =>
+        authorization.create(account.reference("universe", "account-1"), {
+            owner: userSubject("alice"),
+        }),
+    );
     await home.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
-    await owner.create(space.reference("account-1", "personal"), { owner: userSubject("alice") });
+    await owner((authorization) =>
+        authorization.create(space.reference("account-1", "personal"), {
+            owner: userSubject("alice"),
+        }),
+    );
 
     // require a value everywhere and of the account's spaces, and set one for the account alone
     await home.database.insert(policyTable).values([
@@ -130,11 +144,13 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     ]);
 
     // follow a grant on the account into the copy
-    await owner.grant({
-        object: account.reference("universe", "account-1"),
-        relation: "member",
-        subject: userSubject("carol"),
-    });
+    await owner((authorization) =>
+        authorization.grant({
+            object: account.reference("universe", "account-1"),
+            relation: "member",
+            subject: userSubject("carol"),
+        }),
+    );
     await reach("account-1");
     expect(await copied(app.database)).toEqual(await copied(home.database));
 });
@@ -149,18 +165,28 @@ test("copy the chains of the accounts a follower outside them replicates in one 
 
     // keep two accounts owned by alice with one member each in the home database
     const authorizer = new Authorizer(policies, homeMappings);
-    const owner = new Authorization(authorizer, home.database, () => ({
-        ...home.alice,
-        now: Date.now(),
-    }));
+    const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(
+            authorizer,
+            home.database,
+            () => ({
+                ...home.alice,
+                now: Date.now(),
+            }),
+            call,
+        );
     for (const [id, member] of [
         ["account-1", "carol"],
         ["account-2", "dave"],
     ] as const) {
         await home.database.insert(accountTable).values({ id, scope: "universe" });
         const object = account.reference("universe", id);
-        await owner.create(object, { owner: userSubject("alice") });
-        await owner.grant({ object, relation: "member", subject: userSubject(member) });
+        await owner((authorization) =>
+            authorization.create(object, { owner: userSubject("alice") }),
+        );
+        await owner((authorization) =>
+            authorization.grant({ object, relation: "member", subject: userSubject(member) }),
+        );
     }
     const feed = new Feed(home.database, [...accessTables, policyTable]);
 

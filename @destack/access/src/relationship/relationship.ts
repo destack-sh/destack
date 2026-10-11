@@ -1,11 +1,9 @@
 import { ObjectReference, type ObjectTypeReference, AccessName, Subject } from "@destack/sync";
 import {
-    and,
-    eq,
-    isNull,
-    or,
     sql,
-    type DatabaseConnection,
+    type Comparable,
+    type Condition,
+    type Transaction,
     type OpenCondition,
     type Select,
     type SQL,
@@ -93,6 +91,8 @@ export const Relationship = {
     readByObject,
     readBySubject,
     heldBy,
+    equal,
+    objectColumns,
     subjectColumns,
     via,
     viaColumns,
@@ -121,10 +121,7 @@ function encode(relationship: Relationship, scope: string) {
         createdAt: relationship.createdAt,
         updatedAt: relationship.createdAt,
         scope,
-        objectScope: relationship.object.scope,
-        packageId: relationship.object.packageId,
-        type: relationship.object.type,
-        objectId: relationship.object.id,
+        ...objectColumns(relationship.object),
         ...viaColumns(relationship),
         ...subjectColumns(relationship.subject),
         expiresAt: relationship.expiresAt,
@@ -137,6 +134,16 @@ function encode(relationship: Relationship, scope: string) {
             relationship.conditions?.onBehalfOf === undefined
                 ? null
                 : Subject.key(relationship.conditions.onBehalfOf),
+    };
+}
+
+/** Write a relationship's object as its columns, which also match the rows on the object. */
+function objectColumns(object: ObjectReference) {
+    return {
+        objectScope: object.scope,
+        packageId: object.packageId,
+        type: object.type,
+        objectId: object.id,
     };
 }
 
@@ -272,13 +279,38 @@ function on(
     )`;
 }
 
-/** Read the relationships a selection covers: a subject's through a relation on the selected types, or those the declaration being applied manages. */
-export function readSelected(
-    database: DatabaseConnection,
+/** Match the rows relating the same tuple as an encoded relationship, as the unique relationship tuple compares them. */
+function equal(row: ReturnType<typeof encode>): Condition<RelationshipRow> {
+    return {
+        ...objectColumns({
+            scope: row.objectScope,
+            packageId: row.packageId,
+            type: row.type,
+            id: row.objectId,
+        }),
+        relation: nullable(row.relation),
+        roleId: nullable(row.roleId),
+        subjectPackageId: row.subjectPackageId,
+        subjectType: row.subjectType,
+        subjectScope: row.subjectScope,
+        subjectId: row.subjectId,
+        subjectRelation: nullable(row.subjectRelation),
+        onBehalfOf: nullable(row.onBehalfOf),
+        requestId: nullable(row.requestId),
+        credential: nullable(row.credential),
+        linkSecret: nullable(row.linkSecret),
+        assurance: nullable(row.assurance),
+        maxAge: nullable(row.maxAge),
+    };
+}
+
+/** Read the relationships a selection covers as a transaction sees them: a subject's through a relation on the selected types, or those the declaration being applied manages. */
+export async function readSelected(
+    transaction: Transaction,
     selection: RelationshipSelection,
     manager: Manager | null,
-) {
-    let covered: SQL | undefined;
+): Promise<RelationshipRow[]> {
+    let covered: Condition<RelationshipRow>;
     // select a subject's relationships through a relation
     if ("objects" in selection) {
         covered = heldThrough(selection);
@@ -295,19 +327,16 @@ export function readSelected(
         );
     }
 
-    return database
-        .select()
-        .from(accessRelationship)
-        .where(and(eq(accessRelationship.scope, selection.scope), covered));
+    return transaction.rows(accessRelationship, { scope: selection.scope, ...covered });
 }
 
 /** Match the relationships one declaration manages. */
-function managedBy(manager: Manager): SQL | undefined {
-    return and(
-        eq(accessRelationship.managerInstallationId, manager.installationId),
-        eq(accessRelationship.managerPackageId, manager.packageId),
-        eq(accessRelationship.managerName, manager.name),
-    );
+function managedBy(manager: Manager): Condition<RelationshipRow> {
+    return {
+        managerInstallationId: manager.installationId,
+        managerPackageId: manager.packageId,
+        managerName: manager.name,
+    };
 }
 
 /** Match the relationships a subject has through a relation on objects of some types. */
@@ -315,29 +344,28 @@ function heldThrough(selection: {
     readonly objects: readonly ObjectTypeReference[];
     readonly relation: string;
     readonly subject: Subject;
-}): SQL | undefined {
+}): Condition<RelationshipRow> {
     const columns = subjectColumns(selection.subject);
 
-    return and(
-        selection.objects.length === 0
-            ? sql`false`
-            : or(
-                  ...selection.objects.map((object) =>
-                      and(
-                          eq(accessRelationship.packageId, object.packageId),
-                          eq(accessRelationship.type, object.type),
-                      ),
-                  ),
-              ),
-        eq(accessRelationship.relation, selection.relation),
-        eq(accessRelationship.subjectPackageId, columns.subjectPackageId),
-        eq(accessRelationship.subjectType, columns.subjectType),
-        eq(accessRelationship.subjectScope, columns.subjectScope),
-        eq(accessRelationship.subjectId, columns.subjectId),
-        columns.subjectRelation === null
-            ? isNull(accessRelationship.subjectRelation)
-            : eq(accessRelationship.subjectRelation, columns.subjectRelation),
-    );
+    return {
+        OR: selection.objects.map((object) => ({
+            packageId: object.packageId,
+            type: object.type,
+        })),
+        relation: selection.relation,
+        subjectPackageId: columns.subjectPackageId,
+        subjectType: columns.subjectType,
+        subjectScope: columns.subjectScope,
+        subjectId: columns.subjectId,
+        subjectRelation: nullable(columns.subjectRelation),
+    };
+}
+
+/** Match a value, or a missing one for null. */
+function nullable<Value extends Comparable>(
+    value: Value | null,
+): Value | { readonly isNull: true } {
+    return value === null ? { isNull: true } : value;
 }
 
 /** Read whether a relationship row relates through a relation or a role, refusing a row with neither or both. */

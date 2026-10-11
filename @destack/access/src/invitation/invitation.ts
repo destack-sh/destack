@@ -1,5 +1,14 @@
 import { type ObjectReference, Subject } from "@destack/sync";
-import { and, asc, eq, gt, inArray, type DatabaseConnection, type Select } from "@destack/db";
+import {
+    and,
+    asc,
+    Condition,
+    eq,
+    inArray,
+    type DatabaseConnection,
+    type Transaction,
+    type Select,
+} from "@destack/db";
 import { defineSchema, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Contact, type AccessContext, Caller } from "../context/context.ts";
@@ -76,8 +85,8 @@ export const Invitation = {
     addressed,
 };
 
-/** Select the pending invitations of a page that have not lapsed, after its starting identifier. */
-function pending(page: InvitationPage, now: number) {
+/** Match the pending invitations of a page that have not lapsed, after its starting identifier. */
+function pending(page: InvitationPage, now: number): Condition<Select<typeof accessInvitation>> {
     // require a bounded page
     if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > INVITATION_PAGE_LIMIT) {
         throw new AccessError(
@@ -86,12 +95,12 @@ function pending(page: InvitationPage, now: number) {
         );
     }
 
-    // select pending invitations before their expiry
-    return and(
-        eq(accessInvitation.status, "pending"),
-        gt(accessInvitation.expiresAt, now),
-        page.after === undefined ? undefined : gt(accessInvitation.id, invitationId(page.after)),
-    );
+    // match pending invitations before their expiry
+    return {
+        status: "pending",
+        expiresAt: { gt: now },
+        ...(page.after === undefined ? {} : { id: { gt: invitationId(page.after) } }),
+    };
 }
 
 /** Select the invitations on one object. */
@@ -109,17 +118,17 @@ function invitationId(id: string) {
     return schema.identifier("invitation").parse(id);
 }
 
-/** Read a pending invitation on an object, refusing one that is no longer pending. */
+/** Read a pending invitation on an object as a transaction sees it, refusing one that is no longer pending. */
 async function read(
-    database: DatabaseConnection,
+    transaction: Transaction,
     object: ObjectReference,
     id: string,
 ): Promise<Invitation> {
     // read the invitation on the object
-    const [row] = await database
-        .select()
-        .from(accessInvitation)
-        .where(and(on(object), eq(accessInvitation.id, invitationId(id))));
+    const [row] = await transaction.rows(accessInvitation, {
+        ...Relationship.objectColumns(object),
+        id: invitationId(id),
+    });
     if (!row) {
         throw new AccessError("NOT_FOUND", "invitation not found");
     }
@@ -148,7 +157,7 @@ async function addressed(
                     accessInvitation.addressee,
                     addressees.map((addressee) => Subject.key(addressee)),
                 ),
-                pending(page, now),
+                Condition.render(pending(page, now), accessInvitation),
             ),
         )
         .orderBy(asc(accessInvitation.id))
@@ -182,10 +191,7 @@ function encode(invitation: Invitation, scope: string) {
         createdAt: invitation.createdAt,
         updatedAt: invitation.createdAt,
         scope,
-        objectScope: invited.object.scope,
-        packageId: invited.object.packageId,
-        type: invited.object.type,
-        objectId: invited.object.id,
+        ...Relationship.objectColumns(invited.object),
         ...Relationship.viaColumns(invited),
         relationship: invited,
         inviter: invitation.inviter,

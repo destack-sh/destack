@@ -94,26 +94,38 @@ test("relay an account's access through the space's database into an app's, and 
     // create the account owned by alice, with a reader role bound to its members
     await global.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     const object = account.reference("universe", "account-1");
-    const owner = new Authorization(accounts, global.database, () => alice);
-    await owner.create(object, { owner: aligned(alice.subjects, 0) });
-    const reader = await owner.createRole(object, {
-        name: "reader",
-        description: "Read every note",
-        permissions: [node.permission("read")],
-    });
-    const binding = await owner.grant({
-        object,
-        role: reader.id,
-        subject: aligned(carol.subjects, 1),
-    });
+    const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(accounts, global.database, () => alice, call);
+    await owner((authorization) =>
+        authorization.create(object, { owner: aligned(alice.subjects, 0) }),
+    );
+    const reader = await owner((authorization) =>
+        authorization.createRole(object, {
+            name: "reader",
+            description: "Read every note",
+            permissions: [node.permission("read")],
+        }),
+    );
+    const binding = await owner((authorization) =>
+        authorization.grant({
+            object,
+            role: reader.id,
+            subject: aligned(carol.subjects, 1),
+        }),
+    );
 
     // copy the account into the cell's database and create the space there
     const accountFeed = new Feed(global.database, [...accessTables, policyTable]);
     await copy(regional.database, chainOf(spaces, "account-1"), accountFeed);
     await regional.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
-    await new Authorization(spaces, regional.database, () => alice).create(
-        space.reference("account-1", "personal"),
-        { owner: aligned(alice.subjects, 0) },
+    await Authorization.run(
+        spaces,
+        regional.database,
+        () => alice,
+        (authorization) =>
+            authorization.create(space.reference("account-1", "personal"), {
+                owner: aligned(alice.subjects, 0),
+            }),
     );
 
     // relay the space and the account from the cell's database into the app's, where carol reads every note
@@ -140,7 +152,7 @@ test("relay an account's access through the space's database into an app's, and 
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
     // revoke the binding in the account's database and refuse deciding on unconfirmed copies
-    await owner.revoke(object, binding.id);
+    await owner((authorization) => authorization.revoke(object, binding.id));
     const revoked = await global.database.log.position();
     const impatient = new Authorizer(policies, mappings, { lag: 50 });
     const late = { ...carol, now: Date.now() + 60 };
@@ -158,11 +170,17 @@ test("relay an account's access through the space's database into an app's, and 
 
     // refuse writing the account's access in the app's copy
     await expect(
-        new Authorization(notes, app.database, () => alice).grant({
-            object,
-            relation: "member",
-            subject: principal.user.reference("universe", "dave"),
-        }),
+        Authorization.run(
+            notes,
+            app.database,
+            () => alice,
+            (authorization) =>
+                authorization.grant({
+                    object,
+                    relation: "member",
+                    subject: principal.user.reference("universe", "dave"),
+                }),
+        ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
         message: "access of account account-1 is written in the database keeping it",

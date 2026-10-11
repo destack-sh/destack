@@ -16,14 +16,28 @@ test("record each scope in its own partition where its type partitions, else in 
     // create an account in the universe and a partitioning space in it
     const home = await openFixture();
     onTestFinished(() => home.close());
-    const owner = new Authorization(new Authorizer(policies, homeMappings), home.database, () => ({
-        ...home.alice,
-        now: Date.now(),
-    }));
+    const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(
+            new Authorizer(policies, homeMappings),
+            home.database,
+            () => ({
+                ...home.alice,
+                now: Date.now(),
+            }),
+            call,
+        );
     await home.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
-    await owner.create(account.reference("universe", "account-1"), { owner: userSubject("alice") });
+    await owner((authorization) =>
+        authorization.create(account.reference("universe", "account-1"), {
+            owner: userSubject("alice"),
+        }),
+    );
     await home.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
-    await owner.create(space.reference("account-1", "personal"), { owner: userSubject("alice") });
+    await owner((authorization) =>
+        authorization.create(space.reference("account-1", "personal"), {
+            owner: userSubject("alice"),
+        }),
+    );
 
     // read the space in its own partition and the account in the universe's
     const chain = await Scope.chain(Snapshot.live(home.database), "personal");
