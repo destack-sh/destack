@@ -80,7 +80,7 @@ async function open(
 ) {
     const fixture = await EventFixture.open(dialect, kinds, options);
     onTestFinished(() => fixture[Symbol.asyncDispose]());
-    fixture.now = START;
+    fixture.clock.set(START);
 
     return fixture;
 }
@@ -199,7 +199,7 @@ test.for(TEST_DIALECTS)(
         await bucket.put(`${directory}/orphan.parquet`, "lost");
 
         // a day later, leave a fresh uncatalogued file as a write in flight, then sweep
-        fixture.now = START + DAY;
+        fixture.clock.set(START + DAY);
         await bucket.put(`${directory}/inflight.parquet`, "writing");
         await fixture.settle();
 
@@ -648,7 +648,7 @@ test.for(TEST_DIALECTS)(
             await store.append(reading, [
                 measured(`r${String(minute)}`, minute, "db.bytes", minute),
             ]);
-            fixture.now = START + (minute + 1) * MINUTE;
+            fixture.clock.set(START + (minute + 1) * MINUTE);
             await fixture.settle();
         }
         const compacted = await database.database
@@ -658,7 +658,7 @@ test.for(TEST_DIALECTS)(
         const read = await store.query(reading, { scope: "space-1" });
 
         // three days later every segment is past the scope's retention
-        fixture.now = START + 3 * DAY;
+        fixture.clock.set(START + 3 * DAY);
         await fixture.settle();
         expect([
             compacted.map((segment) => segment.rows),

@@ -1,3 +1,4 @@
+import { TestClock } from "@destack/test";
 import type { Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
@@ -28,10 +29,10 @@ export class EventFixture implements AsyncDisposable {
     readonly store: EventStore;
     /** The test database keeping the hot events, the catalog, people's keys and the outbox. */
     readonly database: TestDatabase;
+    /** The clock the controllers and the bucket's locks read, which tests set. */
+    readonly clock = new TestClock(Date.UTC(2026, 9, 1));
     /** The memory bucket keeping the segments, its locks on the fixture's clock. */
-    readonly bucket = new MemoryBucket({ now: () => this.now });
-    /** The current time the controllers read, in Unix milliseconds. */
-    now = Date.UTC(2026, 9, 1);
+    readonly bucket = new MemoryBucket(this.clock);
 
     /** Hold opened events. */
     private constructor(open: (fixture: EventFixture) => EventStore, database: TestDatabase) {
@@ -65,7 +66,7 @@ export class EventFixture implements AsyncDisposable {
                         deliver: options.deliver ?? (() => Promise.resolve()),
                     },
                     ...(options.policy === undefined ? {} : { policy: options.policy }),
-                    clock: { now: () => fixture.now },
+                    clock: fixture.clock,
                     // fail the test on a dropped event
                     report: (error) => {
                         throw error;
