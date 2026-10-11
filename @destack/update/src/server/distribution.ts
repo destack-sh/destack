@@ -128,7 +128,7 @@ export class DistributionController implements Controller {
                           id: RequestId.create(now),
                           calls: [
                               distribution.call("create", {
-                                  ...distribution.target({ scope }),
+                                  ...distribution.in(scope),
                                   channel: options.channel,
                                   installed: options.running.version,
                               }),
