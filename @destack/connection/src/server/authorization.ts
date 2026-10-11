@@ -1,5 +1,4 @@
 import { principal, Caller } from "@destack/access";
-import { and, eq } from "@destack/db";
 import {
     type CallOf,
     type ObjectReconciliation,
@@ -371,15 +370,9 @@ async function findRequest(
     const [request] =
         state === undefined
             ? []
-            : await call.database
-                  .select()
-                  .from(authorizationRequest.table)
-                  .where(
-                      and(
-                          eq(authorizationRequest.table.parentId, target.id),
-                          eq(authorizationRequest.table.state, state),
-                      ),
-                  );
+            : await call
+                  .requireTransaction()
+                  .rows(authorizationRequest.table, { parentId: target.id, state });
     if (request === undefined) {
         throw new ConnectionError(
             "INVALID_AUTHORIZATION",

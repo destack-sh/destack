@@ -11,6 +11,7 @@ import {
     TABLE,
     type Table,
     text,
+    Transaction,
 } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
@@ -495,11 +496,13 @@ export class ConnectionFixture {
         }
         await access.copyScope(scope);
         await access.copyOwner(scope, principal.user.reference(Scope.universe.id, "user-owner"));
-        await Role.keepOwner(
-            database,
-            scope,
-            principal.space.reference(Scope.universe.id, scope.id),
-            Date.now(),
+        await Transaction.run(database, (transaction) =>
+            Role.keepOwner(
+                transaction,
+                scope,
+                principal.space.reference(Scope.universe.id, scope.id),
+                Date.now(),
+            ),
         );
 
         return scope;

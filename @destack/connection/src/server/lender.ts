@@ -1,5 +1,5 @@
 import { Caller } from "@destack/access";
-import { and, type DatabaseConnection, eq } from "@destack/db";
+import { and, type DatabaseConnection, eq, Transaction } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { schema } from "@destack/schema";
 import type { ObjectReference, Subject } from "@destack/sync";
@@ -80,7 +80,7 @@ export class Lender {
         const { database } = this.#system;
         const now = this.#system.clock.now();
         const authorization = await this.#system.authorize(
-            database,
+            Transaction.reading(database),
             row.scope,
             Caller.of(consumer, now),
             { now },
