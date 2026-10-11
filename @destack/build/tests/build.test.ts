@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import { VERSION_HEADER } from "@destack/service/request";
 import { test } from "@destack/test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -211,6 +212,7 @@ async function callNotes(
         throw new TypeError("the server exports no workload and service");
     }
     await using instance = await WorkloadInstance.start(module.web, {
+        clock: Clock.system,
         callKey: testCallKey,
         report: (error) => {
             throw error;

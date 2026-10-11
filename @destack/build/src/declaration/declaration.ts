@@ -14,15 +14,17 @@ export interface FunctionExport {
     readonly name: string;
 }
 
-/** The functions inspecting one kind of declaration, exported by the kind's packages. */
+/** The functions inspecting one kind of declaration, exported by the kind's package. */
 export interface Inspector {
-    /** The function describing a declaration, exported by its constructor's package. */
+    /** The function reading a dependency's kind's value from a declaration. */
+    readonly value?: FunctionExport;
+    /** The function describing a declaration, exported by the kind's package. */
     readonly describe: FunctionExport;
     /** The function comparing two releases' descriptions, exported by the kind's package. */
     readonly compare?: FunctionExport;
-    /** The function listing a description's terms, exported by the kind's package. */
+    /** The function listing a declaration's terms, exported by the kind's package. */
     readonly vocabulary?: FunctionExport;
-    /** The function listing the symbols a description derives, exported by the kind's package. */
+    /** The function listing the symbols a declaration derives, exported by the kind's package. */
     readonly symbols?: FunctionExport;
 }
 

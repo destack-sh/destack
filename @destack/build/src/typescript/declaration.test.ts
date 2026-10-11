@@ -14,20 +14,23 @@ const packages = {
     app: { id: "package-01996ab0-0000-7000-8000-00000000000c", name: "@example/app" },
 };
 
+/** The app module declaring the greeting. */
+const GREETING =
+    'import { defineGreeting } from "@example/other";\n\nexport const greeting = defineGreeting({ name: "greeting" });\n';
+
 /** Write a workspace whose app declares a greeting, described as a kind it declares and as the owner's kind. */
-async function writeWorkspace(directory: string, owner: string): Promise<void> {
-    // write each package's constructor and the function describing a declaration by its name
+async function writeWorkspace(directory: string, owner: string, app = GREETING): Promise<void> {
+    // write each package's constructor, the function describing a declaration by its name, and the function reading a greeting as a thing
     const describe =
-        "export function describe(value: { name: string }) {\n    return { name: value.name };\n}\n";
+        "export function describe(value: { name: string }) {\n    return { name: value.name };\n}\nexport function thing(value: { name: string }) {\n    return value;\n}\n";
     const define =
-        "export function define(definition: { name: string }, module?: { package: object }) {\n    return { ...definition, package: module!.package };\n}\n";
+        "export function define(definition: { name: string }, module?: { package: object }) {\n    return { ...definition, package: module!.package, renamed(name: string) { return { ...this, name }; } };\n}\n";
     const files: Record<string, string> = {
         "node_modules/@example/owner/index.ts": define.replace("define(", "defineThing("),
         "node_modules/@example/owner/inspect.ts": describe,
         "node_modules/@example/other/index.ts": define.replace("define(", "defineGreeting("),
         "node_modules/@example/other/inspect.ts": describe,
-        "src/index.ts":
-            'import { defineGreeting } from "@example/other";\n\nexport const greeting = defineGreeting({ name: "greeting" });\n',
+        "src/index.ts": app,
     };
     for (const [key, identity] of Object.entries(packages)) {
         const root = key === "app" ? "" : `node_modules/${identity.name}/`;
@@ -43,7 +46,7 @@ async function writeWorkspace(directory: string, owner: string): Promise<void> {
                         defineGreeting: {
                             describes: [
                                 { kind: "greeting", function: "./inspect#describe" },
-                                { kind: "thing", package: owner, function: "./inspect#describe" },
+                                { kind: "thing", package: owner, value: "./inspect#thing" },
                             ],
                         },
                     }
@@ -117,6 +120,39 @@ test("describe one declaration as every kind its constructor lists, each owned b
                 { ...packages.other, ...version },
                 { name: "greeting" },
             ],
+        ]);
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});
+
+test("describe a declaration a method call chained on its constructor returns, as a type implemented in place", async () => {
+    // inspect the app's greeting, renamed by a call on the declaration
+    const directory = await mkdtemp(join(tmpdir(), "destack-chained-"));
+    try {
+        await writeWorkspace(
+            directory,
+            "@example/owner",
+            GREETING.replace(
+                'defineGreeting({ name: "greeting" })',
+                'defineGreeting({ name: "greeting" }).renamed("hello")',
+            ),
+        );
+        await using builder = await Compiler.start(directory);
+        const inspection = await builder.inspect({ runtime: "bun" });
+        const { declarations } = schema
+            .object({
+                tests: schema.array(TestDeclaration),
+                declarations: schema.array(DeclarationDescription),
+            })
+            .parse(inspection.descriptions);
+
+        // find the exported constant, and describe and name it as the value the chained call returns
+        expect(
+            declarations.map((declaration) => [declaration.name, declaration.description]),
+        ).toEqual([
+            ["hello", { name: "hello" }],
+            ["hello", { name: "hello" }],
         ]);
     } finally {
         await rm(directory, { recursive: true, force: true });

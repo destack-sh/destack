@@ -6,6 +6,7 @@ import {
     isCallExpression,
     isFunctionDeclaration,
     isIdentifier,
+    isPropertyAccessExpression,
     isVariableDeclaration,
     type Node,
     NodeFlags,
@@ -13,7 +14,8 @@ import {
     SyntaxKind,
 } from "typescript/unstable/ast";
 import {
-    type DeclarationConstructor,
+    type DeclarationKind,
+    type DeclarationKindValue,
     DependencyPackage,
     Package,
     PackageDefinition,
@@ -36,9 +38,6 @@ const ExportsManifest = schema.looseObject({
 
 /** A package containing modules, with the name and version its package.json declares. */
 type PackageLocation = Awaited<ReturnType<typeof modulePackage>>;
-
-/** A kind a constructor's entry describes declarations as, with the functions it names. */
-type DescribedKind = DeclarationConstructor["describes"][number];
 
 /** A kind a constructor describes each declaration as, with the functions inspecting it. */
 interface ConstructorKind {
@@ -207,44 +206,47 @@ export class ConstructorCatalog {
         return inspected;
     }
 
-    /** Describe a kind a constructor lists, with the functions of the entry declaring the kind. */
+    /** Describe a kind a constructor lists, with the functions of the package declaring the kind. */
     async #describeKind(
         location: PackageLocation,
         identity: Package,
-        entry: DescribedKind,
+        entry: DeclarationKind | DeclarationKindValue,
     ): Promise<ConstructorKind> {
-        // locate the entry declaring the kind: this one, or a dependency's
-        const declaring =
-            entry.package === undefined
-                ? { package: identity, location, entry }
-                : await this.#locateKind(entry.package, entry.kind, location);
-        const hasFunctions =
-            entry.compare !== undefined ||
-            entry.vocabulary !== undefined ||
-            entry.symbols !== undefined;
-        if (entry.package !== undefined && hasFunctions) {
-            throw new BuildError(
-                "INSPECTION_FAILED",
-                `${location.name} describes kind ${entry.kind} of ${entry.package}, which compares, lists its terms and derives its symbols itself`,
-            );
+        // locate a kind of this package, inspected by the functions it names
+        if (!("package" in entry)) {
+            return {
+                kind: entry.kind,
+                package: identity,
+                inspector: await this.#locateInspector(location, entry),
+            };
         }
 
-        // locate the describing function here and the kind's functions at its declaration
-        const describe = await this.#locateFunction(location, entry.function);
-        const kind = declaring.entry;
-        const compare = await this.#locateOptional(declaring.location, kind.compare);
-        const vocabulary = await this.#locateOptional(declaring.location, kind.vocabulary);
-        const symbols = await this.#locateOptional(declaring.location, kind.symbols);
+        // locate a dependency's kind, inspected by its functions on the value read here
+        const declaring = await this.#locateKind(entry.package, entry.kind, location);
 
         return {
             kind: entry.kind,
             package: declaring.package,
             inspector: {
-                describe,
-                ...(compare === undefined ? {} : { compare }),
-                ...(vocabulary === undefined ? {} : { vocabulary }),
-                ...(symbols === undefined ? {} : { symbols }),
+                value: await this.#locateFunction(location, entry.value),
+                ...(await this.#locateInspector(declaring.location, declaring.entry)),
             },
+        };
+    }
+
+    /** Locate the functions a package names for a kind it declares. */
+    async #locateInspector(location: PackageLocation, kind: DeclarationKind): Promise<Inspector> {
+        // locate the describing function and the optional ones
+        const describe = await this.#locateFunction(location, kind.function);
+        const compare = await this.#locateOptional(location, kind.compare);
+        const vocabulary = await this.#locateOptional(location, kind.vocabulary);
+        const symbols = await this.#locateOptional(location, kind.symbols);
+
+        return {
+            describe,
+            ...(compare === undefined ? {} : { compare }),
+            ...(vocabulary === undefined ? {} : { vocabulary }),
+            ...(symbols === undefined ? {} : { symbols }),
         };
     }
 
@@ -256,13 +258,16 @@ export class ConstructorCatalog {
     ): Promise<{
         package: Package;
         location: PackageLocation;
-        entry: DescribedKind;
+        entry: DeclarationKind;
     }> {
         // require a dependency whose constructors describe the kind as theirs
         const directory = this.#packages.directory(name, location.directory);
         const entry = Object.values(this.#packages.constructors(name, location.directory))
             .flatMap((constructor) => constructor.describes)
-            .find((candidate) => candidate.kind === kind && candidate.package === undefined);
+            .find(
+                (candidate): candidate is DeclarationKind =>
+                    candidate.kind === kind && !("package" in candidate),
+            );
         if (directory === undefined || entry === undefined) {
             throw new BuildError(
                 "INSPECTION_FAILED",
@@ -381,6 +386,19 @@ export async function collectDeclarations(
     return declarations;
 }
 
+/** Find the last call chained on a call's result, such as `implement` on a declared type, or the call itself. */
+function chainEnd(node: CallExpression): CallExpression {
+    const member = node.parent;
+    const chained = member.parent;
+
+    return isPropertyAccessExpression(member) &&
+        member.expression === node &&
+        isCallExpression(chained) &&
+        chained.expression === member
+        ? chainEnd(chained)
+        : node;
+}
+
 /** Collect a module's calls, leaving test case setup and bodies to the test runner. */
 function collectCalls(source: SourceFile, tests: readonly TestDeclaration[]): CallExpression[] {
     // index where each test case ends
@@ -434,9 +452,9 @@ async function locateDeclaration(
     file: string,
     inspector: SymbolInspector,
 ): Promise<{ name: string; export: string }> {
-    // require a named variable initialized by the constructor
+    // require a named variable initialized by the constructor, or by methods chained on its result
     const { constructor } = resolved;
-    const declaration = node.parent;
+    const declaration = chainEnd(node).parent;
     if (!isVariableDeclaration(declaration) || !isIdentifier(declaration.name)) {
         throw new BuildError(
             "INSPECTION_FAILED",

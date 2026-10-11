@@ -25,6 +25,8 @@ const DeclarationExports = schema.object({
     default: schema.array(schema.unknown()),
     /** The exported declarations. */
     declared: schema.array(schema.unknown()),
+    /** The value each declaration's kind inspects, read through the kind's value function. */
+    values: schema.array(schema.unknown()),
     /** Each declaration's kind comparison, if it has one. */
     compare: schema.array(schema.unknown()),
     /** Each declaration's kind vocabulary, if it has one. */
@@ -69,26 +71,34 @@ export async function evaluateDeclarations(
 
     // rebuild the complete graph so edits to imported modules cannot leave stale values
     const source = generateEntry(declarations, project);
-    let declared: unknown[];
-    const described: DeclarationDescription[] = [];
-    const compare = new Map<string, Comparator>();
-    try {
-        // evaluate the declarations, then describe each beside its kind's comparison
-        const namespace = await evaluateEntry(source, project);
-        declared = namespace.declared;
-        for (const [index, declaration] of declarations.entries()) {
-            described.push(await describeDeclaration(declaration, index, namespace, compare));
-        }
-    } catch (cause) {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        throw new BuildError("INSPECTION_FAILED", `declaration evaluation failed: ${message}`, {
-            cause,
-        });
-    }
+    const namespace = await evaluateEntry(source, project).catch((cause: unknown) => {
+        throw new BuildError(
+            "INSPECTION_FAILED",
+            `declaration evaluation failed: ${messageOf(cause)}`,
+            { cause },
+        );
+    });
 
     // require every declaration to name the package declaring it
     for (const [index, declaration] of declarations.entries()) {
-        requireDeclaringPackage(declaration, declared[index]);
+        requireDeclaringPackage(declaration, namespace.declared[index]);
+    }
+
+    // describe each declaration beside its kind's comparison, naming one a kind's function fails on
+    const described: DeclarationDescription[] = [];
+    const compare = new Map<string, Comparator>();
+    for (const [index, declaration] of declarations.entries()) {
+        const { kind, name } = declaration.description;
+        const description = await describeDeclaration(declaration, index, namespace, compare).catch(
+            (cause: unknown) => {
+                throw new BuildError(
+                    "INSPECTION_FAILED",
+                    `declaration evaluation failed: ${kind} ${name} (${declaration.file}): ${messageOf(cause)}`,
+                    { cause },
+                );
+            },
+        );
+        described.push(description);
     }
 
     return { declarations: described, compare };
@@ -99,15 +109,14 @@ function generateEntry(declarations: readonly DeclarationExport[], project: Pack
     // select each inspecting module once
     const conditions = new Set(["import", "default", ...runtimeConditions(project.runtime)]);
     const modules = new Map<string, number>();
-    const locate = (inspector: FunctionExport | undefined) =>
-        inspector === undefined
-            ? "undefined"
-            : locateFunction(inspector, conditions, modules, project);
+    const locate = (inspector: FunctionExport) =>
+        locateFunction(inspector, conditions, modules, project);
     const functions = declarations.map(({ inspector }) => ({
+        value: inspector.value && locate(inspector.value),
         describe: locate(inspector.describe),
-        compare: locate(inspector.compare),
-        vocabulary: locate(inspector.vocabulary),
-        symbols: locate(inspector.symbols),
+        compare: inspector.compare && locate(inspector.compare),
+        vocabulary: inspector.vocabulary && locate(inspector.vocabulary),
+        symbols: inspector.symbols && locate(inspector.symbols),
     }));
 
     // import declarations and their inspecting modules into the same module graph
@@ -121,15 +130,19 @@ function generateEntry(declarations: readonly DeclarationExport[], project: Pack
         ),
     ];
 
-    // list each kind's functions, or call them on the declarations
-    const list = (name: keyof (typeof functions)[number]) =>
-        functions.map((entry) => entry[name]).join(",\n");
-    const calls = functions.map((entry, index) => `${entry.describe}(declaration${index})`);
-    const names = declarations.map((_, index) => `declaration${index}`);
+    // list each kind's functions, read each kind's value, and describe it
+    const list = (name: "compare" | "vocabulary" | "symbols") =>
+        functions.map((entry) => entry[name] ?? "undefined").join(",\n");
+    const names = functions.map((_, index) => `declaration${index}`);
+    const values = functions.map((entry, index) =>
+        entry.value === undefined ? `declaration${index}` : `${entry.value}(declaration${index})`,
+    );
+    const calls = functions.map((entry, index) => `${entry.describe}(values[${index}])`);
 
     return [
         ...imports,
         `export const declared = [${names.join(", ")}];`,
+        `export const values = [${values.join(", ")}];`,
         `export const compare = [${list("compare")}];`,
         `export const vocabulary = [${list("vocabulary")}];`,
         `export const symbols = [${list("symbols")}];`,
@@ -286,22 +299,23 @@ async function describeDeclaration(
         description,
     });
 
-    // digest each term's definition the kind's code returns
+    // digest each term's definition the kind's code returns for the declaration
+    const declared = namespace.values[index];
     const vocabularyOf = namespace.vocabulary[index];
     const terms =
         typeof vocabularyOf === "function"
-            ? Terms.parse(Reflect.apply(vocabularyOf, undefined, [parsed.description]))
+            ? Terms.parse(Reflect.apply(vocabularyOf, undefined, [declared]))
             : undefined;
     const vocabulary: Record<string, string> = {};
     for (const [term, definition] of Object.entries(terms ?? {})) {
         vocabulary[`${parsed.kind}/${term}`] = await Digest.json(definition);
     }
 
-    // list the symbols the kind's code derives
+    // list the symbols the kind's code derives from the declaration
     const symbolsOf = namespace.symbols[index];
     const symbols =
         typeof symbolsOf === "function"
-            ? Symbols.parse(Reflect.apply(symbolsOf, undefined, [parsed.description]))
+            ? Symbols.parse(Reflect.apply(symbolsOf, undefined, [declared]))
             : undefined;
 
     // keep the kind's comparison and check each plan it returns
@@ -349,4 +363,9 @@ function requireDeclaringPackage(declaration: DeclarationExport, value: unknown)
             `${declaration.export} declaration belongs to a different package`,
         );
     }
+}
+
+/** Read a failure's message. */
+function messageOf(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
 }
