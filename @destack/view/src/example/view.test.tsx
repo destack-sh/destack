@@ -2,11 +2,15 @@ import { principal, relation } from "@destack/access";
 import { defineObject, field } from "@destack/object";
 import { defineExample } from "@destack/package/declare";
 import { schema } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { onTestFinished, test } from "@destack/test";
 import { defineView } from "../declare/view.ts";
 import { useQuery, useSpace } from "../scope/index.ts";
 import { For } from "../solid/flow.ts";
 import { renderExample } from "./frame.ts";
+import { changed } from "../test/dom.ts";
+
+/** The longest a test waits for a render, far above the few microtasks a local resource takes. */
+const RENDER_MILLISECONDS = 2000;
 
 /** A card in a space. */
 const card = defineObject({
@@ -59,5 +63,5 @@ test("render a view's example over the objects its declared calls bring about", 
     onTestFinished(renderExample(element, { example: cardsTwoCards }));
 
     // list the cards in the view's order
-    await expect.poll(() => element.textContent).toBe("ApplesBread");
+    await changed(element, () => element.textContent === "ApplesBread", RENDER_MILLISECONDS);
 });

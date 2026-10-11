@@ -11,6 +11,10 @@ import { createSignal } from "solid-js";
 import { Errored } from "../solid/flow.ts";
 import { useLocale } from "./locale.ts";
 import type { Catalog } from "@destack/locale";
+import { changed } from "../test/dom.ts";
+
+/** The longest a test waits for a render, far above the few microtasks a local resource takes. */
+const RENDER_MILLISECONDS = 2000;
 
 /** The first strong isolate MessageFormat 2 places around a string value. */
 const OPEN = String.fromCodePoint(0x2068);
@@ -101,7 +105,7 @@ test("call a platform service the view declares where the host mounts it, and re
     const dispose = renderView(Count, element, CONTEXT, {}, [], services);
 
     // read the count through the declared service's mount
-    await expect.poll(() => element.textContent).toBe("notes: 3");
+    await changed(element, () => element.textContent === "notes: 3", RENDER_MILLISECONDS);
     dispose();
     expect(paths).toEqual([`/.destack/platform/service/${counter.package.id}/count`]);
 

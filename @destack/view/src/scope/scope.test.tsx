@@ -8,6 +8,10 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
 import { Errored, For, Loading } from "../solid/flow.ts";
 import { useQuery, useSpace } from "./index.ts";
+import { changed } from "../test/dom.ts";
+
+/** The longest a test waits for a render, far above the few microtasks a local resource takes. */
+const RENDER_MILLISECONDS = 2000;
 
 /** A board holding cards. */
 const board = defineObject({
@@ -117,7 +121,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
             new Map(),
         ),
     );
-    await expect.poll(() => element.textContent).toBe("ApplesBread");
+    await changed(element, () => element.textContent === "ApplesBread", RENDER_MILLISECONDS);
     const [apples, bread] = element.querySelectorAll("li");
 
     // rename the first card and keep the second card's element
@@ -125,7 +129,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
         throw new TypeError("missing first card");
     }
     apples.click();
-    await expect.poll(() => element.textContent).toBe("Apples!Bread");
+    await changed(element, () => element.textContent === "Apples!Bread", RENDER_MILLISECONDS);
     expect(element.querySelectorAll("li")[1]).toBe(bread);
 });
 

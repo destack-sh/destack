@@ -22,10 +22,10 @@ export const PLATFORM_PATH = "/.destack/platform";
 export const COMMAND_PATH = "/.destack/command";
 
 /** The header the command palette's page sends its page token in. */
-export const PAGE_TOKEN_HEADER = "x-csrf-token";
+export const PAGE_TOKEN_HEADER = "Destack-Page-Token";
 
 /** The name of the meta element carrying the command palette's page token in its document. */
-export const PAGE_TOKEN_META = "csrf-token";
+export const PAGE_TOKEN_META = "destack-page-token";
 
 /** The query parameter of the command palette's path with the link of the window it opens over. */
 export const FOCUS_PARAMETER = "focus";

@@ -3,7 +3,7 @@ import { expect, test } from "@destack/test";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PackageBuilder, readDependencies } from "@destack/build";
+import { Compiler, readDependencies } from "@destack/build";
 import { Package, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { viewExtension } from "./build.ts";
@@ -73,7 +73,7 @@ test(
     { timeout: NOTEBOOK_BUILD_MILLISECONDS },
     async () => {
         // build the notebook package's browser output
-        await using builder = await PackageBuilder.start(NOTEBOOK);
+        await using builder = await Compiler.start(NOTEBOOK);
         await using build = await builder.build({
             dependencies: await readDependencies(NOTEBOOK),
             outputs: {

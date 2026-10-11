@@ -2,6 +2,7 @@ import { onTestFinished } from "@destack/test";
 import type { JSX } from "@solidjs/web";
 import * as web from "@solidjs/web";
 import type { Example } from "@destack/package/declare";
+import { present } from "@destack/schema";
 import { renderExample } from "../example/frame.ts";
 
 /** The class attributes StyleX writes, whose names hash the styles. */
@@ -196,6 +197,45 @@ function restore(
         Reflect.deleteProperty(prototype, name);
     } else {
         Object.defineProperty(prototype, name, descriptor);
+    }
+}
+
+/** Wait until a check passes after a change within an element, failing once some milliseconds pass, as Testing Library's waitFor watches mutations. */
+export async function changed(
+    element: Element,
+    check: () => boolean,
+    milliseconds: number,
+): Promise<void> {
+    // answer a check that passes already
+    if (check()) {
+        return;
+    }
+
+    // watch the element in its own window
+    const view = present(element.ownerDocument.defaultView, "the element's window");
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    const observer = new view.MutationObserver(() => {
+        if (check()) {
+            resolve();
+        }
+    });
+    observer.observe(element, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        characterData: true,
+    });
+
+    // give up once the time passes
+    const timer = setTimeout(
+        () => reject(new TypeError(`the element never changed within ${milliseconds} ms`)),
+        milliseconds,
+    );
+    try {
+        await promise;
+    } finally {
+        observer.disconnect();
+        clearTimeout(timer);
     }
 }
 

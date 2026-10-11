@@ -1,6 +1,6 @@
 import { type Localization, t } from "@destack/locale";
 import { useLocale } from "../page/locale.ts";
-import { type CallInput, inputSchemaOf, type MutationName, type ObjectType } from "@destack/object";
+import type { CallInput, MutationName, ObjectType } from "@destack/object";
 import type { Submission } from "@destack/object/client";
 import type { schema } from "@destack/schema";
 import { type Accessor, createSignal } from "../solid/reactive.ts";
@@ -53,7 +53,7 @@ export function useForm<Object extends ObjectType, Name extends MutationName<Obj
     method: Name,
     options: NoInfer<FormOptions<CallInput<Object, Name>>>,
 ): Form<CallInput<Object, Name>> {
-    return useSchemaForm(inputSchemaOf(object, method), options);
+    return useSchemaForm(object.procedure(method).input, options);
 }
 
 /** Edit an input a schema checks, such as one read from JSON Schema, refusing edited values at once and every value once submitted. */
