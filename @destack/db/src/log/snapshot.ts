@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { CHAIN_TERMS, and, inArray, sql, type SQL } from "../sql/index.ts";
 import { Projection } from "../query/selection.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { Condition } from "../query/condition.ts";
+import { Condition, Scalar } from "../query/condition.ts";
 import { Predicate, type Match } from "../query/predicate.ts";
 import { Key } from "../query/key.ts";
 import { Change } from "./log.ts";
@@ -12,6 +12,7 @@ import { Expression, type RelationReader } from "../expression/expression.ts";
 import { TABLE, Table, type RowImage } from "../table/table.ts";
 import { headFields, latestOf, LogInteger, selectHead, type LogPosition } from "./position.ts";
 import type { Row } from "../table/row.ts";
+import type { ReadSet } from "./commit.ts";
 import type { Column, ColumnValue } from "../table/column.ts";
 import { jsonElements, Statement } from "../query/statement.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -101,6 +102,8 @@ export class Snapshot {
     readonly #rewind: Rewind;
     /** The rows a layer puts over the database's, such as a branch's, absent for none. */
     readonly #overlay: Overlay | undefined;
+    /** The record of what the snapshot read, which a mutation's commit checks, absent when nothing records. */
+    readonly #reads: ReadSet | undefined;
     /** The rows changed related rows touched, read once per relations, table and sequence. */
     readonly #touched = new WeakMap<RelationView, Map<string, Promise<Map<string, Row | null>>>>();
 
@@ -110,17 +113,31 @@ export class Snapshot {
         position: LogPosition | undefined,
         rewind?: Rewind,
         overlay?: Overlay,
+        reads?: ReadSet,
     ) {
-        // keep the database, the position, and how earlier and overlaid rows read
+        // keep the database, the position, how earlier and overlaid rows read, and what records the reads
         this.database = database;
         this.position = position;
         this.#rewind = rewind ?? database.log.rewind();
         this.#overlay = overlay;
+        this.#reads = reads;
+    }
+
+    /** Whether reads go straight to the live database: no position, no overlay and nothing recording them. */
+    get isLive(): boolean {
+        return (
+            this.position === undefined && this.#overlay === undefined && this.#reads === undefined
+        );
     }
 
     /** Show the same database and position under an overlay. */
     layer(overlay: Overlay): Snapshot {
-        return new Snapshot(this.database, this.position, this.#rewind, overlay);
+        return new Snapshot(this.database, this.position, this.#rewind, overlay, this.#reads);
+    }
+
+    /** Show the same view, recording each read. */
+    recording(reads: ReadSet): Snapshot {
+        return new Snapshot(this.database, this.position, this.#rewind, this.#overlay, reads);
     }
 
     /** Show the live database with its transaction's writes. */
@@ -133,6 +150,9 @@ export class Snapshot {
         table: Definition,
         where: Condition<RowImage<NoInfer<Definition>>>,
     ): Promise<RowImage<Definition>[]> {
+        // record the scan
+        this.#reads?.images(table, where);
+
         // read the current rows and the changed rows' images
         const predicate = Condition.resolve(where, Namespace.fields(table));
         const { rows, sequence } = await this.#read(table, render(predicate, table));
@@ -157,10 +177,19 @@ export class Snapshot {
         columns: readonly string[],
         tuples: readonly (readonly unknown[])[],
     ): Promise<RowImage<Definition>[]> {
-        // read the head and each tuple's rows in one statement
+        // read the head and each tuple's rows in one statement, recording each tuple's rows
         if (tuples.length === 0) {
             return [];
         }
+        this.#reads?.images(table, {
+            OR: tuples.map((tuple) =>
+                Condition.equal(
+                    Object.fromEntries(
+                        columns.map((column, index) => [column, Scalar.parse(tuple[index])]),
+                    ),
+                ),
+            ),
+        });
         const read = await tupleRead(table, columns, this.database.dialect).values(this.database, {
             tuples: JSON.stringify(tuples),
         });
@@ -198,6 +227,9 @@ export class Snapshot {
         table: Definition,
         key: Key<Definition>,
     ): Promise<RowImage<Definition> | null> {
+        // record the read
+        this.#reads?.image(table, key);
+
         // read the row and its earlier image
         const { rows, sequence } = await this.#read(table, Key.match(table, key));
         const images = await this.#since(table, sequence);
@@ -239,7 +271,8 @@ export class Snapshot {
         query: WindowRead<Read> & { readonly after?: Row },
         partition: Partition | undefined,
     ): Promise<Row[][]> {
-        // read enough current rows to cover every changed row
+        // record the scan, then read enough current rows to cover every changed row
+        this.#reads?.images(table, query.where ?? {});
         const admits = query.admits;
         const isAdmittedInMemory = admits !== undefined && admits.current === undefined;
         const order = Order.complete(Order.of(query.orderBy), table);

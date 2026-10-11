@@ -5,7 +5,15 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type RowImage, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever, DatabaseError } from "../error/error.ts";
-import { LOG_EPOCH, LOG_SLOT, LOG_HORIZON, LOG_REPLICA, LOG, LOG_TRANSACTION } from "./schema.ts";
+import {
+    COMMIT_LOCK,
+    LOG_EPOCH,
+    LOG_SLOT,
+    LOG_HORIZON,
+    LOG_REPLICA,
+    LOG,
+    LOG_TRANSACTION,
+} from "./schema.ts";
 import { createLog } from "./trigger.ts";
 import { latestOf, LogInteger, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Rewind } from "./snapshot.ts";
@@ -385,6 +393,15 @@ export class Log {
         await this.database.execute(sql`DELETE FROM ${marker} WHERE slot = 1`);
 
         return result;
+    }
+
+    /** Hold off the log's other commits until this transaction ends, as stamping commits does on PostgreSQL, where SQLite runs one write transaction at a time already. */
+    async serialize(): Promise<void> {
+        if (this.database.dialect === "postgresql") {
+            await this.database.execute(
+                sql`SELECT pg_advisory_xact_lock(${sql.raw(String(COMMIT_LOCK))}, hashtext(current_schema()))`,
+            );
+        }
     }
 
     /** Read the log's epoch. */

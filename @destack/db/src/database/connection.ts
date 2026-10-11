@@ -363,32 +363,6 @@ export class DatabaseConnection<
         }, signal);
     }
 
-    /** Run work in a transaction and roll its writes back, returning what it read or planned. */
-    async rehearse<Value>(
-        operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
-        options: TransactionOptions = {},
-    ): Promise<Value> {
-        // run the work, keep its result, and unwind the transaction
-        let result: { readonly value: Value } | undefined;
-        try {
-            await this.transaction(async (transaction) => {
-                result = { value: await operation(transaction) };
-                throw new Rollback();
-            }, options);
-        } catch (error) {
-            if (!(error instanceof Rollback)) {
-                throw error;
-            }
-        }
-
-        // return the kept result
-        if (result === undefined) {
-            throw new TypeError("a rehearsal ended without its result");
-        }
-
-        return result.value;
-    }
-
     /** Bind a transaction session and drain its queries. */
     #transact<Value>(
         session: Session,
@@ -506,9 +480,6 @@ export class ConnectionState {
         return this.#closing;
     }
 }
-
-/** The unwinding of a rehearsed transaction. */
-class Rollback extends Error {}
 
 /** List the tables a write to each table changes, itself first, through triggers and referential actions. */
 function listCascades(tables: readonly Table[], dialect: Dialect): Map<string, readonly string[]> {

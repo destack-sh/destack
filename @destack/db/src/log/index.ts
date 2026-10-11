@@ -5,3 +5,4 @@ export * from "./position.ts";
 export * from "./watch.ts";
 export * from "./cache.ts";
 export * from "./description.ts";
+export * from "./commit.ts";

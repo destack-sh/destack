@@ -61,27 +61,3 @@ test.for(TEST_DIALECTS)(
         expect(await read()).toEqual([bob]);
     },
 );
-
-test.for(TEST_DIALECTS)(
-    "roll back a transaction its callback rolls back, keeping what the callback read on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [counter], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-
-        // write and read in a rehearsal, which rolls the writes back
-        const read = await database.rehearse(async (transaction) => {
-            await transaction.upsert(counter, [
-                { scope: "s", owner: "ada", name: "rolled", value: 1 },
-            ]);
-
-            return transaction.select().from(counter);
-        });
-
-        // keep the read and find nothing written
-        expect([read, await database.select().from(counter)]).toEqual([
-            [{ scope: "s", owner: "ada", name: "rolled", value: 1 }],
-            [],
-        ]);
-    },
-);

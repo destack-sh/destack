@@ -5,6 +5,10 @@ import { DatabaseError } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { relation } from "../table/namespace.ts";
 
+// NOTE #Performance: PgQ positions over a ticker's snapshots would remove the one lock per log serialising commits
+/** The advisory lock class serialising a PostgreSQL log's commits, from optimistic validation to stamping, keyed by the log's schema. */
+export const COMMIT_LOCK = 471_026_381;
+
 /** The SQL name of the database's log. */
 export const LOG = "__destack_log";
 
