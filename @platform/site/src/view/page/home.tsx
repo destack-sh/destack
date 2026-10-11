@@ -4,7 +4,7 @@ import { Metadata } from "@destack/view/document";
 
 import { Adjective } from "../home/adjective/adjective";
 import { Noun } from "../home/noun/noun";
-import { FloatingSwitch } from "../home/entry/switch";
+import { BottomBar } from "../home/entry/switch";
 import { Imperative } from "../home/imperative/imperative";
 import { Participle } from "../home/participle/participle";
 import { firstPicks, promptOf } from "../home/participle/wall";
@@ -36,7 +36,7 @@ export function Home() {
             <Adjective isOpen={isOpen()} />
             <Participle isOpen={isOpen()} picks={picks()} onPick={pick} />
             <Imperative prompt={promptOf(picks())} />
-            <FloatingSwitch isOpen={isOpen()} />
+            <BottomBar isOpen={isOpen()} />
             <Interval />
         </>
     );

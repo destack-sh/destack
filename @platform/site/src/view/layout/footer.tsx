@@ -15,7 +15,7 @@ import { screen } from "./screen.stylex";
 /** Close every page with a band of starry space holding the install command and the community links. */
 export function Footer() {
     return (
-        <footer {...style.attrs(styles.root)}>
+        <footer data-component="SiteFooter" {...style.attrs(styles.root)}>
             <Goo xstyle={styles.band}>
                 <div {...style.attrs(lattice.frame, styles.bar)}>
                     <InstallCommand />

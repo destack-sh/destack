@@ -23,6 +23,8 @@ import { home, pendingDestinations, primaryDestinations, socialDestinations } fr
 import { AppearanceToggle } from "./appearance";
 import { screen } from "./screen.stylex";
 import { createMediaQuery } from "@destack/view/primitives/media";
+import { createEventListener } from "@destack/view/primitives/event-listener";
+import { commandEvents } from "./command";
 
 /** The source repository, from the community destinations. */
 const github = (() => {
@@ -48,6 +50,13 @@ export function TopBar() {
             setIsMenuOpen(false);
         }
     });
+
+    // open the phone menu whenever the page's bottom bar asks for it
+    createEventListener(
+        () => document,
+        commandEvents.openMenu,
+        () => setIsMenuOpen(true),
+    );
 
     // select the most specific destination for the current route
     const active = createMemo(

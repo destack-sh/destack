@@ -1,6 +1,11 @@
 import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
+import { Icon } from "@destack/icon";
+import arrowUp from "@destack/icon/phosphor/arrow-up";
+import list from "@destack/icon/phosphor/list";
+import { Button } from "@destack/ui/button";
 import { createSignal, onSettled } from "@destack/view";
+import { isMotionReduced } from "@destack/view/motion";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { palette } from "../../palette.stylex";
 
@@ -65,34 +70,53 @@ export function StackSwitch(properties: { isOpen: boolean }) {
     );
 }
 
-/** Pin the switch to the bottom of phones while the figures are on screen, so it stays beside what it changes. */
-export function FloatingSwitch(properties: { isOpen: boolean }) {
-    // show the switch from the first figure label until the closing section comes into view
+/** Hold the phone's bottom bar from the first figure to the footer: back to the top, the stack switch, and the menu. */
+export function BottomBar(properties: { isOpen: boolean }) {
+    // show the bar from the first figure label until the footer comes into view
+    let bar: HTMLDivElement | undefined;
     const [isShown, setIsShown] = createSignal(false);
     const update = () => {
-        // find where the figures start and where the page closes
+        // find where the figures start and where the page ends
         const first = document.querySelector("[data-figure-label]");
-        const closing = document.querySelector("[data-closing]");
-        if (first === null || closing === null) {
-            throw new Error("the page lacks its figures or its closing section");
+        const footer = document.querySelector("[data-component=SiteFooter]");
+        if (first === null || footer === null) {
+            throw new Error("the page lacks its figures or its footer");
         }
 
-        // show the switch between the two
+        // show the bar between the two
         setIsShown(
             first.getBoundingClientRect().top < window.innerHeight &&
-                closing.getBoundingClientRect().top > window.innerHeight,
+                footer.getBoundingClientRect().top > window.innerHeight,
         );
     };
     createEventListener(() => window, "scroll", update, { passive: true });
     createEventListener(() => window, "resize", update);
     onSettled(update);
 
+    // scroll back to the top, at once while motion is reduced
+    const toTop = () => {
+        const isReduced = bar !== undefined && isMotionReduced(bar);
+        window.scrollTo({ top: 0, behavior: isReduced ? "instant" : "smooth" });
+    };
+
     return (
         <div
-            data-component="FloatingSwitch"
-            {...style.attrs(styles.floating, !isShown() && styles.floatingHidden)}
+            ref={bar}
+            data-component="BottomBar"
+            {...style.attrs(styles.bar, !isShown() && styles.barHidden)}
         >
+            <Button variant="ghost" size="icon" aria-label="Back to top" onClick={toTop}>
+                <Icon icon={arrowUp} xstyle={styles.barIcon} />
+            </Button>
             <StackSwitch isOpen={properties.isOpen} />
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Menu"
+                onClick={() => document.dispatchEvent(new CustomEvent(commandEvents.openMenu))}
+            >
+                <Icon icon={list} xstyle={styles.barIcon} />
+            </Button>
         </div>
     );
 }
@@ -156,30 +180,39 @@ const styles = style.create({
         backgroundColor: palette.space,
         translate: "1rem 0",
     },
-    floating: {
+    bar: {
+        alignItems: "center",
         backgroundColor: color.background,
         borderColor: color.border,
         borderRadius: "999px",
         borderStyle: "solid",
         borderWidth: "1px",
-        bottom: "calc(1rem + env(safe-area-inset-bottom))",
+        bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
         boxShadow: `0 6px 24px color-mix(in srgb, ${color.foreground} 14%, transparent)`,
-        display: { default: "none", [media.maxMd]: "flex" },
-        left: "50%",
-        paddingBlock: "0.625rem",
-        paddingInline: "1.125rem",
+        boxSizing: "border-box",
+        display: { default: "none", [media.maxMd]: "grid" },
+        gridTemplateColumns: "auto minmax(0, 1fr) auto",
+        height: "3.5rem",
+        insetInline: "1rem",
+        justifyItems: "center",
+        marginInline: "auto",
+        maxWidth: "28rem",
+        paddingInline: "0.5rem",
         position: "fixed",
-        transform: "translateX(-50%)",
         transition: {
             default: "opacity 200ms ease, translate 200ms ease",
             [media.motionReduce]: "none",
         },
         zIndex: 3,
     },
-    floatingHidden: {
+    barHidden: {
         opacity: 0,
         pointerEvents: "none",
         translate: "0 1rem",
+    },
+    barIcon: {
+        height: "1.25rem",
+        width: "1.25rem",
     },
     holder: {
         alignItems: "center",

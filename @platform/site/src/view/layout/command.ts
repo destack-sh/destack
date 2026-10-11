@@ -20,6 +20,7 @@ export const commandEvents = {
     copyText: "destack:copy-txt",
     open: "destack:search",
     switchStack: "destack:switch-stack",
+    openMenu: "destack:open-menu",
 } as const;
 
 /** One action selectable from the command palette. */
