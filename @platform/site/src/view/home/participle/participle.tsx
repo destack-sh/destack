@@ -4,9 +4,15 @@ import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Label } from "../entry/label";
 import { StackSwitch } from "../entry/switch";
-import { tallyOf, ToolWall, totalOf } from "./wall";
-import { Ledger } from "../figure/ledger";
+import { labelOf, lineCount, tallyOf, ToolWall } from "./wall";
+import { Bill } from "../figure/bill";
 import { screen } from "../../layout/screen.stylex";
+import { createSteps } from "../figure/stagger";
+import { createSignal } from "@destack/view";
+import { createReducedMotion } from "@destack/view/motion";
+
+/** The milliseconds between the steps of the bill's switch, one per line. */
+const stepTime = 60;
 
 /** The participle, the last of the word's forms before the page closes. */
 const participle: Form = {
@@ -26,8 +32,14 @@ export function Participle(properties: {
     picks: readonly string[];
     onPick: (name: string) => void;
 }) {
+    // follow the motion the section shows, and step the bill's lines in order as the stack switches
+    const [section, setSection] = createSignal<HTMLElement>();
+    const isReduced = createReducedMotion(section);
+    const { isOpenAt } = createSteps(() => properties.isOpen, lineCount, stepTime, isReduced);
+
     return (
         <section
+            ref={setSection}
             {...style.attrs(
                 lattice.frame,
                 lattice.ruled,
@@ -57,11 +69,10 @@ export function Participle(properties: {
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <Label>{properties.isOpen ? "Your space" : "Your current stack"}</Label>
-                <Ledger
-                    detail="Data"
-                    entries={tallyOf(properties.picks)}
-                    total={totalOf(properties.picks, properties.isOpen)}
-                    isOpenAt={() => properties.isOpen}
+                <Bill
+                    lines={tallyOf(properties.picks)}
+                    label={labelOf(properties.picks, properties.isOpen)}
+                    isOpenAt={isOpenAt}
                 />
             </div>
         </section>

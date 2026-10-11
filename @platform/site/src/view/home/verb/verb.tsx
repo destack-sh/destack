@@ -1,5 +1,6 @@
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
+import { color } from "@destack/theme/tokens.stylex";
 import { createSignal } from "@destack/view";
 import { createTimer } from "@destack/view/primitives/timer";
 import { createReducedMotion } from "@destack/view/motion";
@@ -8,11 +9,11 @@ import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Fade } from "../figure/fade";
 import { Label } from "../entry/label";
-import { Ledger } from "../figure/ledger";
+import { Bill } from "../figure/bill";
+import { accentOf, type Item, marksOf } from "../figure/item";
 import { holdings, pages, Presence, PresenceSlot, SpaceBrowser, type Viewer } from "./space";
 import { createSteps } from "../figure/stagger";
-import { billOf, bytesTotalOf, sizeOf } from "../figure/price";
-import { plan } from "../../content/generated/plan";
+import { workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
 import { screen } from "../../layout/screen.stylex";
 
@@ -39,6 +40,13 @@ const verb: Form = {
         sentence: "Own your apps and agents in one unified personal software platform.",
     },
 };
+
+/** Return the tint of an item's first mark, or the muted tone where it has none. */
+function tintOf(item: Item): string {
+    const [mark] = marksOf(item.mark);
+
+    return mark !== undefined && "tint" in mark ? mark.tint : color.mutedForeground;
+}
 
 /** Open the page with the verb, illustrated by your corner of the cloud: spread over rented sites, or held in one space at your own address. */
 export function Verb(properties: { isOpen: boolean }) {
@@ -153,29 +161,13 @@ export function Verb(properties: { isOpen: boolean }) {
                         {isOpenAt(0) ? "One space, one stack" : "Eight sites, eight stacks"}
                     </Label>
                 </Fade>
-                <Ledger
-                    entries={holdings}
-                    total={
-                        isOpenAt(holdings.length + 1)
-                            ? [
-                                  "1 space, 1 invoice",
-                                  billOf([], plan.monthly),
-                                  bytesTotalOf(
-                                      holdings.map((holding) => sizeOf(holding.stacked.name)),
-                                  ),
-                              ]
-                            : [
-                                  "8 sites, 8 invoices",
-                                  billOf(
-                                      holdings.map((holding) => holding.stacked.price),
-                                      0,
-                                  ),
-                                  bytesTotalOf(
-                                      holdings.map((holding) => sizeOf(holding.stacked.name)),
-                                  ),
-                              ]
-                    }
-                    detail="Data"
+                <Bill
+                    lines={holdings.map((entry) => ({
+                        entry,
+                        workload: workloadOf(entry.stacked.name),
+                        tint: accentOf(entry.stacked.name, tintOf(entry.stacked)),
+                    }))}
+                    label={isOpenAt(1) ? "1 space" : "8 sites, 8 invoices"}
                     lighting={lighting}
                     isOpenAt={isOpenAt}
                     badgeOf={(row) => <PresenceSlot row={row} />}

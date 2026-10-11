@@ -1,17 +1,18 @@
 import * as style from "@destack/style";
+import { color } from "@destack/theme/tokens.stylex";
 import { createSignal } from "@destack/view";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Fade } from "../figure/fade";
 import { Label } from "../entry/label";
-import { Ledger } from "../figure/ledger";
+import { Bill } from "../figure/bill";
+import { accentOf } from "../figure/item";
 import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
-import { PagesApp, services, wiresOf } from "./pages";
+import { PagesApp, services } from "./pages";
 import { createSteps, type Stagger } from "../figure/stagger";
-import { billOf } from "../figure/price";
-import { plan } from "../../content/generated/plan";
+import { workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
 import { Window } from "../figure/window";
 import { screen } from "../../layout/screen.stylex";
@@ -101,10 +102,13 @@ export function Noun(properties: { isOpen: boolean }) {
                         <Label>{keyOf(rented())}</Label>
                     </Fade>
                 </div>
-                <Ledger
-                    entries={services}
-                    detail="Glue"
-                    total={totalOf(isOpenAt)}
+                <Bill
+                    lines={services.map((entry) => ({
+                        entry,
+                        workload: workloadOf(entry.stacked.name),
+                        tint: accentOf(entry.stacked.name, color.mutedForeground),
+                    }))}
+                    label={labelOf(isOpenAt)}
                     isOpenAt={isOpenAt}
                     onToggle={toggle}
                 />
@@ -124,37 +128,14 @@ function keyOf(rented: number) {
     return "Some vendors, some engine";
 }
 
-/** Total the bill: the vendors still rented and the engine behind the rest, their invoices, and what they cost a month. */
-function totalOf(isOpenAt: Stagger): readonly [label: string, value: string, context: string] {
-    // read each service's item in its state, and count the vendors still rented
-    const shown = services.map((service, index) =>
-        isOpenAt(index + 1) ? service.destacked : service.stacked,
-    );
+/** Label the bill: the vendors still rented, and the engine behind the rest. */
+function labelOf(isOpenAt: Stagger): string {
+    // count the vendors still rented, and the engine once any service runs on it
     const rented = services.filter((_, index) => !isOpenAt(index + 1)).length;
-
-    // bill the engine once any service runs on it
-    const hasEngine = rented < services.length;
-    const invoices = rented + (hasEngine ? 1 : 0);
     const vendors = rented === 0 ? "" : `${rented} ${rented === 1 ? "vendor" : "vendors"}`;
-    const label = [vendors, hasEngine ? "1 engine" : ""].filter((part) => part !== "").join(" + ");
+    const engine = rented < services.length ? "1 engine" : "";
 
-    return [
-        `${label}, ${invoices} ${invoices === 1 ? "invoice" : "invoices"}`,
-        billOf(
-            shown.map((item) => item.price),
-            hasEngine ? plan.monthly : 0,
-        ),
-        wiringOf(isOpenAt),
-    ];
-}
-
-/** Count the integrations still to wire for the services rented, or none once all are built in. */
-function wiringOf(isOpenAt: Stagger): string {
-    const count = services
-        .filter((_, index) => !isOpenAt(index + 1))
-        .reduce((sum, service) => sum + wiresOf(service.stacked.name).length, 0);
-
-    return count === 0 ? "built in" : `${count} to wire`;
+    return [vendors, engine].filter((part) => part !== "").join(" + ");
 }
 
 /** The noun section styles. */

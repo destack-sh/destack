@@ -1,5 +1,5 @@
 import { Icon } from "@destack/icon";
-import { bytesOf, priceOf, sizeOf } from "../figure/price";
+import { priceOf } from "../figure/price";
 import key from "@destack/icon/phosphor/key";
 import { present } from "@destack/schema";
 import { createEffect, createSignal, onSettled } from "@destack/view";
@@ -8,7 +8,7 @@ import { color, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
-import type { Entry } from "../figure/ledger";
+import type { Entry } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "./apps";
 import { AppRail, appStyles, appText } from "../figure/app";
@@ -35,7 +35,6 @@ export const holdings: readonly Entry[] = [
             name: "Notion",
             note: "anyone with the link can read it",
             price: priceOf("Notion"),
-            detail: bytesOf(sizeOf("Notion")),
         },
         destacked: {
             label: "Docs",
@@ -43,7 +42,6 @@ export const holdings: readonly Entry[] = [
             name: "Pages",
             note: "only the people you pick can read it",
             price: { kind: "included" },
-            detail: bytesOf(sizeOf("Notion")),
         },
     },
     {
@@ -53,7 +51,6 @@ export const holdings: readonly Entry[] = [
             name: "Linear",
             note: "a paid seat for every viewer",
             price: priceOf("Linear"),
-            detail: bytesOf(sizeOf("Linear")),
         },
         destacked: {
             label: "Tasks",
@@ -61,7 +58,6 @@ export const holdings: readonly Entry[] = [
             name: "Tasks",
             note: "a free seat for every viewer",
             price: { kind: "included" },
-            detail: bytesOf(sizeOf("Linear")),
         },
     },
     {
@@ -71,7 +67,6 @@ export const holdings: readonly Entry[] = [
             name: "Slack",
             note: "a guest invite for every channel",
             price: priceOf("Slack"),
-            detail: bytesOf(sizeOf("Slack")),
         },
         destacked: {
             label: "Chat",
@@ -79,7 +74,6 @@ export const holdings: readonly Entry[] = [
             name: "Chat",
             note: "one sign-in for every channel",
             price: { kind: "included" },
-            detail: bytesOf(sizeOf("Slack")),
         },
     },
     {
@@ -89,7 +83,6 @@ export const holdings: readonly Entry[] = [
             name: "GitHub",
             note: "code kept apart from the apps",
             price: priceOf("GitHub"),
-            detail: bytesOf(sizeOf("GitHub")),
         },
         destacked: {
             label: "Code",
@@ -97,7 +90,6 @@ export const holdings: readonly Entry[] = [
             name: "Forge",
             note: "code kept beside the apps",
             price: { kind: "included" },
-            detail: bytesOf(sizeOf("GitHub")),
         },
     },
     {
@@ -107,7 +99,6 @@ export const holdings: readonly Entry[] = [
             name: "Framer",
             note: "edited only in their builder",
             price: priceOf("Framer"),
-            detail: bytesOf(sizeOf("Framer")),
         },
         destacked: {
             label: "Website",
@@ -115,7 +106,6 @@ export const holdings: readonly Entry[] = [
             name: "Pages",
             note: "edited like any other page",
             price: { kind: "included" },
-            detail: bytesOf(sizeOf("Framer")),
         },
     },
     {
@@ -125,7 +115,6 @@ export const holdings: readonly Entry[] = [
             name: "Calendly",
             note: "free times copied, never live",
             price: priceOf("Calendly"),
-            detail: bytesOf(sizeOf("Calendly")),
         },
         destacked: {
             label: "Booking",
@@ -133,7 +122,6 @@ export const holdings: readonly Entry[] = [
             name: "Calendar",
             note: "free times read live, never copied",
             price: { kind: "included" },
-            detail: bytesOf(sizeOf("Calendly")),
         },
     },
     {
@@ -143,7 +131,6 @@ export const holdings: readonly Entry[] = [
             name: "Replit",
             note: "signups in a database of its own",
             price: priceOf("Replit"),
-            detail: bytesOf(sizeOf("Replit")),
         },
         destacked: {
             label: "Waitlist",
@@ -151,7 +138,6 @@ export const holdings: readonly Entry[] = [
             name: "Waitlist",
             note: "signups in the tables you already have",
             price: { kind: "included" },
-            detail: bytesOf(sizeOf("Replit")),
         },
     },
     {
@@ -161,7 +147,6 @@ export const holdings: readonly Entry[] = [
             name: "Gmail",
             note: "the waitlist pasted in by hand",
             price: priceOf("Google Workspace"),
-            detail: bytesOf(sizeOf("Gmail")),
         },
         destacked: {
             label: "Mail",
@@ -169,7 +154,6 @@ export const holdings: readonly Entry[] = [
             name: "Mail",
             note: "the waitlist mailed from its table",
             price: { kind: "included" },
-            detail: bytesOf(sizeOf("Gmail")),
         },
     },
 ];
@@ -555,11 +539,11 @@ export function Presence(properties: { row: number; isShown: boolean }) {
             return;
         }
 
-        // align the faces' end with the slot's end, centred on its line
+        // set the faces off from the slot's start, centred on its line
         const bounds = host.getBoundingClientRect();
         const target = slot.getBoundingClientRect();
         setPlace({
-            x: target.right - bounds.left - element.offsetWidth,
+            x: target.left - bounds.left,
             y: target.top - bounds.top + (target.height - element.offsetHeight) / 2,
         });
     };
@@ -650,7 +634,7 @@ const styles = style.create({
     slot: {
         display: "inline-block",
         height: "1.5rem",
-        width: "3.75rem",
+        width: 0,
     },
     presence: {
         display: "flex",

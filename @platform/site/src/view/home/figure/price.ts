@@ -16,52 +16,49 @@ function usage(basis: string): Price {
 }
 
 /**
- * The monthly list prices of the tools the figures rent, for a team of three on monthly billing, by subscription.
+ * The monthly list prices of the tools the figures rent, for one person on monthly billing, by subscription, with the plan as the basis.
  *
- * Read from the vendors' pricing pages on 2026-10-11, in US dollars, on the cheapest paid plan such a team needs.
+ * Read from the vendors' pricing pages on 2026-10-11, in US dollars, on the cheapest paid plan one person needs.
  * Linear and Webflow publish only yearly billing, and Mailchimp and n8n only showed local currency, so those are the nearest published figures.
  */
 export const prices: Readonly<Record<string, Price>> = {
-    Notion: fee(36, "$12 × 3 seats"),
-    Linear: fee(30, "$10 × 3 seats"),
-    Slack: fee(26.25, "$8.75 × 3 seats"),
-    GitHub: fee(12, "$4 × 3 seats"),
-    Framer: fee(15, "$15 a site"),
-    Calendly: fee(12, "$12, one host"),
-    Replit: fee(20, "$20, one builder"),
-    "Google Workspace": fee(25.2, "$8.40 × 3 seats"),
-    Clerk: fee(25, "$25 flat"),
+    Notion: fee(12, "Plus"),
+    Linear: fee(10, "Basic, yearly"),
+    Slack: fee(8.75, "Pro"),
+    GitHub: fee(4, "Team"),
+    Framer: fee(15, "Basic site"),
+    Calendly: fee(12, "Standard"),
+    Replit: fee(20, "Core"),
+    "Google Workspace": fee(8.4, "Business Starter"),
+    Clerk: fee(25, "Pro"),
     WorkOS: usage("free to 1M users"),
-    Doppler: fee(63, "$21 × 3 seats"),
-    Supabase: fee(25, "$25 flat"),
-    Dropbox: fee(54, "$18 × 3 seats"),
-    Elastic: fee(99, "from $99"),
-    Resend: fee(20, "$20 flat"),
+    Doppler: fee(21, "Team"),
+    Supabase: fee(25, "Pro"),
+    Dropbox: fee(11.99, "Plus"),
+    Elastic: fee(99, "Standard, from"),
+    Resend: fee(20, "Pro"),
     Temporal: usage("$50 per 1M actions"),
     PostHog: usage("free to 1M events"),
-    Vercel: fee(60, "$20 × 3 seats"),
+    Vercel: fee(20, "Pro"),
     Stripe: usage("2.9% + 30¢ a charge"),
-    Figma: fee(60, "$20 × 3 seats"),
-    Superhuman: fee(90, "$30 × 3 seats"),
-    Granola: fee(42, "$14 × 3 seats"),
-    Loom: fee(54, "$18 × 3 seats"),
-    Jira: fee(23.73, "$7.91 × 3 seats"),
-    Trello: fee(18, "$6 × 3 seats"),
-    Asana: fee(40.47, "$13.49 × 3 seats"),
-    Airtable: fee(72, "$24 × 3 seats"),
-    Miro: fee(30, "$10 × 3 seats"),
-    Zapier: fee(29.99, "$29.99 flat"),
-    Webflow: fee(15, "$15 a site"),
-    HubSpot: fee(60, "$20 × 3 seats"),
-    Mailchimp: fee(20, "$20, 500 contacts"),
-    n8n: fee(24, "$24 flat"),
-    ChatGPT: fee(75, "$25 × 3 seats"),
-    Claude: fee(75, "$25 × 3 seats"),
+    Figma: fee(20, "Professional"),
+    Superhuman: fee(30, "Starter"),
+    Granola: fee(14, "Business"),
+    Loom: fee(18, "Business"),
+    Jira: fee(7.91, "Standard"),
+    Trello: fee(6, "Standard"),
+    Asana: fee(13.49, "Starter"),
+    Airtable: fee(24, "Team"),
+    Miro: fee(10, "Starter"),
+    Zapier: fee(29.99, "Professional"),
+    Webflow: fee(15, "Basic site, yearly"),
+    HubSpot: fee(20, "Starter"),
+    Mailchimp: fee(20, "Standard, 500 contacts"),
+    n8n: fee(24, "Starter"),
+    ChatGPT: fee(20, "Plus"),
+    Claude: fee(20, "Pro"),
     AWS: usage("pay per use"),
 };
-
-/** The bytes in a kilobyte. */
-const KB = 1000;
 
 /** The bytes in a megabyte. */
 const MB = 1_000_000;
@@ -69,86 +66,75 @@ const MB = 1_000_000;
 /** The bytes in a gigabyte. */
 const GB = 1_000_000_000;
 
+/** The work a tool's job takes a month, the same whoever runs it: the bytes it keeps, the GB-hours of compute it uses, and whether that compute is a floor. */
+export type Workload = { storage: number; compute: number; isAtLeast: boolean };
+
 /**
- * The bytes of data each tool holds for an individual or a small team a few months into a launch, by tool.
+ * The work each tool's job takes for one person a few months into a launch, by tool.
  *
- * Illustrative estimates: a workspace of a few hundred pages is megabytes, and mail, files, recordings and events run to hundreds of megabytes.
+ * Napkin estimates for a whole account: storage from typical counts and sizes, such as 40k mails at 200 KB or 200 recordings at 100 MB.
+ * Compute from requests, builds and syncs at their memory and time, such as 30 builds of 3 minutes at 2 GB; builds and hosting that grow with use are floors.
  */
-export const sizes: Readonly<Record<string, number>> = {
-    Notion: 9 * MB,
-    Linear: 2 * MB,
-    Slack: 180 * MB,
-    GitHub: 40 * MB,
-    Framer: 25 * MB,
-    Calendly: 400 * KB,
-    Replit: 12 * MB,
-    Gmail: 650 * MB,
-    Clerk: 3 * MB,
-    WorkOS: 500 * KB,
-    Doppler: 60 * KB,
-    Supabase: 120 * MB,
-    Dropbox: 900 * MB,
-    Elastic: 60 * MB,
-    Resend: 8 * MB,
-    Temporal: 40 * MB,
-    PostHog: 700 * MB,
-    Vercel: 150 * MB,
-    Stripe: 2 * MB,
-    Figma: 300 * MB,
-    Superhuman: 650 * MB,
-    Granola: 20 * MB,
-    Loom: 1.5 * GB,
-    Jira: 3 * MB,
-    Trello: 2 * MB,
-    Asana: 3 * MB,
-    Airtable: 15 * MB,
-    Miro: 60 * MB,
-    Zapier: 1 * MB,
-    Calendar: 1 * MB,
-    Drive: 800 * MB,
-    Docs: 20 * MB,
-    Sheets: 8 * MB,
-    Webflow: 30 * MB,
-    HubSpot: 25 * MB,
-    Mailchimp: 5 * MB,
-    n8n: 1 * MB,
-    Forms: 2 * MB,
-    ChatGPT: 15 * MB,
-    Claude: 15 * MB,
-    AWS: 2 * GB,
+export const workloads: Readonly<Record<string, Workload>> = {
+    Notion: { storage: 235 * MB, compute: 0.01, isAtLeast: false },
+    Linear: { storage: 25 * MB, compute: 0.01, isAtLeast: false },
+    Slack: { storage: 815 * MB, compute: 0.5, isAtLeast: false },
+    GitHub: { storage: 550 * MB, compute: 3, isAtLeast: true },
+    Framer: { storage: 110 * MB, compute: 0.02, isAtLeast: false },
+    Calendly: { storage: 0.6 * MB, compute: 0.005, isAtLeast: false },
+    Replit: { storage: 300 * MB, compute: 0.03, isAtLeast: false },
+    Gmail: { storage: 8 * GB, compute: 0.2, isAtLeast: false },
+    Clerk: { storage: 15 * MB, compute: 0.02, isAtLeast: false },
+    WorkOS: { storage: 25 * MB, compute: 0.01, isAtLeast: false },
+    Doppler: { storage: 2 * MB, compute: 0.001, isAtLeast: false },
+    Supabase: { storage: 450 * MB, compute: 0.3, isAtLeast: false },
+    Dropbox: { storage: 60 * GB, compute: 0.05, isAtLeast: false },
+    Elastic: { storage: 1.5 * GB, compute: 0.2, isAtLeast: false },
+    Resend: { storage: 100 * MB, compute: 0.01, isAtLeast: false },
+    Temporal: { storage: 200 * MB, compute: 0.1, isAtLeast: false },
+    PostHog: { storage: 3 * GB, compute: 0.5, isAtLeast: false },
+    Vercel: { storage: 2 * GB, compute: 0.3, isAtLeast: true },
+    Stripe: { storage: 2 * MB, compute: 0.01, isAtLeast: false },
+    Figma: { storage: 2 * GB, compute: 0.1, isAtLeast: false },
+    Superhuman: { storage: 8 * GB, compute: 0.2, isAtLeast: false },
+    Granola: { storage: 20 * MB, compute: 0.3, isAtLeast: false },
+    Loom: { storage: 20 * GB, compute: 0.5, isAtLeast: false },
+    Jira: { storage: 3 * MB, compute: 0.01, isAtLeast: false },
+    Trello: { storage: 2 * MB, compute: 0.01, isAtLeast: false },
+    Asana: { storage: 3 * MB, compute: 0.01, isAtLeast: false },
+    Airtable: { storage: 15 * MB, compute: 0.02, isAtLeast: false },
+    Miro: { storage: 60 * MB, compute: 0.05, isAtLeast: false },
+    Zapier: { storage: 1 * MB, compute: 0.05, isAtLeast: false },
+    Calendar: { storage: 1 * MB, compute: 0.005, isAtLeast: false },
+    Drive: { storage: 15 * GB, compute: 0.05, isAtLeast: false },
+    Docs: { storage: 20 * MB, compute: 0.01, isAtLeast: false },
+    Sheets: { storage: 8 * MB, compute: 0.01, isAtLeast: false },
+    Webflow: { storage: 30 * MB, compute: 0.02, isAtLeast: false },
+    HubSpot: { storage: 25 * MB, compute: 0.02, isAtLeast: false },
+    Mailchimp: { storage: 5 * MB, compute: 0.02, isAtLeast: false },
+    n8n: { storage: 1 * MB, compute: 0.1, isAtLeast: false },
+    Forms: { storage: 2 * MB, compute: 0.005, isAtLeast: false },
+    ChatGPT: { storage: 15 * MB, compute: 0, isAtLeast: false },
+    Claude: { storage: 15 * MB, compute: 0, isAtLeast: false },
+    AWS: { storage: 50 * GB, compute: 2, isAtLeast: true },
 };
 
-/** Return the bytes a tool holds by its name, or refuse a name the list lacks. */
-export function sizeOf(tool: string): number {
-    const size = sizes[tool];
-    if (size === undefined) {
-        throw new Error(`no size for ${tool}`);
+/** Return the work a tool's job takes by its name, or refuse a name the list lacks. */
+export function workloadOf(tool: string): Workload {
+    const workload = workloads[tool];
+    if (workload === undefined) {
+        throw new Error(`no workload for ${tool}`);
     }
 
-    return size;
+    return workload;
 }
 
-/** Return bytes as a bill shows them: kilobytes, megabytes or gigabytes, whole below ten and to one place above a gigabyte. */
-export function bytesOf(data: number): string {
-    if (data < MB) {
-        return `${Math.round(data / KB)} KB`;
-    } else if (data < GB) {
-        return `${Math.round(data / MB)} MB`;
-    }
-
-    return `${(data / GB).toFixed(1)} GB`;
-}
-
-/** Write the data total of a bill: the bytes summed. */
-export function bytesTotalOf(data: readonly number[]): string {
-    return bytesOf(data.reduce((sum, size) => sum + size, 0));
-}
-
-/** Return a sum of dollars as a bill shows it: whole dollars bare, anything else to the cent. */
-export function dollarsOf(amount: number): string {
-    const cents = Math.round(amount * 100);
-
-    return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
+/** Return what a workload costs a month at Destack's unit prices for storage and compute. */
+export function usageCostOf(
+    workload: Workload,
+    rates: { storage: number; compute: number },
+): number {
+    return (workload.storage / GB) * rates.storage + workload.compute * rates.compute;
 }
 
 /** Return the price of a subscription by its name, or refuse a name the price list lacks. */
@@ -164,12 +150,4 @@ export function priceOf(subscription: string): Price {
 /** Sum the monthly fees of prices, leaving out what is charged by use, bundled or included. */
 export function monthlyOf(lines: readonly Price[]): number {
     return lines.reduce((sum, line) => sum + (line.kind === "fee" ? line.monthly : 0), 0);
-}
-
-/** Write the monthly total of a bill: the fees summed with any plan on top, marked when more is charged by use. */
-export function billOf(lines: readonly Price[], plan: number): string {
-    const amount = dollarsOf(monthlyOf(lines) + plan);
-    const isMetered = lines.some((line) => line.kind === "usage");
-
-    return isMetered ? `${amount} + usage` : amount;
 }

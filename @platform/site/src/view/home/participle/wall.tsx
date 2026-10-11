@@ -1,14 +1,5 @@
 import { media } from "@destack/style/media.stylex";
-import {
-    billOf,
-    bytesOf,
-    bytesTotalOf,
-    monthlyOf,
-    priceOf,
-    sizeOf,
-    type Price,
-} from "../figure/price";
-import { plan } from "../../content/generated/plan";
+import { monthlyOf, priceOf, type Price, type Workload, workloadOf } from "../figure/price";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -16,7 +7,7 @@ import { createEffect, createMemo, For } from "@destack/view";
 
 import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
-import type { Entry } from "../figure/ledger";
+import { accentOf, type Entry, type Line } from "../figure/item";
 import { palette } from "../../palette.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
@@ -71,6 +62,9 @@ const connections: readonly (readonly [label: string, names: readonly string[], 
     ["Code", ["GitHub"], { name: "Forge", icon: "source", tint: "#c64a17" }],
     ["Cloud", ["AWS"], { name: "Hosting", icon: "hosts", tint: "#2f7d8c" }],
 ];
+
+/** The lines of the bill: one per job the space does, workflows included, then one per group of connections. */
+export const lineCount = spaceJobs.length + 1 + connections.length;
 
 /** A tool's face on the wall: its icon, its name, and its tint. */
 type Face = { icon: string; name: string; tint: string };
@@ -308,7 +302,7 @@ type Cell =
 const TABLET_WALL = "31.5rem";
 
 /** The wall's height on phones, the taller of its two states there: the space with its connections, down to 360 pixel wide screens. */
-const PHONE_WALL = "47rem";
+const PHONE_WALL = "48rem";
 
 /** The cells to a row of the wall. */
 const perRow = 6;
@@ -433,9 +427,12 @@ export function ToolWall(properties: {
                             <Favicon icon="user" tint={color.mutedForeground} size={12} />
                             destack.app/@florian
                         </span>
-                        <ul {...style.attrs(styles.grid, styles.space)}>
-                            {list(() => cells().filter((cell) => cell.kind === "app"))}
-                        </ul>
+                        <div data-component="Apps" {...style.attrs(styles.band)}>
+                            <span {...style.attrs(styles.groupName)}>Apps</span>
+                            <ul {...style.attrs(styles.grid, styles.space)}>
+                                {list(() => cells().filter((cell) => cell.kind === "app"))}
+                            </ul>
+                        </div>
                         <Included />
                         <div data-component="Connected" {...style.attrs(styles.band)}>
                             <span {...style.attrs(styles.groupName)}>Connected</span>
@@ -585,15 +582,15 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
                 data-component="SpaceApp"
                 {...style.attrs(
                     styles.face,
-                    styles.tool,
+                    styles.link,
                     styles.app,
                     cell.sources.length > 0 && styles.picked,
                 )}
             >
                 <span style={{ "background-color": app.tint }} {...style.attrs(styles.appIcon)}>
-                    <Favicon icon={app.icon} tint="#ffffff" size={18} />
+                    <Favicon icon={app.icon} tint="#ffffff" size={14} />
                 </span>
-                <span {...style.attrs(styles.toolName, styles.appName)}>{app.name}</span>
+                <span {...style.attrs(styles.toolName)}>{app.name}</span>
                 <span {...style.attrs(styles.sources)}>
                     {cell.sources.map((tool) => (
                         <ToolMark tool={tool} size={12} />
@@ -636,7 +633,7 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
 }
 
 /** Tally the picks a row to each job your space does: the picked tools that do it while stacked, and the app or service that takes it over once destacked. */
-export function tallyOf(picks: readonly string[]): readonly Entry[] {
+export function tallyOf(picks: readonly string[]): readonly Line[] {
     // gather the picked tools, and the rows of jobs then of connections
     const picked = tools.filter((tool) => picks.includes(tool.name));
     const rows = [
@@ -663,13 +660,20 @@ export function tallyOf(picks: readonly string[]): readonly Entry[] {
             billed.add(subscription);
         }
 
-        return entryOf(
-            row.label,
-            row.doers,
-            row.app,
-            row.isConnection,
-            row.isConnection ? vendorBilled : price,
-        );
+        return {
+            entry: entryOf(
+                row.label,
+                row.doers,
+                row.app,
+                row.isConnection,
+                row.isConnection ? vendorBilled : price,
+            ),
+            workload: workloadOfRow(row.doers),
+            tint:
+                row.doers[0] === undefined
+                    ? color.mutedForeground
+                    : accentOf(row.doers[0].name, row.doers[0].tint),
+        };
     });
 }
 
@@ -681,10 +685,9 @@ function entryOf(
     isConnection: boolean,
     price: Price,
 ): Entry {
-    // name the picked tools and list them, and sum the data they hold
+    // name the picked tools and list them
     const [first] = doers;
     const verb = isConnection ? "works with" : "replaces";
-    const data = doers.reduce((sum, tool) => sum + sizeOf(tool.name), 0);
 
     return {
         stacked: {
@@ -704,7 +707,6 @@ function entryOf(
                     ? "pick one to compare"
                     : doers.map((tool) => tool.name).join(", "),
             price,
-            detail: data === 0 ? "—" : bytesOf(data),
         },
         destacked: {
             label,
@@ -712,32 +714,30 @@ function entryOf(
             name: app.name,
             note: first === undefined ? "included" : `${verb} ${listOf(doers)}`,
             price: isConnection ? price : { kind: "included" },
-            detail: data === 0 ? "—" : bytesOf(data),
         },
     };
 }
 
-/** Total the bill: the picked tools and their invoices while stacked, or one space with the services it works with once destacked, and what either costs a month. */
-export function totalOf(
-    picks: readonly string[],
-    isOpen: boolean,
-): readonly [string, string, string] {
-    // read the picked tools and the data they hold
+/** Label the bill: the picked tools the space takes over and the invoices they send while stacked, or one space once destacked. */
+export function labelOf(picks: readonly string[], isOpen: boolean): string {
+    // count only what the space takes over, since the services it works with bill on their own either way
     const picked = tools.filter((tool) => picks.includes(tool.name));
-    const data = picked.map((tool) => sizeOf(tool.name));
-
-    // bill only what the space takes over, since the services it works with bill on their own either way
     const isKept = (tool: Tool) => connections.some(([, names]) => names.includes(tool.name));
     const takenOver = picked.filter((tool) => !isKept(tool));
     const billed = subscriptionsOf(takenOver);
 
-    return isOpen
-        ? [`${spaceJobs.length} apps, 1 invoice`, billOf([], plan.monthly), bytesTotalOf(data)]
-        : [
-              `${takenOver.length} tools, ${billed.length} invoices`,
-              billOf(billed.map(priceOf), 0),
-              bytesTotalOf(data),
-          ];
+    return isOpen ? "1 space" : `${takenOver.length} tools, ${billed.length} invoices`;
+}
+
+/** Sum the work a row's tools take: their storage and compute, a floor where any of them is. */
+function workloadOfRow(doers: readonly Tool[]): Workload {
+    const workloads = doers.map((tool) => workloadOf(tool.name));
+
+    return {
+        storage: workloads.reduce((sum, workload) => sum + workload.storage, 0),
+        compute: workloads.reduce((sum, workload) => sum + workload.compute, 0),
+        isAtLeast: workloads.some((workload) => workload.isAtLeast),
+    };
 }
 
 /** Write the prompt that sets up a space, brings in the picked tools it replaces, and connects the rest. */
@@ -794,7 +794,7 @@ const styles = style.create({
         borderStyle: "solid",
         borderWidth: stroke.border,
         display: "grid",
-        gridTemplateRows: "auto minmax(0, 1fr) auto",
+        alignSelf: "start",
         gap: "0.875rem",
         padding: "0.875rem",
     },
@@ -866,7 +866,7 @@ const styles = style.create({
         borderWidth: 0,
         gap: "0.75rem",
         gridAutoFlow: "row",
-        gridAutoRows: { default: "minmax(5.75rem, 1fr)", [media.maxMd]: "3.75rem" },
+        gridAutoRows: "3rem",
         gridTemplateColumns: {
             default: "repeat(4, minmax(0, 1fr))",
             [media.maxMd]: "repeat(2, minmax(0, 1fr))",
@@ -878,7 +878,6 @@ const styles = style.create({
         opacity: { default: 0.6, ":hover": { default: null, [media.hover]: 1 } },
     },
     links: {
-        gridAutoRows: "2.75rem",
         gridTemplateColumns: {
             default: "repeat(4, minmax(0, 1fr))",
             [media.maxMd]: "repeat(2, minmax(0, 1fr))",
@@ -943,12 +942,12 @@ const styles = style.create({
     },
     appIcon: {
         alignItems: "center",
-        borderRadius: "7px",
+        borderRadius: "5px",
         display: "flex",
         flexShrink: 0,
-        height: "28px",
+        height: "20px",
         justifyContent: "center",
-        width: "28px",
+        width: "20px",
     },
     link: {
         backgroundColor: color.card,
@@ -957,16 +956,11 @@ const styles = style.create({
     pressable: {
         cursor: "pointer",
     },
-    appName: {
-        fontWeight: 600,
-    },
     sources: {
         alignItems: "center",
-        bottom: "0.5rem",
         display: { default: "flex", [media.maxMd]: "none" },
         gap: "0.25rem",
-        position: "absolute",
-        right: "0.5rem",
+        marginLeft: "auto",
     },
     dot: {
         backgroundColor: palette.green,

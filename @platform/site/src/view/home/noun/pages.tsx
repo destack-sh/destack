@@ -3,7 +3,7 @@ import { priceOf } from "../figure/price";
 import * as style from "@destack/style";
 
 import { Fade } from "../figure/fade";
-import type { Item } from "../figure/ledger";
+import type { Item } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { Tile } from "../figure/tile";
 import { palette } from "../../palette.stylex";
@@ -11,37 +11,6 @@ import { appStyles, appText } from "../figure/app";
 
 /** A mock narrower than a phone screen, which then takes its phone layout. */
 const NARROW = "@container (max-width: 479px)";
-
-/** What each rented service needs wired into the app: its SDKs, webhooks, syncs and configs, by vendor. */
-const glues: Readonly<Record<string, readonly string[]>> = {
-    Clerk: ["SDK", "webhook"],
-    WorkOS: ["SDK", "sync"],
-    Doppler: ["CLI"],
-    Supabase: ["realtime"],
-    Dropbox: ["embed"],
-    Elastic: ["SDK", "sync"],
-    Resend: ["SDK"],
-    Temporal: ["workers"],
-    PostHog: ["snippet"],
-    Vercel: ["config"],
-    GitHub: ["CI"],
-    Stripe: ["SDK", "webhook"],
-};
-
-/** Return what a vendor needs wired in, or refuse a vendor without glue. */
-export function wiresOf(vendor: string): readonly string[] {
-    const glue = glues[vendor];
-    if (glue === undefined) {
-        throw new Error(`no glue for ${vendor}`);
-    }
-
-    return glue;
-}
-
-/** Return a vendor's glue as its ledger line shows it. */
-function glueOf(vendor: string): string {
-    return wiresOf(vendor).join(" + ");
-}
 
 /** The twelve services a docs app runs on, numbered as the ledger rows: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
@@ -52,7 +21,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Clerk",
             note: "users copied in by webhook",
             price: priceOf("Clerk"),
-            detail: glueOf("Clerk"),
         },
         destacked: {
             label: "Identity",
@@ -60,7 +28,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Accounts",
             note: "users kept with your own data",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -70,7 +37,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "WorkOS",
             note: "a second permission model",
             price: priceOf("WorkOS"),
-            detail: glueOf("WorkOS"),
         },
         destacked: {
             label: "Permissions",
@@ -78,7 +44,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Access",
             note: "one permission model for everything",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -88,7 +53,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Doppler",
             note: "keys pasted into every service",
             price: priceOf("Doppler"),
-            detail: glueOf("Doppler"),
         },
         destacked: {
             label: "Secrets",
@@ -96,7 +60,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Vault",
             note: "keys kept in one vault",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -106,7 +69,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Supabase",
             note: "a second backend to keep in step",
             price: priceOf("Supabase"),
-            detail: glueOf("Supabase"),
         },
         destacked: {
             label: "Database",
@@ -114,7 +76,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Database",
             note: "one backend, always in step",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -124,7 +85,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Dropbox",
             note: "files kept in their storage",
             price: priceOf("Dropbox"),
-            detail: glueOf("Dropbox"),
         },
         destacked: {
             label: "Files",
@@ -132,7 +92,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Files",
             note: "files kept in your own storage",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -142,7 +101,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Elastic",
             note: "a second index to keep in sync",
             price: priceOf("Elastic"),
-            detail: glueOf("Elastic"),
         },
         destacked: {
             label: "Search",
@@ -150,7 +108,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Search",
             note: "one index, always in sync",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -160,7 +117,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Resend",
             note: "an extra SDK just for email",
             price: priceOf("Resend"),
-            detail: glueOf("Resend"),
         },
         destacked: {
             label: "Messaging",
@@ -168,7 +124,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Notifications",
             note: "one notification system for all apps",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -178,7 +133,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Temporal",
             note: "a worker fleet beside the app",
             price: priceOf("Temporal"),
-            detail: glueOf("Temporal"),
         },
         destacked: {
             label: "Jobs",
@@ -186,7 +140,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Workflows",
             note: "workflows running inside the app",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -196,7 +149,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "PostHog",
             note: "events sent to their cloud",
             price: priceOf("PostHog"),
-            detail: glueOf("PostHog"),
         },
         destacked: {
             label: "Analytics",
@@ -204,7 +156,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Telemetry",
             note: "events and errors in your space",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -214,7 +165,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Vercel",
             note: "runs only in their cloud",
             price: priceOf("Vercel"),
-            detail: glueOf("Vercel"),
         },
         destacked: {
             label: "Hosting",
@@ -222,7 +172,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Hosting",
             note: "runs on your laptop, server or cloud",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -232,7 +181,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "GitHub",
             note: "a pipeline of its own",
             price: priceOf("GitHub"),
-            detail: glueOf("GitHub"),
         },
         destacked: {
             label: "Code",
@@ -240,7 +188,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Forge",
             note: "one pipeline for all apps",
             price: { kind: "included" },
-            detail: "—",
         },
     },
     {
@@ -250,7 +197,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Stripe",
             note: "prices kept in their dashboard",
             price: priceOf("Stripe"),
-            detail: glueOf("Stripe"),
         },
         destacked: {
             label: "Payments",
@@ -258,7 +204,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             name: "Billing",
             note: "plans and invoices in your space",
             price: { kind: "fee", monthly: 0, basis: "card fees billed by Stripe" },
-            detail: "—",
         },
     },
 ];
@@ -738,19 +683,21 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                 </span>
                 <span
                     data-component={properties.isOpenAt(4) ? "PresenceList" : "ConflictNotice"}
-                    {...style.attrs(appStyles.status, styles.wide)}
+                    {...style.attrs(appStyles.status, styles.wideStatus)}
                 >
-                    <span
-                        {...style.attrs(appStyles.avatar, styles.small)}
-                        style={{ "background-color": "#2f7d8c" }}
-                    >
-                        F
-                    </span>
-                    <span
-                        {...style.attrs(appStyles.avatar, styles.small)}
-                        style={{ "background-color": "#6b5ca5" }}
-                    >
-                        A
+                    <span {...style.attrs(styles.faces)}>
+                        <span
+                            {...style.attrs(appStyles.avatar, styles.small)}
+                            style={{ "background-color": "#2f7d8c" }}
+                        >
+                            F
+                        </span>
+                        <span
+                            {...style.attrs(appStyles.avatar, styles.small)}
+                            style={{ "background-color": "#6b5ca5" }}
+                        >
+                            A
+                        </span>
                     </span>
                     {properties.isOpenAt(4) ? (
                         <span {...style.attrs(styles.presenceText)}>
@@ -763,13 +710,13 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                 <span {...style.attrs(appStyles.statusEnd)}>
                     <span
                         data-component="ViewCount"
-                        {...style.attrs(appStyles.status, styles.wide)}
+                        {...style.attrs(appStyles.status, styles.wideStatus)}
                     >
                         182 views
                     </span>
                     <span
                         data-component="BranchMenu"
-                        {...style.attrs(appStyles.status, styles.wide)}
+                        {...style.attrs(appStyles.status, styles.wideStatus)}
                     >
                         <span
                             style={{ "mask-image": "url(/diagram/source.svg)" }}
@@ -880,7 +827,11 @@ const styles = style.create({
         display: "flex",
     },
     presenceText: {
-        marginLeft: "0.375rem",
+        lineHeight: 1,
+    },
+    faces: {
+        alignItems: "center",
+        display: "flex",
     },
     access: {
         alignItems: "center",
@@ -1083,6 +1034,7 @@ const styles = style.create({
         color: color.mutedForeground,
     },
     wide: { display: { default: null, [NARROW]: "none" } },
+    wideStatus: { display: { default: "flex", [NARROW]: "none" } },
     shrink: {
         minWidth: 0,
         overflow: "hidden",
