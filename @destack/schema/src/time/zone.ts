@@ -28,6 +28,21 @@ export const TimeZone = Object.assign(timeZoneSchema, {
         formatter(zone);
     },
 
+    /** Report whether this runtime knows a time zone, its aliases included. */
+    isKnown(zone: TimeZone): boolean {
+        try {
+            formatter(zone);
+
+            return true;
+        } catch (error) {
+            if (!(error instanceof RangeError)) {
+                throw error;
+            }
+
+            return false;
+        }
+    },
+
     /** Read the date an instant falls on in a time zone. */
     date(zone: TimeZone, at: number): PlainDate {
         const parts = formatter(zone).formatToParts(at);

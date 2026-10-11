@@ -3,13 +3,22 @@ import { TimeZone } from "./zone.ts";
 
 test("accept known time zones and their aliases, and refuse unknown ones", () => {
     // accept canonical names and aliases
-    for (const zone of ["Europe/Vienna", "UTC", "US/Eastern"]) {
+    const known = ["Europe/Vienna", "UTC", "US/Eastern"];
+    for (const zone of known) {
         expect(() => TimeZone.require(zone)).not.toThrow();
     }
 
     // refuse a well-formed but unknown zone, and a malformed name
     expect(() => TimeZone.require("Mars/Olympus")).toThrow(RangeError);
     expect(TimeZone.safeParse("Europe Vienna").success).toBe(false);
+
+    // report the same as known or unknown without throwing
+    expect([...known, "Mars/Olympus"].map((zone) => TimeZone.isKnown(zone))).toEqual([
+        true,
+        true,
+        true,
+        false,
+    ]);
 });
 
 test("place times of day in a time zone across the end and start of summer time", () => {
