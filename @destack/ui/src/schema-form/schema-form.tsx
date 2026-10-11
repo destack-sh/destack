@@ -66,9 +66,6 @@ const HOUR_MINUTES = 60;
 /** A `YYYY-MM-DD` date, as the JSON Schema `date` format writes it. */
 const DATE_TEXT = /^\d{4}-\d{2}-\d{2}$/u;
 
-/** The pattern of an RFC 3339 full time, capturing its hour and minute. */
-const TIME_TEXT = /^(\d{2}):(\d{2}):\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/iu;
-
 /** The styles of a schema form's lists and fields. */
 const styles = style.create({
     moment: {
@@ -112,10 +109,9 @@ export function SchemaForm(properties: SchemaFormProperties): JSX.Element {
     const form = useSchemaForm<SchemaValues>(fromJsonSchema(properties.schema), {
         values: () => Object.fromEntries(fields.map((field) => [field.name, field.start])),
         submit: (value) => {
-            const kept = pruned(value);
-            properties.onSubmit(kept);
+            properties.onSubmit(value);
 
-            return { predicted: Promise.resolve(kept), confirmed: Promise.resolve() };
+            return { predicted: Promise.resolve(value), confirmed: Promise.resolve() };
         },
     });
 
@@ -202,8 +198,6 @@ function FieldControl(properties: FieldControlProperties): JSX.Element {
             return <NumberControl {...properties} field={field} />;
         case "date":
             return <DateControl {...properties} field={field} />;
-        case "time":
-            return <TimeControl {...properties} field={field} />;
         case "date-time":
             return <MomentControl {...properties} field={field} />;
         case "text":
@@ -245,22 +239,6 @@ function DateControl(properties: FieldControlProperties<SchemaTextField>): JSX.E
                 selected={dayOf(properties.held.value())}
                 onSelect={(day) =>
                     properties.held.set(day === undefined ? clearedOf(field) : Day.key(day))
-                }
-            />
-        </Labelled>
-    );
-}
-
-/** Render a time field writing the UTC time of day of the local time typed, at today's offset. */
-function TimeControl(properties: FieldControlProperties<SchemaTextField>): JSX.Element {
-    const field = properties.field;
-
-    return (
-        <Labelled field={field} held={properties.held}>
-            <TimeField
-                value={wallTimeOf(properties.held.value())}
-                onValueChange={(time) =>
-                    properties.held.set(time === undefined ? clearedOf(field) : fullTimeOf(time))
                 }
             />
         </Labelled>
@@ -693,23 +671,6 @@ function dayOf(value: JsonValue | undefined): PlainDate | undefined {
     return typeof value === "string" && DATE_TEXT.test(value) ? Day.parse(value) : undefined;
 }
 
-/** Read the time of day an RFC 3339 full time shows on its own clock, undefined for anything else. */
-function wallTimeOf(value: JsonValue | undefined): PlainTime | undefined {
-    const parts = typeof value === "string" ? TIME_TEXT.exec(value) : null;
-
-    return parts === null ? undefined : `${parts[1] ?? "00"}:${parts[2] ?? "00"}`;
-}
-
-/** Write a time of day as an RFC 3339 full time at the person's current offset from UTC. */
-function fullTimeOf(time: PlainTime): string {
-    // write the offset as the sign, hours and minutes east of UTC
-    const east = -new Date().getTimezoneOffset();
-    const sign = east < 0 ? "-" : "+";
-    const offset = `${sign}${pad(Math.floor(Math.abs(east) / HOUR_MINUTES))}:${pad(Math.abs(east) % HOUR_MINUTES)}`;
-
-    return `${time}:00${offset}`;
-}
-
 /** Read the local date and time of day of an instant, undefined for anything else. */
 function localMomentOf(
     value: JsonValue | undefined,
@@ -753,26 +714,4 @@ function parsedJson(text: string): unknown {
     } catch {
         return undefined;
     }
-}
-
-/** Drop the absent entries of objects at every depth, as JSON holds none. */
-function pruned(value: SchemaValues): JsonObject {
-    return Object.fromEntries(
-        Object.entries(value).flatMap(([key, entry]) =>
-            entry === undefined ? [] : [[key, prunedValue(entry)]],
-        ),
-    );
-}
-
-/** Drop the absent entries of the objects inside a value. */
-function prunedValue(value: JsonValue): JsonValue {
-    // descend into lists and objects
-    const object = objectOf(value);
-    if (typeof value === "object" && value !== null && object === undefined) {
-        return listOf(value).map(prunedValue);
-    } else if (object !== undefined) {
-        return pruned(object);
-    }
-
-    return value;
 }

@@ -1,5 +1,18 @@
 import { defineExample } from "@destack/package/declare";
+import { schema, toJsonSchema } from "@destack/schema";
 import { SchemaForm } from "./schema-form.tsx";
+
+/** A section of an outline: a heading and the sections nested below it. */
+type Section = { readonly heading: string; readonly sections?: readonly Section[] };
+
+/** A section of an outline, nesting sections through itself. */
+const SECTION: schema.Schema<Section> = schema.object({
+    heading: schema.string().min(1).meta({ title: "Heading" }),
+    sections: schema
+        .array(schema.lazy(() => SECTION))
+        .meta({ title: "Section" })
+        .exactOptional(),
+});
 
 /** The input of a command that files a task: a required title, a priority to choose and whether it is done. */
 export const schemaFormTaskInput = defineExample({
@@ -9,43 +22,43 @@ export const schemaFormTaskInput = defineExample({
         "the input of a command that files a task: a required title, a priority to choose and whether it is done",
     render: () => (
         <SchemaForm
-            schema={{
-                type: "object",
-                properties: {
-                    title: { type: "string", title: "Title", minLength: 1 },
-                    priority: { title: "Priority", enum: ["low", "normal", "high"] },
-                    done: { type: "boolean", title: "Done", description: "Filed as already done." },
-                },
-                required: ["title"],
-            }}
+            schema={toJsonSchema(
+                schema.object({
+                    title: schema.string().min(1).meta({ title: "Title" }),
+                    priority: schema
+                        .enum(["low", "normal", "high"])
+                        .meta({ title: "Priority" })
+                        .exactOptional(),
+                    done: schema
+                        .boolean()
+                        .meta({ title: "Done", description: "Filed as already done." })
+                        .exactOptional(),
+                }),
+            )}
             submit="File task"
             onSubmit={() => undefined}
         />
     ),
 });
 
-/** The input of a command that plans an event, every format in its control and the defaults filled in. */
+/** The input of a command that plans an event, every format in its control. */
 export const schemaFormEventInput = defineExample({
     of: SchemaForm,
     name: "event-input",
-    description:
-        "the input of a command that plans an event, every format in its control and the defaults filled in",
+    description: "the input of a command that plans an event, every format in its control",
     render: () => (
         <SchemaForm
-            schema={{
-                type: "object",
-                properties: {
-                    title: { type: "string", title: "Title", default: "Team lunch" },
-                    day: { type: "string", title: "Day", format: "date", default: "2026-10-09" },
-                    starts: { type: "string", title: "Starts", format: "time" },
-                    reminder: { type: "string", title: "Reminder", format: "date-time" },
-                    organizer: { type: "string", title: "Organizer", format: "email" },
-                    link: { type: "string", title: "Link", format: "uri" },
-                    seats: { type: "integer", title: "Seats", minimum: 1, maximum: 40, default: 8 },
-                    note: { type: ["string", "null"], title: "Note" },
-                },
-                required: ["title", "day", "organizer", "seats", "note"],
-            }}
+            schema={toJsonSchema(
+                schema.object({
+                    title: schema.string().meta({ title: "Title" }),
+                    day: schema.iso.date().meta({ title: "Day" }),
+                    reminder: schema.iso.datetime().meta({ title: "Reminder" }).exactOptional(),
+                    organizer: schema.email().meta({ title: "Organizer" }),
+                    link: schema.url().meta({ title: "Link" }).exactOptional(),
+                    seats: schema.int().min(1).max(40).meta({ title: "Seats" }),
+                    note: schema.string().nullable().meta({ title: "Note" }),
+                }),
+            )}
             submit="Plan event"
             onSubmit={() => undefined}
         />
@@ -60,33 +73,20 @@ export const schemaFormRecipeInput = defineExample({
         "the input of a command that writes a recipe: a nested source, a list of steps and several tags to choose",
     render: () => (
         <SchemaForm
-            schema={{
-                type: "object",
-                properties: {
-                    source: {
-                        type: "object",
-                        title: "Source",
-                        properties: {
-                            book: { type: "string", title: "Book" },
-                            page: { type: "integer", title: "Page", minimum: 1 },
-                        },
-                        required: ["book"],
-                    },
-                    steps: {
-                        type: "array",
-                        title: "Step",
-                        items: { type: "string", minLength: 1 },
-                        default: ["Boil the water", "Add the pasta"],
-                    },
-                    tags: {
-                        type: "array",
-                        title: "Tags",
-                        items: { enum: ["quick", "vegetarian", "spicy"] },
-                        default: ["quick"],
-                    },
-                },
-                required: ["source", "steps", "tags"],
-            }}
+            schema={toJsonSchema(
+                schema.object({
+                    source: schema
+                        .object({
+                            book: schema.string().meta({ title: "Book" }),
+                            page: schema.int().min(1).meta({ title: "Page" }).exactOptional(),
+                        })
+                        .meta({ title: "Source" }),
+                    steps: schema.array(schema.string().min(1)).meta({ title: "Step" }),
+                    tags: schema
+                        .array(schema.enum(["quick", "vegetarian", "spicy"]))
+                        .meta({ title: "Tags" }),
+                }),
+            )}
             submit="Save recipe"
             onSubmit={() => undefined}
         />
@@ -101,39 +101,26 @@ export const schemaFormShapeInput = defineExample({
         "the input of a command that adds a shape, its kind chosen first and the chosen kind's fields shown",
     render: () => (
         <SchemaForm
-            schema={{
-                type: "object",
-                properties: {
-                    shape: {
-                        title: "Shape",
-                        oneOf: [
-                            {
-                                type: "object",
-                                title: "Circle",
-                                properties: {
-                                    kind: { const: "circle" },
-                                    radius: {
-                                        type: "number",
-                                        title: "Radius",
-                                        exclusiveMinimum: 0,
-                                    },
-                                },
-                                required: ["kind", "radius"],
-                            },
-                            {
-                                type: "object",
-                                title: "Square",
-                                properties: {
-                                    kind: { const: "square" },
-                                    side: { type: "number", title: "Side", exclusiveMinimum: 0 },
-                                },
-                                required: ["kind", "side"],
-                            },
-                        ],
-                    },
-                },
-                required: ["shape"],
-            }}
+            schema={toJsonSchema(
+                schema.object({
+                    shape: schema
+                        .discriminatedUnion("kind", [
+                            schema
+                                .object({
+                                    kind: schema.literal("circle"),
+                                    radius: schema.number().gt(0).meta({ title: "Radius" }),
+                                })
+                                .meta({ title: "Circle" }),
+                            schema
+                                .object({
+                                    kind: schema.literal("square"),
+                                    side: schema.number().gt(0).meta({ title: "Side" }),
+                                })
+                                .meta({ title: "Square" }),
+                        ])
+                        .meta({ title: "Shape" }),
+                }),
+            )}
             submit="Add shape"
             onSubmit={() => undefined}
         />
@@ -148,25 +135,7 @@ export const schemaFormOutlineInput = defineExample({
         "the input of a command that writes an outline, whose sections nest sections through a reference",
     render: () => (
         <SchemaForm
-            schema={{
-                type: "object",
-                $defs: {
-                    section: {
-                        type: "object",
-                        properties: {
-                            heading: { type: "string", title: "Heading", minLength: 1 },
-                            sections: {
-                                type: "array",
-                                title: "Section",
-                                items: { $ref: "#/$defs/section" },
-                            },
-                        },
-                        required: ["heading"],
-                    },
-                },
-                properties: { outline: { $ref: "#/$defs/section", title: "Outline" } },
-                required: ["outline"],
-            }}
+            schema={toJsonSchema(schema.object({ outline: SECTION.meta({ title: "Outline" }) }))}
             submit="Write outline"
             onSubmit={() => undefined}
         />

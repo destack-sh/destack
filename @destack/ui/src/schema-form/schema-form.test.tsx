@@ -1,4 +1,4 @@
-import type { JsonObject } from "@destack/schema";
+import { schema, toJsonSchema, type JsonObject } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { press, render } from "@destack/view/test";
@@ -15,16 +15,14 @@ const CLOSE = String.fromCodePoint(0x2069);
 const ISOLATES = new RegExp(`[${OPEN}${CLOSE}]`, "gu");
 
 /** The input of a command filing a task. */
-const TASK_INPUT: JsonObject = {
-    type: "object",
-    properties: {
-        title: { type: "string", title: "Title", minLength: 1 },
-        priority: { title: "Priority", enum: ["low", "high"] },
-        done: { type: "boolean" },
-        estimate: { type: "integer" },
-    },
-    required: ["title"],
-};
+const TASK_INPUT = toJsonSchema(
+    schema.object({
+        title: schema.string().min(1).meta({ title: "Title" }),
+        priority: schema.enum(["low", "high"]).meta({ title: "Priority" }).exactOptional(),
+        done: schema.boolean().exactOptional(),
+        estimate: schema.int().exactOptional(),
+    }),
+);
 
 /** Render a schema form, recording what it submits. */
 function drawForm(described: JsonObject): {
@@ -139,43 +137,36 @@ test("refuse a missing required field on submit, then submit the kept values", (
     expect([refused, submitted]).toEqual([["Enter a value"], [{ title: "Milk", estimate: 3 }]]);
 });
 
-test("start fields from their defaults, constants and null, and submit them untouched", () => {
-    const { container, submitted } = drawForm({
-        type: "object",
-        properties: {
-            name: { type: "string", title: "Name", default: "Inbox" },
-            priority: { title: "Priority", enum: ["low", "high"], default: "high" },
-            kind: { type: "string", const: "list" },
-            note: { type: ["string", "null"], title: "Note" },
-            isShared: { type: "boolean", title: "Shared" },
-        },
-        required: ["name", "priority", "kind", "note", "isShared"],
-    });
-    const shown = [labelled(container, "Name"), labelled(container, "Priority")].map((control) =>
-        control instanceof HTMLInputElement || control instanceof HTMLSelectElement
-            ? control.value
-            : undefined,
+test("start fields from their constants and null, and submit them untouched", () => {
+    const { container, submitted } = drawForm(
+        toJsonSchema(
+            schema.object({
+                kind: schema.literal("list"),
+                note: schema.string().nullable().meta({ title: "Note" }),
+                isShared: schema.boolean().meta({ title: "Shared" }),
+            }),
+        ),
     );
     submit(container);
-    expect([shown, submitted]).toEqual([
-        ["Inbox", "1"],
-        [{ name: "Inbox", priority: "high", kind: "list", note: null, isShared: false }],
-    ]);
+    expect(submitted).toEqual([{ kind: "list", note: null, isShared: false }]);
 });
 
 test("wire each string format and number bound to its native input, the form validating none itself", () => {
     const { container } = render(() => (
         <SchemaForm
-            schema={{
-                type: "object",
-                properties: {
-                    email: { type: "string", title: "Email", format: "email" },
-                    site: { type: "string", title: "Site", format: "uri" },
-                    count: { type: "integer", title: "Count", minimum: 0, maximum: 9 },
-                    ratio: { type: "number", title: "Ratio", exclusiveMinimum: 0, multipleOf: 0.5 },
-                },
-                required: ["email"],
-            }}
+            schema={toJsonSchema(
+                schema.object({
+                    email: schema.email().meta({ title: "Email" }),
+                    site: schema.url().meta({ title: "Site" }).exactOptional(),
+                    count: schema.int().min(0).max(9).meta({ title: "Count" }).exactOptional(),
+                    ratio: schema
+                        .number()
+                        .gt(0)
+                        .multipleOf(0.5)
+                        .meta({ title: "Ratio" })
+                        .exactOptional(),
+                }),
+            )}
             submit="Save"
             onSubmit={() => undefined}
         />
@@ -198,22 +189,20 @@ test("wire each string format and number bound to its native input, the form val
     ]);
 });
 
-test("type a date, a time and a date and time into their fields, submitting the date as written, the time at the person's offset and the moment in UTC", () => {
-    const { container, submitted } = drawForm({
-        type: "object",
-        properties: {
-            email: { type: "string", title: "Email", format: "email" },
-            day: { type: "string", title: "Day", format: "date" },
-            starts: { type: "string", title: "Starts", format: "time" },
-            at: { type: "string", title: "At", format: "date-time" },
-        },
-        required: ["email", "day", "starts", "at"],
-    });
+test("type a date and a date and time into their fields, submitting the date as written and the moment in UTC", () => {
+    const { container, submitted } = drawForm(
+        toJsonSchema(
+            schema.object({
+                email: schema.email().meta({ title: "Email" }),
+                day: schema.iso.date().meta({ title: "Day" }),
+                at: schema.iso.datetime().meta({ title: "At" }),
+            }),
+        ),
+    );
     fill(container, "Email", "milk");
     const refused = refusals(container);
     fill(container, "Email", "milk@example.com");
     fillSegments(grouped(container, "Day"), { month: "10", day: "07", year: "2026" });
-    fillSegments(grouped(container, "Starts"), { hour: "09", minute: "30", dayPeriod: "a" });
     const at = grouped(container, "At");
     fillSegments(at?.querySelector("[data-slot=date-picker]"), {
         month: "10",
@@ -227,10 +216,6 @@ test("type a date, a time and a date and time into their fields, submitting the 
     });
     submit(container);
 
-    // the time of day as typed, at the local clock's offset from UTC
-    const east = -new Date().getTimezoneOffset();
-    const hours = String(Math.floor(Math.abs(east) / 60)).padStart(2, "0");
-    const offset = `${east < 0 ? "-" : "+"}${hours}:${String(Math.abs(east) % 60).padStart(2, "0")}`;
     expect([
         refused,
         [...(at?.querySelectorAll("[role=group]") ?? [])].map((group) =>
@@ -244,7 +229,6 @@ test("type a date, a time and a date and time into their fields, submitting the 
             {
                 email: "milk@example.com",
                 day: "2026-10-07",
-                starts: `09:30:00${offset}`,
                 at: new Date("2026-10-07T09:30").toISOString(),
             },
         ],
@@ -252,18 +236,16 @@ test("type a date, a time and a date and time into their fields, submitting the 
 });
 
 test("add and remove items of a list, and choose several values of an enumeration", () => {
-    const { container, submitted } = drawForm({
-        type: "object",
-        properties: {
-            steps: { type: "array", title: "Step", items: { type: "string", minLength: 1 } },
-            colors: {
-                type: "array",
-                title: "Colors",
-                items: { type: "string", enum: ["red", "green", "blue"] },
-            },
-        },
-        required: ["steps", "colors"],
-    });
+    const { container, submitted } = drawForm(
+        toJsonSchema(
+            schema.object({
+                steps: schema.array(schema.string().min(1)).meta({ title: "Step" }),
+                colors: schema
+                    .array(schema.enum(["red", "green", "blue"]))
+                    .meta({ title: "Colors" }),
+            }),
+        ),
+    );
     click(container, "Add Step");
     click(container, "Add Step");
     click(container, "Add Step");
@@ -283,28 +265,22 @@ test("add and remove items of a list, and choose several values of an enumeratio
 });
 
 test("fill a nested object in a fieldset, refusing its own field", () => {
-    const { container, submitted } = drawForm({
-        type: "object",
-        properties: {
-            address: {
-                type: "object",
-                title: "Address",
-                properties: {
-                    city: { type: "string", title: "City", minLength: 1 },
-                    geo: {
-                        type: "object",
-                        title: "Position",
-                        properties: {
-                            latitude: { type: "number", title: "Latitude", maximum: 90 },
-                        },
-                        required: ["latitude"],
-                    },
-                },
-                required: ["city", "geo"],
-            },
-        },
-        required: ["address"],
-    });
+    const { container, submitted } = drawForm(
+        toJsonSchema(
+            schema.object({
+                address: schema
+                    .object({
+                        city: schema.string().min(1).meta({ title: "City" }),
+                        geo: schema
+                            .object({
+                                latitude: schema.number().max(90).meta({ title: "Latitude" }),
+                            })
+                            .meta({ title: "Position" }),
+                    })
+                    .meta({ title: "Address" }),
+            }),
+        ),
+    );
     fill(container, "Latitude", "91");
     const refused = refusals(container);
     const legends = [...container.querySelectorAll("legend")].map((legend) => legend.textContent);
@@ -319,33 +295,24 @@ test("fill a nested object in a fieldset, refusing its own field", () => {
 });
 
 test("choose the kind of a union of objects, then fill its fields and submit its constant", () => {
-    const { container, submitted } = drawForm({
-        type: "object",
-        properties: {
-            shape: {
-                title: "Shape",
-                oneOf: [
-                    {
-                        type: "object",
-                        properties: {
-                            kind: { type: "string", const: "circle" },
-                            radius: { type: "number", title: "Radius" },
-                        },
-                        required: ["kind", "radius"],
-                    },
-                    {
-                        type: "object",
-                        properties: {
-                            kind: { type: "string", const: "square" },
-                            side: { type: "number", title: "Side" },
-                        },
-                        required: ["kind", "side"],
-                    },
-                ],
-            },
-        },
-        required: ["shape"],
-    });
+    const { container, submitted } = drawForm(
+        toJsonSchema(
+            schema.object({
+                shape: schema
+                    .discriminatedUnion("kind", [
+                        schema.object({
+                            kind: schema.literal("circle"),
+                            radius: schema.number().meta({ title: "Radius" }),
+                        }),
+                        schema.object({
+                            kind: schema.literal("square"),
+                            side: schema.number().meta({ title: "Side" }),
+                        }),
+                    ])
+                    .meta({ title: "Shape" }),
+            }),
+        ),
+    );
     const kinds = [...(labelled(container, "Kind")?.querySelectorAll("option") ?? [])].map(
         (option) => option.textContent,
     );
@@ -365,14 +332,12 @@ test("render a field through renderField, keeping the form's controls for the ot
     const submitted: JsonObject[] = [];
     const { container } = render(() => (
         <SchemaForm
-            schema={{
-                type: "object",
-                properties: {
-                    title: { type: "string", title: "Title" },
-                    ownerId: { type: "string", title: "Owner" },
-                },
-                required: ["title", "ownerId"],
-            }}
+            schema={toJsonSchema(
+                schema.object({
+                    title: schema.string().meta({ title: "Title" }),
+                    ownerId: schema.string().meta({ title: "Owner" }),
+                }),
+            )}
             renderField={(field, held) =>
                 field.name === "ownerId" ? (
                     <Input
@@ -397,22 +362,20 @@ test("render a field through renderField, keeping the form's controls for the ot
     ]).toEqual([["Title"], [{ title: "Milk", ownerId: "user-1" }]]);
 });
 
-/** A tree whose nodes hold a name and child nodes, referring back to the node. */
-const TREE: JsonObject = {
-    type: "object",
-    $defs: {
-        node: {
-            type: "object",
-            properties: {
-                name: { type: "string", title: "Name", minLength: 1 },
-                children: { type: "array", title: "Child", items: { $ref: "#/$defs/node" } },
-            },
-            required: ["name"],
-        },
-    },
-    properties: { tree: { $ref: "#/$defs/node", title: "Tree" } },
-    required: ["tree"],
-};
+/** A node of a tree: a name and child nodes. */
+type TreeNode = { readonly name: string; readonly children?: readonly TreeNode[] };
+
+/** A node of a tree, referring back to itself through its children. */
+const NODE: schema.Schema<TreeNode> = schema.object({
+    name: schema.string().min(1).meta({ title: "Name" }),
+    children: schema
+        .array(schema.lazy(() => NODE))
+        .meta({ title: "Child" })
+        .exactOptional(),
+});
+
+/** The input of a command taking a tree. */
+const TREE = toJsonSchema(schema.object({ tree: NODE.meta({ title: "Tree" }) }));
 
 /** Type a value into an input, as the person does. */
 function typeInto(input: HTMLInputElement | undefined, value: string): void {
@@ -422,47 +385,6 @@ function typeInto(input: HTMLInputElement | undefined, value: string): void {
     }
     flush();
 }
-
-test("resolve a $defs reference against the root schema, its title beside the reference winning, and submit its fields", () => {
-    const described: JsonObject = {
-        type: "object",
-        $defs: {
-            address: {
-                type: "object",
-                title: "Address",
-                properties: { city: { type: "string", title: "City", minLength: 1 } },
-                required: ["city"],
-            },
-        },
-        properties: { home: { $ref: "#/$defs/address", title: "Home" } },
-        required: ["home"],
-    };
-    const [home] = schemaFields(described);
-    const { container, submitted } = drawForm(described);
-    fill(container, "City", "Vienna");
-    submit(container);
-    expect([
-        home?.title,
-        home?.control === "object" ? home.fields.map((field) => field.title) : undefined,
-        submitted,
-    ]).toEqual(["Home", ["City"], [{ home: { city: "Vienna" } }]]);
-});
-
-test("resolve pointers whose tokens escape a slash and a tilde, under $defs and definitions alike", () => {
-    const fields = schemaFields({
-        type: "object",
-        $defs: { "a/b~c": { type: "string", title: "Slashed" } },
-        definitions: { "d e": { type: "integer", title: "Spaced" } },
-        properties: {
-            slashed: { $ref: "#/$defs/a~1b~0c" },
-            spaced: { $ref: "#/definitions/d%20e" },
-        },
-    });
-    expect(fields.map((field) => [field.name, field.title, field.control])).toEqual([
-        ["slashed", "Slashed", "text"],
-        ["spaced", "Spaced", "number"],
-    ]);
-});
 
 test("expand a recursive tree only where its nodes exist, adding a child node by node", () => {
     const { container, submitted } = drawForm(TREE);
@@ -483,6 +405,24 @@ test("expand a recursive tree only where its nodes exist, adding a child node by
     ]);
 });
 
+test("title a referenced field by the annotations beside its reference, following a reference to a reference", () => {
+    // reach a title through two references, and override it beside the first
+    const described: JsonObject = {
+        type: "object",
+        $defs: { name: { $ref: "#/$defs/text" }, text: { type: "string", title: "Text" } },
+        properties: {
+            first: { $ref: "#/$defs/name", title: "First name" },
+            last: { $ref: "#/$defs/name" },
+        },
+    };
+    expect(
+        schemaFields(described).map((field) => [field.name, field.title, field.control]),
+    ).toEqual([
+        ["first", "First name", "text"],
+        ["last", "Text", "text"],
+    ]);
+});
+
 test("refuse a reference that resolves nowhere, and a schema that requires a value of itself", () => {
     const loop: JsonObject = {
         type: "object",
@@ -498,6 +438,11 @@ test("refuse a reference that resolves nowhere, and a schema that requires a val
     };
     expect(() => schemaFields({ properties: { owner: { $ref: "#/$defs/person" } } })).toThrow(
         new TypeError("schema reference #/$defs/person does not resolve"),
+    );
+    expect(() => schemaFields({ properties: { owner: { $ref: "other.json#/person" } } })).toThrow(
+        new TypeError(
+            "schema reference other.json#/person points outside the document's definitions",
+        ),
     );
     expect(() => schemaFields(loop)[0]?.start).toThrow(
         new TypeError("schema #/$defs/link requires a value of itself"),

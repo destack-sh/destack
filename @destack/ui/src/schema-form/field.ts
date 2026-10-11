@@ -1,16 +1,15 @@
-import type { JsonObject, JsonValue } from "@destack/schema";
+import { LocalReference, type JsonObject, type JsonValue } from "@destack/schema";
 
 /** The control of each JSON Schema string format a dedicated control takes. */
 const STRING_FORMATS = new Map<string, SchemaTextField["control"]>([
     ["email", "email"],
     ["uri", "url"],
     ["date", "date"],
-    ["time", "time"],
     ["date-time", "date-time"],
 ]);
 
 /** The keywords whose values are data instead of schemas, which hold no references to check. */
-const DATA_KEYWORDS = new Set(["const", "default", "enum", "examples"]);
+const DATA_KEYWORDS = new Set(["const", "enum", "examples"]);
 
 /** What every field of a schema form knows of its property. */
 interface SchemaFieldBase {
@@ -24,16 +23,16 @@ interface SchemaFieldBase {
     readonly isRequired: boolean;
     /** Whether the property takes null, which an emptied control holds. */
     readonly isNullable: boolean;
-    /** The value the field starts from: its default, its constant or an empty object, list or null. */
+    /** The value the field starts from: its constant, or an empty object, list or null. */
     readonly start: JsonValue | undefined;
     /** The property's JSON Schema. */
     readonly schema: JsonObject;
 }
 
-/** A field typed as text: plain, an email address, a web address, a date, a time, a date and time, or JSON. */
+/** A field typed as text: plain, an email address, a web address, a date, a date and time, or JSON. */
 export interface SchemaTextField extends SchemaFieldBase {
     /** The control. */
-    readonly control: "text" | "email" | "url" | "date" | "time" | "date-time" | "json";
+    readonly control: "text" | "email" | "url" | "date" | "date-time" | "json";
 }
 
 /** A field typed as a number within bounds. */
@@ -168,7 +167,7 @@ class SchemaScope {
             isNullable: isNullable || types.has("null"),
             schema: resolved,
         };
-        const fallback = property["default"] ?? (isRequired && base.isNullable ? null : undefined);
+        const fallback = isRequired && base.isNullable ? null : undefined;
         const members = objectsOf(property["oneOf"] ?? property["anyOf"]).map(
             (member) => this.resolve(member)[0],
         );
@@ -229,25 +228,15 @@ class SchemaScope {
      */
     resolve(described: JsonObject): [JsonObject, string | undefined] {
         // keep a schema without a reference
-        const reference = described["$ref"];
+        const { $ref: reference, ...beside } = described;
         if (typeof reference !== "string") {
             return [described, undefined];
         }
 
-        // follow references until a schema without one, refusing a loop
-        const seen = new Set<string>();
-        let pointer: JsonValue | undefined = reference;
-        let target = described;
-        while (typeof pointer === "string") {
-            if (seen.has(pointer)) {
-                throw new TypeError(`schema reference ${reference} refers to itself`);
-            }
-            seen.add(pointer);
-            target = this.#pointed(pointer);
-            pointer = target["$ref"];
-        }
+        // follow the reference to its schema, keeping the annotations beside it
+        const [target] = this.resolve(this.#pointed(reference));
 
-        return [{ ...target, ...withoutKeys(described, ["$ref"]) }, reference];
+        return [{ ...target, ...beside }, reference];
     }
 
     /** Read a field's start, refusing a schema whose start requires a start of itself. */
@@ -323,10 +312,7 @@ class SchemaScope {
         let fields: SchemaField[] | undefined;
         const fieldsOf = (): SchemaField[] => (fields ??= this.fields(described));
         const startOf = (): JsonValue | undefined =>
-            this.start(
-                reference,
-                () => described["default"] ?? (base.isRequired ? emptyOf(fieldsOf()) : undefined),
-            );
+            this.start(reference, () => (base.isRequired ? emptyOf(fieldsOf()) : undefined));
 
         return {
             ...base,
@@ -385,28 +371,17 @@ class SchemaScope {
         return [{ ...other, ...withoutKeys(described, ["anyOf", "oneOf"]) }, true];
     }
 
-    /** Read the schema a local JSON Pointer points at, refusing one that points at none. */
+    /** Read the schema a reference points at: the schema itself, or one of its definitions. */
     #pointed(pointer: string): JsonObject {
-        // refuse a reference outside the root
-        if (!pointer.startsWith("#")) {
-            throw new TypeError(`schema reference ${pointer} is not local to the schema`);
-        }
-
-        // walk the pointer's tokens, unescaped as URI fragments and RFC 6901 escape them
-        const tokens = decodeURIComponent(pointer.slice(1)).split("/").slice(1);
-        let target: JsonValue | undefined = this.root;
-        for (const token of tokens) {
-            const key = token.replaceAll("~1", "/").replaceAll("~0", "~");
-            target = Array.isArray(target) ? listOf(target)[Number(key)] : objectOf(target)?.[key];
-        }
-
-        // refuse a pointer that reaches no schema
-        const found = objectOf(target);
-        if (found === undefined) {
+        // read the schema or one of its definitions, refusing one it lacks
+        const definition = LocalReference.definition(pointer);
+        const target =
+            definition === null ? this.root : objectOf(objectOf(this.root["$defs"])?.[definition]);
+        if (target === undefined) {
             throw new TypeError(`schema reference ${pointer} does not resolve`);
         }
 
-        return found;
+        return target;
     }
 
     /** Resolve every reference inside a schema, refusing the first that does not resolve. */
