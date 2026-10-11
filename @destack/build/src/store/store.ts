@@ -69,12 +69,17 @@ export class PackageStore {
         return (await this.bucket.head(`manifests/${Digest.parse(digest)}`)) !== null;
     }
 
-    /** Copy a build a package server serves by its manifest's digest, fetching only the files the store lacks. */
+    /** Copy a build a package server serves by its manifest's digest unless the store keeps it, fetching only the files the store lacks. */
     async copy(
         location: PackageLocation,
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
         signal?: AbortSignal,
     ): Promise<void> {
+        // keep a build the store has
+        if (await this.contains(location.manifest)) {
+            return;
+        }
+
         // read the served manifest, verified by its digest
         const reader = await BuildReader.open(location, fetch, signal);
 

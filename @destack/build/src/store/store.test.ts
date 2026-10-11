@@ -380,7 +380,7 @@ test("copy a served build into another store by its digest, fetching only the fi
     };
     const location = { manifest: digest, url: `https://packages.test/packages/${digest}/` };
 
-    // copy the build, then copy it again, which reads its manifest and its list only
+    // copy the build, then copy it again, which reads nothing once the store keeps it
     const before = await target.contains(digest);
     await target.copy(location, fetchPackage);
     const first = paths.splice(0);
@@ -405,7 +405,7 @@ test("copy a served build into another store by its digest, fetching only the fi
             "files/src/index.ts",
             "manifest.json",
         ],
-        second: ["files/manifest/files.json", "manifest.json"],
+        second: [],
     });
 });
 
