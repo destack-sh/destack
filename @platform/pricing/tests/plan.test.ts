@@ -152,7 +152,7 @@ test.each(TEST_DIALECTS)(
                 each.value ?? each.limit,
                 each.state,
             ]),
-            derived: derived.items.map((row) => [row.resource, row.limit, row.values]),
+            derived: derived.items.map((row) => [row.resource, row.grant]),
         }).toEqual({
             products: ["Free", "Go", "Plus", "Pro"],
             fees: [
@@ -176,10 +176,10 @@ test.each(TEST_DIALECTS)(
                 ["support", "community", null],
             ],
             derived: [
-                ["capacity", null, ["elastic", "personal"]],
-                ["compute", 45_000, null],
-                ["membership", 10, null],
-                ["storage", 1_000_000_000, null],
+                ["capacity", { kind: "listed", values: ["elastic", "personal"] }],
+                ["compute", { kind: "metered", limit: 45_000, used: 0, state: "within" }],
+                ["membership", { kind: "counted", limit: 10 }],
+                ["storage", { kind: "metered", limit: 1_000_000_000, used: 0, state: "within" }],
             ],
         });
     },
