@@ -112,7 +112,8 @@ test.each(TEST_DIALECTS)(
         });
 
         // watch the space's recommendation apply beneath Alice's own values
-        const recommended = await storage.call(setting, "create", spaceId, {
+        const recommended = await storage.call(setting, "create", {
+            scope: spaceId,
             ...named(lineNumbers),
             mode: "recommend",
             value: false,
@@ -154,7 +155,8 @@ test("resolve a value the client keeps over the user's own, keeping it off the s
     const release = editor.package.version;
 
     // set Alice's own value on the server, and keep the client's value in its database
-    const placed = await storage.call(setting, "create", alice, {
+    const placed = await storage.call(setting, "create", {
+        scope: alice,
         ...named(editor),
         mode: "set",
         value: "vim",

@@ -15,7 +15,7 @@ test.each(TEST_DIALECTS)(
         const storage = await Storage.open(dialect);
         onTestFinished(() => storage.close());
         const call = async (name: "create" | "update", input: JsonObject) =>
-            await storage.call(setting, name, alice, input);
+            await storage.send(setting, name, alice, input);
         const create = (input: JsonObject) =>
             call("create", {
                 ...named(editor),
@@ -26,15 +26,29 @@ test.each(TEST_DIALECTS)(
             });
 
         // write a personal value and an override in Bob's installation, and change it
-        const base = await create({});
-        const override = await create({ installation, value: "standard" });
-        const changed = await call("update", { id: override.id, value: "vim" });
+        const written = {
+            scope: alice,
+            ...named(editor),
+            mode: "set",
+            release: "2026.9.0",
+        } as const;
+        const base = await storage.call(setting, "create", { ...written, value: "vim" });
+        const override = await storage.call(setting, "create", {
+            ...written,
+            installation,
+            value: "standard",
+        });
+        const changed = await storage.call(setting, "update", {
+            scope: alice,
+            id: override.id,
+            value: "vim",
+        });
         const rows = await storage.database
             .select()
             .from(setting.table)
             .orderBy(asc(setting.table.revision), asc(setting.table.installation));
         const author = Subject.key(principal.user.reference(Scope.universe.id, alice));
-        const written = {
+        const stored = {
             createdBy: author,
             updatedBy: author,
             scope: alice,
@@ -52,7 +66,7 @@ test.each(TEST_DIALECTS)(
         };
         expect(rows).toEqual([
             {
-                ...written,
+                ...stored,
                 id: base.id,
                 createdAt: base.createdAt,
                 updatedAt: base.updatedAt,
@@ -60,7 +74,7 @@ test.each(TEST_DIALECTS)(
                 value: "vim",
             },
             {
-                ...written,
+                ...stored,
                 id: override.id,
                 createdAt: override.createdAt,
                 updatedAt: changed.updatedAt,
@@ -100,7 +114,8 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
 
         // set a personal editor mode and leave line numbers unset
-        await storage.call(setting, "create", alice, {
+        await storage.call(setting, "create", {
+            scope: alice,
             ...named(editor),
             mode: "set",
             value: "vim",
@@ -120,7 +135,8 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await Storage.open(dialect);
         onTestFinished(() => storage.close());
-        const created = await storage.call(setting, "create", alice, {
+        const created = await storage.call(setting, "create", {
+            scope: alice,
             ...named(editor),
             mode: "set",
             value: "vim",
@@ -137,7 +153,7 @@ test.each(TEST_DIALECTS)(
             stopping.signal,
         );
         const first = await followed.next();
-        await storage.call(setting, "update", alice, { id: created.id, value: "standard" });
+        await storage.call(setting, "update", { scope: alice, id: created.id, value: "standard" });
         const second = await followed.next();
         expect(
             [first, second].map((step) =>

@@ -8,7 +8,13 @@ import { account, machine, organisation, user, space } from "@destack/account/ob
 
 import type { Dialect } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
-import type { CallableName, CallOutput, ObjectType } from "@destack/object";
+import {
+    Call,
+    type CallableName,
+    type CallOutput,
+    type ObjectCallInput,
+    type ObjectType,
+} from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 
 import { settingTables } from "../../src/stack/index.ts";
@@ -64,24 +70,35 @@ export class Storage {
         await copies.copyOwner(scope, this.subject);
     }
 
-    /** Call a method as Alice in a scope. */
+    /** Send a call as an untyped client does, as Alice in a scope, its input unchecked until the store parses it. */
+    async send(
+        object: ObjectType,
+        name: string,
+        scope: string,
+        input: JsonObject,
+    ): Promise<unknown> {
+        const caller = subjectContext(this.subject, scope).caller();
+        const call = Call.record(object, name, { scope, ...input });
+
+        return object.method(name).mutates
+            ? this.objects
+                  .mutate(caller, { id: RequestId.create(), calls: [call] })
+                  .then(([result]) => result)
+            : this.objects.query(caller, call);
+    }
+
+    /** Call a method as Alice in the scope its input names. */
     async call<Type extends ObjectType, Name extends CallableName<Type>>(
         object: Type,
         name: Name,
-        scope: string,
-        input: JsonObject,
+        input: NoInfer<ObjectCallInput<Type, Name>> & { readonly scope: string },
     ): Promise<CallOutput<Type, Name>> {
-        // place the call in the scope through the object's route field
-        const field = object.route.field;
-        if (field === undefined) {
-            throw new TypeError("a scoped call needs an object routed by a field");
-        }
-        const context = subjectContext(this.subject, scope);
-
-        // read through a query, or write through a one-call mutation
-        const call = object.call(name, { [field]: scope, ...input });
+        // act in the scope the call names
+        const context = subjectContext(this.subject, input.scope);
+        const call = object.call(name, input);
         const caller = context.caller();
 
+        // read through a query, or write through a one-call mutation
         return object.method(name).mutates
             ? this.objects
                   .mutate(caller, { id: RequestId.create(), calls: [call] })

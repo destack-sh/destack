@@ -35,12 +35,14 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await Storage.open(dialect, [editor, template]);
         onTestFinished(() => storage.close());
-        await new AccessFixture(storage.database).copyPartition(
+        await new AccessFixture(storage.database).copyScope(
             space.reference(Scope.universe.id, spaceId),
+            "own",
         );
         const objects = [serveSettings(storage.catalog, []).setting];
         const apply = (settings: JsonObject) =>
             Stack.apply({
+                now: Date.now(),
                 database: storage.database,
                 objects,
                 store: storage.objects,
