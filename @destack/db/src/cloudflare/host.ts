@@ -11,7 +11,11 @@ import type * as declaration from "../declare/database.ts";
 import type { Model } from "../query/model.ts";
 import { SqliteWorkQueue } from "../sqlite/client.ts";
 import { type SqliteConnectOptions, SqliteDatabase } from "../sqlite/database.ts";
-import { type DurableObjectCursor, DurableObjectClient, type DurableObjectStorage } from "./client.ts";
+import {
+    type DurableObjectCursor,
+    DurableObjectClient,
+    type DurableObjectStorage,
+} from "./client.ts";
 import { DurableObjectContentStore } from "./content.ts";
 
 /** The provider code of databases in Durable Objects' SQLite storage. */

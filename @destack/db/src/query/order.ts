@@ -1,5 +1,5 @@
 import { and, dialectSQL, or, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, present, schema } from "@destack/schema";
 import { Column, type ColumnKind } from "../table/column.ts";
 import type { Row } from "../table/row.ts";
 import { TABLE, type Table } from "../table/table.ts";
@@ -8,13 +8,13 @@ import { Expression } from "../expression/expression.ts";
 import type { Namespace } from "./namespace.ts";
 import { DatabaseError } from "../error/error.ts";
 
-/** The column kinds that order alike in SQLite, PostgreSQL and memory. */
-const ORDERED_KINDS: ReadonlySet<ColumnKind> = new Set<ColumnKind>([
-    "text",
-    "integer",
-    "real",
-    "boolean",
-    "bigint",
+/** The column kinds that order alike in SQLite, PostgreSQL and memory, by the values they order as. */
+const ORDERED_KINDS: ReadonlyMap<ColumnKind, "text" | "number" | "boolean"> = new Map([
+    ["text", "text"],
+    ["integer", "number"],
+    ["real", "number"],
+    ["boolean", "boolean"],
+    ["bigint", "number"],
 ]);
 
 /** The most keys one order and each of its keyset cursors hold, where orders use one to four. */
@@ -94,6 +94,13 @@ export const Order = {
         }
 
         return found;
+    },
+
+    /** Read the values a comparable column orders as, refusing any other column. */
+    ordering(table: Table, name: string): "text" | "number" | "boolean" {
+        const { kind } = Order.column(table, name).definition;
+
+        return present(ORDERED_KINDS.get(kind), `the ordering of ${kind} columns`);
     },
 
     /** Complete an order with the primary key. */

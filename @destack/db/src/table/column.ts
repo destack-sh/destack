@@ -18,6 +18,9 @@ export const COLUMN_KINDS = [
 /** What a foreign key does to referencing rows when their referenced row changes, refusals checked once a deferred commit ends. */
 export const REFERENCE_ACTIONS = ["cascade", "no action", "set null", "set default"] as const;
 
+/** The column kinds whose values are their own JSON form and driver parameter. */
+const PLAIN_KINDS: ReadonlySet<ColumnKind> = new Set<ColumnKind>(["text", "integer", "real"]);
+
 /** Driver text, such as SQLite's JSON. */
 const TEXT = schema.string();
 
@@ -30,10 +33,10 @@ const BIT = schema.union([
 ]);
 
 /** A decimal number as text, in fixed or exponent notation. */
-const DECIMAL = schema.string().regex(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$(?![\s\S])/u);
+const DECIMAL = schema.string().regex(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u);
 
 /** A signed integer in its exact decimal JSON form. */
-const INTEGER_TEXT = schema.string().regex(/^-?\d+$(?![\s\S])/u);
+const INTEGER_TEXT = schema.string().regex(/^-?\d+$/u);
 
 /** A logical value type of columns. */
 export type ColumnKind = (typeof COLUMN_KINDS)[number];
@@ -84,6 +87,11 @@ export class Column<
     /** Report whether a value is a column. */
     static is(value: unknown): value is Column {
         return value instanceof Column;
+    }
+
+    /** Report whether a column's values are their own JSON form and parameter. */
+    static isPlain(column: Column): boolean {
+        return PLAIN_KINDS.has(column.definition.kind);
     }
 
     /** Embed the column, qualified by its table. */

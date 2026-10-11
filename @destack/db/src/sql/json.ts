@@ -7,7 +7,7 @@ export const SQLValue = defineSchema(
         schema.number(),
         schema.boolean(),
         schema.null(),
-        schema.object({ integer: schema.string().regex(/^-?(0|[1-9][0-9]*)$(?![\s\S])/u) }),
+        schema.object({ integer: schema.string().regex(/^-?(0|[1-9][0-9]*)$/u) }),
         schema.object({ bytes: schema.base64() }),
     ]),
 );

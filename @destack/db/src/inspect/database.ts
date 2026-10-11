@@ -1,7 +1,7 @@
 import { Address, type Comparator, type Plan, type Step } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import { graph } from "@destack/package";
-import { defineSchema, schema, type JsonValue } from "@destack/schema";
+import { defineSchema, schema } from "@destack/schema";
 import { DatabaseKind, type Database } from "../declare/database.ts";
 import { planTables } from "../migration/plan.ts";
 import { DatabaseState } from "../migration/state.ts";
@@ -68,11 +68,10 @@ export const compareDatabase: Comparator = (before, after) => {
 };
 
 /** List a database's tables as its member symbols, each described by its state in every dialect. */
-export function databaseSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
+export function databaseSymbols(declared: Database): graph.MemberSymbol[] {
     // collect each table's state by dialect
-    const database = DatabaseDeclaration.parse(input);
     const tables = new Map<string, Record<string, TableState>>();
-    for (const [dialect, states] of Object.entries(database.tables)) {
+    for (const [dialect, states] of Object.entries(declared.state().tables)) {
         for (const state of states) {
             tables.set(state.table.name, { ...tables.get(state.table.name), [dialect]: state });
         }

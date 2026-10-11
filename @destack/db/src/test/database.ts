@@ -28,6 +28,14 @@ export const TEST_DIALECTS: readonly Dialect[] = [
 /** The connections each test database pools: ten workers stay within a server's hundred. */
 const TEST_POOL_CONNECTIONS = 4;
 
+/**
+ * The seconds a test pool keeps an idle connection.
+ *
+ * A process keeps the pools of every schema it claimed, and a server serves a hundred connections.
+ * A local reconnect costs a few milliseconds, while a test's own queries keep its connections busy.
+ */
+const TEST_IDLE_SECONDS = 1;
+
 /** The migrated SQLite templates, by declared state. */
 const templates = new Map<string, Promise<string>>();
 
@@ -275,6 +283,7 @@ class TestCluster {
     connect(schema: string): postgres.Sql {
         return postgres(this.address, {
             max: TEST_POOL_CONNECTIONS,
+            idle_timeout: TEST_IDLE_SECONDS,
             connection: { search_path: schema },
             onnotice: postgresql.reportNotice,
         });

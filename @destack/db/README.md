@@ -32,7 +32,10 @@ export const note = defineTable(
         title: text("title").notNull(),
     },
     {
-        constraints: (note) => [index("note_scope").on(note.scope)],
+        constraints: (note) => [
+            index("note_scope").on(note.scope),
+            check("note_title", { title: { length: { lte: 200 }, NOT: { startsWith: " " } } }),
+        ],
         log: { retention: "history" },
         convert: {
             "2026.10.0": {
@@ -75,6 +78,20 @@ const storage = new DurableObjectDatabaseHost(state.storage).connect(work, { nam
 const plan = await database.plan(mergeStates([previous.tables.sqlite, next.tables.sqlite]));
 // { steps: [{ action: "create", target: "table/note/column/priority", risk: "safe", … }] }
 await database.apply(plan);
+```
+
+## Transactions
+
+`Transaction.open` reads at a snapshot and buffers writes, each a `RowChange`, checking unique keys once per table and committing only when nothing it read changed.
+
+```ts
+const transaction = await Transaction.open(database);
+const before = await transaction.row(note, { id });
+await transaction.write(
+    { table: note, before, after: { ...before, title: "Plans" } },
+    { table: note, before: null, after: created },
+);
+await transaction.commit();
 ```
 
 ## Log

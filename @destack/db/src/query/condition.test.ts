@@ -6,6 +6,7 @@ import { bigint, boolean, integer, real, text } from "../table/column.ts";
 import { TABLE } from "../table/table.ts";
 import { Condition, type Comparable, type Scalar } from "./condition.ts";
 import { Predicate } from "./predicate.ts";
+import { DatabaseError } from "../error/index.ts";
 import { Namespace } from "./namespace.ts";
 import { Order } from "./order.ts";
 
@@ -77,42 +78,87 @@ const PATTERNS = [
     "a\\\\b",
 ];
 
+/** The literal ends of names drawn against them, wildcards and escapes included. */
+const ENDS = ["a", "b", "%", "_", "\\", "é", "😀", "a%"];
+
+/** The character sets drawn against names. */
+const CHARACTER_SETS = ["a-z", "a-zA-Z", "0-9a-f", "a-z._-", "-a", "Z-a"];
+
+/** The numeric fields compared with each other. */
+const NUMBERS = ["count", "ratio", "editedAt"] as const;
+
 /** The pattern operators drawn against names. */
 const PATTERN_OPERATORS = ["like", "ilike", "notLike", "notIlike"] as const;
 
 /** Build a random nested condition. */
 function draw(seed: { value: number }, depth: number): Condition {
-    // compare, list, test, match a pattern, or combine fields and conditions
+    // pick a field and its values, and a leaf at the bottom
     const [name, listed] = pick(Object.entries(VALUES), seed);
     const values = listed.filter((value): value is Comparable => value !== null);
-    const choice = depth === 0 ? Math.floor(random(seed) * 6) : Math.floor(random(seed) * 11);
+    const choice = Math.floor(random(seed) * (depth === 0 ? 10 : 15));
+
+    // compare with a value
     if (choice === 0) {
         const operator = pick(["eq", "ne", "lt", "lte", "gt", "gte"] as const, seed);
 
         return { [name]: { [operator]: pick(values, seed) } };
-    } else if (choice === 1 || choice === 2) {
+    }
+    // list some values
+    else if (choice === 1 || choice === 2) {
         const chosen = values.filter(() => random(seed) < 0.5);
 
         return { [name]: choice === 1 ? { in: chosen } : { notIn: chosen } };
-    } else if (choice === 3) {
+    }
+    // test for null
+    else if (choice === 3) {
         return { [name]: { isNull: true } };
-    } else if (choice === 4) {
+    }
+    // test for a value
+    else if (choice === 4) {
         return { [name]: { isNotNull: true } };
-    } else if (choice === 5) {
+    }
+    // match a pattern
+    else if (choice === 5) {
         return { name: { [pick(PATTERN_OPERATORS, seed)]: pick(PATTERNS, seed) } };
-    } else if (choice === 6) {
+    }
+    // compare with another field
+    else if (choice === 6) {
+        const operator = pick(["eq", "ne", "lt", "lte", "gt", "gte"] as const, seed);
+
+        return { [pick(NUMBERS, seed)]: { [operator]: { field: pick(NUMBERS, seed) } } };
+    }
+    // compare a length
+    else if (choice === 7) {
+        const operator = pick(["eq", "gt", "lte"] as const, seed);
+
+        return { name: { length: { [operator]: Math.floor(random(seed) * 3) } } };
+    }
+    // match a start or an end
+    else if (choice === 8) {
+        return { name: { [pick(["startsWith", "endsWith"] as const, seed)]: pick(ENDS, seed) } };
+    }
+    // match a character set
+    else if (choice === 9) {
+        return { name: { characters: pick(CHARACTER_SETS, seed) } };
+    }
+    // combine operators on one field
+    else if (choice === 10) {
         const operator = pick(["eq", "gte"] as const, seed);
 
         return { [name]: { OR: [{ isNull: true }, { NOT: { [operator]: pick(values, seed) } }] } };
-    } else if (choice === 7) {
+    } else if (choice === 11) {
         return { [name]: { AND: [{ isNotNull: true }, { ne: pick(values, seed) }] } };
-    } else if (choice === 8) {
+    }
+    // combine conditions
+    else if (choice === 12) {
         return { AND: [draw(seed, depth - 1), draw(seed, depth - 1)] };
-    } else if (choice === 9) {
+    } else if (choice === 13) {
         return { OR: [draw(seed, depth - 1), draw(seed, depth - 1)] };
     }
-
-    return { NOT: draw(seed, depth - 1) };
+    // negate a condition
+    else {
+        return { NOT: draw(seed, depth - 1) };
+    }
 }
 
 test.for(TEST_DIALECTS)(
@@ -183,6 +229,37 @@ test("order text by code point, as UTF-8 bytes order it", () => {
         Buffer.compare(UTF8.encode(left), UTF8.encode(right)),
     );
     expect(texts.toSorted((left, right) => Order.codePoints(left, right))).toEqual(byByte);
+});
+
+test("refuse a descending character range, reading a mixed one as its characters", () => {
+    // refuse z-a, and read Z-a as Z, a and a hyphen
+    const fields = Namespace.fields(sample);
+    expect(() => Condition.resolve({ name: { characters: "z-a" } }, fields)).toThrow(
+        new DatabaseError("INVALID_QUERY", "character range z-a descends"),
+    );
+    const set = Predicate.compile(
+        Condition.resolve({ name: { characters: "Z-a" } }, fields),
+        sample,
+    );
+    expect([
+        Predicate.matches(set, { name: "Za-" }),
+        Predicate.matches(set, { name: "_" }),
+    ]).toEqual([true, false]);
+});
+
+test("refuse comparing fields that order as different values, and a field the table lacks", () => {
+    // compare text with a number, and a number with a missing field
+    const require = (condition: Condition) => () =>
+        Predicate.require(Condition.resolve(condition, Namespace.fields(sample)), sample);
+    expect(require({ name: { gt: { field: "count" } } })).toThrow(
+        new DatabaseError(
+            "INVALID_QUERY",
+            "condition_sample.name orders as text, compared with count as number",
+        ),
+    );
+    expect(require({ count: { gt: { field: "missing" } } })).toThrow(
+        new DatabaseError("INVALID_QUERY", "condition_sample has no column missing"),
+    );
 });
 
 test("refuse conditions beyond a thousand terms", () => {

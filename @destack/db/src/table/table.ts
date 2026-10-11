@@ -313,7 +313,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Collect the constraints for a dialect: the declared ones, SQLite's key checks and column references. */
     constraints(dialect: Dialect): readonly TableConstraint[] {
         const constraints = [...this.#declared()];
-        for (const column of Object.values(this.columns)) {
+        for (const [property, column] of Object.entries(this.columns)) {
             // keep primary key checks
             const definition = column.definition;
             if (
@@ -322,7 +322,9 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
                 definition.types.sqlite !== "integer"
             ) {
                 constraints.push(
-                    check(`${this.name}_${definition.name}_not_null`, sql`${column} IS NOT NULL`),
+                    check(`${this.name}_${definition.name}_not_null`, {
+                        [property]: { isNotNull: true },
+                    }),
                 );
             }
 

@@ -92,16 +92,32 @@ test.each(TEST_DIALECTS)(
         const changes = new ChangeSet();
         const view = database.log.at(base).recording(reads);
         const first = await view.row(task, { id: "a" });
-        changes.write(task, first, { id: "a", scope: "inbox", priority: 5 });
-        changes.write(
-            task,
-            { id: "a", scope: "inbox", priority: 5 },
-            { id: "a", scope: "inbox", priority: 6 },
-        );
-        changes.write(task, null, { id: "d", scope: "inbox", priority: 4 });
+        changes.write({
+            table: task,
+            before: first,
+            after: { id: "a", scope: "inbox", priority: 5 },
+        });
+        changes.write({
+            table: task,
+            before: { id: "a", scope: "inbox", priority: 5 },
+            after: { id: "a", scope: "inbox", priority: 6 },
+        });
+        changes.write({
+            table: task,
+            before: null,
+            after: { id: "d", scope: "inbox", priority: 4 },
+        });
         const second = await view.row(task, { id: "b" });
-        changes.write(task, second, { id: "b", scope: "inbox", priority: 9 });
-        changes.write(task, { id: "b", scope: "inbox", priority: 9 }, second);
+        changes.write({
+            table: task,
+            before: second,
+            after: { id: "b", scope: "inbox", priority: 9 },
+        });
+        changes.write({
+            table: task,
+            before: { id: "b", scope: "inbox", priority: 9 },
+            after: second,
+        });
         const seen = await view.layer(changes.overlay()).rows(task, { scope: "inbox" });
 
         // commit, keeping the changed rows alone
@@ -153,7 +169,11 @@ test.each(TEST_DIALECTS)(
         await database.insert(task).values({ id: "e", scope: "inbox", priority: 1 });
         const write = () => {
             const changes = new ChangeSet();
-            changes.write(task, null, { id: "z", scope: "archive", priority: 0 });
+            changes.write({
+                table: task,
+                before: null,
+                after: { id: "z", scope: "archive", priority: 0 },
+            });
 
             return changes;
         };
@@ -181,8 +201,16 @@ test.each(TEST_DIALECTS)(
         // write through the transaction and read the inbox with its writes
         const transaction = await Transaction.open(database);
         const first = await transaction.row(task, { id: "a" });
-        await transaction.write(task, first, { id: "a", scope: "archive", priority: 1 });
-        await transaction.write(task, null, { id: "d", scope: "inbox", priority: 9 });
+        await transaction.write({
+            table: task,
+            before: first,
+            after: { id: "a", scope: "archive", priority: 1 },
+        });
+        await transaction.write({
+            table: task,
+            before: null,
+            after: { id: "d", scope: "inbox", priority: 9 },
+        });
         const inbox = await transaction.rows(
             task,
             { scope: "inbox" },
@@ -218,10 +246,18 @@ test("drop a failed step's writes and records as a savepoint does, keeping the w
 
     // write once, then fail a step that writes and records
     const transaction = await Transaction.open(database);
-    await transaction.write(task, null, { id: "d", scope: "inbox", priority: 4 });
+    await transaction.write({
+        table: task,
+        before: null,
+        after: { id: "d", scope: "inbox", priority: 4 },
+    });
     const failed = await transaction
         .savepoint(async () => {
-            await transaction.write(task, null, { id: "e", scope: "inbox", priority: 5 });
+            await transaction.write({
+                table: task,
+                before: null,
+                after: { id: "e", scope: "inbox", priority: 5 },
+            });
             transaction.record(async (recording) => {
                 await recording.insert(task).values({ id: "r", scope: "records", priority: 0 });
             });
@@ -237,7 +273,7 @@ test("drop a failed step's writes and records as a savepoint does, keeping the w
 });
 
 test.each(TEST_DIALECTS)(
-    "refuse a write sharing a unique key with a committed row or the transaction's own, nulls being equal and archived rows outside the key, on %s",
+    "refuse a write sharing a unique key with a committed row, the transaction's own or its batch, nulls being equal and archived rows outside the key, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, [label], { isMigrated: true });
         onTestFinished(() => storage.close());
@@ -251,7 +287,11 @@ test.each(TEST_DIALECTS)(
         const transaction = await Transaction.open(database);
         const write = (row: { id: string; folder: string | null; name: string }) =>
             transaction
-                .write(label, null, { ...row, scope: "board", archivedAt: null })
+                .write({
+                    table: label,
+                    before: null,
+                    after: { ...row, scope: "board", archivedAt: null },
+                })
                 .then(() => "written");
         const written = [
             await refusal(write({ id: "c", folder: null, name: "red" })),
@@ -260,15 +300,52 @@ test.each(TEST_DIALECTS)(
             await refusal(write({ id: "a", folder: "inbox", name: "green" })),
             await write({ id: "f", folder: "inbox", name: "red" }),
         ];
+
+        // write a batch whose rows clash, then one moving a key from one row to another
+        const row = (id: string, name: string) => ({
+            table: label,
+            before: null,
+            after: { id, scope: "board", folder: "done", name, archivedAt: null },
+        });
+        const batches = [
+            await refusal(
+                transaction.write(row("g", "pink"), row("h", "pink")).then(() => "written"),
+            ),
+            await transaction
+                .write(
+                    {
+                        table: label,
+                        before: {
+                            id: "d",
+                            scope: "board",
+                            folder: null,
+                            name: "blue",
+                            archivedAt: null,
+                        },
+                        after: {
+                            id: "d",
+                            scope: "board",
+                            folder: null,
+                            name: "teal",
+                            archivedAt: null,
+                        },
+                    },
+                    { ...row("i", "blue"), after: { ...row("i", "blue").after, folder: null } },
+                )
+                .then(() => "written"),
+        ];
         await transaction.commit();
 
         // keep the writes outside every key
         expect({
             written,
-            committed: (await database.select().from(label).orderBy(asc(label.id))).map(
-                (row) => row.id,
-            ),
+            batches,
+            committed: (await database.select().from(label).orderBy(asc(label.id))).map((each) => [
+                each.id,
+                each.name,
+            ]),
         }).toEqual({
+            batches: [["DUPLICATE", "a record with the same unique key exists"], "written"],
             written: [
                 ["DUPLICATE", "a record with the same unique key exists"],
                 "written",
@@ -276,7 +353,13 @@ test.each(TEST_DIALECTS)(
                 ["DUPLICATE", "a record with the same unique key exists"],
                 "written",
             ],
-            committed: ["a", "b", "d", "f"],
+            committed: [
+                ["a", "red"],
+                ["b", "blue"],
+                ["d", "teal"],
+                ["f", "red"],
+                ["i", "blue"],
+            ],
         });
     },
 );
@@ -286,15 +369,23 @@ test("rehearse writes over a transaction's rows, answering the rows they change,
 
     // write once, then rehearse a change of that row and of another
     const transaction = await Transaction.open(database);
-    await transaction.write(task, null, { id: "d", scope: "inbox", priority: 4 });
+    await transaction.write({
+        table: task,
+        before: null,
+        after: { id: "d", scope: "inbox", priority: 4 },
+    });
     const first = await transaction.row(task, { id: "a" });
     const rehearsed = await transaction.rehearse(async () => {
-        await transaction.write(task, first, { id: "a", scope: "inbox", priority: 7 });
-        await transaction.write(
-            task,
-            { id: "d", scope: "inbox", priority: 4 },
-            { id: "d", scope: "inbox", priority: 8 },
-        );
+        await transaction.write({
+            table: task,
+            before: first,
+            after: { id: "a", scope: "inbox", priority: 7 },
+        });
+        await transaction.write({
+            table: task,
+            before: { id: "d", scope: "inbox", priority: 4 },
+            after: { id: "d", scope: "inbox", priority: 8 },
+        });
 
         return (await transaction.rows(task, { scope: "inbox" })).length;
     });
@@ -331,7 +422,11 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
     // pin a place, then the same place again and another
     const write = (id: string, place: { x: number; y: number }) =>
         transaction
-            .write(pin, null, { id, scope: "board", person: "ada", place })
+            .write({
+                table: pin,
+                before: null,
+                after: { id, scope: "board", person: "ada", place },
+            })
             .then(() => "written");
     expect([
         await write("a", { x: 1, y: 2 }),

@@ -120,8 +120,8 @@ export class ChangeSet {
     readonly #rows = new Map<string, RowChange>();
 
     /** Record a write of one row: the row before it, null for a creation, and after it, null for a removal. */
-    write(table: Table, before: Row | null, after: Row | null): void {
-        // name the row by the key of its present image, refusing a table without a key
+    write({ table, before, after }: RowChange): void {
+        // key the row by its present image, refusing a table without a key
         if (table[TABLE].key.length === 0) {
             throw new TypeError(`${table[TABLE].name} has no key to write rows by`);
         }
@@ -314,6 +314,8 @@ export class Transaction {
     readonly changes = new ChangeSet();
     /** The records the transaction writes once at its commit, such as its journal entry, which nothing reads back before it commits. */
     readonly #records: ((transaction: DatabaseConnection) => Promise<void>)[] = [];
+    /** The identifiers the transaction derived so far, counted from zero in every attempt. */
+    #derived = 0;
 
     /** Start a transaction at a position, or one that only reads at null. */
     constructor(database: DatabaseConnection, base: LogPosition | null) {
@@ -474,37 +476,56 @@ export class Transaction {
         return (await this.images(table, where)).length;
     }
 
-    /** Write one row: its value before, null for a creation, and after, null for a removal, refusing a duplicate of a unique key. */
-    async write(table: Table, before: Row | null, after: Row | null): Promise<void> {
-        if (after !== null) {
-            await this.#requireUnique(table, before, after);
+    /** Write rows, refusing all of them when one duplicates a unique key. */
+    async write(...changes: readonly RowChange[]): Promise<void> {
+        // refuse a duplicate of a unique key, reading each table once
+        const tables = new Map<Table, RowChange[]>();
+        for (const change of changes) {
+            const written = tables.get(change.table);
+            if (written === undefined) {
+                tables.set(change.table, [change]);
+            } else {
+                written.push(change);
+            }
+        }
+        for (const [table, written] of tables) {
+            await this.#requireUnique(table, written);
         }
 
-        this.changes.write(table, before, after);
+        // record each change
+        for (const change of changes) {
+            this.changes.write(change);
+        }
     }
 
-    /** Refuse a row sharing a unique key with another, reading every key the write sets in one recorded read. */
-    async #requireUnique(table: Table, before: Row | null, after: Row): Promise<void> {
-        // take the keys the write sets, leaving out keys with nulls and ones it keeps
+    /** Refuse rows sharing a unique key with another, in one recorded read. */
+    async #requireUnique(table: Table, changes: readonly RowChange[]): Promise<void> {
+        // take the keys each change sets, leaving out keys with nulls and ones it keeps
         const definition = table[TABLE];
-        const keys = definition.uniqueKeys.flatMap((key) => {
-            // decide whether the write sets the key and whether it keeps it
-            const covers = covering(table, key);
-            const isSet =
-                (key.isNullsNotDistinct || key.columns.every((column) => after[column] !== null)) &&
-                covers(after);
-            const isKept = before !== null && covers(before) && sameKey(table, key, before, after);
+        const keyed = changes.flatMap(({ before, after }) =>
+            after === null
+                ? []
+                : definition.uniqueKeys.flatMap((key) => {
+                      // decide whether the change sets the key and whether it keeps it
+                      const covers = covering(table, key);
+                      const isSet =
+                          (key.isNullsNotDistinct ||
+                              key.columns.every((column) => after[column] !== null)) &&
+                          covers(after);
+                      const isKept =
+                          before !== null && covers(before) && sameKey(table, key, before, after);
 
-            return isSet && !isKept ? [{ key, covers }] : [];
-        });
+                      return isSet && !isKept ? [{ key, covers, after }] : [];
+                  }),
+        );
 
-        // skip a write setting no key
-        if (keys.length === 0) {
+        // skip changes setting no key
+        if (keyed.length === 0) {
             return;
         }
 
-        // read the other rows sharing the scalar columns of any of the keys
-        const shared = keys.map(({ key }) => ({
+        // read the rows sharing the scalar columns of any of the keys
+        const shared = keyed.map(({ key, after }) => ({
             AND: [
                 Condition.equal(
                     Object.fromEntries(
@@ -518,14 +539,22 @@ export class Transaction {
                 key.where ?? {},
             ],
         }));
-        const replaced = before === null ? undefined : Key.name(table, before);
-        const others = (await this.rows(table, { OR: shared })).filter(
-            (row) => Key.name(table, row) !== replaced,
+        const read = await this.rows(table, { OR: shared });
+
+        // see the rows as the changes leave them: the ones they replace gone, their new ones added
+        const replaced = new Set(
+            changes.flatMap(({ before }) => (before === null ? [] : [Key.name(table, before)])),
         );
+        const rows = [
+            ...read.filter((row) => !replaced.has(Key.name(table, row))),
+            ...changes.flatMap(({ after }) => (after === null ? [] : [after])),
+        ];
 
         // refuse the first key another row shares
-        for (const { key, covers } of keys) {
-            const isShared = others.some((row) => covers(row) && sameKey(table, key, row, after));
+        for (const { key, covers, after } of keyed) {
+            const isShared = rows.some(
+                (row) => row !== after && covers(row) && sameKey(table, key, row, after),
+            );
             if (isShared) {
                 throw new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
                     key: {
@@ -574,6 +603,14 @@ export class Transaction {
             this.changes.restore(changes);
             this.#records.splice(records);
         };
+    }
+
+    /** Take the position of the transaction's next derived identifier, alike in every attempt. */
+    takePosition(): number {
+        const position = this.#derived;
+        this.#derived += 1;
+
+        return position;
     }
 
     /** Write a record once at the commit, in its transaction before the changes, such as a journal entry nothing reads back before then. */

@@ -53,23 +53,36 @@ const PlaceholderValue: schema.Schema<Placeholder> = schema.union([
     PlaceholderJson.transform((value) => new Placeholder(value.placeholder)),
 ]);
 
-/** A value a field compares with, or a placeholder read when the condition runs. */
-const Comparand = schema.union([Comparable, PlaceholderValue]);
+/** Another field of the row a comparison reads. */
+export const FieldReference = defineSchema(
+    schema.object({
+        /** The field's name. */
+        field: schema.string().min(1),
+    }),
+);
+/** Another field of the row a comparison reads. */
+export type FieldReference = schema.Infer<typeof FieldReference>;
+
+/** A placeholder read when the condition runs, or another field of the row. */
+const Operand = schema.union([PlaceholderValue, FieldReference]);
+
+/** A value a field compares with, a placeholder read when the condition runs, or another field of the row. */
+const Comparand = schema.union([Comparable, PlaceholderValue, FieldReference]);
 
 /** The comparisons of one field. */
 export type FieldCondition<Value extends Comparable = Comparable> = {
     /** Match an equal value. */
-    readonly eq?: Value | Placeholder;
+    readonly eq?: Value | Placeholder | FieldReference;
     /** Match a different value. */
-    readonly ne?: Value | Placeholder;
+    readonly ne?: Value | Placeholder | FieldReference;
     /** Match a lower value. */
-    readonly lt?: Value | Placeholder;
+    readonly lt?: Value | Placeholder | FieldReference;
     /** Match a value at most this one. */
-    readonly lte?: Value | Placeholder;
+    readonly lte?: Value | Placeholder | FieldReference;
     /** Match a higher value. */
-    readonly gt?: Value | Placeholder;
+    readonly gt?: Value | Placeholder | FieldReference;
     /** Match a value at least this one. */
-    readonly gte?: Value | Placeholder;
+    readonly gte?: Value | Placeholder | FieldReference;
     /** Match one of some values. */
     readonly in?: readonly Value[];
     /** Match none of some values. */
@@ -82,6 +95,14 @@ export type FieldCondition<Value extends Comparable = Comparable> = {
     readonly notLike?: Value & string;
     /** Match text a pattern does not, ignoring ASCII case. */
     readonly notIlike?: Value & string;
+    /** Match text starting with a prefix. */
+    readonly startsWith?: Value & string;
+    /** Match text ending with a suffix. */
+    readonly endsWith?: Value & string;
+    /** Match text of these characters alone: letters, digits, ranges of them, and `._+/=:@*-`. */
+    readonly characters?: string;
+    /** Match text whose length in characters is this one or meets a comparison. */
+    readonly length?: number | LengthCondition;
     /** Match a missing value. */
     readonly isNull?: true;
     /** Match a present value. */
@@ -93,6 +114,49 @@ export type FieldCondition<Value extends Comparable = Comparable> = {
     /** Negate a comparison. */
     readonly NOT?: FieldCondition<Value>;
 };
+
+/** The comparisons of a text's length in characters. */
+export type LengthCondition = {
+    /** Match an equal length. */
+    readonly eq?: number;
+    /** Match a different length. */
+    readonly ne?: number;
+    /** Match a shorter length. */
+    readonly lt?: number;
+    /** Match a length at most this one. */
+    readonly lte?: number;
+    /** Match a longer length. */
+    readonly gt?: number;
+    /** Match a length at least this one. */
+    readonly gte?: number;
+    /** Match one of some lengths. */
+    readonly in?: readonly number[];
+    /** Match none of some lengths. */
+    readonly notIn?: readonly number[];
+    /** Require every comparison. */
+    readonly AND?: readonly LengthCondition[];
+    /** Require any comparison. */
+    readonly OR?: readonly LengthCondition[];
+    /** Negate a comparison. */
+    readonly NOT?: LengthCondition;
+};
+
+/** The comparisons of a text's length, as resolving reads them. */
+const LengthCondition: schema.Schema<LengthCondition> = schema.lazy(() =>
+    schema.object({
+        eq: schema.int().nonnegative().exactOptional(),
+        ne: schema.int().nonnegative().exactOptional(),
+        lt: schema.int().nonnegative().exactOptional(),
+        lte: schema.int().nonnegative().exactOptional(),
+        gt: schema.int().nonnegative().exactOptional(),
+        gte: schema.int().nonnegative().exactOptional(),
+        in: schema.array(schema.int().nonnegative()).exactOptional(),
+        notIn: schema.array(schema.int().nonnegative()).exactOptional(),
+        AND: schema.array(LengthCondition).exactOptional(),
+        OR: schema.array(LengthCondition).exactOptional(),
+        NOT: LengthCondition.exactOptional(),
+    }),
+);
 
 /** The comparisons of one field, as resolving reads them. */
 const FieldCondition: schema.Schema<FieldCondition> = schema.lazy(() =>
@@ -109,6 +173,10 @@ const FieldCondition: schema.Schema<FieldCondition> = schema.lazy(() =>
         ilike: schema.string().exactOptional(),
         notLike: schema.string().exactOptional(),
         notIlike: schema.string().exactOptional(),
+        startsWith: schema.string().exactOptional(),
+        endsWith: schema.string().exactOptional(),
+        characters: schema.string().min(1).exactOptional(),
+        length: schema.union([schema.int().nonnegative(), LengthCondition]).exactOptional(),
         isNull: schema.literal(true).exactOptional(),
         isNotNull: schema.literal(true).exactOptional(),
         AND: schema.array(FieldCondition).exactOptional(),
@@ -256,10 +324,10 @@ function resolveField(name: string, entry: OpenEntry): Predicate {
         return { kind: "compare", operator: "eq", name, value: entry };
     }
 
-    // compare with a placeholder, or apply the field's comparisons
-    const placeholder = PlaceholderValue.safeParse(entry);
-    if (placeholder.success) {
-        return { kind: "compare", operator: "eq", name, value: placeholder.data };
+    // compare with a placeholder or another field, or apply the field's comparisons
+    const operand = Operand.safeParse(entry);
+    if (operand.success) {
+        return { kind: "compare", operator: "eq", name, value: operand.data };
     } else {
         return fieldPredicate(name, comparisonsOf(name, entry));
     }
@@ -287,6 +355,7 @@ function fieldPredicate(name: string, field: FieldCondition): Predicate {
         ...comparisonPredicates(name, field),
         ...valuePredicates(name, field),
         ...patternPredicates(name, field),
+        ...textPredicates(name, field),
         ...nestedPredicates(name, field),
     );
 }
@@ -337,6 +406,31 @@ function patternPredicates(name: string, field: FieldCondition): Predicate[] {
             const like: Predicate = { kind: "like", name, pattern, isInsensitive };
             predicates.push(isNegated ? { kind: "not", predicate: like } : like);
         }
+    }
+
+    return predicates;
+}
+
+/** Resolve a field's matches of text by its ends, its characters and its length. */
+function textPredicates(name: string, field: FieldCondition): Predicate[] {
+    // match a prefix and a suffix as literal patterns
+    const predicates: Predicate[] = [];
+    if (field.startsWith !== undefined) {
+        const pattern = `${Predicate.literal(field.startsWith)}%`;
+        predicates.push({ kind: "like", name, pattern, isInsensitive: false });
+    }
+    if (field.endsWith !== undefined) {
+        const pattern = `%${Predicate.literal(field.endsWith)}`;
+        predicates.push({ kind: "like", name, pattern, isInsensitive: false });
+    }
+
+    // match the characters and the length
+    if (field.characters !== undefined) {
+        predicates.push({ kind: "characters", name, set: Predicate.characters(field.characters) });
+    }
+    if (field.length !== undefined) {
+        const length = typeof field.length === "number" ? { eq: field.length } : field.length;
+        predicates.push({ kind: "length", name, predicate: fieldPredicate(name, length) });
     }
 
     return predicates;

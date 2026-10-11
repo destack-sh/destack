@@ -154,7 +154,7 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
                 .map((check) => ({
                     kind: "check" as const,
                     name: check.name,
-                    expression: inline(check.expression, dialect),
+                    expression: inline(Condition.render(check.condition, table), dialect),
                 })),
             ...columns.flatMap((column) => describeEnum(table, column)),
         ],
@@ -171,7 +171,7 @@ function describeColumn(column: Column, dialect: Dialect): ColumnDescription {
     return {
         name: definition.name,
         kind: definition.kind,
-        value: schema.record(schema.string(), schema.json()).parse(toJsonSchema(definition.json)),
+        value: toJsonSchema(definition.json),
         type: definition.types[dialect],
         ...(dialect === "postgresql" && definition.types.postgresql === "text"
             ? { collation: BYTE_COLLATION }

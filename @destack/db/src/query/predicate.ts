@@ -14,7 +14,7 @@ import { TABLE, type Table } from "../table/table.ts";
 import { Order } from "./order.ts";
 import type { Namespace } from "./namespace.ts";
 import { DatabaseError } from "../error/error.ts";
-import type { Comparable, Condition, Operator, Scalar } from "./condition.ts";
+import type { Comparable, Condition, FieldReference, Operator, Scalar } from "./condition.ts";
 
 /** The ASCII capitals, which a case-insensitive pattern lowers. */
 const CAPITALS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -30,6 +30,12 @@ const LIKE_SPECIAL: ReadonlySet<string> = new Set(["%", "_", "\\"]);
 
 /** The characters a regular expression reads as special, which a translated pattern escapes. */
 const REGEXP_SPECIAL = /[\\^$.*+?()[\]{}|/]/gu;
+
+/** A character class a `characters` match takes: letters, digits, ranges of either, and `._+/=:@*-`. */
+const CHARACTER_SET = /^(?:[a-z]-[a-z]|[A-Z]-[A-Z]|[0-9]-[0-9]|[A-Za-z0-9._+/=:@*-])+$/u;
+
+/** One piece of a character set: a range of letters or digits, or one character. */
+const CHARACTER_PIECE = /[a-z]-[a-z]|[A-Z]-[A-Z]|[0-9]-[0-9]|./gu;
 
 /** The SQL each comparison operator renders. */
 const OPERATORS = {
@@ -57,7 +63,7 @@ export type Predicate =
           readonly kind: "compare";
           readonly operator: Operator;
           readonly name: string;
-          readonly value: Comparable | Placeholder;
+          readonly value: Comparable | Placeholder | FieldReference;
       }
     | { readonly kind: "oneOf"; readonly name: string; readonly values: readonly Comparable[] }
     | { readonly kind: "missing"; readonly name: string }
@@ -67,6 +73,8 @@ export type Predicate =
           readonly pattern: string;
           readonly isInsensitive: boolean;
       }
+    | { readonly kind: "characters"; readonly name: string; readonly set: string }
+    | { readonly kind: "length"; readonly name: string; readonly predicate: Predicate }
     | { readonly kind: "all" | "any"; readonly predicates: readonly Predicate[] }
     | { readonly kind: "not"; readonly predicate: Predicate }
     | { readonly kind: "exists"; readonly via: string; readonly where: Condition };
@@ -87,7 +95,38 @@ export const Predicate = {
     compile,
     matches,
     unbound,
+    literal,
+    characters,
 };
+
+/** Write a text as a LIKE pattern matching it literally. */
+function literal(text: string): string {
+    return text.replaceAll(/[%_\\]/gu, (special) => `\\${special}`);
+}
+
+/** Read a character set of letters, digits, their ranges and `._+/=:@*-`, a hyphen last. */
+function characters(set: string): string {
+    if (!CHARACTER_SET.test(set)) {
+        throw new DatabaseError(
+            "INVALID_QUERY",
+            `character set ${set} takes letters, digits, their ranges and ._+/=:@*- alone`,
+        );
+    }
+
+    // split the set as it was read, refusing a descending range
+    const ranges = [...set.matchAll(CHARACTER_PIECE)].map(([piece]) => piece);
+    const descending = ranges.find(
+        (piece) => piece.length === 3 && piece.charAt(0) > piece.charAt(2),
+    );
+    if (descending !== undefined) {
+        throw new DatabaseError("INVALID_QUERY", `character range ${descending} descends`);
+    }
+
+    // move a literal hyphen last, where every dialect's class reads it literally
+    return [...ranges.filter((each) => each !== "-"), ...(ranges.includes("-") ? ["-"] : [])].join(
+        "",
+    );
+}
 
 /** Require every predicate, keeping a single one as it is. */
 function all(...predicates: Predicate[]): Predicate {
@@ -104,9 +143,14 @@ function fields(predicate: Predicate): Set<string> {
             visited.kind === "compare" ||
             visited.kind === "oneOf" ||
             visited.kind === "missing" ||
-            visited.kind === "like"
+            visited.kind === "like" ||
+            visited.kind === "characters" ||
+            visited.kind === "length"
         ) {
             names.add(visited.name);
+        }
+        if (visited.kind === "compare" && isReference(visited.value)) {
+            names.add(visited.value.field);
         }
     });
 
@@ -129,10 +173,24 @@ function relations(predicate: Predicate): { readonly via: string; readonly where
 function rename(predicate: Predicate, name: (field: string) => string): Predicate {
     switch (predicate.kind) {
         case "compare":
+            return {
+                ...predicate,
+                name: name(predicate.name),
+                value: isReference(predicate.value)
+                    ? { field: name(predicate.value.field) }
+                    : predicate.value,
+            };
         case "oneOf":
         case "missing":
         case "like":
+        case "characters":
             return { ...predicate, name: name(predicate.name) };
+        case "length":
+            return {
+                ...predicate,
+                name: name(predicate.name),
+                predicate: rename(predicate.predicate, name),
+            };
         case "all":
         case "any":
             return {
@@ -152,8 +210,11 @@ function size(predicate: Predicate): number {
         case "compare":
         case "missing":
         case "like":
+        case "characters":
         case "exists":
             return 1;
+        case "length":
+            return 1 + size(predicate.predicate);
         case "oneOf":
             return Math.max(1, predicate.values.length);
         case "all":
@@ -171,9 +232,14 @@ function visit(predicate: Predicate, visitor: (visited: Predicate) => void): voi
         for (const nested of predicate.predicates) {
             visit(nested, visitor);
         }
-    } else if (predicate.kind === "not") {
+    } else if (predicate.kind === "not" || predicate.kind === "length") {
         visit(predicate.predicate, visitor);
     }
+}
+
+/** Decide whether a comparison's value is another field of the row. */
+function isReference(value: Comparable | Placeholder | FieldReference): value is FieldReference {
+    return typeof value === "object" && !(value instanceof Placeholder);
 }
 
 /** Require a predicate to compare only comparable columns and computed values. */
@@ -185,12 +251,30 @@ function requireComparable(
     // require a comparable column for each compared field outside the computed values, and text for patterns
     visit(predicate, (visited) => {
         const isCompared = visited.kind === "compare" || visited.kind === "oneOf";
-        if (isCompared && !Object.hasOwn(namespace.extras, visited.name)) {
+        if (visited.kind === "compare" && isReference(visited.value)) {
+            requireSameOrdering(table, visited.name, visited.value.field);
+        } else if (isCompared && !Object.hasOwn(namespace.extras, visited.name)) {
             Order.column(table, visited.name);
-        } else if (visited.kind === "like") {
+        } else if (
+            visited.kind === "like" ||
+            visited.kind === "characters" ||
+            visited.kind === "length"
+        ) {
             requireText(table, visited.name);
         }
     });
+}
+
+/** Require two columns that order as the same values, which a comparison of fields reads. */
+function requireSameOrdering(table: Table, left: string, right: string): void {
+    const leftOrdering = Order.ordering(table, left);
+    const rightOrdering = Order.ordering(table, right);
+    if (leftOrdering !== rightOrdering) {
+        throw new DatabaseError(
+            "INVALID_QUERY",
+            `${table[TABLE].name}.${left} orders as ${leftOrdering}, compared with ${right} as ${rightOrdering}`,
+        );
+    }
 }
 
 /** Read a table's column of any kind, refusing a name it has no column of. */
@@ -262,6 +346,25 @@ function render(predicate: Predicate, binding: Binding<SQLWrapper>): SQL {
             return sql`(${binding.field(predicate.name)} IS NULL)`;
         case "like":
             return renderLike(predicate, binding.field(predicate.name));
+        case "characters": {
+            // match text with no character outside the set
+            const field = binding.field(predicate.name);
+
+            return dialectSQL({
+                postgresql: sql`(${field} !~ ${`[^${predicate.set}]`})`,
+                sqlite: sql`(${field} NOT GLOB ${`*[^${predicate.set}]*`})`,
+            });
+        }
+        case "length": {
+            // compare the field's length in characters
+            const field = binding.field(predicate.name);
+            const length = sql`length(${field})`;
+
+            return render(predicate.predicate, {
+                ...binding,
+                field: (name) => (name === predicate.name ? length : binding.field(name)),
+            });
+        }
         case "all":
         case "any": {
             // render empty conjunctions true and disjunctions false
@@ -397,15 +500,21 @@ function expressionToken(token: LikeToken): string {
     }
 }
 
-/** Render a value, bound through the field's column when it has one. */
+/** Render a value, bound through the field's column when its kind encodes values. */
 function renderValue(
-    value: Comparable | Placeholder,
+    value: Comparable | Placeholder | FieldReference,
     field: SQLWrapper,
     binding: Binding<SQLWrapper>,
 ): SQLWrapper {
+    // read another field of the row
+    if (isReference(value)) {
+        return binding.field(value.field);
+    }
+
+    // bind a literal or a placeholder's value
     const scalar = value instanceof Placeholder ? binding.placeholder(value.placeholder) : value;
 
-    return Column.is(field) && scalar !== null
+    return Column.is(field) && scalar !== null && !Column.isPlain(field)
         ? sql`${new Parameter(field.definition.fromJson(scalar), field)}`
         : sql`${scalar}`;
 }
@@ -421,6 +530,10 @@ function compile(predicate: Predicate, table?: Table): Match {
             return compileMissing(predicate);
         case "like":
             return compileLike(predicate);
+        case "characters":
+            return compileCharacters(predicate);
+        case "length":
+            return compileLength(predicate);
         case "all":
         case "any":
             return compileJunction(predicate, table);
@@ -431,15 +544,25 @@ function compile(predicate: Predicate, table?: Table): Match {
     }
 }
 
-/** Compile a comparison with a literal or a placeholder. */
+/** Compile a comparison with a literal, a placeholder or another field of the row. */
 function compileCompare(
     predicate: Extract<Predicate, { readonly kind: "compare" }>,
     table?: Table,
 ): Match {
     const { name, operator, value } = predicate;
 
+    // compare with another field of the row
+    if (isReference(value)) {
+        const other = value.field;
+
+        return (binding) => {
+            const order = Order.values(binding.field(name), binding.field(other));
+
+            return order === undefined ? undefined : satisfies(operator, order);
+        };
+    }
     // decode a placeholder on each evaluation
-    if (value instanceof Placeholder) {
+    else if (value instanceof Placeholder) {
         const placeholder = value.placeholder;
 
         return (binding) => {
@@ -518,6 +641,46 @@ function compileLike(predicate: Extract<Predicate, { readonly kind: "like" }>): 
     };
 }
 
+/** Compile a match of text by its characters, unknown for a missing value. */
+function compileCharacters(predicate: Extract<Predicate, { readonly kind: "characters" }>): Match {
+    const { name } = predicate;
+    const expression = new RegExp(`^[${predicate.set}]*$`, "u");
+
+    return (binding) => {
+        const text = textOf(binding.field(name), name);
+
+        return text === undefined ? undefined : expression.test(text);
+    };
+}
+
+/** Compile a comparison of text's length in characters, unknown for a missing value. */
+function compileLength(predicate: Extract<Predicate, { readonly kind: "length" }>): Match {
+    // compare lengths as numbers, which no column decodes
+    const { name } = predicate;
+    const match = compile(predicate.predicate);
+
+    return (binding) => {
+        const text = textOf(binding.field(name), name);
+        const length = text === undefined ? null : Array.from(text).length;
+
+        return match({
+            ...binding,
+            field: (field) => (field === name ? length : binding.field(field)),
+        });
+    };
+}
+
+/** Read a field's text, absent for a missing value, refusing a value of another kind. */
+function textOf(value: unknown, name: string): string | undefined {
+    if (value === null || value === undefined) {
+        return undefined;
+    } else if (typeof value !== "string") {
+        throw new DatabaseError("INVALID_QUERY", `field ${name} matches text, not ${typeof value}`);
+    }
+
+    return value;
+}
+
 /** Compile a conjunction or disjunction, settling on its deciding value. */
 function compileJunction(
     predicate: Extract<Predicate, { readonly kind: "all" | "any" }>,
@@ -572,11 +735,13 @@ function matches(match: Match, row: Row): boolean {
     );
 }
 
-/** Decode a scalar as its column keeps it, or keep it for a computed value or a row without a table. */
+/** Decode a scalar as its column keeps it, or keep it for a plain kind, a computed value or a row without a table. */
 function decode(table: Table | undefined, name: string, scalar: Scalar): unknown {
     const column = table?.[TABLE].columns[name];
 
-    return column === undefined ? scalar : column.definition.fromJson(scalar);
+    return column === undefined || Column.isPlain(column)
+        ? scalar
+        : column.definition.fromJson(scalar);
 }
 
 /** Decide whether an order satisfies an operator. */

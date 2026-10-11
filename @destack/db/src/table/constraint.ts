@@ -11,8 +11,8 @@ export interface Check {
     readonly kind: "check";
     /** The SQL constraint name. */
     readonly name: string;
-    /** The row predicate. */
-    readonly expression: SQL;
+    /** The condition every row meets. */
+    readonly condition: Condition;
 }
 
 /** A named ordered index, optionally partial. */
@@ -147,9 +147,9 @@ export class ForeignKey {
     }
 }
 
-/** Declare a named row predicate. */
-export function check(name: string, expression: SQL): Check {
-    return { kind: "check", name, expression };
+/** Declare a named condition every row meets. */
+export function check(name: string, condition: Condition): Check {
+    return { kind: "check", name, condition };
 }
 
 /** Declare a non-unique index. */
