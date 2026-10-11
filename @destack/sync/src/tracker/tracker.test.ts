@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, eq, integer, text, type DatabaseConnection, type Channel } from "@destack/db";
 import { channelHub } from "@destack/db";
@@ -150,7 +151,10 @@ test("skip the instance's own messages a channel echoes back, as PostgreSQL's do
 /** Track the cursors of an in-memory database on a channel. */
 async function open(channel: Channel<unknown>): Promise<Tracker> {
     const storage = await TestDatabase.create("sqlite", [cursor], { isMigrated: true });
-    const tracker = new Tracker(storage.database, [cursor], channel, { heartbeat: 5 });
+    const tracker = new Tracker(storage.database, [cursor], channel, {
+        clock: Clock.system,
+        heartbeat: 5,
+    });
     onTestFinished(async () => {
         tracker.close();
         await storage.close();

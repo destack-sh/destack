@@ -1,5 +1,5 @@
 import { expect, refusal, test } from "@destack/test";
-import { aligned } from "@destack/schema";
+import { aligned, Clock } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { eq, sql, type Table, Expression, type Change } from "@destack/db";
 import { Feed } from "./feed.ts";
@@ -53,7 +53,7 @@ async function first(
 test.for(TEST_DIALECTS)(
     "refuse queries reading what the audience or the feed hides on %s",
     async (dialect) => {
-        const feed = new Feed(await open(dialect), TABLES);
+        const feed = new Feed(await open(dialect), TABLES, { clock: Clock.system });
         const reason = async (query: Query, audience: Audience = EVERYONE) => {
             const pages = feed.subscribe({ query }, undefined, AbortSignal.timeout(5000), {
                 audience,
@@ -107,7 +107,7 @@ test.for(TEST_DIALECTS)(
 
         // send the low-ranked task whole and the high-ranked one without its title
         const sent = await first(
-            new Feed(database, TABLES),
+            new Feed(database, TABLES, { clock: Clock.system }),
             { tasks: { table: task, scopes: ["inbox"] } },
             AUDIENCE,
         );
@@ -124,7 +124,7 @@ test.for(TEST_DIALECTS)(
     "follow rows whose visibility the audience changes on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [...TABLES, note]);
+        const feed = new Feed(database, [...TABLES, note], { clock: Clock.system });
         await database.insert(task).values([TASK, { ...TASK, id: "t2" }]);
 
         // see the tasks a note names
@@ -189,7 +189,7 @@ test.for(TEST_DIALECTS)(
     "start over with a snapshot when access changes beyond a page on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [...TABLES, note]);
+        const feed = new Feed(database, [...TABLES, note], { clock: Clock.system });
         await database.insert(task).values(TASK);
         const audience: Audience = {
             ...EVERYONE,
@@ -227,7 +227,7 @@ test.for(TEST_DIALECTS)(
     "refuse queries whose windows outgrow the feed's capacity on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, TABLES, { capacity: 3 });
+        const feed = new Feed(database, TABLES, { clock: Clock.system, capacity: 3 });
         await database
             .insert(project)
             .values(["a", "b"].map((id) => ({ id, scope: "inbox", name: id })));
@@ -268,7 +268,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)("refuse subscribers beyond a feed's limit on %s", async (dialect) => {
-    const feed = new Feed(await open(dialect), TABLES, { subscribers: 1 });
+    const feed = new Feed(await open(dialect), TABLES, { clock: Clock.system, subscribers: 1 });
     const query = { tasks: { table: task, scopes: ["inbox"] } };
     const signal = AbortSignal.timeout(5000);
 
@@ -284,7 +284,7 @@ test.for(TEST_DIALECTS)(
     "page catch-up changes at transaction boundaries on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, TABLES);
+        const feed = new Feed(database, TABLES, { clock: Clock.system });
         await database.insert(project).values({ id: "p1", scope: "inbox", name: "a" });
         const start = await database.log.position();
         const signal = AbortSignal.timeout(5000);

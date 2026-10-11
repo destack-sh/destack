@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { aligned, schema } from "@destack/schema";
+import { aligned, schema, Clock } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
@@ -19,7 +19,7 @@ import type { Item, Query } from "../query/query.ts";
 
 test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async (dialect) => {
     const database = await open(dialect);
-    const feed = new Feed(database, [note]);
+    const feed = new Feed(database, [note], { clock: Clock.system });
     const query = { table: note, scopes: ["inbox"], where: { title: "Open" } };
     await database.insert(note).values([
         { ...first, id: "a", title: "Open" },
@@ -74,7 +74,7 @@ test.for(TEST_DIALECTS)(
     "page a large snapshot and continue after its first page on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [note]);
+        const feed = new Feed(database, [note], { clock: Clock.system });
         const ids = Array.from(
             { length: 2500 },
             (_, index) => `n${String(index).padStart(4, "0")}`,
@@ -103,7 +103,7 @@ test.for(TEST_DIALECTS)(
     "serve subscribers behind the feed from the log and current ones from memory on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [note]);
+        const feed = new Feed(database, [note], { clock: Clock.system });
         const query = { notes: { table: note, scopes: ["inbox"] } };
         const signal = AbortSignal.timeout(5000);
         const start = await database.log.position();
@@ -132,7 +132,7 @@ test.for(TEST_DIALECTS)(
     "snapshot again when the source starts a new epoch on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [note]);
+        const feed = new Feed(database, [note], { clock: Clock.system });
         const query = { notes: { table: note, scopes: ["inbox"] } };
         await database.insert(note).values(first);
         const signal = AbortSignal.timeout(5000);
@@ -163,7 +163,7 @@ test.for(TEST_DIALECTS)(
     "follow the head through pages merged within an interval on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [note]);
+        const feed = new Feed(database, [note], { clock: Clock.system });
         await database.insert(note).values({ ...first, id: "a" });
 
         // follow with merged pages
@@ -207,7 +207,7 @@ test.for(TEST_DIALECTS)(
     "keep serving a subscriber while another stops reading on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [note]);
+        const feed = new Feed(database, [note], { clock: Clock.system });
         const query = { table: note, scopes: ["inbox"] };
         const signal = AbortSignal.timeout(5000);
 
@@ -227,7 +227,7 @@ test.for(TEST_DIALECTS)(
     "watch an ordered query keeping unchanged rows and placing a changed row by its order on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [note]);
+        const feed = new Feed(database, [note], { clock: Clock.system });
         const query = {
             table: note,
             scopes: ["inbox"],
@@ -269,7 +269,7 @@ test.for(TEST_DIALECTS)(
     "watch projects with their tasks, reordering one project's tasks and keeping the other project as it was on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [project, task]);
+        const feed = new Feed(database, [project, task], { clock: Clock.system });
         const query = {
             table: project,
             scopes: ["inbox"],
@@ -310,7 +310,7 @@ test.for(TEST_DIALECTS)(
     "watch a board whose JSON columns hold an object and a list of objects apart from its included cards on %s",
     async (dialect) => {
         const database = await open(dialect, [board, card]);
-        const feed = new Feed(database, [board, card]);
+        const feed = new Feed(database, [board, card], { clock: Clock.system });
         const query = {
             table: board,
             scopes: ["inbox"],
@@ -355,7 +355,7 @@ test.for(TEST_DIALECTS)(
     "resume at once past commits of tables the feed leaves out on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [note]);
+        const feed = new Feed(database, [note], { clock: Clock.system });
         const query = { table: note, scopes: ["inbox"] };
         await database.insert(note).values(first);
 

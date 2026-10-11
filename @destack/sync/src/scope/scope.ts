@@ -191,5 +191,5 @@ async function change(
     if (row === null) {
         throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
     }
-    await transaction.write(scopeTable, row, { ...row, ...changes });
+    await transaction.write({ table: scopeTable, before: row, after: { ...row, ...changes } });
 }

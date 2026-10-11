@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import {
     Key,
     TABLE,
@@ -155,7 +156,9 @@ export class Follower {
         const applied =
             this.#replica === undefined
                 ? pages
-                : this.#replica.replica.apply(this.#replica.database, pages);
+                : this.#replica.replica.apply(this.#replica.database, pages, {
+                      clock: Clock.system,
+                  });
         this.#running = (async () => {
             try {
                 for await (const page of applied) {

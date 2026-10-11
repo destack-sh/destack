@@ -20,7 +20,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { replicaTables, type Replica } from "../replica/replica.ts";
 import type { Prediction } from "../prediction/prediction.ts";
 import type { Page } from "../query/page.ts";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 
 /** Test notes. */
 export const note = defineTable(
@@ -319,7 +319,10 @@ export async function replicate(
     pages: readonly Page[],
     prediction?: Prediction,
 ): Promise<void> {
-    const applied = copy.apply(database, pages, prediction === undefined ? {} : { prediction });
+    const applied = copy.apply(database, pages, {
+        clock: Clock.system,
+        ...(prediction === undefined ? {} : { prediction }),
+    });
     while ((await applied.next()).done !== true) {
         // apply each page in order
     }

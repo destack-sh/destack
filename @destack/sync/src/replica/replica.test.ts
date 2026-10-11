@@ -24,7 +24,7 @@ import { TestDatabase } from "@destack/db/test";
 import { setTimeout } from "node:timers/promises";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { replicaTables, Replica, replicaPosition, replicaRow, type Projector } from "./replica.ts";
 import { type Resumption, Uplink } from "./shape.ts";
 import {
@@ -58,7 +58,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [note, replicaPosition]);
+        const feed = new Feed(source, [note, replicaPosition], { clock: Clock.system });
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         await source.insert(note).values([first, { ...first, id: "b", scope: "archive" }]);
         await copy.insert(note).values({ ...first, id: "stale" });
@@ -69,6 +69,7 @@ test.for(TEST_DIALECTS)(
             copy,
             (from, signal) => feed.subscribe(notes.queries, from.after, signal),
             controller.signal,
+            { clock: Clock.system },
         );
         const signal = AbortSignal.timeout(5000);
         expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
@@ -115,12 +116,16 @@ test.for(TEST_DIALECTS)(
         // follow each database's table from the other, naming the follower's own origin
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const projects = new Replica({ name: "projects", scope: "inbox", tables: [project] });
-        const homeFeed = new Feed(home, [note, replicaPosition]);
-        const otherFeed = new Feed(other, [project, replicaPosition]);
+        const homeFeed = new Feed(home, [note, replicaPosition], { clock: Clock.system });
+        const otherFeed = new Feed(other, [project, replicaPosition], { clock: Clock.system });
         const controller = new AbortController();
         const following = Promise.all([
-            notes.follow(other, followOf(homeFeed, notes), controller.signal),
-            projects.follow(home, followOf(otherFeed, projects), controller.signal),
+            notes.follow(other, followOf(homeFeed, notes), controller.signal, {
+                clock: Clock.system,
+            }),
+            projects.follow(home, followOf(otherFeed, projects), controller.signal, {
+                clock: Clock.system,
+            }),
         ]);
 
         // reach the latest change of each database the other did not originate
@@ -154,8 +159,9 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const following = inbox.follow(
             other,
-            followOf(new Feed(home, [note, replicaPosition]), inbox),
+            followOf(new Feed(home, [note, replicaPosition], { clock: Clock.system }), inbox),
             controller.signal,
+            { clock: Clock.system },
         );
         const signal = AbortSignal.timeout(5000);
         expect(await Replica.wait(other, "inbox", await home.log.position(), signal)).toBe(true);
@@ -220,14 +226,16 @@ test.for(TEST_DIALECTS)(
                 [note, scopes],
             ]),
         });
-        const feed = new Feed(source, [Scope.table, note, replicaPosition]);
+        const feed = new Feed(source, [Scope.table, note, replicaPosition], {
+            clock: Clock.system,
+        });
         const subscription = { ...subscriptionOf("folders"), scope: Scope.universe.id };
         const controller = new AbortController();
         const following = folders.follow(
             copy,
             (from, signal) => feed.subscribe(folders.queries, from.after, signal),
             controller.signal,
-            { subscription },
+            { clock: Clock.system, subscription },
         );
         const head = await source.log.position();
         const signal = AbortSignal.timeout(5000);
@@ -276,7 +284,9 @@ test.for(TEST_DIALECTS)(
             tables: copied,
             everywhere: new Set(copied),
         });
-        const feed = new Feed(source, [entry, machineKey, replicaPosition]);
+        const feed = new Feed(source, [entry, machineKey, replicaPosition], {
+            clock: Clock.system,
+        });
         const data = new Uint8Array([1, 2, 3]);
         await source
             .insert(entry)
@@ -288,6 +298,7 @@ test.for(TEST_DIALECTS)(
             target,
             (from, signal) => feed.subscribe(copy.queries, from.after, signal),
             controller.signal,
+            { clock: Clock.system },
         );
         const signal = AbortSignal.timeout(5000);
         expect(await Replica.wait(target, "database", await source.log.position(), signal)).toBe(
@@ -309,6 +320,7 @@ test.for(TEST_DIALECTS)(
         const unseal = async (table: Table, row: Row) =>
             rewrapped(table, row, "moving:", "target:");
         const applied = copy.apply(target, feed.capture(copy.captured, signal, { seal }), {
+            clock: Clock.system,
             open: unseal,
         });
         while ((await applied.next()).done !== true) {
@@ -336,7 +348,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [project, task, replicaPosition]);
+        const feed = new Feed(source, [project, task, replicaPosition], { clock: Clock.system });
         const projects = new Replica({ name: "work", scope: "inbox", tables: [project] });
         await source.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
 
@@ -346,6 +358,7 @@ test.for(TEST_DIALECTS)(
             copy,
             (from, signal) => feed.subscribe(projects.queries, from.after, signal),
             controller.signal,
+            { clock: Clock.system },
         );
         const signal = AbortSignal.timeout(5000);
         expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
@@ -370,7 +383,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({ name: "copy", tables: replicaTables, copies: [label, project] }),
         );
-        const feed = new Feed(source, [label, project, replicaPosition]);
+        const feed = new Feed(source, [label, project, replicaPosition], { clock: Clock.system });
         await source.insert(label).values({ id: "l1", scope: "inbox", name: "red" });
 
         // copy the labels until synced
@@ -407,7 +420,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({ name: "copy", tables: replicaTables, copies: [label] }),
         );
-        const feed = new Feed(source, [label, replicaPosition]);
+        const feed = new Feed(source, [label, replicaPosition], { clock: Clock.system });
         await source.insert(label).values([
             { id: "l1", scope: "inbox", name: "red" },
             { id: "l2", scope: "inbox", name: "blue" },
@@ -447,7 +460,7 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // wait until a complete page reaches the position
-        await notes.register(copy);
+        await notes.register(copy, { clock: Clock.system });
         expect([await Replica.isCopied(Snapshot.live(copy), "inbox"), await reach()]).toEqual([
             true,
             false,
@@ -507,7 +520,7 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // keep the copy while a run is staged
-        const stream = notes.apply(copy, snapshot);
+        const stream = notes.apply(copy, snapshot, { clock: Clock.system });
         await stream.next();
         expect(await state()).toEqual([["b", "stale"], undefined]);
 
@@ -534,7 +547,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [project, task, replicaPosition]);
+        const feed = new Feed(source, [project, task, replicaPosition], { clock: Clock.system });
         const projects = new Replica({ name: "projects", scope: "inbox", tables: [project, task] });
         await source.insert(project).values([
             { id: "p", scope: "inbox", name: "Plans" },
@@ -572,6 +585,7 @@ test.for(TEST_DIALECTS)(
             copy,
             (from, signal) => feed.subscribe({ projects: query }, from.after, signal),
             controller.signal,
+            { clock: Clock.system },
         );
         expect(
             await Replica.wait(
@@ -613,7 +627,7 @@ test.for(TEST_DIALECTS)(
         // follow an asset with binary content and a secret outside the log
         const source = await open(dialect, [asset, ...replicaTables]);
         const copy = await openCopy(dialect, [asset, ...replicaTables]);
-        const feed = new Feed(source, [asset, replicaPosition]);
+        const feed = new Feed(source, [asset, replicaPosition], { clock: Clock.system });
         const assets = new Replica({ name: "assets", scope: "inbox", tables: [asset] });
         await source
             .insert(asset)
@@ -623,6 +637,7 @@ test.for(TEST_DIALECTS)(
             copy,
             (from, signal) => feed.subscribe(assets.queries, from.after, signal),
             controller.signal,
+            { clock: Clock.system },
         );
         const signal = AbortSignal.timeout(5000);
         expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
@@ -641,7 +656,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [note, replicaPosition]);
+        const feed = new Feed(source, [note, replicaPosition], { clock: Clock.system });
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         await source.insert(note).values(first);
 
@@ -665,6 +680,7 @@ test.for(TEST_DIALECTS)(
                 }
             },
             controller.signal,
+            { clock: Clock.system },
         );
 
         // follow a change through the third stream
@@ -704,6 +720,7 @@ test.for(TEST_DIALECTS)(
                 throw new Error("source failed");
             },
             signal,
+            { clock: Clock.system },
         );
         await expect(failing).rejects.toThrow(new Error("source failed"));
         const empty = notes.follow(
@@ -712,6 +729,7 @@ test.for(TEST_DIALECTS)(
                 yield* [];
             },
             signal,
+            { clock: Clock.system },
         );
         await expect(empty).rejects.toEqual(
             new SyncError("INVALID_STREAM", "the source of inbox ended a stream without a page"),
@@ -724,7 +742,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [note, replicaPosition]);
+        const feed = new Feed(source, [note, replicaPosition], { clock: Clock.system });
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const ids = Array.from({ length: SNAPSHOT_NOTES }, (_, index) => `n${index}`);
         for (let start = 0; start < ids.length; start += INSERT_BATCH) {
@@ -760,6 +778,7 @@ test.for(TEST_DIALECTS)(
                 }
             },
             controller.signal,
+            { clock: Clock.system },
         );
         const position = await source.log.position();
         await third.promise;
@@ -853,8 +872,8 @@ test.for(TEST_DIALECTS)(
             projectors: [projectNotes("reading")],
         });
         const right = new Replica({ name: "right", scope: "inbox", tables: [note] });
-        await left.register(copy, subscriptionOf("left"));
-        await right.register(copy, subscriptionOf("right"));
+        await left.register(copy, { subscription: subscriptionOf("left"), clock: Clock.system });
+        await right.register(copy, { subscription: subscriptionOf("right"), clock: Clock.system });
         await replicate(left, copy, snapshot(["a", "shared"]));
         await replicate(right, copy, snapshot(["shared", "z"]));
 
@@ -875,7 +894,9 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [project, task, tag, replicaPosition]);
+        const feed = new Feed(source, [project, task, tag, replicaPosition], {
+            clock: Clock.system,
+        });
         const work = new Replica({
             name: "work",
             scope: "inbox",
@@ -917,6 +938,7 @@ test.for(TEST_DIALECTS)(
             copy,
             (from, stream) => feed.subscribe(work.queries, from.after, stream),
             controller.signal,
+            { clock: Clock.system },
         );
         expect(await tags()).toEqual([
             ["g1", "p1"],
@@ -950,6 +972,7 @@ test.for(TEST_DIALECTS)(
             copy,
             (_from, stream) => feed.subscribe(work.queries, undefined, stream),
             again.signal,
+            { clock: Clock.system },
         );
         expect(await tags()).toEqual([
             ["g5", "p2"],
@@ -1102,9 +1125,9 @@ test("resume a subscription from the copy's position, reshape one of other param
     const position = { epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
 
     // complete a snapshot of the subscription
-    await notes.register(copy);
+    await notes.register(copy, { clock: Clock.system });
     const snapshot: Page = { reset: true, complete: true, changes: [], position };
-    await Array.fromAsync(notes.apply(copy, [snapshot], { subscription }));
+    await Array.fromAsync(notes.apply(copy, [snapshot], { clock: Clock.system, subscription }));
 
     // resume it, reshape it under other parameters, and snapshot another shape or name, each naming the copy's own log
     const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
@@ -1135,6 +1158,7 @@ async function syncLabels(
         copy,
         (from, signal) => feed.subscribe(labels.queries, from.after, signal),
         controller.signal,
+        { clock: Clock.system },
     );
     const isSynced = await Replica.wait(
         copy,
@@ -1250,7 +1274,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect, [...TABLES, reading]);
-        const feed = new Feed(source, [note, replicaPosition]);
+        const feed = new Feed(source, [note, replicaPosition], { clock: Clock.system });
         const notes = new Replica({
             name: "notes",
             scope: "inbox",
@@ -1276,6 +1300,7 @@ test.for(TEST_DIALECTS)(
                         signal,
                     ),
                 controller.signal,
+                { clock: Clock.system },
             );
 
             return { stop: async () => (controller.abort(), await following) };

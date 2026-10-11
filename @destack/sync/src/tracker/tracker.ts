@@ -85,8 +85,8 @@ export interface TrackerOptions {
     readonly instance?: string;
     /** The heartbeat interval, in milliseconds. */
     readonly heartbeat?: number;
-    /** The clock heartbeats are timed by, the system clock by default. */
-    readonly clock?: Clock;
+    /** The clock heartbeats are timed by. */
+    readonly clock: Clock;
 }
 
 /** Rows of tables kept in memory on every instance and removed with their owners. */
@@ -127,7 +127,7 @@ export class Tracker {
         database: DatabaseConnection,
         tables: readonly Table[],
         channel: Channel<unknown>,
-        options: TrackerOptions = {},
+        options: TrackerOptions,
     ) {
         // require every column in the log
         for (const table of tables) {
@@ -146,7 +146,7 @@ export class Tracker {
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
         this.#channel = typedChannel(channel, TrackerMessage);
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
-        this.#clock = options.clock ?? Clock.system;
+        this.#clock = options.clock;
 
         // apply messages in order and ask for live rows on each start or resume
         this.#stop = this.#channel.listen(

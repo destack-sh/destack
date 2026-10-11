@@ -121,13 +121,13 @@ export class Feed implements Cache {
             readonly upstream?: Upstream;
             readonly observe?: (cost: RunCost) => void;
             readonly heartbeat?: number;
-            readonly clock?: Clock;
-        } = {},
+            readonly clock: Clock;
+        },
     ) {
         // keep the logged tables and the limits
         this.database = database;
         this.upstream = options.upstream;
-        this.clock = options.clock ?? Clock.system;
+        this.clock = options.clock;
         this.tables = tables
             .flatMap((table) => [
                 table,

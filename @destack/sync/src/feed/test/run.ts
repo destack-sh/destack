@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Key, TABLE, type DatabaseConnection, type Dialect, type Table } from "@destack/db";
@@ -87,7 +88,7 @@ export function seededRuns(
 async function matchExactly(run: Run, dialect: Dialect): Promise<void> {
     // open the source and seed its rows
     const source = await open(dialect);
-    const feed = new Feed(source, TABLES);
+    const feed = new Feed(source, TABLES, { clock: Clock.system });
     const workload = new Workload(new Random(run.seed));
     if (run.seedRows !== undefined) {
         await workload.seed(source, run.seedRows);

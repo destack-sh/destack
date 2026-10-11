@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 
 /** The lowercase kebab case of declared type names. */
-const TYPE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u;
+const TYPE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 /** The schema of an object reference. */
 const objectReference = defineSchema(

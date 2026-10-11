@@ -125,7 +125,7 @@ test.for(TEST_DIALECTS)(
                 );
             }
             const note = Scope.table[TABLE].complete(row("note", "space", ["space"]));
-            await transaction.write(Scope.table, null, note);
+            await transaction.write({ table: Scope.table, before: null, after: note });
 
             return chain.map((link) => link.movedTo);
         });

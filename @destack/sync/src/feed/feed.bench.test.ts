@@ -1,5 +1,5 @@
 import { expect, test, type TestContext } from "@destack/test";
-import { aligned } from "@destack/schema";
+import { aligned, Clock } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     eq,
@@ -126,7 +126,7 @@ test.for(TEST_DIALECTS)(
     { timeout: 30_000 },
     async (dialect, { annotate }) => {
         const source = await open(dialect);
-        const feed = new Feed(source, TABLES);
+        const feed = new Feed(source, TABLES, { clock: Clock.system });
         await new Workload(new Random(3)).seed(source, 4000);
 
         // snapshot every query set into memory
@@ -185,7 +185,7 @@ test.for(TEST_DIALECTS)(
     { timeout: 30_000 },
     async (dialect, { annotate }) => {
         const source = await open(dialect);
-        const feed = new Feed(source, TABLES);
+        const feed = new Feed(source, TABLES, { clock: Clock.system });
         const workload = new Workload(new Random(9));
         await workload.seed(source, 500);
 
@@ -234,7 +234,7 @@ test.for(TEST_DIALECTS)(
     "resume a stateful subscriber without sending selected rows again on %s",
     async (dialect) => {
         const source = await open(dialect);
-        const feed = new Feed(source, TABLES);
+        const feed = new Feed(source, TABLES, { clock: Clock.system });
         await new Workload(new Random(13)).seed(source, 1500);
 
         // follow and reconnect from the reached position
@@ -261,7 +261,7 @@ test.for(TEST_DIALECTS)(
     { timeout: 30_000 },
     async (dialect, { annotate }) => {
         const source = await open(dialect);
-        const feed = new Feed(source, TABLES, { subscribers: 1000 });
+        const feed = new Feed(source, TABLES, { clock: Clock.system, subscribers: 1000 });
         await new Workload(new Random(21)).seed(source, 200);
 
         // follow with a thousand subscribers
@@ -313,7 +313,7 @@ test.for(TEST_DIALECTS)(
     { timeout: 60_000 },
     async (dialect, { annotate }) => {
         const source = await open(dialect);
-        const feed = new Feed(source, TABLES);
+        const feed = new Feed(source, TABLES, { clock: Clock.system });
 
         // follow the tasks of a named project
         await source.insert(project).values({ id: "p0", scope: "inbox", name: "a" });
@@ -358,7 +358,7 @@ test.for(TEST_DIALECTS)(
     { timeout: 60_000 },
     async (dialect, { annotate }) => {
         const source = await open(dialect);
-        const feed = new Feed(source, TABLES);
+        const feed = new Feed(source, TABLES, { clock: Clock.system });
         const workload = new Workload(new Random(31));
         await workload.seed(source, SCALE_ROWS);
 
@@ -387,7 +387,10 @@ test.for(TEST_DIALECTS)(
     { timeout: 60_000 },
     async (dialect, { annotate }) => {
         const source = await open(dialect);
-        const feed = new Feed(source, TABLES, { subscribers: SPACE_SUBSCRIBERS });
+        const feed = new Feed(source, TABLES, {
+            clock: Clock.system,
+            subscribers: SPACE_SUBSCRIBERS,
+        });
         const workload = new Workload(new Random(41));
         await workload.seed(source, 500);
 
@@ -434,7 +437,7 @@ test.for(TEST_DIALECTS)(
     { timeout: 60_000 },
     async (dialect, { annotate }) => {
         const source = await open(dialect);
-        const feed = new Feed(source, TABLES);
+        const feed = new Feed(source, TABLES, { clock: Clock.system });
 
         // file ten thousand tasks and follow the ten most commented
         for (let start = 0; start < RANKED_ROWS; start += 500) {

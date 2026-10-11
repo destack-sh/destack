@@ -222,8 +222,6 @@ export class Replica {
     readonly #copied: ReadonlyMap<string, Table>;
     /** The layout digest of the copied tables' logged columns. */
     readonly #layout: Promise<string>;
-    /** The clock the copy confirms its position at. */
-    readonly #clock: Clock;
 
     /** Define a copy of a scope's rows in some tables. */
     constructor(definition: {
@@ -245,8 +243,6 @@ export class Replica {
         readonly isRelayed?: boolean;
         /** The projections of source tables into the copy's own, none by default. */
         readonly projectors?: readonly Projector[];
-        /** The clock the copy confirms its position at, the system clock by default. */
-        readonly clock?: Clock;
     }) {
         // keep the identity
         this.name = definition.name;
@@ -257,7 +253,6 @@ export class Replica {
         this.everywhere = definition.everywhere ?? new Set();
         this.within = definition.within ?? new Map();
         this.isRelayed = definition.isRelayed ?? true;
-        this.#clock = definition.clock ?? Clock.system;
         this.#projectors = new Map(
             (definition.projectors ?? []).map((projector) => [
                 projector.source[TABLE].sqlName,
@@ -837,8 +832,8 @@ export class Replica {
         }
 
         // drop the copy's registration and position, and its staged pages, groups and included rows as the transaction commits
-        await transaction.write(replica, registration, null);
-        await transaction.write(replicaPosition, position, null);
+        await transaction.write({ table: replica, before: registration, after: null });
+        await transaction.write({ table: replicaPosition, before: position, after: null });
         transaction.record(async (database) => {
             await database.delete(replicaPage).where(this.#match(replicaPage));
             await database.delete(replicaResult).where(this.#match(replicaResult));
@@ -847,7 +842,8 @@ export class Replica {
     }
 
     /** Record the copy before its first snapshot, with the subscription it follows when given. */
-    async register(database: DatabaseConnection, subscription?: Subscription): Promise<void> {
+    async register(database: DatabaseConnection, options: RegisterOptions): Promise<void> {
+        const { subscription, clock } = options;
         await database.transaction(async (transaction) => {
             const copy = { name: this.name, scope: this.scope };
             await transaction
@@ -860,7 +856,7 @@ export class Replica {
                 .onConflictDoNothing();
             await transaction
                 .insert(replicaPosition)
-                .values({ ...copy, epoch: null, sequence: null, confirmedAt: this.#clock.now() })
+                .values({ ...copy, epoch: null, sequence: null, confirmedAt: clock.now() })
                 .onConflictDoNothing();
         });
     }
@@ -908,7 +904,7 @@ export class Replica {
     async *apply(
         database: DatabaseConnection,
         pages: AsyncIterable<Page> | Iterable<Page>,
-        options: ApplyOptions = {},
+        options: ApplyOptions,
     ): AsyncGenerator<Page> {
         // drop an earlier stream's staged pages
         await database.delete(replicaPage).where(this.#match(replicaPage));
@@ -945,10 +941,10 @@ export class Replica {
         database: DatabaseConnection,
         source: (from: Resumption, signal: AbortSignal) => AsyncIterable<Page>,
         signal: AbortSignal,
-        options: ApplyOptions = {},
+        options: ApplyOptions,
     ): Promise<void> {
         // apply each stream from where the copy is until aborted
-        await this.register(database, options.subscription);
+        await this.register(database, options);
         while (!signal.aborted) {
             let isReceived = false;
             const pages = source(await this.resume(database, options.subscription), signal);
@@ -1046,14 +1042,14 @@ export class Replica {
         run: Stage,
         record: ReplicaRecord | undefined,
         relayed: Origin | undefined,
-        { subscription }: ApplyOptions,
+        { subscription, clock }: ApplyOptions,
     ): Promise<void> {
         // take the home position the rows reflect, and what the copy copies
         const copy = { name: this.name, scope: this.scope };
         const isHome = relayed === undefined && (run.isSnapshot || record?.originEpoch === null);
         const position = {
             ...page.position,
-            ...originColumns(relayed, isHome, this.#clock.now()),
+            ...originColumns(relayed, isHome, clock.now()),
         };
         const registration = {
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
@@ -1069,7 +1065,7 @@ export class Replica {
             .onConflictDoUpdate({ target: [replica.name, replica.scope], set: registration });
         await transaction
             .insert(replicaPosition)
-            .values({ ...copy, confirmedAt: record?.confirmedAt ?? this.#clock.now(), ...position })
+            .values({ ...copy, confirmedAt: record?.confirmedAt ?? clock.now(), ...position })
             .onConflictDoUpdate({
                 target: [replicaPosition.name, replicaPosition.scope],
                 set: position,
@@ -1777,12 +1773,18 @@ function add(sum: Scalar, value: Scalar, sign: 1 | -1): Scalar {
         : Number(sum ?? 0) + sign * Number(value);
 }
 
+/** How a copy registers in a database. */
+export interface RegisterOptions {
+    /** The subscription the copy follows, absent for a copy no subscription names. */
+    readonly subscription?: Subscription;
+    /** The clock the copy confirms its position at. */
+    readonly clock: Clock;
+}
+
 /** How a copy applies its source's pages. */
-export interface ApplyOptions {
+export interface ApplyOptions extends RegisterOptions {
     /** The client's predictions to rebase. */
     readonly prediction?: Prediction;
-    /** The subscription the copy follows, recorded as it completes a run. */
-    readonly subscription?: Subscription;
     /** Open the machine-bound values a fenced source sealed to this copy. */
     readonly open?: (table: Table, row: Row) => Promise<Row>;
 }
