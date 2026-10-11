@@ -11,6 +11,12 @@ const VERSION_POSITION = 14;
 /** The canonical lowercase UUIDv7 representation from RFC 9562. */
 const UUID_V7 = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 
+/** The text of a UUID's bytes 11 to 13, random bits after a UUIDv7's counter (RFC 9562 5.7). */
+const POSITION_RANGE = { start: 26, end: 32 } as const;
+
+/** The positions bytes 11 to 13 take: 2^24. */
+const POSITION_LIMIT = 2 ** 24;
+
 /** The identifier validators by prefix, built once each. */
 const VALIDATORS = new Map<string, z.core.$ZodBranded<z.ZodString, string>>();
 
@@ -34,12 +40,12 @@ export function identifier(prefix: string): z.core.$ZodBranded<z.ZodString, stri
     }
 
     // keep prefixes literal and unambiguous before appending the UUID
-    if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u.test(prefix)) {
+    if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(prefix)) {
         throw new TypeError(`invalid identifier prefix: ${prefix}`);
     }
 
     // match the prefix followed by a UUIDv7
-    const pattern = new RegExp(`^${prefix}-${UUID_V7}$(?![\\s\\S])`, "u");
+    const pattern = new RegExp(`^${prefix}-${UUID_V7}$`, "u");
 
     // brand, register and keep the validator
     const validator = z.string().regex(pattern).brand<string>();
@@ -52,7 +58,7 @@ export function identifier(prefix: string): z.core.$ZodBranded<z.ZodString, stri
 /** Define an identifier of any entity kind: any lowercase prefix and a UUIDv7 suffix. */
 export function anyIdentifier(): z.core.$ZodBranded<z.ZodString, string> {
     // match any valid prefix followed by a UUIDv7
-    const pattern = new RegExp(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-${UUID_V7}$(?![\\s\\S])`, "u");
+    const pattern = new RegExp(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-${UUID_V7}$`, "u");
 
     // brand and register the validator
     const validator = z.string().regex(pattern).brand<string>();
@@ -68,12 +74,33 @@ export const Identifier = {
         return identifier(prefix).parse(`${prefix}-${v7()}`);
     },
 
-    /** Derive the identifier of a request's object: the request's time and bits as a UUIDv7, the same for every repeat. */
-    derive<const Prefix extends string>(prefix: Prefix, requestId: string): Identifier<Prefix> {
+    /**
+     * Derive the identifier of a request's object: the request's time and bits as a UUIDv7, the same for every repeat.
+     *
+     * A position replaces bytes 11 to 13, so a request's objects follow one another, all ordered as the request.
+     */
+    derive<const Prefix extends string>(
+        prefix: Prefix,
+        requestId: string,
+        position?: number,
+    ): Identifier<Prefix> {
+        // mark the request's bits as a UUIDv7
         const head = requestId.slice(0, VERSION_POSITION);
         const tail = requestId.slice(VERSION_POSITION + 1);
+        const uuid = `${head}7${tail}`;
+        if (position === undefined) {
+            return identifier(prefix).parse(`${prefix}-${uuid}`);
+        }
 
-        return identifier(prefix).parse(`${prefix}-${head}7${tail}`);
+        // write the position over bytes 11 to 13
+        if (!Number.isInteger(position) || position < 0 || position >= POSITION_LIMIT) {
+            throw new RangeError(`identifier position ${position} is outside 0 to 2^24`);
+        }
+        const width = POSITION_RANGE.end - POSITION_RANGE.start;
+        const written = position.toString(16).padStart(width, "0");
+        const positioned = `${uuid.slice(0, POSITION_RANGE.start)}${written}${uuid.slice(POSITION_RANGE.end)}`;
+
+        return identifier(prefix).parse(`${prefix}-${positioned}`);
     },
 
     /** Read the UUIDv7 an identifier ends with. */

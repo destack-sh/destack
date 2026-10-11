@@ -3,7 +3,7 @@ import { defineSchema } from "../declare/schema.ts";
 import { canonicalize } from "../json/json.ts";
 
 /** The schema of a SHA-256 digest as lowercase hexadecimal. */
-const digestSchema = defineSchema(schema.string().regex(/^[0-9a-f]{64}$(?![\s\S])/u));
+const digestSchema = defineSchema(schema.string().regex(/^[0-9a-f]{64}$/u));
 
 /** A SHA-256 digest as lowercase hexadecimal. */
 export type Digest = schema.Infer<typeof digestSchema>;
@@ -27,8 +27,6 @@ async function hash(content: string | Uint8Array<ArrayBuffer>): Promise<Digest> 
 }
 
 /** A committed Git object identifier: a SHA-1 or SHA-256 digest in hexadecimal. */
-export const Commit = defineSchema(
-    schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$(?![\s\S])/u),
-);
+export const Commit = defineSchema(schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u));
 /** A committed Git object identifier. */
 export type Commit = schema.Infer<typeof Commit>;

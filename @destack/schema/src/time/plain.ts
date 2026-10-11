@@ -52,7 +52,7 @@ export const PlainDate = {
 
 /** A time of day written HH:MM on a 24-hour clock, as Temporal's PlainTime without seconds. */
 export const PlainTime = Object.assign(
-    defineSchema(schema.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$(?![\s\S])/u)),
+    defineSchema(schema.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/u)),
     {
         /** Read the minutes since midnight of a time of day. */
         minutes(time: PlainTime): number {

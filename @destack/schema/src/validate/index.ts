@@ -80,7 +80,7 @@ export {
     sensitivityOf,
     type Sensitivity,
 } from "./sensitive.ts";
-export { defined } from "./defined.ts";
+export { defined, type Defined } from "./defined.ts";
 export { anyIdentifier, identifier } from "../identifier/identifier.ts";
 export { json, type JsonObject } from "./json.ts";
 export {

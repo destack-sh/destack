@@ -45,3 +45,30 @@ test("derive the same UUIDv7 identifier for every repeat of a created or derived
     // refuse a request identifier that is no UUID
     expect(() => Identifier.derive("message", "request-1")).toThrow(schema.Error);
 });
+
+test("derive a request's objects in order of their positions, between requests whose bits differ before the position", () => {
+    // write each position over bytes 11 to 13 of a request's bits
+    const earlier = "01996ab0-0000-7000-8000-00ffffffffff";
+    const request = "01996ab0-0000-7000-8000-01abcdefabcd";
+    const later = "01996ab0-0000-7000-8000-020000000000";
+    const derived = [
+        Identifier.derive("task", earlier, 70_000),
+        Identifier.derive("task", request, 0),
+        Identifier.derive("task", request, 1),
+        Identifier.derive("task", request, 70_000),
+        Identifier.derive("task", later, 0),
+    ];
+    expect(derived).toEqual([
+        "task-01996ab0-0000-7000-8000-00011170ffff",
+        "task-01996ab0-0000-7000-8000-01000000abcd",
+        "task-01996ab0-0000-7000-8000-01000001abcd",
+        "task-01996ab0-0000-7000-8000-01011170abcd",
+        "task-01996ab0-0000-7000-8000-020000000000",
+    ]);
+
+    // sort them as they were derived, and refuse a position past 2^24
+    expect(derived.toSorted()).toEqual(derived);
+    expect(() => Identifier.derive("task", request, 2 ** 24)).toThrow(
+        new RangeError("identifier position 16777216 is outside 0 to 2^24"),
+    );
+});

@@ -13,6 +13,7 @@
         ".": "./src/index.ts"
     },
     "dependencies": {
+        "re2js": "2.8.6",
         "uuid": "14.0.2",
         "zod": "4.6.5"
     },

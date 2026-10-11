@@ -48,8 +48,18 @@ const EXPORTABLE_CHECKS = new Set<string>([
     "string_format",
 ]);
 
-/** The hash formats declared schemas may check, by algorithm and encoding. */
-const HASH_FORMAT = /^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/u;
+/** The hash algorithms declared strings may check. */
+export const HASH_ALGORITHMS = ["md5", "sha1", "sha256", "sha384", "sha512"] as const;
+
+/** The encodings of a hash declared strings may check, each with an algorithm a format. */
+export const HASH_ENCODINGS = ["hex", "base64", "base64url"] as const;
+
+/** The hash formats declared schemas may check, each an algorithm and an encoding. */
+const HASH_FORMATS: ReadonlySet<string> = new Set(
+    HASH_ALGORITHMS.flatMap((algorithm) =>
+        HASH_ENCODINGS.map((encoding) => `${algorithm}_${encoding}`),
+    ),
+);
 
 /** Descriptive metadata that cannot replace exported validation rules. */
 const METADATA_KEYS = new Set(["id", "title", "description", "deprecated", "examples"]);
@@ -208,8 +218,12 @@ function componentsOf(
     else if (schema instanceof z.core.$ZodUnion) {
         return schema._zod.def.options.map((option) => [option, isOptionalAllowed] as const);
     }
-    // look through nullable and optional wrappers
-    else if (schema instanceof z.core.$ZodNullable || schema instanceof z.core.$ZodOptional) {
+    // look through nullable, optional and readonly wrappers
+    else if (
+        schema instanceof z.core.$ZodNullable ||
+        schema instanceof z.core.$ZodOptional ||
+        schema instanceof z.core.$ZodReadonly
+    ) {
         return [[schema._zod.def.innerType, isOptionalAllowed]];
     }
     // permit optional branches whose undefined result this schema rejects
@@ -251,7 +265,7 @@ function requireCheck(check: z.core.$ZodCheck): void {
     // allow the supported string and hash formats
     if (check instanceof z.core.$ZodCheckStringFormat) {
         const format = check._zod.def.format;
-        if (!STRING_FORMATS.has(format) && !HASH_FORMAT.test(format)) {
+        if (!STRING_FORMATS.has(format) && !HASH_FORMATS.has(format)) {
             throw new TypeError(`unsupported string format: ${format}`);
         }
     }

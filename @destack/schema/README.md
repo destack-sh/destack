@@ -1,6 +1,6 @@
 # @destack/schema
 
-`schema` is Zod 4 limited to what JSON Schema expresses, `toJsonSchema` and `fromJsonSchema` are Zod's `z.toJSONSchema` and `z.fromJSONSchema`, the time types are Temporal's `Instant`, `PlainDate`, `PlainTime` and `Duration` in JSON, and `schema.identifier` brands a prefixed UUIDv7.
+`schema` is Zod 4 limited to what JSON Schema expresses, `toJsonSchema` is Zod's `z.toJSONSchema` and `fromJsonSchema` its exact inverse with patterns matched by RE2, the time types are Temporal's `Instant`, `PlainDate`, `PlainTime` and `Duration` in JSON, and `schema.identifier` brands a prefixed UUIDv7.
 
 ```ts
 // z.object
@@ -9,8 +9,8 @@ const Note = defineSchema(
 );
 type Note = schema.Infer<typeof Note>; // z.infer
 toJsonSchema(Note); // z.toJSONSchema, refusing transforms, refinements, dates and loose objects
-// an OpenAPI schema
-fromJsonSchema({ $ref: "#/components/schemas/Pet", components: { schemas: { Pet } } });
+// the same Note, refusing defaults, open objects and unknown keywords
+fromJsonSchema(toJsonSchema(Note));
 // Identifier<"space">
 schema.identifier("space").parse("space-01995f12-3456-7890-8abc-123456789abc");
 const date: PlainDate = { year: 2026, month: 10, day: 3 }; // Temporal.PlainDate in JSON
