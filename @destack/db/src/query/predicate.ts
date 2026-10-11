@@ -182,19 +182,25 @@ function requireComparable(
     table: Table,
     namespace: Namespace = { extras: {} },
 ): void {
-    // require a comparable column for each field outside the computed values
-    for (const name of fields(predicate)) {
-        if (!Object.hasOwn(namespace.extras, name)) {
-            Order.column(table, name);
-        }
-    }
-
-    // require text columns for patterns
+    // require a comparable column for each compared field outside the computed values, and text for patterns
     visit(predicate, (visited) => {
-        if (visited.kind === "like") {
+        const isCompared = visited.kind === "compare" || visited.kind === "oneOf";
+        if (isCompared && !Object.hasOwn(namespace.extras, visited.name)) {
+            Order.column(table, visited.name);
+        } else if (visited.kind === "like") {
             requireText(table, visited.name);
         }
     });
+}
+
+/** Read a table's column of any kind, refusing a name it has no column of. */
+function columnOf(table: Table, name: string): Column {
+    const column = table[TABLE].columns[name];
+    if (column === undefined) {
+        throw new DatabaseError("INVALID_QUERY", `${table[TABLE].name} has no column ${name}`);
+    }
+
+    return column;
 }
 
 /** Require a pattern's field to be a text column or a computed value. */
@@ -218,7 +224,7 @@ function bind(
         field: (name) =>
             Object.hasOwn(namespace.extras, name)
                 ? Order.expression(table, name, namespace)
-                : Order.column(table, name),
+                : columnOf(table, name),
         placeholder: (name) => {
             // require a bound value
             return placeholders[name] ?? unbound(name);

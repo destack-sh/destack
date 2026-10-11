@@ -15,14 +15,8 @@ export const COLUMN_KINDS = [
     "numeric",
 ] as const;
 
-/** What a foreign key does to referencing rows when their referenced row changes. */
-export const REFERENCE_ACTIONS = [
-    "cascade",
-    "restrict",
-    "no action",
-    "set null",
-    "set default",
-] as const;
+/** What a foreign key does to referencing rows when their referenced row changes, refusals checked once a deferred commit ends. */
+export const REFERENCE_ACTIONS = ["cascade", "no action", "set null", "set default"] as const;
 
 /** Driver text, such as SQLite's JSON. */
 const TEXT = schema.string();

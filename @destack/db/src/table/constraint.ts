@@ -1,3 +1,4 @@
+import type { Condition } from "../query/condition.ts";
 import type { SQL } from "../sql/index.ts";
 import type { Column, ReferenceAction } from "./column.ts";
 
@@ -24,31 +25,52 @@ export class Index {
     readonly isUnique: boolean;
     /** The indexed columns or expressions. */
     readonly columns: readonly (Column | SQL)[];
-    /** The predicate selecting indexed rows, all rows when absent. */
-    readonly predicate: SQL | undefined;
+    /** The condition selecting indexed rows, all rows when absent. */
+    readonly predicate: Condition | undefined;
+    /** Whether a unique index treats nulls as equal values. */
+    readonly isNullsNotDistinct: boolean;
 
     /** Declare an index. */
     constructor(
         name: string,
         isUnique: boolean,
         columns: readonly (Column | SQL)[] = [],
-        predicate?: SQL,
+        predicate?: Condition,
+        isNullsNotDistinct = false,
     ) {
         // keep the index definition
         this.name = name;
         this.isUnique = isUnique;
         this.columns = columns;
         this.predicate = predicate;
+        this.isNullsNotDistinct = isNullsNotDistinct;
     }
 
     /** Select indexed columns in order. */
     on(...columns: [Column | SQL, ...(Column | SQL)[]]): Index {
-        return new Index(this.name, this.isUnique, columns, this.predicate);
+        return new Index(
+            this.name,
+            this.isUnique,
+            columns,
+            this.predicate,
+            this.isNullsNotDistinct,
+        );
     }
 
-    /** Restrict the index to rows matching a predicate. */
-    where(predicate: SQL): Index {
-        return new Index(this.name, this.isUnique, this.columns, predicate);
+    /** Restrict the index to rows meeting a condition. */
+    where(predicate: Condition): Index {
+        return new Index(
+            this.name,
+            this.isUnique,
+            this.columns,
+            predicate,
+            this.isNullsNotDistinct,
+        );
+    }
+
+    /** Treat nulls as equal values in a unique index. */
+    nullsNotDistinct(): Index {
+        return new Index(this.name, this.isUnique, this.columns, this.predicate, true);
     }
 }
 

@@ -6,6 +6,7 @@ import { Column, COLUMN_KINDS, REFERENCE_ACTIONS } from "./column.ts";
 import type { ForeignKey, Index, TableConstraint } from "./constraint.ts";
 import { TABLE, type Table } from "./table.ts";
 import { boundedName, qualify } from "./namespace.ts";
+import { Condition } from "../query/condition.ts";
 
 /** A column as the database stores it. */
 export const ColumnDescription = defineSchema(
@@ -94,6 +95,8 @@ export const IndexDescription = defineSchema(
         ),
         /** The SQL predicate of a partial index. */
         where: schema.string().exactOptional(),
+        /** Whether a unique index treats nulls as equal values, which PostgreSQL declares. */
+        nullsNotDistinct: schema.literal(true).exactOptional(),
     }),
 );
 /** An index as the database stores it. */
@@ -287,12 +290,29 @@ function describeIndex(table: Table, index: Index, dialect: Dialect): IndexDescr
     return {
         name: qualify(table[TABLE].package, index.name),
         unique: index.isUnique,
-        columns: index.columns.map((column) =>
-            column instanceof Column
-                ? { column: column.definition.name }
-                : { expression: inline(column, dialect) },
-        ),
-        ...(index.predicate === undefined ? {} : { where: inline(index.predicate, dialect) }),
+        columns: index.columns.map((column) => {
+            // key a nullable column of a nulls-equal SQLite index by a blob no value equals
+            if (
+                column instanceof Column &&
+                index.isNullsNotDistinct &&
+                dialect === "sqlite" &&
+                column.definition.nullable
+            ) {
+                return { expression: `coalesce(${quote(column.definition.name)}, X'')` };
+            }
+            // key a column or an expression
+            else if (column instanceof Column) {
+                return { column: column.definition.name };
+            } else {
+                return { expression: inline(column, dialect) };
+            }
+        }),
+        ...(index.isNullsNotDistinct && dialect === "postgresql"
+            ? { nullsNotDistinct: true as const }
+            : {}),
+        ...(index.predicate === undefined
+            ? {}
+            : { where: inline(Condition.render(index.predicate, table), dialect) }),
     };
 }
 

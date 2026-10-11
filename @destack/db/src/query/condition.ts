@@ -214,6 +214,7 @@ function resolve(condition: Condition, fields: ReadonlySet<string>): Predicate {
 /** Render a condition over a table's rows as SQL. */
 function render(condition: Condition, table: Table, namespace?: Namespace): SQL {
     const predicate = resolve(condition, Namespace.fields(table, namespace));
+    Predicate.require(predicate, table, namespace);
 
     return Predicate.render(predicate, Predicate.bind(table, {}, namespace));
 }

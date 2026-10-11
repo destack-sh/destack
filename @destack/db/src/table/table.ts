@@ -15,12 +15,12 @@ import {
     type ColumnValue,
     type ValueOf,
 } from "./column.ts";
-import { check, ForeignKey, type TableConstraint } from "./constraint.ts";
+import { check, ForeignKey, Index, Unique, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { ModuleMetadata, PACKAGE, type Package } from "@destack/package";
-import { schema, Version, type JsonObject, type JsonValue } from "@destack/schema";
+import { present, schema, Version, type JsonObject, type JsonValue } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
-import type { Scalar } from "../query/condition.ts";
+import type { Condition, Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../log/description.ts";
 import { Tree } from "../tree/tree.ts";
@@ -173,6 +173,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     #tree: Tree | undefined;
     /** The primary key properties, read on first use. */
     #key: readonly string[] | undefined;
+    /** The unique keys, read on first use. */
+    #uniqueKeys: readonly UniqueKey[] | undefined;
     /** The columns in declaration order, read on first use. */
     #entries: readonly (readonly [string, Column])[] | undefined;
     /** The logged columns, read on first use. */
@@ -219,6 +221,67 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.#key ??= this.source?.[TABLE].key ?? keyOf(this.#table);
 
         return this.#key;
+    }
+
+    /** The sets of columns no two rows share values of, among the rows meeting each set's condition: the primary key, unique columns and constraints, and unique indexes. */
+    get uniqueKeys(): readonly UniqueKey[] {
+        this.#uniqueKeys ??= this.#gatherUniqueKeys();
+
+        return this.#uniqueKeys;
+    }
+
+    /** Gather the unique keys, naming each column by its property. */
+    #gatherUniqueKeys(): UniqueKey[] {
+        // name each column by its property
+        const properties = new Map(this.entries.map(([property, column]) => [column, property]));
+        const named = (columns: readonly Column[]) =>
+            columns.map((column) =>
+                present(properties.get(column), `the property of ${column.definition.name}`),
+            );
+
+        // gather the declared keys over plain columns
+        const declared = this.#declared().flatMap((constraint): UniqueKey[] => {
+            if (constraint instanceof Unique) {
+                return [
+                    {
+                        columns: named(constraint.columns),
+                        where: undefined,
+                        isNullsNotDistinct: false,
+                    },
+                ];
+            } else if (constraint instanceof Index && constraint.isUnique) {
+                const columns = constraint.columns.map((column) => {
+                    if (column instanceof SQL) {
+                        throw new TypeError(`unique index ${constraint.name} keys an expression`);
+                    }
+
+                    return column;
+                });
+
+                return [
+                    {
+                        columns: named(columns),
+                        where: constraint.predicate,
+                        isNullsNotDistinct: constraint.isNullsNotDistinct,
+                    },
+                ];
+            } else {
+                return [];
+            }
+        });
+
+        // add the primary key and each unique column
+        const unique = this.entries.filter(([, column]) => column.definition.unique !== undefined);
+
+        return [
+            { columns: this.key, where: undefined, isNullsNotDistinct: false },
+            ...unique.map(([property]) => ({
+                columns: [property],
+                where: undefined,
+                isNullsNotDistinct: false,
+            })),
+            ...declared,
+        ];
     }
 
     /** The columns in declaration order. */
@@ -286,6 +349,56 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Write the logged columns a row has in JSON form, leaving out concealed ones, as readers of the log see it. */
     encodeLogged(row: Row, concealed: readonly string[]): Record<string, JsonValue> {
         return encodeRow(Object.entries(this.logged), row, concealed);
+    }
+
+    /** Fill a row's omitted columns in memory: each one's default, else null in a nullable column, leaving out required columns without either and values only the database computes. */
+    defaults(row: Row): Row {
+        const filled: [string, ColumnValue][] = [];
+        for (const [property, { definition }] of this.entries) {
+            // keep a given value and leave out a computed one
+            if (
+                Object.hasOwn(row, property) ||
+                definition.generated !== undefined ||
+                definition.default instanceof SQL
+            ) {
+                continue;
+            }
+            // take the default
+            else if (definition.default !== undefined) {
+                filled.push([property, definition.default]);
+            }
+            // take null in a nullable column
+            else if (definition.nullable) {
+                filled.push([property, null]);
+            }
+        }
+
+        return { ...row, ...Object.fromEntries(filled) };
+    }
+
+    /** Complete a row an insert writes in memory with its defaults, refusing a required column without a value and a value only the database computes. */
+    complete(row: Row): Select<Table<Name, Columns>> & Row;
+    /**
+     * Complete a row with its defaults.
+     *
+     * @construct every column has a value of its type once completed, as the signature above reads.
+     */
+    complete(row: Row): Row {
+        // fill the defaults and require every column
+        const completed = this.defaults(row);
+        const missing = this.entries.find(([property]) => !Object.hasOwn(completed, property));
+        if (missing === undefined) {
+            return completed;
+        }
+
+        // refuse the first missing column
+        const [property, { definition }] = missing;
+        const isComputed = definition.generated !== undefined || definition.default instanceof SQL;
+        throw new TypeError(
+            isComputed
+                ? `column ${property} of ${this.name} takes a value only the database computes`
+                : `column ${property} of ${this.name} needs a value`,
+        );
     }
 
     /** Take a row of this table's column values, as code choosing columns at runtime builds it, failing for other properties. */
@@ -645,6 +758,16 @@ export function alias<Definition extends Table, Name extends string>(
     );
 
     return Object.assign(definition, columns);
+}
+
+/** Columns whose values no two rows share, among the rows meeting a condition. */
+export interface UniqueKey {
+    /** The key columns' properties. */
+    readonly columns: readonly string[];
+    /** The condition selecting the rows the key covers, all rows when absent. */
+    readonly where: Condition | undefined;
+    /** Whether rows with nulls in the same columns share the key. */
+    readonly isNullsNotDistinct: boolean;
 }
 
 /** Read a table's primary key properties: its key columns in declaration order. */

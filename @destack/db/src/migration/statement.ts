@@ -101,9 +101,10 @@ export function createIndex(table: string, index: IndexDescription): string {
     const columns = index.columns
         .map((entry) => ("column" in entry ? quote(entry.column) : `(${entry.expression})`))
         .join(", ");
+    const nulls = index.nullsNotDistinct === true ? " NULLS NOT DISTINCT" : "";
     const where = index.where === undefined ? "" : ` WHERE ${index.where}`;
 
-    return `CREATE ${index.unique ? "UNIQUE " : ""}INDEX ${quote(index.name)} ON ${quote(table)} (${columns})${where}`;
+    return `CREATE ${index.unique ? "UNIQUE " : ""}INDEX ${quote(index.name)} ON ${quote(table)} (${columns})${nulls}${where}`;
 }
 
 /** Drop an index. */
