@@ -18,7 +18,7 @@ import { LocalKeyring } from "@destack/identity";
 import { defineObject, INTRINSIC } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import type {} from "@destack/package/import-meta";
-import { present, schema } from "@destack/schema";
+import { present, schema, Clock } from "@destack/schema";
 import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { VaultKeystore } from "@destack/vault/key";
 import { ConsumerSecret, secret, serveSecrets, vault } from "@destack/vault/server";
@@ -445,6 +445,7 @@ export class ConnectionFixture {
         scope: ObjectReference,
     ): ObjectStore {
         return new ObjectStore({
+            clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, scope.id),
             objects: {
                 ...serveConnections(tokens),
@@ -472,6 +473,7 @@ export class ConnectionFixture {
     /** Answer clients sending their principal, leaving the controllers to the test. */
     static #serve(objects: ObjectStore): Server {
         return Server.start({
+            clock: Clock.system,
             ...objects.implement(connectionService, objects.routed, objects.controllers(), {}),
             controllers: [],
             audience: connectionService.package.id,
@@ -524,6 +526,7 @@ export class ConnectionFixture {
         const now = Date.now();
 
         return new ServiceContext(new Request("https://test.local"), {
+            clock: Clock.system,
             audience: connectionService.package.id,
             scope: this.scope.id,
             caller: {

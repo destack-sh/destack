@@ -1,5 +1,5 @@
 import { principal, through } from "@destack/access";
-import { check, type Select, sql, unique } from "@destack/db";
+import { check, type Select, unique } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Duration, schema } from "@destack/schema";
 import { connection } from "./connection.ts";
@@ -40,12 +40,34 @@ export const authorizationRequest = defineObject({
     },
     constraints: (entry) => [
         unique("authorization_request_state").on(entry.state),
-        check(
-            "authorization_request_kind",
-            sql`(${entry.kind} = 'page' AND ${entry.state} IS NOT NULL AND ${entry.redirectUri} IS NOT NULL AND ${entry.verifier} IS NOT NULL AND ${entry.deviceCode} IS NULL AND ${entry.interval} IS NULL)
-                OR (${entry.kind} = 'installation' AND ${entry.state} IS NOT NULL AND ${entry.redirectUri} IS NOT NULL AND ${entry.verifier} IS NULL AND ${entry.deviceCode} IS NULL AND ${entry.interval} IS NULL)
-                OR (${entry.kind} = 'device' AND ${entry.deviceCode} IS NOT NULL AND ${entry.interval} IS NOT NULL AND ${entry.state} IS NULL AND ${entry.redirectUri} IS NULL AND ${entry.verifier} IS NULL)`,
-        ),
+        check("authorization_request_kind", {
+            OR: [
+                {
+                    kind: "page",
+                    state: { isNotNull: true },
+                    redirectUri: { isNotNull: true },
+                    verifier: { isNotNull: true },
+                    deviceCode: { isNull: true },
+                    interval: { isNull: true },
+                },
+                {
+                    kind: "installation",
+                    state: { isNotNull: true },
+                    redirectUri: { isNotNull: true },
+                    verifier: { isNull: true },
+                    deviceCode: { isNull: true },
+                    interval: { isNull: true },
+                },
+                {
+                    kind: "device",
+                    deviceCode: { isNotNull: true },
+                    interval: { isNotNull: true },
+                    state: { isNull: true },
+                    redirectUri: { isNull: true },
+                    verifier: { isNull: true },
+                },
+            ],
+        }),
     ],
     // the connection's managers start and use its authorizations
     permissions: { read: through("parent", "read"), record: through("parent", "manage") },

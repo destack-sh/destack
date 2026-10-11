@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { expect, onTestFinished, test } from "@destack/test";
 import { jwtVerify } from "jose";
@@ -42,6 +42,7 @@ async function openGitHub(publicKey: CryptoKey, calls: string[]): Promise<Connec
     const opened = await ConnectionFixture.open({
         issuers: (fetch) => [
             new GitHubIssuer({
+                clock: Clock.system,
                 fetch,
                 api: "https://api.github.test",
                 issuer: "https://github.test",

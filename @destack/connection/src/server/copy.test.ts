@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { inArray } from "@destack/db";
-import { aligned, present } from "@destack/schema";
+import { aligned, present, Clock } from "@destack/schema";
 import { ControlLoop } from "@destack/service/control";
 import { RequestId } from "@destack/service/request";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -53,7 +53,7 @@ async function follow(
     const loop = new ControlLoop(
         space.database,
         space.objects.controllers().filter((each) => each.name === "replica"),
-        { report: (_controller, _key, error) => failures.push(error) },
+        { clock: Clock.system, report: (_controller, _key, error) => failures.push(error) },
     );
     const running = loop.run(controller.signal);
     onTestFinished(async () => {

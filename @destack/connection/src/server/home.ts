@@ -10,7 +10,7 @@ import {
     type DeviceAuthorization,
 } from "../oauth/server.ts";
 import type { connectionService } from "../service/service.ts";
-import { schema } from "@destack/schema";
+import { type Clock, schema } from "@destack/schema";
 import type { Fetch } from "@destack/service";
 import type { ObjectReference } from "@destack/sync";
 
@@ -27,12 +27,13 @@ export class HomeClient implements AuthorizationClient {
     /** The server as the public client writes its pages. */
     readonly #pages: AuthorizationServer;
 
-    /** Call a copied integration's server through its home. */
+    /** Call a copied integration's server through its home, on the store's clock. */
     constructor(
         row: Integration,
         reference: ObjectReference,
         home: ServiceClient<typeof connectionService>,
         fetch: Fetch,
+        clock: Clock,
     ) {
         // keep the server, the integration and its home
         this.issuer = row.issuer;
@@ -46,6 +47,7 @@ export class HomeClient implements AuthorizationClient {
             endpoints: row.endpoints,
             client: { clientId: row.clientId, authentication: row.authentication },
             fetch,
+            clock,
         });
     }
 

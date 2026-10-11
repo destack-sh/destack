@@ -12,56 +12,58 @@ import type { ObjectStore } from "@destack/object/server";
 
 /** Serve integrations, keeping each one's client secret or private key in its vault as the service. */
 export function serveIntegrations(tokens: TokenSource): typeof integration {
-    return integration.handle({
-        create: {
-            authorize: async (call) => requireSecretVault(call),
-            prepare: (call) => keepSecret(call, tokens),
-            handler: (_call, next) => next(),
-        },
-        requestToken: {
-            prepare: async (call) =>
-                (await client(call, tokens)).token(TokenGrant.form(call.input.grant)),
-            handler: async (call) => call.prepared,
-        },
-        revokeToken: {
-            prepare: async (call) => {
-                const { token, hint } = call.input.revocation;
-                await (await client(call, tokens)).revoke(token, hint);
+    return integration.implement({
+        methods: {
+            create: {
+                authorize: async (call) => requireSecretVault(call),
+                prepare: (call) => keepSecret(call, tokens),
+                handle: (_call, next) => next(),
+            },
+            requestToken: {
+                prepare: async (call) =>
+                    (await client(call, tokens)).token(TokenGrant.form(call.input.grant)),
+                handle: async (call) => call.prepared,
+            },
+            revokeToken: {
+                prepare: async (call) => {
+                    const { token, hint } = call.input.revocation;
+                    await (await client(call, tokens)).revoke(token, hint);
 
-                return {};
+                    return {};
+                },
+                handle: async (call) => call.prepared,
             },
-            handler: async (call) => call.prepared,
-        },
-        authorizeDevice: {
-            prepare: async (call) => {
-                const { scopes, resource } = call.input.request;
+            authorizeDevice: {
+                prepare: async (call) => {
+                    const { scopes, resource } = call.input.request;
 
-                return (await client(call, tokens)).authorizeDevice(scopes, resource);
+                    return (await client(call, tokens)).authorizeDevice(scopes, resource);
+                },
+                handle: async (call) => call.prepared,
             },
-            handler: async (call) => call.prepared,
-        },
-        register: {
-            authorize: async (call) => {
-                if (call.input.vault !== null) {
-                    requireVault(call.input.vault, call.scope);
-                }
-            },
-            prepare: (call) =>
-                register(
-                    call.scope,
-                    present(call.id, "a registered client's identifier"),
-                    call.input,
-                    tokens,
-                    call.requireStore(),
-                ),
-            handler: (call, next) => {
-                const { vault, ...registration } = call.prepared;
-                const input = { ...call.input, ...registration, vault: vault ?? null };
+            register: {
+                authorize: async (call) => {
+                    if (call.input.vault !== null) {
+                        requireVault(call.input.vault, call.scope);
+                    }
+                },
+                prepare: (call) =>
+                    register(
+                        call.scope,
+                        present(call.id, "a registered client's identifier"),
+                        call.input,
+                        tokens,
+                        call.requireStore(),
+                    ),
+                handle: (call, next) => {
+                    const { vault, ...registration } = call.prepared;
+                    const input = { ...call.input, ...registration, vault: vault ?? null };
 
-                return next(call.with({ input: { ...input, registration: "dynamic" } }));
+                    return next(call.with({ input: { ...input, registration: "dynamic" } }));
+                },
             },
+            delete: (call, next) => destroy(call, next, tokens),
         },
-        delete: (call, next) => destroy(call, next, tokens),
     });
 }
 

@@ -35,8 +35,8 @@ const RETRY_MILLISECONDS = 60_000;
 /** Serve connections: credentials kept in vaults as the service, authorized by people, kept current by the controller beside the lender, and issued to the spaces lending them to bound installations. */
 export function serveConnections(tokens: TokenSource) {
     return {
-        connection: connection
-            .handle({
+        connection: connection.implement({
+            methods: {
                 create: {
                     authorize: async (call) => {
                         requireHome(call.input.protocol.kind, tokens);
@@ -44,34 +44,39 @@ export function serveConnections(tokens: TokenSource) {
                         requireVault(call.input.vault, call.scope);
                     },
                     prepare: (call) => keep(call, tokens),
-                    handler: (call, next) => next(),
+                    handle: (call, next) => next(),
                 },
                 authorize: {
                     authorize: async (call) => requireOpen(call.requireTarget()),
                     prepare: (call) => start(call, tokens),
-                    handler: (call) => started(call),
+                    handle: (call) => started(call),
                 },
                 complete: {
                     prepare: (call) => exchange(call, tokens),
-                    handler: (call) => complete(call),
+                    handle: (call) => complete(call),
                 },
                 revoke: {
                     authorize: async (call) => requireOpen(call.requireTarget()),
                     prepare: async (call) => withdrawal(call.requireTarget()),
-                    handler: (call) => revoke(call),
-                    commit: async (call, prepared) =>
-                        withdraw(call.requireStore(), prepared, tokens),
+                    handle: (call) => revoke(call),
+                    settle: async (call, settled) => {
+                        // withdraw the tokens once the revocation committed
+                        if (settled.status === "committed") {
+                            await withdraw(call.requireStore(), settled.prepared, tokens);
+                        }
+                    },
                 },
                 requestToken: {
                     prepare: (call) =>
                         lend(call.requireTarget(), tokens, call.requireStore(), call.now),
-                    handler: async (call) => call.prepared,
+                    handle: async (call) => call.prepared,
                 },
-            })
-            .control({
+            },
+            controller: {
                 pending: {},
                 reconcile: (reconciliation) => reconcile(reconciliation, tokens),
-            }),
+            },
+        }),
         authorizationRequest,
     };
 }

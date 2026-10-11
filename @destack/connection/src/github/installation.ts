@@ -34,13 +34,13 @@ export class GitHubIssuer implements InstallationIssuer {
         readonly issuer?: string;
         readonly api?: string;
         readonly fetch: Fetch;
-        readonly clock?: Clock;
+        readonly clock: Clock;
     }) {
         // keep the instance, the fetch and the clock
         this.issuer = options.issuer ?? "https://github.com";
         this.api = options.api ?? "https://api.github.com";
         this.#fetch = options.fetch;
-        this.#clock = options.clock ?? Clock.system;
+        this.#clock = options.clock;
     }
 
     /** Write the app's installation page, returning with the state. */

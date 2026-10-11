@@ -162,7 +162,13 @@ export class TokenSource {
         if (home !== undefined && (await IntegrationCopy.isCopied(database, reference))) {
             return {
                 integration: row,
-                server: new HomeClient(row, reference, home(reference.scope), this.options.fetch),
+                server: new HomeClient(
+                    row,
+                    reference,
+                    home(reference.scope),
+                    this.options.fetch,
+                    system.clock,
+                ),
                 secret: undefined,
             };
         }

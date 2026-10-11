@@ -148,14 +148,14 @@ export class AuthorizationServer implements AuthorizationClient {
         readonly endpoints: AuthorizationEndpoints;
         readonly client: Client;
         readonly fetch: Fetch;
-        readonly clock?: Clock;
+        readonly clock: Clock;
     }) {
         // keep the server, the client, the fetch and the clock
         this.issuer = options.issuer;
         this.endpoints = options.endpoints;
         this.client = options.client;
         this.#fetch = options.fetch;
-        this.#clock = options.clock ?? Clock.system;
+        this.#clock = options.clock;
     }
 
     /** Find a protected resource's authorization server (RFC 9728 3) and read its metadata (RFC 8414 3). */
