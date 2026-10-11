@@ -1,10 +1,10 @@
 import { defineSchema, Digest, schema, Version } from "@destack/schema";
 
 /** The pattern of a package-local name: lowercase words joined by single hyphens, such as role-permission. */
-export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/u;
+export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 /** A concrete package export containing runnable code. */
-export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/u));
+export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$/u));
 
 /** The immutable identity retained across package renames and releases. */
 export const PackageId = schema.identifier("package");
@@ -21,7 +21,7 @@ export const PackageName = defineSchema(
     schema
         .string()
         .max(214)
-        .regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/u),
+        .regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/u),
 );
 
 /** A scoped or unscoped dependency name. */
@@ -30,7 +30,7 @@ export const DependencyName = Object.assign(
         schema
             .string()
             .max(214)
-            .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/u),
+            .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u),
     ),
     {
         /** Read the dependency a bare import specifier names: its scope and name, or its name. */

@@ -38,7 +38,7 @@ export default definePackage({ resources: { main: pagesDatabase } });
 
 ## Definitions
 
-`destack.json` sets a package's id, language, runtimes, capabilities and the functions that describe its declarations.
+`destack.json` sets a package's id, language, runtimes, capabilities and the kinds of its declarations: its own with their functions, a dependency's with the value that kind's functions inspect.
 
 ```json
 {
@@ -51,7 +51,18 @@ export default definePackage({ resources: { main: pagesDatabase } });
     },
     "declarations": {
         "defineNotification": {
-            "describes": [{ "kind": "notification", "function": "./inspect#describeNotification" }]
+            "describes": [
+                {
+                    "kind": "notification",
+                    "function": "./inspect#describeNotification",
+                    "vocabulary": "./inspect#notificationVocabulary"
+                },
+                {
+                    "kind": "setting",
+                    "package": "@destack/setting",
+                    "value": "./inspect#notificationPreference"
+                }
+            ]
         }
     }
 }

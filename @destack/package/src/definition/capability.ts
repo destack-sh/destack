@@ -18,7 +18,7 @@ function capability<const Fields extends Readonly<Record<string, schema.Schema>>
 /** A host a workload may connect to: a name or `*.` wildcard with an optional port, or `*` for any host. */
 const HostPattern = schema
     .string()
-    .regex(/^(?:\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*(?::\d{1,5})?)$(?![\s\S])/u);
+    .regex(/^(?:\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*(?::\d{1,5})?)$/u);
 
 /** Access to a directory: reading it, or reading and writing it. */
 const Access = schema.enum(["read", "write"]);

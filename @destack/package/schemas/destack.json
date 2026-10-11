@@ -10,7 +10,7 @@
                 },
                 "id": {
                     "type": "string",
-                    "pattern": "^package-[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\\s\\S])"
+                    "pattern": "^package-[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
                 },
                 "language": {
                     "type": "string",
@@ -27,7 +27,7 @@
                             "type": "array",
                             "items": {
                                 "type": "string",
-                                "pattern": "^(?!\\/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|\\/)\\.{1,2}(?:\\/|$))[^/\\x00-\\x1f\\x7f]+(?:\\/[^/\\x00-\\x1f\\x7f]+)*$(?![\\s\\S])"
+                                "pattern": "^(?:[^./\\\\A-Za-z\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|[A-Za-z](?:[^:/\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*)?|\\.[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\\\x00-\\x1f\\x7f]+)(?:\\/(?:[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\\\x00-\\x1f\\x7f]+))*$"
                             }
                         },
                         "dependencies": {
@@ -35,7 +35,7 @@
                             "items": {
                                 "type": "string",
                                 "maxLength": 214,
-                                "pattern": "^@[a-z0-9][a-z0-9._-]*\\/[a-z0-9][a-z0-9._-]*$(?![\\s\\S])"
+                                "pattern": "^@[a-z0-9][a-z0-9._-]*\\/[a-z0-9][a-z0-9._-]*$"
                             }
                         }
                     },
@@ -80,7 +80,7 @@
                                     "type": "array",
                                     "items": {
                                         "type": "string",
-                                        "pattern": "^(?:\\*|(?:\\*\\.)?[a-z0-9-]+(?:\\.[a-z0-9-]+)*(?::\\d{1,5})?)$(?![\\s\\S])"
+                                        "pattern": "^(?:\\*|(?:\\*\\.)?[a-z0-9-]+(?:\\.[a-z0-9-]+)*(?::\\d{1,5})?)$"
                                     }
                                 },
                                 "reason": {
@@ -475,39 +475,62 @@
                                 "minItems": 1,
                                 "type": "array",
                                 "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "kind": {
-                                            "type": "string",
-                                            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\\s\\S])"
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                                                },
+                                                "function": {
+                                                    "type": "string",
+                                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                },
+                                                "compare": {
+                                                    "type": "string",
+                                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                },
+                                                "vocabulary": {
+                                                    "type": "string",
+                                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                },
+                                                "symbols": {
+                                                    "type": "string",
+                                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "function"
+                                            ],
+                                            "additionalProperties": false
                                         },
-                                        "package": {
-                                            "type": "string",
-                                            "maxLength": 214,
-                                            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$(?![\\s\\S])"
-                                        },
-                                        "function": {
-                                            "type": "string",
-                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
-                                        },
-                                        "compare": {
-                                            "type": "string",
-                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
-                                        },
-                                        "vocabulary": {
-                                            "type": "string",
-                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
-                                        },
-                                        "symbols": {
-                                            "type": "string",
-                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                                                },
+                                                "package": {
+                                                    "type": "string",
+                                                    "maxLength": 214,
+                                                    "pattern": "^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$"
+                                                },
+                                                "value": {
+                                                    "type": "string",
+                                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "package",
+                                                "value"
+                                            ],
+                                            "additionalProperties": false
                                         }
-                                    },
-                                    "required": [
-                                        "kind",
-                                        "function"
-                                    ],
-                                    "additionalProperties": false
+                                    ]
                                 }
                             }
                         },
@@ -540,7 +563,7 @@
                 },
                 "build": {
                     "type": "string",
-                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$(?![\\s\\S])"
+                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
                 },
                 "check": {
                     "type": "object",

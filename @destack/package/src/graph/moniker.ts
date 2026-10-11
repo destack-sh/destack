@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 
 /** The pattern of a moniker: a package and a module path followed by an optional symbol, member and declaration kind. */
 const MONIKER_PATTERN =
-    /^(?:package-[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|npm:(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*)\/[^#\x00-\x1f\x7f]+(?:#[^\x00-\x1f\x7f]+)?$(?![\s\S])/u;
+    /^(?:package-[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|npm:(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*)\/[^#\x00-\x1f\x7f]+(?:#[^\x00-\x1f\x7f]+)?$/u;
 
 /** The schema of a moniker. */
 const monikerSchema = defineSchema(schema.string().regex(MONIKER_PATTERN));
