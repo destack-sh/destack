@@ -12,7 +12,7 @@ import { PackageId } from "@destack/package";
 import { MemoryBucket } from "@destack/bucket/test";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
-import { present, schema } from "@destack/schema";
+import { type Clock, present, schema } from "@destack/schema";
 import { TestBearer } from "@destack/service/test";
 import { createClient } from "@destack/service/client";
 import { implementEvents } from "@destack/event/server";
@@ -63,9 +63,11 @@ function run(
     database: DatabaseConnection,
     controllers: readonly Controller[],
     report: (error: unknown) => void,
+    clock: Clock,
 ): void {
     const stopping = new AbortController();
     const running = new ControlLoop(database, controllers, {
+        clock,
         report: (_controller, _key, error) => {
             if (!isServiceError(error) || error.code !== "CONFLICT") {
                 report(error);
@@ -152,12 +154,13 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     });
     const { store: objects, services } = served;
     const observed = implementation.receiver(objects);
-    const server = listen(present(services[1], "the observability service"), report);
+    const server = listen(present(services[1], "the observability service"), report, objects.clock);
 
     // serve the space's events to readers as the event service
     const eventServer = listen(
         implementEvents({ store: events, access: objects.access, unmasked: objects.unmasked }),
         report,
+        objects.clock,
     );
 
     // run the space server's controllers of observability's objects, which serve beside its first service
@@ -166,6 +169,7 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
         database,
         controlled.filter((controller) => OBJECT_CONTROLLERS.has(controller.name)),
         report,
+        objects.clock,
     );
 
     // settle the store's flushes, compactions and expiries at the clock's time
@@ -200,11 +204,16 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
 }
 
 /** Serve an observability implementation over HTTP to callers authenticating by bearer name, keeping its controllers' failures, closed as the test finishes. */
-function listen(implementation: ServiceImplementation, report: (error: unknown) => void): Server {
+function listen(
+    implementation: ServiceImplementation,
+    report: (error: unknown) => void,
+    clock: Clock,
+): Server {
     // serve at once, as the fixture writes the copies itself and no snapshot ever arrives
     const { ready: _ready, ...served } = implementation;
     const server = Server.start({
         ...served,
+        clock,
         audience: observabilityService.package.id,
         drainTimeout: 1000,
         health: new Health("observability"),

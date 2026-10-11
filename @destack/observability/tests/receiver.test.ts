@@ -4,7 +4,7 @@ import { testCallKey } from "@destack/service/test";
 import { accessRole, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { Journal } from "@destack/audit/server";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { setting } from "@destack/setting/object";
 
 import { startTelemetry } from "@destack/telemetry/bun";
@@ -266,11 +266,13 @@ test("seal personal attributes under their person, mask them for readers who may
         unmasked,
         isSealed: !stored.includes("erin@example.com") && !stored.includes("secret-token"),
         forgotten,
-        audits: (await new Journal(database, testCallKey).read()).map(({ method, execution }) => ({
-            method,
-            category: execution.category,
-            details: execution.details,
-        })),
+        audits: (await new Journal(database, testCallKey, { clock: Clock.system }).read()).map(
+            ({ method, execution }) => ({
+                method,
+                category: execution.category,
+                details: execution.details,
+            }),
+        ),
     }).toEqual({
         masked: [{ email: "****" }, undefined],
         unmasked: [{ email: "erin@example.com" }, undefined],

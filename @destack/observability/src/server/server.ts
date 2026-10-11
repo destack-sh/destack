@@ -103,6 +103,7 @@ function controllersOf(options: ObservabilityOptions, objects: ObjectStore): Con
             ? []
             : [
                   new MeterController(options.events, spaces.measure, {
+                      clock: objects.clock,
                       skus: spaces.skus,
                       ...(spaces.meters === undefined ? {} : { interval: spaces.meters.interval }),
                   }),

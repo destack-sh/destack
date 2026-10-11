@@ -28,8 +28,8 @@ export interface MeterOptions {
     readonly skus: readonly Sku[];
     /** How often the machine measures, in milliseconds, hourly by default. */
     readonly interval?: number;
-    /** The clock intervals end by, the system clock by default. */
-    readonly clock?: Clock;
+    /** The clock intervals end by. */
+    readonly clock: Clock;
 }
 
 /** Measures what a machine's spaces use each interval, ending on its multiples within a month, and appends it as usage events stamped at the interval's start, once each, which their route copies to the accounts paying for them: bytes as their share of the month, amounts as measured. */
@@ -62,7 +62,7 @@ export class MeterController implements Controller {
         this.#measure = measure;
         this.#skus = options.skus;
         this.#interval = options.interval ?? INTERVAL_MILLISECONDS;
-        this.#clock = options.clock ?? Clock.system;
+        this.#clock = options.clock;
         this.#measuredAt = this.#clock.now();
     }
 

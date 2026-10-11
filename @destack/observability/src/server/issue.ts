@@ -33,11 +33,13 @@ export function serveIssues(options: IssueOptions) {
 
     return {
         issue,
-        alertRule: alertRule.control({
-            pending: {},
-            key: (row) => ({ scope: row.scope }),
-            watches: [ObjectWatch.of(base.issue.table, (row) => [{ scope: row.scope }])],
-            reconcile: (reconciliation) => evaluateRules(reconciliation, options),
+        alertRule: alertRule.implement({
+            controller: {
+                pending: {},
+                key: (row) => ({ scope: row.scope }),
+                watches: [ObjectWatch.of(base.issue.table, (row) => [{ scope: row.scope }])],
+                reconcile: (reconciliation) => evaluateRules(reconciliation, options),
+            },
         }),
         alert,
         comment: socialServer.comment,
@@ -49,68 +51,76 @@ export function serveIssues(options: IssueOptions) {
 }
 
 /** Issues announcing their resolutions and regressions, clearing their condition once reopened. */
-const issue = base.issue.handle({
-    resolve: async (call, next) => {
-        const row = await next();
-        await base.resolvedIssue.notify(call, noticeOf(row));
+const issue = base.issue.implement({
+    methods: {
+        resolve: async (call, next) => {
+            const row = await next();
+            await base.resolvedIssue.notify(call, noticeOf(row));
 
-        return row;
-    },
-    regress: async (call) => {
-        const row = await call.update({
-            status: "regressed",
-            reopenedAt: call.now,
-            until: { kind: "event" },
-        });
-        await base.regressedIssue.notify(call, noticeOf(row));
+            return row;
+        },
+        regress: async (call) => {
+            const row = await call.update({
+                status: "regressed",
+                reopenedAt: call.now,
+                until: { kind: "event" },
+            });
+            await base.regressedIssue.notify(call, noticeOf(row));
 
-        return row;
+            return row;
+        },
+        escalate: (call) =>
+            call.update({ status: "unresolved", reopenedAt: call.now, until: { kind: "event" } }),
     },
-    escalate: (call) =>
-        call.update({ status: "unresolved", reopenedAt: call.now, until: { kind: "event" } }),
 });
 
 /** Alert rules refusing conditions they cannot evaluate or their author may not read, and subscribing their author. */
 function alertRuleOf(options: IssueOptions) {
-    return base.alertRule.handle({
-        create: async (call, next) => {
-            // refuse an unreadable rule, then follow the rule as its author
-            const row = requireRule(await next(), options);
-            await Subscription.add(
-                call,
-                base.alertRule.reference(row.scope, row.id),
-                call.requireCaller(),
-                "author",
-            );
+    return base.alertRule.implement({
+        methods: {
+            create: async (call, next) => {
+                // refuse an unreadable rule, then follow the rule as its author
+                const row = requireRule(await next(), options);
+                await Subscription.add(
+                    call,
+                    base.alertRule.reference(row.scope, row.id),
+                    call.requireCaller(),
+                    "author",
+                );
 
-            return row;
-        },
-        update: async (_call, next) => requireRule(await next(), options),
-        apply: async (_call, next) => {
-            // refuse a declared rule the space cannot evaluate, a retired one aside
-            const applied = await next();
+                return row;
+            },
+            update: async (_call, next) => requireRule(await next(), options),
+            apply: async (_call, next) => {
+                // refuse a declared rule the space cannot evaluate, a retired one aside
+                const applied = await next();
 
-            return "condition" in applied ? requireRule(applied, options) : applied;
+                return "condition" in applied ? requireRule(applied, options) : applied;
+            },
         },
     });
 }
 
 /** Alerts announced to the subscribers of their rule. */
-const alert = base.alert.handle({
-    fire: async (call, next) => {
-        // announce the alert on its rule when the rule notifies
-        const row = await next();
-        const rule =
-            row.ruleId === null ? null : await call.read(base.alertRule).row({ id: row.ruleId });
-        if (rule?.actions.some((action) => action.kind === "notify") === true) {
-            await base.firingAlert.notify(call, {
-                source: base.alertRule.reference(rule.scope, rule.id),
-                audience: { kind: "subscribers" },
-                payload: { alert: row.id, rule: rule.title, title: row.title },
-            });
-        }
+const alert = base.alert.implement({
+    methods: {
+        fire: async (call, next) => {
+            // announce the alert on its rule when the rule notifies
+            const row = await next();
+            const rule =
+                row.ruleId === null
+                    ? null
+                    : await call.read(base.alertRule).row({ id: row.ruleId });
+            if (rule?.actions.some((action) => action.kind === "notify") === true) {
+                await base.firingAlert.notify(call, {
+                    source: base.alertRule.reference(rule.scope, rule.id),
+                    audience: { kind: "subscribers" },
+                    payload: { alert: row.id, rule: rule.title, title: row.title },
+                });
+            }
 
-        return row;
+            return row;
+        },
     },
 });
 

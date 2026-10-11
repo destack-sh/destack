@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import { principal } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
@@ -37,6 +38,7 @@ async function openDevice(server: Server): Promise<ObjectClient> {
         isReplica: true,
     });
     const device = await ObjectClient.open({
+        clock: Clock.system,
         database: storage.database,
         objects,
         package: observabilityService.package,
