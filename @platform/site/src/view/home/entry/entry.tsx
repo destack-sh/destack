@@ -1,10 +1,10 @@
 import { frame } from "../../layout/frame.stylex";
 import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
+import { Crossfade } from "../figure/crossfade";
 import type { JSX } from "@destack/view";
 
 import { lattice } from "../../layout/lattice.stylex";
-import { Fade } from "../figure/fade";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
 
@@ -74,14 +74,24 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
 }
 
 /** Label the figure under an entry with its number and a usage example of the word, as a dictionary does. */
-export function FigureLabel(properties: { number: number; title: string; children?: JSX.Element }) {
+export function FigureLabel(properties: {
+    number: number;
+    isOpen: boolean;
+    stacked: string;
+    destacked: string;
+    children?: JSX.Element;
+}) {
     return (
-        <div {...style.attrs(lattice.cell, styles.label)}>
+        <div data-figure-label {...style.attrs(lattice.cell, styles.label)}>
             <span {...style.attrs(styles.caption)}>
                 <span {...style.attrs(styles.figure)}>Fig. {properties.number}</span>
-                <Fade isOpen={false} turn={properties.title} xstyle={styles.title}>
-                    {properties.title}
-                </Fade>
+                <span {...style.attrs(styles.title)}>
+                    <Crossfade
+                        isOpen={properties.isOpen}
+                        stacked={properties.stacked}
+                        destacked={properties.destacked}
+                    />
+                </span>
             </span>
             <span {...style.attrs(styles.labelControl)}>{properties.children}</span>
         </div>
@@ -155,6 +165,7 @@ const styles = style.create({
         paddingInline: frame.inset,
     },
     labelControl: {
+        display: { default: null, [media.maxMd]: "none" },
         marginLeft: "auto",
     },
     figure: {

@@ -39,11 +39,9 @@ export function Participle(properties: {
             <Entry form={participle} />
             <FigureLabel
                 number={5}
-                title={
-                    properties.isOpen
-                        ? "the integrated stack you own instead"
-                        : "the fragmented stack you rent today"
-                }
+                isOpen={properties.isOpen}
+                stacked="the fragmented stack you rent today"
+                destacked="the integrated stack you own instead"
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>

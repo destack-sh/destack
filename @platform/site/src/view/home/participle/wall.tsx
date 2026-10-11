@@ -268,6 +268,12 @@ type Cell =
     | { kind: "app"; key: string; job: Job; sources: readonly Tool[] }
     | { kind: "link"; key: string; tool: Tool; isPicked: boolean };
 
+/** The wall's height on tablets, the taller of its two states there: the stacked grid of five rows. */
+const TABLET_WALL = "30rem";
+
+/** The wall's height on phones, the taller of its two states there: the space with its connections, down to 360 pixel wide screens. */
+const PHONE_WALL = "36rem";
+
 /** The cells to a row of the wall. */
 const perRow = 6;
 
@@ -695,17 +701,18 @@ const styles = style.create({
         objectFit: "cover",
     },
     wall: {
+        alignContent: { default: "stretch", [screen.belowDesktop]: "start" },
         display: "grid",
         gap: "1.25rem",
         gridTemplateRows: "auto auto minmax(0, 1fr)",
         height: "100%",
-        minHeight: 0,
+        minHeight: { default: 0, [screen.belowDesktop]: TABLET_WALL, [media.maxMd]: PHONE_WALL },
     },
     wallFull: {
-        gridTemplateRows: "minmax(0, 1fr)",
+        gridTemplateRows: { default: "minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
     wallOpen: {
-        gridTemplateRows: "minmax(0, 1fr) auto",
+        gridTemplateRows: { default: "minmax(0, 1fr) auto", [screen.belowDesktop]: "auto auto" },
     },
     box: {
         borderColor: color.border,
@@ -778,7 +785,7 @@ const styles = style.create({
         gridAutoRows: {
             default: "minmax(0, 1fr)",
             [screen.belowDesktop]: "5.75rem",
-            [media.maxMd]: "5rem",
+            [media.maxMd]: "3rem",
         },
         gridTemplateColumns: {
             default: `repeat(${perRow}, minmax(0, 1fr))`,
@@ -800,7 +807,7 @@ const styles = style.create({
         borderWidth: 0,
         gap: "0.75rem",
         gridAutoFlow: "row",
-        gridAutoRows: { default: "minmax(5.75rem, 1fr)", [media.maxMd]: "5.75rem" },
+        gridAutoRows: { default: "minmax(5.75rem, 1fr)", [media.maxMd]: "3.25rem" },
         gridTemplateColumns: {
             default: "repeat(4, minmax(0, 1fr))",
             [media.maxMd]: "repeat(2, minmax(0, 1fr))",
@@ -844,10 +851,11 @@ const styles = style.create({
     tool: {
         alignContent: "center",
         cursor: "pointer",
-        display: "grid",
-        gap: "0.4375rem",
+        display: { default: "grid", [media.maxMd]: "flex" },
+        gap: { default: "0.4375rem", [media.maxMd]: "0.5rem" },
+        justifyContent: { default: "normal", [media.maxMd]: "flex-start" },
         justifyItems: "center",
-        paddingInline: "0.375rem",
+        paddingInline: { default: "0.375rem", [media.maxMd]: "0.625rem" },
         transition: `background-color 160ms ${landing}, opacity 320ms ${landing}`,
         backgroundColor: { default: null, ":hover": { default: null, [media.hover]: color.muted } },
     },
@@ -867,8 +875,8 @@ const styles = style.create({
     },
     toolNameWrapped: {
         lineHeight: 1.2,
-        textAlign: "center",
-        whiteSpace: "normal",
+        textAlign: { default: "center", [media.maxMd]: "left" },
+        whiteSpace: { default: "normal", [media.maxMd]: "nowrap" },
     },
     app: {
         backgroundColor: color.card,

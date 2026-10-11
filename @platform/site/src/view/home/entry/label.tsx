@@ -15,6 +15,9 @@ const styles = style.create({
         fontSize: "0.6875rem",
         letterSpacing: "0.1em",
         margin: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
         textTransform: "uppercase",
+        whiteSpace: "nowrap",
     },
 });

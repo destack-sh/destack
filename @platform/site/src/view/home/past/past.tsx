@@ -31,11 +31,9 @@ export function PastParticiple(properties: {
                 <Entry form={destacked} />
                 <FigureLabel
                     number={2}
-                    title={
-                        properties.isOpen
-                            ? "every app on one shared stack"
-                            : "each app on its own separate stack"
-                    }
+                    isOpen={properties.isOpen}
+                    stacked="each app on its own separate stack"
+                    destacked="every app on one shared stack"
                 >
                     <StackSwitch isOpen={properties.isOpen} />
                 </FigureLabel>
