@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { AuditActor, AuditCaller } from "../src/record/index.ts";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./storage.ts";
@@ -51,6 +51,7 @@ test("persist verified caller identities, record an unauthenticated caller as an
                 },
             };
             const request = new ServiceContext(new Request("https://example.test"), {
+                clock: Clock.system,
                 audience: origin.package.id,
                 scope: "universe",
                 caller,
@@ -71,6 +72,7 @@ test("persist verified caller identities, record an unauthenticated caller as an
 
         // attribute an attempt without authentication to no caller
         const rejected = new ServiceContext(new Request("https://example.test"), {
+            clock: Clock.system,
             audience: origin.package.id,
             scope: "universe",
             resources: new ResourceContext(),

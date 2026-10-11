@@ -1,6 +1,6 @@
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { Health } from "@destack/service/health";
 import { ServiceError } from "@destack/service/error";
 import { Server } from "@destack/service/server";
@@ -61,6 +61,7 @@ test("take ended calls an admitted machine delivers into the history, refusing a
         // serve the history, admitting the account's machine alone
         const admitted: string[][] = [];
         await using history = Server.start({
+            clock: Clock.system,
             ...implementAudit({
                 history: storage.history,
                 intake: async (_context, scopes) => {

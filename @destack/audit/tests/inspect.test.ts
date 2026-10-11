@@ -24,14 +24,11 @@ const details = {
     additionalProperties: false,
 };
 
-test("describe an action with its package and call shapes, and list its term from the description", () => {
-    // describe the action and read its term from the serialized description
+test("describe an action with its package and call shapes, and list its term", () => {
+    // describe the action and read its term
     const described = describeAuditAction(documentRename);
-    const serialized = schema
-        .record(schema.string(), schema.json())
-        .parse(JSON.parse(JSON.stringify(described)));
 
-    expect({ described, vocabulary: auditActionVocabulary(serialized) }).toEqual({
+    expect({ described, vocabulary: auditActionVocabulary(documentRename) }).toEqual({
         described: {
             name: "document.rename",
             package: {

@@ -56,8 +56,8 @@ export interface JournalOptions {
     readonly batch?: number;
     /** How long delivered calls stay for retries: a request identifier's retry lifetime. */
     readonly lifetime?: Duration;
-    /** The clock of the server keeping the journal, the system clock by default. */
-    readonly clock?: Clock;
+    /** The clock of the server keeping the journal. */
+    readonly clock: Clock;
 }
 
 /** The calls of one service database: executed once per request, replayed on retries, and delivered to the audit history. */
@@ -76,13 +76,13 @@ export class Journal {
     readonly clock: Clock;
 
     /** Keep a database's calls, fingerprinting sensitive inputs under the deployment's key. */
-    constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions = {}) {
+    constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions) {
         // keep the database, the key and the tuning
         this.database = database;
         this.#key = key;
         this.batch = options.batch ?? DELIVERY_CALLS;
         this.lifetime = Duration.milliseconds(options.lifetime ?? LIFETIME);
-        this.clock = options.clock ?? Clock.system;
+        this.clock = options.clock;
     }
 
     /** Fingerprint a redacted input and the sensitive values it left out, the latter under the key. */

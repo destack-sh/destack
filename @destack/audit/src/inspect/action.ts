@@ -32,8 +32,8 @@ export function describeAuditAction(action: AuditAction): AuditActionDescription
 }
 
 /** List an action's term: its name, with the shapes of its calls. */
-export function auditActionVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
-    const description = AuditActionDescription.parse(input);
+export function auditActionVocabulary(action: AuditAction): Record<string, JsonValue> {
+    const description = describeAuditAction(action);
 
     return { [description.name]: { target: description.target, details: description.details } };
 }

@@ -2,7 +2,7 @@ import { test, expect, refusal } from "@destack/test";
 import { testCallKey } from "@destack/service/test";
 import { ControlLoop } from "@destack/service/control";
 import { PackageId } from "@destack/package";
-import { schema } from "@destack/schema";
+import { Clock, schema } from "@destack/schema";
 import { AuditError } from "../src/error/index.ts";
 import { type AuditCall, call } from "../src/record/index.ts";
 import { AuditRecorder, Journal } from "../src/server/index.ts";
@@ -44,10 +44,14 @@ test("deliver calls and their outcomes as they commit through control loops of c
     const stopping = new AbortController();
     const failures: unknown[] = [];
     const report = (_controller: unknown, _key: string, error: unknown) => failures.push(error);
-    const loops = [storage.journal, new Journal(connection, testCallKey)].map((source) =>
-        new ControlLoop(source.database, [source.controller(storage.history)], { report }).run(
-            stopping.signal,
-        ),
+    const loops = [
+        storage.journal,
+        new Journal(connection, testCallKey, { clock: Clock.system }),
+    ].map((source) =>
+        new ControlLoop(source.database, [source.controller(storage.history)], {
+            clock: Clock.system,
+            report,
+        }).run(stopping.signal),
     );
     try {
         // record a running call and its outcome while both senders run
@@ -128,6 +132,7 @@ test("remove delivered calls once past their lifetime, keeping a call the histor
 
         // let the journal's control loop remove the delivered call once its lifetime ends
         const loop = new ControlLoop(storage.database, [storage.journal.controller()], {
+            clock: Clock.system,
             report,
         }).run(stopping.signal);
         const remaining = async () =>

@@ -1,4 +1,4 @@
-import { type Duration, schema } from "@destack/schema";
+import { Clock, type Duration, schema } from "@destack/schema";
 import type { JsonCondition } from "@destack/db";
 import { testCallKey } from "@destack/service/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -65,11 +65,10 @@ export class AuditStorage {
         this.test = test;
         this.database = database;
         this.#routing = routing;
-        this.journal = new Journal(
-            database,
-            testCallKey,
-            lifetime === undefined ? {} : { lifetime },
-        );
+        this.journal = new Journal(database, testCallKey, {
+            clock: Clock.system,
+            ...(lifetime === undefined ? {} : { lifetime }),
+        });
         this.history = new AuditHistory(routing.events.store);
         this.recorder = new AuditRecorder(
             {
