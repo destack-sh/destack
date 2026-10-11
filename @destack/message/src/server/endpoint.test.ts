@@ -117,6 +117,7 @@ const Envelope = schema.looseObject({ type: schema.string(), data: schema.json()
 function run(database: DatabaseConnection, controllers: readonly Controller[]): ControlLoop {
     const stopping = new AbortController();
     const loop = new ControlLoop(database, controllers, {
+        clock: Clock.system,
         report: (_controller, _key, error) => {
             throw error;
         },
@@ -184,6 +185,7 @@ async function serveHistory(statuses: readonly number[]) {
     const store = openEvents(storage.database);
     const history = new AuditHistory(store);
     const objects = new ObjectStore({
+        clock: Clock.system,
         principal: HOST,
         objects: {
             ...serveMessages({
@@ -227,6 +229,7 @@ async function serveHistory(statuses: readonly number[]) {
 /** Open the events keeping the audit history, routing each call to the scopes enclosing its scope. */
 function openEvents(database: DatabaseConnection): EventStore {
     const store = new EventStore({
+        clock: Clock.system,
         database,
         kinds: [audit.call],
         files: () => new MemoryBucket(),

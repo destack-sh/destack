@@ -51,8 +51,8 @@ export const EndpointReader = {
 
 /** Serve endpoints: deliver each enabled endpoint's calls page by page as webhook messages from its creation on, and mark it delivered or failing by its last settled message. */
 export function serveEndpoints(options: EndpointOptions) {
-    return endpoint
-        .handle({
+    return endpoint.implement({
+        methods: {
             create: async (call, next) => {
                 // place the endpoint's reader where the log stands as it is created
                 const row = await next();
@@ -70,8 +70,8 @@ export function serveEndpoints(options: EndpointOptions) {
 
                 return deleted;
             },
-        })
-        .control({
+        },
+        controller: {
             pending: { status: "enabled" },
             watches: [
                 ObjectWatch.of(message.table, (row) =>
@@ -99,7 +99,8 @@ export function serveEndpoints(options: EndpointOptions) {
             ],
             reconcile: (reconciliation) =>
                 deliver(reconciliation, aligned(reconciliation.rows, 0), options),
-        });
+        },
+    });
 }
 
 /** Deliver an endpoint's next page of calls as messages, then advance its cursor and its Delivered condition, looking again at once after a full page. */

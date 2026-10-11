@@ -9,7 +9,7 @@ import { defineDatabase, type DatabaseConnection, eq, TABLE } from "@destack/db"
 import { TestDatabase } from "@destack/db/test";
 import { Derivation } from "@destack/identity";
 import type {} from "@destack/package/import-meta";
-import { type Duration, type Identifier, present, schema } from "@destack/schema";
+import { type Duration, type Identifier, present, schema, Clock } from "@destack/schema";
 import { type Controller, ControlLoop } from "@destack/service/control";
 import { testCallKey } from "@destack/service/test";
 import { Scope } from "@destack/sync";
@@ -63,6 +63,7 @@ const messageDatabase = defineDatabase({ name: "message", tables: [...messageTab
 function run(database: DatabaseConnection, controllers: readonly Controller[]): void {
     const stopping = new AbortController();
     const running = new ControlLoop(database, controllers, {
+        clock: Clock.system,
         report: (_controller, _key, error) => {
             throw error;
         },
@@ -90,6 +91,7 @@ async function serveMessages(answers: readonly Outcome[], retention: Duration = 
             }),
         ],
         {
+            clock: Clock.system,
             principal: SPACE,
             database: storage.database,
             callKey: testCallKey,
@@ -193,7 +195,9 @@ async function readSending(database: DatabaseConnection, id: Identifier<"message
 
 /** List each journaled call's method with the principal and component making it, in order. */
 async function listCallers(database: DatabaseConnection) {
-    const calls = await new Journal(database, testCallKey).read({ limit: 100 });
+    const calls = await new Journal(database, testCallKey, { clock: Clock.system }).read({
+        limit: 100,
+    });
 
     return calls.map((recorded) => [
         recorded.method,

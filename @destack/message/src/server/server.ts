@@ -97,10 +97,12 @@ export function serveMessages(
     };
 
     return {
-        message: message.control({
-            pending: { erasedAt: { isNull: true } },
-            concurrency: CONCURRENCY,
-            reconcile: (reconciliation) => send(reconciliation, sending),
+        message: message.implement({
+            controller: {
+                pending: { erasedAt: { isNull: true } },
+                concurrency: CONCURRENCY,
+                reconcile: (reconciliation) => send(reconciliation, sending),
+            },
         }),
         attempt: messageAttempt,
     };

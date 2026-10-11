@@ -1,4 +1,4 @@
-import { check, index, sql, type Select } from "@destack/db";
+import { check, index, type Select } from "@destack/db";
 import { Conditions, defineObject, field } from "@destack/object";
 import * as identity from "@destack/identity";
 import { defineSchema, schema } from "@destack/schema";
@@ -111,18 +111,24 @@ export const message = defineObject({
     },
     constraints: (entry) => [
         index("message_source").on(entry.source, entry.createdAt),
-        check(
-            "message_pending",
-            sql`${entry.status} <> 'pending' OR (${entry.settledAt} IS NULL AND ${entry.ciphertext} IS NOT NULL)`,
-        ),
-        check(
-            "message_settled",
-            sql`${entry.status} = 'pending' OR (${entry.settledAt} IS NOT NULL AND ${entry.retryAt} IS NULL)`,
-        ),
-        check(
-            "message_erased",
-            sql`(${entry.ciphertext} IS NULL) = (${entry.erasedAt} IS NOT NULL)`,
-        ),
+        check("message_pending", {
+            OR: [
+                { status: { ne: "pending" } },
+                { settledAt: { isNull: true }, ciphertext: { isNotNull: true } },
+            ],
+        }),
+        check("message_settled", {
+            OR: [
+                { status: "pending" },
+                { settledAt: { isNotNull: true }, retryAt: { isNull: true } },
+            ],
+        }),
+        check("message_erased", {
+            OR: [
+                { ciphertext: { isNull: true }, erasedAt: { isNotNull: true } },
+                { ciphertext: { isNotNull: true }, erasedAt: { isNull: true } },
+            ],
+        }),
     ],
     permissions: ["read", "send", "erase"],
     methods: (method) => ({
@@ -135,10 +141,10 @@ export const message = defineObject({
             isPredicted: false,
         }),
         /** Erase a settled message's sealed content once its retention passes, as the message controller does. */
-        erase: method
-            .mutation({ permission: "erase", isInternal: true })
-            .handle((call) => call.updateStatus({ ciphertext: null, erasedAt: call.now })),
+        erase: method.mutation({ permission: "erase", isInternal: true }),
     }),
+}).implement({
+    methods: { erase: (call) => call.updateStatus({ ciphertext: null, erasedAt: call.now }) },
 });
 /** A message as its table stores it. */
 export type Message = Select<typeof message.table>;
