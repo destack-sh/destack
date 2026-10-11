@@ -1,10 +1,7 @@
 import { graph } from "@destack/package";
 import { ViewPresentation, type ViewDescription } from "@destack/package/manifest";
-import { schema, type JsonObject } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { View } from "../declare/view.ts";
-
-/** The object types a view's description presents, beside its name and permissions. */
-const Presents = schema.looseObject({ presents: schema.array(ViewPresentation) });
 
 /** Describe a view by its name, the permissions it requests by scope, the object types it presents and the platform services it calls. */
 export function describeView(view: View): {
@@ -34,12 +31,12 @@ export function describeView(view: View): {
 }
 
 /** Present each object type a view presents. */
-export function viewSymbols(input: JsonObject): graph.MemberSymbol[] {
+export function viewSymbols(view: View): graph.MemberSymbol[] {
     return schema.array(graph.MemberSymbol).parse([
         {
-            relationships: Presents.parse(input).presents.map((presented) => ({
+            relationships: view.presents.map(({ object }) => ({
                 kind: "presents",
-                symbol: { packageId: presented.packageId, kind: "object", name: presented.type },
+                symbol: { packageId: object.package.id, kind: "object", name: object.name },
             })),
         },
     ]);

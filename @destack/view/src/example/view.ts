@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import { PermissionScope, principal } from "@destack/access";
 import { WasmClient } from "@destack/db/browser";
 import { SqliteDatabase } from "@destack/db/sqlite";
@@ -120,6 +121,7 @@ async function openScope(
         caller,
         endpoint: OFFLINE,
         reconnect: () => OFFLINE,
+        clock: Clock.system,
     });
     signal.addEventListener("abort", () => {
         void client.close().then(() => memory.close());

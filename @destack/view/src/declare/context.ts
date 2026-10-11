@@ -46,7 +46,7 @@ export const TARGET_PARAMETER = "target";
 export const LAUNCH_PARAMETER = "launch";
 
 /** A path every browser resolves on the page's own origin. */
-const SameOriginPath = schema.string().regex(/^\/(?!\/)[^\t\n\r\\]*$/u);
+const SameOriginPath = schema.string().regex(/^\/(?:[^/\t\n\r\\][^\t\n\r\\]*)?$/u);
 
 /** What the host gives a view: where and for whom it runs. */
 export const ViewContext = defineSchema(

@@ -2,7 +2,7 @@ import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
@@ -55,6 +55,7 @@ async function openClient(): Promise<ObjectClient<{ readonly card: typeof card }
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ card }));
     const offline = { url: "https://cards.test", fetch: () => new Promise<Response>(() => {}) };
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: storage.database,
         objects: { card },
         scope: BOARD_ID,

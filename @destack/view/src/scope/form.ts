@@ -2,7 +2,7 @@ import { type Localization, t } from "@destack/locale";
 import { useLocale } from "../page/locale.ts";
 import type { CallInput, MutationName, ObjectType } from "@destack/object";
 import type { Submission } from "@destack/object/client";
-import type { schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { type Accessor, createSignal } from "../solid/reactive.ts";
 
 /** Where a form's last submission stands: none yet, waiting for the server, confirmed, or refused. */
@@ -16,7 +16,7 @@ export interface FormOptions<Input extends object> {
     /** The input the form starts from, such as the object's identifier and its current fields. */
     readonly values: () => Input;
     /** Call the method with the edited input, such as `objects.mutate.note.update`. */
-    readonly submit: (input: Input) => Submission<unknown>;
+    readonly submit: (input: schema.Defined<Input>) => Submission<unknown>;
     /** When the form submits, on submit by default. */
     readonly mode?: FormMode;
 }
@@ -86,7 +86,7 @@ export function useSchemaForm<Input extends object>(
     // check the input against the schema, showing refusals of edited values until the first submit
     const check = (held: Input): boolean => {
         // refuse the issues of the fields the form holds, leaving the rest to the caller
-        const parsed = input.safeParse(held);
+        const parsed = input.safeParse(schema.defined(held));
         const issues = (parsed.success ? [] : parsed.error.issues)
             .filter((issue) => String(issue.path[0] ?? "") in held)
             .flatMap((issue) => closest(issue, held));
@@ -113,7 +113,7 @@ export function useSchemaForm<Input extends object>(
         submissions += 1;
         const submission = submissions;
         setStatus("pending");
-        const submitted = options.submit(held);
+        const submitted = options.submit(schema.defined(held));
         submitted.confirmed.then(
             () => {
                 if (submission === submissions) {

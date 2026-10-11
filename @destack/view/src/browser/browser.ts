@@ -1,3 +1,4 @@
+import { Clock } from "@destack/schema";
 import "../styles/styles.ts";
 import { Catalog, Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { ObjectType } from "@destack/object";
@@ -298,6 +299,7 @@ async function openTabs(
                     endpoint: { url },
                     // reopen the same endpoint
                     reconnect: () => ({ url }),
+                    clock: Clock.system,
                     report: reportError,
                 });
                 await tab.ready;
