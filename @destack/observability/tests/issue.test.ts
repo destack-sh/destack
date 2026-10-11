@@ -20,9 +20,6 @@ test("group failures logged and annotated on spans into an issue at the declarat
         openBuild: async () => notesBuild,
     });
     const revision = await recordNotesRevision(database);
-    await expect
-        .poll(async () => (await database.select().from(installationRevision.table)).length)
-        .toBe(1);
     const alice = client(server, "alice");
 
     // fail twice for dana and once for erin, and refuse a missing note, which is a declared outcome

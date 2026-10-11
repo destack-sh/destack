@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { EventFixture } from "@destack/event/test";
 import { defineSku, usage } from "@destack/finance/declare";
 import { MeterUsage } from "@destack/finance/server";
@@ -63,7 +63,7 @@ test("append a space's measured use as usage events once, a failed round's count
     // measure 2 GB and 100 GB-seconds over the first half of October, then nothing kept and 50 GB-seconds up to its end, which October keeps
     const start = Date.UTC(2026, 9, 1);
     const end = Date.UTC(2026, 10, 1);
-    let now = start;
+    const clock = new TestClock(start);
     const rounds: Reading[][] = [
         [
             { meter: databaseStorage, scope: ids.space, value: 2_000_000_000 },
@@ -77,14 +77,14 @@ test("append a space's measured use as usage events once, a failed round's count
     const meters = new MeterController(events, async () => rounds.shift() ?? [], {
         skus: [databaseSku, computeSku],
         interval: 1,
-        clock: { now: () => now },
+        clock,
     });
-    now = (start + end) / 2;
+    clock.set((start + end) / 2);
     const failed = await meters.reconcile().then(
         () => "done",
         () => "failed",
     );
-    now = end;
+    clock.set(end);
     await meters.reconcile();
     await meters.reconcile();
     await settle();

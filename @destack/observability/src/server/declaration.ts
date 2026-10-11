@@ -77,7 +77,7 @@ export class DeclarationController implements Controller {
                 ? []
                 : declaring.rules.map((rule) =>
                       alertRule.call("apply", {
-                          ...alertRule.target({ scope: declaring.scope }),
+                          ...alertRule.in(declaring.scope),
                           manager: {
                               installationId: key,
                               packageId: rule.package,
@@ -94,7 +94,7 @@ export class DeclarationController implements Controller {
                 .filter((row) => !declared.some((rule) => rule.name === row.name))
                 .map((row) =>
                     alertRule.call("apply", {
-                        ...alertRule.target({ scope: row.scope }),
+                        ...alertRule.in(row.scope),
                         manager: { installationId: key, packageId: row.packageId, name: row.name },
                         values: null,
                     }),
@@ -133,7 +133,12 @@ export class DeclarationController implements Controller {
         }
 
         // read the alert rules its build declares
-        const reader = await this.#open(applied.packageId, applied.build, applied.scope);
+        const reader = await this.#open(
+            applied.packageId,
+            applied.build,
+            applied.scope,
+            this.#store.database,
+        );
         const rules = await reader.declared(
             alertRule.package.id,
             "alert-rule",

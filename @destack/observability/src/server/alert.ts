@@ -120,7 +120,7 @@ async function fireAndSettle(
     const created = await reconciliation.mutate(
         fired.map((crossing) =>
             alert.call("fire", {
-                ...alert.target({ scope: rule.scope }),
+                ...alert.in(rule.scope),
                 ruleId: rule.id,
                 group: crossing.group,
                 value: crossing.value,

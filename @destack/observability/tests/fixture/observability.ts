@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import { onTestFinished } from "@destack/test";
+import { onTestFinished, TestClock } from "@destack/test";
 import { accessRole, Authorization, Authorizer, type Caller, principal } from "@destack/access";
 import { and, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { type Event, EventStore, DatabasePersonalKeyring, type Route } from "@destack/event";
@@ -10,6 +10,7 @@ import { LocalKeyring } from "@destack/identity";
 import { notificationTables } from "@destack/notification/stack";
 import { PackageId } from "@destack/package";
 import { MemoryBucket } from "@destack/bucket/test";
+import { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
 import { present, schema } from "@destack/schema";
 import { TestBearer } from "@destack/service/test";
@@ -32,6 +33,9 @@ import { OBSERVABILITY_KINDS } from "../../src/event/index.ts";
 import { implementObservability, type Reading, TelemetryPolicy } from "../../src/server/index.ts";
 import { observabilityService } from "../../src/service/index.ts";
 import { observabilityTables } from "../../src/stack/index.ts";
+
+/** The longest a test waits for the controllers to settle a change, far above a local reconcile. */
+const SETTLE_MILLISECONDS = 4000;
 
 /** The space server's controllers of observability's objects: the alert rules' evaluation. */
 const OBJECT_CONTROLLERS: ReadonlySet<string> = new Set(["alert-rule"]);
@@ -59,13 +63,13 @@ export const observedDatabase = defineDatabase({
 function run(
     database: DatabaseConnection,
     controllers: readonly Controller[],
-    failures: unknown[],
+    report: (error: unknown) => void,
 ): void {
     const stopping = new AbortController();
     const running = new ControlLoop(database, controllers, {
         report: (_controller, _key, error) => {
             if (!isServiceError(error) || error.code !== "CONFLICT") {
-                failures.push(error);
+                report(error);
             }
         },
     }).run(stopping.signal);
@@ -112,9 +116,14 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     await createSpace(database);
 
     // keep the space's events over its database, a memory bucket and a generated keyring, on a clock the test sets
-    const clock = { now: Date.now() };
+    const clock = new TestClock(Date.now());
     const failures: unknown[] = [];
-    const bucket = new MemoryBucket({ now: () => clock.now });
+    const failed = Promise.withResolvers<unknown>();
+    const report = (error: unknown) => {
+        failures.push(error);
+        failed.resolve(error);
+    };
+    const bucket = new MemoryBucket(clock);
     const keyring = await LocalKeyring.read(LocalKeyring.generate());
     const events = new EventStore({
         database,
@@ -126,8 +135,8 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
             deliver: async (kind, copies) => options.deliver?.(kind, copies),
         },
         policy: TelemetryPolicy.of(database),
-        clock: { now: () => clock.now },
-        report: (error) => failures.push(error),
+        clock,
+        report,
     });
 
     // serve the observability kind beside the space's objects
@@ -138,7 +147,7 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
             measure: options.measure ?? (async () => []),
             ...(options.skus === undefined ? {} : { skus: options.skus }),
         },
-        report: (error) => failures.push(error),
+        report,
     });
     const served = serveSpace({
         ...(await fixture.options({ extensions: [] })),
@@ -146,12 +155,12 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     });
     const { store: objects, services } = served;
     const observed = implementation.receiver(objects);
-    const server = listen(present(services[1], "the observability service"), failures);
+    const server = listen(present(services[1], "the observability service"), report);
 
     // serve the space's events to readers as the event service
     const eventServer = listen(
         implementEvents({ store: events, access: objects.access, unmasked: objects.unmasked }),
-        failures,
+        report,
     );
 
     // run the space server's controllers of observability's objects, which serve beside its first service
@@ -159,7 +168,7 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     run(
         database,
         controlled.filter((controller) => OBJECT_CONTROLLERS.has(controller.name)),
-        failures,
+        report,
     );
 
     // settle the store's flushes, compactions and expiries at the clock's time
@@ -184,13 +193,16 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
         objects,
         database,
         failures,
+        failed: failed.promise,
+        until: (check: () => Promise<boolean>) =>
+            TestDatabase.settle(database, check, SETTLE_MILLISECONDS),
         clock,
         settle,
     };
 }
 
 /** Serve an observability implementation over HTTP to callers authenticating by bearer name, keeping its controllers' failures, closed as the test finishes. */
-function listen(implementation: ServiceImplementation, failures: unknown[]): Server {
+function listen(implementation: ServiceImplementation, report: (error: unknown) => void): Server {
     // serve at once, as the fixture writes the copies itself and no snapshot ever arrives
     const { ready: _ready, ...served } = implementation;
     const server = Server.start({
@@ -201,7 +213,7 @@ function listen(implementation: ServiceImplementation, failures: unknown[]): Ser
         resources: new ResourceContext(),
         authorizeMachine: async () => {},
         authenticate: async (request) => authenticate(request),
-        report: (error) => failures.push(error),
+        report,
     });
     onTestFinished(() => server.close());
 

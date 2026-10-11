@@ -1,3 +1,4 @@
+import type { ServiceClient } from "@destack/service/client";
 import { type Event, EventCursor } from "@destack/event";
 import {
     eventService,
@@ -5,7 +6,6 @@ import {
     type EventResult,
     type EventSelection,
 } from "@destack/event/service";
-import type { Client } from "@destack/service";
 import { type Accessor, createMemo, onCleanup, useService } from "@destack/view";
 import { PAGE_ROWS } from "./page.tsx";
 
@@ -18,7 +18,7 @@ import { PAGE_ROWS } from "./page.tsx";
 const LIVE_PAGES = 10;
 
 /** A client of the event service. */
-type EventClient = Client<(typeof eventService)["router"]>;
+type EventClient = ServiceClient<typeof eventService>;
 
 /** The events a feed follows, and the earliest time its pages read. */
 export type EventRange = EventSelection & Pick<EventQuery, "from">;

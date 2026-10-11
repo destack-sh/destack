@@ -5,7 +5,7 @@ import { RequestId } from "@destack/service/request";
 import type { Server } from "@destack/service/server";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Loading, type JSX } from "@destack/view";
-import { renderView } from "@destack/view/test";
+import { changed, renderView } from "@destack/view/test";
 import { eventService } from "@destack/event/service";
 import { alert, alertRule, issue } from "../../src/object/index.ts";
 import { observabilityService } from "../../src/service/index.ts";
@@ -15,6 +15,9 @@ import Logs from "../../src/view/log.tsx";
 import Traces from "../../src/view/trace.tsx";
 import { client, ids, serveObservability } from "../fixture/observability.ts";
 import { logsExport, NOTES_EMITTER, tracesExport } from "../fixture/notes.ts";
+
+/** The longest a test waits for a page to show a change, far above a local query round trip. */
+const SHOW_MILLISECONDS = 4000;
 
 /** Reach a server's service as alice. */
 function reach(server: Server) {
@@ -96,6 +99,24 @@ async function mutations(device: ObjectClient) {
     return (await device.inspect()).mutations;
 }
 
+/** Wait until a page shows what a check reads. */
+async function shown(container: Element, check: () => boolean): Promise<void> {
+    await changed(container, check, SHOW_MILLISECONDS);
+}
+
+/** Wait until a device holds no mutation the server has yet to confirm. */
+async function drained(device: ObjectClient): Promise<void> {
+    await TestDatabase.settle(
+        device.database,
+        async () => {
+            const { pending, executed, rejected } = await mutations(device);
+
+            return pending + executed + rejected === 0;
+        },
+        SHOW_MILLISECONDS,
+    );
+}
+
 /** Read the cells of each row a selector finds, leaving out the first, the time each row shows in the local zone. */
 function rows(container: Element, selector: string): string[][] {
     return [...container.querySelectorAll(selector)].map((row) =>
@@ -132,12 +153,12 @@ test("list a space's recent log records newest first, narrow them with a typed f
         ]),
     );
     const { container } = await draw(served, "logs", () => <Logs />);
-    await expect.poll(() => rows(container, "[data-slot=log]")).toHaveLength(2);
+    await shown(container, () => rows(container, "[data-slot=log]").length === 2);
     const listed = rows(container, "[data-slot=log]");
 
     // narrow to errors, then record another one
     type(container, "severity >= 17");
-    await expect.poll(() => rows(container, "[data-slot=log]")).toHaveLength(1);
+    await shown(container, () => rows(container, "[data-slot=log]").length === 1);
     await receive(
         NOTES_EMITTER,
         "logs",
@@ -145,7 +166,7 @@ test("list a space's recent log records newest first, narrow them with a typed f
     );
 
     // show both records newest first, then the errors, the new one first once it arrives
-    await expect.poll(() => rows(container, "[data-slot=log]"), { timeout: 4000 }).toHaveLength(2);
+    await shown(container, () => rows(container, "[data-slot=log]").length === 2);
     expect({ listed, followed: rows(container, "[data-slot=log]") }).toEqual({
         listed: [
             ["error", "note.failed", "disk full"],
@@ -190,11 +211,9 @@ test("list a space's recent traces and show the open one's spans as a tree on it
 
     // open the trace from the list
     const { container } = await draw(served, "traces", () => <Traces />);
-    await expect
-        .poll(() => texts(container, "[data-slot=trace] [data-slot=item-title]"))
-        .toHaveLength(1);
+    await shown(container, () => texts(container, "[data-slot=trace]").length === 1);
     container.querySelector<HTMLElement>("[data-slot=trace]")?.click();
-    await expect.poll(() => texts(container, "[data-slot=span]")).toHaveLength(2);
+    await shown(container, () => texts(container, "[data-slot=span]").length === 2);
 
     // list the root first, its child indented below it
     expect({
@@ -230,17 +249,18 @@ test("resolve an issue a failure opened from its page, which lists its events", 
 
     // open it from the list and resolve it
     const { container, device } = await draw(served, "issues", () => <Issues />);
-    await expect.poll(() => texts(container, "[data-slot=issue]")).toHaveLength(1);
+    await shown(container, () => texts(container, "[data-slot=issue]").length === 1);
     container.querySelector<HTMLElement>("[data-slot=issue]")?.click();
-    await expect.poll(() => texts(container, "[data-slot=event]")).toHaveLength(1);
+    await shown(container, () => texts(container, "[data-slot=event]").length === 1);
     const events = texts(container, "[data-slot=event] [data-slot=item-title]");
     [...container.querySelectorAll<HTMLElement>("button")]
         .find((button) => button.textContent === "Resolve")
         ?.click();
 
     // show its event, then its resolution, which the server confirms
-    await expect.poll(() => texts(container, "[data-slot=status]")).toEqual(["resolved"]);
-    await expect.poll(() => mutations(device)).toEqual({ pending: 0, executed: 0, rejected: 0 });
+    await shown(container, () => texts(container, "[data-slot=status]")[0] === "resolved");
+    expect(texts(container, "[data-slot=status]")).toEqual(["resolved"]);
+    await drained(device);
     expect(events).toEqual(["title is empty"]);
 });
 
@@ -273,15 +293,13 @@ test("list a space's alert rules beside its alerts, and resolve a firing alert b
 
     // resolve the alert from the page
     const { container, device } = await draw(served, "alerts", () => <Alerts />);
-    await expect
-        .poll(() => texts(container, "[data-slot=alert] [data-slot=item-title]"))
-        .toHaveLength(1);
+    await shown(container, () => texts(container, "[data-slot=alert]").length === 1);
     container.querySelector<HTMLElement>("[data-slot=alert] button")?.click();
 
     // show the rule and the alert, resolved, which the server confirms
-    await expect
-        .poll(() => texts(container, "[data-slot=alert] [data-slot=item-title]"))
-        .toEqual(["log count 1resolved"]);
-    await expect.poll(() => mutations(device)).toEqual({ pending: 0, executed: 0, rejected: 0 });
+    const alerts = () => texts(container, "[data-slot=alert] [data-slot=item-title]");
+    await shown(container, () => alerts()[0] === "log count 1resolved");
+    expect(alerts()).toEqual(["log count 1resolved"]);
+    await drained(device);
     expect(texts(container, "[data-slot=rule] [data-slot=item-title]")).toEqual(["Errors"]);
 });

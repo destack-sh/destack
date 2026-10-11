@@ -127,7 +127,7 @@ export class Grouper {
                     .filter(([key]) => !known.has(key))
                     .map(([, group]) =>
                         issue.call("open", {
-                            ...issue.target({ scope }),
+                            ...issue.in(scope),
                             ...openingOf(group),
                         }),
                     ),
@@ -222,7 +222,7 @@ export class Grouper {
         return (
             found && {
                 revision: { id: found.id, createdAt: found.createdAt },
-                open: () => this.#open(found.packageId, found.build, scope),
+                open: () => this.#open(found.packageId, found.build, scope, this.#objects.database),
             }
         );
     }

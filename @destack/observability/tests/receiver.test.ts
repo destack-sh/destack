@@ -89,7 +89,7 @@ test("query, follow, fold and trace an instance's logs, spans and metric points,
     });
 
     // flush the hour's events and read the records again
-    clock.now += 2 * HOUR;
+    clock.advance(2 * HOUR);
     await settle();
     const after = await read();
     const hot = await database.select().from(log.table);
@@ -215,7 +215,6 @@ test("seal personal attributes under their person, mask them for readers who may
         },
         principal.user.reference("universe", "carol"),
     );
-    await expect.poll(async () => (await database.select().from(accessRole)).length).toBe(2);
 
     // record an invitation dana sent naming an address, and a token naming no person
     await receive(
@@ -256,7 +255,7 @@ test("seal personal attributes under their person, mask them for readers who may
     const stored = JSON.stringify(await database.select().from(log.table));
 
     // forget dana once the records flushed, and read again
-    clock.now += 2 * HOUR;
+    clock.advance(2 * HOUR);
     await settle();
     await events.forget("dana");
     const forgotten = await read("alice");
@@ -304,16 +303,16 @@ test("expire a space's telemetry past the retention its settings place", async (
         mode: "set",
         value: 1,
         release: telemetryRetention.package.version,
-        createdAt: clock.now,
-        updatedAt: clock.now,
+        createdAt: clock.now(),
+        updatedAt: clock.now(),
     });
 
     // record a log, flush it after an hour, and read it after two days
-    await receive(NOTES_EMITTER, "logs", logsExport([{ time: clock.now, name: "note.saved" }]));
-    clock.now += 2 * HOUR;
+    await receive(NOTES_EMITTER, "logs", logsExport([{ time: clock.now(), name: "note.saved" }]));
+    clock.advance(2 * HOUR);
     await settle();
     const kept = (await events.query(log, { scope: ids.space })).events.length;
-    clock.now += 2 * 24 * HOUR;
+    clock.advance(2 * 24 * HOUR);
     await settle();
     const expired = (await events.query(log, { scope: ids.space })).events.length;
 
