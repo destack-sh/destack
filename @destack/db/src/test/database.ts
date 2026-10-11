@@ -79,6 +79,17 @@ export class TestDatabase<
         this.#remove = remove;
     }
 
+    /** Wait until a database meets a check after a commit, failing once some milliseconds pass. */
+    static async settle(
+        database: DatabaseConnection,
+        check: () => Promise<boolean>,
+        milliseconds: number,
+    ): Promise<void> {
+        if (!(await database.log.until(check, AbortSignal.timeout(milliseconds)))) {
+            throw new TypeError(`the database never settled within ${milliseconds} ms`);
+        }
+    }
+
     /** Create an isolated database, empty or migrated. */
     static async create<
         Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,

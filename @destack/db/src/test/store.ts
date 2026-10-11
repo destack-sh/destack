@@ -1,26 +1,26 @@
 import { Digest } from "@destack/schema";
 import type { ContentStore } from "@destack/resource";
 
-/** A snapshot store in memory, keeping each part with the moment it was last used, as a cell's store sweeps them. */
+/** A snapshot store in memory, keeping each blob with the moment it was last used, as a cell's store sweeps them. */
 export class MemoryContentStore implements ContentStore {
-    /** The kept parts, by digest. */
-    readonly #parts = new Map<Digest, { readonly bytes: Uint8Array; used: Date }>();
+    /** The kept blobs, by digest. */
+    readonly #blobs = new Map<Digest, { readonly bytes: Uint8Array; used: Date }>();
 
-    /** Count the kept parts. */
+    /** Count the kept blobs. */
     get size(): number {
-        return this.#parts.size;
+        return this.#blobs.size;
     }
 
-    /** Read a part's bytes as one chunk. */
+    /** Read a blob's bytes as one chunk. */
     async *read(digest: Digest): AsyncIterable<Uint8Array> {
-        const part = this.#parts.get(digest);
-        if (part === undefined) {
-            throw new TypeError(`no part ${digest}`);
+        const blob = this.#blobs.get(digest);
+        if (blob === undefined) {
+            throw new TypeError(`no blob ${digest}`);
         }
-        yield part.bytes;
+        yield blob.bytes;
     }
 
-    /** Keep bytes under their digest, marking a kept part used now. */
+    /** Keep bytes under their digest, marking a kept blob used now. */
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
         // gather and hash the bytes
         const bytes = await new Blob(
@@ -32,33 +32,33 @@ export class MemoryContentStore implements ContentStore {
 
         // refuse bytes of another digest, and keep them once
         if (expected !== undefined && digest !== expected) {
-            throw new TypeError(`part ${expected} read as ${digest}`);
+            throw new TypeError(`blob ${expected} read as ${digest}`);
         }
-        this.#parts.set(digest, { bytes, used: new Date() });
+        this.#blobs.set(digest, { bytes, used: new Date() });
 
         return digest;
     }
 
-    /** Keep the parts the store lacks among some digests, read from another store, marking the kept ones used now. */
+    /** Keep the blobs the store lacks among some digests, read from another store, marking the kept ones used now. */
     async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
         for (const digest of new Set(digests)) {
-            const part = this.#parts.get(digest);
-            // copy a missing part
-            if (part === undefined) {
+            const blob = this.#blobs.get(digest);
+            // copy a missing blob
+            if (blob === undefined) {
                 await this.write(source.read(digest), digest);
             }
-            // mark a kept part used
+            // mark a kept blob used
             else {
-                part.used = new Date();
+                blob.used = new Date();
             }
         }
     }
 
-    /** Delete the parts outside a retained set last used before a moment. */
+    /** Delete the blobs outside a retained set last used before a moment. */
     async sweep(retained: ReadonlySet<Digest>, before: Date): Promise<void> {
-        for (const [digest, part] of this.#parts) {
-            if (!retained.has(digest) && part.used < before) {
-                this.#parts.delete(digest);
+        for (const [digest, blob] of this.#blobs) {
+            if (!retained.has(digest) && blob.used < before) {
+                this.#blobs.delete(digest);
             }
         }
     }

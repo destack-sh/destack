@@ -3,7 +3,7 @@ import { text } from "../table/column.ts";
 import { uniqueIndex } from "../table/constraint.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import { classifyError, DatabaseError, UniqueKey } from "./error.ts";
+import { classifyError, DatabaseError } from "./error.ts";
 
 /** Labels of folders, each name once per folder. */
 const label = defineTable(
@@ -70,11 +70,13 @@ test("read the unique key a duplicate violates from SQLite's message, a namespac
     });
 
     expect([
-        UniqueKey.violated(new Error("UNIQUE constraint failed: note.scope, note.name")),
-        UniqueKey.violated(new Error("UNIQUE constraint failed: work.note.scope, work.note.name")),
-        UniqueKey.violated(new Error("UNIQUE constraint failed: index 'note_title'")),
-        UniqueKey.violated(postgres),
-        UniqueKey.violated(expression),
+        DatabaseError.violated(new Error("UNIQUE constraint failed: note.scope, note.name")),
+        DatabaseError.violated(
+            new Error("UNIQUE constraint failed: work.note.scope, work.note.name"),
+        ),
+        DatabaseError.violated(new Error("UNIQUE constraint failed: index 'note_title'")),
+        DatabaseError.violated(postgres),
+        DatabaseError.violated(expression),
     ]).toEqual([
         { table: "note", columns: ["scope", "name"] },
         { table: "note", columns: ["scope", "name"] },
