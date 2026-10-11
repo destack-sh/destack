@@ -56,14 +56,17 @@ export function serveEndpoints(options: EndpointOptions) {
             create: async (call, next) => {
                 // place the endpoint's reader where the log stands as it is created
                 const row = await next();
-                await EndpointReader.of(row.id).start(call.database, call.now);
+                call.requireTransaction().record((database) =>
+                    EndpointReader.of(row.id).start(database, call.now),
+                );
 
                 return row;
             },
             delete: async (call, next) => {
                 // let the log go of the calls the endpoint had not read
                 const deleted = await next();
-                await EndpointReader.of(call.requireTarget().id).release(call.database);
+                const reader = EndpointReader.of(call.requireTarget().id);
+                call.requireTransaction().record((database) => reader.release(database));
 
                 return deleted;
             },
