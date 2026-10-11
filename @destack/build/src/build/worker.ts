@@ -23,7 +23,6 @@ import { PackageLocator } from "@destack/package/transform";
 import { Toolchain } from "@destack/check";
 import {
     type ExampleDeclaration,
-    type ProgramImports,
     type ScenarioDeclaration,
     type TypeScriptInspection,
     TypeScriptCompiler,
@@ -56,6 +55,7 @@ import { OutputPass } from "../compile/pass.ts";
 import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
 import { BuildError, isMissing } from "../error/index.ts";
+import { ProgramImports } from "../cache/scan.ts";
 import { PackageBuild, type BuildOptions, type ModuleOptions } from "./build.ts";
 import { BuildDirectory } from "./directory.ts";
 import { readCatalogs } from "./catalog.ts";
@@ -377,7 +377,9 @@ export class CompilerWorker implements AsyncDisposable {
         toolchain: Digest,
         identities: Identities,
     ): Promise<ProgramKeys> {
-        const imports = await this.typescript.imports(project.configuration);
+        // scan the configuration's root files and key their modules
+        const configuration = await this.typescript.configure(project.configuration);
+        const imports = await ProgramImports.scan(project.directory, configuration, identities);
         const keys = await deriveModuleKeys(imports, project.directory, toolchain, identities);
 
         return { imports, keys };

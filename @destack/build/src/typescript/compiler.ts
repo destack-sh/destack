@@ -5,13 +5,20 @@ import { fileURLToPath } from "node:url";
 import { API, type Project } from "typescript/unstable/async";
 import { Toolchain } from "@destack/check/toolchain";
 import { BuildError } from "../error/index.ts";
-import { collectImports, type ProgramImports } from "./program.ts";
 import { describeProject, type TypeScriptInspection } from "./module.ts";
 import { isAuthored } from "../source/dependency.ts";
 import type { ModulePackage } from "@destack/package/transform";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
+
+/** A compiler configuration as the compiler parses it. */
+export interface ParsedConfiguration {
+    /** The effective compiler options. */
+    readonly options: Readonly<Record<string, unknown>>;
+    /** The root files of the program, by absolute path. */
+    readonly files: readonly string[];
+}
 
 /** Retain TypeScript compiler state across inspections of one package. */
 export class TypeScriptCompiler implements AsyncDisposable {
@@ -69,9 +76,12 @@ export class TypeScriptCompiler implements AsyncDisposable {
         });
     }
 
-    /** Read what the package's modules import, without checking them. */
-    imports(configuration: string): Promise<ProgramImports> {
-        return this.#read(configuration, (project) => collectImports(project, this.directory));
+    /** Parse a configuration into its effective options and root files, without loading its program. */
+    async configure(configuration: string): Promise<ParsedConfiguration> {
+        const path = await realpath(resolve(this.directory, configuration));
+        const parsed = await this.#api.parseConfigFile(path);
+
+        return { options: parsed.options, files: parsed.fileNames };
     }
 
     /** Read a configuration's project from a fresh snapshot, then release the snapshot. */

@@ -29,19 +29,19 @@ import { PackageDefinition } from "@destack/package";
 
 /** Complete build scenarios, a web application in each rendering mode. */
 const fixtures = [
-    { name: "library", request: library.request, mode: "" },
-    { name: "service", request: service.request, mode: "" },
-    { name: "resource", request: resource.request, mode: "" },
-    { name: "stack", request: stack.request, mode: "" },
+    { name: "library", request: library.request, mode: "library" },
+    { name: "service", request: service.request, mode: "service" },
+    { name: "resource", request: resource.request, mode: "resource" },
+    { name: "stack", request: stack.request, mode: "stack" },
     ...Object.entries(requests).map(([mode, application]) => ({
         name: "web",
-        mode,
+        mode: `web ${mode}`,
         request: { outputs: { website: application } },
     })),
 ];
 
 test.concurrent.for(fixtures)(
-    "relocate the $name $mode build and run its outputs",
+    "relocate the $mode build and run its outputs",
     async (fixture, { expect }) => {
         await using input = await Fixture.open(fixture.name);
         await using build = await input.build(fixture.request);
@@ -142,6 +142,8 @@ test.concurrent.for(fixtures)(
                         },
                     },
                     compute: {},
+                    capabilities: [],
+                    directories: [],
                     tags: {},
                 },
             });

@@ -1,5 +1,4 @@
-import { expect, test } from "@destack/test";
-import { vi } from "vitest";
+import { expect, test, vi } from "@destack/test";
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

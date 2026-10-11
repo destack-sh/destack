@@ -7,7 +7,7 @@ import { Digest, found, schema } from "@destack/schema";
 import { BunProcess } from "@destack/check/bun";
 import { readDirectory } from "../compile/asset.ts";
 import { BuildError, isMissing } from "../error/index.ts";
-import type { ProgramImports } from "../typescript/program.ts";
+import type { ProgramImports } from "./scan.ts";
 import { relativePath } from "../source/dependency.ts";
 
 /** The layout of cache keys, changed whenever keys derive from different inputs. */
@@ -23,6 +23,8 @@ const Manifest = schema.looseObject({
     dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
     peerDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
     optionalDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    devDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    imports: schema.record(schema.string(), schema.unknown()).exactOptional(),
 });
 
 /** The cache keys of a build: the whole build's and each requested output's. */
@@ -58,6 +60,28 @@ export class Identities {
 
         return await Digest.json(
             [...visited.values()].map((identity) => identity.identity).toSorted(),
+        );
+    }
+
+    /** List the directories of every package a package depends on, development dependencies included. */
+    async installed(directory: string): Promise<readonly string[]> {
+        // read the manifest's dependencies of every kind
+        const manifest = await readManifest(directory);
+        const fields = [...DEPENDENCY_FIELDS, "devDependencies"] as const;
+        const names = new Set(fields.flatMap((field) => Object.keys(manifest[field] ?? {})));
+
+        return [...names].flatMap((name) => this.#locator.directory(name, directory) ?? []);
+    }
+
+    /** Read a package's subpath imports, each `#name` or `#prefix/*` with the files of all its conditions. */
+    async subpaths(directory: string): Promise<ReadonlyMap<string, readonly string[]>> {
+        const manifest = await readManifest(directory);
+
+        return new Map(
+            Object.entries(manifest.imports ?? {}).map(([name, mapped]) => [
+                name,
+                subpathTargets(mapped).map((target) => join(directory, target)),
+            ]),
         );
     }
 
@@ -98,9 +122,7 @@ export class Identities {
     /** Identify an installed release by name and version, and a source package by its manifests and sources. */
     async #read(directory: string): Promise<PackageIdentity> {
         // read the manifest and locate each installed dependency, leaving absent optional ones
-        const manifest = Manifest.parse(
-            JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
-        );
+        const manifest = await readManifest(directory);
         const names = new Set(
             DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {})),
         );
@@ -367,5 +389,26 @@ async function listFiles(directory: string): Promise<string[]> {
             return [];
         }
         throw error;
+    }
+}
+
+/** Read a package's manifest. */
+async function readManifest(directory: string): Promise<schema.Infer<typeof Manifest>> {
+    return Manifest.parse(JSON.parse(await readFile(join(directory, "package.json"), "utf8")));
+}
+
+/** List the files a subpath import maps to under any of its conditions, none for an excluded one. */
+function subpathTargets(mapped: unknown): string[] {
+    // take a path, or every condition's paths
+    if (typeof mapped === "string") {
+        return [mapped];
+    }
+    // read each condition of a conditions object
+    else if (typeof mapped === "object" && mapped !== null) {
+        return Object.values(mapped).flatMap((value) => subpathTargets(value));
+    }
+    // leave out an excluded subpath, which maps to null
+    else {
+        return [];
     }
 }
