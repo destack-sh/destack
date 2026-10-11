@@ -4,6 +4,7 @@ import type { JSX } from "@destack/view";
 import {
     coverOf,
     joiners,
+    mails,
     launch,
     messages,
     month,
@@ -15,7 +16,7 @@ import {
     type TaskState,
 } from "./corner";
 import { Favicon, Glyph } from "../figure/glyph";
-import { calendly, framer, github, linear, notion, replit, slack } from "./vendor.stylex";
+import { calendly, framer, github, gmail, linear, notion, replit, slack } from "./vendor.stylex";
 import { palette } from "../../palette.stylex";
 
 /** A window narrower than a phone screen, where each site takes its own phone layout. */
@@ -33,6 +34,7 @@ const faces = {
     linear: `"Inter Variable", Inter, ${system}`,
     slack: `Lato, "Slack-Lato", ${system}`,
     github: `${system}, "Noto Sans"`,
+    gmail: `"Google Sans", Roboto, ${system}`,
 };
 
 /** Draw the rented site that holds a ledger row, at the size of a real window. */
@@ -49,9 +51,11 @@ export function rentedPageOf(row: number): JSX.Element {
         return <Framer />;
     } else if (row === 6) {
         return <Calendly />;
+    } else if (row === 7) {
+        return <Replit />;
     }
 
-    return <Replit />;
+    return <Gmail />;
 }
 
 /** Draw your waitlist as an app built by prompt and hosted on the builder's own domain. */
@@ -524,6 +528,89 @@ function GitHub() {
     );
 }
 
+/** Draw the launch mail as a rented inbox, with the waitlist pasted into a new message. */
+function Gmail() {
+    return (
+        <div data-component="GmailPage" {...style.attrs(styles.gmail)}>
+            <nav {...style.attrs(styles.gmBar)}>
+                <span {...style.attrs(styles.gmBrand)}>
+                    <Glyph name="menu" size={20} />
+                    <Favicon icon="gmail" tint="#ea4335" size={22} />
+                    Gmail
+                </span>
+                <span {...style.attrs(styles.gmSearch)}>
+                    <Glyph name="search" size={16} />
+                    Search mail
+                </span>
+                <span {...style.attrs(styles.gmFace)}>F</span>
+            </nav>
+            <div {...style.attrs(styles.gmFrame)}>
+                <nav {...style.attrs(styles.gmSide)}>
+                    <span {...style.attrs(styles.gmCompose)}>
+                        <Glyph name="compose" size={18} />
+                        Compose
+                    </span>
+                    {[
+                        ["Inbox", "2"],
+                        ["Starred", ""],
+                        ["Snoozed", ""],
+                        ["Sent", ""],
+                        ["Drafts", "1"],
+                    ].map(([folder, count], index) => (
+                        <span {...style.attrs(styles.gmFolder, index === 0 && styles.gmFolderOn)}>
+                            {folder}
+                            <span>{count}</span>
+                        </span>
+                    ))}
+                </nav>
+                <ul {...style.attrs(styles.gmList)}>
+                    {mails.map(([sender, tint, subject, preview, time, isUnread]) => (
+                        <li {...style.attrs(styles.gmRow, !isUnread && styles.gmRowRead)}>
+                            <span
+                                style={{ "background-color": tint }}
+                                {...style.attrs(styles.gmAvatar)}
+                            >
+                                {sender.slice(0, 1)}
+                            </span>
+                            <span {...style.attrs(styles.gmSender, isUnread && styles.gmUnread)}>
+                                {sender}
+                            </span>
+                            <span {...style.attrs(styles.gmLine)}>
+                                <span {...style.attrs(isUnread && styles.gmUnread)}>{subject}</span>
+                                <span {...style.attrs(styles.gmPreview)}> – {preview}</span>
+                            </span>
+                            <span {...style.attrs(styles.gmTime, isUnread && styles.gmUnread)}>
+                                {time}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <div data-component="ComposeWindow" {...style.attrs(styles.gmWindow)}>
+                <span {...style.attrs(styles.gmWindowHead)}>New Message</span>
+                <span {...style.attrs(styles.gmField)}>
+                    <span {...style.attrs(styles.gmPreview)}>To</span>
+                    maya@northwind.io, jonas@kettle.dev, tara@fieldnotes.co, +1,837
+                </span>
+                <span {...style.attrs(styles.gmField)}>Destack opens Friday</span>
+                <p {...style.attrs(styles.gmBody)}>
+                    Hi there, Destack opens on Friday, and you're in. Your invite link works from
+                    09:00, and early pricing holds for everyone on the waitlist.
+                </p>
+                <span {...style.attrs(styles.gmWarning)}>
+                    1,840 recipients: over the daily limit of 500
+                </span>
+                <span {...style.attrs(styles.gmTools)}>
+                    <span {...style.attrs(styles.gmSend)}>Send</span>
+                    <Glyph name="link" size={18} />
+                    <Glyph name="file" size={18} />
+                    <Glyph name="more" size={18} />
+                </span>
+            </div>
+        </div>
+    );
+}
+
 /** The groups of the issue list in the order a tracker shows them, with their names. */
 const groups: readonly (readonly [state: TaskState, name: string])[] = [
     ["started", "In Progress"],
@@ -688,6 +775,226 @@ function StateMark(properties: { state: TaskState }) {
 
 /** The rented site styles, in the pixels of a real window. */
 const styles = style.create({
+    gmail: {
+        backgroundColor: gmail.canvas,
+        color: gmail.ink,
+        display: "grid",
+        fontFamily: faces.gmail,
+        fontSize: "14px",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        minHeight: "100%",
+        position: "relative",
+    },
+    gmBar: {
+        alignItems: "center",
+        display: "flex",
+        gap: { default: "24px", [NARROW]: "10px" },
+        height: "64px",
+        paddingInline: { default: "16px", [NARROW]: "12px" },
+    },
+    gmBrand: {
+        alignItems: "center",
+        color: gmail.muted,
+        display: { default: "flex", [NARROW]: "none" },
+        fontSize: "22px",
+        gap: "14px",
+        width: "214px",
+    },
+    gmSearch: {
+        alignItems: "center",
+        backgroundColor: { default: gmail.field, [NARROW]: gmail.surface },
+        borderRadius: "999px",
+        color: gmail.muted,
+        display: "flex",
+        flexGrow: 1,
+        fontSize: "15px",
+        gap: "14px",
+        height: "46px",
+        paddingInline: "18px",
+    },
+    gmFace: {
+        alignItems: "center",
+        backgroundColor: palette.teal,
+        borderRadius: "50%",
+        color: "white",
+        display: "inline-flex",
+        flexShrink: 0,
+        fontSize: "14px",
+        fontWeight: 500,
+        height: "32px",
+        justifyContent: "center",
+        width: "32px",
+    },
+    gmFrame: {
+        display: "grid",
+        gridTemplateColumns: { default: "240px minmax(0, 1fr)", [NARROW]: "minmax(0, 1fr)" },
+        minHeight: 0,
+        paddingInlineEnd: { default: "16px", [NARROW]: "0" },
+    },
+    gmSide: {
+        alignContent: "start",
+        display: { default: "grid", [NARROW]: "none" },
+        gap: "2px",
+        paddingInlineEnd: "16px",
+    },
+    gmCompose: {
+        alignItems: "center",
+        backgroundColor: gmail.compose,
+        borderRadius: "16px",
+        display: "flex",
+        fontWeight: 500,
+        gap: "12px",
+        height: "56px",
+        justifySelf: "start",
+        marginBlockEnd: "16px",
+        marginInlineStart: "8px",
+        paddingInlineEnd: "24px",
+        paddingInlineStart: "20px",
+    },
+    gmFolder: {
+        alignItems: "center",
+        borderEndEndRadius: "999px",
+        borderStartEndRadius: "999px",
+        display: "flex",
+        height: "32px",
+        justifyContent: "space-between",
+        paddingInlineEnd: "12px",
+        paddingInlineStart: "26px",
+    },
+    gmFolderOn: {
+        backgroundColor: gmail.selected,
+        fontWeight: 700,
+    },
+    gmList: {
+        alignContent: "start",
+        backgroundColor: gmail.surface,
+        borderStartEndRadius: { default: "16px", [NARROW]: "0" },
+        borderStartStartRadius: { default: "16px", [NARROW]: "0" },
+        display: "grid",
+        listStyle: "none",
+        margin: 0,
+        overflow: "hidden",
+        padding: 0,
+    },
+    gmRow: {
+        alignItems: "center",
+        borderBottomColor: gmail.rule,
+        borderBottomStyle: "solid",
+        borderBottomWidth: { default: "1px", [NARROW]: "0" },
+        columnGap: { default: "16px", [NARROW]: "12px" },
+        display: "grid",
+        gridTemplateAreas: {
+            default: "'sender line time'",
+            [NARROW]: "'avatar sender time' 'avatar line line'",
+        },
+        gridTemplateColumns: {
+            default: "168px minmax(0, 1fr) auto",
+            [NARROW]: "40px minmax(0, 1fr) auto",
+        },
+        minHeight: { default: "40px", [NARROW]: "72px" },
+        paddingInline: { default: "16px", [NARROW]: "16px" },
+        whiteSpace: "nowrap",
+    },
+    gmRowRead: {
+        backgroundColor: { default: gmail.read, [NARROW]: gmail.surface },
+    },
+    gmAvatar: {
+        alignItems: "center",
+        borderRadius: "50%",
+        color: "white",
+        display: { default: "none", [NARROW]: "inline-flex" },
+        fontSize: "16px",
+        gridArea: "avatar",
+        height: "40px",
+        justifyContent: "center",
+        width: "40px",
+    },
+    gmSender: {
+        gridArea: "sender",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
+    gmLine: {
+        gridArea: "line",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
+    gmUnread: {
+        fontWeight: 700,
+    },
+    gmPreview: {
+        color: gmail.muted,
+    },
+    gmTime: {
+        fontSize: "12px",
+        gridArea: "time",
+    },
+    gmWindow: {
+        backgroundColor: gmail.surface,
+        borderStartEndRadius: "8px",
+        borderStartStartRadius: "8px",
+        bottom: 0,
+        boxShadow: "0 8px 24px color-mix(in srgb, black 18%, transparent)",
+        display: "grid",
+        insetInlineEnd: { default: "24px", [NARROW]: "0" },
+        insetInlineStart: { default: "auto", [NARROW]: "0" },
+        position: "absolute",
+        width: { default: "560px", [NARROW]: "auto" },
+    },
+    gmWindowHead: {
+        backgroundColor: gmail.header,
+        borderStartEndRadius: "8px",
+        borderStartStartRadius: "8px",
+        fontWeight: 500,
+        paddingBlock: "10px",
+        paddingInline: "16px",
+    },
+    gmField: {
+        borderBottomColor: gmail.rule,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "flex",
+        gap: "8px",
+        marginInline: "16px",
+        overflow: "hidden",
+        paddingBlock: "8px",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    gmWarning: {
+        color: gmail.warning,
+        fontSize: "13px",
+        paddingBlock: "12px",
+        paddingInline: "16px",
+    },
+    gmSend: {
+        backgroundColor: gmail.blue,
+        borderRadius: "999px",
+        color: "white",
+        fontWeight: 500,
+        justifySelf: "start",
+        marginBlockEnd: 0,
+        marginInlineStart: 0,
+        opacity: 0.5,
+        paddingBlock: "8px",
+        paddingInline: "22px",
+    },
+    gmBody: {
+        fontSize: "14px",
+        lineHeight: 1.5,
+        margin: 0,
+        minHeight: { default: "120px", [NARROW]: "0" },
+        paddingBlock: "12px",
+        paddingInline: "16px",
+    },
+    gmTools: {
+        alignItems: "center",
+        color: gmail.muted,
+        display: "flex",
+        gap: "16px",
+        paddingBlockEnd: "14px",
+        paddingInline: "16px",
+    },
     replit: {
         backgroundColor: replit.night,
         backgroundImage: `radial-gradient(ellipse 60% 45% at 50% 0%, color-mix(in srgb, ${replit.violet} 35%, transparent), transparent), radial-gradient(color-mix(in srgb, ${replit.snow} 7%, transparent) 1px, transparent 1px)`,
@@ -1724,7 +2031,7 @@ const styles = style.create({
         display: "grid",
         fontSize: "14px",
         gridAutoRows: "34px",
-        gridTemplateColumns: "160px minmax(0, 1fr)",
+        gridTemplateColumns: { default: "160px minmax(0, 1fr)", [NARROW]: "104px minmax(0, 1fr)" },
         margin: 0,
     },
     notionKey: {

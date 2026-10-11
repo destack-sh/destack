@@ -40,7 +40,7 @@ export const appStyles = style.create({
         display: "grid",
         fontSize: "0.8125rem",
         gridTemplateColumns: { default: "3rem minmax(0, 1fr)", [NARROW]: "minmax(0, 1fr)" },
-        gridTemplateRows: "minmax(0, 1fr) auto",
+        gridTemplateRows: { default: "minmax(0, 1fr) auto", [NARROW]: "minmax(0, 1fr) auto auto" },
         height: "100%",
         minHeight: 0,
     },
@@ -49,11 +49,19 @@ export const appStyles = style.create({
         backgroundColor: color.muted,
         borderRightColor: color.border,
         borderRightStyle: "solid",
-        borderRightWidth: stroke.border,
-        display: { default: "flex", [NARROW]: "none" },
-        flexDirection: "column",
+        borderRightWidth: { default: stroke.border, [NARROW]: 0 },
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: { default: 0, [NARROW]: stroke.border },
+        display: "flex",
+        flexDirection: { default: "column", [NARROW]: "row" },
         gap: "0.5rem",
-        paddingBlock: "0.75rem",
+        gridRow: { default: "auto", [NARROW]: "3" },
+        justifyContent: { default: "flex-start", [NARROW]: "space-around" },
+        paddingBlock: { default: "0.75rem", [NARROW]: "0.375rem" },
+    },
+    railWide: {
+        display: { default: "flex", [NARROW]: "none" },
     },
     railAvatar: {
         height: "1.625rem",
@@ -73,6 +81,7 @@ export const appStyles = style.create({
         width: "1.125rem",
     },
     railButton: {
+        cursor: "pointer",
         alignItems: "center",
         borderRadius: "6px",
         display: "flex",
@@ -113,6 +122,7 @@ export const appStyles = style.create({
         top: "-0.125rem",
     },
     railRule: {
+        display: { default: "block", [NARROW]: "none" },
         backgroundColor: color.border,
         flexShrink: 0,
         height: stroke.border,
@@ -211,7 +221,7 @@ export const appStyles = style.create({
     },
     statusEnd: {
         alignItems: "center",
-        display: "flex",
+        display: { default: "flex", [NARROW]: "none" },
         gap: "1.25rem",
         marginLeft: "auto",
     },
@@ -241,20 +251,21 @@ export function AppGlyph(properties: { name: string; isOn?: boolean }) {
 export function AppRail(properties: {
     open: string;
     apps: readonly (readonly [name: string, label: string])[];
+    onOpen: (name: string) => void;
 }) {
     return (
         <nav data-component="AppRail" {...style.attrs(appStyles.rail)}>
             <span
                 title="Your space"
                 style={{ "background-color": palette.teal }}
-                {...style.attrs(appStyles.avatar, appStyles.railAvatar)}
+                {...style.attrs(appStyles.avatar, appStyles.railAvatar, appStyles.railWide)}
             >
                 F
             </span>
-            <span title="Search" {...style.attrs(appStyles.railButton)}>
+            <span title="Search" {...style.attrs(appStyles.railButton, appStyles.railWide)}>
                 <AppGlyph name="search" />
             </span>
-            <span title="Inbox" {...style.attrs(appStyles.railButton)}>
+            <span title="Inbox" {...style.attrs(appStyles.railButton, appStyles.railWide)}>
                 <AppGlyph name="notify" />
                 <span {...style.attrs(appStyles.badge, appStyles.railBadge)}>3</span>
             </span>
@@ -263,6 +274,7 @@ export function AppRail(properties: {
                 <span
                     data-component="AppLink"
                     title={label}
+                    onClick={() => properties.onOpen(name)}
                     {...style.attrs(
                         appStyles.railButton,
                         name === properties.open && appStyles.selected,

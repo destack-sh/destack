@@ -7,11 +7,12 @@ import { createReducedMotion } from "@destack/view/motion";
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Fade } from "../figure/fade";
-import { Inspector } from "../figure/inspector";
 import { Label } from "../entry/label";
 import { Ledger } from "../figure/ledger";
 import { holdings, pages, Presence, PresenceSlot, SpaceBrowser, type Viewer } from "./space";
 import { createSteps } from "../figure/stagger";
+import { billOf, bytesTotalOf, sizeOf } from "../figure/price";
+import { plan } from "../../content/generated/plan";
 import { StackSwitch } from "../entry/switch";
 import { screen } from "../../layout/screen.stylex";
 
@@ -41,14 +42,16 @@ const verb: Form = {
 
 /** Open the page with the verb, illustrated by your corner of the cloud: spread over rented sites, or held in one space at your own address. */
 export function Verb(properties: { isOpen: boolean }) {
-    // hold the holding pointed at, and the one the browser settles on a moment later
+    // hold the holding pointed at, the one the browser settles on a moment later, and the one chosen
     const [lit, setLit] = createSignal<number | undefined>(undefined);
     const [settled, setSettled] = createSignal<number | undefined>(undefined);
+    const [chosen, setChosen] = createSignal<number | undefined>(undefined);
     let settling: ReturnType<typeof setTimeout> | undefined;
     const lighting = {
         get lit() {
-            return lit();
+            return lit() ?? chosen();
         },
+        onChoose: setChosen,
         onLight: (row: number | undefined) => {
             // light the row at once, and turn the browser only once the pointer rests
             setLit(row);
@@ -73,15 +76,15 @@ export function Verb(properties: { isOpen: boolean }) {
     const [viewer, setViewer] = createSignal<Viewer>("Me");
     const [isViewerChosen, setIsViewerChosen] = createSignal(false);
     const [turned, setTurned] = createSignal(0);
-    const chooseViewer = (chosen: Viewer) => {
+    const chooseViewer = (next: Viewer) => {
         setIsViewerChosen(true);
-        setViewer(chosen);
+        setViewer(next);
     };
 
-    // show the page of the lit holding, or else the page the window has turned to
+    // show the page of the pointed or chosen holding, or else the page the window has turned to
     const page = () =>
         present(
-            pages.find((candidate) => candidate.row === settled()) ??
+            pages.find((candidate) => candidate.row === (settled() ?? chosen())) ??
                 pages[turned() % pages.length],
             "shown page",
         );
@@ -106,7 +109,7 @@ export function Verb(properties: { isOpen: boolean }) {
             }
             setTurned(next);
         },
-        () => (isReduced() ? false : pageTime),
+        () => (isReduced() || chosen() !== undefined ? false : pageTime),
         setInterval,
     );
 
@@ -125,8 +128,8 @@ export function Verb(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="seven siloed apps, seven separate rented stacks"
-                destacked="seven integrated apps, one owned space"
+                stacked="eight siloed apps, eight separate rented stacks"
+                destacked="eight integrated apps, one owned space"
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
@@ -134,37 +137,47 @@ export function Verb(properties: { isOpen: boolean }) {
                 <Label>
                     {isOpenAt(0)
                         ? "Your own corner of the cloud"
-                        : "Seven rented apps, none of them truly yours"}
+                        : "Eight rented apps, none of them truly yours"}
                 </Label>
-                <Inspector
+                <SpaceBrowser
                     isOpenAt={isOpenAt}
-                    lighting={lighting}
-                    services={holdings.map((holding) => holding.destacked.name)}
-                >
-                    <SpaceBrowser
-                        isOpenAt={isOpenAt}
-                        page={page()}
-                        viewer={viewer()}
-                        onViewer={chooseViewer}
-                    />
-                </Inspector>
+                    page={page()}
+                    viewer={viewer()}
+                    onViewer={chooseViewer}
+                    onChoose={setChosen}
+                />
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <Fade isOpen={isOpenAt(0)}>
                     <Label>
-                        {isOpenAt(0) ? "One space, one stack" : "Seven sites, seven stacks"}
+                        {isOpenAt(0) ? "One space, one stack" : "Eight sites, eight stacks"}
                     </Label>
                 </Fade>
                 <Ledger
                     entries={holdings}
                     total={
                         isOpenAt(holdings.length + 1)
-                            ? ["1 space, 1 stack", "1 account · 1 invoice"]
-                            : ["7 sites, 7 stacks", "7 accounts · 7 invoices"]
+                            ? [
+                                  "1 space, 1 invoice",
+                                  billOf([], plan.monthly),
+                                  bytesTotalOf(
+                                      holdings.map((holding) => sizeOf(holding.stacked.name)),
+                                  ),
+                              ]
+                            : [
+                                  "8 sites, 8 invoices",
+                                  billOf(
+                                      holdings.map((holding) => holding.stacked.price),
+                                      0,
+                                  ),
+                                  bytesTotalOf(
+                                      holdings.map((holding) => sizeOf(holding.stacked.name)),
+                                  ),
+                              ]
                     }
+                    detail="Data"
                     lighting={lighting}
                     isOpenAt={isOpenAt}
-                    columns={1}
                     badgeOf={(row) => <PresenceSlot row={row} />}
                 />
                 <Presence row={page().row} isShown={isOpenAt(1)} />

@@ -81,9 +81,11 @@ export function sectionOf(row: number): JSX.Element {
         return <Website />;
     } else if (row === 6) {
         return <Week />;
+    } else if (row === 7) {
+        return <Signups />;
     }
 
-    return <Signups />;
+    return <Mail />;
 }
 
 /** Lay out an app's page beside the shared rail, its header first. */
@@ -558,6 +560,52 @@ function Week() {
 /** Return the grid row a time of day starts at in the week: two rows per hour under the two of the day names. */
 function rowOf(hour: number): number {
     return 3 + (hour - (HOURS[0] ?? 0)) * 2;
+}
+
+/** Draw the launch mail: a draft by your agent, addressed to the waitlist read live from its table. */
+function Mail() {
+    return (
+        <Paned>
+            <Toolbar
+                title="Destack opens Friday"
+                actions={
+                    <>
+                        <Present />
+                        <span {...style.attrs(appStyles.action)}>Agent drafted 09:40</span>
+                        <span {...style.attrs(appStyles.primary)}>Send Fri 09:00</span>
+                    </>
+                }
+            >
+                <span {...style.attrs(appStyles.property, styles.on)}>
+                    <Icon icon={at} />
+                    To Signups · Waiting
+                </span>
+                <span {...style.attrs(appStyles.property)}>1,840 people</span>
+                <span {...style.attrs(appStyles.property)}>From hello@destack.sh</span>
+            </Toolbar>
+            <article {...style.attrs(styles.document)}>
+                <p {...style.attrs(appText.body)}>Hi Maya,</p>
+                <p {...style.attrs(appText.body)}>
+                    Destack opens on Friday, and you're in. Your invite link works from 09:00, and
+                    early pricing holds for everyone on the waitlist.
+                </p>
+                <p {...style.attrs(appText.body)}>See you there, Florian</p>
+                <Item variant="outline" size="sm" xstyle={styles.comment}>
+                    <ItemMedia>
+                        <Face owner="A" />
+                    </ItemMedia>
+                    <ItemContent>
+                        <ItemTitle xstyle={appText.body}>
+                            Agent <span {...style.attrs(styles.quiet)}>09:40</span>
+                        </ItemTitle>
+                        <ItemDescription xstyle={appText.body}>
+                            Reads Signups at send time, so Thursday's joiners get it too.
+                        </ItemDescription>
+                    </ItemContent>
+                </Item>
+            </article>
+        </Paned>
+    );
 }
 
 /** Draw your waitlist's signups: the table your public form fills, ready to invite the first batch. */

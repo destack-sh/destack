@@ -1,4 +1,5 @@
 import { Icon } from "@destack/icon";
+import { bytesOf, priceOf, sizeOf } from "../figure/price";
 import key from "@destack/icon/phosphor/key";
 import { present } from "@destack/schema";
 import { createEffect, createSignal, onSettled } from "@destack/view";
@@ -29,18 +30,20 @@ export const viewers: readonly Viewer[] = ["Me", "Agent", "Public"];
 export const holdings: readonly Entry[] = [
     {
         stacked: {
-            label: "Pages",
+            label: "Docs",
             mark: { icon: "notion", tint: "#191919" },
             name: "Notion",
-            chips: ["public link"],
             note: "anyone with the link can read it",
+            price: priceOf("Notion"),
+            detail: bytesOf(sizeOf("Notion")),
         },
         destacked: {
-            label: "Pages",
+            label: "Docs",
             mark: { icon: "pages", tint: "#3d6fb0" },
             name: "Pages",
-            chips: ["agent"],
             note: "only the people you pick can read it",
+            price: { kind: "included" },
+            detail: bytesOf(sizeOf("Notion")),
         },
     },
     {
@@ -48,15 +51,17 @@ export const holdings: readonly Entry[] = [
             label: "Tasks",
             mark: { icon: "linear", tint: "#5e6ad2" },
             name: "Linear",
-            chips: ["per seat"],
             note: "a paid seat for every viewer",
+            price: priceOf("Linear"),
+            detail: bytesOf(sizeOf("Linear")),
         },
         destacked: {
             label: "Tasks",
             mark: { icon: "tasks", tint: "#c64a17" },
             name: "Tasks",
-            chips: ["Me"],
             note: "a free seat for every viewer",
+            price: { kind: "included" },
+            detail: bytesOf(sizeOf("Linear")),
         },
     },
     {
@@ -64,15 +69,17 @@ export const holdings: readonly Entry[] = [
             label: "Chat",
             mark: { icon: "slack", tint: "#4a154b" },
             name: "Slack",
-            chips: ["guest invite"],
             note: "a guest invite for every channel",
+            price: priceOf("Slack"),
+            detail: bytesOf(sizeOf("Slack")),
         },
         destacked: {
             label: "Chat",
             mark: { icon: "chat", tint: "#4f8a5b" },
             name: "Chat",
-            chips: ["agent"],
             note: "one sign-in for every channel",
+            price: { kind: "included" },
+            detail: bytesOf(sizeOf("Slack")),
         },
     },
     {
@@ -80,15 +87,17 @@ export const holdings: readonly Entry[] = [
             label: "Code",
             mark: { icon: "github", tint: "#181717" },
             name: "GitHub",
-            chips: ["separate repo"],
             note: "code kept apart from the apps",
+            price: priceOf("GitHub"),
+            detail: bytesOf(sizeOf("GitHub")),
         },
         destacked: {
             label: "Code",
             mark: { icon: "source", tint: "#c64a17" },
             name: "Forge",
-            chips: ["fork"],
             note: "code kept beside the apps",
+            price: { kind: "included" },
+            detail: bytesOf(sizeOf("GitHub")),
         },
     },
     {
@@ -96,15 +105,17 @@ export const holdings: readonly Entry[] = [
             label: "Website",
             mark: { icon: "framer", tint: "#0a0a0a" },
             name: "Framer",
-            chips: ["their domain"],
             note: "edited only in their builder",
+            price: priceOf("Framer"),
+            detail: bytesOf(sizeOf("Framer")),
         },
         destacked: {
             label: "Website",
             mark: { icon: "pages", tint: "#3d6fb0" },
             name: "Pages",
-            chips: ["public"],
             note: "edited like any other page",
+            price: { kind: "included" },
+            detail: bytesOf(sizeOf("Framer")),
         },
     },
     {
@@ -112,15 +123,17 @@ export const holdings: readonly Entry[] = [
             label: "Booking",
             mark: { icon: "calendly", tint: "#006bff" },
             name: "Calendly",
-            chips: ["synced calendar"],
             note: "free times copied, never live",
+            price: priceOf("Calendly"),
+            detail: bytesOf(sizeOf("Calendly")),
         },
         destacked: {
             label: "Booking",
             mark: { icon: "calendar", tint: "#c64a17" },
             name: "Calendar",
-            chips: ["public"],
             note: "free times read live, never copied",
+            price: { kind: "included" },
+            detail: bytesOf(sizeOf("Calendly")),
         },
     },
     {
@@ -128,15 +141,35 @@ export const holdings: readonly Entry[] = [
             label: "Waitlist",
             mark: { icon: "replit", tint: "#f26207" },
             name: "Replit",
-            chips: ["own database"],
             note: "signups in a database of its own",
+            price: priceOf("Replit"),
+            detail: bytesOf(sizeOf("Replit")),
         },
         destacked: {
             label: "Waitlist",
             mark: { icon: "table", tint: "#4f8a5b" },
             name: "Waitlist",
-            chips: ["built"],
             note: "signups in the tables you already have",
+            price: { kind: "included" },
+            detail: bytesOf(sizeOf("Replit")),
+        },
+    },
+    {
+        stacked: {
+            label: "Mail",
+            mark: { icon: "gmail", tint: "#ea4335" },
+            name: "Gmail",
+            note: "the waitlist pasted in by hand",
+            price: priceOf("Google Workspace"),
+            detail: bytesOf(sizeOf("Gmail")),
+        },
+        destacked: {
+            label: "Mail",
+            mark: { icon: "mail", tint: "#3d6fb0" },
+            name: "Mail",
+            note: "the waitlist mailed from its table",
+            price: { kind: "included" },
+            detail: bytesOf(sizeOf("Gmail")),
         },
     },
 ];
@@ -195,6 +228,7 @@ export const pages: readonly Page[] = [
         viewers: ["Me", "Agent", "Public"],
         site: "destack-waitlist.replit.app",
     },
+    { row: 8, app: 8, path: "/mail", viewers: ["Me", "Agent"], site: "mail.google.com/mail/u/0" },
 ];
 
 /** The sites you rent, as the browser's tabs while rented: the ledger row, the icon and its tint, and the tab's title. */
@@ -206,6 +240,7 @@ const tabs: readonly (readonly [row: number, icon: string, tint: string, title: 
     [5, "framer", "#0a0a0a", "Destack · Reconquer your software"],
     [6, "calendly", "#006bff", "Destack demo | Florian | Calendly"],
     [7, "replit", "#f26207", "Join the waitlist"],
+    [8, "gmail", "#ea4335", "Inbox (2) - Gmail"],
 ];
 
 /** The apps of your own space on its rail: the ledger row, the name, the icon and its tint, and who sees it. */
@@ -222,6 +257,7 @@ const sections: readonly (readonly [
     [4, "Forge", "source", "#c64a17", ["Me", "Agent"]],
     [6, "Calendar", "calendar", "#c64a17", ["Me", "Agent", "Public"]],
     [7, "Tables", "table", "#4f8a5b", ["Me", "Agent", "Public"]],
+    [8, "Mail", "mail", "#3d6fb0", ["Me", "Agent"]],
 ];
 
 /**
@@ -236,22 +272,26 @@ export function SpaceBrowser(properties: {
     page: Page;
     viewer: Viewer;
     onViewer: (viewer: Viewer) => void;
+    onChoose: (row: number | undefined) => void;
 }) {
     // show the page when the viewer may see it, or say who may
     const isOpen = () => properties.isOpenAt(properties.page.row);
     const isAllowed = () => !isOpen() || properties.page.viewers.includes(properties.viewer);
     const host = () => properties.page.site.split("/")[0] ?? "";
 
+    // open the tab overview from the tab count, and choose a tab from it
+    const [isOverview, setIsOverview] = createSignal(false);
+    const chooseTab = (row: number) => {
+        setIsOverview(false);
+        properties.onChoose(row);
+    };
+
     return (
         <div data-component="Browser" {...style.attrs(styles.browser)}>
             <div data-component="TabStrip" {...style.attrs(styles.strip)}>
                 <span aria-hidden="true" {...style.attrs(styles.lights)} />
                 {properties.isOpenAt(1) ? (
-                    <span
-                        data-component="Tab"
-                        data-service="1"
-                        {...style.attrs(styles.tab, styles.tabOn)}
-                    >
+                    <span data-component="Tab" {...style.attrs(styles.tab, styles.tabOn)}>
                         <Favicon icon="user" tint="#2f7d8c" />
                         <span {...style.attrs(styles.tabTitle)}>Florian</span>
                         <Glyph name="close" size={12} />
@@ -260,8 +300,8 @@ export function SpaceBrowser(properties: {
                     tabs.map(([row, icon, tint, title]) => (
                         <span
                             data-component="Tab"
-                            data-service={String(row)}
                             title={title}
+                            onClick={() => properties.onChoose(row)}
                             {...style.attrs(
                                 styles.tab,
                                 styles.tabEven,
@@ -310,9 +350,16 @@ export function SpaceBrowser(properties: {
                     <Glyph name="star" />
                 </span>
                 {/* count the open tabs as a phone's browser does */}
-                <span data-component="TabCount" data-service="1" {...style.attrs(styles.tabCount)}>
+                <button
+                    type="button"
+                    data-component="TabCount"
+                    aria-label="Show tabs"
+                    aria-expanded={isOverview() ? "true" : "false"}
+                    onClick={() => setIsOverview((is) => !is)}
+                    {...style.attrs(styles.tabCount)}
+                >
                     {isOpen() ? 1 : tabs.length}
-                </span>
+                </button>
                 <span {...style.attrs(styles.tools)}>
                     <span {...style.attrs(styles.desktopOnly)}>
                         <Glyph name="puzzle" />
@@ -321,6 +368,54 @@ export function SpaceBrowser(properties: {
                     <Glyph name="menu" />
                 </span>
             </div>
+            {/* show the open tabs as cards over the page while the overview is open */}
+            <div
+                data-component="TabOverview"
+                {...style.attrs(styles.overview, !isOverview() && styles.overviewClosed)}
+            >
+                <span {...style.attrs(styles.overviewHead)}>
+                    <b>{isOpen() ? "1 tab" : `${tabs.length} tabs`}</b>
+                    <button
+                        type="button"
+                        onClick={() => setIsOverview(false)}
+                        {...style.attrs(styles.overviewDone)}
+                    >
+                        Done
+                    </button>
+                </span>
+                <div {...style.attrs(styles.cards)}>
+                    {isOpen() ? (
+                        <button
+                            type="button"
+                            onClick={() => chooseTab(properties.page.row)}
+                            {...style.attrs(styles.card, styles.cardOn)}
+                        >
+                            <span {...style.attrs(styles.cardTitle)}>
+                                <Favicon icon="user" tint="#2f7d8c" />
+                                Florian
+                            </span>
+                            <span {...style.attrs(styles.cardHost)}>destack.app</span>
+                        </button>
+                    ) : (
+                        tabs.map(([row, icon, tint, title]) => (
+                            <button
+                                type="button"
+                                onClick={() => chooseTab(row)}
+                                {...style.attrs(
+                                    styles.card,
+                                    row === properties.page.row && styles.cardOn,
+                                )}
+                            >
+                                <span {...style.attrs(styles.cardTitle)}>
+                                    <Favicon icon={icon} tint={tint} />
+                                    {title}
+                                </span>
+                                <span {...style.attrs(styles.cardHost)}>{hostOf(row)}</span>
+                            </button>
+                        ))
+                    )}
+                </div>
+            </div>
             <Fade
                 isOpen={isOpen()}
                 xstyle={styles.viewport}
@@ -328,15 +423,13 @@ export function SpaceBrowser(properties: {
                 component={isOpen() ? "SitePage" : "RentedPage"}
             >
                 {isOpen() ? (
-                    <div
-                        data-service={String(properties.page.row)}
-                        {...style.attrs(appStyles.app, styles.owned)}
-                    >
+                    <div {...style.attrs(appStyles.app, styles.owned)}>
                         <AppRail
                             open={openApp(properties.page)}
                             apps={sections
                                 .filter(([, , , , seen]) => seen.includes(properties.viewer))
                                 .map(([, name, icon]) => [icon, name] as const)}
+                            onOpen={(icon) => properties.onChoose(rowOfApp(icon))}
                         />
                         <main {...style.attrs(appStyles.main)}>
                             {isAllowed() ? (
@@ -357,13 +450,29 @@ export function SpaceBrowser(properties: {
                         />
                     </div>
                 ) : (
-                    <div data-service={String(properties.page.row)} {...style.attrs(styles.window)}>
-                        {rentedPageOf(properties.page.row)}
-                    </div>
+                    <div {...style.attrs(styles.window)}>{rentedPageOf(properties.page.row)}</div>
                 )}
             </Fade>
         </div>
     );
+}
+
+/** Return the ledger row of the app of your space with a glyph. */
+function rowOfApp(icon: string): number {
+    return present(
+        sections.find((section) => section[2] === icon),
+        "app on the rail",
+    )[0];
+}
+
+/** Return the address host of the rented site on a ledger row. */
+function hostOf(row: number): string {
+    const site = present(
+        pages.find((page) => page.row === row),
+        "page of a tab",
+    ).site;
+
+    return present(site.split("/")[0], "host of a site");
 }
 
 /** Return the glyph of the app a page opens in your space. */
@@ -591,6 +700,7 @@ const styles = style.create({
         width: "52px",
     },
     tab: {
+        cursor: "pointer",
         alignItems: "center",
         borderStartStartRadius: "8px",
         borderStartEndRadius: "8px",
@@ -670,6 +780,82 @@ const styles = style.create({
         minWidth: 0,
         paddingInline: "0.875rem",
     },
+    overview: {
+        alignContent: "start",
+        backgroundColor: color.muted,
+        display: "grid",
+        gap: "0.75rem",
+        gridColumn: "1 / -1",
+        gridRow: { default: "3", [NARROW]: "2" },
+        minHeight: 0,
+        overflowY: "auto",
+        padding: "0.75rem",
+        transitionDuration: "200ms",
+        transitionProperty: "opacity, visibility",
+        zIndex: 2,
+    },
+    overviewClosed: {
+        opacity: 0,
+        pointerEvents: "none",
+        visibility: "hidden",
+    },
+    overviewHead: {
+        alignItems: "center",
+        display: "flex",
+        fontSize: "0.875rem",
+        justifyContent: "space-between",
+    },
+    overviewDone: {
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: color.primary,
+        cursor: "pointer",
+        fontSize: "0.875rem",
+        fontWeight: 600,
+        padding: 0,
+    },
+    cards: {
+        display: "grid",
+        gap: "0.5rem",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    },
+    card: {
+        alignContent: "space-between",
+        backgroundColor: color.card,
+        borderColor: color.border,
+        borderRadius: "10px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        color: color.cardForeground,
+        cursor: "pointer",
+        display: "grid",
+        fontSize: "0.75rem",
+        gap: "0.5rem",
+        height: "4.5rem",
+        paddingBlock: "0.625rem",
+        paddingInline: "0.625rem",
+        textAlign: "start",
+    },
+    cardOn: {
+        borderColor: color.primary,
+        boxShadow: `0 0 0 1px ${color.primary}`,
+    },
+    cardTitle: {
+        alignItems: "center",
+        display: "flex",
+        fontWeight: 600,
+        gap: "0.375rem",
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    cardHost: {
+        color: color.mutedForeground,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
     desktopOnly: {
         display: { default: "inline-flex", [NARROW]: "none" },
     },
@@ -678,7 +864,10 @@ const styles = style.create({
     },
     tabCount: {
         alignItems: "center",
+        backgroundColor: "transparent",
         borderColor: "currentColor",
+        cursor: "pointer",
+        padding: 0,
         borderRadius: "5px",
         borderStyle: "solid",
         borderWidth: "1.5px",
@@ -734,6 +923,8 @@ const styles = style.create({
         color: color.foreground,
     },
     viewport: {
+        gridColumn: "1 / -1",
+        gridRow: { default: "3", [NARROW]: "2" },
         maskImage: "linear-gradient(to bottom, black calc(100% - 1rem), transparent)",
         minHeight: 0,
         overflow: "clip",

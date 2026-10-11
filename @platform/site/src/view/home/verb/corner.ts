@@ -71,10 +71,10 @@ export const tasks: readonly (readonly [
     due: string,
 ])[] = [
     ["DST-12", "Pricing page", "done", "F", "#2f7d8c", "Oct 20"],
-    ["DST-14", "Record the demo", "started", "F", "#2f7d8c", "Oct 23"],
-    ["DST-16", "Waitlist email", "review", "A", "#6b5ca5", "Oct 23"],
+    ["DST-14", "Record the demo", "started", "F", "#2f7d8c", "Oct 22"],
+    ["DST-16", "Email the waitlist", "review", "A", "#6b5ca5", "Oct 23"],
     ["DST-13", "Turn on pricing", "todo", "F", "#2f7d8c", "Oct 24"],
-    ["DST-15", "Draft the launch post", "todo", "A", "#6b5ca5", "Oct 24"],
+    ["DST-15", "Draft the launch post", "todo", "A", "#6b5ca5", "Oct 23"],
     ["DST-17", "Open signups", "todo", "F", "#2f7d8c", "Oct 24"],
 ];
 
@@ -143,4 +143,63 @@ export const signups: readonly (readonly [
     ["sam@quietly.so", "Launch post", "Yesterday", "invited"],
     ["noor@papertrail.fm", "Demo day", "Yesterday", "invited"],
     ["ines@orbitlabs.eu", "Website", "Oct 18", "invited"],
+];
+
+/** The mail in the inbox, newest first: the sender, their tint, the subject, the preview line, the time, and whether it is unread. */
+export const mails: readonly (readonly [
+    sender: string,
+    tint: string,
+    subject: string,
+    preview: string,
+    time: string,
+    isUnread: boolean,
+])[] = [
+    [
+        "Maya Chen",
+        "#a0485f",
+        "Re: Destack demo",
+        "Wednesday at 11:00 works, see you then",
+        "10:14",
+        true,
+    ],
+    [
+        "Jonas Weber",
+        "#2f7d8c",
+        "Press kit?",
+        "Could you send the logo and a screenshot before Friday?",
+        "09:31",
+        true,
+    ],
+    [
+        "Tara Okafor",
+        "#4f8a5b",
+        "Waitlist question",
+        "Do invites go out by signup date or at random?",
+        "08:52",
+        false,
+    ],
+    [
+        "Calendly",
+        "#006bff",
+        "New event: Destack demo",
+        "Maya Chen booked Wed 22 Oct, 11:00 to 11:30",
+        "Oct 20",
+        false,
+    ],
+    [
+        "Replit",
+        "#f26207",
+        "Your export is ready",
+        "waitlist-signups.csv, 1,840 rows",
+        "Oct 20",
+        false,
+    ],
+    [
+        "Linear",
+        "#5e6ad2",
+        "DST-14 moved to Wednesday",
+        "Agent changed the due date of Record the demo",
+        "Oct 19",
+        false,
+    ],
 ];
