@@ -118,15 +118,15 @@ export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unkno
     open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
 }
 
-/** A content-addressed store keeping parts, such as snapshots' pages, each under the SHA-256 digest of its bytes. */
+/** A content-addressed store keeping blobs, such as snapshots' pages, each under the SHA-256 digest of its bytes. */
 export interface ContentStore {
-    /** Read a part's bytes. */
+    /** Read a blob's bytes. */
     read(digest: Digest): AsyncIterable<Uint8Array>;
     /** Keep bytes under their digest and return it, refusing bytes whose digest differs from the expected one. */
     write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest>;
-    /** Keep the parts the store lacks among some digests, read from another store. */
+    /** Keep the blobs the store lacks among some digests, read from another store. */
     fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void>;
-    /** Delete the parts outside a retained set last used before a moment, as a garbage collector with a grace period sweeps. */
+    /** Delete the blobs outside a retained set last used before a moment, as a garbage collector with a grace period sweeps. */
     sweep(retained: ReadonlySet<Digest>, before: Date): Promise<void>;
 }
 
