@@ -5,77 +5,82 @@ import { ServiceError } from "@destack/service/error";
 import * as base from "../object/comment.ts";
 
 /** Comments on the server that subscribe and notify participants. */
-export const comment = base.comment.handle({
-    create: async (call, next) => {
-        // validate mentions, the selection and the thread
-        const input = call.input;
-        requireSpans(input.body);
-        if (input.selection !== null && input.selection !== undefined) {
-            await requireText(call, input.selection);
-        }
-        if (input.threadId !== null && input.threadId !== undefined) {
-            await requireThreadOf(call, input.threadId);
-        }
+export const comment = base.comment.implement({
+    methods: {
+        create: async (call, next) => {
+            // validate mentions, the selection and the thread
+            const input = call.input;
+            requireSpans(input.body);
+            if (input.selection !== null && input.selection !== undefined) {
+                await requireText(call, input.selection);
+            }
+            if (input.threadId !== null && input.threadId !== undefined) {
+                await requireThreadOf(call, input.threadId);
+            }
 
-        // subscribe the author and notify the mentioned
-        const row = await next();
-        const isReply = row.threadId !== null;
-        const mentioned = row.body.mentions.map((mention) => mention.principal);
-        await Subscription.add(
-            call,
-            rootOf(row),
-            call.requireCaller(),
-            isReply ? "participating" : "author",
-        );
-        await notifyMentioned(call, row, mentioned);
+            // subscribe the author and notify the mentioned
+            const row = await next();
+            const isReply = row.threadId !== null;
+            const mentioned = row.body.mentions.map((mention) => mention.principal);
+            await Subscription.add(
+                call,
+                rootOf(row),
+                call.requireCaller(),
+                isReply ? "participating" : "author",
+            );
+            await notifyMentioned(call, row, mentioned);
 
-        // announce the comment to the other subscribers
-        const notice = {
-            source: placeOf(row),
-            audience: { kind: "subscribers" },
-            thread: row.parentId,
-            payload: excerptOf(row),
-            excluded: mentioned,
-        } as const;
-        await (isReply ? base.reply : base.thread).notify(call, notice);
+            // announce the comment to the other subscribers
+            const notice = {
+                source: placeOf(row),
+                audience: { kind: "subscribers" },
+                thread: row.parentId,
+                payload: excerptOf(row),
+                excluded: mentioned,
+            } as const;
+            await (isReply ? base.reply : base.thread).notify(call, notice);
 
-        return row;
-    },
-    update: async (call, next) => {
-        // validate a changed body and stamp the edit
-        const { body } = call.input;
-        if (body !== undefined) {
-            requireSpans(body);
-        }
-        const edited = call.with({ input: { ...call.input, editedAt: call.now } });
+            return row;
+        },
+        update: async (call, next) => {
+            // validate a changed body and stamp the edit
+            const { body } = call.input;
+            if (body !== undefined) {
+                requireSpans(body);
+            }
+            const edited = call.with({ input: { ...call.input, editedAt: call.now } });
 
-        // notify principals mentioned for the first time
-        const before = call.target.body.mentions.map((mention) => mention.principal);
-        const row = await next(body === undefined ? call : edited);
-        const mentioned = row.body.mentions
-            .map((mention) => mention.principal)
-            .filter((principal) => !before.some((known) => Subject.same(known, principal)));
-        await notifyMentioned(call, row, mentioned);
+            // notify principals mentioned for the first time
+            const before = call.target.body.mentions.map((mention) => mention.principal);
+            const row = await next(body === undefined ? call : edited);
+            const mentioned = row.body.mentions
+                .map((mention) => mention.principal)
+                .filter((principal) => !before.some((known) => Subject.same(known, principal)));
+            await notifyMentioned(call, row, mentioned);
 
-        return row;
-    },
-    resolve: async (call) => {
-        // resolve an open thread as the calling principal
-        const target = requireFirst(call.target);
-        if (target.resolvedAt !== null) {
-            throw new ServiceError("CONFLICT", { message: "thread is already resolved" });
-        }
+            return row;
+        },
+        resolve: async (call) => {
+            // resolve an open thread as the calling principal
+            const target = requireFirst(call.target);
+            if (target.resolvedAt !== null) {
+                throw new ServiceError("CONFLICT", { message: "thread is already resolved" });
+            }
 
-        return call.update({ resolvedAt: call.now, resolvedBy: Subject.key(call.requireCaller()) });
-    },
-    reopen: async (call) => {
-        // reopen a resolved thread
-        const target = requireFirst(call.target);
-        if (target.resolvedAt === null) {
-            throw new ServiceError("CONFLICT", { message: "thread is open" });
-        }
+            return call.update({
+                resolvedAt: call.now,
+                resolvedBy: Subject.key(call.requireCaller()),
+            });
+        },
+        reopen: async (call) => {
+            // reopen a resolved thread
+            const target = requireFirst(call.target);
+            if (target.resolvedAt === null) {
+                throw new ServiceError("CONFLICT", { message: "thread is open" });
+            }
 
-        return call.update({ resolvedAt: null, resolvedBy: null });
+            return call.update({ resolvedAt: null, resolvedBy: null });
+        },
     },
 });
 

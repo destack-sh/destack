@@ -38,12 +38,14 @@ export const article = defineObject({
         update: method.update("edit", { fields: ["title"] }),
         delete: method.delete("manage"),
     }),
-}).handle({
-    create: async (call, next) => {
-        // subscribe the owner to the article it creates
-        const row = await next();
-        await Subscription.add(call, call.reference(), call.requireCaller(), "author");
+}).implement({
+    methods: {
+        create: async (call, next) => {
+            // subscribe the owner to the article it creates
+            const row = await next();
+            await Subscription.add(call, call.reference(), call.requireCaller(), "author");
 
-        return row;
+            return row;
+        },
     },
 });

@@ -19,12 +19,12 @@ import { Call, type CallableName, type CallOutput, type ObjectType } from "@dest
 import { subscription } from "@destack/notification";
 import { serveActivities } from "@destack/notification/server";
 import { EphemeralStorage, ObjectStore } from "@destack/object/server";
-import { aligned, type Identifier, schema } from "@destack/schema";
+import { aligned, type Identifier, schema, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/service/request";
 import { subjectContext, testCallKey } from "@destack/service/test";
 
-import { afterAll, onTestFinished } from "@destack/test";
+import { onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
 import { favourite, mention, presence, reaction, receipt, reply, thread } from "../../src/index.ts";
 import { comment } from "../../src/server/index.ts";
@@ -57,14 +57,6 @@ const RowIdentity = schema.looseObject({ id: schema.string() });
 /** A page of a list call, its rows read for their identifier and creation time. */
 const ListPage = schema.looseObject({
     items: schema.array(schema.looseObject({ id: schema.string(), createdAt: schema.number() })),
-});
-
-/** The durable database of each dialect, shared by the scenarios of one test file. */
-const databases = new Map<Dialect, Promise<TestDatabase>>();
-afterAll(async () => {
-    for (const storage of databases.values()) {
-        await (await storage).close();
-    }
 });
 
 /** The activity objects answering actions and expanding the comments' announcements into activities. */
@@ -143,6 +135,7 @@ async function openEphemeral(): Promise<EphemeralStorage> {
         [presence],
         channelHub<TrackerMessage>()(),
         {
+            clock: Clock.system,
             report: (error) => {
                 throw error;
             },
@@ -165,6 +158,7 @@ async function serveInstallation(
     spaceId: Identifier<"space">,
 ): Promise<ObjectStore> {
     return new ObjectStore({
+        clock: Clock.system,
         principal: principal.installation.reference(spaceId, INSTALLATION),
         objects,
         database,
@@ -276,26 +270,23 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
     return spaceId;
 }
 
-/** Keep the durable tables once per dialect for the scenarios of a file. */
-function durable(dialect: Dialect): Promise<TestDatabase> {
-    // migrate the dialect's database on first use, and close it after the file's scenarios
-    let storage = databases.get(dialect);
-    if (storage === undefined) {
-        storage = TestDatabase.create(
-            dialect,
-            defineDatabase({
-                name: "main",
-                tables: [
-                    journal,
-                    ...Object.values(objects)
-                        .filter((object) => object.storage === "durable")
-                        .flatMap((object) => object.tables),
-                ],
-            }),
-            { isMigrated: true },
-        );
-        databases.set(dialect, storage);
-    }
+/** Claim a migrated database of the durable tables in a dialect, closed after the test. */
+async function durable(dialect: Dialect): Promise<TestDatabase> {
+    // claim a migrated database of the dialect, closed after the test
+    const storage = await TestDatabase.create(
+        dialect,
+        defineDatabase({
+            name: "main",
+            tables: [
+                journal,
+                ...Object.values(objects)
+                    .filter((object) => object.storage === "durable")
+                    .flatMap((object) => object.tables),
+            ],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
 
     return storage;
 }
