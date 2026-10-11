@@ -7,7 +7,6 @@
     "description": "Hold credentials for external accounts and lend them to outbound calls.",
     "exports": {
         ".": "./src/index.ts",
-        "./client": "./src/client/index.ts",
         "./github": "./src/github/index.ts",
         "./oauth": "./src/oauth/index.ts",
         "./object": "./src/object/index.ts",

@@ -1,3 +1,4 @@
+import type { ObjectCallInput } from "@destack/object";
 import { aligned, present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -19,7 +20,7 @@ async function open(): Promise<ConnectionFixture> {
 /** Create a connection as the owner, answering its reference. */
 async function create(
     fixture: ConnectionFixture,
-    input: Readonly<Record<string, unknown>>,
+    input: Omit<ObjectCallInput<typeof connection, "create">, "scope" | "vault">,
 ): Promise<ObjectReference> {
     const created = await fixture.objects
         .mutate(fixture.context().caller(), {
@@ -489,7 +490,7 @@ async function authorizeCode(
 
 test("refuse a connection lacking the client its kind authorizes through", async () => {
     const fixture = await open();
-    const refused = (input: Readonly<Record<string, unknown>>) => refusal(create(fixture, input));
+    const refused = (input: Parameters<typeof create>[1]) => refusal(create(fixture, input));
 
     // create an authorization code connection without an integration or a resource, and a client credentials one without an integration
     expect([

@@ -1,3 +1,4 @@
+import type { ServiceClient } from "@destack/service/client";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import type { Integration } from "../object/integration.ts";
@@ -8,7 +9,7 @@ import {
     AuthorizationServer,
     type DeviceAuthorization,
 } from "../oauth/server.ts";
-import type { connect } from "../client/client.ts";
+import type { connectionService } from "../service/service.ts";
 import { schema } from "@destack/schema";
 import type { Fetch } from "@destack/service";
 import type { ObjectReference } from "@destack/sync";
@@ -22,7 +23,7 @@ export class HomeClient implements AuthorizationClient {
     /** The integration. */
     readonly #reference: ObjectReference;
     /** The connection service of the space keeping the integration. */
-    readonly #home: ReturnType<typeof connect>;
+    readonly #home: ServiceClient<typeof connectionService>;
     /** The server as the public client writes its pages. */
     readonly #pages: AuthorizationServer;
 
@@ -30,7 +31,7 @@ export class HomeClient implements AuthorizationClient {
     constructor(
         row: Integration,
         reference: ObjectReference,
-        home: ReturnType<typeof connect>,
+        home: ServiceClient<typeof connectionService>,
         fetch: Fetch,
     ) {
         // keep the server, the integration and its home

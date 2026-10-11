@@ -26,7 +26,7 @@ import {
 } from "./token.ts";
 import { requireVault } from "./integration.ts";
 import { complete, exchange, poll, start, started } from "./authorization.ts";
-import { Secret } from "@destack/vault/server";
+import { ConsumerSecret } from "@destack/vault/server";
 import type { ObjectStore } from "@destack/object/server";
 
 /** How long a connection waits after its authorization server failed to answer before trying again: a minute. */
@@ -163,7 +163,7 @@ async function withdraw(
 
     // destroy the credential
     const secret = TokenSource.secret(withdrawn.id);
-    await Secret.destroy(system, withdrawn.vault, secret, tokens.options.consumer);
+    await ConsumerSecret.destroy(system, withdrawn.vault, secret, tokens.options.consumer);
 }
 
 /** Keep a connection's credential current: mark supplied material authorized, poll a device authorization, and obtain or refresh tokens before they expire. */
@@ -224,7 +224,7 @@ async function finalize(
     current: Connection,
     tokens: TokenSource,
 ): Promise<void> {
-    await Secret.destroy(
+    await ConsumerSecret.destroy(
         reconciliation.store,
         current.vault,
         TokenSource.secret(current.id),

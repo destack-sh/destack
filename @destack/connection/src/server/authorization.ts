@@ -22,7 +22,7 @@ import {
     type Connection,
     connection,
 } from "../object/connection.ts";
-import { Pkce } from "../oauth/pkce.ts";
+import { Pkce } from "@destack/service/authentication";
 import { DEVICE_CODE } from "../oauth/server.ts";
 import { PERSON_KINDS, TokenSource } from "./token.ts";
 import { RequestId } from "@destack/service/request";
@@ -351,16 +351,15 @@ function requirePerson(call: CallOf<typeof connection, "authorize" | "complete">
     readonly userId: string;
     readonly session: string;
 } {
-    // require a person calling in a session
-    const { subject } = call.caller;
-    const session = Caller.session(call.caller);
-    if (subject === undefined || !principal.user.is(subject) || session === undefined) {
+    // require a person calling in a signed-in session
+    const { subject, credential } = call.caller;
+    if (subject === undefined || !principal.user.is(subject) || credential?.kind !== "session") {
         throw new ServiceError("FORBIDDEN", {
             message: "a person authorizes a connection in a signed-in session",
         });
     }
 
-    return { userId: subject.id, session };
+    return { userId: subject.id, session: credential.id };
 }
 
 /** Find a connection's pending browser authorization by its state. */

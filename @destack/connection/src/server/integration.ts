@@ -7,7 +7,7 @@ import { integration, type Registration } from "../object/integration.ts";
 import { TokenGrant } from "../oauth/grant.ts";
 import { AuthorizationServer } from "../oauth/server.ts";
 import { TokenSource } from "./token.ts";
-import { Secret } from "@destack/vault/server";
+import { ConsumerSecret } from "@destack/vault/server";
 import type { ObjectStore } from "@destack/object/server";
 
 /** Serve integrations, keeping each one's client secret or private key in its vault as the service. */
@@ -89,7 +89,13 @@ async function keepSecret(
     if (vault !== undefined && secret !== undefined) {
         const id = present(call.id, "a prepared creation's identifier");
         const { consumer } = tokens.options;
-        await Secret.keep(call.requireStore(), vault, TokenSource.secret(id), secret, consumer);
+        await ConsumerSecret.put(
+            call.requireStore(),
+            vault,
+            TokenSource.secret(id),
+            secret,
+            consumer,
+        );
     }
 
     return {};
@@ -107,7 +113,7 @@ async function destroy(
     if (target.vault !== null) {
         const secret = TokenSource.secret(target.id);
         const { consumer } = tokens.options;
-        await Secret.destroy(call.requireStore(), target.vault, secret, consumer);
+        await ConsumerSecret.destroy(call.requireStore(), target.vault, secret, consumer);
     }
 
     return deleted;
@@ -160,7 +166,7 @@ async function register(
             `${issuer} issued a client secret, which ${scope} keeps in no vault`,
         );
     }
-    await Secret.keep(system, vault, TokenSource.secret(id), issued.secret, consumer);
+    await ConsumerSecret.put(system, vault, TokenSource.secret(id), issued.secret, consumer);
 
     return { ...registration, vault };
 }

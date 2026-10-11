@@ -20,7 +20,7 @@ const ALGORITHMS: Readonly<Record<string, string>> = {
 };
 
 /** A private key as a JWK (RFC 7517), read for its type, curve and algorithm. */
-export const PrivateJwk = schema.looseObject({
+export const PrivateKeyJwk = schema.looseObject({
     kty: schema.string().min(1),
     crv: schema.string().min(1).exactOptional(),
     alg: schema.string().min(1).exactOptional(),
@@ -81,7 +81,7 @@ export const Assertion = {
         }
 
         // import a JWK with its algorithm or its key type's
-        const jwk = PrivateJwk.parse(JSON.parse(text));
+        const jwk = PrivateKeyJwk.parse(JSON.parse(text));
         const algorithm = named ?? jwk.alg ?? ALGORITHMS[`${jwk.kty} ${jwk.crv ?? ""}`.trim()];
         if (algorithm === undefined) {
             throw new ConnectionError(

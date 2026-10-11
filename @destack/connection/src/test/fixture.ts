@@ -20,7 +20,7 @@ import type {} from "@destack/package/import-meta";
 import { present, schema } from "@destack/schema";
 import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { VaultKeystore } from "@destack/vault/key";
-import { Secret, secret, serveSecrets, vault } from "@destack/vault/server";
+import { ConsumerSecret, secret, serveSecrets, vault } from "@destack/vault/server";
 import { vaultTables } from "@destack/vault/stack";
 import { ResourceContext } from "@destack/resource/context";
 import { Health } from "@destack/service/health";
@@ -29,10 +29,10 @@ import { Server, ServiceContext } from "@destack/service/server";
 import { reconciliation, TestBearer, testCallKey } from "@destack/service/test";
 import { type ObjectReference, Scope, Subject } from "@destack/sync";
 import { v7 } from "uuid";
-import { connect } from "../client/index.ts";
+import { createClient, type ServiceClient } from "@destack/service/client";
 import { type Integration, integration, connection } from "../object/index.ts";
 import type { InstallationIssuer } from "../installation/installation.ts";
-import { Pkce } from "../oauth/pkce.ts";
+import { Pkce } from "@destack/service/authentication";
 import type { Fetch } from "@destack/service";
 import {
     IntegrationCopy,
@@ -44,6 +44,7 @@ import {
 } from "../server/index.ts";
 import { connectionService } from "../service/index.ts";
 import { integrationTables, connectionTables } from "../stack/index.ts";
+import { TestVault } from "@destack/vault/test";
 
 /** The issuer of the test authorization server. */
 export const ISSUER = "https://auth.test";
@@ -284,7 +285,7 @@ export interface ConnectionFixtureOptions {
     readonly tables?: readonly Table[];
     /** The home of the integrations of other scopes and the space copying them, as a space's connection service does. */
     readonly home?: {
-        readonly home: (scope: string, signer?: Subject) => ReturnType<typeof connect>;
+        readonly home: (scope: string, signer?: Subject) => ServiceClient<typeof connectionService>;
         readonly space: string;
         /** The scope at home enclosing the space, such as its account, absent for a space of the universe. */
         readonly enclosing?: ObjectReference;
@@ -403,8 +404,8 @@ export class ConnectionFixture {
             updatedAt: now,
         });
 
-        // keep its key
-        await keystore.provision({ id, scope: scope.id });
+        // start its key, as its creation does
+        await TestVault.startKey(database, keystore, { id, scope: scope.id }, now);
 
         return vault.reference(scope.id, id);
     }
@@ -538,12 +539,14 @@ export class ConnectionFixture {
     }
 
     /** Connect to this service as the home of every scope's integrations, as a space or a signing installation of it calls its home. */
-    home(spaceId: string): (scope: string, signer?: Subject) => ReturnType<typeof connect> {
+    home(
+        spaceId: string,
+    ): (scope: string, signer?: Subject) => ServiceClient<typeof connectionService> {
         return (_scope, signer) => {
             // send the signer, or else the space, in the bearer
             const subject = signer ?? principal.space.reference(Scope.universe.id, spaceId);
 
-            return connect({
+            return createClient(connectionService, {
                 url: ORIGIN,
                 headers: { authorization: `Bearer ${Subject.key(subject)}` },
                 fetch: (request: Request) => this.http.fetch(request),
@@ -589,7 +592,12 @@ export class ConnectionFixture {
         const { consumer } = this.tokens.options;
         const values: string[] = [];
         for (const row of rows) {
-            const value = await Secret.read(this.objects, this.vaultReference, row.id, consumer);
+            const value = await ConsumerSecret.read(
+                this.objects,
+                this.vaultReference,
+                row.id,
+                consumer,
+            );
             values.push(present(value, `the value of secret ${row.id}`));
         }
 

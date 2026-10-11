@@ -1,4 +1,5 @@
-import type { connect } from "../client/client.ts";
+import type { ServiceClient } from "@destack/service/client";
+import type { connectionService } from "../service/service.ts";
 import { and, eq } from "@destack/db";
 import type { Condition } from "@destack/object";
 import { aligned, type Identifier, type JsonValue, present, schema, Clock } from "@destack/schema";
@@ -20,7 +21,7 @@ import {
 import { Assertion } from "../oauth/assertion.ts";
 import type { Fetch } from "@destack/service";
 import { AuthorizationServer, JWT_BEARER, TOKEN_EXCHANGE } from "../oauth/server.ts";
-import { Secret } from "@destack/vault/server";
+import { ConsumerSecret } from "@destack/vault/server";
 import type { ObjectStore } from "@destack/object/server";
 import { Caller } from "@destack/access";
 
@@ -51,7 +52,7 @@ export interface TokenSourceOptions {
     /** The issuers of installed integrations, by their issuer identifiers. */
     readonly issuers: readonly InstallationIssuer[];
     /** Connect to the connection service of the space keeping a scope's integrations and connections, as this space or a signing installation, absent where every integration is kept here. */
-    readonly home?: (scope: string, signer?: Subject) => ReturnType<typeof connect>;
+    readonly home?: (scope: string, signer?: Subject) => ServiceClient<typeof connectionService>;
 }
 
 /** An integration as the client of its connections: its authorization server here with the secret, or through its home for a copy. */
@@ -120,7 +121,12 @@ export class TokenSource {
         row: { readonly id: string; readonly vault: ObjectReference },
     ): Promise<Credential> {
         const { consumer } = this.options;
-        const value = await Secret.read(system, row.vault, TokenSource.secret(row.id), consumer);
+        const value = await ConsumerSecret.read(
+            system,
+            row.vault,
+            TokenSource.secret(row.id),
+            consumer,
+        );
 
         return value === undefined ? {} : Credential.read(value);
     }
@@ -197,7 +203,7 @@ export class TokenSource {
             id: RequestId.create(),
             calls: [
                 integration.call("register", {
-                    ...integration.target({ scope }),
+                    ...integration.in(scope),
                     ...request,
                 }),
             ],
@@ -225,7 +231,7 @@ export class TokenSource {
         row: { readonly id: string; readonly vault: ObjectReference },
         credential: Credential,
     ): Promise<void> {
-        await Secret.keep(
+        await ConsumerSecret.put(
             system,
             row.vault,
             TokenSource.secret(row.id),
@@ -288,7 +294,12 @@ export class TokenSource {
     async #secret(system: ObjectStore, row: Integration): Promise<string | undefined> {
         return row.vault === null
             ? undefined
-            : Secret.read(system, row.vault, TokenSource.secret(row.id), this.options.consumer);
+            : ConsumerSecret.read(
+                  system,
+                  row.vault,
+                  TokenSource.secret(row.id),
+                  this.options.consumer,
+              );
     }
 
     /** Obtain a new token for a connection, keep it, and mark the connection authorized or its grant expired. */

@@ -1,4 +1,5 @@
-import type { connect } from "../client/client.ts";
+import type { ServiceClient } from "@destack/service/client";
+import type { connectionService } from "../service/service.ts";
 import {
     and,
     type Condition,
@@ -81,7 +82,7 @@ export const IntegrationCopy = {
     async subscriptions(
         database: DatabaseConnection,
         space: string,
-        home: (scope: string, signer?: Subject) => ReturnType<typeof connect>,
+        home: (scope: string, signer?: Subject) => ServiceClient<typeof connectionService>,
     ): Promise<readonly SubscriberEntry[]> {
         // read the live connections referencing an integration of another scope
         const rows = await database

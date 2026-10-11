@@ -1,4 +1,4 @@
-import { PrivateJwk } from "../oauth/assertion.ts";
+import { PrivateKeyJwk } from "../oauth/assertion.ts";
 
 /** The label of the one signature a request sends (RFC 9421 4.1). */
 const LABEL = "sig1";
@@ -72,7 +72,7 @@ async function signBase(
     }
 
     // sign with an Ed25519 private key
-    const jwk = PrivateJwk.parse(JSON.parse(signer.key));
+    const jwk = PrivateKeyJwk.parse(JSON.parse(signer.key));
     const key = await crypto.subtle.importKey("jwk", jwk, { name: "Ed25519" }, false, ["sign"]);
 
     return new Uint8Array(await crypto.subtle.sign("Ed25519", key, bytes)).toBase64();

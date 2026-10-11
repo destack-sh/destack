@@ -69,7 +69,10 @@ async function follow(
 async function connect(
     fixture: Awaited<ReturnType<typeof open>>,
     space: ConnectionFixture,
-    input: { readonly subject?: string; readonly kind?: string } = {},
+    input: {
+        readonly subject?: string;
+        readonly kind?: "authorization-code" | "client-credentials";
+    } = {},
 ): Promise<ObjectReference> {
     // create the connection referencing the home's integration
     const created = await space.objects
