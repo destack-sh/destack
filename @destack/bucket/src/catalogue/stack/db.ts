@@ -1,4 +1,4 @@
-import { check, index, integer, json, sql, defineTable, text, defineDatabase } from "@destack/db";
+import { check, index, integer, json, defineTable, text, defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";
 import { DIGEST_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
 
@@ -100,7 +100,7 @@ export const upload = defineTable(
         log: {},
         constraints: (table) => [
             index("upload_expiration").on(table.expires),
-            check("upload_state", sql`${table.state} IN ('active', 'completed', 'aborted')`),
+            check("upload_state", { state: { in: ["active", "completed", "aborted"] } }),
         ],
     },
 );
