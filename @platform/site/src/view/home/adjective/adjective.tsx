@@ -28,7 +28,7 @@ const destackable: Form = {
     partOfSpeech: "adjective",
     sense: {
         definition: "standardised, integrated and malleable",
-        highlight: ["standardised", "integrated", "malleable"],
+        highlight: ["standardised", "malleable"],
         sentence: "Every app is made from the same modern, standardised, integrated stack.",
     },
 };
