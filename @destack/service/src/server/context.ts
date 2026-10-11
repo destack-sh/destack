@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import type { ObjectReference, Subject } from "@destack/sync";
 import type { PackageId } from "@destack/package";
 import { AccessContext, Authorization, type Authorizer, Caller } from "@destack/access";
-import type { DatabaseConnection } from "@destack/db";
+import { type DatabaseConnection, Transaction } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "../error/index.ts";
 import type { ProcedureCall } from "./access.ts";
@@ -68,7 +68,7 @@ export class ServiceContext {
         // authorize the caller current in the request's scope under the service's policies, which keep a bound credential's access within its scope
         this.authorization =
             access &&
-            new Authorization(access.authorizer, access.database, () => {
+            new Authorization(access.authorizer, Transaction.reading(access.database), () => {
                 const authorized = this.caller();
                 Caller.delegation(authorized);
 

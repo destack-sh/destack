@@ -1,6 +1,10 @@
 import { createORPCErrorFromJson, isORPCErrorJson } from "@orpc/client";
 import { expect, test } from "@destack/test";
+import { schema } from "@destack/schema";
 import { isServiceError, ServiceError } from "./error.ts";
+
+/** The machine a misdirected answer moves the scope to. */
+const MOVED = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000e1");
 
 test("recognise a service error decoded from a response and refuse a plain error", () => {
     // decode the body a client reads from a refused call
@@ -20,8 +24,8 @@ test("recognise a service error decoded from a response and refuse a plain error
 test("read a misdirected answer's declared data from a failure and a response, and nothing from another answer", async () => {
     // misdirect to a machine and to a partition, and answer otherwise
     const moved = new ServiceError("MISDIRECTED_REQUEST", {
-        message: "space-1 moves to machine-2",
-        data: { scope: "space-1", machine: "machine-2" },
+        message: `space-1 moves to ${MOVED}`,
+        data: { scope: "space-1", machine: MOVED },
     });
     const partitioned = new ServiceError("MISDIRECTED_REQUEST", {
         message: "room-1 is served by partition room-1",
@@ -39,7 +43,7 @@ test("read a misdirected answer's declared data from a failure and a response, a
             "MISDIRECTED_REQUEST",
         ),
     ]).toEqual([
-        { scope: "space-1", machine: "machine-2" },
+        { scope: "space-1", machine: MOVED },
         { scope: "room-1", partition: "room-1" },
         undefined,
         undefined,
@@ -52,8 +56,8 @@ test("follow a misdirected answer once, handing the second attempt where its sco
     const answered = await ServiceError.follow(async (misdirected) => {
         attempts.push(misdirected);
         const error = new ServiceError("MISDIRECTED_REQUEST", {
-            message: "space-1 moves to machine-2",
-            data: { scope: "space-1", machine: "machine-2" },
+            message: `space-1 moves to ${MOVED}`,
+            data: { scope: "space-1", machine: MOVED },
         });
 
         return Response.json(error.toJSON(), { status: error.status });
@@ -61,7 +65,7 @@ test("follow a misdirected answer once, handing the second attempt where its sco
 
     expect([answered.status, attempts]).toEqual([
         421,
-        [undefined, { scope: "space-1", machine: "machine-2" }],
+        [undefined, { scope: "space-1", machine: MOVED }],
     ]);
 });
 

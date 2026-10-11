@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "@destack/test";
-import { vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
 import { MAX_TIMER_DELAY, until, wait } from "./timer.ts";
 
 beforeEach(() => {

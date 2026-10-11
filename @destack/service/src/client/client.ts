@@ -24,6 +24,12 @@ export type ClientOptions<Context extends ClientContext = Record<never, never>> 
         readonly bookmark?: Bookmark;
     };
 
+/** A typed HTTP client of a declared service, as createClient creates it. */
+export type ServiceClient<
+    Declared extends Pick<Service, "router">,
+    Context extends ClientContext = Record<never, never>,
+> = Client<Declared["router"], Context>;
+
 /** Create a typed HTTP client of a service, speaking the release of the service it was built against. */
 export function createClient<
     Definition extends ServiceRouter,

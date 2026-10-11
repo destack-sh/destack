@@ -25,7 +25,7 @@ export const DECLARED_ERRORS = {
         status: SERVICE_ERROR_STATUSES.MISDIRECTED_REQUEST,
         // where the call's scope is served: another machine, or another partition of the installation
         data: schema.union([
-            schema.object({ scope: schema.string().min(1), machine: schema.string().min(1) }),
+            schema.object({ scope: schema.string().min(1), machine: schema.identifier("machine") }),
             schema.object({ scope: schema.string().min(1), partition: schema.string().min(1) }),
         ]),
     },

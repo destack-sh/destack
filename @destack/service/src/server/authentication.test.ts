@@ -344,14 +344,18 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     // grant a collaborator one object
     bearer = credentials.get(guest.id);
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    const shared = await new Authorization(authorizer, database, () => asOwner).grant({
-        object: note.reference(spaceId, "one"),
-        relation: "reader",
-        subject: guest,
-    });
+    const byOwner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(authorizer, database, () => asOwner, call);
+    const shared = await byOwner((authorization) =>
+        authorization.grant({
+            object: note.reference(spaceId, "one"),
+            relation: "reader",
+            subject: guest,
+        }),
+    );
     expect(await client.read({ id: "one" })).toBe("personal note");
     await expect(client.read({ id: "two" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await new Authorization(authorizer, database, () => asOwner).revoke(shared.object, shared.id);
+    await byOwner((authorization) => authorization.revoke(shared.object, shared.id));
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
 
     // allow public notes and reject invalid credentials
