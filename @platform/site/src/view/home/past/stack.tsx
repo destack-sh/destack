@@ -17,6 +17,7 @@ import {
 } from "../../effect/water";
 import { commandEvents } from "../../layout/command";
 import { lattice } from "../../layout/lattice.stylex";
+import { Crossfade } from "../figure/crossfade";
 import { plate } from "../figure/plate.stylex";
 import { cardVariables } from "./card.stylex";
 import { Band, Card, DuctTape, type Entity } from "./card";
@@ -764,6 +765,32 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             {/* draw the frame and the legend's rule over the water, so no line breaks where it rises */}
             <span aria-hidden="true" {...style.attrs(styles.frameRules)} />
             <span aria-hidden="true" {...style.attrs(styles.columnRule)} />
+            {/* list the layers' claims under the drawing on phones, where words over the wires would not read */}
+            <ol data-component="LayerList" {...style.attrs(styles.list)}>
+                <For each={layers}>
+                    {(layer, index) => (
+                        <li {...style.attrs(styles.listItem)}>
+                            <span {...style.attrs(styles.number, isOpen() && styles.numberLit)}>
+                                0{index() + 1} {layer.name}
+                            </span>
+                            <b {...style.attrs(styles.listClaim)}>
+                                <Crossfade
+                                    isOpen={isOpen()}
+                                    stacked={layer.claim.today}
+                                    destacked={layer.claim.destack}
+                                />
+                            </b>
+                            <span {...style.attrs(styles.listNote)}>
+                                <Crossfade
+                                    isOpen={isOpen()}
+                                    stacked={layer.note.today}
+                                    destacked={layer.note.destack}
+                                />
+                            </span>
+                        </li>
+                    )}
+                </For>
+            </ol>
         </figure>
     );
 }
@@ -980,12 +1007,43 @@ const styles = style.create({
         gap: "1rem",
         justifyContent: "space-between",
     },
+    list: {
+        backgroundColor: color.background,
+        display: { default: "none", [media.maxMd]: "grid" },
+        position: "relative",
+        zIndex: 4,
+        gridColumn: "1 / -1",
+        gridRow: "7 / 8",
+        listStyle: "none",
+        margin: 0,
+        paddingBottom: "1rem",
+        paddingTop: "0.5rem",
+        paddingInline: frame.inset,
+    },
+    listItem: {
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: { default: stroke.border, ":first-child": 0 },
+        display: "grid",
+        gap: "0.25rem",
+        paddingBlock: "0.75rem",
+    },
+    listClaim: {
+        fontSize: "1rem",
+        fontWeight: 600,
+        lineHeight: "1.375rem",
+    },
+    listNote: {
+        color: color.mutedForeground,
+        fontSize: "0.8125rem",
+        lineHeight: "1.125rem",
+    },
     claim: {
-        display: "flex",
+        display: { default: "flex", [media.maxMd]: "none" },
         flexDirection: { default: "column", [screen.belowDesktop]: "row" },
         gap: "0.25rem",
         gridColumn: { default: "9 / span 4", [screen.belowDesktop]: "1 / -1" },
-        justifyContent: "center",
+        justifyContent: { default: "center", [media.maxMd]: "flex-start" },
         paddingInline: { default: frame.inset, [media.maxMd]: "0.75rem" },
         position: "relative",
         zIndex: 3,
@@ -1124,6 +1182,7 @@ const styles = style.create({
         justifyContent: "flex-end",
     },
     noteText: {
+        display: { default: "grid", [media.maxMd]: "none" },
         color: color.foreground,
         opacity: 0.72,
         fontSize: "0.8125rem",

@@ -16,6 +16,9 @@ import { palette } from "../../palette.stylex";
 import { media } from "@destack/style/media.stylex";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
+/** A browser narrower than a phone screen, which then takes a phone browser's chrome. */
+const NARROW = "@container (max-width: 479px)";
+
 /** Who looks at your space. */
 export type Viewer = "Me" | "Agent" | "Public";
 
@@ -282,7 +285,7 @@ export function SpaceBrowser(properties: {
                 </span>
             </div>
             <div data-component="Toolbar" {...style.attrs(styles.toolbar)}>
-                <span {...style.attrs(styles.tools)}>
+                <span {...style.attrs(styles.tools, styles.desktopOnly)}>
                     <Glyph name="back" />
                     <Glyph name="forward" />
                     <Glyph name="reload" />
@@ -292,19 +295,29 @@ export function SpaceBrowser(properties: {
                     {isOpen() ? (
                         <span {...style.attrs(styles.url)}>
                             <span {...style.attrs(styles.host)}>destack.app</span>
-                            /@florian{properties.page.path === "/" ? "" : properties.page.path}
+                            <span {...style.attrs(styles.path)}>
+                                /@florian{properties.page.path === "/" ? "" : properties.page.path}
+                            </span>
                         </span>
                     ) : (
                         <span {...style.attrs(styles.url)}>
                             <span {...style.attrs(styles.host)}>{host()}</span>
-                            {properties.page.site.slice(host().length)}
+                            <span {...style.attrs(styles.path)}>
+                                {properties.page.site.slice(host().length)}
+                            </span>
                         </span>
                     )}
                     <Glyph name="star" />
                 </span>
+                {/* count the open tabs as a phone's browser does */}
+                <span data-component="TabCount" data-service="1" {...style.attrs(styles.tabCount)}>
+                    {isOpen() ? 1 : tabs.length}
+                </span>
                 <span {...style.attrs(styles.tools)}>
-                    <Glyph name="puzzle" />
-                    <span {...style.attrs(styles.profile)}>F</span>
+                    <span {...style.attrs(styles.desktopOnly)}>
+                        <Glyph name="puzzle" />
+                    </span>
+                    <span {...style.attrs(styles.profile, styles.desktopOnly)}>F</span>
                     <Glyph name="menu" />
                 </span>
             </div>
@@ -553,7 +566,7 @@ const styles = style.create({
         display: "grid",
         fontSize: "0.8125rem",
         gridTemplateColumns: "minmax(0, 1fr)",
-        gridTemplateRows: "auto auto minmax(0, 1fr)",
+        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [NARROW]: "auto minmax(0, 1fr)" },
         height: "100%",
         minHeight: 0,
         overflow: "hidden",
@@ -561,7 +574,7 @@ const styles = style.create({
     strip: {
         alignItems: "stretch",
         backgroundColor: color.muted,
-        display: "flex",
+        display: { default: "flex", [NARROW]: "none" },
         gap: "0.125rem",
         height: "2.5rem",
         minWidth: 0,
@@ -656,6 +669,27 @@ const styles = style.create({
         height: "2.75rem",
         minWidth: 0,
         paddingInline: "0.875rem",
+    },
+    desktopOnly: {
+        display: { default: "inline-flex", [NARROW]: "none" },
+    },
+    path: {
+        display: { default: "inline", [NARROW]: "none" },
+    },
+    tabCount: {
+        alignItems: "center",
+        borderColor: "currentColor",
+        borderRadius: "5px",
+        borderStyle: "solid",
+        borderWidth: "1.5px",
+        color: color.mutedForeground,
+        display: { default: "none", [NARROW]: "inline-flex" },
+        flexShrink: 0,
+        fontSize: "0.6875rem",
+        fontWeight: 700,
+        height: "1.25rem",
+        justifyContent: "center",
+        minWidth: "1.25rem",
     },
     tools: {
         alignItems: "center",

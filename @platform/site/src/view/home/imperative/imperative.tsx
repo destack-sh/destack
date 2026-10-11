@@ -19,7 +19,7 @@ const imperative: Form = {
 /** Close the page on the verb as an instruction, over the three ways to install, the agent's prompt naming the tools you picked. */
 export function Imperative(properties: { prompt: string }) {
     return (
-        <section {...style.attrs(lattice.frame, lattice.ruled, lattice.ruleBottom)}>
+        <section data-closing {...style.attrs(lattice.frame, lattice.ruled, lattice.ruleBottom)}>
             <Entry form={imperative} />
             <InstallWays prompt={properties.prompt} />
         </section>

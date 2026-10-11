@@ -1,4 +1,4 @@
-import { createEffect, createSignal } from "@destack/view";
+import { createEffect, createSignal, untrack } from "@destack/view";
 import { makeTimer } from "@destack/view/primitives/timer";
 
 /** Whether the stack is open at a numbered step of a figure's switch. */
@@ -20,8 +20,8 @@ export function createSteps(
     interval: number,
     isReduced: () => boolean,
 ): Steps {
-    // hold whether each step is open, mirrored for the walk to read
-    let current: readonly boolean[] = Array.from({ length: last + 1 }, () => isOpen());
+    // hold whether each step is open, seeded once from the state at creation and mirrored for the walk to read
+    let current: readonly boolean[] = Array.from({ length: last + 1 }, () => untrack(isOpen));
     const [states, setStates] = createSignal(current);
     const set = (next: readonly boolean[]) => {
         current = next;

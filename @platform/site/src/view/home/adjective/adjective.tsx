@@ -1,3 +1,4 @@
+import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 
 import { lattice } from "../../layout/lattice.stylex";
@@ -21,7 +22,7 @@ const destackable: Form = {
     pronunciation: "/diːˈstakəbl/",
     partOfSpeech: "adjective",
     sense: {
-        definition: "standardised, integrated, malleable and built to trust",
+        definition: "standardised, integrated and malleable",
         highlight: ["standardised", "integrated", "malleable"],
         sentence: "Every app is made from the same modern, standardised, integrated stack.",
     },
@@ -55,11 +56,9 @@ export function Adjective(properties: { isOpen: boolean }) {
             <Entry form={destackable} />
             <FigureLabel
                 number={4}
-                title={
-                    properties.isOpen
-                        ? "an app you change yourself, wired into everything"
-                        : "an app only its vendor can change"
-                }
+                isOpen={properties.isOpen}
+                stacked="an app only its vendor can change"
+                destacked="an app you change yourself, wired into everything"
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
@@ -88,12 +87,13 @@ const styles = style.create({
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
     stage: {
+        containerType: "inline-size",
         gridColumn: "1 / -1",
         gridTemplateRows: "auto minmax(0, 1fr)",
     },
     window: {
         minHeight: 0,
-        height: { default: null, [screen.belowDesktop]: "32rem" },
+        height: { default: null, [screen.belowDesktop]: "32rem", [media.maxMd]: "44rem" },
     },
     title: {
         alignItems: "center",

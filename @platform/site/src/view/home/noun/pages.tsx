@@ -7,7 +7,9 @@ import type { Stagger } from "../figure/stagger";
 import { Tile } from "../figure/tile";
 import { palette } from "../../palette.stylex";
 import { appStyles, appText } from "../figure/app";
-import { media } from "@destack/style/media.stylex";
+
+/** A mock narrower than a phone screen, which then takes its phone layout. */
+const NARROW = "@container (max-width: 479px)";
 
 /** The twelve services a docs app runs on, numbered as the ledger rows the inspector lights: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
@@ -845,7 +847,7 @@ const styles = style.create({
         textTransform: "uppercase",
     },
     roomy: {
-        display: { default: "block", [media.maxMd]: "none" },
+        display: { default: "block", [NARROW]: "none" },
     },
     slot: {
         display: "flex",
@@ -856,7 +858,7 @@ const styles = style.create({
     access: {
         alignItems: "center",
         color: color.mutedForeground,
-        display: { default: "flex", [media.maxMd]: "none" },
+        display: { default: "flex", [NARROW]: "none" },
         gap: "0.375rem",
     },
     change: {
@@ -1053,7 +1055,7 @@ const styles = style.create({
     quiet: {
         color: color.mutedForeground,
     },
-    wide: { display: { default: null, [media.maxMd]: "none" } },
+    wide: { display: { default: null, [NARROW]: "none" } },
     shrink: {
         minWidth: 0,
         overflow: "hidden",

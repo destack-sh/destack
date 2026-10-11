@@ -22,11 +22,11 @@ const STAGE = `calc((${SECTION} - ${ENTRY} - 50px) / 6)`;
 /** The stack figure's row below the desktop width: sixteen breadboard holes, between 136px and 164px. */
 const NARROW_STAGE = `clamp(136px, calc(${WIDTH} / 88 * 16), 164px)`;
 
-/** The stack figure's row on phones. */
-const PHONE_STAGE = "150px";
+/** The stack figure's row on phones, which carries only the cards since the claims list under the drawing. */
+const PHONE_STAGE = "120px";
 
 /** The stack figure's row on the smallest phones, whose narrow tiles wrap onto more lines. */
-const SMALL_PHONE_STAGE = "168px";
+const SMALL_PHONE_STAGE = "136px";
 
 /** The site's twelve-column frame on desktop and four on phones, and the homepage's rhythm. */
 export const frame = style.defineVars({

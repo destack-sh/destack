@@ -18,6 +18,9 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { calendly, framer, github, linear, notion, replit, slack } from "./vendor.stylex";
 import { palette } from "../../palette.stylex";
 
+/** A window narrower than a phone screen, where each site takes its own phone layout. */
+const NARROW = "@container (max-width: 479px)";
+
 /** The system font the rented sites fall back to. */
 const system = '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
 
@@ -467,7 +470,9 @@ function GitHub() {
                     <div {...style.attrs(styles.ghBody)}>
                         <span {...style.attrs(styles.ghRow)}>
                             <span {...style.attrs(styles.ghBranch)}>⎇ main ▾</span>
-                            <span {...style.attrs(styles.ghMuted)}>3 branches · 0 tags</span>
+                            <span {...style.attrs(styles.ghMuted, styles.ghWide)}>
+                                3 branches · 0 tags
+                            </span>
                             <span {...style.attrs(styles.ghCode)}>Code ▾</span>
                         </span>
                         <div {...style.attrs(styles.ghTable)}>
@@ -477,7 +482,9 @@ function GitHub() {
                                 <span {...style.attrs(styles.ghMuted)}>
                                     Mail the first batch on Thursday
                                 </span>
-                                <span {...style.attrs(styles.ghMuted, styles.ghWhen)}>
+                                <span
+                                    {...style.attrs(styles.ghMuted, styles.ghWhen, styles.ghWide)}
+                                >
                                     a41f2c9 · 2 hours ago · 128 commits
                                 </span>
                             </span>
@@ -490,7 +497,9 @@ function GitHub() {
                                         />
                                         {name}
                                     </span>
-                                    <span {...style.attrs(styles.ghMuted)}>{change}</span>
+                                    <span {...style.attrs(styles.ghMuted, styles.ghWide)}>
+                                        {change}
+                                    </span>
                                     <span {...style.attrs(styles.ghMuted, styles.ghWhen)}>
                                         {when}
                                     </span>
@@ -878,14 +887,14 @@ const styles = style.create({
     },
     slackFrame: {
         display: "grid",
-        gridTemplateColumns: "64px 230px minmax(0, 1fr)",
+        gridTemplateColumns: { default: "64px 230px minmax(0, 1fr)", [NARROW]: "minmax(0, 1fr)" },
         minHeight: 0,
     },
     slackRail: {
         alignContent: "start",
         backgroundColor: slack.aubergine,
         color: `color-mix(in srgb, white 70%, transparent)`,
-        display: "grid",
+        display: { default: "grid", [NARROW]: "none" },
         gap: "22px",
         justifyItems: "center",
         paddingTop: "12px",
@@ -905,7 +914,7 @@ const styles = style.create({
         alignContent: "start",
         backgroundColor: slack.sidebar,
         color: `color-mix(in srgb, white 72%, transparent)`,
-        display: "grid",
+        display: { default: "grid", [NARROW]: "none" },
         gap: "1px",
         paddingBlock: "14px",
         paddingInline: "10px",
@@ -962,7 +971,7 @@ const styles = style.create({
         justifyContent: "space-between",
         paddingBlockStart: "12px",
         paddingBlockEnd: "6px",
-        paddingInline: "20px",
+        paddingInline: { default: "20px", [NARROW]: "16px" },
     },
     slackMembers: {
         alignItems: "center",
@@ -1120,7 +1129,7 @@ const styles = style.create({
         borderStyle: "solid",
         borderWidth: "1px",
         color: github.muted,
-        display: "flex",
+        display: { default: "flex", [NARROW]: "none" },
         fontSize: "13px",
         gap: "8px",
         marginLeft: "auto",
@@ -1136,6 +1145,7 @@ const styles = style.create({
         display: "flex",
         gap: "2px",
         paddingInline: "16px",
+        overflow: { default: "visible", [NARROW]: "hidden" },
     },
     ghTab: {
         alignItems: "center",
@@ -1144,6 +1154,7 @@ const styles = style.create({
         gap: "6px",
         paddingBlock: "10px",
         paddingInline: "12px",
+        whiteSpace: "nowrap",
     },
     ghTabOn: {
         boxShadow: `inset 0 -2px 0 ${github.attention}`,
@@ -1169,6 +1180,7 @@ const styles = style.create({
         display: "flex",
         gap: "10px",
         paddingBottom: "16px",
+        flexWrap: { default: "nowrap", [NARROW]: "wrap" },
     },
     ghRepoName: {
         fontSize: "20px",
@@ -1201,7 +1213,7 @@ const styles = style.create({
     ghColumns: {
         display: "grid",
         gap: "24px",
-        gridTemplateColumns: "minmax(0, 1fr) 240px",
+        gridTemplateColumns: { default: "minmax(0, 1fr) 240px", [NARROW]: "minmax(0, 1fr)" },
     },
     ghBody: {
         alignContent: "start",
@@ -1251,6 +1263,7 @@ const styles = style.create({
         height: "48px",
         paddingInline: "16px",
         whiteSpace: "nowrap",
+        overflow: { default: "visible", [NARROW]: "hidden" },
     },
     ghFace: {
         alignItems: "center",
@@ -1270,7 +1283,10 @@ const styles = style.create({
         borderBottomWidth: { default: "1px", ":last-child": 0 },
         display: "grid",
         gap: "16px",
-        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.2fr) 5.5rem",
+        gridTemplateColumns: {
+            default: "minmax(0, 1fr) minmax(0, 1.2fr) 5.5rem",
+            [NARROW]: "minmax(0, 1fr) 5.5rem",
+        },
         height: "40px",
         paddingInline: "16px",
         whiteSpace: "nowrap",
@@ -1289,12 +1305,16 @@ const styles = style.create({
         marginLeft: "auto",
         textAlign: "right",
     },
+    ghWide: {
+        display: { default: "inline", [NARROW]: "none" },
+    },
     ghAbout: {
         alignContent: "start",
         display: "grid",
         fontSize: "14px",
         gap: "10px",
         lineHeight: 1.5,
+        order: { default: 0, [NARROW]: -1 },
     },
     ghTopics: {
         display: "flex",
@@ -1441,8 +1461,8 @@ const styles = style.create({
         fontFamily: faces.calendly,
         justifyContent: "center",
         minHeight: "100%",
-        paddingBlock: "40px",
-        paddingInline: "32px",
+        paddingBlock: { default: "40px", [NARROW]: "16px" },
+        paddingInline: { default: "32px", [NARROW]: "12px" },
     },
     calCard: {
         alignSelf: "start",
@@ -1453,7 +1473,7 @@ const styles = style.create({
         borderWidth: "1px",
         boxShadow: "0 1px 8px color-mix(in srgb, black 8%, transparent)",
         display: "grid",
-        gridTemplateColumns: "220px minmax(0, 1fr) 168px",
+        gridTemplateColumns: { default: "220px minmax(0, 1fr) 168px", [NARROW]: "minmax(0, 1fr)" },
         overflow: "hidden",
         position: "relative",
         width: "100%",
@@ -1461,11 +1481,14 @@ const styles = style.create({
     calHost: {
         alignContent: "start",
         borderRightColor: `color-mix(in srgb, ${calendly.ink} 10%, transparent)`,
+        borderBottomColor: `color-mix(in srgb, ${calendly.ink} 10%, transparent)`,
+        borderBottomStyle: "solid",
         borderRightStyle: "solid",
-        borderRightWidth: "1px",
+        borderRightWidth: { default: "1px", [NARROW]: 0 },
         display: "grid",
         paddingBlock: "28px",
         paddingInline: "24px",
+        borderBottomWidth: { default: 0, [NARROW]: "1px" },
     },
     calAvatar: {
         alignItems: "center",
@@ -1598,9 +1621,9 @@ const styles = style.create({
         alignContent: "start",
         display: "grid",
         gap: "10px",
-        paddingBlockStart: "92px",
+        paddingBlockStart: { default: "92px", [NARROW]: "0" },
         paddingBlockEnd: "28px",
-        paddingInlineStart: "0",
+        paddingInlineStart: { default: "0", [NARROW]: "24px" },
         paddingInlineEnd: "20px",
     },
     calDay: {
@@ -1820,7 +1843,7 @@ const styles = style.create({
         display: "grid",
         fontFamily: faces.linear,
         fontSize: "13px",
-        gridTemplateColumns: "220px minmax(0, 1fr)",
+        gridTemplateColumns: { default: "220px minmax(0, 1fr)", [NARROW]: "minmax(0, 1fr)" },
         minHeight: "100%",
     },
     linSide: {
@@ -1829,7 +1852,7 @@ const styles = style.create({
         borderRightColor: linear.rule,
         borderRightStyle: "solid",
         borderRightWidth: "1px",
-        display: "grid",
+        display: { default: "grid", [NARROW]: "none" },
         gap: "1px",
         paddingBlock: "12px",
         paddingInline: "10px",
@@ -1953,7 +1976,7 @@ const styles = style.create({
     linTools: {
         alignItems: "center",
         color: linear.muted,
-        display: "flex",
+        display: { default: "flex", [NARROW]: "none" },
         gap: "14px",
     },
     linDisplay: {
@@ -1992,7 +2015,7 @@ const styles = style.create({
         display: "flex",
         gap: "12px",
         height: "44px",
-        paddingInline: "24px",
+        paddingInline: { default: "24px", [NARROW]: "16px" },
     },
     linPriority: {
         alignItems: "end",
@@ -2032,7 +2055,7 @@ const styles = style.create({
         borderStyle: "solid",
         borderWidth: "1px",
         color: linear.text,
-        display: "flex",
+        display: { default: "flex", [NARROW]: "none" },
         fontSize: "12px",
         gap: "6px",
         paddingBlock: "1px",

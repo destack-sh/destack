@@ -1,5 +1,7 @@
 import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
+import { createSignal, onSettled } from "@destack/view";
+import { createEventListener } from "@destack/view/primitives/event-listener";
 import { palette } from "../../palette.stylex";
 
 import { commandEvents } from "../../layout/command";
@@ -63,6 +65,38 @@ export function StackSwitch(properties: { isOpen: boolean }) {
     );
 }
 
+/** Pin the switch to the bottom of phones while the figures are on screen, so it stays beside what it changes. */
+export function FloatingSwitch(properties: { isOpen: boolean }) {
+    // show the switch from the first figure label until the closing section comes into view
+    const [isShown, setIsShown] = createSignal(false);
+    const update = () => {
+        // find where the figures start and where the page closes
+        const first = document.querySelector("[data-figure-label]");
+        const closing = document.querySelector("[data-closing]");
+        if (first === null || closing === null) {
+            throw new Error("the page lacks its figures or its closing section");
+        }
+
+        // show the switch between the two
+        setIsShown(
+            first.getBoundingClientRect().top < window.innerHeight &&
+                closing.getBoundingClientRect().top > window.innerHeight,
+        );
+    };
+    createEventListener(() => window, "scroll", update, { passive: true });
+    createEventListener(() => window, "resize", update);
+    onSettled(update);
+
+    return (
+        <div
+            data-component="FloatingSwitch"
+            {...style.attrs(styles.floating, !isShown() && styles.floatingHidden)}
+        >
+            <StackSwitch isOpen={properties.isOpen} />
+        </div>
+    );
+}
+
 /** The knob's periodic nudge toward destacked. */
 const nudge = style.keyframes({
     "0%, 80%, 100%": { translate: "0 0" },
@@ -121,6 +155,31 @@ const styles = style.create({
     knobOn: {
         backgroundColor: palette.space,
         translate: "1rem 0",
+    },
+    floating: {
+        backgroundColor: color.background,
+        borderColor: color.border,
+        borderRadius: "999px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        bottom: "calc(1rem + env(safe-area-inset-bottom))",
+        boxShadow: `0 6px 24px color-mix(in srgb, ${color.foreground} 14%, transparent)`,
+        display: { default: "none", [media.maxMd]: "flex" },
+        left: "50%",
+        paddingBlock: "0.625rem",
+        paddingInline: "1.125rem",
+        position: "fixed",
+        transform: "translateX(-50%)",
+        transition: {
+            default: "opacity 200ms ease, translate 200ms ease",
+            [media.motionReduce]: "none",
+        },
+        zIndex: 3,
+    },
+    floatingHidden: {
+        opacity: 0,
+        pointerEvents: "none",
+        translate: "0 1rem",
     },
     holder: {
         alignItems: "center",

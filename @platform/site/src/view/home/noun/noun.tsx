@@ -73,11 +73,9 @@ export function Noun(properties: { isOpen: boolean }) {
             <Entry form={noun} />
             <FigureLabel
                 number={3}
-                title={
-                    properties.isOpen
-                        ? "one app, built on one engine"
-                        : "one app, wired to twelve vendors"
-                }
+                isOpen={properties.isOpen}
+                stacked="one app, glued to twelve vendors"
+                destacked="one app, built on one engine"
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
@@ -156,6 +154,7 @@ const styles = style.create({
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
     stage: {
+        containerType: "inline-size",
         gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
     },

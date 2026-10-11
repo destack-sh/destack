@@ -1,13 +1,18 @@
 import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import type { JSX } from "@destack/view";
-import { media } from "@destack/style/media.stylex";
 
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
 import type { Stagger } from "../figure/stagger";
 import { Tile } from "../figure/tile";
 import { palette } from "../../palette.stylex";
+
+/** A mock too narrow for the chat and the board side by side, which then stack. */
+const NARROW = "@container (max-width: 699px)";
+
+/** A mock narrower than a phone screen, whose board then stacks its columns and drops its wide parts. */
+const PHONE = "@container (max-width: 479px)";
 
 /** The engine's services the launch board runs on, numbered as the board marks them: changing the app, reading the other apps, keeping it current, and sharing it. */
 export const services: readonly string[] = ["Forge", "Database", "Workflows", "Access"];
@@ -76,12 +81,30 @@ function Reply(properties: { time: string; children: JSX.Element }) {
     );
 }
 
+/** What marks a column: one of your space's apps on its tile, or a vendor's icon in its colour. */
+type Mark = { tile: string } | { icon: string; tint: string };
+
+/** Draw a column's mark: an app's tile or a vendor's icon. */
+function MarkView(properties: { mark: Mark }) {
+    // choose the tile or the icon inside an expression, so the mark follows the stack as it switches
+    return (
+        <>
+            {"tile" in properties.mark ? (
+                <Tile name={properties.mark.tile} />
+            ) : (
+                <Favicon icon={properties.mark.icon} tint={properties.mark.tint} />
+            )}
+        </>
+    );
+}
+
 /** Draw one column of the board: its mark and name, what it says about itself, and its rows. */
 function Column(properties: {
-    mark: JSX.Element;
     name: string;
-    note: JSX.Element;
     service: number;
+    isOwned: boolean;
+    owned: { mark: Mark; count: string };
+    rented: { mark: Mark; issue: string };
     children: JSX.Element;
 }) {
     return (
@@ -91,9 +114,15 @@ function Column(properties: {
             {...style.attrs(styles.panel)}
         >
             <p {...style.attrs(styles.panelHead)}>
-                {properties.mark}
+                <MarkView
+                    mark={properties.isOwned ? properties.owned.mark : properties.rented.mark}
+                />
                 {properties.name}
-                {properties.note}
+                {properties.isOwned ? (
+                    <span {...style.attrs(styles.count)}>{properties.owned.count}</span>
+                ) : (
+                    <Issue>{properties.rented.issue}</Issue>
+                )}
             </p>
             <div {...style.attrs(styles.stack)}>{properties.children}</div>
         </section>
@@ -256,21 +285,13 @@ export function LaunchBoard(properties: { isOpenAt: Stagger }) {
                     <div {...style.attrs(styles.columns)}>
                         <Column
                             service={2}
-                            mark={
-                                properties.isOpenAt(2) ? (
-                                    <Tile name="tasks" />
-                                ) : (
-                                    <Favicon icon="linear" tint="#5e6ad2" />
-                                )
-                            }
                             name="Open tasks"
-                            note={
-                                properties.isOpenAt(2) ? (
-                                    <span {...style.attrs(styles.count)}>5</span>
-                                ) : (
-                                    <Issue>Copied hourly</Issue>
-                                )
-                            }
+                            isOwned={properties.isOpenAt(2)}
+                            owned={{ mark: { tile: "tasks" }, count: "5" }}
+                            rented={{
+                                mark: { icon: "linear", tint: "#5e6ad2" },
+                                issue: "Copied hourly",
+                            }}
                         >
                             {tasks.map(([id, title, due]) => (
                                 <p data-component="TaskRow" {...style.attrs(styles.row)}>
@@ -282,21 +303,16 @@ export function LaunchBoard(properties: { isOpenAt: Stagger }) {
                         </Column>
                         <Column
                             service={2}
-                            mark={
-                                properties.isOpenAt(2) ? (
-                                    <Favicon icon="table" tint="#4f8a5b" />
-                                ) : (
-                                    <Favicon icon="replit" tint="#f26207" />
-                                )
-                            }
                             name="Signups"
-                            note={
-                                properties.isOpenAt(2) ? (
-                                    <span {...style.attrs(styles.count)}>1,840 · +12 today</span>
-                                ) : (
-                                    <Issue>Not connected</Issue>
-                                )
-                            }
+                            isOwned={properties.isOpenAt(2)}
+                            owned={{
+                                mark: { icon: "table", tint: "#4f8a5b" },
+                                count: "1,840 · +12 today",
+                            }}
+                            rented={{
+                                mark: { icon: "replit", tint: "#f26207" },
+                                issue: "Not connected",
+                            }}
                         >
                             {properties.isOpenAt(2) ? (
                                 signups.map(([email, joined]) => (
@@ -311,21 +327,13 @@ export function LaunchBoard(properties: { isOpenAt: Stagger }) {
                         </Column>
                         <Column
                             service={2}
-                            mark={
-                                properties.isOpenAt(2) ? (
-                                    <Tile name="calendar" />
-                                ) : (
-                                    <Favicon icon="calendly" tint="#006bff" />
-                                )
-                            }
                             name="Demos booked"
-                            note={
-                                properties.isOpenAt(2) ? (
-                                    <span {...style.attrs(styles.count)}>5</span>
-                                ) : (
-                                    <Issue>Not connected</Issue>
-                                )
-                            }
+                            isOwned={properties.isOpenAt(2)}
+                            owned={{ mark: { tile: "calendar" }, count: "5" }}
+                            rented={{
+                                mark: { icon: "calendly", tint: "#006bff" },
+                                issue: "Not connected",
+                            }}
                         >
                             {properties.isOpenAt(2) ? (
                                 demos.map(([time, person]) => (
@@ -371,15 +379,19 @@ const styles = style.create({
         fontSize: "0.8125rem",
         gridTemplateColumns: {
             default: "minmax(0, 1fr) minmax(0, 1.75fr)",
-            [media.maxMd]: "minmax(0, 1fr)",
+            [NARROW]: "minmax(0, 1fr)",
         },
+        gridTemplateRows: { default: null, [NARROW]: "20rem minmax(0, 1fr)" },
         height: "100%",
         minHeight: 0,
     },
     conversation: {
+        borderBottomColor: color.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: { default: 0, [NARROW]: stroke.border },
         borderRightColor: color.border,
         borderRightStyle: "solid",
-        borderRightWidth: stroke.border,
+        borderRightWidth: { default: stroke.border, [NARROW]: 0 },
         display: "grid",
         gridTemplateColumns: "minmax(0, 1fr)",
         gridTemplateRows: "minmax(0, 1fr) auto",
@@ -552,8 +564,8 @@ const styles = style.create({
         gridTemplateRows: "auto minmax(0, 1fr) auto",
         minHeight: 0,
         overflow: "hidden",
-        paddingBlock: { default: "1.25rem", [media.maxMd]: "1rem" },
-        paddingInline: { default: "1.5rem", [media.maxMd]: "1rem" },
+        paddingBlock: { default: "1.25rem", [PHONE]: "1rem" },
+        paddingInline: { default: "1.5rem", [PHONE]: "1rem" },
     },
     change: {
         alignItems: "center",
@@ -567,6 +579,8 @@ const styles = style.create({
         minHeight: "2.75rem",
         minWidth: 0,
         paddingInline: "0.875rem",
+        flexWrap: { default: "nowrap", [PHONE]: "wrap" },
+        paddingBlock: { default: "0", [PHONE]: "0.5rem" },
         whiteSpace: "nowrap",
     },
     added: {
@@ -592,13 +606,15 @@ const styles = style.create({
         alignItems: "stretch",
         display: "grid",
         gap: "0.75rem",
-        gridTemplateColumns: {
-            default: "repeat(3, minmax(0, 1fr))",
-            [media.maxMd]: "minmax(0, 1fr)",
-        },
+        gridAutoColumns: { default: "auto", [PHONE]: "82%" },
+        gridAutoFlow: { default: "row", [PHONE]: "column" },
+        gridTemplateColumns: { default: "repeat(3, minmax(0, 1fr))", [PHONE]: "none" },
         minHeight: 0,
+        overflowX: { default: "visible", [PHONE]: "auto" },
+        scrollSnapType: { default: "none", [PHONE]: "x mandatory" },
     },
     panel: {
+        scrollSnapAlign: "start",
         alignContent: "start",
         borderColor: color.border,
         borderRadius: "8px",
@@ -689,7 +705,7 @@ const styles = style.create({
         margin: 0,
         whiteSpace: "nowrap",
     },
-    wide: { display: { default: null, [media.maxMd]: "none" } },
+    wide: { display: { default: "inline-flex", [PHONE]: "none" } },
     strong: {
         fontWeight: 600,
     },

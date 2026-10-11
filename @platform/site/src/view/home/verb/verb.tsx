@@ -124,11 +124,9 @@ export function Verb(properties: { isOpen: boolean }) {
             <Entry form={verb} isTitle />
             <FigureLabel
                 number={1}
-                title={
-                    properties.isOpen
-                        ? "seven integrated apps, one owned space"
-                        : "seven siloed apps, seven separate rented stacks"
-                }
+                isOpen={properties.isOpen}
+                stacked="seven siloed apps, seven separate rented stacks"
+                destacked="seven integrated apps, one owned space"
             >
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
@@ -181,6 +179,7 @@ const styles = style.create({
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
     stage: {
+        containerType: "inline-size",
         gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
         gridTemplateRows: { default: "auto minmax(0, 1fr)", [screen.belowDesktop]: "auto 30rem" },
     },
