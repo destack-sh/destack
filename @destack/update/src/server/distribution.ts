@@ -42,42 +42,46 @@ export function implementDistributions(options: {
 
 /** Stage releases through the installed distribution, and hand activation to the host. */
 export function serveDistributions(host: DistributionHost | undefined) {
-    return distribution.handle({
-        stage: {
-            prepare: async () => {
-                // stage a newer release, and read the installed one after
-                const installed = requireHost(host).distribution;
-                const staged = await installed.stage();
+    return distribution.implement({
+        methods: {
+            stage: {
+                prepare: async () => {
+                    // stage a newer release, and read the installed one after
+                    const installed = requireHost(host).distribution;
+                    const staged = await installed.stage();
 
-                return {
-                    installed: (await installed.installed()).version,
-                    staged: staged?.release.version ?? null,
-                };
+                    return {
+                        installed: (await installed.installed()).version,
+                        staged: staged?.release.version ?? null,
+                    };
+                },
+                handle: (call) =>
+                    call.update({
+                        installed: call.prepared.installed,
+                        staged: call.prepared.staged,
+                        status: call.prepared.staged === null ? "current" : "staged",
+                        checkedAt: call.now,
+                    }),
             },
-            handler: (call) =>
-                call.update({
-                    installed: call.prepared.installed,
-                    staged: call.prepared.staged,
-                    status: call.prepared.staged === null ? "current" : "staged",
-                    checkedAt: call.now,
-                }),
-        },
-        activate: {
-            prepare: async () => {
-                // require a staged release
-                const staged = await requireHost(host).distribution.staged();
-                if (staged === undefined) {
-                    throw new ServiceError("PRECONDITION_FAILED", {
-                        message: "no Destack release is staged",
-                    });
-                }
+            activate: {
+                prepare: async () => {
+                    // require a staged release
+                    const staged = await requireHost(host).distribution.staged();
+                    if (staged === undefined) {
+                        throw new ServiceError("PRECONDITION_FAILED", {
+                            message: "no Destack release is staged",
+                        });
+                    }
 
-                return staged.release.version;
-            },
-            handler: (call) => call.update({ staged: call.prepared, status: "activating" }),
-            commit: async () => {
-                // restart into it once the activation is recorded
-                requireHost(host).activate();
+                    return staged.release.version;
+                },
+                handle: (call) => call.update({ staged: call.prepared, status: "activating" }),
+                settle: async (_call, settled) => {
+                    // restart into it once the activation is recorded
+                    if (settled.status === "committed") {
+                        requireHost(host).activate();
+                    }
+                },
             },
         },
     });
