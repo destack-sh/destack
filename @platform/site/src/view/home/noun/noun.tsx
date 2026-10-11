@@ -4,12 +4,14 @@ import { createSignal } from "@destack/view";
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Fade } from "../figure/fade";
-import { Inspector } from "../figure/inspector";
 import { Label } from "../entry/label";
 import { Ledger } from "../figure/ledger";
+import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
-import { PagesApp, services } from "./pages";
-import { createSteps } from "../figure/stagger";
+import { PagesApp, services, wiresOf } from "./pages";
+import { createSteps, type Stagger } from "../figure/stagger";
+import { billOf } from "../figure/price";
+import { plan } from "../../content/generated/plan";
 import { StackSwitch } from "../entry/switch";
 import { Window } from "../figure/window";
 import { screen } from "../../layout/screen.stylex";
@@ -27,21 +29,12 @@ const noun: Form = {
         definition: "a complete, absurdly integrated software engine",
         highlight: ["complete", "absurdly integrated"],
         sentence:
-            "Auth, secrets, workflows, sync and more – everything serious software needs, already included.",
+            "Auth, secrets, workflows, sync and more – everything serious software needs, solved once.",
     },
 };
 
 /** Show the noun at work: a docs app taken apart into the twelve services it runs on, rented one by one or built into one engine. */
 export function Noun(properties: { isOpen: boolean }) {
-    // hold the service pointed at, in the app or in the ledger
-    const [lit, setLit] = createSignal<number | undefined>(undefined);
-    const lighting = {
-        get lit() {
-            return lit();
-        },
-        onLight: setLit,
-    };
-
     // follow the motion the section shows
     const [section, setSection] = createSignal<HTMLElement>();
     const isReduced = createReducedMotion(section);
@@ -80,23 +73,26 @@ export function Noun(properties: { isOpen: boolean }) {
                 <StackSwitch isOpen={properties.isOpen} />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>Pages, a docs app</Label>
+                <Label>{isOpenAt(0) ? "Pages, a docs app" : "Notion, a docs app"}</Label>
                 <Window
                     title={
                         <span {...style.attrs(styles.title)}>
-                            <Tile name="pages" />
-                            Pages
+                            {isOpenAt(0) ? (
+                                <>
+                                    <Tile name="pages" />
+                                    Pages
+                                </>
+                            ) : (
+                                <>
+                                    <Favicon icon="notion" tint="#191919" />
+                                    Notion
+                                </>
+                            )}
                         </span>
                     }
                     xstyle={styles.window}
                 >
-                    <Inspector
-                        isOpenAt={isOpenAt}
-                        lighting={lighting}
-                        services={services.map((service) => service.destacked.name)}
-                    >
-                        <PagesApp isOpenAt={isOpenAt} />
-                    </Inspector>
+                    <PagesApp isOpenAt={isOpenAt} />
                 </Window>
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
@@ -107,8 +103,8 @@ export function Noun(properties: { isOpen: boolean }) {
                 </div>
                 <Ledger
                     entries={services}
-                    total={totalOf(rented())}
-                    lighting={lighting}
+                    detail="Glue"
+                    total={totalOf(isOpenAt)}
                     isOpenAt={isOpenAt}
                     onToggle={toggle}
                 />
@@ -128,18 +124,37 @@ function keyOf(rented: number) {
     return "Some vendors, some engine";
 }
 
-/** Total the vendors, accounts and invoices behind the services still rented and the engine behind the rest. */
-function totalOf(rented: number): readonly [label: string, value: string] {
-    // count the engine once any service runs on it
+/** Total the bill: the vendors still rented and the engine behind the rest, their invoices, and what they cost a month. */
+function totalOf(isOpenAt: Stagger): readonly [label: string, value: string, context: string] {
+    // read each service's item in its state, and count the vendors still rented
+    const shown = services.map((service, index) =>
+        isOpenAt(index + 1) ? service.destacked : service.stacked,
+    );
+    const rented = services.filter((_, index) => !isOpenAt(index + 1)).length;
+
+    // bill the engine once any service runs on it
     const hasEngine = rented < services.length;
-    const accounts = rented + (hasEngine ? 1 : 0);
+    const invoices = rented + (hasEngine ? 1 : 0);
     const vendors = rented === 0 ? "" : `${rented} ${rented === 1 ? "vendor" : "vendors"}`;
     const label = [vendors, hasEngine ? "1 engine" : ""].filter((part) => part !== "").join(" + ");
 
     return [
-        label,
-        `${accounts} ${accounts === 1 ? "account" : "accounts"} · ${accounts} ${accounts === 1 ? "invoice" : "invoices"}`,
+        `${label}, ${invoices} ${invoices === 1 ? "invoice" : "invoices"}`,
+        billOf(
+            shown.map((item) => item.price),
+            hasEngine ? plan.monthly : 0,
+        ),
+        wiringOf(isOpenAt),
     ];
+}
+
+/** Count the integrations still to wire for the services rented, or none once all are built in. */
+function wiringOf(isOpenAt: Stagger): string {
+    const count = services
+        .filter((_, index) => !isOpenAt(index + 1))
+        .reduce((sum, service) => sum + wiresOf(service.stacked.name).length, 0);
+
+    return count === 0 ? "built in" : `${count} to wire`;
 }
 
 /** The noun section styles. */

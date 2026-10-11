@@ -58,6 +58,7 @@ export function Participle(properties: {
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <Label>{properties.isOpen ? "Your space" : "Your current stack"}</Label>
                 <Ledger
+                    detail="Data"
                     entries={tallyOf(properties.picks)}
                     total={totalOf(properties.picks, properties.isOpen)}
                     isOpenAt={() => properties.isOpen}

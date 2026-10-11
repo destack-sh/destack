@@ -1,4 +1,5 @@
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
+import { priceOf } from "../figure/price";
 import * as style from "@destack/style";
 
 import { Fade } from "../figure/fade";
@@ -11,22 +12,55 @@ import { appStyles, appText } from "../figure/app";
 /** A mock narrower than a phone screen, which then takes its phone layout. */
 const NARROW = "@container (max-width: 479px)";
 
-/** The twelve services a docs app runs on, numbered as the ledger rows the inspector lights: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
+/** What each rented service needs wired into the app: its SDKs, webhooks, syncs and configs, by vendor. */
+const glues: Readonly<Record<string, readonly string[]>> = {
+    Clerk: ["SDK", "webhook"],
+    WorkOS: ["SDK", "sync"],
+    Doppler: ["CLI"],
+    Supabase: ["realtime"],
+    Dropbox: ["embed"],
+    Elastic: ["SDK", "sync"],
+    Resend: ["SDK"],
+    Temporal: ["workers"],
+    PostHog: ["snippet"],
+    Vercel: ["config"],
+    GitHub: ["CI"],
+    Stripe: ["SDK", "webhook"],
+};
+
+/** Return what a vendor needs wired in, or refuse a vendor without glue. */
+export function wiresOf(vendor: string): readonly string[] {
+    const glue = glues[vendor];
+    if (glue === undefined) {
+        throw new Error(`no glue for ${vendor}`);
+    }
+
+    return glue;
+}
+
+/** Return a vendor's glue as its ledger line shows it. */
+function glueOf(vendor: string): string {
+    return wiresOf(vendor).join(" + ");
+}
+
+/** The twelve services a docs app runs on, numbered as the ledger rows: the services the app calls, then the infrastructure it runs on, rented one by one or built into one engine. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
     {
         stacked: {
             label: "Identity",
             mark: { logo: "clerk.png" },
             name: "Clerk",
-            chips: ["SDK", "webhook"],
             note: "users copied in by webhook",
+            price: priceOf("Clerk"),
+            detail: glueOf("Clerk"),
         },
         destacked: {
             label: "Identity",
             mark: { icon: "user", tint: "#5b7f2e" },
             name: "Accounts",
-            chips: ["passkeys"],
             note: "users kept with your own data",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -34,15 +68,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Permissions",
             mark: { logo: "workos.png" },
             name: "WorkOS",
-            chips: ["SDK", "sync"],
             note: "a second permission model",
+            price: priceOf("WorkOS"),
+            detail: glueOf("WorkOS"),
         },
         destacked: {
             label: "Permissions",
             mark: { icon: "auth", tint: "#a0485f" },
             name: "Access",
-            chips: ["roles"],
             note: "one permission model for everything",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -50,15 +86,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Secrets",
             mark: { logo: "doppler.png" },
             name: "Doppler",
-            chips: ["CLI"],
             note: "keys pasted into every service",
+            price: priceOf("Doppler"),
+            detail: glueOf("Doppler"),
         },
         destacked: {
             label: "Secrets",
             mark: { icon: "vault", tint: "#12313c" },
             name: "Vault",
-            chips: ["encrypted"],
             note: "keys kept in one vault",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -66,15 +104,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Database",
             mark: { logo: "supabase.svg" },
             name: "Supabase",
-            chips: ["realtime"],
             note: "a second backend to keep in step",
+            price: priceOf("Supabase"),
+            detail: glueOf("Supabase"),
         },
         destacked: {
             label: "Database",
             mark: { icon: "storage", tint: "#2f7d8c" },
             name: "Database",
-            chips: ["SQL", "live"],
             note: "one backend, always in step",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -82,15 +122,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Files",
             mark: { logo: "dropbox.svg" },
             name: "Dropbox",
-            chips: ["embed"],
             note: "files kept in their storage",
+            price: priceOf("Dropbox"),
+            detail: glueOf("Dropbox"),
         },
         destacked: {
             label: "Files",
             mark: { icon: "bucket", tint: "#2f7d8c" },
             name: "Files",
-            chips: ["blobs"],
             note: "files kept in your own storage",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -98,15 +140,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Search",
             mark: { logo: "elastic.svg" },
             name: "Elastic",
-            chips: ["SDK", "sync"],
             note: "a second index to keep in sync",
+            price: priceOf("Elastic"),
+            detail: glueOf("Elastic"),
         },
         destacked: {
             label: "Search",
             mark: { icon: "search", tint: "#3d6fb0" },
             name: "Search",
-            chips: ["full text"],
             note: "one index, always in sync",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -114,15 +158,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Messaging",
             mark: { logo: "resend.svg" },
             name: "Resend",
-            chips: ["SDK"],
             note: "an extra SDK just for email",
+            price: priceOf("Resend"),
+            detail: glueOf("Resend"),
         },
         destacked: {
             label: "Messaging",
             mark: { icon: "notify", tint: "#b8862b" },
             name: "Notifications",
-            chips: ["push"],
             note: "one notification system for all apps",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -130,15 +176,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Jobs",
             mark: { logo: "temporal.png" },
             name: "Temporal",
-            chips: ["workers"],
             note: "a worker fleet beside the app",
+            price: priceOf("Temporal"),
+            detail: glueOf("Temporal"),
         },
         destacked: {
             label: "Jobs",
             mark: { icon: "sync", tint: "#4f8a5b" },
             name: "Workflows",
-            chips: ["durable"],
             note: "workflows running inside the app",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -146,15 +194,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Analytics",
             mark: { logo: "posthog.svg" },
             name: "PostHog",
-            chips: ["snippet"],
             note: "events sent to their cloud",
+            price: priceOf("PostHog"),
+            detail: glueOf("PostHog"),
         },
         destacked: {
             label: "Analytics",
             mark: { icon: "telemetry", tint: "#6d7f86" },
             name: "Telemetry",
-            chips: ["events", "traces"],
             note: "events and errors in your space",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -162,15 +212,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Hosting",
             mark: { logo: "vercel.png" },
             name: "Vercel",
-            chips: ["config"],
             note: "runs only in their cloud",
+            price: priceOf("Vercel"),
+            detail: glueOf("Vercel"),
         },
         destacked: {
             label: "Hosting",
             mark: { icon: "hosts", tint: "#4f8a5b" },
             name: "Hosting",
-            chips: ["Node"],
             note: "runs on your laptop, server or cloud",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -178,15 +230,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Code",
             mark: { logo: "github.png" },
             name: "GitHub",
-            chips: ["CI"],
             note: "a pipeline of its own",
+            price: priceOf("GitHub"),
+            detail: glueOf("GitHub"),
         },
         destacked: {
             label: "Code",
             mark: { icon: "source", tint: "#c64a17" },
             name: "Forge",
-            chips: ["git"],
             note: "one pipeline for all apps",
+            price: { kind: "included" },
+            detail: "—",
         },
     },
     {
@@ -194,15 +248,17 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             label: "Payments",
             mark: { logo: "stripe.svg" },
             name: "Stripe",
-            chips: ["SDK", "webhook"],
             note: "prices kept in their dashboard",
+            price: priceOf("Stripe"),
+            detail: glueOf("Stripe"),
         },
         destacked: {
             label: "Payments",
             mark: { icon: "card", tint: "#5b7f2e" },
             name: "Billing",
-            chips: ["plans"],
             note: "plans and invoices in your space",
+            price: { kind: "fee", monthly: 0, basis: "card fees billed by Stripe" },
+            detail: "—",
         },
     },
 ];
@@ -253,18 +309,10 @@ const tasks: readonly (readonly [
     change?: Change,
 ])[] = [
     ["DST-12", "Pricing page", "done", "Me", "#2f7d8c", "Mon 20", ["#408", "pricing-page", true]],
-    [
-        "DST-13",
-        "Turn on the new prices",
-        "todo",
-        "Me",
-        "#6b5ca5",
-        "Fri 24",
-        ["#412", "new-prices", false],
-    ],
-    ["DST-14", "Record the demo", "started", "Me", "#2f7d8c", "Thu 23"],
+    ["DST-13", "Turn on pricing", "todo", "Me", "#6b5ca5", "Fri 24", ["#412", "new-prices", false]],
+    ["DST-14", "Record the demo", "started", "Me", "#2f7d8c", "Wed 22"],
     ["DST-15", "Draft the launch post", "todo", "Agent", "#b8862b", "Thu 23"],
-    ["DST-16", "Email the waitlist", "todo", "Agent", "#6b5ca5", "Fri 24"],
+    ["DST-16", "Email the waitlist", "todo", "Agent", "#6b5ca5", "Thu 23"],
 ];
 
 /** Say who can see the task table: everyone by one access rule, or not your agent without a seat. */
@@ -272,7 +320,6 @@ function Access(properties: { isOpen: boolean }) {
     return (
         <span
             data-component={properties.isOpen ? "AccessRule" : "SeatWall"}
-            data-service="2"
             {...style.attrs(styles.access)}
         >
             <span
@@ -296,7 +343,7 @@ function checksOf(change: Change, isOpen: boolean) {
 }
 
 /**
- * Draw the Pages app with the launch plan open, every part named for the inspector, and the twelve services marked where they show.
+ * Draw the Pages app with the launch plan open and the twelve services marked where they show.
  *
  * While rented, the page shows where its vendors meet: vendor apps in its rail, an edit conflict, a key to paste, a failed automation, an embed behind seats, and a preview on another site.
  * Once owned, the same page sits among your other apps and holds its tasks, prices, agent, code and previews natively, with a column you added, each switching on the step of its service.
@@ -307,18 +354,16 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
             <nav data-component="AppRail" {...style.attrs(appStyles.rail)}>
                 <span
                     data-component="AccountMenu"
-                    data-service="1"
                     title="Your space"
-                    {...style.attrs(appStyles.avatar, appStyles.railAvatar)}
+                    {...style.attrs(appStyles.avatar, appStyles.railAvatar, appStyles.railWide)}
                     style={{ "background-color": "#2f7d8c" }}
                 >
                     F
                 </span>
                 <span
                     data-component="SearchButton"
-                    data-service="6"
                     title="Search"
-                    {...style.attrs(appStyles.railButton)}
+                    {...style.attrs(appStyles.railButton, appStyles.railWide)}
                 >
                     <span
                         style={{ "mask-image": "url(/diagram/search.svg)" }}
@@ -327,9 +372,8 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                 </span>
                 <span
                     data-component="InboxButton"
-                    data-service="7"
                     title="Inbox"
-                    {...style.attrs(appStyles.railButton)}
+                    {...style.attrs(appStyles.railButton, appStyles.railWide)}
                 >
                     <span
                         style={{ "mask-image": "url(/diagram/notify.svg)" }}
@@ -361,7 +405,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                         ([name, label]) => (
                             <span
                                 data-component="AppButton"
-                                data-service="1"
                                 title={label}
                                 {...style.attrs(appStyles.railButton)}
                             >
@@ -395,7 +438,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                     properties.isOpenAt(10) ? "PreviewButton" : "VercelPreviewLink"
                                 }
                             >
-                                <span data-service="10" {...style.attrs(appStyles.action)}>
+                                <span {...style.attrs(appStyles.action)}>
                                     {properties.isOpenAt(10) ? "Preview branch" : "Preview"}
                                 </span>
                             </Fade>
@@ -406,7 +449,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                 }
                             >
                                 <span
-                                    data-service="11"
                                     {...style.attrs(
                                         appStyles.action,
                                         properties.isOpenAt(11) && appStyles.actionStrong,
@@ -415,11 +457,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                     {properties.isOpenAt(11) ? "Edit app" : "Send feedback"}
                                 </span>
                             </Fade>
-                            <span
-                                data-component="ShareButton"
-                                data-service="2"
-                                {...style.attrs(appStyles.primary)}
-                            >
+                            <span data-component="ShareButton" {...style.attrs(appStyles.primary)}>
                                 Share
                             </span>
                         </div>
@@ -438,7 +476,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                             xstyle={styles.slot}
                         >
                             <span
-                                data-service="3"
                                 {...style.attrs(
                                     appStyles.property,
                                     !properties.isOpenAt(3) && styles.propertyMissing,
@@ -455,13 +492,12 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                         </Fade>
                         <span
                             data-component="ScheduleProperty"
-                            data-service="8"
                             {...style.attrs(appStyles.property)}
                         >
                             Reminder Thu
                         </span>
                     </div>
-                    <p data-component="Paragraph" data-service="12" {...style.attrs(styles.text)}>
+                    <p data-component="Paragraph" {...style.attrs(styles.text)}>
                         Ship to the waitlist on Thursday.{" "}
                         <span data-component="Presence">
                             Pricing stays in step with billing
@@ -475,7 +511,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                         component={properties.isOpenAt(8) ? "AgentNote" : "AutomationError"}
                     >
                         <p
-                            data-service="8"
                             {...style.attrs(
                                 styles.agentNote,
                                 !properties.isOpenAt(8) && styles.error,
@@ -512,7 +547,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                         xstyle={properties.isOpenAt(4) ? styles.tasks : styles.embed}
                         isLarge
                     >
-                        <p data-service="4" {...style.attrs(styles.tableBar)}>
+                        <p {...style.attrs(styles.tableBar)}>
                             {properties.isOpenAt(4) ? (
                                 <>
                                     <Tile name="tasks" />
@@ -544,7 +579,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                             )}
                         </p>
                         <table
-                            data-service="4"
                             {...style.attrs(styles.table, !properties.isOpenAt(4) && styles.stale)}
                         >
                             <thead>
@@ -559,7 +593,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                     {properties.isOpenAt(4) && properties.isOpenAt(11) ? (
                                         <th
                                             data-component="AddedColumn"
-                                            data-service="11"
                                             {...style.attrs(styles.head, styles.added, styles.wide)}
                                         >
                                             Blocked by
@@ -598,7 +631,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                                     ? "BranchCell"
                                                     : "PullRequestCell"
                                             }
-                                            data-service="11"
                                             {...style.attrs(
                                                 styles.cell,
                                                 styles.change,
@@ -633,7 +665,6 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                                         {properties.isOpenAt(4) && properties.isOpenAt(11) ? (
                                             <td
                                                 data-component="BlockerCell"
-                                                data-service="11"
                                                 {...style.attrs(
                                                     styles.cell,
                                                     styles.id,
@@ -656,7 +687,7 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                         The waitlist has 1,840 people. Your agent sends the first batch of invites
                         on Thursday morning, and the rest follow once the demo is live.
                     </p>
-                    <p data-component="Attachment" data-service="5" {...style.attrs(styles.file)}>
+                    <p data-component="Attachment" {...style.attrs(styles.file)}>
                         <span
                             style={{ "mask-image": "url(/diagram/file.svg)" }}
                             {...style.attrs(appStyles.glyph)}
@@ -701,17 +732,12 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                 </article>
             </div>
             <div data-component="StatusBar" {...style.attrs(appStyles.statusBar)}>
-                <span
-                    data-component="SyncStatus"
-                    data-service="10"
-                    {...style.attrs(appStyles.status)}
-                >
+                <span data-component="SyncStatus" {...style.attrs(appStyles.status)}>
                     <span {...style.attrs(appStyles.dot)} />
                     {properties.isOpenAt(10) ? "Yours · on your laptop" : "Saved"}
                 </span>
                 <span
                     data-component={properties.isOpenAt(4) ? "PresenceList" : "ConflictNotice"}
-                    data-service="4"
                     {...style.attrs(appStyles.status, styles.wide)}
                 >
                     <span
@@ -737,14 +763,12 @@ export function PagesApp(properties: { isOpenAt: Stagger }) {
                 <span {...style.attrs(appStyles.statusEnd)}>
                     <span
                         data-component="ViewCount"
-                        data-service="9"
                         {...style.attrs(appStyles.status, styles.wide)}
                     >
                         182 views
                     </span>
                     <span
                         data-component="BranchMenu"
-                        data-service="11"
                         {...style.attrs(appStyles.status, styles.wide)}
                     >
                         <span
@@ -815,7 +839,10 @@ const styles = style.create({
     railApps: {
         display: "grid",
         flexShrink: 0,
-        gap: "0.5rem",
+        gap: { default: "0.5rem", [NARROW]: "0" },
+        gridAutoFlow: { default: "row", [NARROW]: "column" },
+        justifyContent: { default: "normal", [NARROW]: "space-around" },
+        flexGrow: { default: 0, [NARROW]: 1 },
     },
     head: {
         borderBottomColor: color.border,

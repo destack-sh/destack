@@ -14,11 +14,12 @@
         "lint": "destack-check check src build scripts content.ts",
         "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-markdown.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
-        "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun run scripts/generate-content.ts"
+        "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun --preload @destack/package/bun/preload scripts/generate-plan.ts && bun run scripts/generate-content.ts"
     },
     "dependencies": {
         "@destack/icon": "workspace:*",
         "@platform/brand": "workspace:*",
+        "@platform/pricing": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/shader": "workspace:*",

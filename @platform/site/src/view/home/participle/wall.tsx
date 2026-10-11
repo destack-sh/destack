@@ -1,4 +1,14 @@
 import { media } from "@destack/style/media.stylex";
+import {
+    billOf,
+    bytesOf,
+    bytesTotalOf,
+    monthlyOf,
+    priceOf,
+    sizeOf,
+    type Price,
+} from "../figure/price";
+import { plan } from "../../content/generated/plan";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -213,16 +223,14 @@ export const firstPicks: readonly string[] = [
     "AWS",
 ];
 
-/** The accounts that sign in to more than one tool, by the tools they cover. */
-const accounts: Record<string, string> = {
-    Docs: "Google",
-    Sheets: "Google",
-    Forms: "Google",
-    Calendar: "Google",
-    Drive: "Google",
-    Gmail: "Google",
-    Jira: "Atlassian",
-    Trello: "Atlassian",
+/** The subscription each tool bills under when it shares one: Google's tools come with one Workspace. */
+const billedUnder: Readonly<Record<string, string>> = {
+    Docs: "Google Workspace",
+    Sheets: "Google Workspace",
+    Forms: "Google Workspace",
+    Calendar: "Google Workspace",
+    Drive: "Google Workspace",
+    Gmail: "Google Workspace",
 };
 
 /** The tools whose mark is a picture from the vendor, by name. */
@@ -231,9 +239,37 @@ const pictures: Record<string, string> = {
     Granola: "/logos/granola.png",
 };
 
-/** Count the logins a set of tools needs, one per account they sign in with. */
-function loginsOf(picked: readonly Tool[]) {
-    return new Set(picked.map((tool) => accounts[tool.name] ?? tool.name)).size;
+/** Return the subscriptions a set of tools bills under, each once. */
+function subscriptionsOf(picked: readonly Tool[]): readonly string[] {
+    return [...new Set(picked.map((tool) => billedUnder[tool.name] ?? tool.name))];
+}
+
+/** The price of a service the space works with, which its vendor bills either way and the comparison leaves out. */
+const vendorBilled: Price = { kind: "fee", monthly: 0, basis: "billed by its vendor" };
+
+/** Price one tally row: the subscriptions its tools add to those billed in the rows above it. */
+function rowPriceOf(doers: readonly Tool[], billed: ReadonlySet<string>): Price {
+    // bill nothing for a job nothing does yet
+    const subscriptions = subscriptionsOf(doers);
+    const [first] = subscriptions;
+    if (first === undefined) {
+        return { kind: "fee", monthly: 0, basis: "nothing picked" };
+    }
+
+    // bill only the subscriptions new to this row
+    const added = subscriptions.filter((subscription) => !billed.has(subscription));
+    const [only] = added;
+    if (only === undefined) {
+        return { kind: "bundled", basis: `in ${first}` };
+    } else if (added.length === 1) {
+        return priceOf(only);
+    }
+
+    return {
+        kind: "fee",
+        monthly: monthlyOf(added.map(priceOf)),
+        basis: `${added.length} subscriptions`,
+    };
 }
 
 /** Draw a tool's mark: its picture from the vendor, or its shape from the icon set in its tint. */
@@ -269,10 +305,10 @@ type Cell =
     | { kind: "link"; key: string; tool: Tool; isPicked: boolean };
 
 /** The wall's height on tablets, the taller of its two states there: the stacked grid of five rows. */
-const TABLET_WALL = "30rem";
+const TABLET_WALL = "31.5rem";
 
 /** The wall's height on phones, the taller of its two states there: the space with its connections, down to 360 pixel wide screens. */
-const PHONE_WALL = "36rem";
+const PHONE_WALL = "47rem";
 
 /** The cells to a row of the wall. */
 const perRow = 6;
@@ -389,11 +425,7 @@ export function ToolWall(properties: {
     );
 
     return (
-        <div
-            ref={wall}
-            data-component="ToolWall"
-            {...style.attrs(styles.wall, properties.isOpen ? styles.wallOpen : styles.wallFull)}
-        >
+        <div ref={wall} data-component="ToolWall" {...style.attrs(styles.wall, styles.wallFull)}>
             {properties.isOpen ? (
                 <>
                     <section data-component="Space" {...style.attrs(styles.box)}>
@@ -405,12 +437,12 @@ export function ToolWall(properties: {
                             {list(() => cells().filter((cell) => cell.kind === "app"))}
                         </ul>
                         <Included />
-                    </section>
-                    <section {...style.attrs(styles.group)}>
-                        <span {...style.attrs(styles.groupName)}>Connected</span>
-                        <ul {...style.attrs(styles.grid, styles.space, styles.links)}>
-                            {list(() => cells().filter((cell) => cell.kind === "link"))}
-                        </ul>
+                        <div data-component="Connected" {...style.attrs(styles.band)}>
+                            <span {...style.attrs(styles.groupName)}>Connected</span>
+                            <ul {...style.attrs(styles.grid, styles.space, styles.links)}>
+                                {list(() => cells().filter((cell) => cell.kind === "link"))}
+                            </ul>
+                        </div>
                     </section>
                 </>
             ) : (
@@ -437,11 +469,21 @@ function Included() {
     return (
         <div data-component="Included" {...style.attrs(styles.band)}>
             <span {...style.attrs(styles.groupName)}>Included</span>
-            <ul {...style.attrs(styles.bandItems)}>
+            <ul {...style.attrs(styles.grid, styles.space, styles.links)}>
                 {included.map(([icon, name, line], index) => (
-                    <li title={line} {...style.attrs(styles.bandItem, styles.includedDelay(index))}>
-                        <Favicon icon={icon} tint={color.foreground} size={14} />
-                        {name}
+                    <li
+                        title={line}
+                        {...style.attrs(
+                            styles.cell,
+                            styles.spaceCell,
+                            styles.rising,
+                            styles.includedDelay(index),
+                        )}
+                    >
+                        <span {...style.attrs(styles.face, styles.link)}>
+                            <Favicon icon={icon} tint={color.foreground} size={18} />
+                            <span {...style.attrs(styles.toolName)}>{name}</span>
+                        </span>
                     </li>
                 ))}
             </ul>
@@ -566,7 +608,12 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
                 aria-pressed={cell.isPicked ? "true" : "false"}
                 title={statusOf(cell.tool)}
                 onClick={() => onPick(cell.tool.name)}
-                {...style.attrs(styles.face, styles.link, !cell.isPicked && styles.linkIdle)}
+                {...style.attrs(
+                    styles.face,
+                    styles.link,
+                    styles.pressable,
+                    !cell.isPicked && styles.linkIdle,
+                )}
             >
                 <ToolMark tool={cell.tool} size={18} />
                 <span {...style.attrs(styles.toolName)}>{cell.tool.name}</span>
@@ -590,35 +637,54 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
 
 /** Tally the picks a row to each job your space does: the picked tools that do it while stacked, and the app or service that takes it over once destacked. */
 export function tallyOf(picks: readonly string[]): readonly Entry[] {
-    // gather the picked tools
+    // gather the picked tools, and the rows of jobs then of connections
     const picked = tools.filter((tool) => picks.includes(tool.name));
-
-    // set a row for each app, then one for each group of connections
-    return [
-        ...[...spaceJobs, "workflows" as const].map((job) =>
-            entryOf(
-                jobLabels[job],
-                picked.filter((tool) => jobOf(tool) === job),
-                apps[job],
-                "replaces",
-            ),
-        ),
-        ...connections.map(([label, names, app]) =>
-            entryOf(
-                label,
-                picked.filter((tool) => names.includes(tool.name)),
-                app,
-                "works with",
-            ),
-        ),
+    const rows = [
+        ...[...spaceJobs, "workflows" as const].map((job) => ({
+            label: jobLabels[job],
+            doers: picked.filter((tool) => jobOf(tool) === job),
+            app: apps[job],
+            isConnection: false,
+        })),
+        ...connections.map(([label, names, app]) => ({
+            label,
+            doers: picked.filter((tool) => names.includes(tool.name)),
+            app,
+            isConnection: true,
+        })),
     ];
+
+    // price each row on what the rows above it have not billed yet, and leave the services the space works with to their vendors
+    const billed = new Set<string>();
+
+    return rows.map((row) => {
+        const price = rowPriceOf(row.doers, billed);
+        for (const subscription of subscriptionsOf(row.doers)) {
+            billed.add(subscription);
+        }
+
+        return entryOf(
+            row.label,
+            row.doers,
+            row.app,
+            row.isConnection,
+            row.isConnection ? vendorBilled : price,
+        );
+    });
 }
 
-/** Set one tally row: the tools you picked for a job while stacked, and what your space does in their place once destacked. */
-function entryOf(label: string, doers: readonly Tool[], app: App, verb: string): Entry {
-    // name the picked tools, count the logins they need, and list them
-    const logins = loginsOf(doers);
+/** Set one tally row: the tools you picked for a job while stacked, and what your space does in their place once destacked, which still pays for the services it works with. */
+function entryOf(
+    label: string,
+    doers: readonly Tool[],
+    app: App,
+    isConnection: boolean,
+    price: Price,
+): Entry {
+    // name the picked tools and list them, and sum the data they hold
     const [first] = doers;
+    const verb = isConnection ? "works with" : "replaces";
+    const data = doers.reduce((sum, tool) => sum + sizeOf(tool.name), 0);
 
     return {
         stacked: {
@@ -633,33 +699,44 @@ function entryOf(label: string, doers: readonly Tool[], app: App, verb: string):
                     : doers.length === 1
                       ? first.name
                       : `${doers.length} apps`,
-            chips: first === undefined ? [] : [`${logins} ${logins === 1 ? "login" : "logins"}`],
             note:
                 first === undefined
                     ? "pick one to compare"
                     : doers.map((tool) => tool.name).join(", "),
+            price,
+            detail: data === 0 ? "—" : bytesOf(data),
         },
         destacked: {
             label,
             mark: { icon: app.icon, tint: app.tint },
             name: app.name,
-            chips: [],
             note: first === undefined ? "included" : `${verb} ${listOf(doers)}`,
+            price: isConnection ? price : { kind: "included" },
+            detail: data === 0 ? "—" : bytesOf(data),
         },
     };
 }
 
-/** Total the picks: their tools and logins and their accounts and invoices while stacked, or one space with every app, one account and one invoice once destacked. */
-export function totalOf(picks: readonly string[], isOpen: boolean): readonly [string, string] {
-    // count the picked tools and the logins they need
+/** Total the bill: the picked tools and their invoices while stacked, or one space with the services it works with once destacked, and what either costs a month. */
+export function totalOf(
+    picks: readonly string[],
+    isOpen: boolean,
+): readonly [string, string, string] {
+    // read the picked tools and the data they hold
     const picked = tools.filter((tool) => picks.includes(tool.name));
-    const logins = loginsOf(picked);
+    const data = picked.map((tool) => sizeOf(tool.name));
+
+    // bill only what the space takes over, since the services it works with bill on their own either way
+    const isKept = (tool: Tool) => connections.some(([, names]) => names.includes(tool.name));
+    const takenOver = picked.filter((tool) => !isKept(tool));
+    const billed = subscriptionsOf(takenOver);
 
     return isOpen
-        ? [`${spaceJobs.length} apps, 1 space`, "1 account · 1 invoice"]
+        ? [`${spaceJobs.length} apps, 1 invoice`, billOf([], plan.monthly), bytesTotalOf(data)]
         : [
-              `${picked.length} tools, ${logins} logins`,
-              `${logins} accounts · ${picked.length} invoices`,
+              `${takenOver.length} tools, ${billed.length} invoices`,
+              billOf(billed.map(priceOf), 0),
+              bytesTotalOf(data),
           ];
 }
 
@@ -711,9 +788,6 @@ const styles = style.create({
     wallFull: {
         gridTemplateRows: { default: "minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
-    wallOpen: {
-        gridTemplateRows: { default: "minmax(0, 1fr) auto", [screen.belowDesktop]: "auto auto" },
-    },
     box: {
         borderColor: color.border,
         borderRadius: "10px",
@@ -740,26 +814,11 @@ const styles = style.create({
         gap: "0.625rem",
         paddingTop: "0.75rem",
     },
-    bandItems: {
-        rowGap: "0.5rem",
-        display: "flex",
-        flexWrap: "wrap",
-        columnGap: "0.875rem",
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
-    },
-    bandItem: {
-        whiteSpace: "nowrap",
-        alignItems: "center",
+    rising: {
         animationDuration: "420ms",
         animationFillMode: "both",
         animationName: { default: rise, [media.motionReduce]: "none" },
         animationTimingFunction: landing,
-        display: "flex",
-        fontSize: "0.75rem",
-        fontWeight: 600,
-        gap: "0.375rem",
     },
     group: {
         alignContent: "start",
@@ -785,7 +844,7 @@ const styles = style.create({
         gridAutoRows: {
             default: "minmax(0, 1fr)",
             [screen.belowDesktop]: "5.75rem",
-            [media.maxMd]: "3rem",
+            [media.maxMd]: "3.5rem",
         },
         gridTemplateColumns: {
             default: `repeat(${perRow}, minmax(0, 1fr))`,
@@ -807,7 +866,7 @@ const styles = style.create({
         borderWidth: 0,
         gap: "0.75rem",
         gridAutoFlow: "row",
-        gridAutoRows: { default: "minmax(5.75rem, 1fr)", [media.maxMd]: "3.25rem" },
+        gridAutoRows: { default: "minmax(5.75rem, 1fr)", [media.maxMd]: "3.75rem" },
         gridTemplateColumns: {
             default: "repeat(4, minmax(0, 1fr))",
             [media.maxMd]: "repeat(2, minmax(0, 1fr))",
@@ -819,10 +878,11 @@ const styles = style.create({
         opacity: { default: 0.6, ":hover": { default: null, [media.hover]: 1 } },
     },
     links: {
-        gridAutoColumns: "max-content",
         gridAutoRows: "2.75rem",
-        gridAutoFlow: { default: "column", [media.maxMd]: "row" },
-        gridTemplateColumns: { default: "none", [media.maxMd]: "repeat(2, minmax(0, 1fr))" },
+        gridTemplateColumns: {
+            default: "repeat(4, minmax(0, 1fr))",
+            [media.maxMd]: "repeat(2, minmax(0, 1fr))",
+        },
     },
     spaceCell: {
         borderColor: color.border,
@@ -851,11 +911,10 @@ const styles = style.create({
     tool: {
         alignContent: "center",
         cursor: "pointer",
-        display: { default: "grid", [media.maxMd]: "flex" },
-        gap: { default: "0.4375rem", [media.maxMd]: "0.5rem" },
-        justifyContent: { default: "normal", [media.maxMd]: "flex-start" },
+        display: "grid",
+        gap: { default: "0.4375rem", [media.maxMd]: "0.25rem" },
         justifyItems: "center",
-        paddingInline: { default: "0.375rem", [media.maxMd]: "0.625rem" },
+        paddingInline: { default: "0.375rem", [media.maxMd]: "0.25rem" },
         transition: `background-color 160ms ${landing}, opacity 320ms ${landing}`,
         backgroundColor: { default: null, ":hover": { default: null, [media.hover]: color.muted } },
     },
@@ -867,7 +926,7 @@ const styles = style.create({
         boxShadow: `inset 0 -2px 0 ${color.primary}`,
     },
     toolName: {
-        fontSize: "0.8125rem",
+        fontSize: { default: "0.8125rem", [media.maxMd]: "0.75rem" },
         maxWidth: "100%",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -875,7 +934,7 @@ const styles = style.create({
     },
     toolNameWrapped: {
         lineHeight: 1.2,
-        textAlign: { default: "center", [media.maxMd]: "left" },
+        textAlign: "center",
         whiteSpace: { default: "normal", [media.maxMd]: "nowrap" },
     },
     app: {
@@ -893,8 +952,10 @@ const styles = style.create({
     },
     link: {
         backgroundColor: color.card,
-        cursor: "pointer",
         position: "relative",
+    },
+    pressable: {
+        cursor: "pointer",
     },
     appName: {
         fontWeight: 600,
