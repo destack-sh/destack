@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot, asc, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, type Subscription } from "@destack/sync";
-import { aligned } from "@destack/schema";
+import { aligned, Clock } from "@destack/schema";
 import {
     accessTables,
     accessRelationship,
@@ -115,7 +115,9 @@ test("relay an account's access through the space's database into an app's, and 
     );
 
     // copy the account into the cell's database and create the space there
-    const accountFeed = new Feed(global.database, [...accessTables, policyTable]);
+    const accountFeed = new Feed(global.database, [...accessTables, policyTable], {
+        clock: Clock.system,
+    });
     await copy(regional.database, chainOf(spaces, "account-1"), accountFeed);
     await regional.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await Authorization.run(
@@ -129,7 +131,9 @@ test("relay an account's access through the space's database into an app's, and 
     );
 
     // relay the space and the account from the cell's database into the app's, where carol reads every note
-    const spaceFeed = new Feed(regional.database, [...accessTables, policyTable]);
+    const spaceFeed = new Feed(regional.database, [...accessTables, policyTable], {
+        clock: Clock.system,
+    });
     const relay = async () => {
         await copy(regional.database, chainOf(spaces, "account-1"), accountFeed);
         await copy(app.database, chainOf(notes, "account-1"), spaceFeed);
@@ -204,7 +208,7 @@ async function copy(
 ): Promise<void> {
     // read the pages up to the source's head
     const { replica, subscription } = chain;
-    await replica.register(database, subscription);
+    await replica.register(database, { subscription, clock: Clock.system });
     const head = await feed.database.log.position();
     const after = from === "snapshot" ? undefined : await replica.position(database);
     const pages = [];
@@ -216,5 +220,5 @@ async function copy(
     }
 
     // apply them in order
-    await Array.fromAsync(replica.apply(database, pages));
+    await Array.fromAsync(replica.apply(database, pages, { clock: Clock.system }));
 }

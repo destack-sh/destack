@@ -29,7 +29,7 @@ const contactSchema = defineSchema(
         address: schema
             .email()
             .max(320)
-            .regex(/^[^A-Z]+$(?![\s\S])/u),
+            .regex(/^[^A-Z]+$/u),
     }),
 );
 /** A way to reach someone outside Destack that they prove control of. */

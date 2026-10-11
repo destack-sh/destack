@@ -108,10 +108,10 @@ export async function define(
 
     // write the role and its permissions
     const id = schema.identifier("role").parse(`role-${v7()}`);
-    await transaction.write(
-        accessRole,
-        null,
-        accessRole[TABLE].complete({
+    await transaction.write({
+        table: accessRole,
+        before: null,
+        after: accessRole[TABLE].complete({
             id,
             createdAt: now,
             updatedAt: now,
@@ -120,7 +120,7 @@ export async function define(
             description: request.description,
             ...Manager.values(manager),
         }),
-    );
+    });
     await permit(transaction, id, scope, request.permissions);
 
     return id;
@@ -133,11 +133,11 @@ export async function permit(
     scope: string,
     granted: readonly PermissionReference[],
 ): Promise<void> {
-    for (const permission of granted) {
-        await transaction.write(
-            accessRolePermission,
-            null,
-            accessRolePermission[TABLE].complete({
+    await transaction.write(
+        ...granted.map((permission) => ({
+            table: accessRolePermission,
+            before: null,
+            after: accessRolePermission[TABLE].complete({
                 id: schema.identifier("role-permission").parse(`role-permission-${v7()}`),
                 roleId,
                 scope,
@@ -145,8 +145,8 @@ export async function permit(
                 type: permission.type,
                 name: permission.name,
             }),
-        );
-    }
+        })),
+    );
 }
 
 /** Replace the permissions a role grants with a declared set, keeping the rows of the ones it grants already. */
@@ -162,11 +162,15 @@ export async function replace(
     const current = new Set(existing.map((permission) => PermissionReference.key(permission)));
 
     // remove the ones no longer declared and add the new ones
-    for (const permission of existing) {
-        if (!declared.has(PermissionReference.key(permission))) {
-            await transaction.write(accessRolePermission, permission, null);
-        }
-    }
+    await transaction.write(
+        ...existing
+            .filter((permission) => !declared.has(PermissionReference.key(permission)))
+            .map((permission) => ({
+                table: accessRolePermission,
+                before: permission,
+                after: null,
+            })),
+    );
     const added = granted.filter((permission) => !current.has(PermissionReference.key(permission)));
     await permit(transaction, roleId, scope, added);
 }
@@ -196,10 +200,10 @@ export async function own(
 ): Promise<Identifier<"role">> {
     // define the owner role in the scope
     const role = schema.identifier("role").parse(`role-${v7()}`);
-    await transaction.write(
-        accessRole,
-        null,
-        accessRole[TABLE].complete({
+    await transaction.write({
+        table: accessRole,
+        before: null,
+        after: accessRole[TABLE].complete({
             id: role,
             createdAt: now,
             updatedAt: now,
@@ -207,7 +211,7 @@ export async function own(
             ...OWNER_ROLE,
             isUniversal: true,
         }),
-    );
+    });
 
     // bind it on the scope's object
     await bind(transaction, scope, role, owner, now);
@@ -303,11 +307,11 @@ async function bind(
         },
         scope.id,
     );
-    await transaction.write(
-        accessRelationship,
-        null,
-        accessRelationship[TABLE].complete(relationship),
-    );
+    await transaction.write({
+        table: accessRelationship,
+        before: null,
+        after: accessRelationship[TABLE].complete(relationship),
+    });
 }
 
 /** Read a permission reference from a role permission row. */

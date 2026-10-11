@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
-import { present } from "@destack/schema";
+import { present, Clock } from "@destack/schema";
 import {
     accessRelationship,
     accessRole,
@@ -63,7 +63,7 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
     ]);
 
     // relay the space's chain from the home database
-    const feed = new Feed(home.database, [...accessTables, policyTable]);
+    const feed = new Feed(home.database, [...accessTables, policyTable], { clock: Clock.system });
     const requests = () => app.authorizer.chain(app.database, "personal", { isHome: false });
     const scopes = async () => (await requests()).map((request) => request.scope);
     const follow = async (scope: string) => {
@@ -83,7 +83,7 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
                             signal,
                         ),
                     controller.signal,
-                    { subscription: request },
+                    { clock: Clock.system, subscription: request },
                 ),
         );
     };
@@ -188,7 +188,7 @@ test("copy the chains of the accounts a follower outside them replicates in one 
             authorization.grant({ object, relation: "member", subject: userSubject(member) }),
         );
     }
-    const feed = new Feed(home.database, [...accessTables, policyTable]);
+    const feed = new Feed(home.database, [...accessTables, policyTable], { clock: Clock.system });
 
     // request one copy of both chains for the follower, recorded at the universe
     const both = present(
@@ -270,7 +270,7 @@ async function followChain(
 ): Promise<void> {
     // resume from the copy's position, reshaping from its reflected parameters
     const replica = authorizer.chainShape.replica(request);
-    await replica.register(database, request);
+    await replica.register(database, { subscription: request, clock: Clock.system });
     const { after, previous } = await replica.resume(database, request);
     const reflected =
         previous === undefined
@@ -294,7 +294,9 @@ async function followChain(
             break;
         }
     }
-    await Array.fromAsync(replica.apply(database, pages, { subscription: request }));
+    await Array.fromAsync(
+        replica.apply(database, pages, { clock: Clock.system, subscription: request }),
+    );
 }
 
 /** Report whether a row lives outside the second account. */

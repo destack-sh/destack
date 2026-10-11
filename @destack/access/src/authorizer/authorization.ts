@@ -260,15 +260,18 @@ export class Authorization {
                 type: object.type,
                 ancestors: [...ancestors],
             });
-            await this.transaction.write(Scope.table, null, row);
+            await this.transaction.write({ table: Scope.table, before: null, after: row });
         }
 
         // relate the first holders
         const relationships = this.authorizer.initialRelationships(object, creation, context.now);
-        for (const relationship of relationships) {
-            const row = accessRelationship[TABLE].complete(relationship);
-            await this.transaction.write(accessRelationship, null, row);
-        }
+        await this.transaction.write(
+            ...relationships.map((relationship) => ({
+                table: accessRelationship,
+                before: null,
+                after: accessRelationship[TABLE].complete(relationship),
+            })),
+        );
 
         // define a scope's owner role and bind it to its owner
         if (creation.owner !== undefined) {
@@ -326,7 +329,7 @@ export class Authorization {
             const relationship = Relationship.decode(row);
             await this.authorizeRevoke(relationship, row);
             await requireRemainingOwner(this.transaction, row);
-            await this.transaction.write(accessRelationship, row, null);
+            await this.transaction.write({ table: accessRelationship, before: row, after: null });
             this.renew();
 
             return relationship;
@@ -399,7 +402,7 @@ export class Authorization {
             };
             const scope = this.authorizer.governingScope(invited.object);
             const row = accessInvitation[TABLE].complete(Invitation.encode(invitation, scope));
-            await this.transaction.write(accessInvitation, null, row);
+            await this.transaction.write({ table: accessInvitation, before: null, after: row });
 
             return invitation;
         });
@@ -498,7 +501,11 @@ export class Authorization {
         }
 
         // keep it settled
-        await this.transaction.write(accessInvitation, row, { ...row, status, updatedAt: now });
+        await this.transaction.write({
+            table: accessInvitation,
+            before: row,
+            after: { ...row, status, updatedAt: now },
+        });
     }
 
     /** List a page of the invitations pending on an object, ordered by identifier, as its grantors may. */
@@ -563,7 +570,7 @@ export class Authorization {
                 revision: record.revision + 1,
                 updatedAt: context.now,
             };
-            await this.transaction.write(accessRole, record, updated);
+            await this.transaction.write({ table: accessRole, before: record, after: updated });
 
             // replace the permissions when given
             if (changes.permissions !== undefined) {
@@ -610,7 +617,7 @@ export class Authorization {
             // delete the role with its permissions
             const permissions = await Role.permissions(this.transaction, record.id);
             await replace(this.transaction, record.id, scope.id, []);
-            await this.transaction.write(accessRole, record, null);
+            await this.transaction.write({ table: accessRole, before: record, after: null });
             this.renew();
 
             return Role.describe(record, permissions);
@@ -652,7 +659,7 @@ export class Authorization {
                 updatedAt: now,
                 revision: kept.revision + 1,
             };
-            await this.transaction.write(accessRole, kept, updated);
+            await this.transaction.write({ table: accessRole, before: kept, after: updated });
             if (!isGranted) {
                 await replace(this.transaction, kept.id, scope.id, request.permissions);
             }
@@ -703,7 +710,11 @@ export class Authorization {
                 await this.authorizeRevoke(aligned(bound, index), row);
             }
             for (const row of rows) {
-                await this.transaction.write(accessRelationship, row, null);
+                await this.transaction.write({
+                    table: accessRelationship,
+                    before: row,
+                    after: null,
+                });
             }
 
             return this.#insert(request);
@@ -734,7 +745,11 @@ export class Authorization {
             );
             for (const { row, relationship } of stale) {
                 await this.authorizeRevoke(relationship, row);
-                await this.transaction.write(accessRelationship, row, null);
+                await this.transaction.write({
+                    table: accessRelationship,
+                    before: row,
+                    after: null,
+                });
             }
 
             // grant the wanted relationships missing
@@ -909,11 +924,11 @@ export class Authorization {
         if (same.length > 0) {
             throw new AccessError("CONFLICT", "relationship already exists");
         }
-        await this.transaction.write(
-            accessRelationship,
-            null,
-            accessRelationship[TABLE].complete(row),
-        );
+        await this.transaction.write({
+            table: accessRelationship,
+            before: null,
+            after: accessRelationship[TABLE].complete(row),
+        });
 
         return relationship;
     }
@@ -954,7 +969,11 @@ export class Authorization {
         if (row === null) {
             throw new AccessError("NOT_FOUND", `unknown scope: ${object.id}`);
         }
-        await this.transaction.write(Scope.table, row, { ...row, suspendedAt });
+        await this.transaction.write({
+            table: Scope.table,
+            before: row,
+            after: { ...row, suspendedAt },
+        });
         this.renew();
     }
 }

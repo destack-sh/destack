@@ -24,7 +24,7 @@ export const RelationshipCondition = defineSchema(
         /** Apply only when the request presents the link secret with this digest. */
         linkSecret: schema
             .string()
-            .regex(/^[0-9a-f]{64}$(?![\s\S])/u)
+            .regex(/^[0-9a-f]{64}$/u)
             .exactOptional(),
         /** Apply only when the caller authenticated at this assurance level or higher. */
         assurance: schema.number().int().min(1).max(3).exactOptional(),

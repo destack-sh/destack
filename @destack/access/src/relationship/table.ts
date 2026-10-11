@@ -3,7 +3,6 @@ import {
     identifier,
     index,
     integer,
-    sql,
     defineTable,
     text,
     uniqueIndex,
@@ -81,14 +80,10 @@ export const accessRelationship = defineTable(
             index("relationship_expiry").on(relationship.expiresAt),
             index("relationship_max_age").on(relationship.maxAge),
             index("relationship_delegation").on(relationship.onBehalfOf),
-            check(
-                "relationship_assurance",
-                sql`${relationship.assurance} IS NULL OR ${relationship.assurance} BETWEEN 1 AND 3`,
-            ),
-            check(
-                "relationship_max_age",
-                sql`${relationship.maxAge} IS NULL OR ${relationship.maxAge} > 0`,
-            ),
+            check("relationship_assurance", {
+                assurance: { OR: [{ isNull: true }, { gte: 1, lte: 3 }] },
+            }),
+            check("relationship_max_age", { maxAge: { OR: [{ isNull: true }, { gt: 0 }] } }),
             ...managerChecks("relationship", relationship),
             uniqueIndex("relationship_tuple")
                 .on(
@@ -119,24 +114,24 @@ export const accessRelationship = defineTable(
                 relationship.subjectRelation,
             ),
             index("relationship_role").on(relationship.roleId),
-            check(
-                "relationship_label",
-                sql`(${relationship.relation} IS NULL) <> (${relationship.roleId} IS NULL)`,
+            check("relationship_label", {
+                OR: [
+                    { relation: { isNull: true }, roleId: { isNotNull: true } },
+                    { relation: { isNotNull: true }, roleId: { isNull: true } },
+                ],
+            }),
+            check("relationship_wildcard", {
+                OR: [
+                    { subjectRelation: { isNull: true } },
+                    { subjectId: { ne: "*" }, subjectScope: { ne: "*" } },
+                ],
+            }),
+            check("relationship_expiry", {
+                expiresAt: { OR: [{ isNull: true }, { gt: { field: "createdAt" } }] },
+            }),
+            ...["type", "relation", "subjectType", "subjectRelation"].map((property, position) =>
+                nameCheck(`relationship_name_${position}`, property),
             ),
-            check(
-                "relationship_wildcard",
-                sql`${relationship.subjectRelation} IS NULL OR (${relationship.subjectId} <> '*' AND ${relationship.subjectScope} <> '*')`,
-            ),
-            check(
-                "relationship_expiry",
-                sql`${relationship.expiresAt} IS NULL OR ${relationship.expiresAt} > ${relationship.createdAt}`,
-            ),
-            ...[
-                relationship.type,
-                relationship.relation,
-                relationship.subjectType,
-                relationship.subjectRelation,
-            ].map((column, position) => nameCheck(`relationship_name_${position}`, column)),
         ],
     },
 );

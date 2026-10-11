@@ -1,6 +1,6 @@
 import { defineSchema, JsonValue, schema } from "@destack/schema";
 import { PackageId, type Package } from "@destack/package";
-import { ObjectReference, AccessName, type Subject } from "@destack/sync";
+import { ObjectReference, AccessName, type ObjectTypeReference, type Subject } from "@destack/sync";
 import { Condition, type Predicate } from "@destack/db";
 import {
     type AccessExpression,
@@ -105,6 +105,11 @@ export class Policy<Name extends string = string> {
         return Condition.resolve(expression.condition, fields);
     }
 
+    /** The package-qualified type of the objects. */
+    get typeReference(): ObjectTypeReference {
+        return { packageId: this.definition.packageId, type: this.definition.name };
+    }
+
     /** Identify an object of this type in the scope containing it. */
     reference(scope: string, id: string): ObjectReference {
         return ObjectReference.parse({
@@ -170,7 +175,7 @@ export class Policy<Name extends string = string> {
         }
 
         // parse `type`, `type#relation` and `type:*`
-        const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$(?![\s\S])/u.exec(subject);
+        const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$/u.exec(subject);
         if (!match) {
             throw new AccessError("INVALID_DECLARATION", `invalid subject type: ${subject}`);
         }

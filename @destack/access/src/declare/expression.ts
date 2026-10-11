@@ -1,4 +1,4 @@
-import { check, dialectSQL, sql, type Column, type Condition } from "@destack/db";
+import { check, type Condition } from "@destack/db";
 import { schema } from "@destack/schema";
 import { AccessName, type ObjectTypeReference } from "@destack/sync";
 import type { Policy } from "./policy.ts";
@@ -13,15 +13,26 @@ export const AttributeType = schema.enum(["string", "number", "boolean"]);
 /** The scalar type of an attribute that permission conditions compare. */
 export type AttributeType = schema.Infer<typeof AttributeType>;
 
-/** Constrain a column with access names to their lowercase kebab case. */
-export function nameCheck(name: string, column: Column) {
-    return check(
-        name,
-        dialectSQL({
-            sqlite: sql`${column} IS NULL OR (length(${column}) > 0 AND substr(${column}, 1, 1) GLOB '[a-z]' AND ${column} NOT GLOB '*[^a-z0-9-]*' AND ${column} NOT LIKE '%--%' AND ${column} NOT LIKE '%-')`,
-            postgresql: sql`${column} IS NULL OR ${column} ~ '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'`,
-        }),
-    );
+/** Constrain a column with access names to their lowercase kebab case, by its property. */
+export function nameCheck(name: string, property: string) {
+    return check(name, {
+        [property]: {
+            OR: [
+                { isNull: true },
+                {
+                    length: { gt: 0 },
+                    characters: "a-z0-9-",
+                    NOT: {
+                        OR: [
+                            ..."-0123456789".split("").map((first) => ({ startsWith: first })),
+                            { endsWith: "-" },
+                            { like: "%--%" },
+                        ],
+                    },
+                },
+            ],
+        },
+    });
 }
 
 /** A permission rule deciding by a condition over the object's attributes, or the request's. */

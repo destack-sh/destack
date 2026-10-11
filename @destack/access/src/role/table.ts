@@ -5,7 +5,6 @@ import {
     identifier,
     index,
     integer,
-    sql,
     text,
     unique,
     uniqueIndex,
@@ -84,8 +83,8 @@ export const accessRolePermission = defineTable(
                 permission.type,
                 permission.name,
             ),
-            nameCheck("role_permission_type", permission.type),
-            nameCheck("role_permission_name", permission.name),
+            nameCheck("role_permission_type", "type"),
+            nameCheck("role_permission_name", "name"),
         ],
     },
 );
@@ -105,14 +104,26 @@ export function managerChecks(
     },
 ) {
     return [
-        check(
-            `${name}_manager`,
-            sql`(${columns.managerInstallationId} IS NULL AND ${columns.managerPackageId} IS NULL AND ${columns.managerName} IS NULL) OR (${columns.managerInstallationId} IS NOT NULL AND ${columns.managerPackageId} IS NOT NULL AND ${columns.managerName} IS NOT NULL)`,
-        ),
-        check(
-            `${name}_detached`,
-            sql`${columns.detachedAt} IS NULL OR (${columns.managerInstallationId} IS NOT NULL AND ${columns.detachedAt} >= 0)`,
-        ),
+        check(`${name}_manager`, {
+            OR: [
+                {
+                    managerInstallationId: { isNull: true },
+                    managerPackageId: { isNull: true },
+                    managerName: { isNull: true },
+                },
+                {
+                    managerInstallationId: { isNotNull: true },
+                    managerPackageId: { isNotNull: true },
+                    managerName: { isNotNull: true },
+                },
+            ],
+        }),
+        check(`${name}_detached`, {
+            OR: [
+                { detachedAt: { isNull: true } },
+                { managerInstallationId: { isNotNull: true }, detachedAt: { gte: 0 } },
+            ],
+        }),
         uniqueIndex(`${name}_manager`)
             .on(columns.managerInstallationId, columns.managerPackageId, columns.managerName)
             .where({ managerInstallationId: { isNotNull: true }, detachedAt: { isNull: true } }),

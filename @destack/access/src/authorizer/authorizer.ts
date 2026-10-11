@@ -1961,6 +1961,26 @@ function validatePredicate(
                 throw new AccessError("INVALID_DECLARATION", "patterns match text attributes");
             }
             break;
+        case "characters":
+            // require a text attribute for a character set
+            if (attributeType(predicate.name, declared) !== "string") {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    "character sets match text attributes",
+                );
+            }
+            break;
+        case "length":
+            // require a text attribute, and compare its length as a number
+            if (attributeType(predicate.name, declared) !== "string") {
+                throw new AccessError("INVALID_DECLARATION", "lengths measure text attributes");
+            }
+            validatePredicate(
+                predicate.predicate,
+                { ...declared, [predicate.name]: "number" },
+                placeholders,
+            );
+            break;
         case "all":
         case "any":
             for (const nested of predicate.predicates) {
@@ -1978,7 +1998,7 @@ function validatePredicate(
     }
 }
 
-/** Require a comparison with a value of the attribute's type, ordering only numbers. */
+/** Require a comparison with a value or another attribute of the attribute's type, ordering only numbers. */
 function validateCompare(
     predicate: Extract<Predicate, { readonly kind: "compare" }>,
     declared: Readonly<Record<string, AttributeType>>,
@@ -1989,7 +2009,9 @@ function validateCompare(
     const valueType =
         value instanceof Placeholder
             ? placeholderType(value.placeholder, placeholders)
-            : typeof value;
+            : typeof value === "object"
+              ? attributeType(value.field, declared)
+              : typeof value;
     const isOrdered = predicate.operator !== "eq" && predicate.operator !== "ne";
     const attribute = attributeType(predicate.name, declared);
 

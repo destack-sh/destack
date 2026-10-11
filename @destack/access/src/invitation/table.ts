@@ -1,4 +1,4 @@
-import { check, defineTable, identifier, index, integer, json, sql, text } from "@destack/db";
+import { check, defineTable, identifier, index, integer, json, text } from "@destack/db";
 import { AccessName, Subject } from "@destack/sync";
 import { accessRole } from "../role/table.ts";
 import { defineSchema, schema } from "@destack/schema";
@@ -6,9 +6,6 @@ import { relationshipBase } from "../relationship/relationship.ts";
 
 /** Where an invitation stands: waiting until its expiry, taken, or withdrawn. */
 export const INVITATION_STATUSES = ["pending", "accepted", "revoked"] as const;
-
-/** The statuses as SQL string literals, which the status check lists. */
-const STATUS_LITERALS = INVITATION_STATUSES.map((status) => `'${status}'`).join(", ");
 
 /** Where an invitation stands. */
 export const InvitationStatus = defineSchema(schema.enum(INVITATION_STATUSES));
@@ -86,16 +83,20 @@ export const accessInvitation = defineTable(
             index("invitation_addressee").on(invitation.addressee),
             index("invitation_inviter").on(invitation.inviterKey),
             index("invitation_lender").on(invitation.lender),
-            check(
-                "invitation_label",
-                sql`(${invitation.relation} IS NULL) <> (${invitation.roleId} IS NULL)`,
-            ),
-            check(
-                "invitation_inviter",
-                sql`(${invitation.inviter} IS NULL) = (${invitation.inviterKey} IS NULL)`,
-            ),
-            check("invitation_status", sql`${invitation.status} IN (${sql.raw(STATUS_LITERALS)})`),
-            check("invitation_expiry", sql`${invitation.expiresAt} > ${invitation.createdAt}`),
+            check("invitation_label", {
+                OR: [
+                    { relation: { isNull: true }, roleId: { isNotNull: true } },
+                    { relation: { isNotNull: true }, roleId: { isNull: true } },
+                ],
+            }),
+            check("invitation_inviter", {
+                OR: [
+                    { inviter: { isNull: true }, inviterKey: { isNull: true } },
+                    { inviter: { isNotNull: true }, inviterKey: { isNotNull: true } },
+                ],
+            }),
+            check("invitation_status", { status: { in: [...INVITATION_STATUSES] } }),
+            check("invitation_expiry", { expiresAt: { gt: { field: "createdAt" } } }),
         ],
     },
 );
