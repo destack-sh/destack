@@ -4,7 +4,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { LocaleTag } from "../locale/locale.ts";
 
 /** The path of a catalog in a build, capturing a dependency's package and the tag: `locale/<tag>.json` for the build's own package, `locale/<package>/<tag>.json` for a dependency's. */
-const CATALOG_PATH = /^locale\/(?:([^/]+)\/)?([^/]+)\.json$(?![\s\S])/u;
+const CATALOG_PATH = /^locale\/(?:([^/]+)\/)?([^/]+)\.json$/u;
 
 /** The translations of one package's messages into one locale, as MessageFormat 2 sources by message identifier. */
 const catalogSchema = defineSchema(
