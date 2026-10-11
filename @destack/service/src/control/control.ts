@@ -151,8 +151,8 @@ export class ControlLoop {
             readonly lease?: { readonly holder: string; readonly duration?: number };
             /** Keep a wake-up for the earliest due key, so an evicted instance runs it. */
             readonly alarm?: Alarm;
-            /** The clock keys come due at, the system clock by default. */
-            readonly clock?: Clock;
+            /** The clock keys come due at. */
+            readonly clock: Clock;
             /** How long a key's peer may answer unavailable before its failures are reported, a minute by default. */
             readonly unavailableFor?: number;
         },
@@ -162,7 +162,7 @@ export class ControlLoop {
         this.controllers = controllers;
         this.#report = options.report;
         this.#retry = { ...RETRY, ...options.retry };
-        this.#clock = options.clock ?? Clock.system;
+        this.#clock = options.clock;
         this.#unavailableFor = options.unavailableFor ?? UNAVAILABLE_REPORT_MILLISECONDS;
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;

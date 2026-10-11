@@ -1,7 +1,7 @@
 import { AccessFixture } from "@destack/access/test";
 import { Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
@@ -48,6 +48,7 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
         const implementation = implement(definition).$context<ServiceContext>();
         let credentialScope = scope;
         await using server = Server.start({
+            clock: Clock.system,
             ...hosting,
             scope,
             health: new Health("scope"),
@@ -105,6 +106,7 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     const caller = createCaller("alice");
     const credential = { ...Caller.requireCredential(caller), audience: packageId, scope: spaceId };
     const context = new ServiceContext(new Request("https://fixture.test/"), {
+        clock: Clock.system,
         audience: packageId,
         scope: spaceId,
         caller: { ...caller, credential },
@@ -256,6 +258,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const resources = new ResourceContext();
     const implementation = implement(service).$context<ServiceContext>();
     await using server = Server.start({
+        clock: Clock.system,
         service: hosting.service,
         audience: packageId,
         scope: spaceId,

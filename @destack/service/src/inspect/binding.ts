@@ -1,5 +1,5 @@
 import { graph } from "@destack/package";
-import { schema, type JsonValue } from "@destack/schema";
+import { schema } from "@destack/schema";
 import {
     ServiceKind,
     type ServiceBinding,
@@ -16,8 +16,8 @@ export function describeServiceBinding(binding: ServiceBinding): ServiceBindingD
 }
 
 /** Bind a service binding to the service it calls. */
-export function serviceBindingSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
-    const service = ServiceKind.description.parse(input).spec.service;
+export function serviceBindingSymbols(binding: ServiceBinding): graph.MemberSymbol[] {
+    const service = describeServiceBinding(binding).spec.service;
 
     return schema.array(graph.MemberSymbol).parse([
         {

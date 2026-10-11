@@ -62,7 +62,7 @@ export class ServiceContext {
         this.resources = resources;
         this.authenticationError = authenticationError;
         this.linkSecrets = linkSecrets;
-        this.clock = options.clock ?? Clock.system;
+        this.clock = options.clock;
         this.bookmark = Bookmark.parse(request.headers.get(BOOKMARK_HEADER));
 
         // authorize the caller current in the request's scope under the service's policies, which keep a bound credential's access within its scope
@@ -146,12 +146,7 @@ export class ServiceContext {
 
         // read the caller current in the scope with its link secrets
         const caller = this.presented ?? { subjects: [] };
-        Caller.requireCurrent(
-            caller,
-            this.audience,
-            Caller.clamp(caller, this.clock.now()),
-            scope,
-        );
+        Caller.requireCurrent(caller, this.audience, Caller.clamp(caller, this.clock.now()), scope);
 
         return this.linkSecrets.length === 0
             ? caller
@@ -175,8 +170,8 @@ export interface ServiceContextOptions {
     readonly authenticationError?: Error;
     /** The digests of the presented link secrets. */
     readonly linkSecrets?: readonly string[];
-    /** The clock calls run at, the system clock by default. */
-    readonly clock?: Clock;
+    /** The clock calls run at. */
+    readonly clock: Clock;
     /** Abort once the server drains, ending streams at their next consistent point. */
     readonly draining?: AbortSignal;
 }

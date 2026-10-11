@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Change, defineTable, eq, integer, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { aligned, found } from "@destack/schema";
+import { aligned, found, Clock } from "@destack/schema";
 import { ControlLoop, type Controller, Reconciliation } from "./control.ts";
 import { controllerLease } from "./lease.ts";
 import { wait } from "../timer/index.ts";
@@ -73,6 +73,7 @@ test("reconcile listed keys, keys changes name, keys due again, and failed keys 
     };
     const stopping = new AbortController();
     const loop = new ControlLoop(database, [controller], {
+        clock: Clock.system,
         report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
         retry: { initialInterval: 5 },
     });
@@ -121,6 +122,7 @@ test("report a key whose peer answers unavailable only once it stays so past the
     };
     const stopping = new AbortController();
     const loop = new ControlLoop(storage.database, [controller], {
+        clock: Clock.system,
         report: (_controller, key) => reported.push([key, Date.now() - started >= 40]),
         retry: { initialInterval: 5, maximumInterval: 5 },
         unavailableFor: 40,
@@ -173,6 +175,7 @@ test("report a key function that fails on a change and reconcile every listed ke
     };
     const stopping = new AbortController();
     const loop = new ControlLoop(database, [controller], {
+        clock: Clock.system,
         report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
     });
     const running = loop.run(stopping.signal);
@@ -218,7 +221,10 @@ test("list a controller of an unlogged table again after a commit to its table a
         reconcile: async () => undefined,
     };
     const stopping = new AbortController();
-    const loop = new ControlLoop(database, [claims, tickets], { report: ignore });
+    const loop = new ControlLoop(database, [claims, tickets], {
+        clock: Clock.system,
+        report: ignore,
+    });
     const running = loop.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
@@ -265,7 +271,10 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
         },
     };
     const stopping = new AbortController();
-    const loop = new ControlLoop(storage.database, [controller], { report: () => {} });
+    const loop = new ControlLoop(storage.database, [controller], {
+        clock: Clock.system,
+        report: () => {},
+    });
     const looping = loop.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
@@ -315,10 +324,12 @@ test("lease each key to one instance of several sharing a database, handing it o
     const second = new AbortController();
     const running = [
         new ControlLoop(storage.database, [controller], {
+            clock: Clock.system,
             report: ignore,
             lease: { holder: "first", duration: 200 },
         }).run(first.signal),
         new ControlLoop(storage.database, [controller], {
+            clock: Clock.system,
             report: ignore,
             lease: { holder: "second", duration: 200 },
         }).run(second.signal),
@@ -370,6 +381,7 @@ test("follow each listed key until its list drops it or the loop stops", async (
     };
     const stopping = new AbortController();
     const loop = new ControlLoop(database, [controller], {
+        clock: Clock.system,
         report: (_controller, key) => reported.push(key),
     });
     const running = loop.run(stopping.signal);
@@ -410,6 +422,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     };
     const stopping = new AbortController();
     const loop = new ControlLoop(database, [controller], {
+        clock: Clock.system,
         report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
         retry: { initialInterval: 50 },
     });
@@ -453,6 +466,7 @@ test("follow a key again once its list names it after it failed and was dropped"
     };
     const stopping = new AbortController();
     const running = new ControlLoop(database, [controller], {
+        clock: Clock.system,
         report: () => {},
         retry: { initialInterval: 10 },
     }).run(stopping.signal);
@@ -490,6 +504,7 @@ test("keep the host's alarm at the earliest due or skipped key, clear it once no
     };
     const started = Date.now();
     const loop = new ControlLoop(storage.database, [controller], {
+        clock: Clock.system,
         report: (_controller, _key, error) => {
             throw error;
         },
@@ -543,6 +558,7 @@ test("reconcile a key named due while the worker keeps its alarm, before it slee
         },
     };
     const loop: ControlLoop = new ControlLoop(storage.database, [controller], {
+        clock: Clock.system,
         report: (_controller, _key, error) => {
             throw error;
         },
@@ -608,7 +624,11 @@ test("settle an alarm at its deadline while a follow runs, keep the alarm due, a
     };
     const start = () => {
         const stopping = new AbortController();
-        const loop = new ControlLoop(database, [controller], { report: ignore, alarm });
+        const loop = new ControlLoop(database, [controller], {
+            clock: Clock.system,
+            report: ignore,
+            alarm,
+        });
 
         return { loop, stopping, running: loop.run(stopping.signal) };
     };

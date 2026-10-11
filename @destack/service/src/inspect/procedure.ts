@@ -133,5 +133,5 @@ function describeSchema(validator: AnySchema): Record<string, JsonValue> {
         throw new TypeError("expected a Destack schema");
     }
 
-    return schema.record(schema.string(), schema.json()).parse(toJsonSchema(validator));
+    return toJsonSchema(validator);
 }

@@ -1,6 +1,6 @@
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
-import { present } from "@destack/schema";
+import { present, Clock } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { defineWorkload, type InstallationContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
@@ -91,6 +91,7 @@ test("release startup resources when the workload shuts down during startup", as
                 },
             }),
             {
+                clock: Clock.system,
                 callKey: testCallKey,
                 report: (error) => {
                     throw error;
@@ -137,6 +138,7 @@ test("start two services and drain accepted requests before shared cleanup", asy
             },
         }),
         {
+            clock: Clock.system,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
@@ -198,6 +200,7 @@ test("retain shared resources until an overdue request observes cancellation", a
             },
         }),
         {
+            clock: Clock.system,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
@@ -247,6 +250,7 @@ test("reject a service implemented twice and release startup resources", async (
                 },
             }),
             {
+                clock: Clock.system,
                 callKey: testCallKey,
                 report: (error) => {
                     throw error;
@@ -266,6 +270,7 @@ test("list the triggers a workload receives and find each by its package and nam
     await using instance = await WorkloadInstance.start(
         defineWorkload({ name: "fixture", start: () => ({ services: [], triggers: [github] }) }),
         {
+            clock: Clock.system,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
@@ -300,6 +305,7 @@ test("reject a trigger registered twice and release startup resources", async ()
                 },
             }),
             {
+                clock: Clock.system,
                 callKey: testCallKey,
                 report: (error) => {
                     throw error;
@@ -331,6 +337,7 @@ test("give a starting workload the host's audit history, its installation and th
             },
         }),
         {
+            clock: Clock.system,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
@@ -363,6 +370,7 @@ test("start a workload journaling only in its own database without an audit hist
             },
         }),
         {
+            clock: Clock.system,
             callKey: testCallKey,
             report: (error) => {
                 throw error;

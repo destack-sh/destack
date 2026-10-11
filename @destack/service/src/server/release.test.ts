@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { defineService } from "../declare/index.ts";
 import { Health } from "../health/index.ts";
@@ -35,6 +35,7 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
     // serve a search that echoes its input
     const implementation = implement(service.router);
     await using server = Server.start({
+        clock: Clock.system,
         ...hosting,
         service,
         router: implementation.router({

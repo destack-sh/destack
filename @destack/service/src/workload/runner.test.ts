@@ -3,7 +3,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Caller, principal } from "@destack/access";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { defineService } from "../declare/service.ts";
 import { ServiceMount } from "../service/mount.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
@@ -154,6 +154,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     };
     const runner = await WorkloadRunner.start(
         {
+            clock: Clock.system,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
@@ -297,6 +298,7 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
     const recorded: RunRequest[] = [];
     const runner = await WorkloadRunner.start(
         {
+            clock: Clock.system,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
@@ -427,6 +429,7 @@ test("accept a held socket, hand its messages and close to the workload, and sen
     };
     const runner = await WorkloadRunner.start(
         {
+            clock: Clock.system,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
@@ -514,6 +517,7 @@ test("hand a routed request to the service its route names at the route path bel
     // start a workload whose service answers its route path and the URL a request asked for
     const runner = await WorkloadRunner.start(
         {
+            clock: Clock.system,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {

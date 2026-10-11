@@ -1,6 +1,6 @@
 import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { accessTables, Authorizer, Policy, principal, relation } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -76,6 +76,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
     const implementation = implement(service).$context<ServiceContext>();
     let level = 1;
     await using server = Server.start({
+        clock: Clock.system,
         ...hosting,
         health: new Health("vault"),
         drainTimeout: 100,

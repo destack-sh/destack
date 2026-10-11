@@ -1,5 +1,5 @@
 import { graph } from "@destack/package";
-import { schema, type JsonValue } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { DeclarationReference } from "@destack/package/declare";
 import { Schedule } from "../schedule/index.ts";
 import { type Trigger, TriggerDescription } from "../trigger/index.ts";
@@ -33,9 +33,9 @@ export function describeTrigger(trigger: Trigger): TriggerDescription {
 }
 
 /** List the object method a scheduled trigger invokes in the trigger's package. */
-export function triggerSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
+export function triggerSymbols(trigger: Trigger): graph.MemberSymbol[] {
     // invoke nothing outside a schedule
-    const { on } = TriggerDescription.parse(input);
+    const { on } = describeTrigger(trigger);
     if (!("schedule" in on)) {
         return [];
     }

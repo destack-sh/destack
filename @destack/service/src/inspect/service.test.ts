@@ -131,15 +131,13 @@ test("plan a service's changes between releases, converting narrowed inputs and 
 
 test("list a service's procedures as members the service serves", () => {
     // describe a service with a nested procedure
-    const described = describeService(
-        defineService("search", {
-            search: procedure().input(schema.object({ text: schema.string() })),
-            index: { rebuild: procedure() },
-        }),
-    );
-    const [rebuild, search] = described.api.procedures;
+    const service = defineService("search", {
+        search: procedure().input(schema.object({ text: schema.string() })),
+        index: { rebuild: procedure() },
+    });
+    const [rebuild, search] = describeService(service).api.procedures;
 
-    expect(serviceSymbols(entry(described, RELEASE).description)).toEqual([
+    expect(serviceSymbols(service)).toEqual([
         {
             relationships: [
                 {

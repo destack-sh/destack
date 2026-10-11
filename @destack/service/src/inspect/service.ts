@@ -1,5 +1,5 @@
 import { Address, Plan, type Comparator, type Step } from "@destack/resource";
-import { schema, Version, type JsonSchema, type JsonValue } from "@destack/schema";
+import { schema, Version, type JsonSchema } from "@destack/schema";
 import type { ServiceRouter } from "../service/index.ts";
 import { describeProcedures } from "./procedure.ts";
 import {
@@ -144,8 +144,8 @@ function payload(description: ProcedureDescription["input"]): JsonSchema {
 }
 
 /** List a service's procedures as its member symbols, each served by the service. */
-export function serviceSymbols(input: Record<string, JsonValue>): graph.MemberSymbol[] {
-    const service = ServiceDescription.parse(input);
+export function serviceSymbols(declared: Service): graph.MemberSymbol[] {
+    const service = describeService(declared);
     const procedures = service.api.procedures.map((procedure) => ({
         kind: "procedure",
         name: procedure.name.join("."),

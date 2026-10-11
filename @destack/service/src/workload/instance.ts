@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/schema";
 import type { Caller } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import { DeclarationReference } from "@destack/package/declare";
@@ -52,6 +53,7 @@ export class WorkloadInstance implements AsyncDisposable {
                 ...(options.runs === undefined ? {} : { runs: options.runs }),
                 callKey: options.callKey,
                 deriver: await CallKey.deriver(await options.callKey()),
+                clock: options.clock,
                 ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
                 ...(options.hibernation === undefined ? {} : { hibernation: options.hibernation }),
                 signal: instance.#controller.signal,
@@ -105,6 +107,7 @@ export class WorkloadInstance implements AsyncDisposable {
             ...options.service(service.service),
             health: new Health(service.service.name),
             resources: options.resources,
+            clock: options.clock,
             ...(clock === undefined ? {} : { alarm: clock.alarm() }),
         });
         this.#services.set(key, { service: service.service, server });
@@ -239,10 +242,12 @@ export interface WorkloadInstanceOptions {
     readonly hibernation?: Hibernation;
     /** Report a failure of the workload's background work to its host. */
     report(error: unknown): void;
+    /** The clock the workload runs at. */
+    readonly clock: Clock;
     /** Select the options of one service. */
     service(
         service: Service,
-    ): Omit<ServerOptions, keyof ServiceImplementation | "health" | "resources">;
+    ): Omit<ServerOptions, keyof ServiceImplementation | "health" | "resources" | "clock">;
 }
 
 /** Key a declaration by its package and name. */

@@ -1,5 +1,5 @@
 import type { Channel, DatabaseConnection, Table } from "@destack/db";
-import type { JsonValue } from "@destack/schema";
+import type { Clock, JsonValue } from "@destack/schema";
 import type { Publisher, Uplink } from "@destack/sync";
 import {
     type CapabilityName,
@@ -66,6 +66,8 @@ export interface WorkloadContext {
     readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
+    /** The clock the workload runs at. */
+    readonly clock: Clock;
     /** Derive the installation's own secrets under labels, the same on every instance of the installation. */
     readonly deriver: Deriver;
     /** Where the instance keeps its ephemeral objects, absent outside a runner. */

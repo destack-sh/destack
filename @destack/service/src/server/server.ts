@@ -100,7 +100,7 @@ export class Server implements AsyncDisposable {
                 },
                 ...(options.instance === undefined ? {} : { lease: { holder: options.instance } }),
                 ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
-                ...(options.clock === undefined ? {} : { clock: options.clock }),
+                clock: options.clock,
             });
             this.#loop = loop;
         }
@@ -280,7 +280,7 @@ export class Server implements AsyncDisposable {
         try {
             const verified = caller ?? (await options.authenticate(request));
             if (verified !== undefined) {
-                Caller.requireLive(verified, (options.clock ?? Clock.system).now());
+                Caller.requireLive(verified, options.clock.now());
             }
             authenticated = verified;
         } catch (error) {
@@ -305,7 +305,7 @@ export class Server implements AsyncDisposable {
             ...(options.access === undefined ? {} : { access: options.access }),
             ...(authenticationError === undefined ? {} : { authenticationError }),
             linkSecrets,
-            ...(options.clock === undefined ? {} : { clock: options.clock }),
+            clock: options.clock,
             draining,
         });
     }
@@ -506,6 +506,8 @@ export class Server implements AsyncDisposable {
 export interface ServerOptions extends ServiceImplementation {
     /** The health. */
     health: Health;
+    /** The clock calls run at. */
+    readonly clock: Clock;
     /** The receiving package. */
     audience: PackageId;
     /** The one scope the service serves, absent for a service of every scope. */
@@ -540,8 +542,6 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     readonly controllers?: readonly Controller[];
     /** Wait until the service can answer, such as once its copies hold complete snapshots, before it serves. */
     readonly ready?: (signal: AbortSignal) => Promise<void>;
-    /** The clock calls run at, the system clock by default. */
-    readonly clock?: Clock;
 }
 
 /** Attach the request's watermarks to its response. */

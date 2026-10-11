@@ -72,8 +72,8 @@ export interface RunnerOptions {
     readonly ephemeral: EphemeralHost;
     /** The connectors the runtime supplies by provider code, such as a Durable Object's for the databases it keeps, ahead of the declarations' own. */
     readonly connectors?: Readonly<Record<string, Connector>>;
-    /** The clock, the system clock by default. */
-    readonly clock?: Clock;
+    /** The clock. */
+    readonly clock: Clock;
 }
 
 /** A workload instance a host started, serving each of its services below its package's mount on any runtime. */
@@ -155,6 +155,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 installation: WorkloadRunner.#installation(runner, start, build, stack),
                 runs,
                 callKey: () => callKey,
+                clock: runner.clock,
                 report,
                 ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
                 ephemeral: runner.ephemeral,
@@ -181,7 +182,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 connections,
                 runs,
                 hibernation,
-                runner.clock ?? Clock.system,
+                runner.clock,
             );
         } catch (error) {
             await connections.disposeAsync();
@@ -436,7 +437,7 @@ export class WorkloadRunner implements AsyncDisposable {
     /** Serve the package's service to the callers the host forwards. */
     static #serve(runner: RunnerOptions, start: WorkloadStart) {
         const audience = runner.workload.package.id;
-        const clock = runner.clock ?? Clock.system;
+        const { clock } = runner;
 
         return {
             audience,

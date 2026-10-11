@@ -35,8 +35,8 @@ export function subjectContext(
     options: SubjectContextOptions = {},
 ): ServiceContext {
     // sign the subject in for a minute with its delegates, assurance and restrictions
-    const { signal, clock, ...restrictions } = options;
-    const now = (clock ?? Clock.system).now();
+    const { signal, clock = Clock.system, ...restrictions } = options;
+    const now = clock.now();
     const caller: Caller = {
         ...restrictions,
         credential: {
@@ -56,7 +56,7 @@ export function subjectContext(
         ...(scope === undefined ? {} : { scope }),
         caller,
         resources: new ResourceContext(),
-        ...(clock === undefined ? {} : { clock }),
+        clock,
     });
 }
 

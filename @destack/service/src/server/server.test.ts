@@ -1,6 +1,6 @@
 import { Caller, principal } from "@destack/access";
 import { expect, onTestFinished, test, vi } from "@destack/test";
-import { schema } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { Health, health } from "../health/index.ts";
 import { implementHealth } from "./health.ts";
 import { createClient } from "../client/index.ts";
@@ -41,6 +41,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         .$context<ServiceContext>()
         .use(({ next }) => next({ context: { application: "snapshot" } }));
     const server = Server.start({
+        clock: Clock.system,
         ...hosting,
         health: new Health("snapshot"),
         drainTimeout: 1000,
@@ -113,6 +114,7 @@ test.for([
         };
         const implementation = implement(service).$context<ServiceContext>();
         const server = Server.start({
+            clock: Clock.system,
             ...hosting,
             health: new Health("lapse"),
             drainTimeout: 1000,
@@ -193,6 +195,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
 
     for (const callback of ["authenticate", "authorizeMachine"] as const) {
         const missing: ServerOptions = {
+            clock: Clock.system,
             ...hosting,
             router,
             health: readiness,
@@ -204,6 +207,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         );
     }
     const server = Server.start({
+        clock: Clock.system,
         ...hosting,
         router,
         health: readiness,
@@ -312,6 +316,7 @@ test("end a stream that follows its context signal once the server drains, stopp
         }),
     });
     const server = Server.start({
+        clock: Clock.system,
         ...hosting,
         router,
         health: new Health("follower"),
@@ -363,6 +368,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     // observe stopping
     let isStopped = false;
     const server = Server.start({
+        clock: Clock.system,
         ...hosting,
         router,
         health: new Health("work"),
@@ -437,6 +443,7 @@ test("return observed watermarks and require them on the client's later requests
     };
     const implementation = implement(service).$context<ServiceContext>();
     const server = Server.start({
+        clock: Clock.system,
         ...hosting,
         health: new Health("bookmark"),
         drainTimeout: 1000,
@@ -485,6 +492,7 @@ test.for(["before the call", "during the call", "between events"] as const)(
         };
         const implementation = implement(service).$context<ServiceContext>();
         const server = Server.start({
+            clock: Clock.system,
             ...hosting,
             health: new Health("follow"),
             drainTimeout: 1000,
@@ -571,6 +579,7 @@ test("report a handler's invalid output as an internal failure and a caller's in
     };
     const implementation = implement(routes);
     await using server = Server.start({
+        clock: Clock.system,
         ...hosting,
         health: new Health("echo"),
         drainTimeout: 1000,
@@ -608,6 +617,7 @@ test("hold a request while starting and answer it once ready, and refuse it with
         vi.useRealTimers();
     });
     await using server = Server.start({
+        clock: Clock.system,
         ...hosting,
         health: new Health("echo"),
         drainTimeout: 1000,
@@ -658,6 +668,12 @@ test("refuse starting a server whose procedures carry payloads the HTTP layer ca
 
     // refuse it at start instead of answering every request with a failure
     expect(() =>
-        Server.start({ ...hosting, router, health: readiness, drainTimeout: 1000 }),
+        Server.start({
+            clock: Clock.system,
+            ...hosting,
+            router,
+            health: readiness,
+            drainTimeout: 1000,
+        }),
     ).toThrow("unsupported schema check: custom");
 });
