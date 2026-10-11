@@ -1,5 +1,4 @@
 import { type ObjectReference, Subject } from "@destack/sync";
-import { and, eq } from "@destack/db";
 import { Subscription } from "@destack/notification";
 import { type Call, Chunk, type Selection } from "@destack/object";
 import { ServiceError } from "@destack/service/error";
@@ -105,7 +104,9 @@ async function requireText(call: Call, selection: Selection): Promise<void> {
         throw new ServiceError("BAD_REQUEST", {
             message: `${host.type} has no text field ${selection.field}`,
         });
-    } else if (!(await Chunk.contains(call.database, host, selection.field, elements))) {
+    } else if (
+        !(await Chunk.contains(call.requireTransaction(), host, selection.field, elements))
+    ) {
         throw new ServiceError("BAD_REQUEST", {
             message: `${selection.field} has no such selection`,
         });
@@ -118,24 +119,18 @@ async function requireThreadOf(
     thread: base.Comment["id"],
 ): Promise<void> {
     // read the thread's first comment on the same host
-    const table = base.comment.table;
     const host = call.requireParent();
-    const [first] = await call.database
-        .select({ thread: table.threadId })
-        .from(table)
-        .where(
-            and(
-                eq(table.id, thread),
-                eq(table.parentPackageId, host.packageId),
-                eq(table.parentType, host.type),
-                eq(table.parentId, host.id),
-            ),
-        );
+    const [first] = await call.read(base.comment).rows({
+        id: thread,
+        parentPackageId: host.packageId,
+        parentType: host.type,
+        parentId: host.id,
+    });
 
     // refuse a missing thread, a nested reply and a reply's own selection
     if (first === undefined) {
         throw new ServiceError("NOT_FOUND", { message: "thread not found on the host" });
-    } else if (first.thread !== null) {
+    } else if (first.threadId !== null) {
         throw new ServiceError("BAD_REQUEST", {
             message: "a reply answers the first comment of its thread",
         });
