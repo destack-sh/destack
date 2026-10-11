@@ -24,10 +24,9 @@ import { Outbox, outbox } from "@destack/service/outbox";
 import { Server, type ServiceImplementation } from "@destack/service/server";
 import { socialTables } from "@destack/social/stack";
 import { installation } from "@destack/stack/object";
-import type { OpenBuild } from "@destack/stack/server";
 import { serveSpace } from "@destack/stack/server";
 import { spaceCopies } from "@destack/stack/stack";
-import { openBuild, StackFixture, spaceDatabase } from "@destack/stack/test";
+import { StackFixture, spaceDatabase } from "@destack/stack/test";
 import type { OtlpReceiver } from "@destack/telemetry/otlp";
 import { OBSERVABILITY_KINDS } from "../../src/event/index.ts";
 import { implementObservability, type Reading, TelemetryPolicy } from "../../src/server/index.ts";
@@ -96,8 +95,6 @@ export const notes = { id: ids.package, name: "@example/notes", version: "2026.9
 
 /** How a test serves observability: the builds it opens, what it measures and where routed copies go. */
 export interface ObservabilityTestOptions {
-    /** Open a package's build in the space, the space fixture's by default. */
-    readonly openBuild?: OpenBuild;
     /** Read what the space uses, nothing by default. */
     readonly measure?: (from: number, to: number) => Promise<readonly Reading[]>;
     /** The SKUs rating each meter, none by default, which appends no usage. */
@@ -143,7 +140,7 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     const implementation = implementObservability({
         events,
         spaces: {
-            openBuild: options.openBuild ?? openBuild,
+            buckets: await fixture.buckets(),
             measure: options.measure ?? (async () => []),
             ...(options.skus === undefined ? {} : { skus: options.skus }),
         },
@@ -185,6 +182,7 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     };
 
     return {
+        fixture,
         server,
         eventServer,
         events,
@@ -228,15 +226,17 @@ export async function createSpace(database: DatabaseConnection): Promise<void> {
         .select({ id: accessRole.id })
         .from(accessRole)
         .where(and(eq(accessRole.scope, ids.space), eq(accessRole.name, "owner")));
-    await new Authorization(new Authorizer([space.policy], [space.mapping]), database, () => ({
-        subjects: [principal.user.reference("universe", "owner")],
-        now,
-        attributes: {},
-    })).grant({
-        object: space.reference(ids.account, ids.space),
-        role: present(role, "the space's owner role").id,
-        subject: principal.user.reference("universe", "alice"),
-    });
+    await Authorization.run(
+        new Authorizer([space.policy], [space.mapping]),
+        database,
+        () => ({ subjects: [principal.user.reference("universe", "owner")], now, attributes: {} }),
+        (authorization) =>
+            authorization.grant({
+                object: space.reference(ids.account, ids.space),
+                role: present(role, "the space's owner role").id,
+                subject: principal.user.reference("universe", "alice"),
+            }),
+    );
 
     // install notes
     await database.insert(installation.table).values({

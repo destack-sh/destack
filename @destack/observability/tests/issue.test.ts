@@ -15,11 +15,9 @@ import {
 
 test("group failures logged and annotated on spans into an issue at the declaration they ran, counting a span's exception once, list its events by issue, and regress the resolved issue", async () => {
     // serve observability with the notes build
-    const notesBuild = await openNotesBuild();
-    const { server, eventServer, receive, database, events, failures } = await serveObservability({
-        openBuild: async () => notesBuild,
-    });
-    const revision = await recordNotesRevision(database);
+    const { fixture, server, eventServer, receive, database, events, failures } =
+        await serveObservability();
+    const revision = await recordNotesRevision(fixture);
     const alice = client(server, "alice");
 
     // fail twice for dana and once for erin, and refuse a missing note, which is a declared outcome

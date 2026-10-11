@@ -6,7 +6,7 @@ import type { ObjectStore, ObjectExtension } from "@destack/object/server";
 import { schema } from "@destack/schema";
 import type { Controller } from "@destack/service/control";
 import { SettingValue } from "@destack/setting/object";
-import type { OpenBuild } from "@destack/stack/server";
+import type { BucketHost } from "@destack/bucket/s3";
 import type { OtlpReceiver } from "@destack/telemetry/otlp";
 import { analytics, telemetry } from "../access/index.ts";
 import { ANALYTICS_KINDS, DAY, OBSERVABILITY_KINDS, TELEMETRY_KINDS } from "../event/index.ts";
@@ -22,8 +22,8 @@ import { observabilityProcedures } from "./procedure.ts";
 
 /** What a machine observes of the spaces it serves beside their telemetry: their builds, whose exceptions become issues, and their use of the meters. */
 export interface SpaceObservation {
-    /** Open a package's build in a space, whose source maps and graph resolve its exceptions into issues. */
-    readonly openBuild: OpenBuild;
+    /** The host keeping the spaces' build buckets, whose builds' source maps and graphs resolve exceptions into issues. */
+    readonly buckets: BucketHost;
     /** Read what the spaces use over each measured interval. */
     readonly measure: (from: number, to: number) => Promise<readonly Reading[]>;
     /** How often the spaces are measured, hourly unless given. */
@@ -80,7 +80,7 @@ export function implementObservability(options: ObservabilityOptions): Observabi
                 events,
                 ...(spaces === undefined
                     ? {}
-                    : { grouper: new Grouper(store, spaces.openBuild), salt: events.database }),
+                    : { grouper: new Grouper(store, spaces.buckets), salt: events.database }),
                 report: options.report,
                 clock: store.clock,
             });
@@ -98,7 +98,7 @@ function controllersOf(options: ObservabilityOptions, objects: ObjectStore): Con
     }
 
     return [
-        new DeclarationController(objects, spaces.openBuild),
+        new DeclarationController(objects, spaces.buckets),
         ...(spaces.skus === undefined
             ? []
             : [

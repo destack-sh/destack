@@ -1,4 +1,3 @@
-import { eq } from "@destack/db";
 import type { EventStore } from "@destack/event";
 import { Subscription, subscription } from "@destack/notification";
 import { serveActivities } from "@destack/notification/server";
@@ -101,13 +100,8 @@ const alert = base.alert.handle({
     fire: async (call, next) => {
         // announce the alert on its rule when the rule notifies
         const row = await next();
-        const [rule] =
-            row.ruleId === null
-                ? []
-                : await call.database
-                      .select()
-                      .from(base.alertRule.table)
-                      .where(eq(base.alertRule.table.id, row.ruleId));
+        const rule =
+            row.ruleId === null ? null : await call.read(base.alertRule).row({ id: row.ruleId });
         if (rule?.actions.some((action) => action.kind === "notify") === true) {
             await base.firingAlert.notify(call, {
                 source: base.alertRule.reference(rule.scope, rule.id),

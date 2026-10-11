@@ -1,10 +1,20 @@
 import { EventTime } from "@destack/event";
-import { and, count, dialectSQL, eq, inArray, sql, type DatabaseConnection } from "@destack/db";
+import {
+    and,
+    count,
+    dialectSQL,
+    eq,
+    inArray,
+    Snapshot,
+    sql,
+    type DatabaseConnection,
+} from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { BuildCache } from "@destack/package/manifest";
 import type { Digest, Identifier } from "@destack/schema";
 import { installation, installationRevision } from "@destack/stack/object";
-import type { OpenBuild } from "@destack/stack/server";
+import { BuildBucket } from "@destack/stack/server";
+import type { BucketHost } from "@destack/bucket/s3";
 import { ISSUE_LEVELS, issue, type Issue } from "../object/index.ts";
 import { issuePerson } from "../stack/db.ts";
 import { Exception } from "./exception.ts";
@@ -58,14 +68,17 @@ export class Grouper {
     /** The object store keeping the issues beside copies of the installations and their revisions. */
     readonly #objects: Pick<ObjectStore, "database" | "principal" | "mutate">;
     /** Open an installation revision's build. */
-    readonly #open: OpenBuild;
+    readonly #buckets: BucketHost;
     /** The symbolicators of the builds read recently. */
     readonly #symbolicators = new BuildCache(async (reader) => new Symbolicator(reader));
 
     /** Group exceptions into the issues an object store keeps, opening the builds of the revisions that ran them. */
-    constructor(objects: Pick<ObjectStore, "database" | "principal" | "mutate">, open: OpenBuild) {
+    constructor(
+        objects: Pick<ObjectStore, "database" | "principal" | "mutate">,
+        buckets: BucketHost,
+    ) {
         this.#objects = objects;
-        this.#open = open;
+        this.#buckets = buckets;
     }
 
     /** Group a space's unexpected exceptions into its issues, opening, counting, regressing and escalating them, and answer each occurrence's issue. */
@@ -222,7 +235,13 @@ export class Grouper {
         return (
             found && {
                 revision: { id: found.id, createdAt: found.createdAt },
-                open: () => this.#open(found.packageId, found.build, scope, this.#objects.database),
+                open: () =>
+                    BuildBucket.read(
+                        this.#buckets,
+                        Snapshot.live(this.#objects.database),
+                        scope,
+                        found.build.manifest,
+                    ),
             }
         );
     }

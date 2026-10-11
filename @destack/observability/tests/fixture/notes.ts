@@ -1,5 +1,5 @@
 import { ids, notes } from "./observability.ts";
-import { type DatabaseConnection } from "@destack/db";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { alertRule, type AlertRuleDefinition } from "../../src/object/index.ts";
 import { graph } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
@@ -7,6 +7,8 @@ import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, present, schema } from "@destack/schema";
 import type { OtlpEmitter, OtlpReceiver } from "@destack/telemetry/otlp";
 import { installationRevision } from "@destack/stack/object";
+import type { StackFixture } from "@destack/stack/test";
+import { BuildBucket } from "@destack/stack/server";
 
 /** The note module's source: a class whose rename method fails, and the module's path. */
 export const NOTE_SOURCE = [
@@ -16,17 +18,6 @@ export const NOTE_SOURCE = [
     "    }",
     "}",
 ].join("\n");
-
-/** The digest of the notes build's manifest. */
-export const NOTES_MANIFEST = Digest.parse("b".repeat(64));
-
-/** The notes workload's instance running the notes build, as its machine verified it. */
-export const NOTES_EMITTER: OtlpEmitter = {
-    scope: ids.space,
-    installation: ids.notes,
-    instance: ids.instance,
-    build: NOTES_MANIFEST,
-};
 
 /** Encode text as UTF-8. */
 export function encode(value: string): Uint8Array<ArrayBuffer> {
@@ -62,13 +53,23 @@ export async function openNotesBuild(
 
         return PackageFile.describe(path, "application/json", bytes);
     };
+    // list every file beside the lists
+    const distributed = await Promise.all(
+        [...files].map(([path, bytes]) =>
+            PackageFile.describe(
+                path,
+                path.endsWith(".ts") ? "text/plain" : "application/json",
+                bytes,
+            ),
+        ),
+    );
     const manifest = PackageManifest.parse({
         formatVersion: 1,
         package: notes,
         language: "typescript",
         lists: {
             dependencies: await listed("manifest/dependencies.json", {}),
-            files: await listed("manifest/files.json", []),
+            files: await listed("manifest/files.json", distributed),
             sourceMaps: await listed("manifest/sourceMaps.json", [
                 {
                     generated: "output/bun/workload.js",
@@ -139,22 +140,25 @@ async function notesModule(rules: Readonly<Record<string, AlertRuleDefinition>>)
     });
 }
 
-/** Record the notes revision built from the notes manifest at a time, returning its identifier. */
+/** Keep a notes release in the space's build bucket and record a revision of it created at a time, the plain notes build by default. */
 export async function recordNotesRevision(
-    database: DatabaseConnection,
+    fixture: StackFixture,
     now = Date.now(),
-    manifest: string = NOTES_MANIFEST,
+    build?: BuildReader,
 ) {
+    // keep the release in the space's build bucket
+    const reader = build ?? (await openNotesBuild());
+    const snapshot = Snapshot.live(fixture.database);
+    const store = await BuildBucket.store(await fixture.buckets(), snapshot, ids.space);
+    const manifest = await store.put(reader);
+
+    // record the revision of it
     const id = schema.identifier("installation-revision").parse(installationRevision.generateId());
-    await database.insert(installationRevision.table).values({
+    await fixture.database.insert(installationRevision.table).values({
         id,
         scope: ids.space,
         installationId: ids.notes,
-        build: {
-            kind: "release",
-            version: notes.version,
-            manifest,
-        },
+        build: { kind: "release", version: notes.version, manifest },
         views: {},
         settings: [],
         digest: String(now).padStart(64, "c"),
@@ -360,3 +364,16 @@ function lineAt(line: number): number {
         .slice(0, line - 1)
         .reduce((offset, text) => offset + text.length + 1, 0);
 }
+
+/** The digest of the manifest of the plain notes build `openNotesBuild` writes. */
+export const NOTES_MANIFEST = Digest.parse(
+    "8bdf50d6d97eea3aeea1819f64e41b24dfc909ad0d1e5e6edfd7c7ed48b24bd1",
+);
+
+/** The notes workload's instance running the notes build, as its machine verified it. */
+export const NOTES_EMITTER: OtlpEmitter = {
+    scope: ids.space,
+    installation: ids.notes,
+    instance: ids.instance,
+    build: NOTES_MANIFEST,
+};

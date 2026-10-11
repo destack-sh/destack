@@ -1,3 +1,4 @@
+import type { BuildReader } from "@destack/package/manifest";
 import { expect, refusal, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { present } from "@destack/schema";
@@ -196,13 +197,10 @@ test("refuse an events rule calling an installation its group names none of", as
 
 test("roll an installation back through installation.rollBack when a rule watching new issues fires", async () => {
     // serve observability with notes applied at its second revision
-    const notesBuild = await openNotesBuild();
-    const { server, receive, database, failures, until } = await serveObservability({
-        openBuild: async () => notesBuild,
-    });
+    const { fixture, server, receive, database, failures, until } = await serveObservability();
     const now = Date.now();
-    const previous = await recordNotesRevision(database, now - 60_000);
-    const current = await recordNotesRevision(database, now);
+    const previous = await recordNotesRevision(fixture, now - 60_000);
+    const current = await recordNotesRevision(fixture, now);
     await database
         .update(installation.table)
         .set({ revisionId: current, appliedRevisionId: current })
@@ -239,23 +237,9 @@ test("keep the alert rules an installation's applied revision declares, and reti
         condition: { kind: "issue", on: "open", filter: "level = fatal" },
         actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
     };
-    const builds = new Map([
-        ["c".repeat(64), await openNotesBuild({ rollback })],
-        ["d".repeat(64), await openNotesBuild()],
-    ]);
-    const { database, until } = await serveObservability({
-        openBuild: async (_packageId, build) => {
-            // open the build the revision pinned by its manifest
-            const manifest = build.kind === "tag" ? undefined : build.manifest;
-
-            return present(
-                builds.get(present(manifest, "the revision's manifest")),
-                "the notes build of the revision",
-            );
-        },
-    });
-    const revision = async (manifest: string, createdAt: number) => {
-        const id = await recordNotesRevision(database, createdAt, manifest);
+    const { fixture, database, until } = await serveObservability();
+    const revision = async (build: BuildReader, createdAt: number) => {
+        const id = await recordNotesRevision(fixture, createdAt, build);
         await database
             .update(installation.table)
             .set({ revisionId: id, appliedRevisionId: id })
@@ -270,7 +254,7 @@ test("keep the alert rules an installation's applied revision declares, and reti
             declaration: row.managerName,
             isRetiring: row.deletionRequestedAt !== null,
         }));
-    await revision("c".repeat(64), Date.now() - 60_000);
+    await revision(await openNotesBuild({ rollback }), Date.now() - 60_000);
     await until(async () => (await kept()).length === 1);
     expect(await kept()).toEqual([
         {
@@ -282,7 +266,7 @@ test("keep the alert rules an installation's applied revision declares, and reti
     ]);
 
     // retire it once a later revision declares none
-    await revision("d".repeat(64), Date.now());
+    await revision(await openNotesBuild(), Date.now());
     await until(async () => (await kept()).every((rule) => rule.isRetiring));
 });
 
@@ -301,9 +285,8 @@ test("refuse a declared alert rule over an event kind the space keeps none of, k
         },
         actions: [{ kind: "notify" }],
     };
-    const build = await openNotesBuild({ unknown });
-    const { database, failed } = await serveObservability({ openBuild: async () => build });
-    const id = await recordNotesRevision(database, Date.now());
+    const { fixture, database, failed } = await serveObservability();
+    const id = await recordNotesRevision(fixture, Date.now(), await openNotesBuild({ unknown }));
     await database
         .update(installation.table)
         .set({ revisionId: id, appliedRevisionId: id })

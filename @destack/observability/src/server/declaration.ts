@@ -1,8 +1,9 @@
-import { and, Change, eq, isNotNull, isNull } from "@destack/db";
+import { and, Change, eq, isNotNull, isNull, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { Controller } from "@destack/service/control";
 import { installation, installationRevision } from "@destack/stack/object";
-import type { OpenBuild } from "@destack/stack/server";
+import { BuildBucket } from "@destack/stack/server";
+import type { BucketHost } from "@destack/bucket/s3";
 import { type Identifier, schema } from "@destack/schema";
 import { AlertRuleDefinition, alertRule } from "../object/index.ts";
 import { Caller } from "@destack/access";
@@ -17,12 +18,12 @@ export class DeclarationController implements Controller {
     /** The object store keeping the rules beside copies of the installations and their revisions. */
     readonly #store: ObjectStore;
     /** Open an installation revision's build. */
-    readonly #open: OpenBuild;
+    readonly #buckets: BucketHost;
 
     /** Apply the rules the builds of an object store's copied installations declare. */
-    constructor(store: ObjectStore, open: OpenBuild) {
+    constructor(store: ObjectStore, buckets: BucketHost) {
         this.#store = store;
-        this.#open = open;
+        this.#buckets = buckets;
     }
 
     /** Name the installation a changed installation or revision belongs to. */
@@ -133,12 +134,9 @@ export class DeclarationController implements Controller {
         }
 
         // read the alert rules its build declares
-        const reader = await this.#open(
-            applied.packageId,
-            applied.build,
-            applied.scope,
-            this.#store.database,
-        );
+        const snapshot = Snapshot.live(this.#store.database);
+        const { scope, build } = applied;
+        const reader = await BuildBucket.read(this.#buckets, snapshot, scope, build.manifest);
         const rules = await reader.declared(
             alertRule.package.id,
             "alert-rule",
