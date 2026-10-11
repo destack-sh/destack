@@ -27,7 +27,7 @@ generate:
 # generate check
 generate-check:
     bun run scripts/generate-release.ts --check
-    bun --preload @destack/package/bun/preload scripts/generate-plan.ts --check
+    bun --preload @destack/package/bun/preload scripts/generate-rates.ts --check
     bun run scripts/generate-content.ts --check
 
 # typecheck
