@@ -34,6 +34,8 @@ import {
     type QueryOptions,
     type Relation,
     Relations,
+    type Transaction,
+    type Select,
 } from "@destack/db";
 import { SyncError } from "../error/error.ts";
 import { schema, canonicalize, Clock, found, zip } from "@destack/schema";
@@ -69,9 +71,31 @@ const SubscriptionRecord = Subscription.omit({
 /** A subscription as a copy records it. */
 export type SubscriptionRecord = schema.Infer<typeof SubscriptionRecord>;
 
-/** The copies a database keeps, with their source and home positions. */
+/** The copies a database keeps: what each copies and from which subscription. */
 export const replica = defineTable(
     "replica",
+    {
+        /** The copy's name. */
+        name: text("name").primaryKey(),
+        /** The scope whose rows the copy keeps. */
+        scope: text("scope").primaryKey(),
+        /** The subscription the copy completed a run of, absent for a copy no subscription names. */
+        subscription: json("subscription", SubscriptionRecord),
+        /** The scopes the copy reads, nearest first, absent until its source sends them. */
+        scopes: json("scopes", schema.array(schema.string())),
+        /** The layout digest of the copied tables' logged columns. */
+        layout: text("layout"),
+        /** The copied tables' SQL names, recorded when the copy registers. */
+        tables: json("tables", schema.array(schema.string())).notNull(),
+    },
+    {
+        log: {},
+    },
+);
+
+/** How far each copy a database keeps has come: its source and home positions and its last confirmation. */
+export const replicaPosition = defineTable(
+    "replica_position",
     {
         /** The copy's name. */
         name: text("name").primaryKey(),
@@ -85,20 +109,22 @@ export const replica = defineTable(
         originEpoch: text("origin_epoch"),
         /** The home log sequence the rows reflect, absent when the source is their home. */
         originSequence: integer("origin_sequence"),
-        /** The subscription the copy completed a run of, absent for a copy no subscription names. */
-        subscription: json("subscription", SubscriptionRecord),
-        /** The scopes the copy reads, nearest first, absent until its source sends them. */
-        scopes: json("scopes", schema.array(schema.string())),
-        /** The layout digest of the copied tables' logged columns. */
-        layout: text("layout"),
-        /** The copied tables' SQL names, recorded when the copy registers. */
-        tables: json("tables", schema.array(schema.string())).notNull(),
         /** The last time the home confirmed the rows current, in UTC epoch milliseconds. */
         confirmedAt: integer("confirmed_at").notNull(),
     },
     {
         log: {},
     },
+);
+
+/** A copy's registration with its position. */
+type ReplicaRecord = Select<typeof replica> &
+    Omit<Select<typeof replicaPosition>, "name" | "scope">;
+
+/** Join a copy's registration to its position, by the copy's name and scope. */
+const POSITIONED = and(
+    eq(replicaPosition.name, replica.name),
+    eq(replicaPosition.scope, replica.scope),
 );
 
 /** The staged pages of a copy's run in progress. */
@@ -164,7 +190,13 @@ export const replicaRow = defineTable(
 );
 
 /** The tables of a database with copies. */
-export const replicaTables: readonly Table[] = [replica, replicaPage, replicaResult, replicaRow];
+export const replicaTables: readonly Table[] = [
+    replica,
+    replicaPosition,
+    replicaPage,
+    replicaResult,
+    replicaRow,
+];
 
 /** A local copy of one scope's rows in a remote database's tables. */
 export class Replica {
@@ -261,11 +293,11 @@ export class Replica {
                 { ...this.#query(table), ...this.#children(table), relations: this.#relations },
             ]);
 
-        // follow the source's own copy record when relayed
+        // follow the source's own copy position when relayed
         if (this.isRelayed) {
             queries.push([
-                replica[TABLE].sqlName,
-                { table: replica, scopes: [this.scope], where: { name: this.name } },
+                replicaPosition[TABLE].sqlName,
+                { table: replicaPosition, scopes: [this.scope], where: { name: this.name } },
             ]);
         }
 
@@ -370,16 +402,9 @@ export class Replica {
     }
 
     /** Report whether a database copies a scope, or the scope's rows of one table. */
-    static async isCopied(
-        database: DatabaseConnection,
-        scope: string,
-        table?: Table,
-    ): Promise<boolean> {
+    static async isCopied(snapshot: Snapshot, scope: string, table?: Table): Promise<boolean> {
         // read the copies of the scope with the tables they keep
-        const copies = await database
-            .select({ tables: replica.tables })
-            .from(replica)
-            .where(eq(replica.scope, scope));
+        const copies = await snapshot.rows(replica, { scope });
         const name = table?.[TABLE].sqlName;
 
         return copies.some((copy) => name === undefined || copy.tables.includes(name));
@@ -445,8 +470,8 @@ export class Replica {
     }
 
     /** Report whether the database keeps the copy's record. */
-    async isRecorded(database: DatabaseConnection): Promise<boolean> {
-        return (await this.#record(database)) !== undefined;
+    async isRecorded(snapshot: Snapshot): Promise<boolean> {
+        return (await snapshot.row(replica, { name: this.name, scope: this.scope })) !== null;
     }
 
     /** Report whether a database's copy of a scope holds a complete snapshot, as an informer has synced. */
@@ -461,13 +486,18 @@ export class Replica {
     }
 
     /** Read a database's record of a named copy of a scope, absent before the copy follows. */
-    static async #find(database: DatabaseConnection, name: string, scope: string) {
+    static async #find(
+        database: DatabaseConnection,
+        name: string,
+        scope: string,
+    ): Promise<ReplicaRecord | undefined> {
         const [record] = await database
-            .select()
+            .select({ registration: replica, position: replicaPosition })
             .from(replica)
+            .innerJoin(replicaPosition, POSITIONED)
             .where(and(eq(replica.name, name), eq(replica.scope, scope)));
 
-        return record;
+        return record === undefined ? undefined : recordOf(record.registration, record.position);
     }
 
     /** Refuse relaying a copy that has no position yet. */
@@ -493,11 +523,12 @@ export class Replica {
             .select({
                 name: replica.name,
                 scope: replica.scope,
-                epoch: replica.epoch,
-                originEpoch: replica.originEpoch,
+                epoch: replicaPosition.epoch,
+                originEpoch: replicaPosition.originEpoch,
                 tables: replica.tables,
             })
-            .from(replica);
+            .from(replica)
+            .innerJoin(replicaPosition, POSITIONED);
         // refuse a copy from the subscriber keeping one of the copy's tables, with rows or without yet
         const [cyclic] = records.flatMap((record) => {
             const shared = record.tables.find((table) => this.#copied.has(table));
@@ -542,12 +573,13 @@ export class Replica {
     static async #keeping(
         database: DatabaseConnection,
         scopes: readonly string[],
-    ): Promise<{ readonly scope: string; readonly record: typeof replica.$inferSelect }[]> {
+    ): Promise<{ readonly scope: string; readonly record: ReplicaRecord }[]> {
         // read the copies recorded at the scopes, and those including the scopes' own rows
         const keys = new Map(scopes.map((scope) => [Key.name(scopeTable, { scope }), scope]));
         const rows = await database
             .select()
             .from(replica)
+            .innerJoin(replicaPosition, POSITIONED)
             .leftJoin(
                 replicaRow,
                 and(
@@ -560,8 +592,13 @@ export class Replica {
             .where(or(inArray(replica.scope, scopes), inArray(replicaRow.key, [...keys.keys()])));
 
         // pair each copy with the scope it is recorded at and the scope whose row it includes
-        const pairs = new Map<string, { scope: string; record: typeof replica.$inferSelect }>();
-        for (const { replica: record, replica_row: included } of rows) {
+        const pairs = new Map<string, { scope: string; record: ReplicaRecord }>();
+        for (const {
+            replica: registration,
+            replica_position: position,
+            replica_row: included,
+        } of rows) {
+            const record = recordOf(registration, position);
             const kept = [
                 ...(scopes.includes(record.scope) ? [record.scope] : []),
                 ...(included === null ? [] : [found(keys, included.key)]),
@@ -580,17 +617,12 @@ export class Replica {
     }
 
     /** Read the copy's record, absent before it registered. */
-    async #record(database: DatabaseConnection): Promise<typeof replica.$inferSelect | undefined> {
-        const [record] = await database.select().from(replica).where(this.#match(replica));
-
-        return record;
+    async #record(database: DatabaseConnection): Promise<ReplicaRecord | undefined> {
+        return Replica.#find(database, this.name, this.scope);
     }
 
     /** Read a record's source position, absent before its first snapshot or after a layout change. */
-    #positionOf(
-        record: typeof replica.$inferSelect | undefined,
-        layout: string,
-    ): LogPosition | undefined {
+    #positionOf(record: ReplicaRecord | undefined, layout: string): LogPosition | undefined {
         return record === undefined ||
             record.epoch === null ||
             record.sequence === null ||
@@ -791,35 +823,46 @@ export class Replica {
     }
 
     /** Keep the copied rows as the database's own. */
-    async promote(database: DatabaseConnection): Promise<void> {
-        await database.transaction(async (transaction) => {
-            // require a complete copy
-            if ((await this.position(transaction)) === undefined) {
-                throw new SyncError("STALE", `copy of ${this.scope} holds no position yet`);
-            }
+    async promote(transaction: Transaction): Promise<void> {
+        // require a complete copy
+        const copy = { name: this.name, scope: this.scope };
+        const registration = await transaction.row(replica, copy);
+        const position = await transaction.row(replicaPosition, copy);
+        const record =
+            registration === null || position === null
+                ? undefined
+                : recordOf(registration, position);
+        if (this.#positionOf(record, await this.#layout) === undefined) {
+            throw new SyncError("STALE", `copy of ${this.scope} holds no position yet`);
+        }
 
-            // drop the copy's record, staged pages, groups and included rows
-            await transaction.delete(replicaPage).where(this.#match(replicaPage));
-            await transaction.delete(replicaResult).where(this.#match(replicaResult));
-            await transaction.delete(replicaRow).where(this.#match(replicaRow));
-            await transaction.delete(replica).where(this.#match(replica));
+        // drop the copy's registration and position, and its staged pages, groups and included rows as the transaction commits
+        await transaction.write(replica, registration, null);
+        await transaction.write(replicaPosition, position, null);
+        transaction.record(async (database) => {
+            await database.delete(replicaPage).where(this.#match(replicaPage));
+            await database.delete(replicaResult).where(this.#match(replicaResult));
+            await database.delete(replicaRow).where(this.#match(replicaRow));
         });
     }
 
     /** Record the copy before its first snapshot, with the subscription it follows when given. */
     async register(database: DatabaseConnection, subscription?: Subscription): Promise<void> {
-        await database
-            .insert(replica)
-            .values({
-                name: this.name,
-                scope: this.scope,
-                epoch: null,
-                sequence: null,
-                subscription: subscription === undefined ? null : subscribedOf(subscription),
-                tables: [...this.#copied.keys()],
-                confirmedAt: this.#clock.now(),
-            })
-            .onConflictDoNothing();
+        await database.transaction(async (transaction) => {
+            const copy = { name: this.name, scope: this.scope };
+            await transaction
+                .insert(replica)
+                .values({
+                    ...copy,
+                    subscription: subscription === undefined ? null : subscribedOf(subscription),
+                    tables: [...this.#copied.keys()],
+                })
+                .onConflictDoNothing();
+            await transaction
+                .insert(replicaPosition)
+                .values({ ...copy, epoch: null, sequence: null, confirmedAt: this.#clock.now() })
+                .onConflictDoNothing();
+        });
     }
 
     /** Drop the copy: delete the rows it wrote that no other copy includes, retract its projections and forget its record. */
@@ -844,6 +887,7 @@ export class Replica {
                     // forget the groups, staged pages and record
                     await transaction.delete(replicaResult).where(this.#match(replicaResult));
                     await transaction.delete(replicaPage).where(this.#match(replicaPage));
+                    await transaction.delete(replicaPosition).where(this.#match(replicaPosition));
                     await transaction.delete(replica).where(this.#match(replica));
                 });
             },
@@ -975,7 +1019,7 @@ export class Replica {
         transaction: DatabaseConnection,
         page: Page,
         run: Stage,
-        record: typeof replica.$inferSelect | undefined,
+        record: ReplicaRecord | undefined,
         options: ApplyOptions,
     ): Promise<void> {
         // let go of every group on a snapshot
@@ -1000,31 +1044,36 @@ export class Replica {
         transaction: DatabaseConnection,
         page: Page,
         run: Stage,
-        record: typeof replica.$inferSelect | undefined,
+        record: ReplicaRecord | undefined,
         relayed: Origin | undefined,
         { subscription }: ApplyOptions,
     ): Promise<void> {
-        // take the home position the rows reflect
+        // take the home position the rows reflect, and what the copy copies
+        const copy = { name: this.name, scope: this.scope };
         const isHome = relayed === undefined && (run.isSnapshot || record?.originEpoch === null);
-        const advanced = {
+        const position = {
             ...page.position,
             ...originColumns(relayed, isHome, this.#clock.now()),
+        };
+        const registration = {
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
             ...(subscription === undefined ? {} : { subscription: subscribedOf(subscription) }),
             layout: await this.#layout,
             tables: [...this.#copied.keys()],
         };
 
-        // write the record and drop the staged pages
+        // write the registration, then the position, and drop the staged pages
         await transaction
             .insert(replica)
-            .values({
-                name: this.name,
-                scope: this.scope,
-                confirmedAt: record?.confirmedAt ?? this.#clock.now(),
-                ...advanced,
-            })
-            .onConflictDoUpdate({ target: [replica.name, replica.scope], set: advanced });
+            .values({ ...copy, ...registration })
+            .onConflictDoUpdate({ target: [replica.name, replica.scope], set: registration });
+        await transaction
+            .insert(replicaPosition)
+            .values({ ...copy, confirmedAt: record?.confirmedAt ?? this.#clock.now(), ...position })
+            .onConflictDoUpdate({
+                target: [replicaPosition.name, replicaPosition.scope],
+                set: position,
+            });
         await transaction.delete(replicaPage).where(this.#match(replicaPage));
     }
 
@@ -1135,8 +1184,8 @@ export class Replica {
             const table = this.#copied.get(change.table);
             const projector = this.#projectors.get(change.table);
 
-            // take a relaying source's copy record as the home position
-            if (change.table === replica[TABLE].sqlName) {
+            // take a relaying source's copy position as the home position
+            if (change.table === replicaPosition[TABLE].sqlName) {
                 origin = this.#relayed(change);
                 continue;
             }
@@ -1171,7 +1220,9 @@ export class Replica {
             change.operation === "delete"
                 ? undefined
                 : Replica.#origin(
-                      replica[TABLE].selectSchema().parse(replica[TABLE].decode(change.row)),
+                      replicaPosition[TABLE]
+                          .selectSchema()
+                          .parse(replicaPosition[TABLE].decode(change.row)),
                   );
         if (origin === undefined) {
             throw new DatabaseError("STALE_EPOCH", `source stopped copying ${this.scope}`);
@@ -1434,7 +1485,7 @@ export class Replica {
     }
 
     /** Read a record's home position, absent before its first snapshot. */
-    static #origin(record: typeof replica.$inferSelect): Origin | undefined {
+    static #origin(record: Select<typeof replicaPosition>): Origin | undefined {
         // skip a copy without a position
         if (record.epoch === null || record.sequence === null) {
             return undefined;
@@ -1451,7 +1502,12 @@ export class Replica {
 
     /** Match the copy's rows of a bookkeeping table keyed by name and scope. */
     #match(
-        table: typeof replica | typeof replicaPage | typeof replicaResult | typeof replicaRow,
+        table:
+            | typeof replica
+            | typeof replicaPosition
+            | typeof replicaPage
+            | typeof replicaResult
+            | typeof replicaRow,
     ): SQL {
         return and(eq(table.name, this.name), eq(table.scope, this.scope));
     }
@@ -1838,4 +1894,12 @@ function originColumns(
     else {
         return {};
     }
+}
+
+/** Merge a copy's registration with its position. */
+function recordOf(
+    registration: Select<typeof replica>,
+    position: Select<typeof replicaPosition>,
+): ReplicaRecord {
+    return { ...position, ...registration };
 }

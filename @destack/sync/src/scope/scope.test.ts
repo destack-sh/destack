@@ -1,7 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { eq, Snapshot, sql } from "@destack/db";
-import { schema } from "@destack/schema";
+import { eq, Snapshot, TABLE, Transaction } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { open } from "../test/fixture.ts";
 import { Scope } from "./scope.ts";
@@ -48,11 +47,13 @@ test.for(TEST_DIALECTS)(
         });
 
         // fence a scope for its target machine and lift the fence
-        await Scope.fence(database, "space", "machine-b", 1000);
+        await Transaction.run(database, (transaction) =>
+            Scope.fence(transaction, "space", "machine-b", 1000),
+        );
         const moved = async () =>
             (await Scope.chain(Snapshot.live(database), "space")).map((link) => link.movedTo);
         expect(await moved()).toEqual(["machine-b", undefined, undefined]);
-        await Scope.unfence(database, "space");
+        await Transaction.run(database, (transaction) => Scope.unfence(transaction, "space"));
         expect(await moved()).toEqual([undefined, undefined, undefined]);
     },
 );
@@ -96,17 +97,11 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
-    "run a write waiting behind a fence again once the fence commits, showing it the fence on postgresql",
-    async () => {
-        const storage = await TestDatabase.create("postgresql", [Scope.table], {
-            isMigrated: true,
-        });
-        const other = await storage.connect([Scope.table]);
-        onTestFinished(async () => {
-            await other.close();
-            await storage.close();
-        });
+test.for(TEST_DIALECTS)(
+    "fail the commit of a transaction that read a chain before a fence, and show it the fence when it runs again on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [Scope.table], { isMigrated: true });
+        onTestFinished(() => storage.close());
         const row = (scope: string, parent: string, ancestors: string[]) => ({
             scope,
             parent,
@@ -119,45 +114,29 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
             .insert(Scope.table)
             .values([row("account", Scope.universe.id, []), row("space", "account", ["account"])]);
 
-        // hold a fence of the account open on another connection
-        const fenced = Promise.withResolvers<void>();
-        const release = Promise.withResolvers<void>();
-        const fencing = other.transaction(async (transaction) => {
-            await Scope.fence(transaction, "account", "machine-b", 1000);
-            fenced.resolve();
-            await release.promise;
-        });
-        await fenced.promise;
-
-        // write into the space once its guard returns, waiting until the guard queues behind the fence
-        const write = async () =>
-            await storage.database.transaction(async (transaction) => {
-                const chain = await Scope.guard(transaction, "space");
-                await transaction.insert(Scope.table).values(row("note", "space", ["space"]));
-
-                return chain.map((link) => link.movedTo);
-            });
-        const writing = write().catch((error: unknown) => error);
-        await expect
-            .poll(async () => {
-                const [waiting] = await other.execute(
-                    sql`SELECT count(*)::int AS count FROM pg_locks WHERE NOT granted`,
-                    schema.object({ count: schema.number() }),
+        // write into the space, fencing the account after the first attempt read the chain
+        let attempts = 0;
+        const written = await Transaction.run(storage.database, async (transaction) => {
+            attempts += 1;
+            const chain = await Scope.chain(transaction.view(), "space");
+            if (attempts === 1) {
+                await Transaction.run(storage.database, (fencing) =>
+                    Scope.fence(fencing, "account", "machine-b", 1000),
                 );
+            }
+            const note = Scope.table[TABLE].complete(row("note", "space", ["space"]));
+            await transaction.write(Scope.table, null, note);
 
-                return waiting?.count ?? 0;
-            })
-            .toBeGreaterThan(0);
-        release.resolve();
-        await fencing;
+            return chain.map((link) => link.movedTo);
+        });
 
-        // run the waiting write again, its guard showing the fence
-        const written = await writing;
+        // commit the second attempt, which reads the fence
         const notes = await storage.database
             .select({ scope: Scope.table.scope })
             .from(Scope.table)
             .where(eq(Scope.table.scope, "note"));
-        expect([written, notes]).toEqual([
+        expect([attempts, written, notes]).toEqual([
+            2,
             [undefined, "machine-b", undefined],
             [{ scope: "note" }],
         ]);

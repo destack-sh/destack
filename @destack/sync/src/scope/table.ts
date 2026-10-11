@@ -10,9 +10,7 @@ export const scopeTable = defineTable(
         /** The scope containing this one, the universe for users and organisations. */
         parent: text("parent").notNull(),
         /** The enclosing scopes nearest first, as far as this row's own database knew them when recording it. */
-        ancestors: json("ancestors", schema.array(schema.string()))
-            .notNull()
-            .default(sql`'[]'`),
+        ancestors: json("ancestors", schema.array(schema.string())).notNull().default([]),
         /** The scope whose objects partition this scope's rows. */
         partition: text("partition").notNull(),
         /** The package declaring the scope object's type. */

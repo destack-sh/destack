@@ -1,6 +1,5 @@
-import { eq, inArray, sql, Snapshot, type DatabaseConnection, type RowImage } from "@destack/db";
-import { found, schema } from "@destack/schema";
-import type {} from "@destack/package/import-meta";
+import { Snapshot, type RowImage, type Select, type Transaction } from "@destack/db";
+import { found } from "@destack/schema";
 import { SyncError } from "../error/index.ts";
 import type { ObjectReference } from "./reference.ts";
 import { scopeTable } from "./table.ts";
@@ -48,7 +47,6 @@ export const Scope = {
     fence,
     fenced,
     link: linkOf,
-    guard,
     unfence,
 };
 
@@ -67,23 +65,6 @@ export interface ScopeLink {
     /** The machine a transfer moves the scope to, while fenced. */
     readonly movedTo: string | undefined;
 }
-
-/** A scope row's parent and fence state as a write locks it. */
-const LockedScope = schema.object({
-    /** The scope. */
-    scope: schema.string(),
-    /** The containing scope. */
-    parent: schema.string(),
-    /** When the scope was suspended. */
-    suspended_at: schema.unknown(),
-    /** When the scope's storage was capped. */
-    capped_at: schema.unknown(),
-    /** The machine a transfer moves the scope to. */
-    moved_to: schema.string().nullable(),
-});
-
-/** A scope row's parent and fence state as a write locks it. */
-type LockedScope = schema.Infer<typeof LockedScope>;
 
 /** Read the rows of some scopes by identifier, the universe's among them when asked, which no database stores. */
 async function read(
@@ -176,93 +157,39 @@ async function object(snapshot: Snapshot, id: string): Promise<ObjectReference> 
     return link.object;
 }
 
-/** Cap a scope's storage from a time, refusing writes within it but deletes, or lift the cap with null. */
+/** Cap a scope's storage from a time in a transaction, refusing writes within it but deletes, or lift the cap with null. */
 async function cap(
-    database: DatabaseConnection,
+    transaction: Transaction,
     scope: string,
     cappedAt: number | null,
 ): Promise<void> {
-    const [capped] = await database
-        .update(scopeTable)
-        .set({ cappedAt })
-        .where(eq(scopeTable.scope, scope))
-        .returning({ scope: scopeTable.scope });
-    if (capped === undefined) {
-        throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
-    }
+    await change(transaction, scope, { cappedAt });
 }
 
-/** Send a scope and the scopes below it to another machine once the writes guarding it commit. */
+/** Send a scope and the scopes below it to another machine, failing the commits of transactions that read its chain before. */
 async function fence(
-    database: DatabaseConnection,
+    transaction: Transaction,
     scope: string,
     machine: string,
     now: number,
 ): Promise<void> {
-    // mark the scope moved, waiting on its row lock for the writes guarding it
-    const [moved] = await database
-        .update(scopeTable)
-        .set({ fencedAt: now, movedTo: machine })
-        .where(eq(scopeTable.scope, scope))
-        .returning({ scope: scopeTable.scope });
-    if (moved === undefined) {
-        throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
-    }
-}
-
-/**
- * Lock a write's scope chain against fences until it commits, and return the chain as locked.
- *
- * A write whose snapshot predates a fence committed meanwhile fails as a concurrent update on PostgreSQL.
- */
-async function guard(database: DatabaseConnection, scope: string): Promise<ScopeLink[]> {
-    for (;;) {
-        // take the chain as read on SQLite's serialized writes
-        const links = await chain(Snapshot.live(database), scope);
-        if (database.dialect !== "postgresql") {
-            return links;
-        }
-
-        // lock the chain's rows, and read the chain again once they changed since
-        const locked = await lock(
-            database,
-            links.map((link) => link.object.id).filter((id) => id !== UNIVERSE_ID),
-        );
-        const isCurrent = links.every((link) => {
-            const row = locked.get(link.object.id);
-
-            return (
-                link.object.id === UNIVERSE_ID ||
-                (row !== undefined &&
-                    row.parent === link.parent &&
-                    (row.suspended_at !== null) === link.isSuspended &&
-                    (row.capped_at !== null) === link.isCapped &&
-                    (row.moved_to ?? undefined) === link.movedTo)
-            );
-        });
-        if (isCurrent) {
-            return links;
-        }
-    }
-}
-
-/** Share-lock scope rows for the transaction, returning their fence state as locked by scope. */
-async function lock(
-    database: DatabaseConnection,
-    scopes: readonly string[],
-): Promise<Map<string, LockedScope>> {
-    const rows = await database.execute(
-        sql`SELECT ${scopeTable.scope} AS scope, ${scopeTable.parent} AS parent, ${scopeTable.suspendedAt} AS suspended_at, ${scopeTable.cappedAt} AS capped_at, ${scopeTable.movedTo} AS moved_to FROM ${scopeTable} WHERE ${inArray(scopeTable.scope, scopes)} ORDER BY ${scopeTable.scope} FOR SHARE`,
-        LockedScope,
-    );
-
-    return new Map(rows.map((row) => [row.scope, row]));
+    await change(transaction, scope, { fencedAt: now, movedTo: machine });
 }
 
 /** Lift a scope's fence on the database now keeping it. */
-async function unfence(database: DatabaseConnection, scope: string): Promise<void> {
-    await database
-        .update(scopeTable)
-        .set({ fencedAt: null, movedTo: null })
-        .where(eq(scopeTable.scope, scope));
+async function unfence(transaction: Transaction, scope: string): Promise<void> {
+    await change(transaction, scope, { fencedAt: null, movedTo: null });
+}
+
+/** Write some columns of a scope's row in a transaction, refusing an unknown scope. */
+async function change(
+    transaction: Transaction,
+    scope: string,
+    changes: Partial<Select<typeof scopeTable>>,
+): Promise<void> {
+    const row = await transaction.row(scopeTable, { scope });
+    if (row === null) {
+        throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
+    }
+    await transaction.write(scopeTable, row, { ...row, ...changes });
 }

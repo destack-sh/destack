@@ -17,13 +17,15 @@ import {
     type LogPosition,
     type DatabaseConnection,
     defineDatabase,
+    Snapshot,
+    Transaction,
 } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { setTimeout } from "node:timers/promises";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { schema } from "@destack/schema";
-import { replicaTables, Replica, replica, replicaRow, type Projector } from "./replica.ts";
+import { replicaTables, Replica, replicaPosition, replicaRow, type Projector } from "./replica.ts";
 import { type Resumption, Uplink } from "./shape.ts";
 import {
     asset,
@@ -56,7 +58,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [note, replica]);
+        const feed = new Feed(source, [note, replicaPosition]);
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         await source.insert(note).values([first, { ...first, id: "b", scope: "archive" }]);
         await copy.insert(note).values({ ...first, id: "stale" });
@@ -75,8 +77,8 @@ test.for(TEST_DIALECTS)(
         expect([
             await Replica.isSynced(copy, "notes", "inbox"),
             await Replica.isSynced(copy, "notes", "archive"),
-            await Replica.isCopied(copy, "inbox", note),
-            await Replica.isCopied(copy, "inbox", task),
+            await Replica.isCopied(Snapshot.live(copy), "inbox", note),
+            await Replica.isCopied(Snapshot.live(copy), "inbox", task),
             await Replica.scopes(copy, note),
             await Replica.scopes(copy, task),
         ]).toEqual([true, false, true, false, ["inbox"], []]);
@@ -93,9 +95,9 @@ test.for(TEST_DIALECTS)(
         expect(await notes.position(copy)).toEqual(await source.log.position());
 
         // keep the rows once promoted
-        await notes.promote(copy);
+        await Transaction.run(copy, (transaction) => notes.promote(transaction));
         expect([
-            await Replica.isCopied(copy, "inbox"),
+            await Replica.isCopied(Snapshot.live(copy), "inbox"),
             (await copy.select().from(note)).map((row) => row.id),
         ]).toEqual([false, ["a"]]);
     },
@@ -113,8 +115,8 @@ test.for(TEST_DIALECTS)(
         // follow each database's table from the other, naming the follower's own origin
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const projects = new Replica({ name: "projects", scope: "inbox", tables: [project] });
-        const homeFeed = new Feed(home, [note, replica]);
-        const otherFeed = new Feed(other, [project, replica]);
+        const homeFeed = new Feed(home, [note, replicaPosition]);
+        const otherFeed = new Feed(other, [project, replicaPosition]);
         const controller = new AbortController();
         const following = Promise.all([
             notes.follow(other, followOf(homeFeed, notes), controller.signal),
@@ -152,7 +154,7 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         const following = inbox.follow(
             other,
-            followOf(new Feed(home, [note, replica]), inbox),
+            followOf(new Feed(home, [note, replicaPosition]), inbox),
             controller.signal,
         );
         const signal = AbortSignal.timeout(5000);
@@ -218,7 +220,7 @@ test.for(TEST_DIALECTS)(
                 [note, scopes],
             ]),
         });
-        const feed = new Feed(source, [Scope.table, note, replica]);
+        const feed = new Feed(source, [Scope.table, note, replicaPosition]);
         const subscription = { ...subscriptionOf("folders"), scope: Scope.universe.id };
         const controller = new AbortController();
         const following = folders.follow(
@@ -274,7 +276,7 @@ test.for(TEST_DIALECTS)(
             tables: copied,
             everywhere: new Set(copied),
         });
-        const feed = new Feed(source, [entry, machineKey, replica]);
+        const feed = new Feed(source, [entry, machineKey, replicaPosition]);
         const data = new Uint8Array([1, 2, 3]);
         await source
             .insert(entry)
@@ -312,7 +314,7 @@ test.for(TEST_DIALECTS)(
         while ((await applied.next()).done !== true) {
             // apply each captured page
         }
-        await copy.promote(target);
+        await Transaction.run(target, (transaction) => copy.promote(transaction));
 
         // keep exactly the source's rows with the key rewrapped for the target
         const read = async (database: typeof source) => [
@@ -325,7 +327,7 @@ test.for(TEST_DIALECTS)(
             [{ id: "c", value: "cached" }],
             [{ id: "k", scope: "inbox", wrapped: "target:k" }],
         ]);
-        expect(await Replica.isCopied(target, "database")).toBe(false);
+        expect(await Replica.isCopied(Snapshot.live(target), "database")).toBe(false);
     },
 );
 
@@ -334,7 +336,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [project, task, replica]);
+        const feed = new Feed(source, [project, task, replicaPosition]);
         const projects = new Replica({ name: "work", scope: "inbox", tables: [project] });
         await source.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
 
@@ -368,7 +370,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({ name: "copy", tables: replicaTables, copies: [label, project] }),
         );
-        const feed = new Feed(source, [label, project, replica]);
+        const feed = new Feed(source, [label, project, replicaPosition]);
         await source.insert(label).values({ id: "l1", scope: "inbox", name: "red" });
 
         // copy the labels until synced
@@ -405,7 +407,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({ name: "copy", tables: replicaTables, copies: [label] }),
         );
-        const feed = new Feed(source, [label, replica]);
+        const feed = new Feed(source, [label, replicaPosition]);
         await source.insert(label).values([
             { id: "l1", scope: "inbox", name: "red" },
             { id: "l2", scope: "inbox", name: "blue" },
@@ -439,11 +441,17 @@ test.for(TEST_DIALECTS)(
             Replica.wait(copy, "inbox", { epoch, sequence: 5 }, AbortSignal.timeout(20));
 
         // reach no position of an uncopied scope
-        expect([await Replica.isCopied(copy, "inbox"), await reach()]).toEqual([false, false]);
+        expect([await Replica.isCopied(Snapshot.live(copy), "inbox"), await reach()]).toEqual([
+            false,
+            false,
+        ]);
 
         // wait until a complete page reaches the position
         await notes.register(copy);
-        expect([await Replica.isCopied(copy, "inbox"), await reach()]).toEqual([true, false]);
+        expect([await Replica.isCopied(Snapshot.live(copy), "inbox"), await reach()]).toEqual([
+            true,
+            false,
+        ]);
         await replicate(notes, copy, [
             {
                 reset: true,
@@ -526,7 +534,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [project, task, replica]);
+        const feed = new Feed(source, [project, task, replicaPosition]);
         const projects = new Replica({ name: "projects", scope: "inbox", tables: [project, task] });
         await source.insert(project).values([
             { id: "p", scope: "inbox", name: "Plans" },
@@ -605,7 +613,7 @@ test.for(TEST_DIALECTS)(
         // follow an asset with binary content and a secret outside the log
         const source = await open(dialect, [asset, ...replicaTables]);
         const copy = await openCopy(dialect, [asset, ...replicaTables]);
-        const feed = new Feed(source, [asset, replica]);
+        const feed = new Feed(source, [asset, replicaPosition]);
         const assets = new Replica({ name: "assets", scope: "inbox", tables: [asset] });
         await source
             .insert(asset)
@@ -633,7 +641,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [note, replica]);
+        const feed = new Feed(source, [note, replicaPosition]);
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         await source.insert(note).values(first);
 
@@ -716,7 +724,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [note, replica]);
+        const feed = new Feed(source, [note, replicaPosition]);
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const ids = Array.from({ length: SNAPSHOT_NOTES }, (_, index) => `n${index}`);
         for (let start = 0; start < ids.length; start += INSERT_BATCH) {
@@ -867,7 +875,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect);
-        const feed = new Feed(source, [project, task, tag, replica]);
+        const feed = new Feed(source, [project, task, tag, replicaPosition]);
         const work = new Replica({
             name: "work",
             scope: "inbox",
@@ -1242,7 +1250,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const copy = await openCopy(dialect, [...TABLES, reading]);
-        const feed = new Feed(source, [note, replica]);
+        const feed = new Feed(source, [note, replicaPosition]);
         const notes = new Replica({
             name: "notes",
             scope: "inbox",
