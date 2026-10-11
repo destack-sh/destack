@@ -3,11 +3,9 @@ import { fileURLToPath } from "node:url";
 import type { Digest } from "@destack/schema";
 import { type KindState, Plan, type ResourceRecord } from "@destack/resource";
 import { connectBunSqlite } from "./connection.ts";
-import { openBunSqlite, requireReference } from "./sqlite.ts";
-import { DatabaseError } from "../error/error.ts";
+import { openBunSqlite } from "./sqlite.ts";
 import type { DatabaseKind } from "../declare/database.ts";
-import type { DatabaseHost } from "../provider/provider.ts";
-import { mergeStates } from "../migration/merge.ts";
+import { type DatabaseHost, requireReference } from "../provider/provider.ts";
 import { DatabaseHandle } from "../database/handle.ts";
 import { Table } from "../table/table.ts";
 
@@ -65,54 +63,41 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
     }
 
     /** Diff the applied state against the desired states. */
-    async plan(
+    plan(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
-        await using connection = await openBunSqlite(record, []);
+        const connect = (tables: readonly Table[]) => openBunSqlite(record, tables);
 
-        return await connection.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
+        return DatabaseHandle.plan(
+            connect,
+            desired.map((state) => state.tables.sqlite),
+        );
     }
 
     /** Apply the reviewed plan, refusing one that changed since review. */
-    async apply(
+    apply(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
         digest: Digest,
     ): Promise<void> {
-        // plan again and apply the plan only while it matches the reviewed digest
-        await using connection = await openBunSqlite(record, []);
-        const plan = await connection.plan(
-            mergeStates(desired.map((state) => state.tables.sqlite)),
-        );
-        if ((await Plan.digest(plan)) !== digest) {
-            throw new DatabaseError("PLAN_CHANGED", `plan of ${record.id} changed since review`);
-        }
-        await connection.apply(plan);
+        const connect = (tables: readonly Table[]) => openBunSqlite(record, tables);
+        const states = desired.map((state) => state.tables.sqlite);
+
+        return DatabaseHandle.apply(connect, states, digest, record.id);
     }
 
     /** Open the tables the desired states describe, and a replica's local tables beside them once migrated. */
-    async open(
+    open(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<DatabaseHandle> {
-        // open the desired tables and reopen them with a replica's tables once migrated
-        const states = desired.map((state) => state.tables.sqlite);
-        const described = mergeStates(states).declared.map((state) => Table.describe(state));
-        let database = await openBunSqlite(record, described);
-        const handle: DatabaseHandle = {
-            get database() {
-                return database;
-            },
-            migrate: async (beside) => {
-                await database.migrate(beside, { states });
-                await database.close();
-                database = await openBunSqlite(record, [...described, ...beside]);
-            },
-            close: () => database.close(),
-        };
+        const connect = (tables: readonly Table[]) => openBunSqlite(record, tables);
 
-        return handle;
+        return DatabaseHandle.open(
+            connect,
+            desired.map((state) => state.tables.sqlite),
+        );
     }
 
     /** Copy a database's rows into a store as content-addressed pages, answering the copy's digest. */

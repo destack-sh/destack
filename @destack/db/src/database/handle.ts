@@ -8,10 +8,14 @@ import type {
     ContentStore,
 } from "@destack/resource";
 import type { DatabaseConnection } from "./connection.ts";
+import { Plan } from "@destack/resource";
+import { DatabaseError } from "../error/error.ts";
+import { mergeStates } from "../migration/merge.ts";
+import type { TableState } from "../migration/state.ts";
 import { and } from "../sql/operator.ts";
 import { Order } from "../query/order.ts";
 import type { Row } from "../table/row.ts";
-import { TABLE, type Table } from "../table/table.ts";
+import { TABLE, Table } from "../table/table.ts";
 
 /** The rows one read of a snapshot takes: 1000 rows of about 500 B keep a read near 500 kB. */
 const SNAPSHOT_READ_ROWS = 1000;
@@ -50,8 +54,61 @@ export interface DatabaseHandle {
     close(): Promise<void>;
 }
 
-/** Snapshot an opened database's rows into a content-addressed store, and restore them. */
+/** Connect to a database with some tables declared, answering a connection that closes. */
+type Connect = (
+    tables: readonly Table[],
+) =>
+    | (DatabaseConnection & AsyncDisposable & { close(): Promise<void> })
+    | Promise<DatabaseConnection & AsyncDisposable & { close(): Promise<void> }>;
+
+/** Plan, apply and open a host's databases, and snapshot an opened database's rows into a content-addressed store and restore them. */
 export const DatabaseHandle = {
+    /** Diff a database's applied state against the desired table states. */
+    async plan(connect: Connect, desired: readonly (readonly TableState[])[]): Promise<Plan> {
+        await using database = await connect([]);
+
+        return await database.plan(mergeStates(desired));
+    },
+
+    /** Apply the reviewed plan of a database, refusing one that changed since review. */
+    async apply(
+        connect: Connect,
+        desired: readonly (readonly TableState[])[],
+        digest: Digest,
+        id: string,
+    ): Promise<void> {
+        // plan again and apply the plan only while it matches the reviewed digest
+        await using database = await connect([]);
+        const plan = await database.plan(mergeStates(desired));
+        if ((await Plan.digest(plan)) !== digest) {
+            throw new DatabaseError("PLAN_CHANGED", `plan of ${id} changed since review`);
+        }
+        await database.apply(plan);
+    },
+
+    /** Open the tables the desired states describe, reopening them with tables beside once migrated. */
+    async open(
+        connect: Connect,
+        desired: readonly (readonly TableState[])[],
+    ): Promise<DatabaseHandle> {
+        // open the desired tables and reopen them with the tables beside once migrated
+        const described = mergeStates(desired).declared.map((state) => Table.describe(state));
+        let database = await connect(described);
+        const handle: DatabaseHandle = {
+            get database() {
+                return database;
+            },
+            migrate: async (beside) => {
+                await database.migrate(beside, { states: desired });
+                await database.close();
+                database = await connect([...described, ...beside]);
+            },
+            close: () => database.close(),
+        };
+
+        return handle;
+    },
+
     /** Copy every row of the database's tables into a store as content-addressed pages, rewriting rows on the way, and answer the digest naming the copy. */
     async snapshot(
         handle: Pick<DatabaseHandle, "database">,

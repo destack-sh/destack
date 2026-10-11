@@ -7,6 +7,7 @@ import type { Table } from "../table/table.ts";
 import { socketChannel } from "../channel/socket.ts";
 import { LOG_TOPIC } from "../log/schema.ts";
 import { connectBunSqlite } from "./connection.ts";
+import { requireReference } from "../provider/provider.ts";
 import type { SqliteDatabase } from "../sqlite/database.ts";
 import type { BunClient } from "./client.ts";
 
@@ -28,15 +29,6 @@ export const bunSqliteConnector: DatabaseConnector = {
         return connection;
     },
 };
-
-/** Require a provisioned resource reference. */
-export function requireReference(reference: string | null): string {
-    if (reference === null) {
-        throw new TypeError("resource is not provisioned");
-    }
-
-    return reference;
-}
 
 /** Open a provisioned database file, announcing commits to the file's other writers on its channel. */
 export function openBunSqlite<Models extends Readonly<Record<string, Model>>>(

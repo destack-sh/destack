@@ -6,7 +6,7 @@ import { DatabaseError } from "../error/error.ts";
 import { text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { connectPostgres } from "./connection.ts";
-import { postgresConnector } from "./connector.ts";
+import { PostgresConnector } from "./connector.ts";
 import { TEST_DIALECTS } from "../test/database.ts";
 
 /** The test server's address, absent where the test dialects leave PostgreSQL out. */
@@ -34,25 +34,24 @@ test.skipIf(ADDRESS === undefined)(
             await administration.unsafe(`DROP SCHEMA "${name}" CASCADE`);
             await administration.end();
         });
-        const url = new URL(ADDRESS);
-        url.searchParams.set("search_path", name);
+        const connector = new PostgresConnector(new URL(ADDRESS));
         const binding = {
             resource: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000001"),
             kind: "database",
             provider: "postgresql",
-            reference: url.href,
+            reference: name,
         };
 
         // refuse the schema before its tables exist
-        await expect(postgresConnector.connect(binding, notes)).rejects.toThrow(
+        await expect(connector.connect(binding, notes)).rejects.toThrow(
             new DatabaseError("NOT_APPLIED", "database notes has not applied destack__db__note"),
         );
 
         // migrate the schema and write a note through a sole writer
-        const migration = await connectPostgres(url.href, notes);
+        const migration = await connectPostgres(connector.url(name), notes);
         await migration.migrate(notes.tables);
         await migration.close();
-        await using connection = await postgresConnector.connect(binding, notes);
+        await using connection = await connector.connect(binding, notes);
         await connection.insert(note).values({ id: "first", title: "Hello" });
         expect({
             openChannel: connection.state.openChannel,

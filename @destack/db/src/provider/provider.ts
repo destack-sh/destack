@@ -36,3 +36,12 @@ export function databaseProvider<Object>(
         snapshot: host,
     };
 }
+
+/** Require a provisioned resource reference. */
+export function requireReference(reference: string | null): string {
+    if (reference === null) {
+        throw new TypeError("resource is not provisioned");
+    }
+
+    return reference;
+}

@@ -3,7 +3,6 @@ import { type KindState, Plan, ResourceId, type ResourceRecord } from "@destack/
 import { DatabaseHandle } from "../database/handle.ts";
 import { type DatabaseKind, DatabaseSpec } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
-import { mergeStates } from "../migration/merge.ts";
 import { DatabaseState } from "../migration/state.ts";
 import type { DatabaseHost } from "../provider/provider.ts";
 import { relation } from "../table/namespace.ts";
@@ -12,11 +11,7 @@ import type * as declaration from "../declare/database.ts";
 import type { Model } from "../query/model.ts";
 import { SqliteWorkQueue } from "../sqlite/client.ts";
 import { type SqliteConnectOptions, SqliteDatabase } from "../sqlite/database.ts";
-import {
-    type DurableObjectCursor,
-    DurableObjectClient,
-    type DurableObjectStorage,
-} from "./client.ts";
+import { type DurableObjectCursor, DurableObjectClient, type DurableObjectStorage } from "./client.ts";
 import { DurableObjectContentStore } from "./content.ts";
 
 /** The provider code of databases in Durable Objects' SQLite storage. */
@@ -244,54 +239,44 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     }
 
     /** Diff the applied state against the desired states. */
-    async plan(
+    plan(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
-        await using database = this.connect([], { namespace: record.id });
+        const connect = (tables: readonly Table[]) =>
+            this.connect(tables, { namespace: record.id });
 
-        return await database.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
+        return DatabaseHandle.plan(
+            connect,
+            desired.map((state) => state.tables.sqlite),
+        );
     }
 
     /** Apply the reviewed plan, refusing one that changed since review. */
-    async apply(
+    apply(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
         digest: Digest,
     ): Promise<void> {
-        // plan again and apply the plan only while it matches the reviewed digest
-        await using database = this.connect([], { namespace: record.id });
-        const plan = await database.plan(mergeStates(desired.map((state) => state.tables.sqlite)));
-        if ((await Plan.digest(plan)) !== digest) {
-            throw new DatabaseError("PLAN_CHANGED", `plan of ${record.id} changed since review`);
-        }
-        await database.apply(plan);
+        const connect = (tables: readonly Table[]) =>
+            this.connect(tables, { namespace: record.id });
+        const states = desired.map((state) => state.tables.sqlite);
+
+        return DatabaseHandle.apply(connect, states, digest, record.id);
     }
 
     /** Open the tables the desired states describe, and a replica's local tables beside them once migrated. */
-    async open(
+    open(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<DatabaseHandle> {
-        // open the desired tables and reopen them with a replica's tables once migrated
-        const states = desired.map((state) => state.tables.sqlite);
-        const described = mergeStates(states).declared.map((state) => Table.describe(state));
-        const namespace = record.id;
-        let database = this.connect(described, { namespace });
+        const connect = (tables: readonly Table[]) =>
+            this.connect(tables, { namespace: record.id });
 
-        return {
-            get database() {
-                return database;
-            },
-            migrate: async (beside) => {
-                await database.migrate(beside, { states });
-                await database.close();
-                database = this.connect([...described, ...beside], {
-                    namespace,
-                });
-            },
-            close: () => database.close(),
-        };
+        return DatabaseHandle.open(
+            connect,
+            desired.map((state) => state.tables.sqlite),
+        );
     }
 
     /** Copy a database's rows into a store as content-addressed pages, answering the copy's digest. */
