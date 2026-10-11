@@ -8,7 +8,14 @@ import type { Plugin, PluginOption } from "vite";
 import { modulePlugin } from "@destack/package/vite";
 import { schema } from "@destack/schema";
 
-/** How often `expect.poll` rechecks, in milliseconds: a local sync round trip takes a few, so the default 50 only adds idle waiting. */
+/**
+ * The shared test options: one module graph per worker, cached modules, and quick polls.
+ *
+ * Re-importing every module graph per test file cost a fifth of object's suite; tests keep their state in their own databases and fixtures.
+ */
+const TEST = { isolate: false, fsModuleCache: true } as const;
+
+/** How often `expect.poll` rechecks in milliseconds, a local sync round trip taking a few. */
 const POLL = { poll: { interval: 5 } };
 
 /** The workspace patterns and exports of a package.json. */
@@ -24,7 +31,7 @@ const Definition = schema.looseObject({ build: schema.string().exactOptional() }
 export function defineConfiguration(configuration: ViteUserConfig): ViteUserConfig {
     return vitest.defineConfig({
         ...configuration,
-        test: { fsModuleCache: true, expect: POLL, ...configuration.test },
+        test: { ...TEST, expect: POLL, ...configuration.test },
         plugins: [
             modulePlugin(),
             cachePlugin(),
@@ -37,7 +44,7 @@ export function defineConfiguration(configuration: ViteUserConfig): ViteUserConf
 export function defineProject(configuration: UserWorkspaceConfig): UserWorkspaceConfig {
     return vitest.defineProject({
         ...configuration,
-        test: { fsModuleCache: true, expect: POLL, ...configuration.test },
+        test: { ...TEST, expect: POLL, ...configuration.test },
         plugins: [
             modulePlugin(),
             cachePlugin(),
