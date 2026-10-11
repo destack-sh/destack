@@ -727,12 +727,16 @@ test.for(TEST_DIALECTS)(
         // drain the first stream at its first page as at a lapse, and end the second after one page
         const requested: (LogPosition | undefined)[] = [];
         const received: (readonly [number, boolean, boolean, number])[] = [];
+        const third = Promise.withResolvers<void>();
         const controller = new AbortController();
         const following = notes.follow(
             copy,
             async function* ({ after }, signal) {
                 requested.push(after);
                 const stream = requested.length;
+                if (stream === 3) {
+                    third.resolve();
+                }
                 const drain = new AbortController();
                 for await (const page of feed.subscribe(notes.queries, after, signal, {
                     drain: drain.signal,
@@ -750,7 +754,7 @@ test.for(TEST_DIALECTS)(
             controller.signal,
         );
         const position = await source.log.position();
-        await expect.poll(() => requested.length).toBe(3);
+        await third.promise;
         controller.abort();
         await following;
 

@@ -1,6 +1,5 @@
 import { Clock } from "@destack/schema";
-import { afterEach, beforeEach, expect, test } from "@destack/test";
-import { vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
 import { TABLE } from "@destack/db";
 import type { Page, RowChange } from "../query/page.ts";
 import { note } from "../test/fixture.ts";

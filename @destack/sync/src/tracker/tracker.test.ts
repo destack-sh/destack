@@ -4,6 +4,9 @@ import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Tracker, type TrackerMessage } from "./tracker.ts";
 
+/** The longest a test waits for another instance's rows, far above a few in-memory message hops. */
+const SETTLE_MILLISECONDS = 2000;
+
 /** Cursors of sessions on a board, kept in memory. */
 const cursor = defineTable(
     "cursor",
@@ -53,11 +56,11 @@ test("replicate rows between instances, and remove them with their owner", async
     ]);
 
     // deliver a broadcast on every instance
-    const events: unknown[] = [];
-    west.listen("board", (event) => events.push(event));
+    const received = new Promise((resolve) => {
+        west.listen("board", resolve);
+    });
     east.broadcast("board", { reaction: "👍" });
-    await until(() => events.length === 1);
-    expect(events).toEqual([{ reaction: "👍" }]);
+    expect(await received).toEqual({ reaction: "👍" });
 });
 
 test("hand a late instance the rows, and drop those of stopped and silent instances", async () => {
@@ -69,11 +72,11 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
 
     // answer a late instance with the earlier rows
     const west = await open(join());
-    await until(async () => (await read(west)).length === 1);
+    await counted(west, 1);
 
     // drop a stopped instance's rows at once
     east.close();
-    await until(async () => (await read(west)).length === 0);
+    await counted(west, 0);
 
     // drop a silent instance's rows after three missed heartbeats
     let isCrashed = false;
@@ -90,9 +93,9 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
     await write(crashing, "bob", (database) =>
         database.insert(cursor).values({ id: "b", scope: "space", position: 1 }),
     );
-    await until(async () => (await read(west)).length === 1);
+    await counted(west, 1);
     isCrashed = true;
-    await until(async () => (await read(west)).length === 0);
+    await counted(west, 0);
 });
 
 test("replicate which instance tracks an owner, released everywhere once its instance stops", async () => {
@@ -104,15 +107,15 @@ test("replicate which instance tracks an owner, released everywhere once its ins
 
     // see the owner tracked on the other instance until released
     east.track("alice");
-    await until(() => west.isTracked("alice"));
+    await tracked(west, "alice", true);
     east.release("alice");
-    await until(() => !west.isTracked("alice"));
+    await tracked(west, "alice", false);
 
     // release an instance's tracked owners when it stops
     east.track("bob");
-    await until(() => west.isTracked("bob"));
+    await tracked(west, "bob", true);
     east.close();
-    await until(() => !west.isTracked("bob"));
+    await tracked(west, "bob", false);
     expect(changes).toEqual([
         ["alice", true],
         ["alice", false],
@@ -182,11 +185,26 @@ async function read(tracker: Tracker) {
     return tracker.database.select().from(cursor).orderBy(cursor.id);
 }
 
-/** Wait until a check passes. */
-async function until(check: () => boolean | Promise<boolean>): Promise<void> {
-    while (!(await check())) {
-        await new Promise((resolve) => {
-            setTimeout(resolve, 1);
+/** Wait until an instance keeps some number of cursors. */
+async function counted(tracker: Tracker, count: number): Promise<void> {
+    await TestDatabase.settle(
+        tracker.database,
+        async () => (await read(tracker)).length === count,
+        SETTLE_MILLISECONDS,
+    );
+}
+
+/** Wait until an instance sees an owner tracked or released. */
+async function tracked(tracker: Tracker, owner: string, isTracked: boolean): Promise<void> {
+    // wait for the change unless the instance already sees it
+    if (tracker.isTracked(owner) !== isTracked) {
+        await new Promise<void>((resolve) => {
+            const stop = tracker.watchTracked((changed, now) => {
+                if (changed === owner && now === isTracked) {
+                    stop();
+                    resolve();
+                }
+            });
         });
     }
 }
