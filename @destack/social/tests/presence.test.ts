@@ -74,7 +74,7 @@ test.for(TEST_DIALECTS)(
         as("bob");
         expect(
             await refusal(call(presence, "create", { ...host(article, draft.id), status: "idle" })),
-        ).toEqual(["DUPLICATE", "a record with the same unique key exists"]);
+        ).toEqual(["CONFLICT", "another presence has the same parent, principal, and writerId"]);
         const copied = await call(presence, "create", {
             ...host(article, draft.id),
             status: "idle",

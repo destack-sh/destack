@@ -15,7 +15,7 @@ import {
 } from "@destack/db";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import type { CallableName, ObjectType } from "@destack/object";
+import { Call, type CallableName, type CallOutput, type ObjectType } from "@destack/object";
 import { subscription } from "@destack/notification";
 import { serveActivities } from "@destack/notification/server";
 import { EphemeralStorage, ObjectStore } from "@destack/object/server";
@@ -103,16 +103,18 @@ export async function serveArticles(dialect: Dialect) {
         ) => {
             // read through a query, or write through a one-call mutation, presence as the given writer or the actor's
             const { writerId = `writer-${current}`, ...fields } = input;
-            const call = object.call(name, { spaceId, ...fields });
+            const call = Call.record(object, name, { spaceId, ...fields });
             const caller = context(spaceId, current).context.caller();
             const options =
                 object.storage === "durable" ? {} : { writerId: schema.string().parse(writerId) };
 
-            return object.method(name).mutates
+            const result = object.method(name).mutates
                 ? store
                       .mutate(caller, { id: RequestId.create(), calls: [call] }, options)
-                      .then(([result]) => result)
+                      .then(([written]) => written)
                 : store.query(caller, call);
+
+            return result as Promise<CallOutput<Type, Name>>;
         },
         /** List the objects of a type the current actor may list, oldest first. */
         list: <Type extends ObjectType>(object: Type, input: object = {}) =>

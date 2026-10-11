@@ -29,7 +29,7 @@ test.for(TEST_DIALECTS)(
         const thumbs = await call(reaction, "create", { ...host(article, draft.id), emoji: "👍" });
         expect(
             await refusal(call(reaction, "create", { ...host(article, draft.id), emoji: "👍" })),
-        ).toEqual(["DUPLICATE", "a record with the same unique key exists"]);
+        ).toEqual(["CONFLICT", "another reaction has the same parent, author, and emoji"]);
         await call(reaction, "create", { ...host(article, draft.id), emoji: "👨🏻‍❤️‍💋‍👨🏼" });
         expect(
             await refusal(call(reaction, "create", { ...host(article, draft.id), emoji: "yes" })),

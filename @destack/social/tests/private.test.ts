@@ -23,12 +23,12 @@ test.for(TEST_DIALECTS)(
         const theirs = await call(receipt, "create", host(article, draft.id));
         await call(favourite, "create", host(article, draft.id));
         expect(await refusal(call(receipt, "create", host(article, draft.id)))).toEqual([
-            "DUPLICATE",
-            "a record with the same unique key exists",
+            "CONFLICT",
+            "another receipt has the same parent and owner",
         ]);
         expect(await refusal(call(favourite, "create", host(article, draft.id)))).toEqual([
-            "DUPLICATE",
-            "a record with the same unique key exists",
+            "CONFLICT",
+            "another favourite has the same parent and owner",
         ]);
 
         // move the viewer's receipt and its time on the next read
