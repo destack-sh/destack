@@ -36,15 +36,14 @@ export const distribution = defineObject({
         checkedAt: field.time().optional(),
     },
     permissions: ["read", "update", "record"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("record", { isInternal: true }),
-        /** Download and verify the channel's latest release if newer than the installed one. */
-        stage: method.mutation({ permission: "update", prepared: Staging }),
-        /** Restart the distribution into the staged release. */
-        activate: method.mutation({ permission: "update", prepared: Version }),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("record", { isInternal: true }),
+    /** Download and verify the channel's latest release if newer than the installed one. */
+    stage: method.mutation({ permission: "update", prepared: Staging }),
+    /** Restart the distribution into the staged release. */
+    activate: method.mutation({ permission: "update", prepared: Version }),
+}));
 /** A distribution as its table stores it. */
 export type DistributionRow = Select<typeof distribution.table>;
