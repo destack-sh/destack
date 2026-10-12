@@ -92,7 +92,7 @@ export function implementRelay(options: RelayServiceOptions): RelayImplementatio
                       );
                       const partition = schema.string().parse(installation.partition);
                       const chain = await objects.source.subscriptions(partition, {
-                          isHome: false,
+                          kind: "follower",
                       });
 
                       return chain.map((subscription) => ({ subscription, publisher: root }));

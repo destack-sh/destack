@@ -21,7 +21,7 @@ import {
     Transaction,
 } from "@destack/db";
 import { Call } from "@destack/object";
-import { DatabaseClaimStore, type ObjectStore } from "@destack/object/server";
+import type { ObjectStore } from "@destack/object/server";
 import type {} from "@destack/package/import-meta";
 import { type Identifier, present, schema } from "@destack/schema";
 import type { Fetch } from "@destack/service";
@@ -80,7 +80,7 @@ export interface RelayOptions {
     /** The relay installation itself, which reaches each machine's tunnel in its partition. */
     readonly itself: ReturnType<InstallationContext["at"]>;
     /** The relay installation's store, keeping a row per tunnelled machine and the copies. */
-    readonly store: Pick<ObjectStore, "principal" | "clock" | "database" | "authorizer">;
+    readonly store: Pick<ObjectStore, "principal" | "clock" | "database" | "authorizer" | "mutate">;
     /** Report a failure the relay answers to no one. */
     readonly report: (error: unknown) => void;
     /** The domains names resolve under. */
@@ -106,10 +106,8 @@ export class Relay {
     readonly journal: Journal;
     /** The account service's uplink, which publishes the relay's tunnelled machines' endpoints. */
     readonly #publisher: Uplink;
-    /** The directory over the copied placements and machines. */
+    /** The directory over the copied placements, machines and claims of names. */
     readonly #directory: DatabaseDirectory;
-    /** The claims over the copied claims of names. */
-    readonly #claims: DatabaseClaimStore;
     /** The relay installation itself, which reaches each machine's tunnel in its partition. */
     readonly #itself: ReturnType<InstallationContext["at"]>;
     /** The relay installation's store, keeping a row per tunnelled machine and the copies. */
@@ -126,8 +124,7 @@ export class Relay {
         // resolve handles and names through the copies in the store's database
         const { database, clock } = options.store;
         this.#store = options.store;
-        this.#directory = new DatabaseDirectory(database, clock);
-        this.#claims = new DatabaseClaimStore(database, clock);
+        this.#directory = new DatabaseDirectory(options.store);
         this.journal = new Journal(database, options.callKey, { clock });
 
         // keep the token verifier and the calls to the account service, tunnels and cloud machines
@@ -175,7 +172,7 @@ export class Relay {
 
     /** Keep the reads of the copies until the signal aborts. */
     async follow(signal: AbortSignal): Promise<void> {
-        await Promise.all([this.#directory.follow(signal), this.#claims.follow(signal)]);
+        await this.#directory.follow(signal);
     }
 
     /** The URL machines open their tunnels at. */
@@ -558,7 +555,7 @@ export class Relay {
     /** Find the machine serving a space by its address through the directory's copy. */
     async #locateSpace(name: string, address: SpaceAddress): Promise<Destination> {
         // find the space's placement through the copied claims
-        const resolver = new HandleResolver(this.#directory, this.#claims);
+        const resolver = new HandleResolver(this.#directory);
         const named = await resolver.find(space, address);
         const placed = named === undefined ? undefined : await resolver.directory.locate(named.id);
         if (placed === undefined) {
@@ -589,7 +586,7 @@ export class Relay {
     /** Find a standing machine of any residency by its name within its account. */
     async #locateMachine(name: string, handle: string, machineName: string): Promise<Destination> {
         // find the account by its handle, and its machine by name
-        const accountId = await new HandleResolver(this.#directory, this.#claims).account(handle);
+        const accountId = await new HandleResolver(this.#directory).account(handle);
         const machineId =
             accountId === undefined
                 ? undefined

@@ -10,9 +10,8 @@ import {
 import { AuditCall } from "@destack/audit";
 import { Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Claimant } from "@destack/object";
-import { DatabaseClaimStore } from "@destack/object/server";
-import { Clock, Identifier, present, schema } from "@destack/schema";
+import { Claim, Claimant } from "@destack/object";
+import { Identifier, present, schema } from "@destack/schema";
 import { TokenVerifier } from "@destack/service/authentication";
 import { testCallKey } from "@destack/service/test";
 import type { Subject } from "@destack/sync";
@@ -149,9 +148,9 @@ export class RelayFixture implements AsyncDisposable {
         accounts: AccountFixture,
         row: { readonly id: Identifier<"space">; readonly scope: string; readonly name: string },
     ): Promise<void> {
-        const claims = new DatabaseClaimStore(accounts.database, Clock.system);
         const snapshot = Snapshot.live(accounts.database);
-        await claims.replace(await Claimant.of(space, row.id, row, snapshot));
+        const object = { objectId: row.id, owner: row.scope };
+        await Claim.replace(accounts.database, await Claimant.of(space, object, row, snapshot));
     }
 
     /** Start a relay installation, the fixture's unless given, on a port over its own database. */
