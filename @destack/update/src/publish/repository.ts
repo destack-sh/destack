@@ -49,7 +49,7 @@ export interface Distribution {
     format?: "dmg" | "exe";
 }
 
-/** A signed release repository on disk: its root rotations, targets, snapshot and timestamp, as clients download them. */
+/** A signed release repository on disk, as clients download it. */
 export const SignedRepository = {
     read: readRepository,
     create: createRepository,
@@ -127,7 +127,7 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     return { root, timestamp, snapshot, targets };
 }
 
-/** Write a complete signed repository with timestamp.json after the files it names, returning its signed targets. */
+/** Write a complete signed repository, writing timestamp.json after the files it lists. */
 async function createRepository(
     directory: string,
     revision: number,
@@ -185,7 +185,7 @@ async function createRepository(
     return await writeMetadata(directory, revision, root, keys, targets);
 }
 
-/** Authorize targets and write the corresponding snapshot and timestamp, returning the signed targets. */
+/** Authorize targets, write the matching snapshot and timestamp, and return the signed targets. */
 async function writeMetadata(
     directory: string,
     revision: number,

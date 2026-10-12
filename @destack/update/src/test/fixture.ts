@@ -96,7 +96,7 @@ export class UpdateFixture implements AsyncDisposable {
         };
     }
 
-    /** Write the fixture command reporting version 2026.9.1 and archive it as a distribution, returning the directory with both. */
+    /** Write the fixture command that reports version 2026.9.1 and archive it as a distribution. */
     static async compile(): Promise<string> {
         // write the command into a fresh directory: a shell script where one runs, else a compiled executable
         const directory = await mkdtemp(join(tmpdir(), "destack-update-fixture-"));

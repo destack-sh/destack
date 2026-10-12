@@ -8,18 +8,18 @@ import { distribution } from "../object/index.ts";
 import { Caller } from "@destack/access";
 import { RequestId } from "@destack/service/request";
 
-/** How often the distribution stages the channel's latest release: daily, as Sparkle checks by default. */
+/** How often the distribution stages its channel's latest release: daily, Sparkle's default. */
 const STAGE_INTERVAL_MILLISECONDS = 24 * 60 * 60 * 1000;
 
-/** The distribution a machine hosts: the installed releases, and the restart activating a staged one. */
+/** The distribution a machine hosts: its installed releases and the restart into a staged one. */
 export interface DistributionHost {
     /** The installed distribution. */
     readonly distribution: Distribution;
-    /** Hand activation to a process outliving the machine, which stops it, switches releases and starts it again. */
+    /** Hand activation to a process that outlives the machine. */
     activate(): void;
 }
 
-/** Serve a machine's distribution in the machine's own scope: staging and activating its releases, and recording and staging them daily where it runs an installed distribution. */
+/** Serve a machine's distribution in the machine's scope, staging and activating its releases. */
 export function implementDistributions(options: {
     /** The machine, the scope of its distribution. */
     readonly machine: Identifier<"machine">;
@@ -114,7 +114,7 @@ export class DistributionController implements Controller {
         return [this.#machineId];
     }
 
-    /** Record the installed distribution once, stage the latest release and look again a day later. */
+    /** Record the installed distribution once, then stage the latest release each day. */
     async reconcile(): Promise<number> {
         // record the distribution on its first start
         const now = Date.now();
@@ -161,7 +161,7 @@ export class DistributionController implements Controller {
     }
 }
 
-/** Read the host's distribution, refusing a machine running no installed distribution, such as a development build. */
+/** Read the host's distribution. */
 function requireHost(host: DistributionHost | undefined): DistributionHost {
     if (host === undefined) {
         throw new ServiceError("PRECONDITION_FAILED", {

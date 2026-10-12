@@ -16,7 +16,7 @@ export const Staging = defineSchema(
 /** What staging found. */
 export type Staging = schema.Infer<typeof Staging>;
 
-/** This machine's Destack distribution: the channel it follows, the release installed and the one staged, as Sparkle and Squirrel stage updates. */
+/** This machine's Destack distribution: its channel, the release installed and the one staged. */
 export const distribution = defineObject({
     name: "distribution",
     plural: "distributions",
@@ -30,7 +30,7 @@ export const distribution = defineObject({
         installed: field.string(Version),
         /** The version of the release staged for activation, absent while none newer is. */
         staged: field.string(Version).optional(),
-        /** Whether the installed release is the latest, a newer one waits staged, or the restart into it runs. */
+        /** Whether the release is current, a newer one is staged, or the restart into it runs. */
         status: field.enum(["current", "staged", "activating"]).default("current"),
         /** When the channel's repository was last checked. */
         checkedAt: field.time().optional(),
@@ -40,7 +40,7 @@ export const distribution = defineObject({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("record", { isInternal: true }),
-        /** Download and verify the channel's latest release when it is newer than the installed one. */
+        /** Download and verify the channel's latest release if newer than the installed one. */
         stage: method.mutation({ permission: "update", prepared: Staging }),
         /** Restart the distribution into the staged release. */
         activate: method.mutation({ permission: "update", prepared: Version }),

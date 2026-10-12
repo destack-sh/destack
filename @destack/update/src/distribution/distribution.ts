@@ -10,7 +10,7 @@ import stable from "./root/stable.json" with { type: "json" };
 /** The root metadata each channel's repository is trusted from, bundled with every release. */
 const ROOTS = { stable, nightly } as const satisfies Record<Channel, unknown>;
 
-/** What a distribution is: its channel, where it lives, the repository it follows and the release running. */
+/** What a distribution is: its channel, location, followed repository and running release. */
 export interface DistributionOptions {
     /** The channel the distribution follows. */
     readonly channel: Channel;
@@ -18,7 +18,7 @@ export interface DistributionOptions {
     readonly home: string;
     /** The signed repository the channel's releases come from. */
     readonly repository: URL;
-    /** The root metadata the repository is trusted from, the channel's bundled root in a release. */
+    /** The root metadata the repository is trusted from. */
     readonly root: string;
     /** The release this executable runs. */
     readonly running: Release;
@@ -32,7 +32,7 @@ export interface DistributionOptions {
     readonly title: string;
 }
 
-/** This machine's installed Destack distribution: the releases it stages and activates from its channel's signed repository. */
+/** This machine's installed Destack distribution. */
 export class Distribution {
     /** What the distribution is. */
     readonly options: DistributionOptions;
@@ -47,7 +47,7 @@ export class Distribution {
         return join(this.options.home, "distribution");
     }
 
-    /** Find the Mac application the distribution installs: the registered one, the one running this executable, or the channel's own. */
+    /** Find the Mac application the distribution installs. */
     async application(): Promise<string | undefined> {
         // leave other platforms, which install no Mac application
         if (!this.options.running.target.endsWith("apple-darwin")) {
@@ -80,7 +80,7 @@ export class Distribution {
         return undefined;
     }
 
-    /** Open a locked update session, a first installation's without a running release, refusing an installation that changed under it. */
+    /** Open a locked update session, refusing an installation that changed under it. */
     async open(isInstalling = false): Promise<Updater> {
         // read how the distribution was installed, and where its Mac application lives
         const installation = new Installation(dirname(this.directory));
@@ -114,7 +114,7 @@ export class Distribution {
         }
     }
 
-    /** Download and stage the latest release when it is newer than the installed one, returning the staged release, none when it is current. */
+    /** Download and stage the latest release when it is newer than the installed one. */
     async stage(archive?: string): Promise<StagedRelease | undefined> {
         // keep a release staged earlier until a newer one arrives
         await using updater = await this.open();

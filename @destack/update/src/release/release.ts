@@ -47,7 +47,7 @@ const SYSTEMS: Readonly<Record<string, string | undefined>> = {
 
 /** A calendar release identified by authenticated update metadata. */
 export class Release {
-    /** Identify the release target of a platform and architecture, as Node names them in `process.platform` and `process.arch`. */
+    /** Identify the release target of a platform and architecture. */
     static target(platform: string, architecture: string): Target {
         // map the platform and architecture to a release target
         const target = Target.safeParse(`${ARCHITECTURES[architecture]}-${SYSTEMS[platform]}`);

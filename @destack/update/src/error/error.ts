@@ -1,6 +1,6 @@
 import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
-/** The service error code of each update failure: a busy or closed updater, a bad release, or the host's. */
+/** The service error code of each update failure. */
 const SERVICE_CODES = {
     BUSY: "CONFLICT",
     CLOSED: "SERVICE_UNAVAILABLE",

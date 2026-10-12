@@ -12,7 +12,7 @@ export interface ReleasePublicKey {
     timestamp: Key;
 }
 
-/** The signed root metadata clients pin, as Sigstore's trusted root: the keys and quorums of every role. */
+/** The signed root metadata clients pin, as Sigstore's trusted root. */
 export const TrustedRoot = {
     create: createRoot,
     verify: verifyRoot,
