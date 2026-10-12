@@ -99,6 +99,21 @@ export const Identifier = {
         return identifier(prefix).parse(`${prefix}-${positioned}`);
     },
 
+    /** Keep the values that are identifiers of a prefix, in their order. */
+    filter<const Prefix extends string>(
+        prefix: Prefix,
+        values: readonly unknown[],
+    ): Identifier<Prefix>[] {
+        // parse each value by the prefix's validator
+        const validator = identifier(prefix);
+
+        return values.flatMap((value) => {
+            const parsed = validator.safeParse(value);
+
+            return parsed.success ? [parsed.data] : [];
+        });
+    },
+
     /** Read the UUIDv7 an identifier ends with. */
     uuid(value: Identifier<string>): string {
         return value.slice(-UUID_LENGTH);

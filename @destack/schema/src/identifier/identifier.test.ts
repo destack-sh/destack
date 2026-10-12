@@ -20,6 +20,15 @@ test("accept prefixed UUIDv7 identifiers of their own prefix only, and read thei
     expect(Identifier.uuid(space.parse(`space-${UUID}`))).toBe(UUID);
 });
 
+test("filter the identifiers of one prefix from mixed values, keeping their order", () => {
+    const space = `space-${UUID}`;
+    const account = `account-${UUID}`;
+    expect(Identifier.filter("space", [account, space, "space", undefined, space])).toEqual([
+        space,
+        space,
+    ]);
+});
+
 test("refuse prefixes that would make identifiers ambiguous", () => {
     for (const prefix of ["Space", "space-", "1space", "space--key", "space\n"]) {
         expect(() => identifier(prefix)).toThrow(
