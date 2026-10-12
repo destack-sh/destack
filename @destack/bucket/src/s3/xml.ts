@@ -15,12 +15,7 @@ const ESCAPES = new Map([
 ]);
 /** The predefined XML entities and their characters. */
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
-/**
- * The XML tokens request documents use.
- *
- * The tokens are declarations, comments, CDATA, markup declarations, end tags, start tags and text.
- * Attributes are matched and ignored, since S3 request documents carry only the namespace.
- */
+/** The XML tokens of request documents, whose attributes are matched and ignored. */
 const TOKEN =
     /<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|(<![^>]*>)|<\/([^\s>]+)\s*>|<([^\s/>]+)(?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*\s*(\/?)>|([^<]+)/uy;
 
