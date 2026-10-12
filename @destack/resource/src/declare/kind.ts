@@ -21,7 +21,7 @@ export class ResourceKind<
     readonly name: Name;
     /** The schema of a declaration's specification. */
     readonly spec: Spec;
-    /** The schema of the desired state its providers reconcile resources toward, absent for kinds without one. */
+    /** The schema of the desired state its providers reconcile resources toward. */
     readonly state: State;
     /** The schema of a declaration of this kind. */
     readonly description;
@@ -53,12 +53,13 @@ export class ResourceKind<
         };
     }
 
-    /** Read stored desired states of this kind, refusing invalid ones, and any but empty ones of a kind without a state. */
+    /** Read stored desired states of this kind, refusing invalid ones. */
     states(stored: readonly ResourceState[]): KindState<this>[];
     /**
-     * Parse each stored state by the kind's state schema, whose parsed value is the kind's state type.
+     * Parse each stored state by the kind's state schema.
      *
-     * @construct every state parses by this kind's state schema, whose output is the kind's state type.
+     * @construct every state parses by this kind's state schema.
+     * Its output is the kind's state type.
      */
     states(stored: readonly ResourceState[]): unknown[] {
         // read none for a kind without a state, whose bindings require nothing
@@ -97,7 +98,8 @@ export function defineResourceKind<
 /**
  * Define a resource kind, with the desired state its providers reconcile or without one.
  *
- * @construct the kind keeps the spec and state schemas it is given, and no state schema without one.
+ * @construct the kind keeps the spec and state schemas it is given.
+ * It keeps no state schema when given none.
  */
 export function defineResourceKind(
     name: string,

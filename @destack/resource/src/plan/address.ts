@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** The path of a declaration, a resource or a target inside one, such as `database/main/table/note/column/title`. */
+/** The path of a declaration, a resource or a target inside one. */
 export const Address = Object.assign(
     defineSchema(schema.string().regex(/^[^/\s]+(?:\/[^/\s]+)*$/u)),
     {

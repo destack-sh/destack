@@ -26,7 +26,7 @@ export const ResourceDescription = defineSchema(
 /** A named infrastructure dependency declared by a package. */
 export type ResourceDescription = schema.Infer<typeof ResourceDescription>;
 
-/** What deleting a resource does to its content: destroy it, keep it for a window, or keep it until destroyed by hand. */
+/** What deleting a resource does to its content. */
 export const ResourceRetention = defineSchema(
     schema.union([
         schema.literal("delete"),
@@ -84,7 +84,7 @@ export class ResourceDeclaration<
         this.spec = declaration.spec;
     }
 
-    /** The connectors opening clients of this kind's resources on the running runtime, by provider code. */
+    /** The connectors that open clients of this kind's resources on the running runtime. */
     get connectors(): Readonly<Record<string, Connector<Client, this>>> {
         return {};
     }

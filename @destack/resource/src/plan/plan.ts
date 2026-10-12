@@ -66,10 +66,10 @@ export const Plan = Object.assign(
     { classify, isAtLeast, join, digest: digestSteps, values: planValues },
 );
 
-/** Which readers must accept a changed schema: newer readers of older values, or older readers of newer values. */
+/** Which readers must accept a changed schema. */
 export type Compatibility = "backward" | "forward";
 
-/** Compare two releases' entries of one declaration, throwing a PlanError for changes the later release must declare. */
+/** Compare two releases' entries of one declaration. */
 export type Comparator = (before: ReleaseEntry, after: ReleaseEntry) => Plan;
 
 /** A release's entry of a declaration: its description and the release declaring it. */
@@ -147,7 +147,7 @@ function digestSteps(plan: Plan): Promise<Digest> {
     );
 }
 
-/** Plan a value schema change: widening for backward readers, narrowing for forward ones, converting otherwise. */
+/** Plan a value schema change. */
 function planValues(change: SchemaChange): Plan {
     // compare the accepted values and keep an unchanged schema out of the plan
     const { target, release, compatibility } = change;

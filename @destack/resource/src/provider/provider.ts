@@ -23,11 +23,11 @@ export const ResourceBinding = defineSchema(
         resource: ResourceId,
         /** The resource kind, such as database. */
         kind: schema.string().min(1),
-        /** The provider holding the resource, whose connector the workload opens it with, such as sqlite. */
+        /** The provider that keeps the resource, such as sqlite. */
         provider: schema.string().min(1),
         /** The provider's reference, such as a file URL or an egress URL. */
         reference: schema.string().min(1),
-        /** The credential the host lends the workload for the resource, absent when the reference needs none. */
+        /** The credential the host lends the workload for the resource. */
         credential: schema.string().min(1).exactOptional(),
         /** The space keeping a bound object its service serves, such as a secret. */
         scope: schema.identifier("space").exactOptional(),
@@ -38,14 +38,14 @@ export const ResourceBinding = defineSchema(
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
 export type ResourceBinding = schema.Infer<typeof ResourceBinding>;
 
-/** Opens clients of one kind's resources inside a workload, as its declaration supplies it for one provider. */
+/** Opens clients of one kind's resources inside a workload. */
 export interface Connector<
     Client = unknown,
     Declaration extends ResourceDeclaration<Client> = ResourceDeclaration<Client>,
 > {
     /** The provider code the connector connects to, such as sqlite. */
     readonly code: string;
-    /** Open a client the caller disposes for a bound resource with the declaration's desired state, refusing otherwise. */
+    /** Open a client for a bound resource with the declaration's desired state. */
     connect(binding: ResourceBinding, declaration: Declaration): Promise<Client & AsyncDisposable>;
 }
 
@@ -57,7 +57,7 @@ export interface Placement {
     readonly location?: string;
 }
 
-/** A technology a host manages one kind's resources with, having the capabilities its kind and technology allow. */
+/** A technology a host manages one kind's resources with. */
 export type Provider<
     Kind extends ResourceKind = ResourceKind,
     Object = unknown,
@@ -72,7 +72,7 @@ export type Provider<
     readonly code: string;
     /** The object type the kind's resources are in their space, such as a vault. */
     readonly object: Object;
-    /** Reconcile resources toward their kind's desired state, required exactly of providers of kinds with one. */
+    /** Reconcile resources toward their kind's desired state. */
     readonly reconcile?: Reconciler<Kind>;
     /** Create and remove the resources the provider hosts. */
     readonly provision?: Provisioner<Kind>;
@@ -82,9 +82,9 @@ export type Provider<
     readonly rewrap?: Rewrapper<Table, Row>;
     /** Refuse writes into the resources' content while a transfer copies it. */
     readonly fence?: Fence<Kind>;
-    /** Copy the resources' content at a point in time into a content-addressed store, and restore such a copy. */
+    /** Copy the resources' content at a point in time into a content-addressed store. */
     readonly snapshot?: Snapshotter<Kind>;
-    /** The controllers the host runs beside the provider, such as a sweep of its resources' content. */
+    /** The controllers the host runs beside the provider, such as a sweep of resource content. */
     readonly controllers?: readonly Controller[];
 } & (Kind["state"] extends schema.Schema
     ? { readonly reconcile: Reconciler<Kind> }
@@ -92,11 +92,11 @@ export type Provider<
       ? { readonly reconcile?: never }
       : unknown);
 
-/** Take a resource to the desired states its kind declares, required of providers of kinds with a state. */
+/** Take a resource to the desired states its kind declares. */
 export interface Reconciler<Kind extends ResourceKind = ResourceKind> {
     /** Plan the steps taking the resource to the union of the desired states. */
     plan(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Plan>;
-    /** Apply the plan with the reviewed digest, refusing when the resource or desired states changed. */
+    /** Apply the plan with the reviewed digest. */
     apply(
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
@@ -118,28 +118,28 @@ export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unkno
     open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
 }
 
-/** A content-addressed store keeping blobs, such as snapshots' pages, each under the SHA-256 digest of its bytes. */
+/** A content-addressed store of blobs, such as snapshots' pages. */
 export interface ContentStore {
     /** Read a blob's bytes. */
     read(digest: Digest): AsyncIterable<Uint8Array>;
-    /** Keep bytes under their digest and return it, refusing bytes whose digest differs from the expected one. */
+    /** Keep bytes under their digest and return it. */
     write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest>;
     /** Keep the blobs the store lacks among some digests, read from another store. */
     fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void>;
-    /** Delete the blobs outside a retained set last used before a moment, as a garbage collector with a grace period sweeps. */
+    /** Delete the blobs outside a retained set last used before a moment. */
     sweep(retained: ReadonlySet<Digest>, before: Date): Promise<void>;
 }
 
-/** Copy a resource's content at a point in time into a content-addressed store and restore such a copy into another resource of the kind, as a storage driver takes volume snapshots. */
+/** Copy a resource's content at a point in time into a content-addressed store. */
 export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
-    /** Copy the resource's content into the store, wrapping its host-bound values for a recipient when given, and answer the digest naming the copy. */
+    /** Copy the resource's content into the store, and answer the digest of the copy. */
     snapshot(
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
         store: ContentStore,
         recipient?: Recipient,
     ): Promise<Digest>;
-    /** Restore the copy a digest names into a provisioned resource, unwrapping values wrapped for this host's recipient when given, onto the base copy it holds already when given. */
+    /** Restore the copy a digest identifies into a provisioned resource. */
     restore(
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
@@ -150,20 +150,20 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
     ): Promise<void>;
 }
 
-/** Refuse writes into a resource's content while a transfer copies it, as a lease fence refuses a former holder. */
+/** Refuse writes into a resource's content while a transfer copies it. */
 export interface Fence<Kind extends ResourceKind = ResourceKind> {
-    /** Refuse every write into the resource's content until lifted, returning once the writes in flight finished, and report whether this call set the fence. */
+    /** Refuse every write into the resource's content until lifted. */
     fence(record: ResourceRecord<Kind>): Promise<boolean>;
     /** Accept writes into the resource's content again. */
     lift(record: ResourceRecord<Kind>): Promise<void>;
 }
 
-/** Rewrap the rows a provider binds to its host, such as keys encrypted under the host's keyring, for another host. */
+/** Rewrap the rows a provider binds to its host for another host. */
 export interface Rewrapper<Table, Row extends object> {
     /** The table of the host-bound rows. */
     readonly table: Table;
     /** Seal a row's host-bound values to the target's recipient. */
     seal(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
-    /** Open a row sealed to this host's recipient, encrypting its values under this host's keyring. */
+    /** Open a row sealed to this host's recipient. */
     open(row: Readonly<Row>, recipient: Recipient): Promise<Row>;
 }
