@@ -27,8 +27,8 @@ export interface R2BucketHostOptions {
     readonly endpoint: URL;
     /** The region requests are signed for. */
     readonly region: string;
-    /** Read the S3 credentials of a space, absent for a space the host keeps no credentials of. */
-    readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
+    /** Read the S3 credentials of a scope, absent for a scope the host keeps no credentials of. */
+    readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
 }
 
 /** A cell that keeps buckets, each opened once and served over S3 at one endpoint. */

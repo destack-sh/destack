@@ -1,7 +1,7 @@
 import { rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { type Identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { CatalogueBucketHost } from "../catalogue/host.ts";
 import type { BucketReference, S3Credentials } from "../s3/index.ts";
 import { LocalBucket } from "./bucket.ts";
@@ -18,8 +18,8 @@ export interface LocalBucketHostOptions {
     readonly endpoint: URL;
     /** The region requests are signed for. */
     readonly region: string;
-    /** Read the S3 credentials of a space, absent for a space the host keeps no credentials of. */
-    readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
+    /** Read the S3 credentials of a scope, absent for a scope the host keeps no credentials of. */
+    readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
 }
 
 /** A device host that keeps buckets, one directory each, opened once. */

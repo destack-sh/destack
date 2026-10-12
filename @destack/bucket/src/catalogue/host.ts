@@ -28,8 +28,8 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
     readonly endpoint: URL;
     /** The region requests are signed for. */
     readonly region: string;
-    /** Read the S3 credentials of a space, absent for a space the host keeps no credentials of. */
-    readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
+    /** Read the S3 credentials of a scope, absent for a scope the host keeps no credentials of. */
+    readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
     /** The opening and opened buckets, by resource. */
     readonly #buckets = new Map<Identifier<"bucket">, Promise<Opened>>();
 
@@ -39,8 +39,8 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
         readonly endpoint: URL;
         /** The region requests are signed for. */
         readonly region: string;
-        /** Read the S3 credentials of a space. */
-        readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
+        /** Read the S3 credentials of a scope. */
+        readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
     }) {
         // keep the endpoint, the region and the credentials
         this.endpoint = options.endpoint;

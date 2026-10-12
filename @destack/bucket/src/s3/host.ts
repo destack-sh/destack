@@ -5,8 +5,8 @@ import type { BucketEndpoint } from "./location.ts";
 
 /** A bucket resource of a space. */
 export interface BucketReference {
-    /** The space of the bucket. */
-    readonly scope: Identifier<"space">;
+    /** The scope keeping the bucket: a space, or a machine for its build store. */
+    readonly scope: string;
     /** The bucket. */
     readonly bucketId: Identifier<"bucket">;
 }

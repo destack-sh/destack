@@ -10,7 +10,7 @@ export const LEASE_LIFETIME_SECONDS = 15 * 60;
 const LEASE_METHODS: Readonly<Record<LeaseMode, "GET" | "PUT">> = { read: "GET", write: "PUT" };
 
 /** One S3 request a presigned lease grants. */
-export interface LeaseRequest {
+export interface BucketLeaseRequest {
     /** What the lease lets its holder do. */
     readonly mode: LeaseMode;
     /** The file key. */
@@ -27,7 +27,7 @@ export const BucketLease = {
     async presign(
         host: BucketHost,
         target: BucketReference,
-        lease: LeaseRequest,
+        lease: BucketLeaseRequest,
         now: number,
     ): Promise<Lease> {
         // address the key, and the part the query selects, at the bucket's S3 location
