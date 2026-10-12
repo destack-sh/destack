@@ -139,8 +139,7 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
     const definition = table[TABLE];
     const constraints = definition.constraints(dialect);
     const columns = Object.values(definition.columns);
-
-    return {
+    const described = {
         dialect,
         name: definition.sqlName,
         columns: columns.map((column) => describeColumn(column, dialect)),
@@ -162,6 +161,15 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
             .filter((value) => value.kind === "index")
             .map((index) => describeIndex(table, index, dialect)),
     };
+
+    // refuse a name the table's constraints and indexes take twice
+    const names = [...described.constraints, ...described.indexes].map((entry) => entry.name);
+    const repeated = names.find((name, position) => names.indexOf(name) !== position);
+    if (repeated !== undefined) {
+        throw new TypeError(`table ${definition.sqlName} declares ${repeated} twice`);
+    }
+
+    return described;
 }
 
 /** Describe a column. */

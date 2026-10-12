@@ -11,7 +11,7 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { connectors } from "#connector";
 import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
-import { DatabaseState, declareState } from "../migration/state.ts";
+import { DatabaseState } from "../migration/state.ts";
 import { Relations } from "../query/relation.ts";
 import type { Model } from "../query/model.ts";
 
@@ -83,12 +83,7 @@ export class Database<
 
     /** Describe the required tables. */
     override state(): DatabaseState {
-        return {
-            tables: {
-                sqlite: declareState(this.tables, "sqlite", { copies: this.copied }),
-                postgresql: declareState(this.tables, "postgresql", { copies: this.copied }),
-            },
-        };
+        return DatabaseState.of(this.tables, { copies: this.copied });
     }
 
     /** Read the connection. */

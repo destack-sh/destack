@@ -154,6 +154,27 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "keep the applied tables a migration leaves out when asked, and drop them otherwise on %s",
+    async (dialect) => {
+        const database = await open(dialect, []);
+        await database.migrate([labelPlain, taskOne]);
+
+        // change the labels and keep the tasks
+        const kept = await database.migrate([labelUnique], { others: "keep" });
+        expect(review(kept)).toEqual([
+            dialect === "sqlite"
+                ? `fallible replace table/${table(labelUnique)}: rebuild table: constraints`
+                : `fallible create table/${table(labelUnique)}/constraint/${table(labelUnique)}_code_unique: add constraint ${table(labelUnique)}_code_unique`,
+        ]);
+        expect(await database.unapplied([taskOne, labelUnique])).toEqual([]);
+
+        // drop the tasks a migration leaves out by default
+        const dropped = await database.migrate([labelUnique]);
+        expect(review(dropped)).toEqual([`destructive delete table/${table(taskOne)}: drop table`]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "rename, drop, add and index columns while keeping rows on %s",
     async (dialect) => {
         const database = await open(dialect, [taskTwo]);

@@ -6,11 +6,7 @@ import { SqliteDatabase, type SqliteConnectOptions } from "../sqlite/database.ts
 import { BunClient } from "./client.ts";
 import type { Model } from "../query/model.ts";
 
-/**
- * The wait for another process's write lock, in milliseconds.
- *
- * A write commits within milliseconds, and only a stuck writer exceeds five seconds.
- */
+/** The wait for another process's write lock in milliseconds, far above a write's few. */
 const BUSY_TIMEOUT_MILLISECONDS = 5000;
 
 /** Open a SQLite database file or `:memory:`. */

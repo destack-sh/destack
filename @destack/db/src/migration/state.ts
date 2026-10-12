@@ -65,16 +65,29 @@ export const TableState = defineSchema(
 export type TableState = schema.Infer<typeof TableState>;
 
 /** The tables a database declaration requires in every dialect. */
-export const DatabaseState = defineSchema(
-    schema.object({
-        /** The declared table states per dialect. */
-        tables: schema.object({
-            /** The SQLite table states. */
-            sqlite: schema.array(TableState),
-            /** The PostgreSQL table states. */
-            postgresql: schema.array(TableState),
+export const DatabaseState = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The declared table states per dialect. */
+            tables: schema.object({
+                /** The SQLite table states. */
+                sqlite: schema.array(TableState),
+                /** The PostgreSQL table states. */
+                postgresql: schema.array(TableState),
+            }),
         }),
-    }),
+    ),
+    {
+        /** Describe tables in every dialect. */
+        of(tables: readonly Table[], options: DeclareOptions = {}): DatabaseState {
+            return {
+                tables: {
+                    sqlite: declareState(tables, "sqlite", options),
+                    postgresql: declareState(tables, "postgresql", options),
+                },
+            };
+        },
+    },
 );
 /** The tables a database declaration requires in every dialect. */
 export type DatabaseState = schema.Infer<typeof DatabaseState>;
@@ -199,13 +212,28 @@ export function declareState(
 
 /** Qualify a state's relations with a namespace, keeping the SQL name its log records. */
 export function namespaceState(state: TableState, namespace: string | undefined): TableState {
+    return namespace === undefined
+        ? state
+        : renameState(state, (name) => relation(name, namespace));
+}
+
+/** Read a namespaced state's relations without their namespace, as its declaration had them. */
+export function localState(state: TableState, namespace: string | undefined): TableState {
     // keep a database of its own as it is
     if (namespace === undefined) {
         return state;
     }
 
-    // name the table, its indexes and the tables its keys, tree, aggregates and dependents name
-    const name = (table: string) => relation(table, namespace);
+    // drop the namespace's prefix from each relation
+    const prefix = relation("", namespace);
+
+    return renameState(state, (name) =>
+        name.startsWith(prefix) ? name.slice(prefix.length) : name,
+    );
+}
+
+/** Rename the table, its indexes and the tables its keys, tree, aggregates and dependents name. */
+function renameState(state: TableState, name: (relation: string) => string): TableState {
     const { table, tree, aggregates, dependents, moved } = state;
 
     return {

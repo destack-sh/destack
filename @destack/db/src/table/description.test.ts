@@ -2,6 +2,7 @@ import { sql } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, Table, TABLE } from "../table/table.ts";
 import { integer, json, text } from "../table/column.ts";
+import { index, unique } from "./constraint.ts";
 import { describeTable } from "./description.ts";
 import { declareState } from "../migration/state.ts";
 import { present, schema } from "@destack/schema";
@@ -106,3 +107,21 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
+
+test("refuse a table whose unique constraint and index share a name", () => {
+    // declare a unique constraint and an index under one name
+    const label = defineTable(
+        "label",
+        { id: text("id").primaryKey(), code: text("code").notNull() },
+        {
+            constraints: (columns) => [
+                unique("label_code").on(columns.code),
+                index("label_code").on(columns.code),
+            ],
+        },
+    );
+
+    expect(() => describeTable(label, "postgresql")).toThrow(
+        new TypeError(`table ${label[TABLE].sqlName} declares ${label[TABLE].sqlName}_code twice`),
+    );
+});

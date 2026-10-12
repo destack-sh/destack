@@ -9,6 +9,7 @@ import { SelectBuilder } from "../query/select.ts";
 import { MutationQuery } from "../query/mutation.ts";
 import {
     declareState,
+    localState,
     namespaceState,
     readState,
     readTables,
@@ -244,14 +245,31 @@ export class DatabaseConnection<
     /** Plan and apply tables at once, beside declared states, such as a resource's desired ones. */
     async migrate(
         tables: readonly Table[],
-        options: DeclareOptions & { readonly states?: readonly (readonly TableState[])[] } = {},
+        options: DeclareOptions & {
+            /** The states kept beside the tables, such as a resource's desired ones. */
+            readonly states?: readonly (readonly TableState[])[];
+            /** What happens to the applied tables neither the tables nor the states declare. */
+            readonly others?: "keep" | "drop";
+        } = {},
     ): Promise<TablePlan> {
-        // plan the declared tables beside the given states, its copies as copies, then apply the plan
+        // declare the tables, its copies as copies
         const declared = declareState(tables, this.dialect, {
             copies: this.state.copies,
             ...options,
         });
-        const plan = await this.plan(mergeStates([...(options.states ?? []), declared]));
+
+        // keep the other applied tables as they are when asked, as their declarations had them
+        const { namespace } = this.state;
+        const names = new Set(declared.map((entry) => namespaceState(entry, namespace).table.name));
+        const others =
+            options.others === "keep"
+                ? (await readState(this))
+                      .filter((applied) => !names.has(applied.table.name))
+                      .map((applied) => localState(applied, namespace))
+                : [];
+
+        // plan the declared tables beside the given states and the kept tables, then apply the plan
+        const plan = await this.plan(mergeStates([...(options.states ?? []), others, declared]));
         await this.apply(plan);
 
         return plan;
