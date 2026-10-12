@@ -19,7 +19,7 @@ import { accessInvitation, InvitationRelationship, InvitationStatus } from "./ta
 export const INVITATION_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
 /** The most invitations per page: a screen of pending invitations of a few hundred bytes. */
-const INVITATION_PAGE_LIMIT = 100;
+export const INVITATION_PAGE = 100;
 
 /** The schema of an invitation: a pending grant of a relationship, which applies once accepted. */
 const invitationSchema = defineSchema(
@@ -88,10 +88,10 @@ export const Invitation = {
 /** Match the pending invitations of a page that have not lapsed, after its starting identifier. */
 function pending(page: InvitationPage, now: number): Condition<Select<typeof accessInvitation>> {
     // require a bounded page
-    if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > INVITATION_PAGE_LIMIT) {
+    if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > INVITATION_PAGE) {
         throw new AccessError(
             "INVALID_CONTEXT",
-            `invitation page limit must be 1 to ${INVITATION_PAGE_LIMIT}`,
+            `invitation page limit must be 1 to ${INVITATION_PAGE}`,
         );
     }
 
