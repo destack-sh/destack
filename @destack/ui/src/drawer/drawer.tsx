@@ -39,13 +39,13 @@ import { renderPart } from "../part/index.ts";
 /** The share of the viewport a drawer grows to at most. */
 const DRAWER_EXTENT = "80vh";
 
-/** The time a released drag's speed carries it on, in milliseconds, as touch screens decelerate scrolls at 0.998 per millisecond. */
+/** The time a released drag's speed carries it on, in milliseconds. */
 const PROJECTION_TIME = 0.998 / (1 - 0.998);
 
 /** The share of the smallest snap point a drag passes below it to close the drawer. */
 const CLOSE_SHARE = 0.25;
 
-/** The distance a drag passes below the smallest snap point to close the drawer however small it is, in pixels. */
+/** The distance a drag passes below the smallest snap point to close the drawer, in pixels. */
 const CLOSE_DISTANCE = 48;
 
 /** A CSS pixel length, as snap points write them. */
@@ -101,7 +101,7 @@ const corners = style.create({
     left: { borderTopRightRadius: radius[5], borderBottomRightRadius: radius[5] },
 });
 
-/** A length a drawer snaps to: a fraction of the viewport from 0 to 1, or CSS pixels such as "320px". */
+/** A length a drawer snaps to. */
 export type DrawerSnapPoint = number | string;
 
 /** The properties of a drawer root. */
@@ -122,14 +122,14 @@ export interface DrawerProperties extends DialogProperties {
 export class DrawerControl {
     /** The edge the drawer slides in from. */
     readonly direction: Accessor<SheetSide>;
-    /** The lengths a drag settles the drawer at, from the smallest to the largest, none without snapping. */
+    /** The lengths a drag settles the drawer at, from the smallest to the largest. */
     readonly snapPoints: Accessor<readonly DrawerSnapPoint[]>;
     /** The snap point the drawer rests at, undefined without snap points. */
     readonly activeSnapPoint: Accessor<DrawerSnapPoint | undefined>;
     /** Replace the snap point and tell the change handler. */
     readonly #setActive: (point: DrawerSnapPoint | undefined) => void;
 
-    /** Create the state of a drawer root, resting at the largest snap point unless told otherwise. */
+    /** Create the state of a drawer root. */
     constructor(properties: DrawerProperties) {
         // follow the controlled snap point, else the drawer's own
         const [active, setActive] = createControllableSignal<DrawerSnapPoint | undefined>({
@@ -155,12 +155,12 @@ export class DrawerControl {
         return point === undefined ? undefined : this.snapPoints().indexOf(point);
     }
 
-    /** Report whether the drawer's extent runs along the vertical axis, as for top and bottom drawers. */
+    /** Report whether the drawer's extent runs along the vertical axis. */
     isVertical(): boolean {
         return this.direction() === "top" || this.direction() === "bottom";
     }
 
-    /** Settle a released drag at the snap point nearest its projected extent, closing the drawer past the smallest or on a dismissing swipe without snap points. */
+    /** Settle a released drag at the snap point nearest its projected extent. */
     settle(release: SwipeRelease, viewport: number, close: () => void): void {
         // close on a far swipe or a flick without snap points
         const point = this.activeSnapPoint();
@@ -202,7 +202,7 @@ export function useDrawer(): DrawerControl {
     return drawer;
 }
 
-/** Hold the open state of a drawer that slides in from an edge with a handle, resting at its snap points. */
+/** Keep the open state of a drawer that slides in from an edge with a handle. */
 export function Drawer(properties: DrawerProperties): JSX.Element {
     const rest = omit(
         properties,
@@ -236,7 +236,7 @@ export interface DrawerContentProperties extends DialogContentProperties {
     readonly showHandle?: boolean;
 }
 
-/** Render the drawer against its edge, with a handle when it rises from the bottom, which a drag toward its edge closes or settles at a snap point. */
+/** Render the drawer against its edge, with a handle when it rises from the bottom. */
 export function DrawerContent(properties: DrawerContentProperties): JSX.Element {
     // close the drawer on a swipe toward its edge from unscrolled content, or settle it at a snap point
     const drawer = useDrawer();
@@ -310,7 +310,7 @@ export function DrawerDescription(
     return <SheetDescription data-slot="drawer-description" {...properties} />;
 }
 
-/** Return the StyleX styles that size a drawer to its active snap point or to a running drag, else move it with a swipe. */
+/** Return the StyleX styles that size a drawer to its active snap point or a running drag. */
 function extentStyle(drawer: DrawerControl, swipe: Swipe): style.Styles {
     // move a drawer without snap points with the swipe
     const point = drawer.activeSnapPoint();
@@ -337,7 +337,7 @@ function viewportOf(drawer: DrawerControl): number {
     return drawer.isVertical() ? window.innerHeight : window.innerWidth;
 }
 
-/** Read the pixels a snap point spans in a viewport, refusing lengths other than fractions and pixels. */
+/** Read the pixels a snap point spans in a viewport. */
 function extentOf(point: DrawerSnapPoint, viewport: number): number {
     // scale a fraction of the viewport
     if (typeof point === "number" && point >= 0 && point <= 1) {

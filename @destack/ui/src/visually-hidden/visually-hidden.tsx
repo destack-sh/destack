@@ -19,12 +19,12 @@ const styles = style.create({
 export type VisuallyHiddenProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> &
     ElementPartProperties;
 
-/** Return the StyleX styles that take an element out of sight and leave it to assistive technology. */
+/** Return the StyleX styles that take an element out of sight. */
 export function visuallyHiddenStyle(): style.Styles {
     return styles.hidden;
 }
 
-/** Render content out of sight that assistive technology still reads, such as an icon button's name. */
+/** Render content out of sight that assistive technology still reads. */
 export function VisuallyHidden(properties: VisuallyHiddenProperties): JSX.Element {
     return renderPart("span", "visually-hidden", properties, styles.hidden);
 }

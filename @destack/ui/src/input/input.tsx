@@ -59,7 +59,7 @@ export interface InputStyleOptions {
     readonly invalid?: boolean;
 }
 
-/** Return the StyleX styles of an input's box, for textareas, selects and other controls that look like inputs. */
+/** Return the StyleX styles of an input's box. */
 export function inputStyle(options: InputStyleOptions = {}): style.Styles {
     return [text.callout, styles.box, options.invalid === true && styles.invalid];
 }

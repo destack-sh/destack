@@ -8,7 +8,7 @@ import { type ElementPartProperties, renderPart } from "../part/index.ts";
 /** The longest line of running text, in characters, the measure long-form text reads best at. */
 const MEASURE = "65ch";
 
-/** The leading of running text, Tailwind Typography's 28px over 16px, looser than the interface's text styles. */
+/** The leading of running text, Tailwind Typography's 28px over 16px. */
 const LEADING = 1.75;
 
 /** The styles of a prose container; its elements take theirs from `prose.css`. */
@@ -25,7 +25,7 @@ const styles = style.create({
 export type ProseProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
 
-/** Style rendered HTML, such as converted Markdown, by its semantic elements: headings, lists, tables, code, quotes, figures, footnotes and alerts. */
+/** Style rendered HTML, such as converted Markdown, by its semantic elements. */
 export function Prose(properties: ProseProperties): JSX.Element {
     return renderPart("div", "prose", properties, [text.body, styles.prose]);
 }

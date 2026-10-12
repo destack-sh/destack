@@ -28,7 +28,7 @@ export function ContextMenu(properties: MenuRootProperties): JSX.Element {
     return <Menu control={new MenuControl(null, properties)}>{properties.children}</Menu>;
 }
 
-/** Render the area whose context menu event opens the menu at the pointer instead of the browser's. */
+/** Render the area whose context menu event opens the menu at the pointer. */
 export function ContextMenuTrigger(
     properties: Omit<MenuElementProperties<HTMLDivElement>, "ref" | "onContextMenu">,
 ): JSX.Element {

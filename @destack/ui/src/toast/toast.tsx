@@ -118,7 +118,7 @@ function richOf(type: ToastType): style.Styles {
         : null;
 }
 
-/** Read the direction a swipe dismisses a toast toward from where the toasts stack: off the nearer side. */
+/** Read the direction a swipe dismisses a toast toward, from where the toasts stack. */
 function swipeOf(position: ToasterPosition): SwipeDirection {
     if (position.endsWith("right")) {
         return "right";
@@ -165,7 +165,7 @@ export interface ToastOptions {
     readonly id?: string;
     /** The text under the title. */
     readonly description?: string;
-    /** The time the toast shows in milliseconds, the toaster's by default and forever for Infinity. */
+    /** The time the toast shows in milliseconds. */
     readonly duration?: number;
     /** The main button, such as undo. */
     readonly action?: ToastButton;
@@ -246,7 +246,7 @@ function show(title: string, options?: ToastOptions): string {
     return store.show(title, "default", options);
 }
 
-/** Show a loading toast while a promise is pending and its outcome once it settles, returning the promise. */
+/** Show a loading toast while a promise is pending, and its outcome once it settles. */
 function follow<Value>(
     promise: Promise<Value>,
     messages: ToastPromiseMessages<Value>,
@@ -362,7 +362,7 @@ export function Toaster(properties: ToasterProperties): JSX.Element {
     );
 }
 
-/** Move the focus to an element on Alt+T once mounted, by the key's position whatever letter the layout types. */
+/** Move the focus to an element on Alt+T once mounted. */
 function focusOnShortcut(target: () => HTMLElement | undefined): void {
     onSettled(() => {
         const focus = (event: KeyboardEvent) => {
@@ -377,7 +377,7 @@ function focusOnShortcut(target: () => HTMLElement | undefined): void {
     });
 }
 
-/** The time a toast has left to show, counted down while neither the pointer nor the focus rests on it. */
+/** The time a toast has left to show. */
 class ToastTimer {
     /** The time left, in milliseconds, infinite for a toast that stays. */
     #remaining: number;
@@ -399,7 +399,7 @@ class ToastTimer {
         onCleanup(() => clearTimeout(this.#timer));
     }
 
-    /** Hold the countdown while the pointer or the focus rests on the toast, keeping the time left. */
+    /** Pause the countdown while the pointer or the focus rests on the toast. */
     pause(): void {
         this.#holds += 1;
         if (this.#holds === 1) {
@@ -408,7 +408,7 @@ class ToastTimer {
         }
     }
 
-    /** Release a hold, counting down again once neither the pointer nor the focus rests on the toast. */
+    /** Release a pause. */
     resume(): void {
         this.#holds -= 1;
         if (this.#holds === 0) {

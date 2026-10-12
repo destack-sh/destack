@@ -139,11 +139,11 @@ export type ButtonSize =
 /** The properties of a button, the native button's attributes included. */
 export interface ButtonProperties
     extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class">, ButtonVariantProperties {
-    /** The part's name for styling, `button` by default, which a part built on a button sets to its own. */
+    /** The part's name for styling, `button` by default. */
     readonly "data-slot"?: string;
     /** The StyleX styles applied after the button's styles. */
     readonly xstyle?: style.Styles;
-    /** Render another element with the button's attributes, such as a link, the native button by default. */
+    /** Render another element with the button's attributes, such as a link. */
     readonly render?: Render;
     /** Whether the button's action runs, which shows a spinner, marks it busy and disables it. */
     readonly loading?: boolean;
@@ -157,7 +157,7 @@ export interface ButtonVariantProperties {
     readonly size?: ButtonSize;
 }
 
-/** Return the StyleX styles of a button in a variant and size, for links and other elements that look like buttons. */
+/** Return the StyleX styles of a button in a variant and size. */
 export function buttonVariants(options: ButtonVariantProperties): style.Styles {
     const height = options.size ?? DEFAULTS.size;
 

@@ -20,7 +20,7 @@ export function followToggle(
     }
 }
 
-/** Keep a trigger's disclosure as it is while the trigger is disabled, listening on the trigger before the platform toggles. */
+/** Keep a trigger's disclosure as it is while the trigger is disabled. */
 export function refuseDisabled(trigger: HTMLElement, isDisabled: Accessor<boolean>): void {
     trigger.addEventListener("click", (event) => {
         if (isDisabled()) {

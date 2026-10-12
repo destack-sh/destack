@@ -3,7 +3,7 @@ import { space } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
-/** The widest a centered column grows and its gutters unless set, a readable line of 65 characters. */
+/** The widest a centered column grows and its gutters unless set. */
 const DEFAULTS = { max: "65ch", gutters: "4", intrinsic: false, andText: false } as const;
 
 /** The styles of a centered column. */

@@ -13,7 +13,7 @@ import {
 import type { Focus } from "../focus/index.ts";
 import { Input, type InputProperties } from "../input/index.ts";
 
-/** The keys a search field takes from its collection: the arrows, Page Up, Page Down, Home and End. */
+/** The keys a search field takes from its collection. */
 const MOVES: ReadonlySet<string> = new Set([
     "ArrowDown",
     "ArrowUp",
@@ -48,9 +48,9 @@ export interface AutocompleteProperties {
     readonly defaultSearch?: string | undefined;
     /** Handle each change of the search. */
     readonly onSearchChange?: ((search: string) => void) | undefined;
-    /** Whether the collection filters its items by the search, or its owner does, true by default. */
+    /** Whether the collection filters its items by the search, or its owner does. */
     readonly shouldFilter?: boolean | undefined;
-    /** Report whether an item's value or keywords match the search, in place of their words holding it. */
+    /** Report whether an item's value or keywords match the search. */
     readonly filter?:
         | ((value: string, search: string, keywords: readonly string[]) => boolean)
         | undefined;
@@ -124,7 +124,7 @@ export class AutocompleteControl {
         this.target()?.focus.reset();
     }
 
-    /** Report whether an item matches the search: always without a search or filtering, else by the owner's filter or its words holding the search. */
+    /** Report whether an item matches the search. */
     matches(value: string, keywords: readonly string[]): boolean {
         // show every item without a search or filtering
         const search = this.search().trim();
@@ -142,7 +142,7 @@ export class AutocompleteControl {
         return [value, ...keywords].some((word) => word.toLowerCase().includes(lowered));
     }
 
-    /** Move the collection's focus on the keys its layout takes, run the focused item's action on Enter, and report whether the key was taken. */
+    /** Move the collection's focus on the keys its layout takes. */
     steer(event: KeyboardEvent, direction: Direction): boolean {
         // leave keys to the search field without a collection
         const target = this.target();
@@ -208,7 +208,7 @@ export function useAutocomplete(): AutocompleteControl {
     return control;
 }
 
-/** Hold the search that drives the one collection inside, which takes its focus virtually and filters by it. */
+/** Keep the search that drives the one collection inside. */
 export function Autocomplete(
     properties: AutocompleteProperties & { readonly children?: JSX.Element },
 ): JSX.Element {
@@ -225,7 +225,7 @@ export type AutocompleteInputProperties = Omit<
     "value" | "onInput" | "onKeyDown" | "role"
 >;
 
-/** Render the search field of the nearest autocomplete, whose keys move its collection's focus and Enter runs the focused item's action. */
+/** Render the search field of the nearest autocomplete. */
 export function AutocompleteInput(properties: AutocompleteInputProperties): JSX.Element {
     // take the search field's attributes from the autocomplete
     const control = useAutocomplete();

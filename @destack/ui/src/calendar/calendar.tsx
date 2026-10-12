@@ -151,7 +151,7 @@ const MOVES: Readonly<Record<string, (day: PlainDate, isShift: boolean) => Plain
     PageDown: (day, isShift) => Day.addMonths(day, isShift ? 12 : 1),
 };
 
-/** The month, limits and look of a calendar in any mode, the native element's attributes included. */
+/** The month, limits and look of a calendar in any mode. */
 export interface CalendarLook extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "ref" | "onSelect"
@@ -170,7 +170,7 @@ export interface CalendarLook extends Omit<
     readonly min?: PlainDate;
     /** The latest day that can be selected or shown. */
     readonly max?: PlainDate;
-    /** How each month's caption reads: its name, or a month and a year picker, its name by default. */
+    /** How each month's caption reads: its name, or a month and a year picker. */
     readonly captionLayout?: "label" | "dropdown";
     /** Whether a column numbers each week by ISO 8601. */
     readonly showWeekNumber?: boolean;
@@ -189,7 +189,7 @@ class CalendarControl {
     readonly properties: CalendarProperties;
     /** The selection. */
     readonly value: Accessor<CalendarValue>;
-    /** The focused day, which holds the tab stop and the keys move by days, weeks, months and years. */
+    /** The focused day, which has the tab stop. */
     readonly focus: Focus<PlainDate>;
     /** The first month shown. */
     readonly first: Accessor<PlainDate>;
@@ -200,7 +200,7 @@ class CalendarControl {
     /** The selection the person last made, which a selection from outside differs from. */
     #selected: CalendarValue = undefined;
 
-    /** Create the state of a calendar from its properties, focusing its first month's day or today. */
+    /** Create the state of a calendar from its properties. */
     constructor(properties: CalendarProperties, firstDay: Accessor<number>) {
         // follow the controlled selection or the calendar's own
         const [value, setValue] = createControllableSignal<CalendarValue>({
@@ -311,7 +311,7 @@ class CalendarControl {
     }
 }
 
-/** The days a calendar's keys move the focus through: days, weeks, months and years within the allowed days. */
+/** The days a calendar's keys move the focus through. */
 class CalendarDelegate implements KeyboardDelegate<PlainDate> {
     /** The calendar's properties, read for its limits. */
     readonly #properties: CalendarProperties;
@@ -522,7 +522,7 @@ interface CalendarGridProperties {
     readonly outsideDays: boolean;
 }
 
-/** Render the grid of the month shown, its weekday names over one row per week, which keys move through. */
+/** Render the grid of the month shown, which keys move through. */
 function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
     const locale = useLocale();
 
@@ -610,7 +610,7 @@ function CalendarWeekdays(properties: {
     );
 }
 
-/** Render the buttons that move the months shown back and forth, unavailable past the earliest and latest days. */
+/** Render the buttons that move the months shown back and forth. */
 function CalendarHeader(properties: {
     /** The reading direction, which turns the arrows. */
     readonly direction: Direction;

@@ -32,7 +32,7 @@ export class ListDelegate<Item> implements KeyboardDelegate<string> {
         this.#options = options;
     }
 
-    /** Read the key a key press moves the focus to: the arrows along the axis, Home, End and typed letters. */
+    /** Read the key a key press moves the focus to. */
     target(event: KeyboardEvent, from: string, direction: Direction): string | undefined {
         // move along the axis or to an end
         const move = listMoveOf(event.key, this.#options.orientation, direction);
@@ -106,7 +106,7 @@ export class ListDelegate<Item> implements KeyboardDelegate<string> {
         return undefined;
     }
 
-    /** Read the first available key from a place in a direction, looking at most a number of keys. */
+    /** Read the first available key from a place in a direction. */
     #scan(start: number, step: 1 | -1, count: number): string | undefined {
         for (let offset = 0; offset < count; offset++) {
             const key = this.collection.at(start + offset * step);
@@ -166,7 +166,7 @@ export interface ListItem {
 export interface ListStateOptions extends ListDelegateOptions {
     /** Whether the focused key holds the DOM focus or stays virtual, roving by default. */
     readonly mode?: FocusMode;
-    /** Read the key that holds the focus until one is focused from the items, the first available one by default. */
+    /** Read the key that has the focus until one is focused from the items. */
     readonly initial?: (collection: Collection<ListItem>) => string | undefined;
 }
 
@@ -199,7 +199,7 @@ export class ListState {
         });
     }
 
-    /** Add an item until the component adding it unmounts, giving its element the DOM focus as the focus reaches it. */
+    /** Add an item until the component adding it unmounts. */
     add(item: ListItem): void {
         this.items.add(item);
         this.focus.bind(() => item.key, item.element);

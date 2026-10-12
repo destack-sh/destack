@@ -100,7 +100,7 @@ interface IconPickerControl {
 /** The nearest icon picker's grid, null outside one. */
 const IconPickerContext = createContext<IconPickerControl | null>(null);
 
-/** The properties of an icon picker: its search, layout and cells, the native element's attributes included. */
+/** The properties of an icon picker: its search, layout and cells. */
 export interface IconPickerProperties extends GridListElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onChange">
 > {
@@ -116,11 +116,11 @@ export interface IconPickerProperties extends GridListElementProperties<
     readonly columns?: number;
     /** Render an icon of the grid, the picker's own by default. */
     readonly cell?: (properties: GridListCellProperties<IconName>) => JSX.Element;
-    /** Render the active icon where the footer shows it, undefined while none is, the icon and its name by default. */
+    /** Render the active icon where the footer shows it, undefined while none is. */
     readonly activeCell?: (icon: IconName | undefined) => JSX.Element;
 }
 
-/** Render a picker of the icon set's icons around its parts: a search driving a grid of the icons it finds by category, loaded once it renders. */
+/** Render a picker of the icon set's icons around its parts. */
 export function IconPicker(properties: IconPickerProperties): JSX.Element {
     // load the icons once and lay out the ones the search finds by category
     const locale = useLocale();
@@ -174,7 +174,7 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
     );
 }
 
-/** Render the search of the nearest icon picker, whose arrow keys move the active icon and Enter picks it. */
+/** Render the search of the nearest icon picker. */
 export function IconPickerSearch(properties: AutocompleteInputProperties): JSX.Element {
     const locale = useLocale();
 
@@ -189,7 +189,7 @@ export function IconPickerSearch(properties: AutocompleteInputProperties): JSX.E
     );
 }
 
-/** Render the icons of the nearest icon picker by category, with a note while they load or while the search finds none. */
+/** Render the icons of the nearest icon picker by category. */
 export function IconPickerContent(
     properties: Omit<GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>, "children">,
 ): JSX.Element {
@@ -215,7 +215,7 @@ export function IconPickerContent(
     );
 }
 
-/** Render the row below the nearest icon picker's content, showing the active icon and its name before its own content. */
+/** Render the row below the nearest icon picker's content. */
 export function IconPickerFooter(
     properties: GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
@@ -302,7 +302,7 @@ function useIconPicker(): IconPickerControl {
     return picker;
 }
 
-/** Load the icons with their categories and the words that find them, refusing an icon of an unlisted category. */
+/** Load the icons with their categories and the words that find them. */
 async function loadIcons(): Promise<readonly IconData[]> {
     // load the icon set
     const { ICONS } = await import("@destack/icon/icons");

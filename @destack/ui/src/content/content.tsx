@@ -2,7 +2,7 @@ import type { Element, ElementContent, Properties, Root } from "hast";
 import { find, html, type Schema, svg } from "property-information";
 import { type Component, createComponent, Dynamic, For, type JSX } from "@destack/view";
 
-/** The properties a component receives for one element of a content tree: its attributes, its rendered children and the element itself. */
+/** The properties a component receives for one element of a content tree. */
 export interface ContentElementProperties {
     /** The element the component stands in for. */
     readonly node: Element;
@@ -15,7 +15,7 @@ export interface ContentElementProperties {
 /** A component that renders the elements of one tag in a content tree. */
 export type ContentComponent = Component<ContentElementProperties>;
 
-/** The components that stand in for elements by their tag name, such as `pre` for a code listing. */
+/** The components that stand in for elements by tag name, such as `pre` for a code listing. */
 export type ContentComponents = Readonly<Partial<Record<string, ContentComponent>>>;
 
 /** The properties of a content tree's rendering. */
@@ -26,7 +26,7 @@ export interface ContentProperties {
     readonly components?: ContentComponents;
 }
 
-/** Render a content tree, such as converted Markdown, as elements, swapping chosen tags for components. */
+/** Render a content tree, such as converted Markdown, as elements. */
 export function Content(properties: ContentProperties): JSX.Element {
     return (
         <For each={properties.tree.children}>
@@ -35,7 +35,7 @@ export function Content(properties: ContentProperties): JSX.Element {
     );
 }
 
-/** Render one node of a content tree in its attribute space: text as text, elements as elements or their components. */
+/** Render one node of a content tree in its attribute space. */
 function renderNode(
     node: Root["children"][number],
     components: ContentComponents,
@@ -81,7 +81,7 @@ function renderChildren(
         : children.map((child) => renderNode(child, components, space));
 }
 
-/** Turn an element's hast properties into HTML or SVG attributes, such as `className` into `class` and `dataLabel` into `data-label`. */
+/** Turn an element's hast properties into HTML or SVG attributes. */
 function attributesOf(properties: Properties, space: Schema): Record<string, string> {
     const attributes: Record<string, string> = {};
     for (const [property, value] of Object.entries(properties)) {

@@ -84,7 +84,7 @@ const grips = style.create({
 export interface ResizablePanelState {
     /** The id of the panel element. */
     readonly id: string;
-    /** The panel's share when set, undefined while it takes an even part of what the others leave. */
+    /** The panel's share when set. */
     readonly size: Accessor<number | undefined>;
     /** Set the panel's share. */
     readonly resize: Setter<number | undefined>;
@@ -176,7 +176,7 @@ export class ResizableControl {
         this.panels().forEach((panel, index) => panel.resize(layout[index]));
     }
 
-    /** Move the boundary after a handle's panel by a share, within both neighbours' limits, collapsing a collapsible neighbour dragged below half its smallest share. */
+    /** Move the boundary after a handle's panel by a share, within both neighbours' limits. */
     move(handle: number, delta: number): void {
         // read the neighbours of the handle
         const before = this.panels()[handle];
@@ -209,7 +209,7 @@ export class ResizableControl {
         );
     }
 
-    /** Collapse a collapsible panel, or restore it to its smallest share, taking the share from its neighbour. */
+    /** Collapse a collapsible panel, or restore it to its smallest share. */
     toggle(handle: number): void {
         // move a collapsed panel to its smallest share and any other to its collapsed share
         const before = this.panels()[handle];
@@ -232,7 +232,7 @@ export class ResizableControl {
     }
 }
 
-/** The step that collapses a collapsible panel dragged below half its smallest share, else undefined. */
+/** The step that collapses a collapsible panel dragged below half its smallest share. */
 function collapseStep(
     panel: ResizablePanelState,
     share: number,
@@ -296,7 +296,7 @@ export interface ResizablePanelProperties extends Omit<
     readonly minSize?: number;
     /** The largest share in percent, 100 by default. */
     readonly maxSize?: number;
-    /** Whether a drag below half the smallest share, or Enter on its handle, collapses the panel. */
+    /** Whether a drag below half the smallest share or Enter on its handle collapses the panel. */
     readonly collapsible?: boolean;
     /** The share of the collapsed panel in percent, 0 by default. */
     readonly collapsedSize?: number;
@@ -396,7 +396,7 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
     );
 }
 
-/** Render the window splitter between two panels, which pointers drag and arrow keys, Home and End move. */
+/** Render the window splitter between two panels. */
 export function ResizableHandle(properties: ResizableHandleProperties): JSX.Element {
     // read the group, this handle's place and the panel before it
     const control = useResizable();

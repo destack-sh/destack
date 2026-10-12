@@ -6,7 +6,7 @@ import {
     IconPickerSearch,
 } from "./icon-picker.tsx";
 
-/** A project's icon picked from the icon set by category, with a search, the active icon's name and a note while nothing matches. */
+/** A project's icon picked from the icon set by category. */
 export const iconPickerProjectIcon = defineExample({
     of: IconPicker,
     name: "project-icon",

@@ -129,7 +129,7 @@ export interface AvatarImageProperties extends AvatarElementProperties<
     readonly onStatusChange?: (status: AvatarImageStatus) => void;
 }
 
-/** Render a round picture of a person or organisation, showing its fallback until the image loads. */
+/** Render a round picture of a person or organisation. */
 export function Avatar(properties: AvatarProperties): JSX.Element {
     // overlap the avatar in a group and start with its image loading
     const avatar = merge(DEFAULTS, properties);

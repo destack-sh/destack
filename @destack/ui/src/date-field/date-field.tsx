@@ -40,7 +40,7 @@ export interface DateFieldProperties extends Omit<
     readonly value?: PlainDate | undefined;
     /** The date the field starts from when uncontrolled. */
     readonly defaultValue?: PlainDate;
-    /** Handle the date changing: a complete date that exists, or undefined once it is missing or impossible. */
+    /** Handle the date changing. */
     readonly onValueChange?: (value: PlainDate | undefined) => void;
     /** Whether the field takes no input. */
     readonly disabled?: boolean;
@@ -129,7 +129,7 @@ class DateFormat implements DateSegmentFormat {
     }
 }
 
-/** Render a date as one spinbutton per year, month and day in the locale's order, which digits fill and arrow keys step. */
+/** Render a date as one spinbutton per year, month and day in the locale's order. */
 export function DateField(properties: DateFieldProperties): JSX.Element {
     // follow the controlled date, else the field's own, and the segments typed so far
     const format = new DateFormat(useLocale());

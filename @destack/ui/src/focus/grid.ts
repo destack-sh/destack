@@ -3,7 +3,7 @@ import { type Accessor, createMemo } from "@destack/view";
 import type { Collection, CollectionSection } from "../collection/index.ts";
 import type { KeyboardDelegate } from "./focus.ts";
 
-/** The step a key moves the focus by within a grid, or the end of the row or grid it moves the focus to. */
+/** The step a key moves the focus by within a grid. */
 export type GridMove =
     | "next"
     | "previous"
@@ -62,7 +62,7 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
         return this.#layout().places.get(key);
     }
 
-    /** Read the key a key press moves the focus to: along the keys, across rows in the column, and to the ends of the row or grid. */
+    /** Read the key a key press moves the focus to. */
     target(event: KeyboardEvent, from: string, direction: Direction): string | undefined {
         // read the place the move starts from
         const move = gridMoveOf(event, direction);
@@ -116,7 +116,7 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
         return found?.kind === "cells" ? found.keys : undefined;
     }
 
-    /** Read the key in a column of the next row of cells up or down, the row's last for a row too short. */
+    /** Read the key in a column of the next row of cells up or down. */
     #inColumn(row: number, step: 1 | -1, column: number): string | undefined {
         // skip the headings between rows of cells
         const rows = this.rows();
@@ -131,7 +131,7 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
     }
 }
 
-/** Read the move a key asks for in a grid, mirrored left and right in right-to-left text, undefined for a key that moves nothing. */
+/** Read the move a key asks for in a grid. */
 export function gridMoveOf(event: KeyboardEvent, direction: Direction): GridMove | undefined {
     // step along a row in the reading direction, or across the rows
     const forward = direction === "rtl" ? "ArrowLeft" : "ArrowRight";

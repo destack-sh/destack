@@ -33,7 +33,7 @@ import {
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 import { renderPart } from "../part/index.ts";
 
-/** The distance of a command dialog from the viewport's top, so it holds still as its results change. */
+/** The distance of a command dialog from the viewport's top. */
 const DIALOG_OFFSET = "12vh";
 
 /** The widest a command dialog grows, room for a result's title and excerpt. */
@@ -102,7 +102,7 @@ const styles = style.create({
     },
 });
 
-/** The properties of a command: its search, filtering and highlight, the native element's attributes included. */
+/** The properties of a command: its search, filtering and highlight. */
 export interface CommandProperties
     extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class">, AutocompleteProperties {
     /** The highlighted option's value, which makes the highlight controlled. */
@@ -126,7 +126,7 @@ export type CommandElementProperties<Attributes> = Omit<Attributes, "class"> & {
 /** The properties of a command option. */
 export type CommandItemProperties = ListBoxItemProperties;
 
-/** The properties of a command dialog: its open state and its command's search, filtering and highlight. */
+/** The properties of a command dialog. */
 export interface CommandDialogProperties
     extends Omit<DialogProperties, "children">, Omit<CommandProperties, "title"> {
     /** The title assistive technology announces, a generic one by default. */
@@ -150,7 +150,7 @@ export function useCommand(): AutocompleteControl {
     return useAutocomplete();
 }
 
-/** Render a searchable list of commands, an autocomplete over a list box whose search filters the options as the person types. */
+/** Render a searchable list of commands. */
 export function Command(properties: CommandProperties): JSX.Element {
     // drive one list box of options from the search
     const autocomplete = new AutocompleteControl(properties);
@@ -198,7 +198,7 @@ export function Command(properties: CommandProperties): JSX.Element {
     );
 }
 
-/** Render the search of a command, which the arrow keys, Home and End move the highlight from and Enter chooses. */
+/** Render the search of a command. */
 export function CommandInput(
     properties: CommandElementProperties<
         Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "value" | "onInput" | "onKeyDown">

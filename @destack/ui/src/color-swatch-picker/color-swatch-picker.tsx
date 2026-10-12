@@ -23,7 +23,7 @@ export interface ColorSwatchPickerProperties extends ListBoxElementProperties<
     readonly defaultValue?: AccentPreset;
     /** Handle the person choosing a swatch. */
     readonly onValueChange?: (value: AccentPreset) => void;
-    /** The swatches offered when the picker has no items of its own, every colorful preset by default. */
+    /** The swatches offered when the picker has no items of its own. */
     readonly presets?: readonly AccentPreset[];
     /** The swatches in each row, which the up and down arrow keys move across, nine by default. */
     readonly columns?: number;
@@ -120,7 +120,7 @@ export function ColorSwatchPicker(properties: ColorSwatchPickerProperties): JSX.
     );
 }
 
-/** Render one swatch of the nearest swatch picker, an option filled with its preset's color and ringed while chosen. */
+/** Render one swatch of the nearest swatch picker. */
 export function ColorSwatchPickerItem(properties: ColorSwatchPickerItemProperties): JSX.Element {
     const rest = omit(properties, "xstyle", "children");
 
@@ -141,7 +141,7 @@ export function ColorSwatchPickerItem(properties: ColorSwatchPickerItemPropertie
     );
 }
 
-/** Render the hidden input that carries the nearest swatch picker's chosen swatch into its form, none while none is chosen. */
+/** Render the hidden input that carries the nearest swatch picker's chosen swatch into its form. */
 function ColorSwatchPickerInput(properties: {
     /** The form field name. */
     readonly name: string | undefined;

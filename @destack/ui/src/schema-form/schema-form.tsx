@@ -85,11 +85,11 @@ const styles = style.create({
 
 /** The properties of a schema form. */
 export interface SchemaFormProperties {
-    /** The JSON Schema of the object the form edits, such as a method's input, read once as the form renders. */
+    /** The JSON Schema of the object the form edits, such as a method's input. */
     readonly schema: JsonObject;
     /** The submit button's label, Submit by default. */
     readonly submit?: string;
-    /** Render a field's control instead of the form, such as a picker for a reference, or keep the form's with undefined. */
+    /** Render a field's control instead of the form, such as a picker for a reference. */
     readonly renderField?: (field: SchemaField, held: SchemaHeld) => JSX.Element | undefined;
     /** Handle the object once every field is kept. */
     readonly onSubmit: (value: JsonObject) => void;
@@ -101,7 +101,7 @@ export type SchemaHeld = FormField<JsonValue | undefined>;
 /** The values a schema form holds, by property. */
 type SchemaValues = Record<string, JsonValue | undefined>;
 
-/** Render a form for an object a JSON Schema describes, one field per property, refusing values the schema refuses in the person's language. */
+/** Render a form for an object a JSON Schema describes, one field per property. */
 export function SchemaForm(properties: SchemaFormProperties): JSX.Element {
     // check the object against the schema, each property starting from its start value
     const locale = useLocale();
@@ -208,7 +208,7 @@ function FieldControl(properties: FieldControlProperties): JSX.Element {
     }
 }
 
-/** Render a text input in the type its format takes, holding JSON for a schema without a control. */
+/** Render a text input in the type its format takes. */
 function TextControl(
     properties: FieldControlProperties<SchemaTextField> & {
         /** The control, one a native input types. */
@@ -245,7 +245,7 @@ function DateControl(properties: FieldControlProperties<SchemaTextField>): JSX.E
     );
 }
 
-/** Render a date picker beside a time field, writing the instant of the local date and time as RFC 3339 in UTC. */
+/** Render a date picker beside a time field. */
 function MomentControl(properties: FieldControlProperties<SchemaTextField>): JSX.Element {
     // start from the local date and time of the instant held
     const locale = useLocale();
@@ -285,7 +285,7 @@ function MomentControl(properties: FieldControlProperties<SchemaTextField>): JSX
     );
 }
 
-/** Render a group of a date and a time, named by its field's label, its controls apart from the field. */
+/** Render a group of a date and a time, labelled by its field's label. */
 function MomentGroup(properties: { readonly children: JSX.Element }): JSX.Element {
     const field = useFieldControl();
     field?.group();
@@ -402,7 +402,7 @@ function ChoicesControl(properties: FieldControlProperties<SchemaChoiceField>): 
     );
 }
 
-/** Render a fieldset of an object's fields, expanding an optional object once it exists, with buttons adding and removing it. */
+/** Render a fieldset of an object's fields. */
 function ObjectControl(properties: FieldControlProperties<SchemaObjectField>): JSX.Element {
     // expand a required object, and an optional one while it holds a value
     const locale = useLocale();
@@ -643,7 +643,7 @@ function textOf(value: JsonValue | undefined): string {
     return JSON.stringify(value);
 }
 
-/** Read a control's text as its field's value: a number, JSON or the text, null or absent while empty. */
+/** Read a control's text as its field's value: a number, JSON or the text. */
 function valueOf(field: SchemaTextField | SchemaNumberField, text: string): JsonValue | undefined {
     // leave an empty control null when the field takes null, else unset
     if (text === "") {

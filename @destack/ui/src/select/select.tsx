@@ -103,7 +103,7 @@ export interface SelectLook extends Omit<
 /** The properties of an element of a select, the native element's attributes included. */
 export type SelectElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
-/** Render a native select whose button and picker take the theme where the browser allows, a list box when multiple. */
+/** Render a native select whose button and picker take the theme where the browser allows. */
 export function Select(properties: SelectProperties): JSX.Element {
     // take the id and state of the nearest field
     const field = useFieldControl();

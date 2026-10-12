@@ -81,7 +81,7 @@ export class Selection {
         return this.#selected[value] === true;
     }
 
-    /** Select a value, alone in a single selection and beside the others in a multiple one, or drop it once selected. */
+    /** Select a value, or drop it once selected. */
     toggle(value: string): void {
         const values = this.values();
         if (values.includes(value)) {
@@ -91,7 +91,7 @@ export class Selection {
         }
     }
 
-    /** Select a value without dropping it: alone in a single selection and beside the others in a multiple one. */
+    /** Select a value without dropping it. */
     select(value: string): void {
         const values = this.values();
         if (!values.includes(value)) {

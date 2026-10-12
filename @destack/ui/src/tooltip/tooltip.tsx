@@ -10,7 +10,7 @@ import { TopLayer } from "../layer/index.ts";
 /** The wait before a resting pointer shows a tooltip, in milliseconds. */
 const DELAY_DURATION = 700;
 
-/** The wait before a tooltip the pointer left hides in milliseconds, long enough to cross the gap onto it. */
+/** The wait before a tooltip the pointer left hides, in milliseconds. */
 const CLOSE_DELAY = 100;
 
 /** The time after a tooltip hides in which the next one shows at once, in milliseconds. */
@@ -45,7 +45,7 @@ export class TooltipGroup {
         this.#hiddenAt = Number.NEGATIVE_INFINITY;
     }
 
-    /** Return the wait before a tooltip shows: none while another shows or just hid, else its own or the group's. */
+    /** Return the wait before a tooltip shows. */
     delayOf(own: number | undefined): number {
         const isWarm =
             this.#shown > 0 || performance.now() - this.#hiddenAt < this.skipDelayDuration;
@@ -73,7 +73,7 @@ const TooltipGroupContext = createContext<TooltipGroup>(
 export interface TooltipProviderProperties {
     /** The wait before a resting pointer shows a tooltip in milliseconds, 700 by default. */
     readonly delayDuration?: number;
-    /** The time after a tooltip hides in which the next one shows at once in milliseconds, 300 by default. */
+    /** The time after a tooltip hides in which the next one shows at once. */
     readonly skipDelayDuration?: number;
     /** The tooltips the group holds. */
     readonly children?: JSX.Element;
@@ -106,7 +106,7 @@ const styles = style.create({
 
 /** The properties of a tooltip root, its open state included. */
 export interface TooltipProperties extends HoverPopoverProperties {
-    /** The wait before a resting pointer shows the tooltip in milliseconds, its group's by default. */
+    /** The wait before a resting pointer shows the tooltip, in milliseconds. */
     readonly delayDuration?: number;
 }
 

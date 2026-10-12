@@ -38,13 +38,13 @@ const TOP = "[data-navigation-top]";
 const TABBABLE =
     "a[href], button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex='-1'])";
 
-/** The anchor name of the open trigger, scoped to each navigation menu, which the indicator points at. */
+/** The anchor name of the open trigger, scoped to each navigation menu. */
 const ACTIVE_ANCHOR = "--destack-navigation-menu-active";
 
 /** The wait before a resting pointer opens a panel, in milliseconds. */
 const DELAY_DURATION = 200;
 
-/** The time after the pointer leaves a trigger within which the next one opens at once, in milliseconds. */
+/** The time after the pointer leaves a trigger within which the next one opens at once. */
 const SKIP_DELAY_DURATION = 300;
 
 /** The navigation menu around an element, null outside one. */
@@ -163,7 +163,7 @@ const styles = style.create({
     },
 });
 
-/** The open item, hover timing and viewport of a navigation menu, which its triggers and contents share. */
+/** The open item, hover timing and viewport of a navigation menu. */
 export class NavigationMenuControl {
     /** The value of the open item, undefined when every item is closed. */
     readonly open: Accessor<string | undefined>;
@@ -184,7 +184,7 @@ export class NavigationMenuControl {
     /** The time the pointer last left a trigger, in milliseconds since the page loaded. */
     #leftAt: number;
 
-    /** Create a navigation menu with its open item, cancelling a pending open when its owner disposes. */
+    /** Create a navigation menu with its open item. */
     constructor(properties: NavigationMenuProperties) {
         // follow the controlled open item or the menu's own
         const [open, setOpen] = createControllableSignal<string | undefined>({
@@ -224,7 +224,7 @@ export class NavigationMenuControl {
         this.#setOpen(undefined);
     }
 
-    /** Open a hovered item after the delay, or at once while another is open or the pointer just left one. */
+    /** Open a hovered item after the delay. */
     enter(item: string): void {
         // skip the delay while a panel is open or right after one closed
         const skip = this.#properties.skipDelayDuration ?? SKIP_DELAY_DURATION;
@@ -251,7 +251,7 @@ export class NavigationMenuControl {
         this.#setViewport(element);
     }
 
-    /** Add a top-level link or trigger until it unmounts, giving its element the focus as the arrow keys reach it. */
+    /** Add a top-level link or trigger until it unmounts. */
     join(key: string, element: () => HTMLElement | undefined): void {
         this.list.add({ key, text: () => key, isDisabled: () => false, element });
     }
@@ -290,7 +290,7 @@ export type NavigationMenuElementProperties<Attributes> = Omit<Attributes, "clas
 export type NavigationMenuProperties = NavigationMenuElementProperties<
     Omit<JSX.HTMLAttributes<HTMLElement>, "onFocusOut" | "onKeyDown" | "onPointerLeave">
 > & {
-    /** The value of the open item, which makes the open item controlled, undefined while every item is closed. */
+    /** The value of the open item, which makes the open item controlled. */
     readonly value?: string | undefined;
     /** The value of the item open at first while uncontrolled, every item closed by default. */
     readonly defaultValue?: string;
@@ -300,7 +300,7 @@ export type NavigationMenuProperties = NavigationMenuElementProperties<
     readonly viewport?: boolean;
     /** The wait before a resting pointer opens a panel in milliseconds, 200 by default. */
     readonly delayDuration?: number;
-    /** The time after leaving a trigger within which the next opens at once in milliseconds, 300 by default. */
+    /** The time after leaving a trigger within which the next opens at once. */
     readonly skipDelayDuration?: number;
 };
 
@@ -329,7 +329,7 @@ function useItem(): string {
     return item;
 }
 
-/** Render a site's navigation, whose items disclose panels of links and close once the focus or pointer leaves. */
+/** Render a site's navigation, whose items disclose panels of links. */
 export function NavigationMenu(properties: NavigationMenuProperties): JSX.Element {
     const control = new NavigationMenuControl(properties);
     const rest = omit(
@@ -383,7 +383,7 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
     );
 }
 
-/** Render the list of top-level links and triggers, which left and right arrow keys move between. */
+/** Render the list of top-level links and triggers. */
 export function NavigationMenuList(
     properties: NavigationMenuElementProperties<
         Omit<JSX.HTMLAttributes<HTMLUListElement>, "onKeyDown" | "onFocusOut">
@@ -495,7 +495,7 @@ export function NavigationMenuTrigger(
     );
 }
 
-/** Render the panel of links its item's trigger discloses, inside the viewport when the menu has one. */
+/** Render the panel of links its item's trigger discloses. */
 export function NavigationMenuContent(
     properties: NavigationMenuElementProperties<
         Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown">
@@ -532,7 +532,7 @@ export function NavigationMenuContent(
     );
 }
 
-/** Render the frame below the list that the open panel shows in, hidden while every panel is closed. */
+/** Render the frame below the list that the open panel shows in. */
 export function NavigationMenuViewport(
     properties: NavigationMenuElementProperties<Omit<JSX.HTMLAttributes<HTMLDivElement>, "ref">>,
 ): JSX.Element {
@@ -607,7 +607,7 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
     return rendered(properties.render, part, rest, () => <a {...part} {...rest} />);
 }
 
-/** Move Tab past a panel's ends to its trigger and to the next top-level entry, as if the panel followed its trigger. */
+/** Move Tab past a panel's ends to its trigger and to the next top-level entry. */
 function leavePanel(
     event: KeyboardEvent & { readonly currentTarget: HTMLDivElement },
     control: NavigationMenuControl,

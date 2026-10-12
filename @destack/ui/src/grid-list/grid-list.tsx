@@ -80,7 +80,7 @@ export class GridListControl<Item> {
     readonly collection: Collection<Item>;
     /** The rows of the items and the keys that move through them. */
     readonly delegate: GridDelegate<Item>;
-    /** The focused item, kept virtual behind the grid's or a search field's `aria-activedescendant`. */
+    /** The focused item. */
     readonly focus: Focus<string>;
     /** The cells in each row. */
     readonly columns: Accessor<number>;
@@ -93,7 +93,7 @@ export class GridListControl<Item> {
     /** The rows in or near the viewport, each measured as it renders. */
     readonly #virtualizer: Virtualizer;
 
-    /** Lay the sections of items out in rows of a column count, driven by a search field when one is given. */
+    /** Lay the sections of items out in rows of a column count. */
     constructor(options: GridListOptions<Item>) {
         // lay the items out and follow the viewport that scrolls them
         const [viewport, setViewport] = createSignal<HTMLElement | undefined>(undefined, {
@@ -206,7 +206,7 @@ export class GridListControl<Item> {
 export interface GridListOptions<Item> extends CollectionOptions<Item> {
     /** The cells in each row. */
     readonly columns: Accessor<number>;
-    /** The search field that drives the grid list's focus, none for a grid list the keyboard steers itself. */
+    /** The search field that drives the grid list's focus. */
     readonly autocomplete?: AutocompleteControl | undefined;
     /** Handle an item being chosen with a click or Enter. */
     readonly onAction: (item: Item) => void;
@@ -249,7 +249,7 @@ export interface GridListCellProperties<Item> extends GridListCellFramePropertie
     readonly item: Item;
 }
 
-/** The parts a grid list renders its headings, rows and cells with, each the grid list's own by default. */
+/** The parts a grid list renders its headings, rows and cells with. */
 export interface GridListRendering<Item> {
     /** Render a section's heading. */
     readonly SectionHeader?: (properties: GridListSectionHeaderProperties) => JSX.Element;
@@ -304,7 +304,7 @@ export function GridListProvider<Item>(properties: {
     return <GridListContext value={properties.control}>{properties.children}</GridListContext>;
 }
 
-/** Render a grid of items by section, which arrow keys, Home and End move through and Enter or a click choose, only the rows in view rendered. */
+/** Render a grid of items by section, and render only the rows in view. */
 export function GridList<Item>(properties: GridListProperties<Item>): JSX.Element {
     // read the grid list and the parts to render with
     const control = properties.control;
@@ -329,7 +329,7 @@ export function GridList<Item>(properties: GridListProperties<Item>): JSX.Elemen
     );
 }
 
-/** Render the element that scrolls the nearest grid list, which then renders only the rows in view. */
+/** Render the element that scrolls the nearest grid list. */
 export function GridListViewport(
     properties: GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {

@@ -16,7 +16,7 @@ export const datePickerDueDay = defineExample({
     },
 });
 
-/** A date picker that filters notes by a span, offering the last week and month beside its calendar. */
+/** A date picker that filters notes by a span. */
 export const datePickerEditedSpan = defineExample({
     of: DatePicker,
     name: "edited-span",

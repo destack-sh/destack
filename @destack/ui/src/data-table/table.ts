@@ -18,7 +18,7 @@ export type DataTableInstance<Features extends TableFeatures, Row extends RowDat
     readonly tracked: Accessor<TableState<Features>>;
 };
 
-/** Create a headless table over reactive options, such as a component's properties, whose state and options its components track. */
+/** Create a headless table over reactive options, such as a component's properties. */
 export function createTable<Features extends TableFeatures, Row extends RowData>(
     options: TableOptions<Features, Row>,
 ): DataTableInstance<Features, Row> {

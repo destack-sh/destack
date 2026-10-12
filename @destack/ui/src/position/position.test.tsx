@@ -11,7 +11,7 @@ function layOut(
     Object.defineProperty(element, "offsetHeight", { value: box.height });
 }
 
-/** Place a 100 by 50 popover beside an anchor at a point of a 400 by 300 viewport, reading where it lands. */
+/** Place a 100 by 50 popover beside an anchor at a point of a 400 by 300 viewport. */
 function placed(side: string, align: string, x: number, y: number): (string | undefined)[] {
     // lay out an anchor and a popover in a document whose viewport is 400 by 300
     Object.defineProperty(document.documentElement, "clientWidth", {

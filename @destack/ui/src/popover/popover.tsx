@@ -227,7 +227,7 @@ export class PopoverControl {
         this.#isShown = isOpen;
     }
 
-    /** Anchor a modal popover and lock the page's scroll, returning how to release both and refocus the trigger. */
+    /** Anchor a modal popover and lock the page's scroll. */
     #holdModal(content: HTMLDialogElement): () => void {
         // anchor to the trigger by name and keep the page from scrolling
         const trigger = this.#trigger;
@@ -246,7 +246,7 @@ export class PopoverControl {
     }
 }
 
-/** A popover that opens while its trigger is hovered or focused, such as a tooltip or hover card. */
+/** A popover that opens while its trigger is hovered or focused. */
 export class HoverPopover extends PopoverControl {
     /** The wait before a hovered trigger opens the popover, in milliseconds. */
     readonly openDelay: Accessor<number>;
@@ -302,7 +302,7 @@ export interface PopoverProperties {
     readonly defaultOpen?: boolean | undefined;
     /** Handle the popover opening or closing. */
     readonly onOpenChange?: ((open: boolean) => void) | undefined;
-    /** Whether the open popover traps the focus and makes the page behind it inert, false by default. */
+    /** Whether the open popover traps the focus and makes the page behind it inert. */
     readonly modal?: boolean;
     /** The trigger and content. */
     readonly children?: JSX.Element;
@@ -317,7 +317,7 @@ export type PopoverTriggerProperties = Omit<ButtonProperties, "ref" | "onClick">
     readonly onClick?: (event: MouseEvent) => void;
 };
 
-/** The properties of a popover's content, the attributes of a native element or a modal dialog included. */
+/** The properties of a popover's content. */
 export interface PopoverContentProperties extends Omit<
     JSX.HTMLAttributes<HTMLElement>,
     "class" | "ref" | "onToggle"
@@ -392,7 +392,7 @@ export function PopoverTrigger(properties: PopoverTriggerProperties): JSX.Elemen
     );
 }
 
-/** Render content in the top layer beside its trigger, named by the trigger and closed by a click outside or Escape. */
+/** Render content in the top layer beside its trigger, labelled by the trigger. */
 export function PopoverContent(properties: PopoverContentProperties): JSX.Element {
     // read the popover and its placement
     const popover = usePopover();

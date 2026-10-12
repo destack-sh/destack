@@ -80,7 +80,7 @@ export interface DateSegmentBoxOptions {
     readonly disabled?: boolean;
 }
 
-/** Return the StyleX styles of the input-like box around segments, which date pickers also draw around their fields. */
+/** Return the StyleX styles of the input-like box around segments. */
 export function dateSegmentBoxStyle(options: DateSegmentBoxOptions = {}): style.Styles {
     return [
         text.callout,
@@ -90,7 +90,7 @@ export function dateSegmentBoxStyle(options: DateSegmentBoxOptions = {}): style.
     ];
 }
 
-/** Return the StyleX styles of segments inside a box another control draws, such as a date picker's. */
+/** Return the StyleX styles of segments inside a box another control draws. */
 export function bareDateSegmentStyle(): style.Styles {
     return styles.bare;
 }
@@ -103,7 +103,7 @@ export type DateSegmentValues = Partial<Readonly<Record<DateSegmentKind, number>
 
 /** How a segmented field lays out, bounds, writes and names its segments in a locale. */
 export interface DateSegmentFormat {
-    /** The segments and the literals between them in the locale's order, as `formatToParts` lists them. */
+    /** The segments and the literals between them in the locale's order. */
     readonly layout: readonly Intl.DateTimeFormatPart[];
     /** Read the smallest and largest value of a segment, given the other segments. */
     limits(kind: DateSegmentKind, values: DateSegmentValues): readonly [number, number];
@@ -126,7 +126,7 @@ export interface DateSegmentGroupProperties extends Omit<
     readonly format: DateSegmentFormat;
     /** The values of the segments. */
     readonly values: DateSegmentValues;
-    /** Handle a key changing the segments, told whether the focused segment still takes more digits. */
+    /** Handle a key that changes the segments. */
     readonly onValuesChange: (values: DateSegmentValues, isTyping: boolean) => void;
     /** Whether the segments take no input. */
     readonly disabled?: boolean;
@@ -141,7 +141,7 @@ export function isDateSegment(
     return KINDS.has(part.type);
 }
 
-/** The digits typed into a segmented field's focused segment and the keys that edit its segments. */
+/** The digits typed into a segmented field's focused segment. */
 class DateSegmentControl {
     /** The group's properties, read for its format, values and change handler. */
     readonly properties: DateSegmentGroupProperties;
@@ -270,7 +270,7 @@ class DateSegmentControl {
         }
     }
 
-    /** Replace one segment's value and tell the owner whether digits are still being typed into it. */
+    /** Replace one segment's value. */
     #change(kind: DateSegmentKind, value: number | undefined): void {
         const { [kind]: _dropped, ...others } = this.properties.values;
         const next = value === undefined ? others : { ...others, [kind]: value };
@@ -278,7 +278,7 @@ class DateSegmentControl {
     }
 }
 
-/** Render a group of spinbuttons, one per part of a date or time, which digits fill and arrow keys step and move through. */
+/** Render a group of spinbuttons, one per part of a date or time. */
 export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.Element {
     // label the group by its field's label and keep the digits typed into the focused segment
     const field = useFieldControl();

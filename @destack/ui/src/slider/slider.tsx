@@ -220,12 +220,12 @@ class SliderControl {
 /** The nearest slider, null outside one. */
 const SliderContext = createContext<SliderControl | null>(null);
 
-/** The properties of a slider: its values, range and look, the native element's attributes included. */
+/** The properties of a slider: its values, range and look. */
 export interface SliderProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "onInput" | "onChange"
 > {
-    /** The values of the thumbs, one for a value and two for a range, which make the state controlled. */
+    /** The values of the thumbs, one for a value and two for a range. */
     readonly value?: readonly number[];
     /** The values of the thumbs at first while uncontrolled, the middle of the range by default. */
     readonly defaultValue?: readonly number[];
@@ -267,7 +267,7 @@ export interface SliderThumbProperties extends SliderElementProperties<
     readonly index?: number;
 }
 
-/** Render a slider around its track and thumbs, a native range input per thumb that arrow keys, Page Up, Page Down, Home and End move. */
+/** Render a slider around its track and thumbs, with a native range input per thumb. */
 export function Slider(properties: SliderProperties): JSX.Element {
     // share the values with the parts
     const control = new SliderControl(properties, useFieldControl());
@@ -362,7 +362,7 @@ export function SliderTrack(
     );
 }
 
-/** Render the filled span of the nearest slider's track: up to its value, or between a range's two values. */
+/** Render the filled span of the nearest slider's track. */
 export function SliderRange(
     properties: SliderElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {

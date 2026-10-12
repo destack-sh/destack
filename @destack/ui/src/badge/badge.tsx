@@ -63,7 +63,7 @@ export interface BadgeVariantProperties {
     readonly variant?: BadgeVariant;
 }
 
-/** Return the StyleX styles of a badge in a variant, for links and other elements that look like badges. */
+/** Return the StyleX styles of a badge in a variant. */
 export function badgeVariants(options: BadgeVariantProperties): style.Styles {
     return [text.caption, styles.badge, variants[options.variant ?? DEFAULTS.variant]];
 }

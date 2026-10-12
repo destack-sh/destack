@@ -42,7 +42,7 @@ const styles = style.create({
     offset: (margin: string) => ({ margin }),
 });
 
-/** The area beside the anchor each side and alignment places an overlay in, flipping when it overflows. */
+/** The area beside the anchor each side and alignment places an overlay in. */
 const areas = style.create({
     "top-start": {
         positionArea: "block-start span-inline-end",
@@ -84,17 +84,17 @@ const areas = style.create({
 
 /** The placement of an overlay beside an anchor or at a point. */
 export const Position = {
-    /** Return the StyleX styles that place an overlay beside its anchor on a side and alignment and fade it in and out. */
+    /** Return the StyleX styles that place an overlay beside its anchor on a side and alignment. */
     beside(side: Side, align: Align): readonly style.CompiledStyles[] {
         return [styles.motion, Position.area(side, align)];
     },
 
-    /** Return the StyleX styles that place an overlay beside its anchor on a side and alignment, such as a modal dialog that fades itself. */
+    /** Return the StyleX styles that place an overlay beside its anchor on a side and alignment. */
     area(side: Side, align: Align): style.CompiledStyles {
         return areas[`${side}-${align}`];
     },
 
-    /** Return the StyleX styles that set an overlay's gap from its anchor in pixels, none to keep its own. */
+    /** Return the StyleX styles that set an overlay's gap from its anchor in pixels. */
     offset(pixels: number | undefined): style.Styles {
         return pixels === undefined ? null : styles.offset(`${String(pixels)}px`);
     },
@@ -104,7 +104,7 @@ export const Position = {
         return [styles.point, styles.at(`${String(point.x)}px`, `${String(point.y)}px`)];
     },
 
-    /** Place a shown overlay beside its anchor where the browser lacks CSS anchor positioning, following scrolls and resizes, returning how to stop. */
+    /** Place a shown overlay beside its anchor where the browser lacks CSS anchor positioning. */
     place(content: HTMLElement, anchor: HTMLElement): () => void {
         // leave placement to the browser where it anchors popovers itself
         if (typeof CSS === "undefined" || CSS.supports(ANCHOR_PROPERTY, "block-end")) {
@@ -137,7 +137,7 @@ export const Position = {
         };
     },
 
-    /** Anchor a shown modal overlay to its anchor through a shared anchor name, as modal dialogs have no implicit anchor, returning how to stop. */
+    /** Anchor a shown modal overlay to its anchor through a shared anchor name. */
     anchor(content: HTMLElement, anchor: HTMLElement): () => void {
         // place by script where the browser lacks CSS anchor positioning
         if (typeof CSS === "undefined" || !CSS.supports(ANCHOR_PROPERTY, "block-end")) {
@@ -156,7 +156,7 @@ export const Position = {
     },
 };
 
-/** Compute an overlay's viewport position beside its anchor on its side and alignment, flipped and kept inside the viewport. */
+/** Compute an overlay's viewport position beside its anchor on its side and alignment. */
 function positionOf(content: HTMLElement, anchor: HTMLElement, gap: number): [number, number] {
     // read the anchor's box, the overlay's size, the viewport and the writing direction
     const box = anchor.getBoundingClientRect();

@@ -50,7 +50,7 @@ export type CalendarSelection = CalendarSingle | CalendarMultiple | CalendarRang
 /** The value of a calendar's selection in any mode. */
 export type CalendarValue = PlainDate | readonly PlainDate[] | DateRange | undefined;
 
-/** How a day stands in the selection: out of it, selected, or the start, middle or end of a range. */
+/** How a day stands in the selection. */
 export type DayState = "none" | "selected" | "start" | "middle" | "end";
 
 /** Read how a day stands in a selection's value. */

@@ -82,10 +82,10 @@ const styles = style.create({
     },
 });
 
-/** How a list box lays out its options for the keyboard: one after another, or in rows of a column count. */
+/** How a list box lays out its options for the keyboard. */
 export type ListBoxLayout = "list" | "grid";
 
-/** Whether choosing an option adds it to the selection or drops it, or the focus moving selects it. */
+/** Whether choosing an option adds it to the selection or drops it. */
 export type SelectionBehavior = "toggle" | "replace";
 
 /** An option of a list box, which joins its list box as it mounts. */
@@ -112,11 +112,11 @@ export interface ListBoxOption {
 
 /** The options a list box is created with. */
 export interface ListBoxOptions {
-    /** The search field that drives the list box, whose search filters the options and keeps the focus virtual. */
+    /** The search field that drives the list box. */
     readonly autocomplete?: AutocompleteControl | undefined;
     /** The selected values, none without one. */
     readonly selection?: Selection | undefined;
-    /** Whether choosing toggles an option's value or the focus moving selects it, toggle by default. */
+    /** Whether choosing toggles an option's value or the focus moving selects it. */
     readonly selectionBehavior?: SelectionBehavior | undefined;
     /** Lay the options out one after another or in rows of a column count, a list by default. */
     readonly layout?: ListBoxLayout | undefined;
@@ -285,12 +285,12 @@ interface ListBoxSectionControl {
 export type ListBoxElementProperties<Attributes> = Omit<Attributes, "class"> &
     ElementPartProperties;
 
-/** The properties of a list box: its selection, layout and focus, the native element's attributes included. */
+/** The properties of a list box: its selection, layout and focus. */
 export type ListBoxProperties = ListBoxElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "onFocusOut">
 > &
     Omit<ListBoxOptions, "selection" | "autocomplete"> & {
-        /** The list box state a composite created, which the element renders in place of its own. */
+        /** The list box state a composite created. */
         readonly control?: ListBoxControl;
         /** The selected values, none for a list box of actions. */
         readonly selection?: SelectionProperties;
@@ -337,7 +337,7 @@ export function useListBox(): ListBoxControl {
     return control;
 }
 
-/** Render a list box of options, which arrow keys, Home, End and typed letters move through and Enter, Space or a click choose, or a composite's list box state, driven by the search of an autocomplete around it. */
+/** Render a list box of options, or a composite's list box state. */
 export function ListBox(properties: ListBoxProperties): JSX.Element {
     // take a composite's state, else hold the list box's own selection and focus under any search around it
     const locale = useLocale();
@@ -463,7 +463,7 @@ export function ListBoxSectionHeading(
     );
 }
 
-/** Render an option the search filters and a click or Enter chooses, marked while focused and selected. */
+/** Render an option the search filters and a click or Enter chooses. */
 export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
     // join the list box with the option's value, its text unless one is passed
     const control = useListBox();
@@ -608,7 +608,7 @@ function ownOptions(properties: ListBoxProperties): ListBoxOptions {
     };
 }
 
-/** Group the options a search shows by section, in the order each section's first option mounted. */
+/** Group the options a search shows by section. */
 function sectioned(
     options: readonly ListBoxOption[],
     autocomplete: AutocompleteControl | undefined,

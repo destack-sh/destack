@@ -25,7 +25,7 @@ const styles = style.create({
     offset: (translate: string) => ({ translate }),
 });
 
-/** Return the StyleX styles that move an element with a swipe's translation, none while no swipe runs. */
+/** Return the StyleX styles that move an element with a swipe's translation. */
 export function swipeStyle(translate: string | undefined): style.Styles {
     return translate === undefined ? null : [styles.swiping, styles.offset(translate)];
 }
@@ -33,17 +33,17 @@ export function swipeStyle(translate: string | undefined): style.Styles {
 /** The direction a swipe dismisses toward. */
 export type SwipeDirection = "up" | "down" | "left" | "right";
 
-/** A released swipe: how far and fast it went toward the edge, and the extent of the swiped element. */
+/** A released swipe. */
 export interface SwipeRelease {
     /** The distance travelled toward the edge in pixels, negative away from it. */
     readonly travel: number;
-    /** The speed toward the edge as the pointer let go in pixels per millisecond, negative away from it. */
+    /** The speed toward the edge as the pointer let go, in pixels per millisecond. */
     readonly speed: number;
     /** The element's extent along the swipe, in pixels. */
     readonly extent: number;
 }
 
-/** Report whether a released swipe went past a share of its element or flicked fast enough to dismiss it. */
+/** Report whether a released swipe dismisses its element. */
 export function isDismissal(release: SwipeRelease): boolean {
     const isFar = release.travel > Math.max(release.extent * DISMISS_SHARE, DISMISS_DISTANCE);
     const isFlick = release.speed > FLICK_SPEED && release.travel > FLICK_DISTANCE;
@@ -51,9 +51,9 @@ export function isDismissal(release: SwipeRelease): boolean {
     return isFar || isFlick;
 }
 
-/** A pointer swiping an element along an edge's axis, which hands its release to a handler, after drawers and toasts on touch screens. */
+/** A pointer swiping an element along an edge's axis, after drawers and toasts on touch screens. */
 export class Swipe {
-    /** The distance the pointer travelled toward the edge, negative away from it, undefined while no swipe runs. */
+    /** The distance the pointer travelled toward the edge, negative away from it. */
     readonly offset: Accessor<number | undefined>;
     /** The direction the swipe moves the element toward. */
     readonly #direction: () => SwipeDirection;
@@ -63,7 +63,7 @@ export class Swipe {
     readonly #canStart: (element: HTMLElement) => boolean;
     /** Replace the distance travelled. */
     readonly #setOffset: Setter<number | undefined>;
-    /** The swipe in progress: where it started, the element's extent and the last two pointer samples. */
+    /** The swipe in progress. */
     #run: SwipeRun | undefined = undefined;
 
     /** Create a swipe toward a direction, starting wherever the element allows. */
@@ -83,7 +83,7 @@ export class Swipe {
         this.#setOffset = setOffset;
     }
 
-    /** The translation that moves the element toward the edge by the offset, as CSS `translate` takes it. */
+    /** The translation that moves the element toward the edge by the offset. */
     translate(): string | undefined {
         // move toward the edge only
         const distance = this.offset();
@@ -129,7 +129,7 @@ export class Swipe {
         }
     }
 
-    /** Hand the travel and the speed of the last move to the handler as the pointer lets go, and spring back. */
+    /** Hand the travel and the speed of the last move to the handler as the pointer lets go. */
     release(): void {
         const run = this.#run;
         if (run !== undefined) {

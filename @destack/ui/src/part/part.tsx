@@ -2,7 +2,7 @@ import * as style from "@destack/style";
 import { Dynamic, type JSX, merge, omit } from "@destack/view";
 import { access, type MaybeAccessor } from "@destack/view/primitives/utils";
 
-/** The attributes a part gives the element it renders, which a caller's `render` spreads onto an element of its own, and the reference that takes the element. */
+/** The attributes a part gives the element it renders, and the reference that takes the element. */
 export interface PartAttributes extends Partial<Record<"ref", (element: HTMLElement) => void>> {
     /** The atomic class names of the part's styles. */
     readonly class?: string | undefined;
@@ -44,7 +44,7 @@ export type PartEvent<Base extends Event> = Base & { readonly currentTarget: HTM
 /** Render another element with a part's attributes, such as a link in place of a button. */
 export type Render = (attributes: PartAttributes) => JSX.Element;
 
-/** The attributes besides `aria-*` and `data-*` that a part forwards to an element its caller renders, its content included. */
+/** The attributes besides `aria-*` and `data-*` that a part forwards to its caller's element. */
 const FORWARDED: ReadonlySet<string> = new Set([
     "id",
     "href",
@@ -67,7 +67,7 @@ function isForwarded(key: string | symbol): key is string {
     );
 }
 
-/** Read the attributes of a part's properties that any element takes, following the properties as they change. */
+/** Read the attributes of a part's properties that any element takes. */
 export function forwarded(source: object): PartAttributes {
     return new Proxy<PartAttributes>(
         {},
@@ -88,7 +88,7 @@ export function forwarded(source: object): PartAttributes {
     );
 }
 
-/** Render a part's own element, or the element its caller renders with the part's attributes under the forwarded ones of its properties. */
+/** Render a part's own element, or the element its caller renders. */
 export function rendered(
     render: Render | undefined,
     part: object,
@@ -98,7 +98,7 @@ export function rendered(
     return render === undefined ? own() : render(mergeProperties(part, forwarded(properties)));
 }
 
-/** Merge a part's attributes under its caller's, the caller's winning, and both sides' event handlers and references running, the caller's first. */
+/** Merge a part's attributes under its caller's, the caller's winning. */
 export function mergeProperties<Part extends object, Caller extends object>(
     part: Part,
     caller: Caller,
@@ -115,13 +115,13 @@ export function mergeProperties<Part extends object, Caller extends object>(
     return merge(part, caller, chained);
 }
 
-/** The attributes an element part gives its own element besides its slot and styles, such as its role, state and handlers. */
+/** The attributes an element part gives its own element besides its slot and styles. */
 export type ElementAttributes<Tag extends keyof JSX.IntrinsicElements> = Omit<
     JSX.IntrinsicElements[Tag],
     "class" | "style"
 > & { readonly [data: `data-${string}`]: string | number | undefined };
 
-/** What `useRender` renders: the caller's element, or the part's own element of a tag, with the part's attributes under the caller's. */
+/** What `useRender` renders: the caller's element, or the part's own element of a tag. */
 export interface UseRenderOptions {
     /** Render another element with the part's attributes, the part's own element by default. */
     readonly render: Render | undefined;
@@ -133,7 +133,7 @@ export interface UseRenderOptions {
     readonly properties: object;
 }
 
-/** The properties every element part takes besides its element's attributes: StyleX styles, an inline style and `render`. */
+/** The properties every element part takes besides its element's attributes. */
 export interface ElementPartProperties {
     /** The StyleX styles applied after the part's styles. */
     readonly xstyle?: style.Styles;
@@ -143,7 +143,7 @@ export interface ElementPartProperties {
     readonly render?: Render;
 }
 
-/** Render a part's own element of a tag, or the element its caller renders, with the part's attributes. */
+/** Render a part's own element of a tag, or the element its caller renders, with its attributes. */
 export function useRender(options: UseRenderOptions): JSX.Element {
     return rendered(options.render, options.part, options.properties, () => (
         <Dynamic
@@ -153,7 +153,7 @@ export function useRender(options: UseRenderOptions): JSX.Element {
     ));
 }
 
-/** Render an element part: its slot, its styles and any attributes of its own, then the caller's styles, on its own tag or the element its caller renders. */
+/** Render an element part on its own tag or the element its caller renders. */
 export function renderPart<Tag extends keyof JSX.IntrinsicElements>(
     tag: Tag,
     slot: string,

@@ -1,7 +1,7 @@
 import { defineExample } from "@destack/package/declare";
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "./avatar.tsx";
 
-/** The people sharing a notebook: two pictures, initials for one without, and the rest as a count. */
+/** The people sharing a notebook. */
 export const avatarNotebookPeople = defineExample({
     of: Avatar,
     name: "notebook-people",

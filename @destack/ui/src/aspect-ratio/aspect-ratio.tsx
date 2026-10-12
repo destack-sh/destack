@@ -20,7 +20,7 @@ export interface AspectRatioProperties extends Omit<JSX.HTMLAttributes<HTMLDivEl
     readonly xstyle?: style.Styles;
 }
 
-/** Render a box that keeps a width-to-height ratio as its width changes, such as for a picture or video. */
+/** Render a box that keeps a width-to-height ratio as its width changes. */
 export function AspectRatio(properties: AspectRatioProperties): JSX.Element {
     const rest = omit(properties, "ratio", "xstyle", "style");
 

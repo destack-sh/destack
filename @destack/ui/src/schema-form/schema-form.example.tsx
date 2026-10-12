@@ -14,7 +14,7 @@ const SECTION: schema.Schema<Section> = schema.object({
         .exactOptional(),
 });
 
-/** The input of a command that files a task: a required title, a priority to choose and whether it is done. */
+/** The input of a command that files a task. */
 export const schemaFormTaskInput = defineExample({
     of: SchemaForm,
     name: "task-input",
@@ -65,7 +65,7 @@ export const schemaFormEventInput = defineExample({
     ),
 });
 
-/** The input of a command that writes a recipe: a nested source, a list of steps and several tags to choose. */
+/** The input of a command that writes a recipe. */
 export const schemaFormRecipeInput = defineExample({
     of: SchemaForm,
     name: "recipe-input",
@@ -93,7 +93,7 @@ export const schemaFormRecipeInput = defineExample({
     ),
 });
 
-/** The input of a command that adds a shape, its kind chosen first and the chosen kind's fields shown. */
+/** The input of a command that adds a shape. */
 export const schemaFormShapeInput = defineExample({
     of: SchemaForm,
     name: "shape-input",
@@ -127,7 +127,7 @@ export const schemaFormShapeInput = defineExample({
     ),
 });
 
-/** The input of a command that writes an outline, whose sections nest sections through a reference. */
+/** The input of a command that writes an outline. */
 export const schemaFormOutlineInput = defineExample({
     of: SchemaForm,
     name: "outline-input",

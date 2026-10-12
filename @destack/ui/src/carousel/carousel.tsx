@@ -199,7 +199,7 @@ export class CarouselControl {
         return this.#properties.loop === true;
     }
 
-    /** Move to a slide, wrapping around a looping carousel and staying on the first and last otherwise, and tell the change handler. */
+    /** Move to a slide, and tell the change handler. */
     go(index: number): void {
         const count = this.count();
         const target = this.isLooping()
@@ -215,12 +215,12 @@ export class CarouselControl {
         this.#setPlaying(isPlaying);
     }
 
-    /** Pause autoplay while the pointer or the focus rests in the carousel, as rotating content must. */
+    /** Pause autoplay while the pointer or the focus rests in the carousel. */
     rest(isResting: boolean): void {
         this.#isResting = isResting;
     }
 
-    /** Move to the next slide on an autoplay tick unless autoplay is stopped or paused, wrapping at the end. */
+    /** Move to the next slide on an autoplay tick, wrapping at the end. */
     tick(): void {
         if (this.isPlaying() && !this.#isResting) {
             const count = this.count();
@@ -228,7 +228,7 @@ export class CarouselControl {
         }
     }
 
-    /** Scroll the viewport to the shown slide's start, unless the person's scrolling put it there. */
+    /** Scroll the viewport to the shown slide's start. */
     scroll(index: number): void {
         // skip the slide a person scrolled to
         const slide = this.#viewport?.children[index];
@@ -272,7 +272,7 @@ export interface CarouselProperties extends Omit<
     readonly defaultIndex?: number;
     /** Whether the carousel wraps from its last slide to its first and back. */
     readonly loop?: boolean;
-    /** The time each slide shows before the next while autoplay runs, in milliseconds, which starts autoplay. */
+    /** The time each slide shows before the next while autoplay runs, in milliseconds. */
     readonly autoplay?: number;
     /** Handle another slide being shown, by a button, a key or a person's scrolling. */
     readonly onIndexChange?: (index: number) => void;
@@ -296,7 +296,7 @@ function useCarousel(): CarouselControl {
     return control;
 }
 
-/** Render a region of slides that scroll and snap, which the arrow keys and its buttons move through. */
+/** Render a region of slides that scroll and snap. */
 export function Carousel(properties: CarouselProperties): JSX.Element {
     // share one carousel with its slides and buttons
     const carousel = merge(DEFAULTS, properties);

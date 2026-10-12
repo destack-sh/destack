@@ -7,7 +7,7 @@ export const JoinContext = createContext<() => JoinOrientation | undefined>(() =
 /** The direction a group joins its controls in. */
 export type JoinOrientation = "horizontal" | "vertical";
 
-/** The corners and borders a joined control drops where it meets its neighbours, raised above them while focused. */
+/** The corners and borders a joined control drops where it meets its neighbours. */
 const joined = style.create({
     horizontal: {
         position: "relative",
@@ -29,7 +29,7 @@ const joined = style.create({
     },
 });
 
-/** Return the StyleX styles that join a control to its neighbours in the nearest joining group, none outside one. */
+/** Return the StyleX styles that join a control to its neighbours in the nearest joining group. */
 export function useJoin(): () => style.Styles {
     const orientation = useContext(JoinContext);
 

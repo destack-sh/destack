@@ -80,7 +80,7 @@ export interface EmptyMediaProperties extends EmptyElementProperties {
     readonly variant?: EmptyMediaVariant;
 }
 
-/** Render what a list, search or page shows when it has nothing yet, with the actions that fill it. */
+/** Render what a list, search or page shows when it has nothing yet. */
 export function Empty(properties: EmptyElementProperties): JSX.Element {
     return renderPart("div", "empty", properties, styles.empty);
 }

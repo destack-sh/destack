@@ -4,7 +4,7 @@ import { Errored } from "@destack/view";
 import { render } from "@destack/view/test";
 import { Content, type ContentElementProperties } from "./index.ts";
 
-/** A page as remark and rehype build it from Markdown: a heading, a linked footnote reference, a listing and an icon. */
+/** A page as remark and rehype build it from Markdown. */
 const PAGE: Root = {
     type: "root",
     children: [

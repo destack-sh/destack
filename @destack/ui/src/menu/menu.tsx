@@ -121,7 +121,7 @@ const styles = style.create({
 /** The item a newly opened menu focuses. */
 export type MenuFocus = "first" | "last" | "none";
 
-/** The open state, elements and focus of a menu or submenu, which its trigger, items and submenus share. */
+/** The open state, elements and focus of a menu or submenu. */
 export class MenuControl {
     /** The id of the menu element. */
     readonly id: string;
@@ -133,9 +133,9 @@ export class MenuControl {
     readonly isOpen: Accessor<boolean>;
     /** The point a context menu opens at, undefined for a menu that opens beside its trigger. */
     readonly point: Accessor<Point | undefined>;
-    /** The menu's own items in document order, which the arrow keys, Home, End and typed letters move through. */
+    /** The menu's own items in document order. */
     readonly list: ListState;
-    /** Handle a horizontal arrow key a top menu leaves unused, such as a menubar moving to the next menu. */
+    /** Handle a horizontal arrow key a top menu leaves unused. */
     onCross: ((event: KeyboardEvent, direction: Direction) => void) | undefined;
     /** The element that opens the menu and anchors it. */
     #trigger: HTMLElement | undefined;
@@ -191,7 +191,7 @@ export class MenuControl {
         this.#content = element;
     }
 
-    /** Show or hide the menu element for an open state, focusing the item asked for when it shows. */
+    /** Show or hide the menu element for an open state. */
     sync(isOpen: boolean): void {
         // wait for the menu element to mount
         const content = this.#content;
@@ -244,7 +244,7 @@ export class MenuControl {
         }
     }
 
-    /** Close the menu and its submenus, returning the focus to its trigger once it hides when asked. */
+    /** Close the menu and its submenus. */
     close(isReturningFocus: boolean): void {
         // close the submenus first
         this.closeSubmenus();
@@ -272,7 +272,7 @@ export class MenuControl {
         }
     }
 
-    /** Add an item to the menu until it unmounts, returning the attributes that take its element and follow its focus. */
+    /** Add an item to the menu until it unmounts. */
     join(isDisabled: Accessor<boolean>): MenuItemJoin {
         // read the item's text for typeahead from its element
         const key = createUniqueId();
@@ -349,7 +349,7 @@ export interface MenuItemProperties extends Omit<
     MenuElementProperties<HTMLDivElement>,
     "onClick" | "onKeyDown" | "onPointerEnter" | "onFocus" | "ref"
 > {
-    /** Handle the item being chosen, which closes the menu unless the handler prevents the default. */
+    /** Handle the item being chosen. */
     readonly onSelect?: (event: Event) => void;
     /** Whether the item is unavailable. */
     readonly disabled?: boolean;
@@ -357,7 +357,7 @@ export interface MenuItemProperties extends Omit<
     readonly inset?: boolean;
     /** The look of the item, destructive for an action that deletes. */
     readonly variant?: "default" | "destructive";
-    /** Render another element with the item's attributes, such as a link, the menu's own element by default. */
+    /** Render another element with the item's attributes, such as a link. */
     readonly render?: Render;
 }
 
@@ -451,7 +451,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
     );
 }
 
-/** Render an item that runs its action and closes every menu when chosen with a click, Enter or Space. */
+/** Render an item that runs its action and closes every menu. */
 export function MenuItem(properties: MenuItemProperties): JSX.Element {
     // join the menu and report the item's state over its styles
     const control = useMenu();

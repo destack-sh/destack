@@ -2,7 +2,7 @@ import { defineExample } from "@destack/package/declare";
 import { createSignal, For } from "@destack/view";
 import { Sortable, SortableContainer, SortableHandle, SortableItem } from "./sortable.tsx";
 
-/** A checklist whose steps a drag or the keyboard reorders, the owner placing each moved step between its new neighbours. */
+/** A checklist whose steps a drag or the keyboard reorders. */
 export const sortableChecklist = defineExample({
     of: Sortable,
     name: "checklist",

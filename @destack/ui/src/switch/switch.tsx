@@ -106,7 +106,7 @@ export interface SwitchProperties
 export type SwitchThumbProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> &
     ElementPartProperties;
 
-/** Render a button exposed as an on and off switch around its thumb, which a click, Space or Enter flips and a form submits through a hidden checkbox. */
+/** Render a button exposed as an on and off switch around its thumb. */
 export function Switch(properties: SwitchProperties): JSX.Element {
     // take the id and state of the nearest field
     const field = useFieldControl();

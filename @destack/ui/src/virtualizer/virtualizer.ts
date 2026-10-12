@@ -4,7 +4,7 @@ import { type Accessor, createEffect, createSignal, untrack } from "@destack/vie
 /** The rows a virtualizer renders beyond the visible ones on either side. */
 const OVERSCAN = 8;
 
-/** What a virtualizer measures: how many items, how tall each is at first, and the element that scrolls them. */
+/** What a virtualizer measures. */
 export interface VirtualizerOptions {
     /** The number of items. */
     readonly count: Accessor<number>;

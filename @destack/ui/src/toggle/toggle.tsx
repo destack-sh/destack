@@ -95,7 +95,7 @@ export interface ToggleProperties
     readonly render?: Render;
 }
 
-/** Return the StyleX styles of a toggle in a variant, size and state, for toggle groups and other buttons that toggle. */
+/** Return the StyleX styles of a toggle in a variant, size and state. */
 export function toggleVariants(options: ToggleVariantProperties): style.Styles {
     return [
         text.callout,

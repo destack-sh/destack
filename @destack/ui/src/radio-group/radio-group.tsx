@@ -70,7 +70,7 @@ export interface RadioGroupProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "onKeyDown"
 > {
-    /** The form field name the radios submit under, which renders a hidden native radio per radio. */
+    /** The form field name the radios submit under. */
     readonly name?: string;
     /** The id of the form the radios belong to, their ancestor form by default. */
     readonly form?: string;
@@ -181,7 +181,7 @@ function defaultOf(value: string | undefined): Pick<SingleSelection, "defaultVal
     return value === undefined ? {} : { defaultValue: value };
 }
 
-/** Render a group of radios, which arrow keys move between and check, and a form submits through hidden native radios. */
+/** Render a group of radios, which arrow keys move between and check. */
 export function RadioGroup(properties: RadioGroupProperties): JSX.Element {
     // share the group with its radios and read the text direction for the arrow keys
     const control = new RadioGroupControl(properties);
@@ -232,7 +232,7 @@ export function RadioGroup(properties: RadioGroupProperties): JSX.Element {
     );
 }
 
-/** Render a radio of the nearest radio group around its indicator, checked while its value is the group's. */
+/** Render a radio of the nearest radio group around its indicator. */
 export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Element {
     // read the group and refuse a radio outside one
     const group = useContext(RadioGroupContext);

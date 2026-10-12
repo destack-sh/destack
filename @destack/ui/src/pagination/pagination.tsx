@@ -199,7 +199,7 @@ function pageRange(from: number, to: number): number[] {
     return Array.from({ length: Math.max(to - from + 1, 0) }, (_, index) => from + index);
 }
 
-/** List the entries of a page list: the pages at either end, the current page with its siblings, and gaps between. */
+/** List the entries of a page list. */
 export function paginationEntries(
     page: number,
     count: number,
@@ -237,7 +237,7 @@ export function paginationEntries(
     return [...start, ...before, ...pageRange(first, last), ...after, ...end];
 }
 
-/** Render the steps and the links to each page around the current one, telling the change handler of the page chosen. */
+/** Render the steps and the links to each page around the current one. */
 export function PaginationPages(properties: PaginationPagesProperties): JSX.Element {
     // follow the controlled page or the list's own
     const [page, setPage] = createControllableSignal({

@@ -4,7 +4,7 @@ import { type JSX, merge, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import "./switcher.css";
 
-/** The width below which a switcher stacks its elements, the space between them and the most it keeps in a row unless set, about 60 characters. */
+/** The default width below which a switcher stacks, the space between, and its row limit. */
 const DEFAULTS = { threshold: "30rem", space: "4", limit: 4 } as const;
 
 /** The styles of a switcher. */
@@ -30,7 +30,7 @@ export interface SwitcherProperties
     readonly limit?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 }
 
-/** Lay elements out in one row of equal widths, or one column when the container is narrower than the threshold. */
+/** Lay elements out in one row of equal widths. */
 export function Switcher(properties: SwitcherProperties): JSX.Element {
     const switcher = merge(DEFAULTS, properties);
 

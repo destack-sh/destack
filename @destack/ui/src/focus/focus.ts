@@ -12,7 +12,7 @@ import {
 
 /** How a collection's keys lay out for the keyboard. */
 export interface KeyboardDelegate<Key> {
-    /** Read the key a key press moves the focus to from a key, undefined for a press the layout leaves alone. */
+    /** Read the key a key press moves the focus to from a key. */
     target(event: KeyboardEvent, from: Key, direction: Direction): Key | undefined;
     /** Read the first key that takes the focus, undefined while none does. */
     first(): Key | undefined;
@@ -20,7 +20,7 @@ export interface KeyboardDelegate<Key> {
     has(key: Key): boolean;
 }
 
-/** Whether the focused key holds the DOM focus as a roving tab stop, or stays virtual behind `aria-activedescendant`. */
+/** Whether the focused key has the DOM focus as a roving tab stop. */
 export type FocusMode = "roving" | "virtual";
 
 /** The layout, mode and starting key of a collection's focus. */
@@ -52,13 +52,13 @@ export class Focus<Key> {
     readonly prefix: string;
     /** Whether the focused key holds the DOM focus or stays virtual. */
     readonly mode: FocusMode;
-    /** The focused key, the initial or first one until one is focused, undefined while none takes the focus. */
+    /** The focused key, the initial or first one until one is focused. */
     readonly active: Accessor<Key | undefined>;
     /** Whether the DOM focus rests inside the collection. */
     readonly isFocused: Accessor<boolean>;
     /** The options the focus follows. */
     readonly #options: FocusOptions<Key>;
-    /** The focused key of each item, by its key's text, which only the two items it moves between read. */
+    /** The focused key of each item, by its key's text. */
     readonly #actives: Readonly<Record<string, boolean>>;
     /** The focused key, or the initial one until one is focused. */
     readonly #focused: Accessor<FocusedKey<Key>>;
@@ -95,7 +95,7 @@ export class Focus<Key> {
         }, {});
     }
 
-    /** Read the focused key as last written, which a handler reads right after the DOM focus moved, before the next flush. */
+    /** Read the focused key as last written. */
     current(): Key | undefined {
         return this.#resolve(latest(this.#focused));
     }
@@ -127,7 +127,7 @@ export class Focus<Key> {
         this.#write({ kind: "initial" });
     }
 
-    /** Move the focus on a key press the layout takes, keeping the key from scrolling the page, and return the key it lands on, undefined for a press that moves nothing. */
+    /** Move the focus on a key press the layout takes. */
     move(event: KeyboardEvent, direction: Direction): Key | undefined {
         // read the key the press lands on from the focused one
         const from = this.current();
@@ -145,7 +145,7 @@ export class Focus<Key> {
         return target;
     }
 
-    /** Bring a key's item into view: by the owner's reveal, else its element by id in virtual focus. */
+    /** Bring a key's item into view. */
     reveal(key: Key): void {
         if (this.#options.reveal !== undefined) {
             this.#options.reveal(key);
@@ -170,7 +170,7 @@ export class Focus<Key> {
         }
     }
 
-    /** Give an item's element the DOM focus whenever its key is focused while the collection holds the focus. */
+    /** Give an item's element the DOM focus whenever its key is focused. */
     bind(key: () => Key, element: () => HTMLElement | undefined): void {
         createEffect(
             () => this.mode === "roving" && this.isFocused() && this.isActive(key()),
@@ -217,7 +217,7 @@ export class Focus<Key> {
     }
 }
 
-/** Report whether a key types a letter that moves the focus by typeahead: printable, without Space or shortcut modifiers. */
+/** Report whether a key types a letter that moves the focus by typeahead. */
 export function isTypeaheadKey(event: KeyboardEvent): boolean {
     return (
         event.key.length === 1 &&

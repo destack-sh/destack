@@ -82,7 +82,7 @@ export const Day = {
         return PlainDate.add(date, -offset);
     },
 
-    /** Read a date's ISO 8601 week number, counted from the week holding the year's first Thursday. */
+    /** Read a date's ISO 8601 week number. */
     isoWeek(date: PlainDate): number {
         // find the Thursday of the date's week and its day of the year
         const thursday = PlainDate.add(date, THURSDAY - PlainDate.weekday(date));
@@ -113,7 +113,7 @@ export const Day = {
         return !PlainDate.equals(Day.clamp(date, earliest, latest), date);
     },
 
-    /** List the weeks a month's grid shows, from the week of its first day to the week of its last. */
+    /** List the weeks a month's grid shows. */
     weeks(month: PlainDate, firstDay: number): PlainDate[][] {
         // span whole weeks from the month's first day to its last
         const first = Day.monthOf(month);

@@ -89,7 +89,7 @@ function grouped(container: HTMLElement, label: string): Element | null {
     return container.querySelector(`[aria-labelledby="${found?.id ?? ""}"]`);
 }
 
-/** Type digits or letters into the segments of a group by their parts, skipping parts the locale leaves out. */
+/** Type digits or letters into the segments of a group by their parts. */
 function fillSegments(
     group: Element | null | undefined,
     keys: Readonly<Record<string, string>>,

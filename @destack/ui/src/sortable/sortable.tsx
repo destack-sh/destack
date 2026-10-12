@@ -89,7 +89,7 @@ export interface SortableMove {
 /** The side of an item a dragged item lands on, or inside an item without items of its own. */
 type SortableDrop = "before" | "after" | "inside";
 
-/** The place a dragged item would land: a container and its position among the container's other items. */
+/** The place a dragged item would land. */
 interface SortableTarget {
     /** The id of the container. */
     readonly container: string;
@@ -297,7 +297,7 @@ class SortableControl {
         return true;
     }
 
-    /** Take a key pressed on an item's handle: Space or Enter lifts or drops, the arrow keys move and Escape cancels. */
+    /** Take a key pressed on an item's handle. */
     press(event: KeyboardEvent, id: string, direction: Direction): void {
         // lift or drop on Space or Enter
         const drag = this.#current;
@@ -334,7 +334,7 @@ class SortableControl {
         }
     }
 
-    /** Follow a held pointer: lift the item once it travels far enough, then move the item with it. */
+    /** Follow a pressed pointer. */
     track(id: string, x: number, y: number): void {
         // follow only a pointer that pressed a handle
         const start = this.#start;
@@ -406,7 +406,7 @@ class SortableControl {
         this.#setDrag(drag);
     }
 
-    /** Find the item a drag's target marks: the item after the target, the last item at the end, or an item without items of its own it nests in. */
+    /** Find the item a drag's target marks. */
     #markOf(
         drag: SortableDrag | undefined,
     ): { readonly id: string; readonly drop: SortableDrop } | undefined {
@@ -458,7 +458,7 @@ class SortableControl {
         this.#setAnnouncement(this.#locale.render(announcement));
     }
 
-    /** Find the target one step across: the neighbouring container of a board, or one nesting level in a tree. */
+    /** Find the target one step across. */
     #across(target: SortableTarget, offset: 1 | -1): SortableTarget | undefined {
         // nest under the item before the target, or move out after the item it nests in
         if (this.properties.nesting === true) {
@@ -497,12 +497,12 @@ class SortableControl {
               };
     }
 
-    /** Read the item a container id belongs to in a tree, as an item nests children without a container of its own. */
+    /** Read the item a container id belongs to in a tree. */
     #parentOf(container: string): string | undefined {
         return this.#items.has(container) ? container : undefined;
     }
 
-    /** Find the place under the pointer: the innermost container holding it and the position its axis puts it at. */
+    /** Find the place under the pointer. */
     #targetAt(x: number, y: number): SortableTarget | undefined {
         // take the innermost container under the pointer outside the dragged item
         const dragged = this.#items.get(this.#current?.id ?? "")?.element();
@@ -588,7 +588,7 @@ export interface SortableProperties extends SortableElementProperties<
 > {
     /** Handle a person dropping an item at another place, which the owner renders the items in. */
     readonly onMove?: (move: SortableMove) => void;
-    /** Whether items nest under one another as a tree: the cross arrows and a pointer moved past an item's start nest and unnest. */
+    /** Whether items nest under one another as a tree. */
     readonly nesting?: boolean;
 }
 
@@ -664,7 +664,7 @@ export function Sortable(properties: SortableProperties): JSX.Element {
     );
 }
 
-/** Render a container of the nearest sortable, such as a list, a board's column or an item's children. */
+/** Render a container of the nearest sortable. */
 export function SortableContainer(properties: SortableContainerProperties): JSX.Element {
     // join the sortable under the item the container nests in, if any
     const control = useSortable();
@@ -694,7 +694,7 @@ export function SortableContainer(properties: SortableContainerProperties): JSX.
     );
 }
 
-/** Render an item of the nearest container, marked while dragged and on the side a dragged item lands. */
+/** Render an item of the nearest container. */
 export function SortableItem(properties: SortableItemProperties): JSX.Element {
     // join the container, refusing an item outside one
     const control = useSortable();
@@ -750,7 +750,7 @@ export function SortableItem(properties: SortableItemProperties): JSX.Element {
     );
 }
 
-/** Render the button that lifts the nearest item: a pointer drags it, Space lifts and drops it, the arrow keys move it and Escape puts it back. */
+/** Render the button that lifts the nearest item. */
 export function SortableHandle(properties: SortableHandleProperties): JSX.Element {
     // read the sortable and the item the handle moves
     const control = useSortable();
@@ -805,7 +805,7 @@ function useSortable(): SortableControl {
     return control;
 }
 
-/** Return the styles that mark where a dragged item lands beside an item along its container's axis. */
+/** Return the styles that mark where a dragged item lands beside an item. */
 function dropStyle(drop: SortableDrop | undefined, isVertical: boolean): style.Styles {
     if (drop === "inside") {
         return styles.inside;

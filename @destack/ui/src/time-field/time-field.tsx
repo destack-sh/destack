@@ -47,7 +47,7 @@ export interface TimeFieldProperties extends Omit<
     readonly xstyle?: style.Styles;
 }
 
-/** The hour, minute and day period segments of a time in a locale's order, hour cycle and numerals. */
+/** The hour, minute and day period segments of a time. */
 class TimeFormat implements DateSegmentFormat {
     /** The segments and the literals between them in the locale's order. */
     readonly layout: readonly Intl.DateTimeFormatPart[];
@@ -162,7 +162,7 @@ class TimeFormat implements DateSegmentFormat {
         return `${pad(hours)}:${pad(minute)}`;
     }
 
-    /** Split a time into the values of its segments on the locale's hour cycle, none for no time. */
+    /** Split a time into the values of its segments on the locale's hour cycle. */
     valuesOf(time: PlainTime | undefined): DateSegmentValues {
         // leave every segment empty without a time
         if (time === undefined) {
@@ -180,7 +180,7 @@ class TimeFormat implements DateSegmentFormat {
     }
 }
 
-/** Render a time of day as one spinbutton per hour, minute and day period in the locale's order and hour cycle. */
+/** Render a time of day as one spinbutton per hour, minute and day period. */
 export function TimeField(properties: TimeFieldProperties): JSX.Element {
     // follow the controlled time, else the field's own, and the segments typed so far
     const format = new TimeFormat(useLocale());

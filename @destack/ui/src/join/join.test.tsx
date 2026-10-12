@@ -3,7 +3,7 @@ import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
 import { JoinContext, type JoinOrientation, useJoin } from "./index.ts";
 
-/** Read the styles that join a control in the nearest group, outside any group and in each orientation. */
+/** Read the styles that join a control in the nearest group. */
 function joinedStyles(): Record<"outside" | JoinOrientation, style.Styles> {
     const read: Partial<Record<"outside" | JoinOrientation, style.Styles>> = {};
     const Probe = (properties: { readonly name: "outside" | JoinOrientation }) => {

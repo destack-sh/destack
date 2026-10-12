@@ -387,7 +387,7 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
     );
 }
 
-/** Render the group of a parent's children one level deeper, hidden while the parent is collapsed. */
+/** Render the group of a parent's children one level deeper. */
 function TreeGroup(properties: {
     readonly level: number;
     readonly parent: string;
@@ -451,7 +451,7 @@ function TreeItemRow(properties: {
     );
 }
 
-/** Expand a closed parent or enter an open one, and collapse an open one, on the arrow keys along the reading direction. */
+/** Expand or enter a parent, or collapse an open one. */
 function expandOrCollapse(
     event: KeyboardEvent,
     control: TreeControl,
@@ -481,7 +481,7 @@ function expandOrCollapse(
     }
 }
 
-/** Move the focus among a tree's visible items, to a parent, or choose the focused item with Enter and Space. */
+/** Move the focus among a tree's visible items, or to a parent. */
 function navigate(event: KeyboardEvent, control: TreeControl, direction: Direction): void {
     // read the focused item and the key that closes toward its parent
     const active = control.focus.current();

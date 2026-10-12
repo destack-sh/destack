@@ -9,7 +9,7 @@ import {
     EmojiPickerSkinToneSelector,
 } from "./emoji-picker.tsx";
 
-/** A reaction picked from every emoji by category, with a search, the skin tones and a note while nothing matches. */
+/** A reaction picked from every emoji by category. */
 export const emojiPickerReaction = defineExample({
     of: EmojiPicker,
     name: "reaction",

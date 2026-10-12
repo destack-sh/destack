@@ -29,7 +29,7 @@ interface SchemaFieldBase {
     readonly schema: JsonObject;
 }
 
-/** A field typed as text: plain, an email address, a web address, a date, a date and time, or JSON. */
+/** A field typed as text. */
 export interface SchemaTextField extends SchemaFieldBase {
     /** The control. */
     readonly control: "text" | "email" | "url" | "date" | "date-time" | "json";
@@ -110,12 +110,12 @@ export interface SchemaChoice {
     readonly label: string;
 }
 
-/** List the fields of an object's JSON Schema in property order, resolving local references against the root schema, none for a schema of anything else. */
+/** List the fields of an object's JSON Schema in property order. */
 export function schemaFields(described: JsonObject, root: JsonObject = described): SchemaField[] {
     return new SchemaScope(root).fields(described);
 }
 
-/** Read the field a property's JSON Schema takes, resolving local references against the root schema. */
+/** Read the field a property's JSON Schema takes. */
 export function schemaField(
     name: string,
     described: JsonObject,
@@ -125,11 +125,11 @@ export function schemaField(
     return new SchemaScope(root).field(name, described, isRequired);
 }
 
-/** A root JSON Schema whose fields expand as they are read, with the local references inside it resolved. */
+/** A root JSON Schema whose fields expand as they are read. */
 class SchemaScope {
     /** The schema references resolve against. */
     readonly root: JsonObject;
-    /** The references whose fields' starts are being read, which a schema requiring itself reaches again. */
+    /** The references whose fields' starts are being read. */
     readonly #starting: Set<string>;
 
     /** Hold a root schema, refusing it when a reference inside it does not resolve. */
@@ -153,7 +153,7 @@ class SchemaScope {
         });
     }
 
-    /** Read the field a property's schema takes, expanding objects, lists and kinds only as they are read. */
+    /** Read the field a property's schema takes. */
     field(name: string, described: JsonObject, isRequired: boolean): SchemaField {
         // read the referenced schema, the member of a nullable union and the facts every field shares
         const [resolved, reference] = this.resolve(described);
@@ -221,11 +221,7 @@ class SchemaScope {
         return { ...base, control: "json", start: fallback };
     }
 
-    /**
-     * Follow a schema's local reference to the schema it points at, keeping the keywords beside it.
-     *
-     * Return the schema and the pointer it was reached by, undefined for a schema without a reference.
-     */
+    /** Follow a schema's local reference to the schema it points at. */
     resolve(described: JsonObject): [JsonObject, string | undefined] {
         // keep a schema without a reference
         const { $ref: reference, ...beside } = described;
@@ -326,7 +322,7 @@ class SchemaScope {
         };
     }
 
-    /** Read the field of a list, offering an enumeration's values or expanding its item as it is read. */
+    /** Read the field of a list. */
     #arrayField(
         base: Omit<SchemaFieldBase, "start">,
         described: JsonObject,
@@ -413,7 +409,7 @@ export function emptyOf(fields: readonly SchemaField[]): JsonObject {
     );
 }
 
-/** Find the variant of a field an object is, by the constants it holds, absent when none matches. */
+/** Find the variant of a field an object is, by the constants it has. */
 export function variantOf(
     field: SchemaVariantField,
     value: JsonValue | undefined,

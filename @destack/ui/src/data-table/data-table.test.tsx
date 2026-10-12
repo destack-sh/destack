@@ -268,7 +268,7 @@ function StateTemplate(): JSX.Element {
     return <>{String(useDataTableState()())}</>;
 }
 
-/** Press a key on the focused element, let a scrolled table render, and read the title of the focused cell's row. */
+/** Press a key on the focused element and let a scrolled table render. */
 async function pressAndRead(key: string, modifiers: KeyboardEventInit = {}): Promise<string> {
     // press the key and wait for the rows scrolled into view
     document.activeElement?.dispatchEvent(

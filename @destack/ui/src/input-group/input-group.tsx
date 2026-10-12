@@ -129,7 +129,7 @@ const alignments = style.create({
     },
 });
 
-/** Where an addon sits around its group's control: before or after it in the line, or above or below it. */
+/** Where an addon sits around its group's control. */
 export type InputGroupAlign = "inline-start" | "inline-end" | "block-start" | "block-end";
 
 /** The properties of an element of an input group, the native element's attributes included. */
@@ -168,7 +168,7 @@ export function InputGroup(properties: InputGroupElementProperties): JSX.Element
     );
 }
 
-/** Render icons, text or buttons beside or around a group's control, focusing the control on a click outside a button. */
+/** Render icons, text or buttons beside or around a group's control. */
 export function InputGroupAddon(properties: InputGroupAddonProperties): JSX.Element {
     const addon = merge(ADDON_DEFAULTS, properties);
     const rest = omit(addon, "align", "xstyle", "style", "onClick");

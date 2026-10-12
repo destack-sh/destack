@@ -271,7 +271,7 @@ export class SidebarControl {
     /** Replace whether the viewport is narrow. */
     readonly #setMobile: (isMobile: boolean) => void;
 
-    /** Create the state of a sidebar, open unless told otherwise on a wide viewport until the browser says more. */
+    /** Create the state of a sidebar. */
     constructor(properties: SidebarProviderProperties) {
         // start from the defaults a server renders too
         const [isOpen, setOpen] = createControllableSignal({
@@ -293,7 +293,7 @@ export class SidebarControl {
         this.#setMobile = setMobile;
     }
 
-    /** Take the state the viewer left the sidebar in and follow the viewport's width, returning how to stop. */
+    /** Take the state the viewer left the sidebar in, and follow the viewport's width. */
     follow(): () => void {
         // start as the viewer left it
         const stored = remembered();
@@ -402,7 +402,7 @@ export function useSidebar(): SidebarControl {
     return control;
 }
 
-/** Hold the open state of a page's sidebar, toggled by its triggers and by Ctrl or Command with B. */
+/** Keep the open state of a page's sidebar. */
 export function SidebarProvider(properties: SidebarProviderProperties): JSX.Element {
     // share one state with the sidebar
     const control = new SidebarControl(properties);
@@ -439,7 +439,7 @@ export function SidebarProvider(properties: SidebarProviderProperties): JSX.Elem
     );
 }
 
-/** Render the sidebar: a column beside the content on wide screens and a sheet on narrow ones, always a column when it cannot collapse. */
+/** Render the sidebar. */
 export function Sidebar(properties: SidebarProperties): JSX.Element {
     // read the state and the look
     const control = useSidebar();
@@ -648,7 +648,7 @@ export function SidebarMenuItem(
     return renderPart("li", "sidebar-menu-item", properties, styles.menuItem);
 }
 
-/** Render an entry's button, or its link with `href`, with a tooltip naming it while the sidebar shows only icons. */
+/** Render an entry's button, or its link with `href`. */
 export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.Element {
     const rest = omit(properties, "tooltip");
 
@@ -664,7 +664,7 @@ export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.
     );
 }
 
-/** Render the button or link of an entry, showing the tooltip around it while the sidebar is collapsed. */
+/** Render the button or link of an entry. */
 function SidebarMenuButtonElement(
     properties: Omit<SidebarMenuButtonProperties, "tooltip">,
 ): JSX.Element {
@@ -746,7 +746,7 @@ export function SidebarMenuSkeleton(
     );
 }
 
-/** Read the open state the viewer left the sidebar in, undefined when none is stored or storage is blocked. */
+/** Read the open state the viewer left the sidebar in. */
 function remembered(): boolean | undefined {
     try {
         const stored = localStorage.getItem(STORAGE_KEY);

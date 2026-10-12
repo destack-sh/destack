@@ -22,7 +22,7 @@ export const treeNotebooks = defineExample({
     },
 });
 
-/** Notebooks as a tree with trips collapsed and work expanded, reporting the item a person selects. */
+/** Notebooks as a tree with trips collapsed and work expanded. */
 export const treeWorkExpanded = defineExample({
     of: Tree,
     name: "work-expanded",

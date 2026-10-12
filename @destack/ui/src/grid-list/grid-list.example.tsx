@@ -64,7 +64,7 @@ function SymbolGrid(properties: { readonly sections: readonly CollectionSection<
     );
 }
 
-/** Math symbols by section in a grid of three columns, which the arrow keys move through and Enter picks from. */
+/** Math symbols by section in a grid of three columns. */
 export const gridListSymbols = defineExample({
     of: GridList,
     name: "symbols",

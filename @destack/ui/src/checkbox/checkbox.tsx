@@ -101,7 +101,7 @@ export type CheckboxIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLSpanElemen
     readonly xstyle?: style.Styles;
 };
 
-/** Render a button exposed as a checkbox around its indicator, which a click or Space toggles and a form submits through a hidden checkbox. */
+/** Render a button exposed as a checkbox around its indicator. */
 export function Checkbox(properties: CheckboxProperties): JSX.Element {
     // take the id and state of the nearest field
     const field = useFieldControl();
@@ -192,7 +192,7 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
     );
 }
 
-/** Render the mark of the nearest checkbox: a check while checked and a dash while indeterminate. */
+/** Render the mark of the nearest checkbox. */
 export function CheckboxIndicator(properties: CheckboxIndicatorProperties): JSX.Element {
     // read the checkbox, refusing an indicator outside one
     const control = useContext(CheckboxContext);

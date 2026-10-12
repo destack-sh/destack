@@ -4,7 +4,7 @@ import { Badge } from "../badge/index.ts";
 import { Prose } from "../prose/index.ts";
 import { Content, type ContentElementProperties } from "./content.tsx";
 
-/** A release note as remark and rehype build it from Markdown: a heading, a paragraph with inline code, and a strong word. */
+/** A release note as remark and rehype build it from Markdown. */
 const NOTE: Root = {
     type: "root",
     children: [

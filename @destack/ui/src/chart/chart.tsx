@@ -9,10 +9,10 @@ import { renderChartSvg } from "@tanstack/charts/svg";
 import { createSvgChartRenderer } from "@tanstack/charts/svg/renderer";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
-/** The height of a chart that sets neither a height nor an aspect ratio, as the upstream host defaults it. */
+/** The height of a chart that sets neither a height nor an aspect ratio. */
 const DEFAULT_HEIGHT = 320;
 
-/** The scene colors every chart takes from the theme's roles: series from the accent, guides from the foreground the renderer attenuates. */
+/** The scene colors every chart takes from the theme's roles. */
 const THEME: ChartTheme = {
     foreground: color.foreground,
     muted: color.foreground,
@@ -75,7 +75,7 @@ export interface ChartProperties<
     readonly label: string;
     /** The context a reader needs beyond the name, such as units or gaps. */
     readonly description?: string;
-    /** What draws the scene: SVG, readable before the script runs, or canvas for large datasets, SVG by default. */
+    /** What draws the scene, SVG by default. */
     readonly renderer?: "svg" | "canvas";
     /** The height in pixels, 320 unless an aspect ratio sets it. */
     readonly height?: number;
@@ -91,7 +91,7 @@ export interface ChartProperties<
     readonly xstyle?: style.Styles;
 }
 
-/** Draw a chart as an SVG in the theme's colors, its points reachable with the keyboard and its values in an optional table. */
+/** Draw a chart as an SVG in the theme's colors. */
 export function Chart<
     Datum,
     XValue extends ChartValue = ChartValue,

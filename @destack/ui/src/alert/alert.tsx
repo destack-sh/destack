@@ -74,7 +74,7 @@ export interface AlertProperties extends AlertElementProperties {
     readonly variant?: AlertVariant;
 }
 
-/** Render a message that calls for attention, with an optional leading icon, announced as an alert. */
+/** Render a message that calls for attention, with an optional leading icon. */
 export function Alert(properties: AlertProperties): JSX.Element {
     const alert = merge(DEFAULTS, properties);
     const rest = omit(alert, "variant", "xstyle", "style");

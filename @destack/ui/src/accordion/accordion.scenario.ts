@@ -3,7 +3,7 @@ import { viewInteraction } from "@destack/view/scenario";
 import { accordionHelpQuestionsDisabled } from "./accordion.example.tsx";
 import { Accordion } from "./accordion.tsx";
 
-/** Move between an accordion's triggers with the arrow keys, Home and End, skipping disabled ones. */
+/** Move between an accordion's triggers with the arrow keys, Home and End. */
 export const accordionMoveBetweenTriggers = defineScenario({
     of: Accordion,
     interaction: viewInteraction,

@@ -18,7 +18,7 @@ export class FieldControl {
     readonly id: string;
     /** The id of the field's label, which names a group of controls. */
     readonly labelId: string;
-    /** Whether a group of controls, such as the segments of a date, is named by the field's label. */
+    /** Whether the field's label labels a group of controls, such as the segments of a date. */
     readonly isGrouped: Accessor<boolean>;
     /** Whether the field's value is invalid. */
     readonly isInvalid: Accessor<boolean>;
@@ -69,7 +69,7 @@ export class FieldControl {
         onCleanup(() => this.#setGrouped(false));
     }
 
-    /** Return the attributes that connect a group of controls, such as the segments of a date, to its field. */
+    /** Return the attributes that connect a group of controls to its field. */
     groupAttributes(): FieldGroupAttributes {
         const descriptions = this.descriptions();
 

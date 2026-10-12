@@ -151,7 +151,7 @@ export class InputOTPControl {
         return this.value()[index] ?? "";
     }
 
-    /** Report whether a slot holds the caret or a selected character while the input has the focus. */
+    /** Report whether a slot has the caret or a selected character while the input is focused. */
     isActive(index: number): boolean {
         // follow the caret, or the last slot once the code is complete
         const [start, end] = this.selection();
@@ -162,7 +162,7 @@ export class InputOTPControl {
         );
     }
 
-    /** Take the text the input holds, keeping the characters the pattern allows up to the code's length. */
+    /** Take the text in the input. */
     input(element: HTMLInputElement): void {
         // keep the allowed characters and put them back into the input
         const allowed = new RegExp(`^${this.#properties.pattern ?? DIGITS}$`, "u");
@@ -215,7 +215,7 @@ export interface InputOTPProperties extends Omit<
     readonly xstyle?: style.Styles;
 }
 
-/** The properties of an element of a one-time code input, the native element's attributes included. */
+/** The properties of an element of a one-time code input. */
 export type InputOTPElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
 
@@ -225,7 +225,7 @@ export interface InputOTPSlotProperties extends InputOTPElementProperties {
     readonly index: number;
 }
 
-/** Render a one-time code input as one character per slot over a native input that takes typing, pasting and autofill. */
+/** Render a one-time code input as one character per slot. */
 export function InputOTP(properties: InputOTPProperties): JSX.Element {
     // take the id, state and descriptions of the nearest field
     const field = useFieldControl();

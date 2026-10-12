@@ -87,7 +87,7 @@ export function isSubmitted(properties: ToggleFormProperties): boolean {
     );
 }
 
-/** Render the hidden native input that carries a control's state into its form and follows the form's reset. */
+/** Render the hidden native input that carries a control's state into its form. */
 export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
     // restore the first state when the input's form resets
     let element: HTMLInputElement | undefined;

@@ -184,7 +184,7 @@ export function MenubarMenu(properties: MenuRootProperties): JSX.Element {
     return <Menu control={menu}>{properties.children}</Menu>;
 }
 
-/** Render the trigger of a menubar menu, opening it on click, Enter, Space or the down arrow key. */
+/** Render the trigger of a menubar menu. */
 export function MenubarTrigger(
     properties: Omit<
         MenuElementProperties<HTMLButtonElement>,

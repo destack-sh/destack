@@ -70,13 +70,13 @@ const styles = style.create({
 
 /** The prompt, limits and look of a date picker in any mode. */
 export interface DatePickerLook {
-    /** The text a multiple date picker's trigger shows before a day is chosen, a generic prompt by default. */
+    /** The text a multiple date picker's trigger shows before a day is chosen. */
     readonly placeholder?: string;
     /** Report whether a day cannot be chosen. */
     readonly disabled?: (day: PlainDate) => boolean;
     /** The look of a multiple date picker's trigger, outline by default. */
     readonly variant?: ButtonVariant;
-    /** The name of the picker, such as the field it fills, which a multiple picker's chosen days follow. */
+    /** The name of the picker, such as the field it fills. */
     readonly "aria-label"?: string;
     /** The choices offered beside the calendar, such as today or the next seven days. */
     readonly presets?: readonly DatePickerPreset[];
@@ -114,11 +114,7 @@ export type DatePickerSelection = DatePickerSingle | DatePickerRange | CalendarM
 /** The properties of a date picker: its look and the selection of its mode. */
 export type DatePickerProperties = DatePickerLook & DatePickerSelection;
 
-/**
- * Render a date picker: fields that type a day or a range beside a button opening a calendar.
- *
- * A multiple date picker opens its calendar from a button that shows the count of chosen days.
- */
+/** Render a date picker: fields that type a day or a range beside a button opening a calendar. */
 export function DatePicker(properties: DatePickerProperties): JSX.Element {
     return (
         <Popover
@@ -208,7 +204,7 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
     );
 }
 
-/** Render a group of the fields typing a day, or a range's start and end, and the button opening the calendar. */
+/** Render a group of the fields that type a day, or a range's start and end. */
 function DatePickerFields(properties: {
     /** The date picker's properties. */
     readonly properties: DatePickerProperties;
@@ -295,7 +291,7 @@ function DatePickerFields(properties: {
     );
 }
 
-/** Render the button of a multiple date picker showing the chosen days, named by the picker's name followed by them. */
+/** Render the button of a multiple date picker that shows the chosen days. */
 function DatePickerTrigger(properties: {
     readonly properties: DatePickerProperties;
     readonly value: CalendarValue;
@@ -383,7 +379,7 @@ function labelOf(
         : count(days.length);
 }
 
-/** Build the range from a start to an end, the end left out before the start, none without a start. */
+/** Build the range from a start to an end. */
 function rangeOf(from: PlainDate | undefined, to: PlainDate | undefined): DateRange | undefined {
     // leave the range out without a start
     if (from === undefined) {

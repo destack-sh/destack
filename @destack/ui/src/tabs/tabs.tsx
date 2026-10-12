@@ -106,7 +106,7 @@ const lists = style.create({
 /** Whether moving the focus to a tab selects it, or Enter and Space do. */
 export type TabsActivationMode = "automatic" | "manual";
 
-/** The selected tab, ids and keyboard model of a set of tabs, which its list, tabs and panels share. */
+/** The selected tab, ids and keyboard model of a set of tabs. */
 export class TabsControl {
     /** The properties of the tabs root, read for its controlled state and keyboard model. */
     readonly properties: Required<Pick<TabsProperties, "orientation" | "activationMode">> &

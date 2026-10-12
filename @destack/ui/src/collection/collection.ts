@@ -160,7 +160,7 @@ export class Load<Value> {
         );
     }
 
-    /** Read the loaded value, refusing to read it before it loads and throwing a failure's error. */
+    /** Read the loaded value. */
     value(): Value {
         const outcome = this.#outcome();
         if (outcome.kind === "loading") {

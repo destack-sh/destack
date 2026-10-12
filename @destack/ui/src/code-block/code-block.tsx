@@ -106,7 +106,7 @@ export type CodeBlockContentProperties = CodeBlockElementProperties<
     readonly label?: string;
 };
 
-/** Render the code's lines, given as `CodeBlockLine`s, in a scrolling region the keyboard reaches. */
+/** Render the code's lines, given as `CodeBlockLine`s. */
 export function CodeBlockContent(properties: CodeBlockContentProperties): JSX.Element {
     const rest = omit(properties, "isNumbered", "label", "children");
 

@@ -126,7 +126,7 @@ export interface SortableColumn {
     getCanSort(): boolean;
     /** Report the column's sort direction, false while unsorted. */
     getIsSorted(): false | "asc" | "desc";
-    /** Sort by the column, descending or ascending, beside the other sorted columns when multiple. */
+    /** Sort by the column, descending or ascending. */
     toggleSorting(isDescending?: boolean, isMultiple?: boolean): void;
     /** Report the direction the next toggle sorts in, false when it clears the sort. */
     getNextSortingOrder(isMultiple?: boolean): false | "asc" | "desc";
@@ -232,11 +232,11 @@ export interface GroupedCell {
     getIsGrouped(): boolean;
     /** Report whether the cell repeats its group's value and shows nothing. */
     getIsPlaceholder(): boolean;
-    /** Report whether the cell aggregates its group's members, present with the aggregation feature. */
+    /** Report whether the cell aggregates its group's members. */
     getIsAggregated?(): boolean;
 }
 
-/** The properties of a data table: the table it renders, its empty state and its scrolling, the native element's attributes included. */
+/** The properties of a data table: the table it renders, its empty state and its scrolling. */
 export interface DataTableProperties<
     Features extends TableFeatures,
     Row extends RowData,
@@ -245,13 +245,13 @@ export interface DataTableProperties<
     readonly table: DataTableInstance<Features, Row>;
     /** The content shown while no row matches, a message by default. */
     readonly empty?: JSX.Element;
-    /** The height each row is estimated at, which renders only the rows in view of a scrolling table. */
+    /** The height each row is estimated at. */
     readonly rowHeight?: number | undefined;
     /** The StyleX styles applied after the table's styles. */
     readonly xstyle?: style.Styles;
 }
 
-/** Render a table's headers and rows as a grid that arrow keys, Home, End, Page Up and Page Down move through. */
+/** Render a table's headers and rows as a grid. */
 export function DataTable<Features extends TableFeatures, Row extends RowData>(
     properties: DataTableProperties<Features, Row>,
 ): JSX.Element {
@@ -453,7 +453,7 @@ function SpacerRow(properties: {
     );
 }
 
-/** Read the nearest data table's state in a header or cell template, refusing a template outside one. */
+/** Read the nearest data table's state in a header or cell template. */
 export function useDataTableState(): Accessor<unknown> {
     const tracked = useContext(DataTableContext);
     if (tracked === null) {
@@ -471,7 +471,7 @@ export interface DataTableColumnHeaderProperties {
     readonly title: string;
 }
 
-/** Render a column's name as a button that cycles its sort ascending, descending and off, Shift adding it to the other sorted columns. */
+/** Render a column's name as a button that cycles its sort ascending, descending and off. */
 export function DataTableColumnHeader(properties: DataTableColumnHeaderProperties): JSX.Element {
     // show the name alone for a column that does not sort
     const tracked = useDataTableState();
@@ -765,7 +765,7 @@ function RowToggle(properties: {
     );
 }
 
-/** Render the box that selects every row of the page, showing a partial selection as indeterminate. */
+/** Render the box that selects every row of the page. */
 function PageSelection(properties: {
     /** The table whose page the box selects. */
     readonly table: object;
@@ -840,7 +840,7 @@ function renderTemplate<Context extends object>(
     return isElement(rendered) ? rendered : null;
 }
 
-/** Render a cell: a group's toggle, value and count, a group's aggregate, nothing for a repeated value, or its column's template. */
+/** Render a cell. */
 function renderCell<Features extends TableFeatures, Row extends RowData>(
     cell: Cell<Features, Row>,
 ): JSX.Element {
@@ -991,7 +991,7 @@ function sortIconOf(direction: false | "asc" | "desc"): IconBodies {
     return direction === "asc" ? caretUp : direction === "desc" ? caretDown : caretUpDown;
 }
 
-/** A cell's place in a data table's grid: its row among every row, the headers' first, and its column. */
+/** A cell's place in a data table's grid. */
 interface GridCell {
     /** The row among every row. */
     readonly row: number;
@@ -1012,7 +1012,7 @@ class TableDelegate implements KeyboardDelegate<string> {
         this.#rows = rows;
     }
 
-    /** Read the cell a key press moves the focus to: along a row, across rows, a page of rows, or to the ends of the row or grid. */
+    /** Read the cell a key press moves the focus to. */
     target(event: KeyboardEvent, from: string, direction: Direction): string | undefined {
         // read the move and the cell it starts from
         const move = gridMoveOf(event, direction);
@@ -1106,7 +1106,7 @@ function placeOf(
     }
 }
 
-/** Move the focused cell on arrow keys, Home, End, Page Up and Page Down, leaving keys to text fields inside cells. */
+/** Move the focused cell on arrow keys, Home, End, Page Up and Page Down. */
 function navigate(event: KeyboardEvent, focus: Focus<string>, direction: Direction): void {
     const target = event.target;
     if (
@@ -1124,7 +1124,7 @@ interface GridCellAttributes extends Record<"ref", (element: HTMLTableCellElemen
     readonly onFocusIn: () => void;
 }
 
-/** Make a cell one place of its data table's grid: the tab stop while focused, its single control taking the focus in its place. */
+/** Make a cell one place of its data table's grid. */
 function useGridCell(key: () => string): GridCellAttributes {
     // read the table's focus and take the cell's element
     const focus = useContext(DataTableFocusContext);

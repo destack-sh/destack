@@ -37,7 +37,7 @@ import { RadioGroup, RadioGroupItem } from "../radio-group/index.ts";
 /** The emoji in each row of a picker's grid by default. */
 const COLUMNS = 9;
 
-/** The skin tones emoji take, the default first, in the order the emoji data lists an emoji's variants. */
+/** The skin tones emoji take, the default first. */
 const SKIN_TONES = ["none", "light", "medium-light", "medium", "medium-dark", "dark"] as const;
 
 /** The skin tone after each one, the last wrapping to the default. */
@@ -70,7 +70,7 @@ const TONE_NAMES = {
     dark: t`Dark skin tone`,
 } as const;
 
-/** The groups of the emoji data people pick from, in order, with their names, the skin tone components left out. */
+/** The groups of the emoji data people pick from, in order, with their names. */
 const CATEGORIES = [
     { group: 0, label: t`Smileys and emotion` },
     { group: 1, label: t`People and body` },
@@ -212,7 +212,7 @@ const styles = style.create({
     },
 });
 
-/** The properties of an emoji picker: its search, layout, skin tone and cells, the native element's attributes included. */
+/** The properties of an emoji picker: its search, layout, skin tone and cells. */
 export interface EmojiPickerProperties extends GridListElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onChange">
 > {
@@ -228,7 +228,7 @@ export interface EmojiPickerProperties extends GridListElementProperties<
     readonly columns?: number;
     /** Render an emoji of the grid, the picker's own by default. */
     readonly cell?: (properties: GridListCellProperties<EmojiEntry>) => JSX.Element;
-    /** Render the active emoji where the footer shows it, undefined while none is, its emoji and name by default. */
+    /** Render the active emoji where the footer shows it, undefined while none is. */
     readonly activeCell?: (entry: EmojiEntry | undefined) => JSX.Element;
     /** The skin tone, which makes it controlled. */
     readonly skinTone?: SkinTone;
@@ -253,7 +253,7 @@ const layout = style.create({
     },
 });
 
-/** Render a picker of emoji around its parts: a search driving a grid of the emoji it finds by category, loaded in the reader's locale once it renders. */
+/** Render a picker of emoji around its parts. */
 export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
     // follow the controlled skin tone, else the picker's own
     const locale = useLocale();
@@ -325,7 +325,7 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
     );
 }
 
-/** Render the search of the nearest emoji picker, whose arrow keys move the active emoji and Enter picks it. */
+/** Render the search of the nearest emoji picker. */
 export function EmojiPickerSearch(properties: AutocompleteInputProperties): JSX.Element {
     const locale = useLocale();
 
@@ -340,7 +340,7 @@ export function EmojiPickerSearch(properties: AutocompleteInputProperties): JSX.
     );
 }
 
-/** Render the emoji of the nearest emoji picker by category, with a note while they load or while the search finds none. */
+/** Render the emoji of the nearest emoji picker by category. */
 export function EmojiPickerContent(
     properties: Omit<GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>, "children">,
 ): JSX.Element {
@@ -366,7 +366,7 @@ export function EmojiPickerContent(
     );
 }
 
-/** Render the row below the nearest emoji picker's content, showing the active emoji and its name before its own content. */
+/** Render the row below the nearest emoji picker's content. */
 export function EmojiPickerFooter(
     properties: GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
@@ -400,7 +400,7 @@ export function EmojiPickerEmoji(properties: GridListCellProperties<EmojiEntry>)
     );
 }
 
-/** Render the skin tones of the nearest emoji picker as a radio group, which arrow keys move through. */
+/** Render the skin tones of the nearest emoji picker as a radio group. */
 export function EmojiPickerSkinTone(
     properties: GridListElementProperties<
         Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "children">
@@ -436,7 +436,7 @@ export function EmojiPickerSkinTone(
     );
 }
 
-/** Render a button that moves the nearest emoji picker to the next skin tone, showing the current one. */
+/** Render a button that moves the nearest emoji picker to the next skin tone. */
 export function EmojiPickerSkinToneSelector(
     properties: GridListElementProperties<
         Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "onClick">
@@ -537,7 +537,7 @@ function layOutEmoji(
     }));
 }
 
-/** Load the emoji people pick in a locale's names and words, without the components and regional indicators, in the data's order. */
+/** Load the emoji people pick, with a locale's names and words, in the data's order. */
 async function loadEmoji(tag: LocaleTag): Promise<readonly PickableEmoji[]> {
     // take the nearest locale the data covers, English otherwise
     const available = Object.keys(EMOJI_LOCALES).map((entry) => Locale.parse(entry));

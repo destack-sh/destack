@@ -36,7 +36,7 @@ export interface ScrollAreaProperties extends Omit<JSX.HTMLAttributes<HTMLDivEle
     readonly xstyle?: style.Styles;
 }
 
-/** Render a region that scrolls with thin themed scrollbars and takes the focus, so arrow keys scroll it. */
+/** Render a region that scrolls with thin themed scrollbars. */
 export function ScrollArea(properties: ScrollAreaProperties): JSX.Element {
     const area = merge(DEFAULTS, properties);
     const rest = omit(area, "orientation", "xstyle", "style");

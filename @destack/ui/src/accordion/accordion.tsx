@@ -109,7 +109,7 @@ export type AccordionElementProperties<Attributes> = Omit<Attributes, "class"> &
 export class AccordionControl {
     /** The properties of the accordion root, read for its controlled state. */
     readonly properties: AccordionProperties;
-    /** The name a single accordion's items share so the platform keeps one open, undefined for a multiple one. */
+    /** The name a single accordion's items share, so the platform keeps one open. */
     readonly name: string | undefined;
     /** The open values, controlled or the accordion's own. */
     readonly selection: Selection;
@@ -136,7 +136,7 @@ export class AccordionControl {
         return this.selection.isSelected(value);
     }
 
-    /** Open or close an item as its disclosure toggled, keeping another item a single accordion opened in its place. */
+    /** Open or close an item as its disclosure toggled. */
     toggle(value: string, isOpening: boolean, element: HTMLDetailsElement): void {
         // leave the state alone when a single accordion closes an item for another
         const isReplaced =
@@ -163,7 +163,7 @@ interface AccordionItemControl {
     readonly isOpen: Accessor<boolean>;
 }
 
-/** Render a stack of disclosures, of which a single accordion keeps one open, that arrow keys move between. */
+/** Render a stack of disclosures that arrow keys move between. */
 export function Accordion(properties: AccordionProperties): JSX.Element {
     // share the open items with the items and read the text direction for the arrow keys
     const control = new AccordionControl(properties);

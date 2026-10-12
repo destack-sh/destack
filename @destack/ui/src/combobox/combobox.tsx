@@ -78,7 +78,7 @@ const styles = style.create({
     },
 });
 
-/** The chosen values and open state of a combobox, around the search and list box its input and options share. */
+/** The chosen values and open state of a combobox. */
 export class ComboboxControl {
     /** The search typed into the input, which filters the list box. */
     readonly autocomplete: AutocompleteControl;
@@ -177,7 +177,7 @@ export class ComboboxControl {
         }
     }
 
-    /** Take an option: a single combobox writes its text into the input and closes, a multiple one adds or drops it and keeps the list open. */
+    /** Take an option. */
     choose(value: string, label: string): void {
         // remember the option's text for the chips
         this.#labels.set(value, label);
@@ -218,7 +218,7 @@ export interface ComboboxBehaviour {
     readonly inputValue?: string;
     /** The text in the input at first while uncontrolled, empty by default. */
     readonly defaultInputValue?: string;
-    /** Whether the list filters its options by the typed text, or its owner does, as for options it loads, true by default. */
+    /** Whether the list filters its options by the typed text, or its owner does. */
     readonly shouldFilter?: boolean;
     /** Handle the person typing, such as to load the options that match. */
     readonly onInputValueChange?: (text: string) => void;
@@ -257,7 +257,7 @@ export function Combobox(properties: ComboboxProperties): JSX.Element {
     );
 }
 
-/** Render the input that filters the list, opening it as the person types or presses the down arrow key. */
+/** Render the input that filters the list. */
 export function ComboboxInput(
     properties: ComboboxElementProperties<
         Omit<
@@ -449,7 +449,7 @@ function steer(event: KeyboardEvent, control: ComboboxControl, direction: Direct
     }
 }
 
-/** Render the chosen values of a multiple combobox as chips, each with a button that drops it unless the caller lays out its own. */
+/** Render the chosen values of a multiple combobox as chips. */
 export function ComboboxChips(
     properties: ComboboxElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
@@ -481,7 +481,7 @@ export interface ComboboxChipProperties extends ComboboxElementProperties<
 
 /** The value of the nearest chip, null outside one. */
 const ComboboxChipContext = createContext<string | null>(null);
-/** Render one chosen value of a multiple combobox as a chip, its text and a button that drops it by default. */
+/** Render one chosen value of a multiple combobox as a chip. */
 export function ComboboxChip(properties: ComboboxChipProperties): JSX.Element {
     const control = useCombobox();
     const rest = omit(properties, "value", "xstyle", "style", "children");
