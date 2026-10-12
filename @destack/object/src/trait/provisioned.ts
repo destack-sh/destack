@@ -265,7 +265,40 @@ export const Provisioned = {
                             .parse(document["resources"] ?? {}),
                     ).filter(([, declared]) => declared.declaration.kind === kind.name),
                 ),
-            values: (name, declared) => declaredValues(name, declared),
+            values: (name, declared) => Provisioned.values(name, declared),
+        };
+    },
+
+    /** Write the record a stack's resource declares, provisioned or declared at a reference. */
+    values(name: string, declared: ResourceDefinition) {
+        // require the provider connecting a resource whose reference the stack declares
+        const { declaration, placement, reference, connection } = declared;
+        const provider = placement?.provider;
+        if (reference !== undefined && provider === undefined) {
+            throw new ObjectError(
+                "INVALID_DECLARATION",
+                `resource ${name} declares its reference without the provider connecting to it`,
+            );
+        }
+
+        return {
+            name,
+            definitionPackageId: declaration.package.id,
+            definitionVersion: declaration.package.version,
+            definitionName: declaration.name,
+            spec: declaration.spec,
+            retention: declared.retention,
+            placement: placement ?? null,
+            ...(connection !== undefined || provider === CONNECTION_PROVIDER
+                ? {
+                      origin: "connection" as const,
+                      connection: connection ?? null,
+                      provider: CONNECTION_PROVIDER,
+                  }
+                : reference === undefined || provider === undefined
+                  ? { origin: "provisioned" as const }
+                  : { origin: "declared" as const, reference, provider }),
+            tags: declared.tags,
         };
     },
 
@@ -291,6 +324,11 @@ function resourceMethods() {
                 "placement",
                 "retention",
                 "owner",
+                "origin",
+                "connection",
+                "provider",
+                "reference",
+                "tags",
             ],
         }),
         update: method.update("declare", {
@@ -300,38 +338,5 @@ function resourceMethods() {
         delete: method.delete("declare", { isInternal: true }),
         adopt,
         specify,
-    };
-}
-
-/** Write the record a stack's resource declares, provisioned or declared at a reference. */
-function declaredValues(name: string, declared: ResourceDefinition) {
-    // require the provider connecting a resource whose reference the stack declares
-    const { declaration, placement, reference, connection } = declared;
-    const provider = placement?.provider;
-    if (reference !== undefined && provider === undefined) {
-        throw new ObjectError(
-            "INVALID_DECLARATION",
-            `resource ${name} declares its reference without the provider connecting to it`,
-        );
-    }
-
-    return {
-        name,
-        definitionPackageId: declaration.package.id,
-        definitionVersion: declaration.package.version,
-        definitionName: declaration.name,
-        spec: declaration.spec,
-        retention: declared.retention,
-        placement: placement ?? null,
-        ...(connection !== undefined || provider === CONNECTION_PROVIDER
-            ? {
-                  origin: "connection" as const,
-                  connection: connection ?? null,
-                  provider: CONNECTION_PROVIDER,
-              }
-            : reference === undefined || provider === undefined
-              ? { origin: "provisioned" as const }
-              : { origin: "declared" as const, reference, provider }),
-        tags: declared.tags,
     };
 }
