@@ -21,14 +21,14 @@ export const SkuMetadata = defineSchema(
         description: schema.string().min(1),
         /** The provider selling it. */
         provider: ProviderCode,
-        /** The provider's region the price holds in, absent for a price every region shares. */
+        /** The provider's region the price applies in, absent for a price every region shares. */
         region: schema.string().min(1).exactOptional(),
         /** The provider's service, the FOCUS ServiceName, such as Durable Objects. */
         service: schema.string().min(1),
         /** The FOCUS ServiceCategory. */
         category: ServiceCategory,
-        /** The capacity class whose placement runs on it, absent for a SKU every class uses, such as storage. */
-        capacityClass: CapacityClass.exclude(["machine"]).exactOptional(),
+        /** The capacity class of the priced machines, absent for a SKU all classes use. */
+        capacityClass: CapacityClass.exclude(["personal"]).exactOptional(),
         /** The meter measuring its billing unit. */
         meter: CatalogReference,
         /** The FOCUS PricingUnit, such as GB-month. */
@@ -42,13 +42,13 @@ export const SkuMetadata = defineSchema(
         /** The page publishing the price. */
         source: schema.url(),
         /** The day the price was read at its source, as YYYY-MM-DD. */
-        observedAt: schema.string().regex(/^\d{4}-\d{2}-\d{2}$(?![\s\S])/u),
+        observedAt: schema.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
     }),
 );
 /** The fields of a SKU declaration. */
 export type SkuDefinition = schema.Infer<typeof SkuMetadata>;
 
-/** A SKU declaration: a provider's list price per pricing unit of a service in a region, as FOCUS names it. */
+/** A SKU: a provider's list price per pricing unit of a service in a region, as in FOCUS. */
 export class Sku {
     /** The declaring package, whose publishing account resells the SKU. */
     readonly package: Package;

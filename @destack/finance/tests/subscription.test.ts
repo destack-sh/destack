@@ -19,22 +19,22 @@ test.each(TEST_DIALECTS)(
 
         // let the account's viewer read it, and keep it from strangers
         const read = (person: "bob" | "eve") =>
-            refusal(finance.call(person, subscription, "get", ids.buyer, { id: created.id }));
+            refusal(finance.call(person, subscription, "get", { id: created.id }));
         expect([created.status, await read("bob"), await read("eve")]).toEqual([
             "incomplete",
             "done",
-            ["NOT_FOUND", `no scope ${ids.buyer}`],
+            ["NOT_FOUND", `no subscription ${created.id}`],
         ]);
 
         // let the owner cancel at the period's end, and refuse the viewer
-        const cancelling = await finance.call("alice", subscription, "update", ids.buyer, {
+        const cancelling = await finance.call("alice", subscription, "update", {
             id: created.id,
             cancelAtPeriodEnd: true,
         });
         expect([
             cancelling.cancelAtPeriodEnd,
             await refusal(
-                finance.call("bob", subscription, "update", ids.buyer, {
+                finance.call("bob", subscription, "update", {
                     id: created.id,
                     cancelAtPeriodEnd: false,
                 }),
@@ -43,9 +43,7 @@ test.each(TEST_DIALECTS)(
 
         // refuse the provider's transitions to the owner
         expect(
-            await refusal(
-                finance.call("alice", subscription, "activate", ids.buyer, { id: created.id }),
-            ),
+            await refusal(finance.call("alice", subscription, "activate", { id: created.id })),
         ).toEqual(["FORBIDDEN", "permission denied: provide"]);
     },
 );

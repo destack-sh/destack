@@ -1,9 +1,9 @@
-import { none, through } from "@destack/access";
-import { account } from "@destack/account/object";
-import { eq, uniqueIndex, type DatabaseConnection, type Select } from "@destack/db";
+import { through } from "@destack/access";
+import { account, space } from "@destack/account/object";
+import { uniqueIndex, type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import type { Package } from "@destack/package";
-import { schema, type Identifier } from "@destack/schema";
+import { type Package, PackageName } from "@destack/package";
+import { Identifier, present, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { Currency, DecimalAmount } from "../rate/amount.ts";
 import { Country } from "./customer.ts";
@@ -12,8 +12,12 @@ import { Country } from "./customer.ts";
 export const seller = defineObject({
     name: "seller",
     plural: "sellers",
-    scope: account,
+    scope: space,
+    declarable: { from: "create" },
+    owner: "account",
     fields: {
+        /** The account the row belongs to. */
+        account: field.reference(account).relate("account"),
         /** The payment provider. */
         provider: field.enum(["stripe"]).default("stripe"),
         /** The provider's identifier of the connected account. */
@@ -46,18 +50,14 @@ export const seller = defineObject({
     permissions: {
         read: through("account", "read"),
         sell: through("account", "manage"),
-        provide: none(),
+        provide: through("account", "serve"),
     },
     reserved: ["provide"],
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("sell", {
-            fields: ["provider", "country", "creditPrices"],
-            prepared: schema.object({
-                /** The provider's identifier of the opened connected account, null without a provider. */
-                providerId: schema.string().nullable(),
-            }),
+            fields: ["accountId", "provider", "country", "creditPrices"],
         }),
         /** Open the provider's onboarding page for the seller's connected account. */
         onboard: method.mutation({
@@ -75,61 +75,63 @@ export const seller = defineObject({
             prepared: schema.object({
                 /** The onboarding page. */
                 url: schema.url(),
+                /** The provider's identifier of the connected account, opened once. */
+                providerId: schema.string(),
             }),
         }),
         /** Replace the seller's price book: the price of a credit in each currency it bills. */
         update: method.update("sell", { fields: ["creditPrices"] }),
         /** Record the provider's identifier and capabilities of the connected account. */
-        record: method.update(null, {
-            isSystem: true,
+        record: method.update("provide", {
+            isInternal: true,
             fields: ["providerId", "chargesEnabled", "payoutsEnabled"],
         }),
     }),
-    constraints: (entry) => [uniqueIndex("seller_account").on(entry.scope)],
+    constraints: (entry) => [
+        uniqueIndex("seller_account").on(entry.accountId),
+        uniqueIndex("seller_provider")
+            .on(entry.providerId)
+            .where({ providerId: { isNotNull: true } }),
+    ],
 });
 /** A persisted seller. */
 export type Seller = Select<typeof seller.table>;
 
+/** Find the account selling a handle's packages to this home's buyers, none for a free handle. */
+export type Publisher = (handle: string) => Promise<Identifier<"account"> | null>;
+
 /** The accounts selling products. */
 export const Seller = {
-    /** Read the seller publishing a package. */
-    async publisher(database: DatabaseConnection, owner: Package): Promise<Seller> {
-        // find the seller of the account holding the package's scope as its handle
-        const handle = owner.name.slice(1, owner.name.indexOf("/"));
-        const [row] = await database
-            .select({ seller: seller.table })
-            .from(seller.table)
-            .innerJoin(account.table, eq(account.table.id, seller.table.scope))
-            .where(eq(account.table.handle, handle));
-        if (row === undefined) {
+    /** Read the seller of a package here: the platform's for its handles, else the holder's. */
+    async publisher(snapshot: Snapshot, owner: Package, publisher: Publisher): Promise<Seller> {
+        // find the account selling the package's scope
+        const { handle } = PackageName.split(owner.name);
+        const accountId = await publisher(handle);
+
+        // read its seller in this home, which a seller opens in each residency it sells to
+        const [found] = accountId === null ? [] : await snapshot.rows(seller.table, { accountId });
+        if (found === undefined) {
             throw new ServiceError("SERVICE_UNAVAILABLE", {
-                message: `account ${handle} publishing ${owner.name} sells nothing here yet`,
+                message: `${handle} publishing ${owner.name} sells nothing here yet`,
             });
         }
 
-        return row.seller;
+        return found;
     },
 
-    /** Require a seller's account to publish a package, as the handle scoping its name: `@<handle>/<name>`. */
+    /** Require a seller's account to publish a package, holding its scope or being the platform. */
     async requirePublisher(
-        database: DatabaseConnection,
+        snapshot: Snapshot,
         accountId: Identifier<"account">,
         owner: Package,
+        publisher: Publisher,
     ): Promise<void> {
-        // read the seller's handle from its account's copy
-        const [copied] = await database
-            .select({ handle: account.table.handle })
-            .from(account.table)
-            .where(eq(account.table.id, accountId));
-        if (copied === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `no account ${accountId}` });
-        }
-
-        // refuse a package another account publishes
-        const handle = owner.name.slice(1, owner.name.indexOf("/"));
-        if (handle !== copied.handle) {
+        // refuse a package another account sells
+        const { handle } = PackageName.split(owner.name);
+        if ((await publisher(handle)) !== accountId) {
+            const selling = await snapshot.row(account.table, { id: accountId });
             throw new ServiceError("FORBIDDEN", {
-                message: `account ${copied.handle} does not publish package ${owner.name}`,
+                message: `account ${present(selling, `account ${accountId}`).handle} does not publish package ${owner.name}`,
             });
         }
     },

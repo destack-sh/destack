@@ -37,8 +37,8 @@ export const StripeSubscription = schema.looseObject({
                 id: schema.string(),
                 /** The billed price. */
                 price: schema.looseObject({ id: schema.string() }),
-                /** The licensed quantity, absent on a metered item. */
-                quantity: schema.number().int().exactOptional(),
+                /** The licensed quantity, set on every item since finance rates metered usage. */
+                quantity: schema.number().int(),
                 /** When the item's current period started. */
                 current_period_start: Seconds,
                 /** When the item's current period ends. */
@@ -54,7 +54,7 @@ export const StripeInvoice = schema.looseObject({
     id: schema.string(),
     /** The customer's identifier. */
     customer: schema.string(),
-    /** The number a finalized invoice carries. */
+    /** The number of a finalized invoice. */
     number: schema.string().nullable(),
     /** Where it stands. */
     status: schema.enum(["draft", "open", "paid", "void", "uncollectible"]),
@@ -93,6 +93,8 @@ export const StripeInvoice = schema.looseObject({
 export const StripeCheckoutSession = schema.looseObject({
     /** The session's identifier. */
     id: schema.string(),
+    /** Where the session stands. */
+    status: schema.enum(["open", "complete", "expired"]),
     /** The subscription a completed session started. */
     subscription: schema.string().nullable(),
 });
@@ -101,10 +103,34 @@ export const StripeCheckoutSession = schema.looseObject({
 export const StripeAccount = schema.looseObject({
     /** The account's identifier. */
     id: schema.string(),
+    /** The values finance tagged the account with, such as its home. */
+    metadata: schema.record(schema.string(), schema.string()),
     /** Whether it takes charges. */
     charges_enabled: schema.boolean(),
     /** Whether it is paid out. */
     payouts_enabled: schema.boolean(),
+});
+
+/** A Stripe customer, by the values finance tagged it with. */
+export const StripeCustomer = schema.looseObject({
+    /** The customer's identifier. */
+    id: schema.string(),
+    /** The values finance tagged the customer with, such as its home. */
+    metadata: schema.record(schema.string(), schema.string()),
+});
+
+/** The customer or connected account a Stripe object belongs to. */
+export const StripeOwner = schema.looseObject({
+    /** The object's kind, such as account or invoice. */
+    object: schema.string(),
+    /** The customer it belongs to, absent on objects of no customer. */
+    customer: schema.string().nullable().exactOptional(),
+});
+
+/** Any Stripe object, by its identifier. */
+export const StripeObject = schema.looseObject({
+    /** The object's identifier. */
+    id: schema.string(),
 });
 
 /** A Stripe webhook event. */
@@ -113,6 +139,8 @@ export const StripeEvent = schema.looseObject({
     id: schema.string(),
     /** The event's type, such as invoice.paid. */
     type: schema.string(),
+    /** When Stripe recorded the event, in Unix seconds. */
+    created: schema.number().int(),
     /** The object it concerns. */
     data: schema.looseObject({ object: schema.record(schema.string(), schema.unknown()) }),
 });
@@ -143,7 +171,7 @@ export const Stripe = {
             items: row.items.data.map((item) => ({
                 providerId: item.id,
                 price: item.price.id,
-                quantity: item.quantity ?? 1,
+                quantity: item.quantity,
             })),
         };
     },
@@ -157,7 +185,7 @@ export const Stripe = {
             providerId: row.id,
             customer: row.customer,
             subscription: row.parent?.subscription_details?.subscription ?? null,
-            isPeriodStart: PERIOD_STARTS.has(row.billing_reason ?? ""),
+            isPeriodStart: row.billing_reason !== null && PERIOD_STARTS.has(row.billing_reason),
             number: row.number,
             status: row.status,
             currency: row.currency.toUpperCase(),

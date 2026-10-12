@@ -1,5 +1,5 @@
-import { account } from "@destack/account/object";
-import { type Select } from "@destack/db";
+import { account, space } from "@destack/account/object";
+import { type Select, uniqueIndex } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { BILLING_PERMISSIONS } from "./customer.ts";
@@ -26,9 +26,12 @@ const INVOICE_FIELDS = [
 export const invoice = defineObject({
     name: "invoice",
     plural: "invoices",
-    scope: account,
+    scope: space,
+    owner: "account",
     fields: {
-        /** The number the invoice carries once finalized, absent on a draft. */
+        /** The account the row belongs to. */
+        account: field.reference(account).relate("account"),
+        /** The invoice's number once finalized, absent on a draft. */
         number: field.string(schema.string().min(1)).optional(),
         /** Where the invoice stands at the provider. */
         status: field.enum(["draft", "open", "paid", "void", "uncollectible"]),
@@ -60,9 +63,13 @@ export const invoice = defineObject({
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
-        create: method.create(null, { isSystem: true, fields: INVOICE_FIELDS }),
-        update: method.update(null, { isSystem: true, fields: INVOICE_FIELDS }),
+        create: method.create("provide", {
+            isInternal: true,
+            fields: ["accountId", ...INVOICE_FIELDS],
+        }),
+        update: method.update("provide", { isInternal: true, fields: INVOICE_FIELDS }),
     }),
+    constraints: (entry) => [uniqueIndex("invoice_provider").on(entry.providerId)],
 });
 /** A persisted invoice. */
 export type Invoice = Select<typeof invoice.table>;

@@ -3,7 +3,7 @@ import { defineSchema, schema } from "@destack/schema";
 
 /** A package-local name of a feature, meter or SKU, kept across releases. */
 export const CatalogName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$(?![\s\S])/u),
+    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u),
 );
 
 /** The schema of a feature, meter or SKU by its package and name. */

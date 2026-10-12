@@ -12,7 +12,6 @@
         "./inspect": "./src/inspect/index.ts",
         "./object": "./src/object/index.ts",
         "./service": "./src/service/index.ts",
-        "./client": "./src/client/index.ts",
         "./server": "./src/server/index.ts",
         "./stack": "./src/stack/index.ts",
         "./workload": "./src/workload/index.ts",
@@ -39,10 +38,11 @@
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
-        "@destack/space": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/bucket": "workspace:*",
-        "@destack/secret": "workspace:*"
+        "@destack/vault": "workspace:*",
+        "@destack/setting": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

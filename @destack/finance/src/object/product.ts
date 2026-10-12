@@ -1,6 +1,6 @@
 import { resource, through, union } from "@destack/access";
-import { account } from "@destack/account/object";
-import { sql, uniqueIndex, type Select } from "@destack/db";
+import { account, space } from "@destack/account/object";
+import { uniqueIndex, type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
@@ -14,40 +14,43 @@ const DESCRIPTION_LENGTH = 4000;
 export const product = defineObject({
     name: "product",
     plural: "products",
-    scope: account,
+    scope: space,
+    declarable: { from: "create" },
+    owner: "account",
     fields: {
+        /** The account the row belongs to. */
+        account: field.reference(account).relate("account"),
         /** The name buyers see. */
         name: field.string(schema.string().min(1).max(NAME_LENGTH)),
         /** What buyers get. */
         description: field.string(schema.string().min(1).max(DESCRIPTION_LENGTH)),
         /** Whether buyers may buy it. */
         active: field.boolean().default(true),
-        /** Whether accounts without a subscription to the seller get its grants, which a product without prices alone may be. */
+        /** Whether accounts without a subscription get its grants, only valid without prices. */
         isDefault: field.boolean().default(false),
-        /** The payment provider's identifier of the product, mirrored with its first price. */
+        /** The payment provider's identifier of the product, mirrored at its first sale. */
         providerId: field.string().optional(),
     },
     attributes: { active: "boolean" },
     permissions: {
         read: union(through("account", "read"), resource({ active: true })),
         sell: through("account", "manage"),
+        provide: through("account", "serve"),
     },
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("sell", {
-            fields: ["name", "description", "active", "isDefault"],
+            fields: ["accountId", "name", "description", "active", "isDefault"],
         }),
         update: method.update("sell", {
             fields: ["name", "description", "active", "isDefault"],
         }),
         /** Record the provider's identifier of the product. */
-        record: method.update(null, { isSystem: true, fields: ["providerId"] }),
+        record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
     }),
     constraints: (entry) => [
-        uniqueIndex("product_default")
-            .on(entry.scope)
-            .where(sql`${entry.isDefault}`),
+        uniqueIndex("product_default").on(entry.accountId).where({ isDefault: true }),
     ],
 });
 /** A persisted product. */

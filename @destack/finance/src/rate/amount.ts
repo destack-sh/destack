@@ -8,7 +8,7 @@ const SCALE = 10n ** BigInt(DECIMALS);
 
 /** A currency by its ISO 4217 code, or a custom one such as x-credits. */
 export const Currency = defineSchema(
-    schema.string().regex(/^(?:[A-Z]{3}|x-[a-z0-9]+(?:-[a-z0-9]+)*)$(?![\s\S])/u),
+    schema.string().regex(/^(?:[A-Z]{3}|x-[a-z0-9]+(?:-[a-z0-9]+)*)$/u),
 );
 
 /** The currency of credits, converted through each seller's price book. */
@@ -17,16 +17,16 @@ export const CREDITS = "x-credits";
 /** An amount in the minor unit of its currency, such as cents. */
 export const Amount = defineSchema(schema.number().int().min(0));
 
-/** An amount in the minor unit of its currency with up to 12 decimals, such as 0.000000024 cents per byte. */
+/** An amount in minor units of its currency with up to 12 decimals, such as 0.000000024 cents. */
 export const DecimalAmount = defineSchema(
-    schema.string().regex(/^(?:0|[1-9]\d*)(?:\.\d{1,12})?$(?![\s\S])/u),
+    schema.string().regex(/^(?:0|[1-9]\d*)(?:\.\d{1,12})?$/u),
 );
 /** An amount in fractional minor units. */
 export type DecimalAmount = schema.Infer<typeof DecimalAmount>;
 
 /** A cost in fractional minor units as FOCUS cost columns keep it, negative for a credit. */
 export const Cost = Object.assign(
-    defineSchema(schema.string().regex(/^-?(?:0|[1-9]\d*)(?:\.\d{1,12})?$(?![\s\S])/u)),
+    defineSchema(schema.string().regex(/^-?(?:0|[1-9]\d*)(?:\.\d{1,12})?$/u)),
     {
         /** Read a cost or an amount as whole fractional minor units at 12 decimals. */
         scaled(text: string): bigint {
@@ -49,11 +49,33 @@ export const Cost = Object.assign(
             return `${sign}${fraction === "" ? whole : `${whole}.${fraction}`}`;
         },
 
-        /** Round fractional minor units up to whole ones. */
-        ceiling(scaled: bigint): number {
-            const whole = scaled / SCALE;
+        /** Round costs to whole minor units adding up to their total rounded once, half up. */
+        apportion(costs: readonly bigint[]): number[] {
+            // round the total once, and take each cost's whole part
+            const total = costs.reduce((sum, cost) => sum + cost, 0n);
+            const rounded = (total + SCALE / 2n) / SCALE;
+            const wholes = costs.map((cost) => cost / SCALE);
+            const remaining = Number(rounded - wholes.reduce((sum, whole) => sum + whole, 0n));
 
-            return Number(scaled > whole * SCALE ? whole + 1n : whole);
+            // give the minor units left to the largest remainders, the earlier cost first on a tie
+            const ranked = new Set(
+                costs
+                    .map((cost, position) => ({ position, remainder: cost % SCALE }))
+                    .toSorted((left, right) => {
+                        // rank the larger remainder first, and the earlier cost on a tie
+                        if (left.remainder !== right.remainder) {
+                            return left.remainder > right.remainder ? -1 : 1;
+                        }
+
+                        return left.position - right.position;
+                    })
+                    .slice(0, remaining)
+                    .map((entry) => entry.position),
+            );
+
+            return wholes.map((whole, position) =>
+                Number(ranked.has(position) ? whole + 1n : whole),
+            );
         },
 
         /** Read whole minor units as fractional minor units. */

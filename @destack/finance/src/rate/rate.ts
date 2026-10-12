@@ -1,5 +1,5 @@
 import type { Charge } from "../object/charge.ts";
-import type { PriceTerms } from "../object/price.ts";
+import type { Price } from "../object/price.ts";
 import { present } from "@destack/schema";
 import { type Sku } from "../sku/sku.ts";
 import { Cost, type DecimalAmount } from "./amount.ts";
@@ -44,18 +44,30 @@ export const Rate = {
         };
     },
 
-    /** Price a quantity at a seller's price terms, per unit or through graduated tiers, rounded up. */
-    price(terms: PriceTerms, quantity: number): Cost {
+    /** Read a per-unit price's amount per unit in fractional minor units, null if tiered. */
+    unitPrice(terms: Pick<Price, "unitAmount" | "unitAmountDecimal">): DecimalAmount | null {
+        // read the decimal amount, else the whole one, which a per-unit price keeps exactly one of
+        if (terms.unitAmountDecimal !== null) {
+            return terms.unitAmountDecimal;
+        } else if (terms.unitAmount !== null) {
+            return String(terms.unitAmount);
+        }
+
+        return null;
+    },
+
+    /** Price a quantity at a seller's terms, per unit or through graduated tiers, rounded up. */
+    price(
+        terms: Pick<Price, "billingScheme" | "unitAmount" | "unitAmountDecimal" | "tiers">,
+        quantity: number,
+    ): Cost {
         // price each unit alike
         const scaled = BigInt(Math.round(quantity * QUANTITY_SCALE));
         const each = BigInt(QUANTITY_SCALE);
         if (terms.billingScheme === "per_unit") {
-            const unitAmount = present(
-                terms.unitAmountDecimal ?? terms.unitAmount,
-                "a per-unit price's amount",
-            );
+            const unitAmount = present(Rate.unitPrice(terms), "a per-unit price's amount");
 
-            return Cost.of(ceilingDivide(Cost.scaled(String(unitAmount)) * scaled, each));
+            return Cost.of(ceilingDivide(Cost.scaled(unitAmount) * scaled, each));
         }
 
         // price each tier's units at its amounts, the tiers in rising order

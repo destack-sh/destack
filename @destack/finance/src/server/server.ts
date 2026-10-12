@@ -1,4 +1,4 @@
-import type { WorkloadIdentity } from "@destack/account/client";
+import { principal } from "@destack/access";
 import {
     account,
     allowance,
@@ -8,19 +8,21 @@ import {
     organisation,
     universeAllowanceShape,
 } from "@destack/account/object";
-import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import type { accountService } from "@destack/account/service";
+import { type DatabaseConnection, Snapshot, TABLE } from "@destack/db";
 import type { Event, EventKind, EventStore } from "@destack/event";
 import type { Registry } from "@destack/forge/client";
 import { serveActivities } from "@destack/notification/server";
-import type { CallOf } from "@destack/object";
-import { ObjectServer, Subscriber } from "@destack/object/server";
-import type { PackageId } from "@destack/package";
-import { type JsonValue, present } from "@destack/schema";
+import { ObjectStore, Stack, Subscriber } from "@destack/object/server";
+import { type Clock, Digest, type JsonObject, JsonValue } from "@destack/schema";
+import type { ServiceClient } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
 import type { CallKey } from "@destack/service/request";
 import { type ServiceContext, type ServiceImplementation } from "@destack/service/server";
-import { Scope } from "@destack/sync";
+import { type InstallationContext, WEBHOOK_PATH } from "@destack/service/workload";
+import { Scope, Uplink } from "@destack/sync";
 import { Catalog } from "../catalog/catalog.ts";
+import { FeatureGrant } from "../feature/grant.ts";
 import { usage } from "../meter/usage.ts";
 import {
     charge,
@@ -28,51 +30,57 @@ import {
     customer,
     Customer,
     entitlement,
+    Entitlement,
     invoice,
     price,
     Price,
-    type PriceTerms,
     product,
     productFeature,
+    ProductFeature,
     seller,
-    Seller,
     subscription,
+    Subscription,
     subscriptionItem,
     usageLimit,
 } from "../object/index.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
-import { Rate } from "../rate/rate.ts";
 import { financeService } from "../service/index.ts";
-import { EntitlementController, notifyState } from "./entitlement.ts";
+import { EntitlementController } from "./entitlement.ts";
 import { Billing } from "./payment.ts";
-import { syncSubscription } from "./subscription.ts";
-import { MeterUsage, UsageController } from "./usage.ts";
-import { CatalogReference } from "../catalog/reference.ts";
+import { Metering } from "../meter/metering.ts";
+import { UsageController } from "./usage.ts";
 
-/** The database, workload identity and registry the finance service serves with. */
+/** The hex digits of a price's terms digest its declaration name carries: 48 bits. */
+const TERMS_DIGEST_LENGTH = 12;
+
+/** The database, account service and registry the finance service serves with. */
 export interface FinanceOptions {
-    /** The finance database, with copies of its residency's accounts and organisations. */
+    /** The finance database, copying its residency's accounts, organisations, machines and keys. */
     readonly database: DatabaseConnection;
-    /** The service's placement in its residency, which follows the account service's copies. */
-    readonly identity: WorkloadIdentity;
+    /** The universe's account service, called as the installation. */
+    readonly accounts: ServiceClient<typeof accountService>;
+    /** The clock the service runs at. */
+    readonly clock: Clock;
+    /** The finance installation, which keeps residency account copies below its space. */
+    readonly installation: Pick<InstallationContext, "id" | "scope">;
     /** The key sensitive call inputs are fingerprinted under in the journal. */
     readonly callKey: CallKey;
     /** The registry opening the releases of packages declaring features, meters and SKUs. */
     readonly registry: Pick<Registry, "open">;
-    /** The distribution tag naming each package's current release, such as latest, or dev in a dev universe. */
+    /** The distribution tag of each package's current release, such as latest or dev. */
     readonly tag: string;
-    /** The payment provider charging buyers, absent in a universe whose accounts run on default products alone. */
-    readonly provider?: PaymentProvider;
-    /** The usage events routed to the residency's paying accounts, kept in the finance database and its bucket. */
+    /** The payment provider charging buyers, absent if accounts run on default products alone. */
+    readonly provider: PaymentProvider | undefined;
+    /** The usage events of the residency's paying accounts, in the finance database and bucket. */
     readonly events: EventStore;
-    /** Report committed external work that fails to settle. */
-    readonly report?: (error: unknown) => void;
+    /** Report committed external work that fails to settle, and uses their declarations refuse. */
+    readonly report: (error: unknown) => void;
 }
 
-/** The finance service with the object server executing its methods. */
+/** The finance service with the object store executing its methods. */
 export interface FinanceImplementation extends ServiceImplementation {
-    /** The object server executing the finance service's methods. */
-    readonly objects: ObjectServer<ReturnType<typeof serveFinance>>;
+    /** The object store executing the finance service's methods. */
+    readonly objects: ObjectStore;
 }
 
 /** The announcements of the accounts' usage limits. */
@@ -80,51 +88,66 @@ const activities = serveActivities({ notifications: [usageLimit] });
 
 /** Implement the finance service over a residency's database. */
 export function implementFinance(options: FinanceOptions): FinanceImplementation {
-    // serve the finance objects, following the account service's copies as the placement
-    const { identity } = options;
-    const meterUsage = new MeterUsage(options.events);
+    // find each handle's seller to the home's buyers through the account directory
     const catalog = Catalog.tagged(options.registry, options.tag);
-    const objects: ObjectServer<ReturnType<typeof serveFinance>> = new ObjectServer({
-        objects: serveFinance(catalog, options.provider),
+    const home = options.installation.scope;
+    const publisher = (handle: string) => options.accounts.directory.publisher({ handle, home });
+    const metering = new Metering(options.events, catalog, publisher, options.report);
+    const objects: ObjectStore = new ObjectStore({
+        principal: principal.installation.reference(
+            options.installation.scope,
+            options.installation.id,
+        ),
+        objects: serveFinance(metering, options.provider, home),
+        clock: options.clock,
         policies: [account, organisation, machine, key],
         database: options.database,
         callKey: options.callKey,
         origin: { package: financeService.package, service: financeService.name },
-        subscriber: Subscriber.of(identity.publisher(), () =>
-            objects.source.workloadSubscriptions(identity.placementId),
+        subscriber: Subscriber.of(
+            Uplink.of(() => options.accounts.replica),
+            () => objects.source.servedSubscriptions(options.installation.scope),
         ),
         shapes: [allowanceShape, universeAllowanceShape],
-        ...(options.report === undefined ? {} : { report: options.report }),
+        report: options.report,
     });
 
-    // take the provider's webhook deliveries at their path, verified by their signatures
+    // take the provider's webhook deliveries at their path below the machine's webhook mount
     const { provider } = options;
-    const path = provider === undefined ? undefined : `/finance/webhooks/${provider.name}`;
-    const route = async (request: Request): Promise<Response | undefined> => {
+    const path = provider === undefined ? undefined : `${WEBHOOK_PATH}/${provider.name}`;
+    const fetch = async (request: Request): Promise<Response | undefined> => {
         if (provider === undefined || new URL(request.url).pathname !== path) {
             return undefined;
         } else if (request.method !== "POST") {
             return new Response(null, { status: 405 });
         }
-        await ProviderEvent.receive(objects, provider, request);
+        await ProviderEvent.receive(objects, options.installation.scope, provider, request);
 
         return new Response(null, { status: 204 });
     };
 
     // rate the usage routed here, derive each account's entitlements, and keep the events' segments
-    const report = options.report ?? (() => undefined);
     const controllers = [
-        new UsageController(objects, meterUsage, catalog, report),
-        new EntitlementController(objects, catalog, meterUsage),
+        new UsageController(objects, options.installation.scope),
+        new EntitlementController(objects, options.installation.scope),
         ...options.events.controllers,
     ];
 
-    return { ...objects.implement(financeService, controllers), objects, route };
+    return {
+        ...objects.implement(
+            financeService,
+            objects.routed,
+            [...objects.controllers(), ...controllers],
+            {},
+        ),
+        objects,
+        fetch,
+    };
 }
 
 /** Admit usage of accounts the caller serves. */
 export function admitUsage(
-    objects: ObjectServer,
+    objects: ObjectStore,
 ): (context: ServiceContext, kind: EventKind, events: readonly Event[]) => Promise<void> {
     return async (context, kind, events) => {
         // take usage alone, the one kind routed here
@@ -138,11 +161,11 @@ export function admitUsage(
         const authorization = context.requireAuthorization();
         for (const scope of new Set(events.map((event) => event.scope))) {
             const [link] = await Scope.chain(Snapshot.live(objects.database), scope);
-            const decision =
-                link === undefined
-                    ? undefined
-                    : await authorization.check(account.permission("serve"), link.object);
-            if (decision?.isAllowed !== true) {
+            if (link === undefined) {
+                throw new ServiceError("NOT_FOUND", { message: `no account ${scope}` });
+            }
+            const decision = await authorization.check(account.permission("serve"), link.object);
+            if (!decision.isAllowed) {
                 throw new ServiceError("NOT_FOUND", { message: `no account ${scope}` });
             }
         }
@@ -151,219 +174,257 @@ export function admitUsage(
 
 /** Serve the finance objects. */
 export function serveFinance(
-    catalog: (packageId: PackageId) => Promise<Catalog>,
-    provider?: PaymentProvider,
+    metering: Metering,
+    provider: PaymentProvider | undefined,
+    home: string,
 ) {
-    const billing = new Billing(provider);
+    const { catalog } = metering;
+    const billing = new Billing(provider, home);
 
     return {
         customer,
         seller: serveSellers(billing),
-        product: product.handle({
-            update: {
-                authorize: (call) =>
-                    requireDefault({ ...call.requireTarget(), ...call.input }, call.database),
+        product: product.implement({
+            methods: {
+                update: {
+                    authorize: (call) =>
+                        Price.requireNone({ ...call.requireTarget(), ...call.input }, call),
+                },
+            },
+            declaration: {
+                // apply after the seller its prices check against
+                after: [seller],
+                // offer a declared product again, unless it says otherwise
+                resolve: async (_name, declared) => ({
+                    active: true,
+                    ...JsonValue.object(declared),
+                }),
+                // archive a product its stack stops declaring, which subscriptions keep referencing
+                retire: "archived",
             },
         }),
-        productFeature: serveProductFeatures(catalog),
-        price: price.handle({
-            create: {
-                authorize: (call) => requirePrice(call.input, call.database, catalog),
-                prepare: (call) => billing.preparePrice(call),
-                handler: (call, next) => billing.createPrice(call, next),
+        productFeature: serveProductFeatures(metering),
+        price: price.implement({
+            methods: {
+                create: {
+                    authorize: (call) =>
+                        Price.require(
+                            call.input.parentId,
+                            Price.terms(call.input),
+                            call.view(),
+                            catalog,
+                        ),
+                },
+            },
+            declaration: {
+                after: [product],
+                // name each price by its terms, so new terms make a new price and archive the old
+                collect: async (document) => {
+                    const named = Stack.nested(price, product, document).map(
+                        async ([name, value]): Promise<[string, JsonObject]> => {
+                            // digest the declared price's terms
+                            const declared = JsonValue.object(value);
+                            const terms = Price.terms(price.table[TABLE].decode(declared));
+                            const digest = await Digest.json(terms);
+
+                            return [`${name}-${digest.slice(0, TERMS_DIGEST_LENGTH)}`, declared];
+                        },
+                    );
+
+                    return Object.fromEntries(await Promise.all(named));
+                },
+                // refuse a price the API refuses, and offer a declared price again unless it says otherwise
+                resolve: async (name, declared, stack) => {
+                    // check the terms under the declared product
+                    const parentId = await stack.require(product, Stack.parent(name));
+                    const fields = JsonValue.object(declared);
+                    const terms = Price.terms(price.table[TABLE].decode(fields));
+                    await Price.require(parentId, terms, stack.transaction.view(), catalog);
+
+                    return { active: true, ...fields };
+                },
+                retire: "archived",
             },
         }),
         subscription: serveSubscriptions(billing),
         subscriptionItem,
         checkoutSession: serveCheckouts(billing),
-        entitlement: serveEntitlements(),
+        entitlement: serveEntitlements(metering),
         allowance,
         announcement: activities.announcement,
-        charge,
+        charge: charge.implement({
+            methods: {
+                rate: (call) => metering.rate(call, call.input.accountId, call.input.after),
+            },
+        }),
         invoice,
     };
 }
 
-/** Serve entitlements, notifying usage state changes. */
-function serveEntitlements() {
-    return entitlement.handle({
-        create: async (call, next) => {
-            // notify the first state
-            const row = await next();
-            await notifyState(call, row, null);
+/** Serve entitlements, deriving each account's and notifying usage state changes. */
+function serveEntitlements(metering: Metering) {
+    return entitlement.implement({
+        methods: {
+            derive: async (call) => {
+                // derive the account's entitlements and allowances
+                await Entitlement.derive(call, call.input.accountId, metering);
 
-            return row;
-        },
-        update: async (call, next) => {
-            // notify a changed state
-            const previous = call.requireTarget().state;
-            const row = await next();
-            await notifyState(call, row, previous);
-
-            return row;
-        },
-    });
-}
-
-/** Serve product features, granting only declared features of packages the seller's account publishes. */
-function serveProductFeatures(catalog: (packageId: PackageId) => Promise<Catalog>) {
-    return productFeature.handle({
-        create: {
-            authorize: (call) => requireGrant(call.input, call.scope, call.database, catalog),
-        },
-        update: {
-            authorize: (call) =>
-                requireGrant(
-                    { ...call.requireTarget(), ...call.input },
-                    call.scope,
-                    call.database,
-                    catalog,
-                ),
-        },
-    });
-}
-
-/** Serve sellers, opening each one's connected account at the provider. */
-function serveSellers(billing: Billing) {
-    return seller.handle({
-        create: {
-            prepare: async (call) => ({
-                providerId:
-                    billing.provider === undefined
-                        ? null
-                        : await billing.provider.openSeller(
-                              call.input.country,
-                              present(call.idempotencyKey, "a seller's idempotency key"),
-                          ),
-            }),
-            handler: (call, next) =>
-                next(call.with({ input: { ...call.input, providerId: call.prepared.providerId } })),
-        },
-        onboard: {
-            prepare: async (call) => {
-                const providerId = call.requireTarget().providerId;
-                if (providerId === null) {
-                    throw new ServiceError("PRECONDITION_FAILED", {
-                        message: "the seller has no connected account to onboard",
-                    });
-                }
-
-                return { url: await billing.requireProvider().onboard(providerId, call.input) };
+                return {};
             },
-            handler: async (call) => call.prepared,
+            create: async (call, next) => {
+                // notify the first state
+                const row = await next();
+                await Entitlement.notify(call, row, null);
+
+                return row;
+            },
+            update: async (call, next) => {
+                // notify a changed state
+                const previous = call.requireTarget().state;
+                const row = await next();
+                await Entitlement.notify(call, row, previous);
+
+                return row;
+            },
+        },
+    });
+}
+
+/** Serve product features, granting only declared features of the seller's own packages. */
+function serveProductFeatures(metering: Metering) {
+    const { catalog, publisher } = metering;
+    return productFeature.implement({
+        declaration: {
+            after: [product],
+            // refuse a grant the API refuses
+            resolve: async (name, declared, stack) => {
+                // check the grant under the declared product
+                const parentId = await stack.require(product, Stack.parent(name));
+                const grant = { ...FeatureGrant.parse(declared), parentId };
+                await ProductFeature.requireGrant(
+                    grant,
+                    stack.transaction.view(),
+                    catalog,
+                    publisher,
+                );
+
+                return declared;
+            },
+        },
+        methods: {
+            create: {
+                authorize: (call) =>
+                    ProductFeature.requireGrant(call.input, call.view(), catalog, publisher),
+            },
+            update: {
+                authorize: (call) =>
+                    ProductFeature.requireGrant(
+                        { ...call.requireTarget(), ...call.input },
+                        call.view(),
+                        catalog,
+                        publisher,
+                    ),
+            },
+        },
+    });
+}
+
+/** Serve sellers: the platform's own selling at once, others through a connected account. */
+function serveSellers(billing: Billing) {
+    return seller.implement({
+        declaration: {
+            // declare the platform's own seller active, which sells on the provider account itself
+            resolve: async (_name, declared, stack) => {
+                const accountId = account.identifier(await stack.enclosing());
+                const status = billing.isPlatform(accountId) ? { status: "active" } : {};
+
+                return { ...JsonValue.object(declared), ...status };
+            },
+            // keep a seller its stack stops declaring, which subscriptions and charges reference
+            retire: "kept",
+        },
+        methods: {
+            create: async (call, next) => {
+                // activate the platform's own seller, which sells on the provider account itself
+                const created = await next();
+                if (!billing.isPlatform(created.accountId)) {
+                    return created;
+                }
+                const [activated] = await call.mutate(call.service, [
+                    seller.call("activate", { id: created.id }),
+                ]);
+
+                return activated;
+            },
+            onboard: {
+                prepare: async (call) => {
+                    // refuse the platform's own seller, which has no connected account
+                    const row = call.requireTarget();
+                    if (billing.isPlatform(row.accountId)) {
+                        throw new ServiceError("PRECONDITION_FAILED", {
+                            message: "the platform sells on the provider account itself",
+                        });
+                    }
+
+                    // open the connected account once, then its onboarding page
+                    const provider = billing.requireProvider();
+                    const providerId =
+                        row.providerId ??
+                        (await provider.openSeller(row.country, `seller/${row.id}`));
+                    const url = await provider.onboard(providerId, call.input);
+
+                    return { url, providerId };
+                },
+                handle: async (call) => {
+                    // record a connected account opened now
+                    const { url, providerId } = call.prepared;
+                    const row = call.requireTarget();
+                    if (row.providerId === null) {
+                        await call.mutate(call.service, [
+                            seller.call("record", { id: row.id, providerId }),
+                        ]);
+                    }
+
+                    return { url };
+                },
+            },
         },
     });
 }
 
 /** Serve checkout sessions, settled by the provider's webhook. */
 function serveCheckouts(billing: Billing) {
-    return checkoutSession.handle({
-        create: {
-            authorize: (call) => Customer.require(call.database, account.identifier(call.scope)),
-            prepare: (call) => billing.prepareCheckout(call),
-            handler: (call, next) => billing.openCheckout(call, next),
+    return checkoutSession.implement({
+        methods: {
+            create: {
+                authorize: (call) => Customer.require(call, call.input.accountId),
+                prepare: (call) => billing.prepareCheckout(call),
+                handle: (call, next) => billing.openCheckout(call, next),
+                settle: (call, settled) => billing.settleCheckout(call, settled),
+            },
+            settle: (call) => Billing.settle(call),
         },
-        settle: (call) => Billing.settle(call),
     });
 }
 
-/** Serve subscriptions: followed as the provider bills them, changed between products, and closed each period onto its invoice. */
+/** Serve subscriptions: follow provider billing, change products, close periods onto invoices. */
 function serveSubscriptions(billing: Billing) {
-    return subscription.handle({
-        create: async (call, next) => {
-            await Customer.require(call.database, account.identifier(call.scope));
+    return subscription.implement({
+        methods: {
+            create: async (call, next) => {
+                await Customer.require(call, call.input.accountId);
 
-            return next();
+                return next();
+            },
+            closePeriod: {
+                prepare: (call) => billing.prepareClose(call),
+                handle: (call) => Billing.close(call),
+            },
+            change: {
+                prepare: (call) => billing.prepareChange(call),
+                handle: (call) => billing.change(call),
+            },
+            sync: (call) => Subscription.sync(call),
         },
-        closePeriod: {
-            prepare: (call) => billing.prepareClose(call),
-            handler: (call) => Billing.close(call),
-        },
-        cancel: (call) => call.update({ status: "canceled", canceledAt: call.now }),
-        change: {
-            prepare: (call) => billing.prepareChange(call),
-            handler: (call) => billing.change(call),
-        },
-        sync: (call) => syncSubscription(call),
     });
-}
-
-/** Require a seller's grant of a feature it publishes. */
-async function requireGrant(
-    grant: { readonly packageId: string; readonly feature: string; readonly value?: JsonValue },
-    scope: string,
-    database: DatabaseConnection,
-    catalog: (packageId: PackageId) => Promise<Catalog>,
-): Promise<void> {
-    // refuse a feature of a package another account publishes
-    const reference = CatalogReference.parse({ packageId: grant.packageId, name: grant.feature });
-    const declared = await catalog(reference.packageId);
-    await Seller.requirePublisher(database, account.identifier(scope), declared.package);
-
-    // refuse a value the feature's declaration rejects
-    declared.feature(reference).requireGrant(grant.value ?? null);
-}
-
-/** Require a default product without prices, at most one per seller. */
-async function requireDefault(
-    row: { readonly id: string; readonly isDefault?: boolean },
-    database: DatabaseConnection,
-): Promise<void> {
-    // refuse marking a product with prices as the default
-    if (row.isDefault !== true) {
-        return;
-    }
-    const [priced] = await database
-        .select({ id: price.table.id })
-        .from(price.table)
-        .where(eq(price.table.parentId, product.identifier(row.id)))
-        .limit(1);
-    if (priced !== undefined) {
-        throw new ServiceError("BAD_REQUEST", {
-            message: `product ${row.id} has prices, so it cannot be every account's default`,
-        });
-    }
-}
-
-/** Require a price of a product other than a default one, billing a declared meter, and its fee to cover the usage it includes. */
-async function requirePrice(
-    input: CallOf<typeof price, "create">["input"],
-    database: DatabaseConnection,
-    catalog: (packageId: PackageId) => Promise<Catalog>,
-): Promise<void> {
-    // refuse a price of a default product
-    const [owner] = await database
-        .select({ isDefault: product.table.isDefault })
-        .from(product.table)
-        .where(eq(product.table.id, product.identifier(String(input.parentId))));
-    if (owner?.isDefault === true) {
-        throw new ServiceError("BAD_REQUEST", {
-            message: `product ${String(input.parentId)} is every account's default, which has no prices`,
-        });
-    }
-
-    // refuse a meter no package declares
-    const { recurring } = input;
-    if (recurring.usage === "metered") {
-        (await catalog(recurring.meter.packageId)).meter(recurring.meter);
-    }
-
-    // refuse a fee below the usage it includes
-    requireFee(Price.terms(input));
-}
-
-/** Refuse a fee each period below the usage it includes, which would bill the buyer for usage they never paid. */
-function requireFee(terms: PriceTerms): void {
-    // read the fee of one unit of a licensed price
-    if (terms.recurring.usage !== "licensed") {
-        return;
-    }
-    const fee = Number(Rate.price(terms, 1));
-
-    // refuse a fee below the included usage
-    if (fee < terms.includedUsage) {
-        throw new ServiceError("BAD_REQUEST", {
-            message: `a price's included usage of ${terms.includedUsage} exceeds its fee of ${fee} ${terms.currency}`,
-        });
-    }
 }

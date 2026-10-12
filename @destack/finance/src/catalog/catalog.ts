@@ -44,7 +44,7 @@ export class Catalog {
         this.#skus = new Map(skus.map((sku) => [CatalogReference.key(sku.reference), sku]));
     }
 
-    /** Read each package's catalog from the release a registry's distribution tag names, each build's once. */
+    /** Read each package's catalog from the release a registry tag points at, once per build. */
     static tagged(
         registry: Pick<Registry, "open">,
         tag: string,

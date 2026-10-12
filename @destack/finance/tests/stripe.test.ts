@@ -1,10 +1,11 @@
-import { asc, eq } from "@destack/db";
+import { asc, eq, Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { present } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     charge,
     checkoutSession,
+    customer,
     Entitlement,
     invoice,
     price,
@@ -12,16 +13,23 @@ import {
     productFeature,
     seller,
     subscription,
+    SubscriptionItem,
     subscriptionItem,
 } from "../src/object/index.ts";
 import { ProviderEvent } from "../src/provider/index.ts";
-import { StripeProvider } from "../src/stripe/index.ts";
+import { Stripe, StripeProvider } from "../src/stripe/index.ts";
 import { type StripeDelivery, StripeFixture } from "../src/test/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
 import { calls, disk, diskSku, requests, storage } from "./fixture/storage.ts";
 
-/** The webhook endpoint finance serves Stripe's deliveries at. */
-const WEBHOOK = "https://finance.test/finance/webhooks/stripe";
+/** The webhook endpoint finance serves Stripe's deliveries at, below the machine's webhook mount. */
+const WEBHOOK = "https://finance--home--destack.destack.space/.destack/webhook/stripe";
+
+/** The pages Checkout returns buyers to. */
+const PAGES = {
+    successUrl: "https://destack.test/billing",
+    cancelUrl: "https://destack.test/plans",
+};
 
 /** The monthly fee of the Go plan, and the usage it includes, in euro cents. */
 const FEE = 900;
@@ -36,26 +44,24 @@ const MONTHLY = { interval: "month", intervalCount: 1 } as const;
 async function open(dialect: (typeof TEST_DIALECTS)[number]) {
     // bill through the fixture, reading its keys as the vault would hand them
     const stripe = new StripeFixture(Date.now());
-    const provider = new StripeProvider({
-        key: stripe.key,
-        webhookSecret: stripe.webhookSecret,
-        fetch: stripe.fetch,
-        pages: {
-            successUrl: "https://destack.test/billing",
-            cancelUrl: "https://destack.test/plans",
-        },
-        now: () => stripe.now * 1000,
+    const finance = await Finance.open(dialect, {
+        provider: (home) => new StripeProvider({ key: stripe.key, home, fetch: stripe.fetch }),
     });
-    const finance = await Finance.open(dialect, { provider });
+    const provider = present(finance.fixture.provider, "the Stripe provider");
     onTestFinished(() => finance.close());
 
-    // open Carol's connected account, finish its onboarding, and keep Acme's customer
+    // open Carol's connected account at her onboarding, finish it, and keep Acme's customer
     const offer = await finance.offer();
+    await finance.call("carol", seller, "onboard", {
+        id: offer.seller.id,
+        returnUrl: "https://destack.test/selling",
+        refreshUrl: "https://destack.test/selling/again",
+    });
     const deliver = (deliveries: readonly StripeDelivery[]) =>
         stripe.deliver(
             deliveries,
             async (request) => {
-                await ProviderEvent.receive(finance.server, provider, request);
+                await ProviderEvent.receive(finance.store, finance.fixture.home, provider, request);
 
                 return new Response(null, { status: 204 });
             },
@@ -78,11 +84,12 @@ async function offerPlan(
     includedUsage = 0,
 ) {
     // create the product granting calls
-    const plan = await finance.call("carol", product, "create", ids.shop, {
+    const plan = await finance.call("carol", product, "create", {
+        accountId: ids.shop,
         name,
         description: `The ${name} plan.`,
     });
-    await finance.call("carol", productFeature, "create", ids.shop, {
+    await finance.call("carol", productFeature, "create", {
         parentId: plan.id,
         packageId: storage.id,
         feature: calls.name,
@@ -92,14 +99,14 @@ async function offerPlan(
     // price it, the licensed fee including the usage
     for (const terms of prices) {
         const isFee = terms["unitAmount"] !== undefined;
-        await finance.call("carol", price, "create", ids.shop, {
+        await finance.call("carol", price, "create", {
             parentId: plan.id,
             ...terms,
             ...(isFee ? { includedUsage } : {}),
         });
     }
 
-    return { scope: ids.shop, id: plan.id };
+    return { scope: finance.fixture.home, id: plan.id };
 }
 
 /** Offer the Go plan: 9 euro including 9 euro of usage, requests at 10 cents each and disk at its list price. */
@@ -125,19 +132,20 @@ function offerGo(finance: Finance) {
 
 /** Offer the free plan as Carol's default product, granting unlimited calls without prices. */
 async function offerFree(finance: Finance) {
-    const plan = await finance.call("carol", product, "create", ids.shop, {
+    const plan = await finance.call("carol", product, "create", {
+        accountId: ids.shop,
         name: "Free",
         description: "The Free plan.",
         isDefault: true,
     });
-    await finance.call("carol", productFeature, "create", ids.shop, {
+    await finance.call("carol", productFeature, "create", {
         parentId: plan.id,
         packageId: storage.id,
         feature: calls.name,
         value: null,
     });
 
-    return { scope: ids.shop, id: plan.id };
+    return { scope: finance.fixture.home, id: plan.id };
 }
 
 /** Read the buyer's subscriptions with their items' provider identifiers, oldest first. */
@@ -145,7 +153,7 @@ async function subscriptions(finance: Finance) {
     const rows = await finance.test.database
         .select()
         .from(subscription.table)
-        .where(eq(subscription.table.scope, ids.buyer))
+        .where(eq(subscription.table.accountId, ids.buyer))
         .orderBy(asc(subscription.table.createdAt));
     const items = await finance.test.database.select().from(subscriptionItem.table);
 
@@ -154,7 +162,7 @@ async function subscriptions(finance: Finance) {
         isBilled: row.providerId !== null,
         items: items
             .filter((item) => item.parentId === row.id)
-            .map((item) => [item.terms.recurring?.usage, item.providerId !== null]),
+            .map((item) => [item.terms.recurring.usage, item.providerId !== null]),
     }));
 }
 
@@ -164,7 +172,9 @@ test.each(TEST_DIALECTS)(
         // open a checkout of the Go plan as Alice
         const { stripe, finance, deliver } = await open(dialect);
         const go = await offerGo(finance);
-        const session = await finance.call("alice", checkoutSession, "create", ids.buyer, {
+        const session = await finance.call("alice", checkoutSession, "create", {
+            ...PAGES,
+            accountId: ids.buyer,
             product: go,
             currency: "EUR",
         });
@@ -223,9 +233,50 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
+    "replace an abandoned checkout by expiring it at Stripe, and refuse another once the buyer paid the open one on %s",
+    async (dialect) => {
+        // open a checkout of Go twice, as a buyer coming back after closing the page
+        const { stripe, finance, deliver } = await open(dialect);
+        const go = await offerGo(finance);
+        const checkout = () =>
+            finance.call("alice", checkoutSession, "create", {
+                ...PAGES,
+                accountId: ids.buyer,
+                product: go,
+                currency: "EUR",
+            });
+        const abandoned = await checkout();
+        const current = await checkout();
+
+        // pay the current one, and refuse a third before Stripe reports the payment
+        const paid = stripe.complete(present(current.providerId, "the current session"));
+        const refused = await refusal(checkout());
+        await deliver(paid);
+        const sessions = await finance.test.database
+            .select({ id: checkoutSession.table.id, status: checkoutSession.table.status })
+            .from(checkoutSession.table);
+
+        expect({
+            sessions: Object.fromEntries(sessions.map((row) => [row.id, row.status])),
+            atStripe: stripe.status(present(abandoned.providerId, "the abandoned session")),
+            refused,
+            subscriptions: (await subscriptions(finance)).map((row) => row.status),
+        }).toEqual({
+            sessions: { [abandoned.id]: "expired", [current.id]: "complete" },
+            atStripe: "expired",
+            refused: [
+                "CONFLICT",
+                `checkout session ${current.id} is paid, and its subscription starts once the provider reports it`,
+            ],
+            subscriptions: ["active"],
+        });
+    },
+);
+
+test.each(TEST_DIALECTS)(
     "start a plan including usage at no spending past it, and a pay-as-you-go plan without a spending limit on %s",
     async (dialect) => {
-        // subscribe through Checkout to Go and to a plan billing requests past a fee of nothing
+        // subscribe Acme's buyer to Go and Dave's account to a plan billing requests past a fee of nothing, both through Checkout
         const { stripe, finance, deliver } = await open(dialect);
         const metered = await offerPlan(finance, "Metered", [
             {
@@ -239,8 +290,19 @@ test.each(TEST_DIALECTS)(
                 recurring: { ...MONTHLY, usage: "metered", meter: requests.reference },
             },
         ]);
-        for (const plan of [await offerGo(finance), metered]) {
-            const session = await finance.call("alice", checkoutSession, "create", ids.buyer, {
+        await finance.call("dave", customer, "create", {
+            accountId: ids.destack,
+            email: "billing@destack.test",
+            name: "Destack",
+        });
+        const purchases = [
+            ["alice", ids.buyer, await offerGo(finance)],
+            ["dave", ids.destack, metered],
+        ] as const;
+        for (const [person, accountId, plan] of purchases) {
+            const session = await finance.call(person, checkoutSession, "create", {
+                ...PAGES,
+                accountId,
                 product: plan,
                 currency: "EUR",
             });
@@ -251,14 +313,19 @@ test.each(TEST_DIALECTS)(
 
         // keep Go's spending at its included usage, and leave the other's unlimited
         const rows = await finance.test.database
-            .select({
-                includedUsage: subscription.table.includedUsage,
-                spendingLimit: subscription.table.spendingLimit,
-            })
+            .select()
             .from(subscription.table)
-            .where(eq(subscription.table.scope, ids.buyer))
             .orderBy(asc(subscription.table.createdAt));
-        expect(rows).toEqual([
+        const snapshot = Snapshot.live(finance.test.database);
+        const terms = await Promise.all(
+            rows.map(async (row) => ({
+                includedUsage: SubscriptionItem.includedUsage(
+                    await snapshot.rows(subscriptionItem.table, { parentId: row.id }),
+                ),
+                spendingLimit: row.spendingLimit,
+            })),
+        );
+        expect(terms).toEqual([
             { includedUsage: FEE, spendingLimit: 0 },
             { includedUsage: 0, spendingLimit: null },
         ]);
@@ -271,7 +338,9 @@ test.each(TEST_DIALECTS)(
         // subscribe to Go through Checkout
         const { stripe, finance, deliver } = await open(dialect);
         const go = await offerGo(finance);
-        const session = await finance.call("alice", checkoutSession, "create", ids.buyer, {
+        const session = await finance.call("alice", checkoutSession, "create", {
+            ...PAGES,
+            accountId: ids.buyer,
             product: go,
             currency: "EUR",
         });
@@ -280,7 +349,7 @@ test.each(TEST_DIALECTS)(
         );
         await finance.entitle();
 
-        // route 72 requests as a cell would, twice
+        // route 72 requests as a cloud machine would, twice
         const requested = {
             id: "1",
             source: "/spaces/a",
@@ -342,49 +411,81 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "refuse a webhook delivery whose payload changed after Stripe signed it on %s",
+    "apply only the event Stripe keeps, refusing an unknown event, and leave another home's events on %s",
     async (dialect) => {
         // open a checkout of the Go plan
         const { stripe, provider, finance } = await open(dialect);
         const go = await offerGo(finance);
-        const session = await finance.call("alice", checkoutSession, "create", ids.buyer, {
+        const session = await finance.call("alice", checkoutSession, "create", {
+            ...PAGES,
+            accountId: ids.buyer,
             product: go,
             currency: "EUR",
         });
+        const post = (body: unknown) =>
+            ProviderEvent.receive(
+                finance.store,
+                finance.fixture.home,
+                provider,
+                new Request(WEBHOOK, { method: "POST", body: JSON.stringify(body) }),
+            );
 
-        // deliver its completion, its payload changed on the way
-        const [completed] = stripe.complete(
-            present(session.providerId, "the session's provider identifier"),
+        // refuse an event Stripe never sent
+        const forged = await refusal(
+            post({ id: "evt_forged", type: "checkout.session.completed" }),
         );
-        const failure = await refusal(
-            stripe.deliver(
-                [present(completed, "completed")],
-                async (request) => {
-                    const changed = (await request.text()).replace("complete", "completed");
-                    await ProviderEvent.receive(
-                        finance.server,
-                        provider,
-                        new Request(request.url, {
-                            method: "POST",
-                            headers: request.headers,
-                            body: changed,
-                        }),
-                    );
 
-                    return new Response(null, { status: 204 });
+        // complete the session from the event Stripe keeps, whatever the delivery claims
+        const [completed] = stripe.complete(present(session.providerId, "the session"));
+        await stripe.deliver(
+            [present(completed, "completed")],
+            async (request) => {
+                const delivered = await request.json();
+                await post({ ...delivered, type: "checkout.session.expired" });
+
+                return new Response(null, { status: 204 });
+            },
+            WEBHOOK,
+        );
+
+        // leave an invoice of another home's customer
+        stripe.objects.set("cus_elsewhere", {
+            id: "cus_elsewhere",
+            object: "customer",
+            metadata: { destack_home: "space-elsewhere" },
+        });
+        const statuses = await stripe.deliver(
+            [
+                {
+                    type: "invoice.created",
+                    object: { id: "in_elsewhere", object: "invoice", customer: "cus_elsewhere" },
                 },
-                WEBHOOK,
-            ),
-        );
+            ],
+            async (request) => {
+                await post(await request.json());
 
-        // keep the session open
+                return new Response(null, { status: 204 });
+            },
+            WEBHOOK,
+        );
         const [kept] = await finance.test.database
             .select({ status: checkoutSession.table.status })
             .from(checkoutSession.table);
-        expect({ failure, kept }).toEqual({
-            failure: ["UNAUTHORIZED", "forged stripe signature"],
-            kept: { status: "open" },
-        });
+        const invoices = await finance.test.database
+            .select({ providerId: invoice.table.providerId })
+            .from(invoice.table);
+
+        expect({ forged, kept, statuses, invoices: invoices.map((row) => row.providerId) }).toEqual(
+            {
+                forged: [
+                    "NOT_FOUND",
+                    "stripe keeps no /v1/events/evt_forged: No such object: 'evt_forged'",
+                ],
+                kept: { status: "complete" },
+                statuses: [204],
+                invoices: [],
+            },
+        );
     },
 );
 
@@ -399,7 +500,9 @@ test.each(TEST_DIALECTS)(
         const source = async () =>
             (await finance.entitlements(ids.buyer)).map((row) => row.source.type);
         const onFree = await source();
-        const session = await finance.call("alice", checkoutSession, "create", ids.buyer, {
+        const session = await finance.call("alice", checkoutSession, "create", {
+            ...PAGES,
+            accountId: ids.buyer,
             product: go,
             currency: "EUR",
         });
@@ -420,7 +523,7 @@ test.each(TEST_DIALECTS)(
             },
         ]);
         const [held] = await finance.test.database.select().from(subscription.table);
-        await finance.call("alice", subscription, "change", ids.buyer, {
+        await finance.call("alice", subscription, "change", {
             id: present(held, "the Go subscription").id,
             product: free,
             currency: "EUR",
@@ -462,7 +565,9 @@ test.each(
         // subscribe to Go through Checkout
         const { stripe, finance, deliver } = await open(dialect);
         const go = await offerGo(finance);
-        const session = await finance.call("alice", checkoutSession, "create", ids.buyer, {
+        const session = await finance.call("alice", checkoutSession, "create", {
+            ...PAGES,
+            accountId: ids.buyer,
             product: go,
             currency: "EUR",
         });
@@ -474,10 +579,10 @@ test.each(
         const [started] = await finance.test.database
             .select({ id: subscription.table.id, spendingLimit: subscription.table.spendingLimit })
             .from(subscription.table)
-            .where(eq(subscription.table.scope, ids.buyer));
+            .where(eq(subscription.table.accountId, ids.buyer));
         const held = present(started, "the started subscription");
         if (spendingLimit !== held.spendingLimit) {
-            await finance.call("alice", subscription, "update", ids.buyer, {
+            await finance.call("alice", subscription, "update", {
                 id: held.id,
                 spendingLimit,
             });
@@ -540,5 +645,46 @@ test.each(
             ],
             total: FEE + billed - FEE,
         });
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "apply an invoice event once however often and however concurrently Stripe delivers it, and mirror Stripe's current invoice whatever order its events arrive in, on %s",
+    async (dialect) => {
+        // complete a checkout of Go, keeping back the paid invoice's event
+        const { stripe, finance, deliver } = await open(dialect);
+        const go = await offerGo(finance);
+        const session = await finance.call("alice", checkoutSession, "create", {
+            ...PAGES,
+            accountId: ids.buyer,
+            product: go,
+            currency: "EUR",
+        });
+        const [completed, paid] = stripe.complete(
+            present(session.providerId, "the session's provider identifier"),
+        );
+        await deliver([present(completed, "the completed checkout")]);
+
+        // apply the paid invoice's event twice at once, then once more
+        const event = {
+            id: "evt_paid",
+            time: stripe.now * 1000,
+            kind: "invoice",
+            invoice: Stripe.invoice(present(paid, "the paid invoice").object),
+        } as const;
+        const apply = () =>
+            ProviderEvent.apply(finance.store, finance.fixture.home, "stripe/evt_paid", event);
+        await Promise.all([apply(), apply()]);
+        await apply();
+
+        // deliver the invoice's draft again after it was paid
+        const draft = { ...present(paid, "the paid invoice").object, status: "draft" };
+        await deliver([{ type: "invoice.created", object: draft }]);
+
+        // keep one invoice, paid as Stripe keeps it now
+        const mirrored = await finance.test.database
+            .select({ status: invoice.table.status })
+            .from(invoice.table);
+        expect(mirrored).toEqual([{ status: "paid" }]);
     },
 );

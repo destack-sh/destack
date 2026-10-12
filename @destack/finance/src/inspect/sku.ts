@@ -12,7 +12,7 @@ export function describeSku(sku: Sku): SkuDescription {
     return { ...sku.definition, package: sku.package };
 }
 
-/** Plan a SKU's change between releases: new prices and sources, the same provider, meter and unit. */
+/** Plan a SKU's change between releases: new prices and sources, same provider, meter, unit. */
 export const compareSku: Comparator = (before, after) => {
     // refuse a change of what the SKU's units measure
     const earlier = SkuDescription.parse(before.description);
@@ -32,14 +32,8 @@ export const compareSku: Comparator = (before, after) => {
 };
 
 /** List a SKU's term: what it prices and in which unit. */
-export function skuVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
-    const sku = SkuDescription.parse(input);
+export function skuVocabulary(declared: Sku): Record<string, JsonValue> {
+    const { name, provider, service, pricingUnit } = declared.definition;
 
-    return {
-        [Address.join("sku", sku.name)]: {
-            provider: sku.provider,
-            service: sku.service,
-            pricingUnit: sku.pricingUnit,
-        },
-    };
+    return { [Address.join("sku", name)]: { provider, service, pricingUnit } };
 }

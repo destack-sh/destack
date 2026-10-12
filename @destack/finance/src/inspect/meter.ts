@@ -12,7 +12,7 @@ export function describeMeter(meter: Meter): MeterDescription {
     return { ...meter.definition, package: meter.package };
 }
 
-/** Plan a meter's change between releases: keep how it counts, which usage counted so far follows. */
+/** Plan a meter's change between releases: keep how it counts, as counted usage follows it. */
 export const compareMeter: Comparator = (before, after) => {
     // refuse a change of aggregation or unit
     const earlier = MeterDescription.parse(before.description);
@@ -30,10 +30,8 @@ export const compareMeter: Comparator = (before, after) => {
 };
 
 /** List a meter's term: how it counts. */
-export function meterVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
-    const meter = MeterDescription.parse(input);
+export function meterVocabulary(declared: Meter): Record<string, JsonValue> {
+    const { name, aggregation, unit } = declared.definition;
 
-    return {
-        [Address.join("meter", meter.name)]: { aggregation: meter.aggregation, unit: meter.unit },
-    };
+    return { [Address.join("meter", name)]: { aggregation, unit } };
 }

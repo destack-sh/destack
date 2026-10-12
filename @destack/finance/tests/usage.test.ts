@@ -1,8 +1,7 @@
 import { allowance } from "@destack/account/object";
-import { asc, eq } from "@destack/db";
+import { asc, eq, Snapshot } from "@destack/db";
 import { announcement } from "@destack/notification";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { SystemCall } from "@destack/object";
 import { aligned, type JsonObject } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
@@ -29,6 +28,9 @@ import {
     stored,
 } from "./fixture/storage.ts";
 import { CatalogReference } from "@destack/finance";
+import { Caller } from "@destack/access";
+import { RequestId } from "@destack/service/request";
+import { isServiceError } from "@destack/service/error";
 
 /** The start of the first billing period. */
 const START = Date.UTC(2026, 9, 1);
@@ -71,12 +73,13 @@ async function offerPlan(
     prices: readonly JsonObject[],
 ): Promise<{ readonly scope: string; readonly id: string }[]> {
     // create the product with its grants
-    const plan = await finance.call("carol", product, "create", ids.shop, {
+    const plan = await finance.call("carol", product, "create", {
+        accountId: ids.shop,
         name: "Plan",
         description: "A plan.",
     });
     for (const [feature, value] of grants) {
-        await finance.call("carol", productFeature, "create", ids.shop, {
+        await finance.call("carol", productFeature, "create", {
             parentId: plan.id,
             packageId: storage.id,
             feature: feature.name,
@@ -87,11 +90,11 @@ async function offerPlan(
     // create its prices
     const created = [];
     for (const terms of prices) {
-        const row = await finance.call("carol", price, "create", ids.shop, {
+        const row = await finance.call("carol", price, "create", {
             parentId: plan.id,
             ...terms,
         });
-        created.push({ scope: ids.shop, id: row.id });
+        created.push({ scope: finance.fixture.home, id: row.id });
     }
 
     return created;
@@ -116,54 +119,59 @@ async function offerFree(
     return aligned(prices, 0);
 }
 
-/** Subscribe the buyer to prices for a period as the provider would, active at once, including the usage its prices include when given. */
+/** Subscribe the buyer to prices for a period as the provider would, active at once. */
 async function subscribe(
     finance: Finance,
     offer: Offer,
     references: readonly { readonly scope: string; readonly id: string }[],
     period: { readonly start: number; readonly end: number },
-    includedUsage = 0,
 ): Promise<Subscription> {
     // create the subscription with an item per price
     const input = {
         seller: offer.seller,
         currentPeriodStart: period.start,
         currentPeriodEnd: period.end,
-        includedUsage,
         providerId: `sub_${crypto.randomUUID()}`,
     };
     const row = aligned(
-        await finance.server.executeAsSystem(
-            subscription,
-            "create",
-            [{ scope: ids.buyer, input }],
-            Date.now(),
-        ),
+        await finance.store.mutate(Caller.of(finance.store.principal, Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [
+                subscription.call("create", {
+                    ...subscription.in(finance.fixture.home),
+                    accountId: ids.buyer,
+                    ...input,
+                }),
+            ],
+        }),
         0,
     );
     for (const reference of references) {
-        const offered = await Price.offer(finance.test.database, reference);
-        await finance.server.executeAsSystem(
-            subscriptionItem,
-            "create",
-            [{ scope: ids.buyer, input: { parentId: row.id, price: reference, ...offered } }],
-            Date.now(),
-        );
+        const offered = await Price.offer(Snapshot.live(finance.test.database), reference);
+        await finance.store.mutate(Caller.of(finance.store.principal, Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [
+                subscriptionItem.call("create", {
+                    ...subscriptionItem.in(finance.fixture.home),
+                    parentId: row.id,
+                    price: reference,
+                    ...offered,
+                }),
+            ],
+        });
     }
 
     // activate it
     return aligned(
-        await finance.server.executeAsSystem(
-            subscription,
-            "activate",
-            [SystemCall.of(row)],
-            Date.now(),
-        ),
+        await finance.store.mutate(Caller.of(finance.store.principal, Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [subscription.call("activate", subscription.target(row))],
+        }),
         0,
     );
 }
 
-/** Route one use to the buyer's account as a cell would, by source and identity, and rate it. */
+/** Route one use to the buyer's account as a cloud machine would, by source and identity, and rate it. */
 async function append(
     finance: Finance,
     event: {
@@ -299,7 +307,7 @@ test.each(TEST_DIALECTS)(
         const period = { start: START, end: END };
         const read = async () => ({
             capped: await resolved(finance, diskLimit),
-            billed: await finance.fixture.meterUsage.read(ids.buyer, disk, period),
+            billed: await finance.fixture.metering.read(ids.buyer, disk, period),
         });
 
         // keep 2 GB for the first half of the month, its share of the average half of 2 GB: blocked at the level
@@ -338,6 +346,7 @@ test.each(TEST_DIALECTS)(
                 {
                     currency: "EUR",
                     unitAmount: FEE,
+                    includedUsage: FEE,
                     recurring: { ...MONTHLY, usage: "licensed" },
                 },
                 {
@@ -347,7 +356,7 @@ test.each(TEST_DIALECTS)(
                 },
             ],
         );
-        const active = await subscribe(finance, offer, prices, { start: START, end: END }, FEE);
+        const active = await subscribe(finance, offer, prices, { start: START, end: END });
         await finance.entitle();
         const read = () => resolved(finance, calls);
 
@@ -371,7 +380,7 @@ test.each(TEST_DIALECTS)(
         states.push(await read());
 
         // limit the spend past the included usage to 1 euro: near the 10 euro budget, then blocked at it
-        await finance.call("alice", subscription, "update", ids.buyer, {
+        await finance.call("alice", subscription, "update", {
             id: active.id,
             spendingLimit: 100,
         });
@@ -429,15 +438,19 @@ test.each(TEST_DIALECTS)(
         const paid = await offerPlan(
             finance,
             [[capacity, CAPACITY]],
-            [{ currency: "EUR", unitAmount: FEE, recurring: { ...MONTHLY, usage: "licensed" } }],
+            [
+                {
+                    currency: "EUR",
+                    unitAmount: FEE,
+                    includedUsage: FEE,
+                    recurring: { ...MONTHLY, usage: "licensed" },
+                },
+            ],
         );
-        const ended = await subscribe(
-            finance,
-            offer,
-            paid,
-            { start: now - 30 * DAY, end: now - DAY },
-            FEE,
-        );
+        const ended = await subscribe(finance, offer, paid, {
+            start: now - 30 * DAY,
+            end: now - DAY,
+        });
         const late = await refusal(
             append(finance, {
                 id: "3",
@@ -464,12 +477,139 @@ test.each(TEST_DIALECTS)(
     },
 );
 
+test.each(TEST_DIALECTS)(
+    "rate an account's usage once when two ratings of it overlap on %s",
+    async (dialect) => {
+        // receive 100 and 50 GB-months in two spaces, then rate twice at once
+        const { finance } = await open(dialect);
+        const now = Date.now();
+        await finance.fixture.receive(
+            ids.buyer,
+            [
+                ["1", "/spaces/a", 100],
+                ["2", "/spaces/b", 50],
+            ].map(([id, source, gigabytes]) => ({
+                id: String(id),
+                source: String(source),
+                meter: { packageId: storage.id, name: disk.name },
+                quantity: Number(gigabytes) * GB,
+                level: Number(gigabytes) * GB,
+                sku: diskSku.reference,
+                time: now,
+            })),
+        );
+        await Promise.all([finance.fixture.rate(ids.buyer), finance.fixture.rate(ids.buyer)]);
+
+        // count each space's use once
+        expect(await charges(finance)).toEqual([
+            ["Usage", "/spaces/a", 100, "200", "0", "open"],
+            ["Usage", "/spaces/b", 50, "100", "0", "open"],
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "report usage of a period its subscription billed already, and rate the usage after it in the same page, on %s",
+    async (dialect) => {
+        // subscribe the buyer to a plan whose period started yesterday, reporting refused uses
+        const reported: unknown[] = [];
+        const { finance, offer } = await open(dialect, {
+            report: (error) => reported.push(error),
+        });
+        const now = Date.now();
+        const paid = await offerPlan(
+            finance,
+            [[capacity, CAPACITY]],
+            [
+                {
+                    currency: "EUR",
+                    unitAmount: FEE,
+                    includedUsage: FEE,
+                    recurring: { ...MONTHLY, usage: "licensed" },
+                },
+            ],
+        );
+        const running = await subscribe(finance, offer, paid, {
+            start: now - DAY,
+            end: now + 29 * DAY,
+        });
+
+        // use storage before the period and in it
+        const use = (id: string, time: number) => ({
+            id,
+            source: "/spaces/a",
+            meter: { packageId: storage.id, name: disk.name },
+            quantity: GB,
+            level: GB,
+            sku: diskSku.reference,
+            time,
+        });
+        await finance.fixture.use(ids.buyer, [use("1", now - 2 * DAY), use("2", now)]);
+
+        // report the earlier use, and rate the later one into the period
+        expect({
+            reported: reported.map((error) =>
+                isServiceError(error) ? [error.code, error.message] : error,
+            ),
+            rated: await charges(finance),
+        }).toEqual({
+            reported: [
+                [
+                    "BAD_REQUEST",
+                    `usage at ${now - 2 * DAY} falls before the current period of subscription ${running.id}, which billed it already`,
+                ],
+            ],
+            rated: [["Usage", "/spaces/a", 1, "2", "2", "open"]],
+        });
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "keep one credit line per account, seller and period, refusing a second one of the same seller, on %s",
+    async (dialect) => {
+        // credit the buyer for the period from Carol's shop and from another seller
+        const { finance, offer } = await open(dialect);
+        const credit = (sellerId: string) =>
+            refusal(
+                finance.store.mutate(Caller.of(finance.store.principal, Date.now()), {
+                    id: RequestId.create(Date.now()),
+                    calls: [
+                        charge.call("create", {
+                            ...charge.in(finance.fixture.home),
+                            accountId: ids.buyer,
+                            seller: { scope: finance.fixture.home, id: sellerId },
+                            chargeCategory: "Credit",
+                            chargePeriodStart: START,
+                            chargePeriodEnd: END,
+                            billingCurrency: "EUR",
+                            listCost: "0",
+                            billedCost: "-900",
+                            effectiveCost: "-900",
+                            status: "invoiced",
+                        }),
+                    ],
+                }),
+            );
+        const other = "seller-019f5530-8000-7000-8000-0000000000ee";
+
+        expect([
+            await credit(offer.seller.id),
+            await credit(other),
+            await credit(offer.seller.id),
+        ]).toEqual([
+            "done",
+            "done",
+            ["CONFLICT", "another charge has the same account, seller, and chargePeriodStart"],
+        ]);
+    },
+);
+
 /** Read the buyer's charges as category, resource, quantity in pricing units, list and billed cost and status. */
 async function charges(finance: Finance) {
     const rows = await finance.test.database
         .select()
         .from(charge.table)
-        .where(eq(charge.table.scope, ids.buyer))
+        .where(eq(charge.table.accountId, ids.buyer))
         .orderBy(asc(charge.table.chargeCategory), asc(charge.table.resourceId));
 
     return rows.map((row) => [
@@ -511,7 +651,11 @@ async function allowances(finance: Finance) {
     const rows = await finance.test.database
         .select()
         .from(allowance.table)
-        .where(eq(allowance.table.scope, ids.buyer));
+        .where(eq(allowance.table.accountId, ids.buyer));
 
-    return rows.map((row) => [row.resource, row.limit, row.used, row.state]);
+    return rows.map(({ resource, grant }) =>
+        grant.kind === "metered"
+            ? [resource, grant.limit, grant.used, grant.state]
+            : [resource, grant],
+    );
 }

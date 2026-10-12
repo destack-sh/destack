@@ -5,10 +5,10 @@ import { schema } from "@destack/schema";
 /** How long an hour is, in milliseconds. */
 const HOUR = 60 * 60 * 1000;
 
-/** How long usage stays as billing evidence: ten years, as invoices are kept. */
+/** How long usage stays, ten years, as long as the invoices billing it are kept. */
 const RETENTION = 10 * 365 * 24 * HOUR;
 
-/** A metered use of a resource, measured where it ran and copied to the account paying for it, which rates it. */
+/** A metered use of a resource, measured where it ran and copied to the paying account. */
 export const usage = defineEventKind({
     name: "usage",
     description:
@@ -16,7 +16,7 @@ export const usage = defineEventKind({
     keys: schema.object({
         /** The meter measuring the use, by its package and name. */
         meter: schema.string(),
-        /** The SKU rating the use on the host it ran on, null for a seller's own meter. */
+        /** The SKU rating the use on the machine it ran on, null for a seller's own meter. */
         sku: schema.string().nullable(),
         /** The installation that used it, null for the scope itself. */
         installation: schema.string().nullable(),
@@ -53,7 +53,7 @@ export interface Period {
 
 /** The billing periods usage falls in. */
 export const Period = {
-    /** Read the calendar month in UTC a time falls in, the period of usage no subscription bills. */
+    /** Read the UTC calendar month of a time, the period of usage without a subscription. */
     month(time: number): Period {
         const date = new Date(time);
 

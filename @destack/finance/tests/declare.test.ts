@@ -42,21 +42,19 @@ test("read described features and meters back from a build, and relate metered f
     ]).toEqual([features.map((feature) => describeFeature(feature)), requests.definition]);
 
     // relate the metered feature to its meter, and the others to nothing
-    expect([featureSymbols(describeFeature(calls)), featureSymbols(describeFeature(sync))]).toEqual(
+    expect([featureSymbols(calls), featureSymbols(sync)]).toEqual([
         [
-            [
-                {
-                    relationships: [
-                        {
-                            kind: "reads",
-                            symbol: { kind: "meter", name: "api.requests", packageId: storage.id },
-                        },
-                    ],
-                },
-            ],
-            [{ relationships: [] }],
+            {
+                relationships: [
+                    {
+                        kind: "reads",
+                        symbol: { kind: "meter", name: "api.requests", packageId: storage.id },
+                    },
+                ],
+            },
         ],
-    );
+        [{ relationships: [] }],
+    ]);
 
     // refuse an undeclared feature
     expect(() => catalog.feature({ packageId: storage.id, name: "backup" })).toThrow(

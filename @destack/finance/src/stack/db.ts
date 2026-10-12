@@ -46,4 +46,4 @@ export const financeDatabase = defineDatabase({
 });
 
 /** The bucket keeping usage segments. */
-export const usageBucket = defineBucket({ name: "usage", spec: { write: "system" } });
+export const usageBucket = defineBucket({ name: "usage", spec: { write: "service" } });

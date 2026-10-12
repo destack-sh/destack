@@ -4,7 +4,7 @@ import { ServiceError } from "@destack/service/error";
 /** The Stripe API's origin. */
 export const STRIPE_API = "https://api.stripe.com";
 
-/** The API version every request pins, where periods live on subscription items. */
+/** The API version every request sends, where periods live on subscription items. */
 export const STRIPE_VERSION = "2025-09-30.clover";
 
 /** A form parameter as Stripe's API encodes it: scalars, nested objects and arrays. */
@@ -23,11 +23,19 @@ export interface StripeSecret {
     read(): Promise<{ readonly value: { readonly encoding: string; readonly value: string } }>;
 }
 
+/** The secrets a Stripe client authenticates with. */
+export const StripeSecret = {
+    /** Hold a key given directly, such as one an operator's environment sets. */
+    of(key: string): StripeSecret {
+        return { read: async () => ({ value: { encoding: "text", value: key } }) };
+    },
+};
+
 /** A Stripe API client authenticating with a secret key read through the vault at each request. */
 export class StripeClient {
     /** The API key. */
     readonly #key: StripeSecret;
-    /** The fetch reaching the API. */
+    /** The fetch calling the API. */
     readonly #fetch: Fetch;
 
     /** Call Stripe with a vault secret's key through a fetch. */
@@ -36,14 +44,14 @@ export class StripeClient {
         this.#fetch = fetch;
     }
 
-    /** Send a request with form parameters, once per idempotency key, and read the JSON object Stripe answers. */
+    /** Send a form request once per idempotency key, and read Stripe's JSON object answer. */
     async request(
         method: "GET" | "POST" | "DELETE",
         path: string,
         parameters: Readonly<Record<string, StripeParameter>> = {},
         idempotencyKey?: string,
     ): Promise<Record<string, unknown>> {
-        // authenticate with the current key and pin the version
+        // authenticate with the current key and send the version
         const key = await StripeClient.text(this.#key);
         const headers = new Headers({
             authorization: `Bearer ${key}`,
@@ -64,9 +72,13 @@ export class StripeClient {
             new Request(url, { method, headers, ...(isRead ? {} : { body: form }) }),
         );
 
-        // refuse an error answer with Stripe's message
+        // refuse a missing object as missing, and any other error answer with Stripe's message
         const body: unknown = await response.json();
-        if (!response.ok || typeof body !== "object" || body === null) {
+        if (response.status === 404) {
+            throw new ServiceError("NOT_FOUND", {
+                message: `stripe keeps no ${path}: ${messageOf(body)}`,
+            });
+        } else if (!response.ok || typeof body !== "object" || body === null) {
             throw new ServiceError("BAD_GATEWAY", {
                 message: `stripe answered ${response.status} to ${method} ${path}: ${messageOf(body)}`,
             });
@@ -96,7 +108,7 @@ export class StripeClient {
     }
 }
 
-/** Append a parameter's form pairs, nesting arrays by index and objects by key, and skipping absent values. */
+/** Append a parameter's form pairs, nesting arrays by index and objects by key. */
 function appendPairs(pairs: [string, string][], name: string, value: StripeParameter): void {
     // skip absent values, and write scalars as they are
     if (value === undefined || value === null) {

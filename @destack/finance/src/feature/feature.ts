@@ -36,7 +36,7 @@ export const FeatureMetadata = defineSchema(
         name: CatalogName,
         /** What the feature grants. */
         description: schema.string().min(1),
-        /** The resource the feature's grant allows an account, absent for a feature no allowance derives from. */
+        /** The resource the feature's grant allows, absent for a feature without an allowance. */
         allowance: schema.enum(ALLOWANCE_RESOURCES).exactOptional(),
     }),
 );
@@ -94,7 +94,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
         return this.reference;
     }
 
-    /** Grant the feature at a value or limit, as a product declares it, refusing a value the feature rejects. */
+    /** Grant the feature at a value or limit as a product declares it, refusing invalid values. */
     grant(value: JsonValue | null): {
         readonly packageId: PackageId;
         readonly feature: string;
@@ -105,7 +105,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
         return { packageId: this.package.id, feature: this.name, value };
     }
 
-    /** Require the value a product's grant sets: none for access alone, a valid value, or a limit if any. */
+    /** Require the value a product's grant sets: none for access, a valid value, or a limit. */
     requireGrant(value: JsonValue | null): void {
         // read the value each kind accepts
         const definition = this.definition;

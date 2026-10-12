@@ -1,10 +1,11 @@
 import { asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { SystemCall } from "@destack/object";
 import { entitlement, price, product, productFeature, subscription } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
 import { storage, support } from "./fixture/storage.ts";
+import { Caller } from "@destack/access";
+import { RequestId } from "@destack/service/request";
 
 /** A month in milliseconds. */
 const MONTH = 30 * 86_400_000;
@@ -16,19 +17,20 @@ test.each(TEST_DIALECTS)(
         const finance = await Finance.open(dialect);
         onTestFinished(() => finance.close());
         const offer = await finance.offer();
-        const free = await finance.call("carol", product, "create", ids.shop, {
+        const free = await finance.call("carol", product, "create", {
+            accountId: ids.shop,
             name: "Free",
             description: "Community support.",
             isDefault: true,
         });
-        await finance.call("carol", productFeature, "create", ids.shop, {
+        await finance.call("carol", productFeature, "create", {
             parentId: free.id,
             packageId: storage.id,
             feature: support.name,
             value: "community",
         });
         const priced = await refusal(
-            finance.call("carol", price, "create", ids.shop, {
+            finance.call("carol", price, "create", {
                 parentId: free.id,
                 currency: "EUR",
                 unitAmount: 0,
@@ -39,24 +41,25 @@ test.each(TEST_DIALECTS)(
         // derive every account's entitlements, then again once the buyer subscribes to the paid plan
         const read = async () => {
             const rows = await finance.test.database
-                .select({ scope: entitlement.table.scope, source: entitlement.table.source })
+                .select({
+                    accountId: entitlement.table.accountId,
+                    source: entitlement.table.source,
+                })
                 .from(entitlement.table)
                 .where(eq(entitlement.table.feature, support.name))
-                .orderBy(asc(entitlement.table.scope));
+                .orderBy(asc(entitlement.table.accountId));
 
-            return rows.map((row) => [row.scope, row.source.type]);
+            return rows.map((row) => [row.accountId, row.source.type]);
         };
         await finance.entitle();
         const before = await read();
         await finance.customer();
         const now = Date.now();
         const subscribed = await finance.subscribe(offer, { start: now, end: now + MONTH });
-        await finance.server.executeAsSystem(
-            subscription,
-            "activate",
-            [SystemCall.of(subscribed)],
-            now,
-        );
+        await finance.store.mutate(Caller.of(finance.store.principal, now), {
+            id: RequestId.create(now),
+            calls: [subscription.call("activate", subscription.target(subscribed))],
+        });
         await finance.entitle();
 
         // grant the default to every account, and the paid plan's items alone to the buyer once it subscribes

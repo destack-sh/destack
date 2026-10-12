@@ -1,7 +1,7 @@
 import { graph } from "@destack/package";
 import { Address, Plan, type Comparator } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { schema, toJsonSchema, type JsonObject, type JsonValue } from "@destack/schema";
+import { schema, toJsonSchema, type JsonValue } from "@destack/schema";
 import { Feature } from "../feature/feature.ts";
 import { FeatureDescription } from "../feature/description.ts";
 import { CatalogReference } from "../catalog/reference.ts";
@@ -19,9 +19,7 @@ export function describeFeature(feature: Feature): FeatureDescription {
 
     // describe each kind with what its grants set
     if (definition.kind === "static") {
-        const value = schema
-            .record(schema.string(), schema.json())
-            .parse(toJsonSchema(definition.value));
+        const value = toJsonSchema(definition.value);
 
         return { ...described, kind: "static", value };
     } else if (definition.kind === "metered") {
@@ -36,7 +34,7 @@ export function describeFeature(feature: Feature): FeatureDescription {
     return { ...described, kind: "boolean" };
 }
 
-/** Plan a feature's change between releases: keep its kind, and accept every value earlier grants set. */
+/** Plan a feature's change between releases: keep its kind and accept earlier grant values. */
 export const compareFeature: Comparator = (before, after) => {
     // read both releases' features
     const earlier = FeatureDescription.parse(before.description);
@@ -68,8 +66,8 @@ export const compareFeature: Comparator = (before, after) => {
 };
 
 /** List a feature's term: its kind, and the meters a metered feature counts. */
-export function featureVocabulary(input: Record<string, JsonValue>): Record<string, JsonValue> {
-    const feature = FeatureDescription.parse(input);
+export function featureVocabulary(declared: Feature): Record<string, JsonValue> {
+    const feature = describeFeature(declared);
     const term = Address.join("feature", feature.name);
 
     return {
@@ -84,8 +82,8 @@ export function featureVocabulary(input: Record<string, JsonValue>): Record<stri
 }
 
 /** Read the meters a metered feature counts its usage with. */
-export function featureSymbols(input: JsonObject): graph.MemberSymbol[] {
-    const feature = FeatureDescription.parse(input);
+export function featureSymbols(declared: Feature): graph.MemberSymbol[] {
+    const feature = describeFeature(declared);
     const relationships =
         feature.kind === "metered"
             ? feature.meters.map((meter) => ({

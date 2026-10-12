@@ -1,11 +1,11 @@
-import { accessRelationship, principal, Relationship } from "@destack/access";
+import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { account, organisation, user } from "@destack/account/object";
-import { asc, eq, type DatabaseConnection, type Dialect } from "@destack/db";
+import { account, organisation, Residency, user } from "@destack/account/object";
+import { asc, eq, type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
 import type { TestDatabase } from "@destack/db/test";
-import type { CallableName, CallOutput, ObjectType } from "@destack/object";
-import { ObjectServer } from "@destack/object/server";
-import { aligned, schema, type Identifier, type JsonObject, type JsonValue } from "@destack/schema";
+import { Call, type CallableName, type CallOutput, type ObjectType } from "@destack/object";
+import { ObjectStore } from "@destack/object/server";
+import { aligned, schema, Identifier, type JsonObject, type JsonValue } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { subjectContext } from "@destack/service/test";
 import { Scope, Subject, type ObjectReference } from "@destack/sync";
@@ -14,7 +14,6 @@ import {
     customer,
     entitlement,
     type Entitlement,
-    type FeatureGrant,
     price,
     Price,
     product,
@@ -27,7 +26,7 @@ import {
 } from "../../src/object/index.ts";
 import type { serveFinance } from "../../src/server/index.ts";
 import { FinanceFixture, type FinanceFixtureOptions } from "../../src/test/index.ts";
-import type { Feature } from "../../src/feature/index.ts";
+import type { Feature, FeatureGrant } from "../../src/feature/index.ts";
 import type { Meter } from "../../src/meter/index.ts";
 import type { Package } from "@destack/package";
 import {
@@ -115,7 +114,7 @@ export class Finance {
     /** The isolated database. */
     readonly test: TestDatabase;
     /** The served finance objects. */
-    readonly server: ObjectServer<ReturnType<typeof serveFinance>>;
+    readonly store: ObjectStore;
     /** The served fixture. */
     readonly fixture: FinanceFixture;
 
@@ -123,7 +122,7 @@ export class Finance {
     private constructor(fixture: FinanceFixture) {
         this.fixture = fixture;
         this.test = fixture.test;
-        this.server = fixture.server;
+        this.store = fixture.store;
     }
 
     /** Open the service with Alice owning Acme's buyer account, Bob viewing it, Carol owning her shop, and Dave the destack account, billing through a provider when given. */
@@ -140,7 +139,6 @@ export class Finance {
             id: ids.acme,
             scope: Scope.universe.id,
             name: "Acme",
-            residencyId: "eu",
             payer: ids.payer,
             createdAt: 0,
             updatedAt: 0,
@@ -174,7 +172,8 @@ export class Finance {
     /** Offer Carol's Pro plan monthly, granting every feature. */
     async offer(): Promise<Offer> {
         // onboard the shop and offer the plan monthly
-        const shop = await this.call("carol", seller, "create", ids.shop, {
+        const shop = await this.call("carol", seller, "create", {
+            accountId: ids.shop,
             country: "AT",
             creditPrices: { EUR: "1", USD: "1", CHF: "1" },
         });
@@ -185,7 +184,7 @@ export class Finance {
             [calls, CALL_LIMIT],
             [storageLimit, STORAGE_LIMIT],
         ]);
-        const monthly = await this.call("carol", price, "create", ids.shop, {
+        const monthly = await this.call("carol", price, "create", {
             parentId: plan,
             currency: "EUR",
             unitAmount: 900,
@@ -194,8 +193,8 @@ export class Finance {
 
         return {
             product: plan,
-            seller: { scope: ids.shop, id: shop.id },
-            monthly: { scope: ids.shop, id: monthly.id },
+            seller: { scope: this.fixture.home, id: shop.id },
+            monthly: { scope: this.fixture.home, id: monthly.id },
         };
     }
 
@@ -205,14 +204,15 @@ export class Finance {
         grants: readonly (readonly [Feature, JsonValue])[],
     ): Promise<string> {
         // create the product
-        const created = await this.call("carol", product, "create", ids.shop, {
+        const created = await this.call("carol", product, "create", {
+            accountId: ids.shop,
             name,
             description: `The ${name} offer.`,
         });
 
         // grant each feature
         for (const [feature, value] of grants) {
-            await this.call("carol", productFeature, "create", ids.shop, {
+            await this.call("carol", productFeature, "create", {
                 parentId: created.id,
                 packageId: feature.package.id,
                 feature: feature.name,
@@ -225,7 +225,8 @@ export class Finance {
 
     /** Keep Acme's billing details as the buyer's customer, which subscribing and buying require. */
     async customer(): Promise<void> {
-        await this.call("alice", customer, "create", ids.buyer, {
+        await this.call("alice", customer, "create", {
+            accountId: ids.buyer,
             email: "billing@acme.test",
             name: "Acme",
         });
@@ -245,12 +246,16 @@ export class Finance {
             providerId: `sub_${crypto.randomUUID()}`,
         };
         const created = aligned(
-            await this.server.executeAsSystem(
-                subscription,
-                "create",
-                [{ scope: ids.buyer, input }],
-                Date.now(),
-            ),
+            await this.store.mutate(Caller.of(this.store.principal, Date.now()), {
+                id: RequestId.create(Date.now()),
+                calls: [
+                    subscription.call("create", {
+                        ...subscription.in(this.fixture.home),
+                        accountId: ids.buyer,
+                        ...input,
+                    }),
+                ],
+            }),
             0,
         );
 
@@ -266,7 +271,7 @@ export class Finance {
         reference: Offer["monthly"],
         grants?: readonly FeatureGrant[],
     ): Promise<SubscriptionItem> {
-        const offered = await Price.offer(this.test.database, reference);
+        const offered = await Price.offer(Snapshot.live(this.test.database), reference);
         const input = {
             parentId: parent.id,
             price: reference,
@@ -275,12 +280,15 @@ export class Finance {
         };
 
         return aligned(
-            await this.server.executeAsSystem(
-                subscriptionItem,
-                "create",
-                [{ scope: ids.buyer, input }],
-                Date.now(),
-            ),
+            await this.store.mutate(Caller.of(this.store.principal, Date.now()), {
+                id: RequestId.create(Date.now()),
+                calls: [
+                    subscriptionItem.call("create", {
+                        ...subscriptionItem.in(this.fixture.home),
+                        ...input,
+                    }),
+                ],
+            }),
             0,
         );
     }
@@ -295,26 +303,30 @@ export class Finance {
         return this.fixture.close();
     }
 
-    /** Call a method as a person in an account. */
+    /** Call a method as a person in the residency's home space, where finance keeps its rows. */
     async call<Type extends ObjectType, Name extends CallableName<Type>>(
         person: Person,
         object: Type,
         name: Name,
-        scope: string,
         input: JsonObject,
     ): Promise<CallOutput<Type, Name>> {
-        // place the call in the account through the object's route field
+        // place the call in the home space through the object's route field
         const field = object.route.field;
         if (field === undefined) {
             throw new TypeError("a scoped call needs an object routed by a field");
         }
 
-        return await this.server.call(
-            object,
-            name,
-            { [field]: scope, requestId: RequestId.create(), ...input },
-            subjectContext(subject(person), scope),
-        );
+        // read through a query, or write through a one-call mutation
+        const { home } = this.fixture;
+        const call = Call.record(object, name, { [field]: home, ...input });
+        const caller = subjectContext(subject(person), home).caller();
+        const result = object.method(name).mutates
+            ? this.store
+                  .mutate(caller, { id: RequestId.create(Date.now()), calls: [call] })
+                  .then(([written]) => written)
+            : this.store.query(caller, call);
+
+        return result as Promise<CallOutput<Type, Name>>;
     }
 
     /** Derive every account's entitlements, as the controller does after each change. */
@@ -332,7 +344,7 @@ export class Finance {
         return await this.test.database
             .select()
             .from(entitlement.table)
-            .where(eq(entitlement.table.scope, scope))
+            .where(eq(entitlement.table.accountId, scope))
             .orderBy(asc(entitlement.table.source), asc(entitlement.table.feature));
     }
 }
@@ -360,6 +372,21 @@ async function copyAccount(
         createdAt: 0,
         updatedAt: 0,
     });
+
+    // let the servers of its residency serve it
+    await database.insert(accessRelationship).values(
+        Relationship.encode(
+            {
+                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                object: reference,
+                relation: "resident",
+                subject: Residency.servers("eu"),
+                createdAt: 0,
+                expiresAt: null,
+            },
+            id,
+        ),
+    );
 
     return reference;
 }

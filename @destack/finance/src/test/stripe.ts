@@ -1,11 +1,7 @@
-import { StripeSignature } from "../stripe/signature.ts";
-import type { StripeSecret } from "../stripe/client.ts";
+import { StripeSecret } from "../stripe/client.ts";
 
 /** The API key the fixture accepts. */
 const API_KEY = "sk_test_destack";
-
-/** The webhook signing secret the fixture signs deliveries with. */
-const WEBHOOK_SECRET = "whsec_destack";
 
 /** A month in seconds, the fixture's billing period. */
 const MONTH_SECONDS = 30 * 86_400;
@@ -17,7 +13,7 @@ type StripeObject = Record<string, unknown>;
 export interface StripeDelivery {
     /** The event type, such as invoice.paid. */
     readonly type: string;
-    /** The object the event carries. */
+    /** The object the event is about. */
     readonly object: StripeObject;
 }
 
@@ -27,16 +23,14 @@ interface Route {
     readonly method: string;
     /** The path pattern, its identifier captured. */
     readonly pattern: RegExp;
-    /** Answer a request's parameters, with the captured identifier. */
-    readonly handle: (parameters: StripeObject, id: string) => StripeObject;
+    /** Answer a request's parameters, with the captured identifier, or refuse it. */
+    readonly handle: (parameters: StripeObject, id: string) => StripeObject | Response;
 }
 
 /** An in-process Stripe serving the API subset finance uses, after stripe-mock. */
 export class StripeFixture {
     /** The API key, as the vault would hand it. */
-    readonly key: StripeSecret = secretOf(API_KEY);
-    /** The webhook signing secret, as the vault would hand it. */
-    readonly webhookSecret: StripeSecret = secretOf(WEBHOOK_SECRET);
+    readonly key: StripeSecret = StripeSecret.of(API_KEY);
     /** The kept objects, by identifier. */
     readonly objects = new Map<string, StripeObject>();
     /** The answers kept per idempotency key. */
@@ -53,7 +47,12 @@ export class StripeFixture {
         this.now = Math.floor(now / 1000);
         this.#routes = [
             this.#route("POST", /^\/v1\/accounts$/u, (input) =>
-                this.#create("acct", { ...input, charges_enabled: false, payouts_enabled: false }),
+                this.#create("acct", {
+                    object: "account",
+                    ...input,
+                    charges_enabled: false,
+                    payouts_enabled: false,
+                }),
             ),
             this.#route("POST", /^\/v1\/account_links$/u, (input) => ({
                 object: "account_link",
@@ -69,7 +68,48 @@ export class StripeFixture {
                 this.#create("ii", { object: "invoiceitem", ...input }),
             ),
             this.#route("POST", /^\/v1\/checkout\/sessions$/u, (input) => this.#checkout(input)),
-            this.#route("GET", /^\/v1\/subscriptions\/([^/]+)$/u, (_input, id) => this.#object(id)),
+            this.#route("GET", /^\/v1\/checkout\/sessions\/([^/]+)$/u, (_input, id) =>
+                this.#read(id),
+            ),
+            this.#route("POST", /^\/v1\/checkout\/sessions\/([^/]+)\/expire$/u, (_input, id) =>
+                this.#object(id)["status"] === "open"
+                    ? this.#update(id, { status: "expired" })
+                    : Response.json(
+                          {
+                              error: {
+                                  type: "invalid_request_error",
+                                  message: `Only Checkout Sessions with a status in ["open"] can be expired.`,
+                              },
+                          },
+                          { status: 400 },
+                      ),
+            ),
+            this.#route("GET", /^\/v1\/subscriptions\/([^/]+)$/u, (_input, id) => this.#read(id)),
+            this.#route("GET", /^\/v1\/invoices\/([^/]+)$/u, (_input, id) => this.#read(id)),
+            this.#route("GET", /^\/v1\/accounts\/([^/]+)$/u, (_input, id) => this.#read(id)),
+            this.#route("GET", /^\/v1\/customers\/([^/]+)$/u, (_input, id) => this.#read(id)),
+            this.#route("GET", /^\/v1\/events\/([^/]+)$/u, (_input, id) => this.#read(id)),
+            this.#route("GET", /^\/v1\/webhook_endpoints$/u, () => ({
+                object: "list",
+                data: this.#all("we"),
+            })),
+            this.#route("POST", /^\/v1\/webhook_endpoints$/u, (input) =>
+                this.#create("we", {
+                    object: "webhook_endpoint",
+                    status: "enabled",
+                    ...input,
+                    enabled_events: Object.values(asObject(input["enabled_events"])),
+                }),
+            ),
+            this.#route("POST", /^\/v1\/webhook_endpoints\/([^/]+)$/u, (input, id) => {
+                const { disabled, ...changed } = input;
+
+                return this.#update(id, {
+                    ...changed,
+                    enabled_events: Object.values(asObject(input["enabled_events"])),
+                    status: disabled === "true" ? "disabled" : "enabled",
+                });
+            }),
             this.#route("POST", /^\/v1\/subscriptions\/([^/]+)$/u, (input, id) =>
                 this.#change(id, input),
             ),
@@ -102,7 +142,9 @@ export class StripeFixture {
                 route.method === request.method ? route.pattern.exec(url.pathname) : null;
             if (matched !== null) {
                 const answer = route.handle(parameters, matched[1] ?? "");
-                if (key !== null) {
+                if (answer instanceof Response) {
+                    return answer;
+                } else if (key !== null) {
                     this.#answers.set(key, answer);
                 }
 
@@ -119,6 +161,11 @@ export class StripeFixture {
     /** Tell of a subscription canceled at its customer's request. */
     canceled(subscriptionId: string): StripeDelivery[] {
         return [{ type: "customer.subscription.deleted", object: this.#object(subscriptionId) }];
+    }
+
+    /** Read where an object stands, such as a Checkout session. */
+    status(id: string): unknown {
+        return this.#object(id)["status"];
     }
 
     /** Complete a Checkout session as its buyer pays. */
@@ -153,7 +200,7 @@ export class StripeFixture {
         ];
     }
 
-    /** Start a subscription's next period: draft the invoice closing the ended one, then move the period on. */
+    /** Start a subscription's next period: draft the invoice closing the old one, then advance. */
     renew(subscriptionId: string): StripeDelivery[] {
         // draft the invoice of the ended period
         const subscription = this.#object(subscriptionId);
@@ -197,7 +244,7 @@ export class StripeFixture {
         return [{ type: "account.updated", object: account }];
     }
 
-    /** Deliver events to the webhook endpoint as signed posts, returning each answer's status. */
+    /** Keep events and post each to the webhook endpoint, returning each answer's status. */
     async deliver(
         deliveries: readonly StripeDelivery[],
         endpoint: (request: Request) => Promise<Response>,
@@ -205,20 +252,19 @@ export class StripeFixture {
     ): Promise<number[]> {
         const statuses: number[] = [];
         for (const delivery of deliveries) {
-            // sign the event's payload as Stripe signs a delivery
-            const payload = JSON.stringify({
-                id: `evt_${++this.#created}`,
+            // keep the event, which the API serves by its identifier
+            const event = this.#create("evt", {
                 object: "event",
                 type: delivery.type,
-                created: this.now,
                 data: { object: delivery.object },
             });
-            const signature = await StripeSignature.sign(payload, WEBHOOK_SECRET, this.now * 1000);
+
+            // post it as Stripe delivers it
             const response = await endpoint(
                 new Request(url, {
                     method: "POST",
-                    headers: { "content-type": "application/json", "stripe-signature": signature },
-                    body: payload,
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify(event),
                 }),
             );
             statuses.push(response.status);
@@ -260,6 +306,25 @@ export class StripeFixture {
         const found = this.objects.get(id);
         if (found === undefined) {
             throw new TypeError(`the stripe fixture keeps no ${id}`);
+        }
+
+        return found;
+    }
+
+    /** Read a kept object as the API serves it, answering 404 for a missing one. */
+    #read(id: string): StripeObject | Response {
+        const found = this.objects.get(id);
+        if (found === undefined) {
+            return Response.json(
+                {
+                    error: {
+                        type: "invalid_request_error",
+                        code: "resource_missing",
+                        message: `No such object: '${id}'`,
+                    },
+                },
+                { status: 404 },
+            );
         }
 
         return found;
@@ -354,12 +419,7 @@ export class StripeFixture {
     }
 }
 
-/** Hand a text secret as the vault reads it. */
-function secretOf(value: string): StripeSecret {
-    return { read: async () => ({ value: { encoding: "text", value } }) };
-}
-
-/** Decode a Stripe form into nested objects, keeping arrays as index-keyed objects listed by `asObjects`. */
+/** Decode a Stripe form into nested objects, keeping arrays as index-keyed objects. */
 export function decodeForm(form: string): StripeObject {
     const decoded: StripeObject = {};
     for (const [name, value] of new URLSearchParams(form)) {

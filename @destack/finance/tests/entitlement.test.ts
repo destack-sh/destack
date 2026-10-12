@@ -1,6 +1,5 @@
-import { eq } from "@destack/db";
+import { eq, Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { SystemCall } from "@destack/object";
 import { aligned } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
@@ -21,6 +20,8 @@ import {
     support,
     sync,
 } from "./fixture/storage.ts";
+import { Caller } from "@destack/access";
+import { RequestId } from "@destack/service/request";
 
 /** The start of the subscription's first billing period. */
 const START = Date.UTC(2026, 9, 1);
@@ -41,7 +42,7 @@ const END = Date.UTC(2026, 10, 1);
 const NEXT = Date.UTC(2026, 11, 1);
 
 /** The CloudEvents source of the fixture's meter events. */
-const SOURCE = "/cells/eu-1";
+const SOURCE = "/machines/eu-central";
 
 /** Read the derived fields of entitlements, without their bookkeeping. */
 function derived(rows: readonly Entitlement[]) {
@@ -66,7 +67,7 @@ async function open(dialect: (typeof TEST_DIALECTS)[number]) {
     return { finance, offer };
 }
 
-/** Route uses to the buyer's account as a cell would, by identity, and rate them. */
+/** Route uses to the buyer's account as a cloud machine would, by identity, and rate them. */
 async function append(
     finance: Finance,
     events: Readonly<Record<string, { meter: string; value: number; time: number }>>,
@@ -90,7 +91,10 @@ async function transition(
     row: Subscription,
 ): Promise<Subscription> {
     return aligned(
-        await finance.server.executeAsSystem(subscription, name, [SystemCall.of(row)], Date.now()),
+        await finance.store.mutate(Caller.of(finance.store.principal, Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [subscription.call(name, subscription.target(row))],
+        }),
         0,
     );
 }
@@ -158,13 +162,24 @@ test.each(TEST_DIALECTS)(
             ["storage.limit", 300, null],
         ]);
 
-        // start the requests again once the provider records the next period
-        await finance.server.executeAsSystem(
-            subscription,
-            "record",
-            [SystemCall.of(active, { currentPeriodStart: END, currentPeriodEnd: NEXT })],
-            Date.now(),
-        );
+        // start the requests again once the provider renews the subscription into the next period
+        await finance.store.mutate(Caller.of(finance.store.principal, Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [
+                subscription.call("sync", {
+                    ...subscription.target(active),
+                    providerId: active.providerId,
+                    customer: "cus_buyer",
+                    status: "active",
+                    currentPeriodStart: END,
+                    currentPeriodEnd: NEXT,
+                    cancelAtPeriodEnd: false,
+                    canceledAt: null,
+                    trialEnd: null,
+                    items: [],
+                }),
+            ],
+        });
         await append(finance, { third: { meter: requests.name, value: 7, time: END } });
         await finance.entitle();
         expect(await usage()).toEqual([
@@ -175,26 +190,22 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "resolve each feature's effective grant across two subscriptions on %s",
+    "resolve each feature's effective grant across a subscription's plan and add-on items on %s",
     async (dialect) => {
         const { finance, offer } = await open(dialect);
 
-        // subscribe to the plan and a fortnight later to an add-on of more calls, unlimited storage, more seats and community support
-        await transition(
-            finance,
-            "activate",
-            await finance.subscribe(offer, { start: START, end: END }),
-        );
+        // subscribe to the plan with an add-on item of more calls, unlimited storage, more seats and community support
+        const subscribed = await finance.subscribe(offer, { start: START, end: END });
         const addon = [
             { packageId: storage.id, feature: calls.name, value: ADDON_CALLS },
             { packageId: storage.id, feature: storageLimit.name, value: null },
             { packageId: storage.id, feature: seats.name, value: ADDON_SEATS },
             { packageId: storage.id, feature: support.name, value: "community" },
         ];
-        const later = await finance.subscribe(offer, { start: MIDDLE, end: NEXT }, addon);
-        await transition(finance, "activate", later);
+        await finance.item(subscribed, offer.monthly, addon);
+        await transition(finance, "activate", subscribed);
 
-        // count requests in both overlapping periods
+        // count requests in the period and the one after
         await append(finance, {
             first: { meter: requests.name, value: 10, time: START },
             middle: { meter: requests.name, value: 20, time: MIDDLE },
@@ -261,7 +272,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "count a meter event into the usage of its meter's entitlements without deriving the other features again on %s",
+    "count a meter event into the usage of its meter's entitlements, deriving the account's other features with it, on %s",
     async (dialect) => {
         const { finance, offer } = await open(dialect);
         const active = await transition(
@@ -275,9 +286,10 @@ test.each(TEST_DIALECTS)(
         await finance.test.database
             .update(subscriptionItem.table)
             .set({
-                grants: (await Price.offer(finance.test.database, offer.monthly)).grants.map(
-                    (grant) =>
-                        grant.feature === support.name ? { ...grant, value: "community" } : grant,
+                grants: (
+                    await Price.offer(Snapshot.live(finance.test.database), offer.monthly)
+                ).grants.map((grant) =>
+                    grant.feature === support.name ? { ...grant, value: "community" } : grant,
                 ),
             })
             .where(eq(subscriptionItem.table.parentId, active.id));
@@ -286,27 +298,14 @@ test.each(TEST_DIALECTS)(
             later: { meter: requests.name, value: 50, time: END },
         });
 
-        // count the requests within the period, and keep the support tier until derivation runs
-        const read = async () => {
-            const rows = await finance.entitlements(ids.buyer);
-
-            return [
-                Entitlement.resolve(rows, calls.reference),
-                Entitlement.resolve(rows, support.reference),
-            ];
-        };
-        const counted = await read();
-        await finance.entitle();
-        const calling = {
-            kind: "metered",
-            limit: CALL_LIMIT,
-            usage: 10,
-            resetAt: END,
-            state: "within",
-        };
-        expect([counted, await read()]).toEqual([
-            [calling, { kind: "static", value: "priority" }],
-            [calling, { kind: "static", value: "community" }],
+        // count the requests within the period, and take the changed support tier with them
+        const rows = await finance.entitlements(ids.buyer);
+        expect([
+            Entitlement.resolve(rows, calls.reference),
+            Entitlement.resolve(rows, support.reference),
+        ]).toEqual([
+            { kind: "metered", limit: CALL_LIMIT, usage: 10, resetAt: END, state: "within" },
+            { kind: "static", value: "community" },
         ]);
     },
 );

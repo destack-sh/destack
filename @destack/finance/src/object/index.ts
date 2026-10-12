@@ -4,7 +4,6 @@ export * from "./product.ts";
 export * from "./product-feature.ts";
 export * from "./price.ts";
 export * from "./subscription.ts";
-export * from "./subscription-item.ts";
 export * from "./checkout-session.ts";
 export * from "./entitlement.ts";
 export * from "./invoice.ts";

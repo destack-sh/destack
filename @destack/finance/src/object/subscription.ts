@@ -1,18 +1,49 @@
-import { account } from "@destack/account/object";
-import { check, index, sql, type Select } from "@destack/db";
-import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
-import { BILLING_PERMISSIONS } from "./customer.ts";
+import { through } from "@destack/access";
+import { account, space } from "@destack/account/object";
+import { check, index, type Select, type Snapshot, uniqueIndex } from "@destack/db";
+import { type Call, type CallOf, defineObject, field, type ObjectCall } from "@destack/object";
+import { defineSchema, type Identifier, present, schema } from "@destack/schema";
+import { ServiceError } from "@destack/service/error";
 import { Currency } from "../rate/amount.ts";
+import { BILLING_PERMISSIONS } from "./customer.ts";
+import { Price, price, PRICE_TERMS, PriceMirror } from "./price.ts";
+import { FeatureGrant } from "../feature/grant.ts";
 import { seller } from "./seller.ts";
+
+/** A transition of a subscription's state. */
+type Transition = "trial" | "activate" | "fail" | "lapse" | "pause" | "expire" | "cancel";
+
+/** The transitions moving a new subscription into each state. */
+const PATHS: Readonly<Record<Subscription["status"], readonly Transition[]>> = {
+    incomplete: [],
+    incomplete_expired: ["expire"],
+    trialing: ["trial"],
+    active: ["activate"],
+    past_due: ["activate", "fail"],
+    unpaid: ["activate", "fail", "lapse"],
+    paused: ["activate", "pause"],
+    canceled: ["cancel"],
+};
+
+/** The transition moving a running subscription into each state, as one provider event tells it. */
+const STEPS: Readonly<Record<Subscription["status"], Transition | undefined>> = {
+    incomplete: undefined,
+    incomplete_expired: "expire",
+    trialing: "trial",
+    active: "activate",
+    past_due: "fail",
+    unpaid: "lapse",
+    paused: "pause",
+    canceled: "cancel",
+};
 
 /** A product to subscribe to, and the currency of the recurring prices to subscribe at. */
 export const Purchasable = defineSchema(
     schema.object({
         /** The seller's product. */
         product: schema.object({
-            /** The seller's account. */
-            scope: schema.identifier("account"),
+            /** The space keeping the product. */
+            scope: schema.identifier("space"),
             /** The product. */
             id: schema.identifier("product"),
         }),
@@ -73,32 +104,42 @@ export type ProviderSubscription = schema.Infer<typeof ProviderSubscription>;
 /** The lines a period's close added to the provider's invoice. */
 export const PeriodClose = defineSchema(
     schema.object({
-        /** The provider's identifier of each usage line's invoice line, by charge. */
-        lines: schema.record(schema.string(), schema.string()),
+        /** The provider's invoice line per usage charge, null for a line billing nothing. */
+        lines: schema.record(schema.string(), schema.string().nullable()),
         /** The included usage drawn on the period's lines, in minor units. */
         drawn: schema.number().int().min(0),
-        /** The provider's identifier of the invoice line crediting what was drawn, null without one. */
+        /** The provider's identifier of the invoice line crediting the drawn usage, if any. */
         creditLine: schema.string().nullable(),
     }),
 );
 /** The lines a period's close added to the provider's invoice. */
 export type PeriodClose = schema.Infer<typeof PeriodClose>;
 
-/** The work a checkout or plan change did at the provider. */
-export const ProviderWork = defineSchema(
-    schema.object({
-        /** The provider's identifier of the buying customer, once mirrored. */
-        customer: schema.string().nullable(),
-        /** The checkout the buyer pays at. */
-        session: schema.object({ providerId: schema.string(), url: schema.url() }).nullable(),
-        /** The subscription as the provider bills it after a change of its prices. */
-        subscription: ProviderSubscription.nullable(),
-        /** The current period closed onto the final invoice of a subscription canceled for the default product. */
-        closed: PeriodClose.nullable(),
-    }),
+/** A change of a subscription's plan at the provider. */
+export const PlanChange = defineSchema(
+    schema.discriminatedUnion("kind", [
+        schema.object({
+            /** The prices changed. */
+            kind: schema.literal("change"),
+            /** The provider's identifier of the buying customer. */
+            customer: schema.string(),
+            /** The subscription as the provider bills it after the change. */
+            subscription: ProviderSubscription,
+            /** The product and prices the change mirrored first. */
+            mirrored: PriceMirror,
+        }),
+        schema.object({
+            /** The subscription canceled for the default product. */
+            kind: schema.literal("cancel"),
+            /** The provider's identifier of the buying customer. */
+            customer: schema.string(),
+            /** The current period closed onto the final invoice. */
+            closed: PeriodClose,
+        }),
+    ]),
 );
-/** The external work a checkout or a plan change did at the payment provider. */
-export type ProviderWork = schema.Infer<typeof ProviderWork>;
+/** A change of a subscription's plan at the provider. */
+export type PlanChange = schema.Infer<typeof PlanChange>;
 
 /** The states in which a subscription grants its products' features. */
 export const GRANTING_STATES = ["trialing", "active", "past_due"] as const;
@@ -107,8 +148,11 @@ export const GRANTING_STATES = ["trialing", "active", "past_due"] as const;
 export const subscription = defineObject({
     name: "subscription",
     plural: "subscriptions",
-    scope: account,
+    scope: space,
+    owner: "account",
     fields: {
+        /** The account the row belongs to. */
+        account: field.reference(account).relate("account"),
         /** The seller billing the subscription. */
         seller: field.reference(seller, { qualified: true }),
         /** Where the provider's billing of the subscription stands. */
@@ -144,8 +188,6 @@ export const subscription = defineObject({
         canceledAt: field.time().optional(),
         /** The most usage may cost past the included usage each period. */
         spendingLimit: field.integer().optional(),
-        /** The usage each period includes, its prices' included usage when subscribed, in minor units. */
-        includedUsage: field.integer().default(0),
         /** The provider's identifier of the subscription. */
         providerId: field.string(),
     },
@@ -154,16 +196,20 @@ export const subscription = defineObject({
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
-        create: method.create(null, { isSystem: true }),
+        create: method.create("provide", { isInternal: true }),
         update: method.update("bill", { fields: ["cancelAtPeriodEnd", "spendingLimit"] }),
-        /** Move the subscription to another product, or cancel it for the seller's default product. */
-        change: method.mutation({ permission: "bill", input: Purchasable, prepared: ProviderWork }),
+        /** Move the subscription to another product, or cancel it for the default product. */
+        change: method.mutation({ permission: "bill", input: Purchasable, prepared: PlanChange }),
         /** Follow the subscription as the provider bills it: its period, state and items. */
-        sync: method.mutation({ permission: null, isSystem: true, input: ProviderSubscription }),
+        sync: method.mutation({
+            permission: "provide",
+            isInternal: true,
+            input: ProviderSubscription,
+        }),
         /** Close an ended period onto the provider's draft invoice. */
         closePeriod: method.mutation({
-            permission: null,
-            isSystem: true,
+            permission: "provide",
+            isInternal: true,
             input: schema.object({
                 /** When the period started, in UTC epoch milliseconds. */
                 periodStart: schema.number().int(),
@@ -179,26 +225,309 @@ export const subscription = defineObject({
             }),
             prepared: PeriodClose,
         }),
-        /** Record the provider's period, trial and identifier. */
-        record: method.update(null, {
-            isSystem: true,
-            fields: [
-                "currentPeriodStart",
-                "currentPeriodEnd",
-                "trialEnd",
-                "providerId",
-                "includedUsage",
-            ],
-        }),
     }),
     constraints: (entry) => [
-        index("subscription_status").on(entry.scope, entry.status),
-        check("subscription_period", sql`${entry.currentPeriodStart} < ${entry.currentPeriodEnd}`),
-        check(
-            "subscription_spending_limit",
-            sql`${entry.spendingLimit} IS NULL OR ${entry.spendingLimit} >= 0`,
-        ),
+        index("subscription_status").on(entry.accountId, entry.status),
+        uniqueIndex("subscription_provider").on(entry.providerId),
+        uniqueIndex("subscription_granting")
+            .on(entry.accountId, entry.seller)
+            .where({ status: { in: [...GRANTING_STATES] } }),
+        check("subscription_period", { currentPeriodStart: { lt: { field: "currentPeriodEnd" } } }),
+        check("subscription_spending_limit", {
+            spendingLimit: { OR: [{ isNull: true }, { gte: 0 }] },
+        }),
     ],
 });
 /** A persisted subscription. */
 export type Subscription = Select<typeof subscription.table>;
+
+/** A price a subscription bills each period, for a quantity. */
+export const subscriptionItem = defineObject({
+    name: "subscription-item",
+    plural: "subscriptionItems",
+    scope: space,
+    nested: { in: subscription, delete: "cascade", receive: "provide" },
+    fields: {
+        /** The seller's price. */
+        price: field.reference(price, { qualified: true }),
+        /** The units billed each period. */
+        quantity: field.integer().default(1),
+        /** The price's terms at creation. */
+        terms: field.json(price.rowSchema().pick(PRICE_TERMS)),
+        /** The product's feature grants at creation, which entitlements derive from. */
+        grants: field.json(schema.array(FeatureGrant)),
+        /** The provider's identifier of the item, absent on a subscription no provider bills. */
+        providerId: field.string().optional(),
+    },
+    permissions: {
+        read: through("parent", "read"),
+        provide: through("parent", "provide"),
+    },
+    methods: (method) => ({
+        get: method.get("read"),
+        list: method.list("read"),
+        create: method.create("provide", { isInternal: true }),
+        update: method.update("provide", { isInternal: true, fields: ["quantity", "providerId"] }),
+        delete: method.delete("provide", { isInternal: true }),
+    }),
+    constraints: () => [check("subscription_item_quantity", { quantity: { gte: 0 } })],
+});
+/** A persisted subscription item. */
+export type SubscriptionItem = Select<typeof subscriptionItem.table>;
+
+/** The subscriptions accounts have to sellers' prices. */
+export const Subscription = {
+    /** Read an account's granting subscriptions, each with its items. */
+    async granting(
+        snapshot: Snapshot,
+        accountId: Identifier<"account">,
+    ): Promise<(Subscription & { readonly items: readonly SubscriptionItem[] })[]> {
+        const rows = await snapshot.rows(subscription.table, {
+            accountId,
+            status: { in: [...GRANTING_STATES] },
+        });
+
+        return Subscription.itemized(snapshot, rows);
+    },
+
+    /** Read subscriptions' items, each subscription with its own. */
+    async itemized(
+        snapshot: Snapshot,
+        rows: readonly Subscription[],
+    ): Promise<(Subscription & { readonly items: readonly SubscriptionItem[] })[]> {
+        // read every subscription's items at once
+        if (rows.length === 0) {
+            return [];
+        }
+        const items = await snapshot.rows(subscriptionItem.table, {
+            parentId: { in: rows.map((row) => row.id) },
+        });
+        const byParent = Map.groupBy(items, (item) => item.parentId);
+
+        return rows.map((row) => ({ ...row, items: byParent.get(row.id) ?? [] }));
+    },
+
+    /** Refuse an account's second granting subscription to a seller, which changes the first. */
+    async requireNone(
+        call: Pick<Call, "read">,
+        accountId: Identifier<"account">,
+        sold: { readonly id: string },
+    ): Promise<void> {
+        const held = await call
+            .read(subscription)
+            .rows({ accountId, status: { in: [...GRANTING_STATES] } });
+        if (held.some((row) => row.seller.id === sold.id)) {
+            throw new ServiceError("CONFLICT", {
+                message: `account ${accountId} subscribes to seller ${sold.id} already, so it changes that subscription`,
+            });
+        }
+    },
+
+    /** Start a subscription as the provider bills it, spending nothing past its included usage. */
+    async start(
+        call: Call,
+        sold: Pick<Subscription, "accountId" | "seller">,
+        billed: readonly (Pick<SubscriptionItem, "quantity" | "providerId"> & {
+            readonly price: Price;
+        })[],
+        provided: ProviderSubscription,
+    ): Promise<Subscription> {
+        // open it for the provider's period, spending nothing past its included usage
+        const includedUsage = SubscriptionItem.includedUsage(
+            billed.map((each) => ({ terms: each.price, quantity: each.quantity })),
+        );
+        const [created] = await call.mutate(call.service, [
+            subscription.call("create", {
+                accountId: sold.accountId,
+                seller: sold.seller,
+                currentPeriodStart: provided.currentPeriodStart,
+                currentPeriodEnd: provided.currentPeriodEnd,
+                cancelAtPeriodEnd: provided.cancelAtPeriodEnd,
+                trialEnd: provided.trialEnd,
+                canceledAt: provided.canceledAt,
+                providerId: provided.providerId,
+                spendingLimit: includedUsage > 0 ? 0 : null,
+            }),
+        ]);
+
+        // bill each price, keeping its terms and grants
+        const snapshot = call.view();
+        const items = await Promise.all(
+            billed.map((each) => SubscriptionItem.create(snapshot, created.id, each)),
+        );
+        await call.mutate(call.service, items);
+
+        // move it into the provider's state
+        let moved: Subscription = created;
+        for (const transition of PATHS[provided.status]) {
+            moved = await move(call, moved, transition);
+        }
+
+        return moved;
+    },
+
+    /** Follow a subscription as the provider bills it: its period, its state and its items. */
+    async sync(call: CallOf<typeof subscription, "sync">): Promise<Subscription> {
+        // record the provider's period, trial and cancellation
+        const provided = call.input;
+        const recorded = await call.update({
+            currentPeriodStart: provided.currentPeriodStart,
+            currentPeriodEnd: provided.currentPeriodEnd,
+            cancelAtPeriodEnd: provided.cancelAtPeriodEnd,
+            trialEnd: provided.trialEnd,
+            canceledAt: provided.canceledAt,
+        });
+
+        // follow the provider's items
+        await syncItems(call, recorded.id, provided);
+
+        // move into the provider's state with the one step it took
+        const step = STEPS[provided.status];
+        if (provided.status === recorded.status || step === undefined) {
+            return recorded;
+        }
+
+        return move(call, recorded, step);
+    },
+};
+
+/** The prices subscriptions bill. */
+export const SubscriptionItem = {
+    /** Add up the usage items include per period: included usage per unit times quantity. */
+    includedUsage(
+        items: readonly {
+            readonly terms: Pick<Price, "includedUsage">;
+            readonly quantity: number;
+        }[],
+    ): number {
+        return items.reduce((total, item) => total + item.terms.includedUsage * item.quantity, 0);
+    },
+
+    /** Read a subscription's billing from its items: currency and included usage per period. */
+    billing(row: Subscription & { readonly items: readonly SubscriptionItem[] }): {
+        readonly currency: string;
+        readonly includedUsage: number;
+    } {
+        const [first] = row.items;
+
+        return {
+            currency: present(first, `an item of subscription ${row.id}`).terms.currency,
+            includedUsage: SubscriptionItem.includedUsage(row.items),
+        };
+    },
+
+    /** Read the prices of the provider's items by the identifiers it keeps for them. */
+    async prices(
+        call: Pick<Call, "read">,
+        items: ProviderSubscription["items"],
+    ): Promise<(Pick<SubscriptionItem, "quantity" | "providerId"> & { readonly price: Price })[]> {
+        // read the mirrored prices
+        if (items.length === 0) {
+            return [];
+        }
+        const rows = await call
+            .read(price)
+            .rows({ providerId: { in: items.map((item) => item.price) } });
+
+        // pair each item with its price, refusing a price finance never mirrored
+        return items.map((item) => {
+            const found = rows.find((row) => row.providerId === item.price);
+            if (found === undefined) {
+                throw new ServiceError("NOT_FOUND", {
+                    message: `no price mirrors provider price ${item.price}`,
+                });
+            }
+
+            return { price: found, quantity: item.quantity, providerId: item.providerId };
+        });
+    },
+
+    /** Replace a subscription's finance-only metered items with items billing the prices. */
+    async replaceMetered(
+        call: Call,
+        subscriptionId: string,
+        prices: readonly Price[],
+    ): Promise<void> {
+        // delete the metered items kept
+        const snapshot = call.view();
+        const kept = await snapshot.rows(subscriptionItem.table, {
+            parentId: subscription.identifier(subscriptionId),
+        });
+        const deleted = kept
+            .filter((each) => each.terms.recurring.usage === "metered")
+            .map((row) => subscriptionItem.call("delete", { id: row.id }));
+
+        // add one per price
+        const added = await Promise.all(
+            prices.map((each) =>
+                SubscriptionItem.create(snapshot, subscriptionId, {
+                    price: each,
+                    quantity: 1,
+                    providerId: null,
+                }),
+            ),
+        );
+        await call.mutate(call.service, [...deleted, ...added]);
+    },
+
+    /** Build the call creating an item billing a price, keeping the price's terms and grants. */
+    async create(
+        snapshot: Snapshot,
+        subscriptionId: string,
+        billed: Pick<SubscriptionItem, "quantity" | "providerId"> & { readonly price: Price },
+    ): Promise<ObjectCall> {
+        const reference = { scope: billed.price.scope, id: billed.price.id };
+        const offered = await Price.offer(snapshot, reference);
+
+        return subscriptionItem.call("create", {
+            parentId: subscriptionId,
+            price: reference,
+            quantity: billed.quantity,
+            providerId: billed.providerId,
+            ...offered,
+        });
+    },
+};
+
+/** Replace a subscription's items with the provider's, keeping the ones it still bills. */
+async function syncItems(
+    call: Call,
+    subscriptionId: string,
+    provided: ProviderSubscription,
+): Promise<void> {
+    // delete the items the provider dropped, and follow the quantities of the others
+    const snapshot = call.view();
+    const kept = await snapshot.rows(subscriptionItem.table, {
+        parentId: subscription.identifier(subscriptionId),
+    });
+    const wanted = new Map(provided.items.map((item) => [item.providerId, item]));
+    const changed = kept.flatMap((row): ObjectCall[] => {
+        const item = row.providerId === null ? null : wanted.get(row.providerId);
+        if (item === undefined) {
+            return [subscriptionItem.call("delete", { id: row.id })];
+        } else if (item !== null && item.quantity !== row.quantity) {
+            return [subscriptionItem.call("update", { id: row.id, quantity: item.quantity })];
+        }
+
+        return [];
+    });
+
+    // add the items it added, by the prices it bills
+    const mirrored = new Set(kept.map((row) => row.providerId));
+    const added = provided.items.filter((item) => !mirrored.has(item.providerId));
+    const created = await Promise.all(
+        (await SubscriptionItem.prices(call, added)).map((each) =>
+            SubscriptionItem.create(snapshot, subscriptionId, each),
+        ),
+    );
+    await call.mutate(call.service, [...changed, ...created]);
+}
+
+/** Move a subscription through one transition as the store's principal. */
+async function move(call: Call, row: Subscription, transition: Transition): Promise<Subscription> {
+    const [moved] = await call.mutate(call.service, [
+        subscription.call(transition, { ...subscription.target(row) }),
+    ]);
+
+    return moved;
+}
