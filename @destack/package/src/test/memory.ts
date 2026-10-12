@@ -69,17 +69,20 @@ export const MemoryBuild = {
         )) {
             const source = new TextEncoder().encode("export {};\n");
             files.set(path, source);
+            const symbol = (name: string) =>
+                Moniker.of({ packageId: owner.id, module: path, name });
             graph.push({
                 path,
                 digest: await Digest.of(source),
                 imports: [],
-                exports: [],
+                exports: values.map((value) => ({
+                    name: value.name,
+                    symbol: symbol(value.name),
+                    isTypeOnly: false,
+                })),
                 symbols: [],
                 declarations: values.map(({ module: _module, ...value }) =>
-                    Declaration.at(
-                        Moniker.of({ packageId: owner.id, module: path, name: value.name }),
-                        Declared.parse(value),
-                    ),
+                    Declaration.at(symbol(value.name), Declared.parse(value)),
                 ),
                 edges: [],
             });
