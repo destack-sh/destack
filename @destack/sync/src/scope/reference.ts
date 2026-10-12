@@ -25,6 +25,21 @@ export const ObjectReference = Object.assign(objectReference, {
     key(reference: ObjectReference): string {
         return JSON.stringify([reference.packageId, reference.type, reference.scope, reference.id]);
     },
+
+    /** Read the parent a nested row refers to, in the row's scope. */
+    parent(row: {
+        readonly scope: string;
+        readonly parentPackageId: ObjectReference["packageId"];
+        readonly parentType: string;
+        readonly parentId: string;
+    }): ObjectReference {
+        return {
+            packageId: row.parentPackageId,
+            type: row.parentType,
+            scope: row.scope,
+            id: row.parentId,
+        };
+    },
 });
 
 /** A package-qualified object type, and its key. */
