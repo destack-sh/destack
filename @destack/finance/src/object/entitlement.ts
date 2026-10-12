@@ -343,13 +343,20 @@ export const Entitlement = {
         }
 
         // announce it to the account's readers of billing
-        await usageLimit.notify(call, {
-            source: entitlement.reference(row.scope, row.id),
-            key,
-            thread: `${row.feature}:${periodStart}`,
-            audience: { kind: "permission", permission: "read", reason: "subscribed" },
-            payload: { feature: row.feature, state: row.state, usage: row.usage, limit: row.limit },
-        });
+        await call.mutate(call.caller, [
+            usageLimit.call({
+                source: entitlement.reference(row.scope, row.id),
+                key,
+                thread: `${row.feature}:${periodStart}`,
+                audience: { kind: "permission", permission: "read", reason: "subscribed" },
+                payload: {
+                    feature: row.feature,
+                    state: row.state,
+                    usage: row.usage,
+                    limit: row.limit,
+                },
+            }),
+        ]);
     },
 };
 
