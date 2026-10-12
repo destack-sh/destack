@@ -8,11 +8,7 @@ const CodedError = schema.looseObject({
     message: schema.string(),
 });
 
-/**
- * Answer a pending call's refusal as its code and message, or "done" when it succeeds.
- *
- * An error without a code and a message rejects, failing the test.
- */
+/** Answer a pending call's refusal as its code and message, or "done" when it succeeds. */
 export function refusal(pending: Promise<unknown>): Promise<"done" | readonly [string, string]> {
     return pending.then(
         () => "done" as const,
