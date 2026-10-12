@@ -267,6 +267,13 @@ export class PackageStore {
         return retained;
     }
 
+    /** Report whether a lease keeps a manifest or file at a moment. */
+    async leased(digest: string, at: Date): Promise<boolean> {
+        const object = await this.bucket.get(`leases/${Digest.parse(digest)}`);
+
+        return object !== null && Instant.parse(await object.json()) > at.getTime();
+    }
+
     /** Delete what retention drops and was stored before a moment. */
     async sweep(
         retained: ReadonlySet<string>,
