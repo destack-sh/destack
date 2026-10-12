@@ -21,8 +21,7 @@ const folder = defineObject({
     scope: space,
     fields: { name: field.string() },
     permissions: ["write"],
-    methods: (method) => ({ create: method.create("write") }),
-});
+}).methods((method) => ({ create: method.create("write") }));
 
 /** Pages with every trait that undo inverts. */
 const page = defineObject({
@@ -44,14 +43,13 @@ const page = defineObject({
     recoverable: { within: { days: 30 }, by: "write" },
     permissions: ["read", "write"],
     shareable: { by: "write" },
-    methods: (method) => ({
-        create: method.create("write"),
-        update: method.update("write"),
-        archive: method.mutation({ permission: "write", inverse: "unarchive" }),
-        unarchive: method.mutation({ permission: "write" }),
-        announce: method.mutation({ permission: "write" }),
-    }),
-});
+}).methods((method) => ({
+    create: method.create("write"),
+    update: method.update("write"),
+    archive: method.mutation({ permission: "write", inverse: "unarchive" }),
+    unarchive: method.mutation({ permission: "write" }),
+    announce: method.mutation({ permission: "write" }),
+}));
 
 /** Tallies with an exact count, kept as an exact integer. */
 const tally = defineObject({
@@ -60,13 +58,12 @@ const tally = defineObject({
     scope: space,
     fields: { count: field.bigint(), label: field.string() },
     shareable: {},
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("edit"),
-        update: method.update("edit"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("edit"),
+    update: method.update("edit"),
+}));
 
 /** Stamps with their bytes, kept as binary. */
 const stamp = defineObject({
@@ -75,13 +72,12 @@ const stamp = defineObject({
     scope: space,
     fields: { bytes: field.binary(), label: field.string() },
     shareable: {},
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("edit"),
-        update: method.update("edit"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("edit"),
+    update: method.update("edit"),
+}));
 
 test("invert each trait's methods into the calls that undo them, and leave the rest undoable by nothing", () => {
     // invert a call of the page type
@@ -196,7 +192,12 @@ test.each(TEST_DIALECTS)(
         };
 
         // undo the update, restoring only the untouched title
-        await alice.note.update({ spaceId, id, requestId: RequestId.create(Date.now()), text: "second" });
+        await alice.note.update({
+            spaceId,
+            id,
+            requestId: RequestId.create(Date.now()),
+            text: "second",
+        });
         await expect.poll(() => read(device.client)).toMatchObject({ text: "second" });
         await device.client.undo().confirmed;
         expect(await read(device.client)).toEqual({

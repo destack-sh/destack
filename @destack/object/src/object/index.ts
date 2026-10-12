@@ -19,11 +19,14 @@ export {
     type InstanceOf,
     type ObjectAggregate,
     type ObjectDefinition,
-    type ObjectFieldsDefinition,
+    type ObjectDraft,
+    type IntrinsicDraft,
+    type ObjectShape,
     type ObjectIndex,
     type ObjectScope,
     type ObjectStorage,
 } from "./object.ts";
+export { ObjectConstraint } from "./constraint.ts";
 export { ObjectDescription, type BuilderCall, type KnownDeclaration } from "./description.ts";
 export {
     type KeyFields,

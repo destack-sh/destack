@@ -31,13 +31,12 @@ const book = defineObject({
         isTidy: field.boolean().default(false),
     },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write", { fields: ["shelf"] }),
-        update: method.update("write", { fields: ["isTidy"] }),
-        tidy: method.updateMany("write", { fields: ["isTidy"], match: ["shelf"] }),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write", { fields: ["shelf"] }),
+    update: method.update("write", { fields: ["isTidy"] }),
+    tidy: method.updateMany("write", { fields: ["isTidy"], match: ["shelf"] }),
+}));
 
 /** Loan slips the space writes for a borrower, whom only the space sets. */
 const slip = defineObject({
@@ -50,11 +49,10 @@ const slip = defineObject({
         isReturned: field.boolean().default(false),
     },
     permissions: { read: relation("borrower"), issue: none() },
-    methods: (method) => ({
-        issue: method.create("issue", { isInternal: true }),
-        close: method.update("issue", { isInternal: true }),
-    }),
-});
+}).methods((method) => ({
+    issue: method.create("issue", { isInternal: true }),
+    close: method.update("issue", { isInternal: true }),
+}));
 
 /** Shelves their owners tidy, tidying their books with them. */
 const shelf = defineObject({
@@ -63,7 +61,8 @@ const shelf = defineObject({
     scope: space,
     fields: { owner: field.reference(principal.user).caller(), name: field.string() },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({
+})
+    .methods((method) => ({
         create: method.create("write", { fields: ["name"] }),
         tidy: method.mutation({
             permission: "write",
@@ -83,52 +82,58 @@ const shelf = defineObject({
             permission: "write",
             input: schema.object({ borrower: schema.string() }),
         }),
-    }),
-}).implement({
-    methods: {
-        // tidy the shelf's books as the caller
-        tidy: async (call) =>
-            call
-                .mutate(call.caller, [
-                    book.call("tidy", { where: { shelf: call.target.name }, isTidy: true }),
-                ])
-                .then(([tidied]) => tidied),
-        // tidy one owned book as the caller
-        straighten: async (call) => {
-            await call.mutate(call.caller, [
-                book.call("update", { id: call.input.book, isTidy: true }),
-            ]);
+    }))
+    .implement({
+        methods: {
+            // tidy the shelf's books as the caller
+            tidy: async (call) =>
+                call
+                    .mutate(call.caller, [
+                        book.call("tidy", { where: { shelf: call.target.name }, isTidy: true }),
+                    ])
+                    .then(([tidied]) => tidied),
+            // tidy one owned book as the caller
+            straighten: async (call) => {
+                await call.mutate(call.caller, [
+                    book.call("update", { id: call.input.book, isTidy: true }),
+                ]);
 
-            return call.target;
-        },
-        // issue a slip to the borrower as the space and close it
-        lend: async (call) => {
-            const [slipped] = await call.mutate(call.service, [
-                slip.call("issue", { borrowerId: call.input.borrower, shelf: call.target.name }),
-            ]);
-            const issued = schema.looseObject({ id: schema.string() }).parse(slipped);
-            await call.mutate(call.service, [
-                slip.call("close", { id: issued.id, isReturned: true }),
-            ]);
+                return call.target;
+            },
+            // issue a slip to the borrower as the space and close it
+            lend: async (call) => {
+                const [slipped] = await call.mutate(call.service, [
+                    slip.call("issue", {
+                        borrowerId: call.input.borrower,
+                        shelf: call.target.name,
+                    }),
+                ]);
+                const issued = schema.looseObject({ id: schema.string() }).parse(slipped);
+                await call.mutate(call.service, [
+                    slip.call("close", { id: issued.id, isReturned: true }),
+                ]);
 
-            return { slip: issued.id };
-        },
-        // issue a slip as the caller, who holds no permission to
-        forge: async (call) => {
-            await call.mutate(call.caller, [
-                slip.call("issue", { borrowerId: call.input.borrower, shelf: call.target.name }),
-            ]);
+                return { slip: issued.id };
+            },
+            // issue a slip as the caller, who holds no permission to
+            forge: async (call) => {
+                await call.mutate(call.caller, [
+                    slip.call("issue", {
+                        borrowerId: call.input.borrower,
+                        shelf: call.target.name,
+                    }),
+                ]);
 
-            return call.target;
-        },
-        // shelve a book on an unnamed shelf, which the book's schema refuses
-        misfile: async (call) => {
-            await call.mutate(call.caller, [book.call("create", { shelf: "" })]);
+                return call.target;
+            },
+            // shelve a book on an unnamed shelf, which the book's schema refuses
+            misfile: async (call) => {
+                await call.mutate(call.caller, [book.call("create", { shelf: "" })]);
 
-            return call.target;
+                return call.target;
+            },
         },
-    },
-});
+    });
 
 /** The database with the shelves, the books, their access and the journal. */
 const shelfDatabase = defineDatabase({

@@ -26,12 +26,11 @@ const item = defineObject({
         name: field.string(),
     },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-        update: method.update("write"),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+    update: method.update("write"),
+}));
 
 /** Cards ordered within the column their status refers to. */
 const card = defineObject({
@@ -45,12 +44,11 @@ const card = defineObject({
         status: field.enum(["todo", "done"]),
     },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-        update: method.update("write"),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+    update: method.update("write"),
+}));
 
 /** Serve items and cards over a fresh database of each dialect. */
 async function serve(dialect: (typeof TEST_DIALECTS)[number]) {

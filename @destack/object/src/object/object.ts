@@ -20,7 +20,6 @@ import {
 } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import {
-    type ColumnMap,
     Snapshot,
     Expression,
     Condition,
@@ -31,7 +30,6 @@ import {
     type SQL,
     TABLE,
     type Table,
-    type TableConstraint,
     type Tree,
 } from "@destack/db";
 import {
@@ -47,13 +45,7 @@ import { ServiceError } from "@destack/service/error";
 import type { AuditAction } from "@destack/audit";
 import { ModuleMetadata, type Package } from "@destack/package";
 import type { Field, ObjectFields, TextField } from "../field/field.ts";
-import {
-    Call,
-    type Bivariant,
-    type Handler,
-    type TypesOf,
-    type ObjectCall,
-} from "../method/call.ts";
+import { Call, type Handler, type TypesOf, type ObjectCall } from "../method/call.ts";
 import { Method, type MethodBuilder, type MethodKind } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import { InputSchema } from "../method/input.ts";
@@ -159,7 +151,8 @@ import {
 import type { DeclarationOf, DeclarationHandler, ManagedTable } from "../server/stack.ts";
 import { camelCase, kebabCase } from "./name.ts";
 import { ObjectAccess } from "./access.ts";
-import { deriveTable, type ConstraintColumns, type ObjectTable, type TraitOf } from "./table.ts";
+import { deriveTable, type ConstraintColumn, type ObjectTable, type TraitOf } from "./table.ts";
+import type { ObjectConstraint } from "./constraint.ts";
 
 /** The schemas and procedures an object type derives from its definition, built lazily. */
 interface Derived {
@@ -182,6 +175,22 @@ export const ObjectKey = schema.looseObject({ scope: schema.string(), id: schema
 
 /** The identifier schemas of object type identities, one each, shared by derived copies. */
 const IDENTIFIERS = new Map<string, ReturnType<typeof schema.identifier>>();
+
+/** The options an object type over a table another package owns takes none of. */
+const INTRINSIC_REFUSED = [
+    "identity",
+    "nested",
+    "recoverable",
+    "versioned",
+    "controlled",
+    "adoptable",
+    "shareable",
+    "suspendable",
+    "tracked",
+    "attachments",
+    "aggregates",
+    "constraints",
+] as const;
 
 /** The default ephemeral linger, in milliseconds: 10 s spans two 1–3 s reconnects. */
 const LINGER_MILLISECONDS = 10_000;
@@ -374,8 +383,8 @@ export interface ObjectDefinition<
     readonly aggregates?: Readonly<Record<string, ObjectAggregate>>;
     /** The attachments the objects take. */
     readonly attachments?: readonly Attachment[];
-    /** Indexes, unique constraints and checks over the derived columns. */
-    readonly constraints?: ObjectConstraints;
+    /** Checks, indexes, unique constraints and foreign keys over the columns, by name. */
+    readonly constraints?: Readonly<Record<string, ObjectConstraint>>;
     /** Unique indexes the key index keeps across databases, by name. */
     readonly indexes?: Readonly<Record<string, ObjectIndex>>;
     /** Where the objects live. */
@@ -388,9 +397,7 @@ export interface ObjectDefinition<
     readonly linger?: Duration;
 }
 
-/**
- * Where objects live: durable, ephemeral, external, or local.
- */
+/** Where objects live: durable, ephemeral, external, or local. */
 export type ObjectStorage = "durable" | "ephemeral" | "external" | "local";
 
 /** How a type's objects are declared, deleted, expired, versioned, tracked and converted. */
@@ -1779,9 +1786,6 @@ export type ObjectAggregate = {
       }
 );
 
-/** Build an object type's constraints over its derived columns, as its declaration would. */
-export type ObjectConstraints = Bivariant<(columns: ColumnMap) => readonly TableConstraint[]>;
-
 /** A type of attachments a host takes. */
 export interface Attachment<Object extends ObjectType = ObjectType> {
     /** The attachment type, nested in any parent. */
@@ -1790,68 +1794,207 @@ export interface Attachment<Object extends ObjectType = ObjectType> {
     readonly by: string;
 }
 
-/** An object definition deriving its table from fields and traits. */
-export type ObjectFieldsDefinition<
-    Name extends string,
-    Fields extends Readonly<Record<string, Field>>,
-    Permissions extends string,
-    Methods extends Readonly<Record<string, Method>>,
-    Scope extends ObjectScope | readonly ObjectScope[],
-    Identity extends string = Name,
-    Storage extends ObjectStorage = "durable",
-    Granted extends string = Permissions,
-    Plural extends string = string,
-> = Omit<
-    ObjectDefinition<unknown, Permissions, Methods, Scope, Granted>,
-    "name" | "plural" | "identity" | "constraints" | "storage" | keyof ObjectTraits
+/** An object definition as data: its fields, permissions and traits, or another package's table. */
+export interface ObjectShape extends Omit<ObjectDefinition, "methods"> {
+    /** The foreign table of an object type over a table another package owns. */
+    readonly [INTRINSIC]?: Intrinsic;
+}
+
+/** An object type declared as data, which takes its methods. */
+export interface ObjectDraft<Definition extends ObjectShape> {
+    /** Declare the operations callers may execute, keyed by method name, completing the type. */
+    methods<const Methods extends Readonly<Record<string, Method>> = {}>(
+        build?: (
+            method: MethodBuilder<
+                DefinedTable<Definition>,
+                WrittenField<DefinedFields<Definition>>,
+                Listed<DefinedPermissions<Definition>>
+            >,
+        ) => Methods,
+    ): DefinedType<Definition, Methods>;
+}
+
+/** An object type over a table another package owns, declared as data, which takes its methods. */
+export interface IntrinsicDraft<Definition extends ObjectShape> {
+    /** Declare the operations callers may execute, keyed by method name, completing the type. */
+    methods<const Methods extends Readonly<Record<string, Method>> = {}>(
+        build?: (
+            method: MethodBuilder<
+                IntrinsicTable<Definition>,
+                string,
+                Listed<DeclaredPermissions<Definition>>
+            >,
+        ) => Methods,
+    ): ObjectType<{
+        readonly name: Definition["name"];
+        readonly plural: Definition["plural"];
+        readonly identity: Definition["name"];
+        readonly table: IntrinsicTable<Definition>;
+        readonly fields: {};
+        readonly methods: Methods;
+        readonly permissions: DeclaredPermissions<Definition>;
+        readonly scope: ScopeIdentityOf<Option<Definition, "scope", ObjectScope>>;
+        readonly parent: undefined;
+        readonly attachments: never;
+        readonly storage: "durable";
+        readonly declared: StackDeclarationOf<Definition>;
+    }>;
+}
+
+/** Read a definition's option, or a default where it sets none. */
+type Option<Definition, Key extends PropertyKey, Default = undefined> = Key extends keyof Definition
+    ? Exclude<Definition[Key], undefined>
+    : Default;
+
+/** Spell a union of names out by its members, as messages list them. */
+type Listed<Union extends string> = `${Union}`;
+
+/** The permission names a definition declares. */
+type DeclaredPermissions<Definition> = Definition extends {
+    readonly permissions: infer Permissions;
+}
+    ? Permissions extends readonly (infer Name extends string)[]
+        ? Name
+        : keyof Permissions & string
+    : never;
+
+/** The options naming permissions, typed by the permissions a definition grants. */
+type Checked<Definition extends ObjectShape> = ObjectTraits<
+    unknown,
+    DefinedPermissions<Definition> | RolePermission
 > & {
-    /** The singular name, unique within the declaring package. */
-    readonly name: Name;
-    /** The plural name. */
-    readonly plural: Plural;
-    /** The prefix of the objects' identifiers, the name when absent. */
-    readonly identity?: Identity;
-    /** The fields each object has, by property name. */
-    readonly fields: Fields;
-    /** Where the objects live. */
-    readonly storage?: Storage;
-    /** Indexes, unique constraints and checks over the derived columns. */
-    readonly constraints?: (
-        columns: ConstraintColumns<
-            Name,
-            ScopeIdentityOf<Scope>,
-            ObjectFields<Fields>,
-            Identity,
-            Storage
-        >,
-    ) => readonly TableConstraint[];
+    /** Permissions only their expressions grant, never roles. */
+    readonly reserved?: readonly DefinedPermissions<Definition>[];
+    /** Sensitive permissions that apply only after the authentication each requires. */
+    readonly elevated?: Readonly<Partial<Record<DefinedPermissions<Definition>, Elevation>>>;
+    /** Permissions available while the object's scope is suspended. */
+    readonly administration?: readonly DefinedPermissions<Definition>[];
+    /** Checks, indexes, unique constraints and foreign keys over the columns, by name. */
+    readonly constraints?: DefinedConstraints<Definition>;
 };
 
-/** The traits whose options type an object's table, methods or declarations, one each. */
-type TypedTrait =
-    | "nested"
-    | "recoverable"
-    | "versioned"
-    | "controlled"
-    | "declarable"
-    | "suspendable"
-    | "adoptable"
-    | "tracked"
-    | "shareable"
-    | "provisioned"
-    | "bindable"
-    | "attachments"
-    | "presentable"
-    | "orderable"
-    | "key";
+/** The constraints a definition declares, naming its columns and those of the types referenced. */
+type DefinedConstraints<Definition extends ObjectShape> = {
+    readonly [Name in keyof Option<Definition, "constraints", {}>]: ObjectConstraint<
+        DefinedColumn<Definition>,
+        ReferencedColumn<Option<Definition, "constraints", {}>[Name], DefinedColumn<Definition>>
+    >;
+};
+
+/** The columns a foreign key references: its own, a typed object type's, or any unknown type's. */
+type ReferencedColumn<Constraint, Own extends string> = Constraint extends {
+    readonly references: { readonly object: infer Referenced };
+}
+    ? Referenced extends "self"
+        ? Own
+        : Referenced extends () => ObjectType<infer Configuration>
+          ? string extends Configuration["name"]
+              ? string
+              : keyof Configuration["table"][typeof TABLE]["columns"] & string
+          : string
+    : string;
+
+/** The foreign table of an object type over a table another package owns. */
+type IntrinsicTable<Definition extends ObjectShape> = NonNullable<
+    Definition[typeof INTRINSIC]
+>["table"];
+
+/** The traits a definition sets that type its table, methods or declarations. */
+type DefinitionTraits<Definition> = TraitOptions<{
+    readonly key: Option<Definition, "key">;
+    readonly nested: Option<Definition, "nested">;
+    readonly recoverable: Option<Definition, "recoverable">;
+    readonly versioned: Option<Definition, "versioned">;
+    readonly controlled: Option<Definition, "controlled">;
+    readonly declarable: Option<Definition, "declarable">;
+    readonly suspendable: Option<Definition, "suspendable">;
+    readonly adoptable: Option<Definition, "adoptable">;
+    readonly bindable: Option<Definition, "bindable">;
+    readonly tracked: Option<Definition, "tracked">;
+}>;
 
 /** The trait options a definition sets, without the absent ones. */
 type TraitOptions<Traits> = {
     readonly [Key in keyof Traits as [Traits[Key]] extends [undefined] ? never : Key]: Traits[Key];
 };
 
-/** The traits of an object definition, without the definition's other options. */
-export type TraitsOf<Definition> = Pick<Definition, keyof Definition & keyof ObjectTraits>;
+/** The traits a definition's objects take: its own, and those its kind adds. */
+type DefinedTraits<Definition> = DefinitionTraits<Definition> &
+    ProvisionedTraitsOf<Option<Definition, "provisioned">>;
+
+/** The fields a definition's objects have: its own, and those its sharing, kind and traits add. */
+type DefinedFields<Definition extends ObjectShape> = ObjectFields<
+    NonNullable<Definition["fields"]> &
+        RoleFieldsOf<Option<Definition, "shareable">, Option<Definition, "isScope", false>> &
+        ProvisionedFieldsOf<Option<Definition, "provisioned">> &
+        PresentationFieldsOf<Option<Definition, "presentable">> &
+        OrderedFieldsOf<Option<Definition, "orderable">>
+>;
+
+/** The permissions a definition's objects have. */
+type DefinedPermissions<Definition> =
+    | DeclaredPermissions<Definition>
+    | RolePermissionsOf<Option<Definition, "shareable">>
+    | ProvisionedPermissionOf<Option<Definition, "provisioned">>
+    | TraitPermissionsOf<DefinedTraits<Definition>>;
+
+/** The scope identity of a definition's objects. */
+type DefinedScope<Definition> = ScopeIdentityOf<Option<Definition, "scope", ObjectScope>>;
+
+/** The prefix of a definition's identifiers. */
+type DefinedIdentity<Definition extends ObjectShape> = Option<
+    Definition,
+    "identity",
+    Definition["name"]
+>;
+
+/** The table a definition derives. */
+type DefinedTable<Definition extends ObjectShape> = ObjectTable<
+    Definition["name"],
+    DefinedScope<Definition>,
+    DefinedFields<Definition>,
+    TableTraitsOf<DefinedTraits<Definition>>,
+    DefinedIdentity<Definition>,
+    Option<Definition, "storage", "durable">
+>;
+
+/** The columns a definition's constraints name. */
+type DefinedColumn<Definition extends ObjectShape> = ConstraintColumn<
+    ObjectFields<NonNullable<Definition["fields"]>>,
+    Option<Definition, "storage", "durable">
+>;
+
+/** The object type a definition declares with its methods. */
+type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
+    readonly name: Definition["name"];
+    readonly plural: Definition["plural"];
+    readonly identity: DefinedIdentity<Definition>;
+    readonly table: DefinedTable<Definition>;
+    readonly fields: DefinedFields<Definition>;
+    readonly methods: Methods &
+        ProvisionedMethodsOf<Option<Definition, "provisioned">> &
+        TraitMethods<
+            ObjectFields<NonNullable<Definition["fields"]>>,
+            DefinedTraits<Definition> & {
+                readonly shareable: ProvisionedSharingOf<
+                    Option<Definition, "provisioned">,
+                    Option<Definition, "shareable">
+                >;
+            }
+        >;
+    readonly permissions: DefinedPermissions<Definition>;
+    readonly scope: DefinedScope<Definition>;
+    readonly parent: Option<Definition, "nested"> extends { readonly in: infer Parent }
+        ? Parent extends ObjectType
+            ? IdentityOf<Parent>
+            : Parent extends "self" | "any"
+              ? Parent
+              : undefined
+        : undefined;
+    readonly attachments: IdentityOf<Option<Definition, "attachments", []>[number]["object"]>;
+    readonly storage: Option<Definition, "storage", "durable">;
+    readonly declared: StackDeclarationOf<DefinedTraits<Definition>>;
+}>;
 
 /** The traits as a derived table reads them, a nested parent by its identity. */
 export type TableTraitsOf<Traits> = {
@@ -1863,32 +2006,6 @@ export type TableTraitsOf<Traits> = {
             : Traits[Key]
         : Traits[Key];
 };
-
-/** The fields a definition's objects have: its own, and those its sharing, kind and traits add. */
-type DefinedFields<
-    Fields,
-    Sharing,
-    IsScope extends boolean,
-    Provisioning,
-    Presenting,
-    Ordered,
-> = ObjectFields<
-    Fields &
-        RoleFieldsOf<Sharing, IsScope> &
-        ProvisionedFieldsOf<Provisioning> &
-        PresentationFieldsOf<Presenting> &
-        OrderedFieldsOf<Ordered>
->;
-
-/** The traits a definition's objects take: its own, and those its kind adds. */
-type DefinedTraits<Traits, Provisioning> = TraitsOf<Traits> & ProvisionedTraitsOf<Provisioning>;
-
-/** The permissions a definition's objects have. */
-type DefinedPermissions<Permissions, Sharing, Provisioning, Traits> =
-    | Permissions
-    | RolePermissionsOf<Sharing>
-    | ProvisionedPermissionOf<Provisioning>
-    | TraitPermissionsOf<DefinedTraits<Traits, Provisioning>>;
 
 /** The shape of one stack declaration of a declarable object. */
 export type StackDeclarationOf<Traits> =
@@ -1915,236 +2032,38 @@ export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
     TrackedMethodMap<TraitOf<Traits, "tracked">> &
     TextMethodMap<Fields>;
 
-/** The methods of an object type, built on its table and needing only its permissions. */
-export type ObjectMethods<
-    Definition extends Table,
-    Methods,
-    Granted extends string = string,
-    Written extends string = string,
-> = {
-    /** Build the operations callers may execute, keyed by method name. */
-    readonly methods?: (
-        method: MethodBuilder<Definition, Written>,
-    ) => Methods & PermittedMethods<Methods, NoInfer<Granted>>;
-};
-
-/** The methods whose permissions the type grants, others typed never. */
-type PermittedMethods<Methods, Granted extends string> = {
-    readonly [Name in keyof Methods]: Methods[Name] extends { readonly permission: infer Needed }
-        ? [Needed] extends [Granted]
-            ? Methods[Name]
-            : never
-        : never;
-};
-
-/** Declare an object type from its fields. */
-export function defineObject<
-    const Name extends string,
-    Fields extends Readonly<Record<string, Field>>,
-    Permissions extends string = never,
-    const Methods extends Readonly<Record<string, Method>> = {},
-    const Scope extends ObjectScope | readonly ObjectScope[] = ObjectScope,
-    const Nested extends NestedDefinition | undefined = undefined,
-    const Recoverable extends
-        | RecoverableDefinition<NoInfer<Permissions> | RolePermission>
-        | undefined = undefined,
-    const Versioned extends VersionsDefinition | undefined = undefined,
-    const Controlled extends ControlledDefinition | undefined = undefined,
-    const Declarable extends DeclarableDefinition | undefined = undefined,
-    const Suspendable extends Gated<NoInfer<Permissions> | RolePermission> | undefined = undefined,
-    const Adoptable extends Gated<NoInfer<Permissions> | RolePermission> | undefined = undefined,
-    const Bindable extends true | Gated<NoInfer<Permissions> | RolePermission> | undefined =
-        undefined,
-    const Tracked extends TrackedDefinition<NoInfer<Permissions> | RolePermission> | undefined =
-        undefined,
-    const Identity extends string = Name,
-    const Storage extends ObjectStorage = "durable",
-    const Sharing extends ShareableDefinition<NoInfer<Permissions> | RolePermission> | undefined =
-        undefined,
-    const IsScope extends boolean = false,
-    const Provisioning extends ProvisionedDefinition | undefined = undefined,
-    const Plural extends string = string,
-    const Attachments extends readonly Attachment[] = [],
-    const Key extends schema.Schema<string> | undefined = undefined,
-    const Presenting extends PresentableDefinition | undefined = undefined,
-    const Ordering extends OrderableDefinition | undefined = undefined,
-    Traits = TraitOptions<{
-        readonly key: Key;
-        readonly nested: Nested;
-        readonly recoverable: Recoverable;
-        readonly versioned: Versioned;
-        readonly controlled: Controlled;
-        readonly declarable: Declarable;
-        readonly suspendable: Suspendable;
-        readonly adoptable: Adoptable;
-        readonly bindable: Bindable;
-        readonly tracked: Tracked;
-    }>,
->(
-    definition: Omit<
-        ObjectFieldsDefinition<
-            Name,
-            Fields,
-            Permissions,
-            Methods,
-            Scope,
-            Identity,
-            Storage,
-            DefinedPermissions<Permissions, Sharing, Provisioning, Traits>,
-            Plural
-        >,
-        "methods"
-    > &
-        ObjectMethods<
-            ObjectTable<
-                Name,
-                ScopeIdentityOf<Scope>,
-                NoInfer<
-                    DefinedFields<Fields, Sharing, IsScope, Provisioning, Presenting, Ordering>
-                >,
-                NoInfer<TableTraitsOf<DefinedTraits<Traits, Provisioning>>>,
-                Identity,
-                Storage
-            >,
-            Methods,
-            DefinedPermissions<Permissions, Sharing, Provisioning, Traits>,
-            NoInfer<
-                WrittenField<
-                    DefinedFields<Fields, Sharing, IsScope, Provisioning, Presenting, Ordering>
-                >
-            >
-        > &
-        Omit<ObjectTraits, TypedTrait> & {
-            /** The parent object type, or "self" for a tree. */
-            readonly nested?: Nested;
-            /** Deleted objects stay restorable for a window. */
-            readonly recoverable?: Recoverable;
-            /** The objects are immutable, numbered versions of their parent. */
-            readonly versioned?: Versioned;
-            /** A controller reconciles the objects. */
-            readonly controlled?: Controlled;
-            /** Stacks declare the objects. */
-            readonly declarable?: Declarable;
-            /** Holders of the permission suspend and resume a scope object. */
-            readonly suspendable?: Suspendable;
-            /** Permission holders detach a declared record, and adopt a direct record into one. */
-            readonly adoptable?: Adoptable;
-            /** Installations bind to the objects, and permission holders bind one at a time. */
-            readonly bindable?: Bindable;
-            /** Every change stays in the log, grouped into activities. */
-            readonly tracked?: Tracked;
-            /** Project another type's rows into the objects, each with its own state. */
-            readonly projected?: ProjectedDefinition;
-            /** The types projecting the objects into their recipients' homes. */
-            readonly projections?: () => readonly ObjectType[];
-            /** How callers share the objects: through roles, or the type's own relations. */
-            readonly shareable?: Sharing;
-            /** Whether the objects are scopes containing other objects. */
-            readonly isScope?: IsScope;
-            /** Whether each object is a partition, with contents living apart from its parent's. */
-            readonly partition?: true;
-            /** The kind whose resources the objects are. */
-            readonly provisioned?: Provisioning;
-            /** The attachments the objects take. */
-            readonly attachments?: Attachments;
-            /** The objects' natural key, which callers and sources identify them by. */
-            readonly key?: Key;
-            /** How pickers, mentions and titles show the objects. */
-            readonly presentable?: Presenting;
-            /** How the objects are ordered among their siblings. */
-            readonly orderable?: Ordering;
-        },
+/** Declare an object type from its data, its methods following. */
+export function defineObject<const Definition extends ObjectShape & Checked<Definition>>(
+    definition: Definition,
     module?: ModuleMetadata,
-): ObjectType<{
-    readonly name: Name;
-    readonly plural: Plural;
-    readonly identity: Identity;
-    readonly table: ObjectTable<
-        Name,
-        ScopeIdentityOf<Scope>,
-        DefinedFields<Fields, Sharing, IsScope, Provisioning, Presenting, Ordering>,
-        TableTraitsOf<DefinedTraits<Traits, Provisioning>>,
-        Identity,
-        Storage
-    >;
-    readonly fields: DefinedFields<Fields, Sharing, IsScope, Provisioning, Presenting, Ordering>;
-    readonly methods: Methods &
-        ProvisionedMethodsOf<Provisioning> &
-        TraitMethods<
-            ObjectFields<Fields>,
-            TraitsOf<Traits> & {
-                readonly shareable: ProvisionedSharingOf<Provisioning, Sharing>;
-            } & ProvisionedTraitsOf<Provisioning>
-        >;
-    readonly permissions: DefinedPermissions<Permissions, Sharing, Provisioning, Traits>;
-    readonly scope: ScopeIdentityOf<Scope>;
-    readonly parent: Nested extends { readonly in: infer Parent }
-        ? Parent extends ObjectType
-            ? IdentityOf<Parent>
-            : Parent extends "self" | "any"
-              ? Parent
-              : undefined
-        : undefined;
-    readonly attachments: IdentityOf<Attachments[number]["object"]>;
-    readonly storage: Storage;
-    readonly declared: StackDeclarationOf<Traits & ProvisionedTraitsOf<Provisioning>>;
-}>;
-/** Declare an object type over a table another package owns. */
-export function defineObject<
-    Definition extends Table,
-    Declared = never,
-    Permissions extends string = never,
-    const Methods extends Readonly<Record<string, Method>> = {},
-    const Scope extends ObjectScope | readonly ObjectScope[] = ObjectScope,
->(
-    definition: Omit<
-        ObjectDefinition<Declared, Permissions, Methods, Scope>,
-        | "methods"
-        | "identity"
-        | "nested"
-        | "recoverable"
-        | "versioned"
-        | "controlled"
-        | "adoptable"
-        | "shareable"
-        | "suspendable"
-        | "tracked"
-        | "attachments"
-        | "constraints"
-        | "aggregates"
-    > &
-        ObjectMethods<Definition, Methods, Permissions> & {
-            readonly [INTRINSIC]: Intrinsic<Definition>;
-        },
-    module?: ModuleMetadata,
-): ObjectType<{
-    readonly name: string;
-    readonly plural: string;
-    readonly identity: string;
-    readonly table: Definition;
-    readonly fields: {};
-    readonly methods: Methods;
-    readonly permissions: Permissions;
-    readonly scope: ScopeIdentityOf<Scope>;
-    readonly parent: undefined;
-    readonly attachments: never;
-    readonly storage: "durable";
-    readonly declared: Declared;
-}>;
+): Definition extends { readonly [INTRINSIC]: Intrinsic }
+    ? IntrinsicDraft<Definition>
+    : ObjectDraft<Definition>;
 /**
  * Declare an object type.
  *
  * @construct the table, fields, methods, traits and scope derive as the signatures above read them.
  */
-export function defineObject(input: ObjectInput, module?: ModuleMetadata): ObjectType {
-    return declareObject(input, module);
+export function defineObject(definition: ObjectInput, module?: ModuleMetadata): Draft {
+    return {
+        methods: (methods) =>
+            declareObject(methods === undefined ? definition : { ...definition, methods }, module),
+    };
 }
 
-/** A definition as `defineObject` takes it, with methods built by a builder function. */
-type ObjectInput = Omit<ObjectDefinition, "methods"> &
-    ObjectMethods<Table, Readonly<Record<string, Method>>> & {
-        readonly [INTRINSIC]?: Intrinsic;
-    };
+/** A definition as the chain collects it, with methods built by a builder function. */
+type ObjectInput = Omit<ObjectDefinition, "methods"> & {
+    /** Build the operations callers may execute, keyed by method name. */
+    readonly methods?: (method: MethodBuilder) => Readonly<Record<string, Method>>;
+    /** The foreign table of an object type over another package's table. */
+    readonly [INTRINSIC]?: Intrinsic;
+};
+
+/** An object type declared as data, untyped by its definition. */
+interface Draft {
+    /** Declare the operations callers may execute, completing the type. */
+    methods(build?: ObjectInput["methods"]): ObjectType;
+}
 
 /** Declare an object type from a definition, deriving its table, traits and methods. */
 function declareObject(input: ObjectInput, module: ModuleMetadata | undefined): ObjectType {
@@ -2168,6 +2087,12 @@ function declareObject(input: ObjectInput, module: ModuleMetadata | undefined): 
     );
     const intrinsic = definition[INTRINSIC];
     const traits = traitsOf(definition);
+
+    // refuse options a foreign table takes none of
+    const refused = INTRINSIC_REFUSED.find((key) => written[key] !== undefined);
+    if (intrinsic !== undefined && refused !== undefined) {
+        throw new TypeError(`object ${definition.name} over a foreign table takes no ${refused}`);
+    }
 
     // derive the table
     const packageId = (definition.represents?.package ?? owner).id;

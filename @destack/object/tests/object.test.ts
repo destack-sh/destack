@@ -27,8 +27,7 @@ const card = defineObject({
     fields: { owner: field.reference(principal.user).caller(), title: field.string() },
     permissions: { write: relation("owner") },
     adoptable: { by: "write" },
-    methods: (method) => ({ create: method.create("write") }),
-});
+}).methods((method) => ({ create: method.create("write") }));
 
 /** Serve the declared objects over a database, applying their records. */
 function serve(database: DatabaseConnection): ObjectStore {
@@ -212,8 +211,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
         fields: { bookCount: field.count() },
         relations: { reader: { subjects: [principal.user] } },
         permissions: { read: relation("reader") },
-        methods: (method) => ({ get: method.get("read"), list: method.list("read") }),
-    });
+    }).methods((method) => ({ get: method.get("read"), list: method.list("read") }));
     const book = (read: ReturnType<typeof union>) =>
         defineObject({
             name: "book",
@@ -224,8 +222,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
             aggregates: { bookCount: { function: "count" } },
             relations: { owner: { subjects: [principal.user] } },
             permissions: { read },
-            methods: (method) => ({ list: method.list("read") }),
-        });
+        }).methods((method) => ({ list: method.list("read") }));
 
     // count books every shelf reader lists, and refuse books only their owners list
     expect(book(union(relation("owner"), through("parent", "read"))).name).toBe("book");
@@ -392,6 +389,5 @@ function ledger(isScope: boolean) {
         fields: { title: field.string().default("") },
         permissions: { read: union(relation("owner"), contained(principal.space)) },
         relations: { owner: { subjects: [principal.user] } },
-        methods: (method) => ({ get: method.get("read") }),
-    });
+    }).methods((method) => ({ get: method.get("read") }));
 }

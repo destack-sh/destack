@@ -2,7 +2,7 @@ import { present, schema, Clock } from "@destack/schema";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { asc, eq, unique, type Dialect, defineDatabase } from "@destack/db";
+import { asc, eq, type Dialect, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { v7 } from "uuid";
 
@@ -27,12 +27,11 @@ const remark = defineObject({
     fields: { text: field.string(schema.string().min(1)) },
     permissions: { read: through("parent", "read"), write: through("parent", "remark") },
     aggregates: { remarkCount: { function: "count" } },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-        delete: method.delete("write"),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+    delete: method.delete("write"),
+}));
 
 /** Pins that keep any hosting object from deletion. */
 const pin = defineObject({
@@ -42,8 +41,7 @@ const pin = defineObject({
     nested: { in: "any", delete: "restrict", receive: "pin" },
     fields: {},
     permissions: { read: through("parent", "read"), write: through("parent", "pin") },
-    methods: (method) => ({ create: method.create("write"), delete: method.delete("write") }),
-});
+}).methods((method) => ({ create: method.create("write"), delete: method.delete("write") }));
 
 /** Articles taking remarks. */
 const article = defineObject({
@@ -53,13 +51,12 @@ const article = defineObject({
     fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
     permissions: { read: relation("owner"), edit: relation("owner") },
     attachments: [remark.attach({ by: "edit" })],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("edit"),
-        delete: method.delete("edit"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("edit"),
+    delete: method.delete("edit"),
+}));
 
 /** Photos their owner remarks on and pins by reading them. */
 const photo = defineObject({
@@ -69,13 +66,12 @@ const photo = defineObject({
     fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
     permissions: { read: relation("owner") },
     attachments: [remark.attach({ by: "read" }), pin.attach({ by: "read" })],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("read"),
-        delete: method.delete("read"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("read"),
+    delete: method.delete("read"),
+}));
 
 /** Tasks taking no remarks. */
 const task = defineObject({
@@ -84,8 +80,7 @@ const task = defineObject({
     scope: space,
     fields: { owner: field.reference(principal.user).caller() },
     permissions: { read: relation("owner") },
-    methods: (method) => ({ create: method.create("read") }),
-});
+}).methods((method) => ({ create: method.create("read") }));
 
 /** A reader's private favourite mark, one per object. */
 const favourite = defineObject({
@@ -94,24 +89,18 @@ const favourite = defineObject({
     scope: space,
     nested: { in: "any", receive: "favourite" },
     fields: { reader: field.reference(principal.user).caller() },
-    constraints: (entry) => [
-        unique("favourite_reader").on(
-            entry.parentPackageId,
-            entry.parentType,
-            entry.parentId,
-            entry.readerId,
-        ),
-    ],
     permissions: {
         read: intersection(relation("reader"), through("parent", "favourite")),
         write: intersection(relation("reader"), through("parent", "favourite")),
     },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-        delete: method.delete("write"),
-    }),
-});
+    constraints: {
+        reader: { kind: "unique", on: ["parentPackageId", "parentType", "parentId", "readerId"] },
+    },
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+    delete: method.delete("write"),
+}));
 
 /** Boards shared with viewers who may mark them as a favourite. */
 const board = defineObject({
@@ -126,8 +115,7 @@ const board = defineObject({
     },
     shareable: { by: "manage" },
     attachments: [favourite.attach({ by: "read" })],
-    methods: (method) => ({ create: method.create("manage"), delete: method.delete("manage") }),
-});
+}).methods((method) => ({ create: method.create("manage"), delete: method.delete("manage") }));
 
 test.for(TEST_DIALECTS)(
     "attach remarks to articles and photos, counting them and deleting them with their host, on %s",

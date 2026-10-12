@@ -1,7 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { journal } from "@destack/audit/stack";
-import { check, sql, unique } from "@destack/db";
+import { sql } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 
@@ -30,11 +30,12 @@ const handle = defineObject({
         holder: field.reference(principal.user),
         name: field.string(schema.string().min(1)),
     },
-    constraints: (entry) => [unique("handle_name").on(entry.scope, entry.name)],
     permissions: { read: relation("holder"), create: relation("holder") },
     elevated: { create: RECENT },
-    methods: (method) => ({ get: method.get("read"), create: method.create("create") }),
-});
+    constraints: {
+        name: { kind: "unique", on: ["scope", "name"] },
+    },
+}).methods((method) => ({ get: method.get("read"), create: method.create("create") }));
 
 test.each(TEST_DIALECTS)(
     "report a create's conflicts only to callers the create permission admits, inside spaces they read, on %s",
@@ -130,11 +131,10 @@ const team = defineObject({
     fields: { name: field.string(schema.string().min(1)) },
     relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
     permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
-    methods: (method) => ({
-        get: method.get("read"),
-        create: method.create("update", { fields: ["name"], creator: "owner" }),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    create: method.create("update", { fields: ["name"], creator: "owner" }),
+}));
 
 test("create an object the caller has the permission on only as the creator its creation relates", async () => {
     const storage = await TestDatabase.create("sqlite", [journal, ...team.tables], {
@@ -223,33 +223,35 @@ const contact = defineObject({
     },
     relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
     permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
-    methods: (method) => ({
-        get: method.get("read"),
-        create: method.create("update", {
-            fields: ["label"],
-            variants: { kind: { email: ["address"], phone: ["number", "region"] } },
-            creator: "owner",
-        }),
+    constraints: {
+        kind: {
+            kind: "check",
+            condition: {
+                OR: [
+                    {
+                        kind: "email",
+                        address: { isNotNull: true },
+                        number: { isNull: true },
+                        region: { isNull: true },
+                    },
+                    {
+                        kind: "phone",
+                        address: { isNull: true },
+                        number: { isNotNull: true },
+                        region: { isNotNull: true },
+                    },
+                ],
+            },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    create: method.create("update", {
+        fields: ["label"],
+        variants: { kind: { email: ["address"], phone: ["number", "region"] } },
+        creator: "owner",
     }),
-    constraints: (entry) => [
-        check("contact_kind", {
-            OR: [
-                {
-                    kind: "email",
-                    address: { isNotNull: true },
-                    number: { isNull: true },
-                    region: { isNull: true },
-                },
-                {
-                    kind: "phone",
-                    address: { isNull: true },
-                    number: { isNotNull: true },
-                    region: { isNotNull: true },
-                },
-            ],
-        }),
-    ],
-});
+}));
 
 test("create each variant of a sum type from its own fields beside the shared ones, refusing another variant's field", async () => {
     const storage = await TestDatabase.create("sqlite", [journal, ...contact.tables], {

@@ -28,24 +28,25 @@ const member = defineObject({
     scope: space,
     fields: { owner: field.reference(principal.user).caller(), name: field.string() },
     permissions: { write: relation("owner") },
-    methods: (method) => ({
+})
+    .methods((method) => ({
         create: method.create("write", { fields: ["name"] }),
         welcome: method.update("write", { fields: ["name"] }),
-    }),
-}).implement({
-    methods: {
-        // sign up, sending the welcome, and refuse a sign-up of the refused name after sending
-        create: async (call, next) => {
-            const name = call.input.name;
-            await call.send({ call: member.calls().welcome({ id: "member-1", name }) });
-            if (name === "Refused") {
-                throw new TypeError("the sign-up is refused");
-            }
+    }))
+    .implement({
+        methods: {
+            // sign up, sending the welcome, and refuse a sign-up of the refused name after sending
+            create: async (call, next) => {
+                const name = call.input.name;
+                await call.send({ call: member.calls().welcome({ id: "member-1", name }) });
+                if (name === "Refused") {
+                    throw new TypeError("the sign-up is refused");
+                }
 
-            return next();
+                return next();
+            },
         },
-    },
-});
+    });
 
 /** Notes their owners write and rename, which a follower copies and changes through the server keeping them. */
 const note = defineObject({
@@ -54,11 +55,10 @@ const note = defineObject({
     scope: space,
     fields: { owner: field.reference(principal.user).caller(), title: field.string() },
     permissions: { write: relation("owner") },
-    methods: (method) => ({
-        create: method.create("write", { fields: ["title"] }),
-        rename: method.update("write", { fields: ["title"] }),
-    }),
-});
+}).methods((method) => ({
+    create: method.create("write", { fields: ["title"] }),
+    rename: method.update("write", { fields: ["title"] }),
+}));
 
 /** The database keeping the notes. */
 const noteDatabase = defineDatabase({

@@ -27,10 +27,14 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const MINUTE = 60_000;
 
 /** The sessions of changes to pages. */
-const activity = defineObject(Intrinsic.activity(space));
+const activity = defineObject(Intrinsic.activity.definition(space)).methods(
+    Intrinsic.activity.methods,
+);
 
 /** The named points in pages' history. */
-const checkpoint = defineObject(Intrinsic.checkpoint(space));
+const checkpoint = defineObject(Intrinsic.checkpoint.definition(space)).methods(
+    Intrinsic.checkpoint.methods,
+);
 
 /** Pages with history that their owner and editors write. */
 const page = defineObject({
@@ -51,13 +55,12 @@ const page = defineObject({
     shareable: { by: "manage" },
     attachments: [activity.attach({ by: "read" }), checkpoint.attach({ by: "edit" })],
     tracked: { by: "edit", activity },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("edit"),
-        update: method.update("edit"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("edit"),
+    update: method.update("edit"),
+}));
 
 test.for(TEST_DIALECTS)(
     "group each caller's changes into activities, and read and revert a page as it was, on %s",
@@ -181,8 +184,7 @@ test("refuse serving history that reads through an object keeping none", async (
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
         permissions: { read: relation("owner") },
-        methods: (method) => ({ get: method.get("read") }),
-    });
+    }).methods((method) => ({ get: method.get("read") }));
     const sheet = defineObject({
         name: "sheet",
         plural: "sheets",
@@ -192,8 +194,7 @@ test("refuse serving history that reads through an object keeping none", async (
         permissions: { read: through("parent", "read") },
         attachments: [activity.attach({ by: "read" })],
         tracked: { by: "read", activity },
-        methods: (method) => ({ get: method.get("read") }),
-    });
+    }).methods((method) => ({ get: method.get("read") }));
 
     // refuse the sheet's history, which the folder's lost changes decided
     const storage = await TestDatabase.create(

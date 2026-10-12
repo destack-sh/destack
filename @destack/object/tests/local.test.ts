@@ -129,12 +129,24 @@ test("refuse to serve local objects, and refuse local definitions reaching beyon
                 ).services[0],
         ),
         failure(() =>
-            defineObject({ ...local, name: "shared", plural: "shared", scope: "universe" }),
+            defineObject({
+                ...local,
+                name: "shared",
+                plural: "shared",
+                scope: "universe",
+            }).methods(),
         ),
         failure(() =>
-            defineObject({ ...local, name: "spread", plural: "spreads", scope: [user, notebook] }),
+            defineObject({
+                ...local,
+                name: "spread",
+                plural: "spreads",
+                scope: [user, notebook],
+            }).methods(),
         ),
-        failure(() => defineObject({ ...local, name: "kept", plural: "kept", inherited: {} })),
+        failure(() =>
+            defineObject({ ...local, name: "kept", plural: "kept", inherited: {} }).methods(),
+        ),
         failure(() =>
             defineObject({
                 ...local,
@@ -142,10 +154,9 @@ test("refuse to serve local objects, and refuse local definitions reaching beyon
                 plural: "remotes",
                 fields: { text: field.string() },
                 permissions: ["edit"],
-                methods: (method) => ({
-                    create: method.create("edit", { isPredicted: false }),
-                }),
-            }),
+            }).methods((method) => ({
+                create: method.create("edit", { isPredicted: false }),
+            })),
         ),
     ]).toEqual([
         "local object draft lives on its client, and no server serves it",

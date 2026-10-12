@@ -41,13 +41,12 @@ const document = defineObject({
         manage: relation("owner"),
     },
     shareable: { by: "manage" },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("read"),
-        update: method.update("read"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("read"),
+    update: method.update("read"),
+}));
 
 /** The documents service. */
 const documentsService = defineService("documents", { objects: { document } });

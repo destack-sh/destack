@@ -68,8 +68,7 @@ const account = defineObject({
         reader: { subjects: [principal.installation], grantedBy: null },
     },
     permissions: { read: union(relation("member"), relation("reader")) },
-    methods: (method) => ({ list: method.list("read") }),
-});
+}).methods((method) => ({ list: method.list("read") }));
 
 /** Spaces within accounts, which installations read and replicate as granted. */
 const space = defineObject({
@@ -83,8 +82,7 @@ const space = defineObject({
         replicator: { subjects: [principal.installation], grantedBy: null },
     },
     permissions: { read: relation("reader"), replicate: relation("replicator") },
-    methods: (method) => ({ list: method.list("read") }),
-});
+}).methods((method) => ({ list: method.list("read") }));
 
 /** Comments an installation keeps in the spaces it follows. */
 const comment = defineObject({
@@ -93,7 +91,7 @@ const comment = defineObject({
     scope: space,
     fields: { body: field.string() },
     permissions: { read: none() },
-});
+}).methods();
 
 /** Annotations an installation keeps in its own space, each on an account its readers read it through. */
 const annotation = defineObject({
@@ -102,7 +100,7 @@ const annotation = defineObject({
     scope: space,
     fields: { account: field.reference(account).relate("account"), body: field.string() },
     permissions: { read: through("account", "read") },
-});
+}).methods();
 
 /** Documents that only roles grant. */
 const document = defineObject({
@@ -111,11 +109,10 @@ const document = defineObject({
     scope: space,
     fields: { title: field.string(schema.string().min(1)) },
     permissions: { read: none(), write: none() },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+}));
 
 test.each(TEST_DIALECTS)(
     "decide calls over a relayed copy of access as the holder does, through the account's members and restricted credentials, on %s",

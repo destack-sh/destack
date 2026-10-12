@@ -39,11 +39,10 @@ const board = defineObject({
     presentable: { subtitle: "summary", cover: media },
     search: { searchable: ["name", "summary"], filterable: ["ownerId"], sortable: ["rank"] },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({
-        get: method.get("read"),
-        create: method.create("write", { fields: ["name", "icon", "color", "cover"] }),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    create: method.create("write", { fields: ["name", "icon", "color", "cover"] }),
+}));
 
 test("present an object by its name, subtitle, chosen icon, accent and cover, described for pickers with its query roles and an index per filtered or sorted field", async () => {
     // keep a board with an icon, an accent and a cover
@@ -113,7 +112,7 @@ function declare(definition: Record<string, unknown>) {
             scope: space,
             fields: { body: field.json(schema.json()) },
             ...definition,
-        });
+        }).methods();
 }
 
 test("refuse a presentation without a title field, a field the presentation adds itself, and a query role over a field it cannot read", () => {

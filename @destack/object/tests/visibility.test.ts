@@ -33,7 +33,7 @@ const room = defineObject({
     fields: {},
     relations: { reader: { subjects: [anyone.all()] } },
     permissions: { read: relation("reader") },
-});
+}).methods();
 
 /** Desks in rooms. */
 const desk = defineObject({
@@ -42,8 +42,7 @@ const desk = defineObject({
     scope: room,
     fields: {},
     permissions: { read: none() },
-    methods: (method) => ({ list: method.list("read") }),
-});
+}).methods((method) => ({ list: method.list("read") }));
 
 /** Documents shared one at a time with their readers. */
 const document = defineObject({
@@ -53,13 +52,12 @@ const document = defineObject({
     fields: { title: field.string(schema.string().min(1)) },
     relations: { reader: { subjects: [principal.user] } },
     permissions: { read: relation("reader"), write: none() },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("write"),
-        update: method.update("write"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("write"),
+    update: method.update("write"),
+}));
 
 test.each(TEST_DIALECTS)(
     "show a private space to readers of one object in it, forbid their writes, and hide it from strangers on %s",

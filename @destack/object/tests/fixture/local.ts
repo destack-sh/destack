@@ -10,7 +10,7 @@ export const user = defineObject({
     represents: principal.user,
     fields: {},
     permissions: [],
-});
+}).methods();
 
 /** A draft one client keeps for its signed-in user alone. */
 export const draft = defineObject({
@@ -20,12 +20,11 @@ export const draft = defineObject({
     storage: "local",
     fields: { text: field.string(schema.string().max(1000)) },
     permissions: ["read", "edit"],
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("edit"),
-        update: method.update("edit"),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("edit"),
+    update: method.update("edit"),
+}));
 
 /** A panel width one client keeps for every person using it. */
 export const panel = defineObject({
@@ -35,9 +34,8 @@ export const panel = defineObject({
     storage: "local",
     fields: { width: field.number() },
     permissions: ["read", "edit"],
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("edit"),
-        update: method.update("edit"),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("edit"),
+    update: method.update("edit"),
+}));

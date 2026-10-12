@@ -29,31 +29,32 @@ const reminder = defineObject({
         sentAt: field.time().optional(),
     },
     permissions: { read: relation("owner"), write: relation("owner"), send: none() },
-    methods: (method) => ({
+})
+    .methods((method) => ({
         get: method.get("read"),
         create: method.create("write", { fields: ["topic", "dueAt"] }),
         send: method.mutation({ permission: "send", isInternal: true }),
-    }),
-}).implement({
-    methods: { send: (call) => call.update({ sentAt: call.now }) },
-    controller: {
-        pending: { sentAt: { isNull: true } },
-        key: (row) => ({ topic: row.topic }),
-        async reconcile(reconciling) {
-            // send the due reminders of the topic together, and wait for the next one
-            const { rows, now } = reconciling;
-            const due = rows.filter((row) => row.dueAt <= now);
-            if (due.length > 0) {
-                await reconciling.mutate(
-                    due.map((row) => reminder.call("send", reminder.target(row))),
-                );
-            }
-            const next = rows.filter((row) => row.dueAt > now).map((row) => row.dueAt - now);
+    }))
+    .implement({
+        methods: { send: (call) => call.update({ sentAt: call.now }) },
+        controller: {
+            pending: { sentAt: { isNull: true } },
+            key: (row) => ({ topic: row.topic }),
+            async reconcile(reconciling) {
+                // send the due reminders of the topic together, and wait for the next one
+                const { rows, now } = reconciling;
+                const due = rows.filter((row) => row.dueAt <= now);
+                if (due.length > 0) {
+                    await reconciling.mutate(
+                        due.map((row) => reminder.call("send", reminder.target(row))),
+                    );
+                }
+                const next = rows.filter((row) => row.dueAt > now).map((row) => row.dueAt - now);
 
-            return next.length === 0 ? undefined : Math.min(...next);
+                return next.length === 0 ? undefined : Math.min(...next);
+            },
         },
-    },
-});
+    });
 
 /** The database with the reminders, their access and the journal. */
 const reminderDatabase = defineDatabase({

@@ -1,20 +1,4 @@
 import { Policy, PolicySubject } from "@destack/access";
-import {
-    check,
-    Condition,
-    ForeignKey,
-    Index,
-    TABLE,
-    Unique,
-    uniqueIndex,
-    index,
-    REFERENCE_ACTIONS,
-    type Column,
-    type ColumnMap,
-    type SQL,
-    type Table,
-    type TableConstraint,
-} from "@destack/db";
 import { PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { ResourceDeclaration, ResourceKind } from "@destack/resource";
@@ -35,49 +19,12 @@ import { method } from "../method/record.ts";
 import { ObjectType, type ObjectDefinition } from "./object.ts";
 import { INTRINSIC } from "./intrinsic.ts";
 
-/** The referential actions a foreign key takes. */
-const ReferenceActionName = schema.enum(REFERENCE_ACTIONS);
-
-/** A declared constraint as data, a foreign key's referenced table and columns by SQL name. */
-const ConstraintDescription = schema.discriminatedUnion("kind", [
-    schema.object({
-        kind: schema.literal("check"),
-        name: schema.string(),
-        condition: Condition.schema,
-    }),
-    schema.object({
-        kind: schema.literal("index"),
-        name: schema.string(),
-        isUnique: schema.boolean(),
-        columns: schema.array(schema.string()),
-        where: Condition.schema.exactOptional(),
-        isNullsNotDistinct: schema.literal(true).exactOptional(),
-    }),
-    schema.object({
-        kind: schema.literal("unique"),
-        name: schema.string().exactOptional(),
-        columns: schema.array(schema.string()),
-    }),
-    schema.object({
-        kind: schema.literal("foreignKey"),
-        name: schema.string().exactOptional(),
-        columns: schema.array(schema.string()),
-        references: schema.object({
-            table: schema.string(),
-            columns: schema.array(schema.string()),
-        }),
-        onDelete: ReferenceActionName.exactOptional(),
-        onUpdate: ReferenceActionName.exactOptional(),
-    }),
-]);
-/** A declared constraint as data. */
-type ConstraintDescription = schema.Infer<typeof ConstraintDescription>;
-
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
     ["projections"],
     ["indexes", "*", "across"],
     ["projected", "from"],
+    ["constraints", "*", "references", "object"],
 ];
 
 /** The builders taking lazy function references, such as `field.reference("note", () => note)`. */
@@ -175,21 +122,8 @@ export function encodeType(type: ObjectType): ObjectDescription {
         throw new TypeError(`object type ${type.name} maps a table another package keeps`);
     }
 
-    // tag the definition's special values, rendering its constraints over the type's columns
-    const columns = type.table[TABLE].columns;
-    const { constraints, ...rest } = source;
-    const encoded = encodeObject(rest, { path: type.name, keys: [], isLazy: false });
-    const definition =
-        constraints === undefined
-            ? encoded
-            : {
-                  ...encoded,
-                  constraints: {
-                      $constraints: constraints(columns).map((each) =>
-                          describeConstraint(each, columns),
-                      ),
-                  },
-              };
+    // tag the definition's special values
+    const definition = encodeObject(source, { path: type.name, keys: [], isLazy: false });
 
     return {
         package: {
@@ -245,18 +179,6 @@ export class DeclarationIndex {
         }
 
         return declaration;
-    }
-
-    /** Read the table of a known object type by its SQL name. */
-    table(name: string): Table {
-        const table = [...this.objects.values()]
-            .flatMap((type) => type.tables)
-            .find((each) => each[TABLE].sqlName === name);
-        if (table === undefined) {
-            throw new TypeError(`a description refers to table ${name}, which is not known`);
-        }
-
-        return table;
     }
 }
 
@@ -451,11 +373,6 @@ function decodeTag(tag: string, value: JsonValue | undefined, known: Declaration
             return replayed(field, FIELD_MODIFIERS, BuilderCalls.parse(value), known);
         case "$method":
             return replayed(method, [], BuilderCalls.parse(value), known);
-        case "$constraints": {
-            const constraints = schema.array(ConstraintDescription).parse(value);
-            return (columns: ColumnMap) =>
-                constraints.map((each) => constraintOf(each, columns, known));
-        }
         default:
             throw new TypeError(`a description has an unknown tag ${tag}`);
     }
@@ -507,143 +424,6 @@ function invoke(
         owner,
         built.arguments.map((argument) => decode(argument, known)),
     );
-}
-
-/** Describe a declared constraint, a foreign key's referenced columns by SQL name. */
-function describeConstraint(
-    constraint: TableConstraint,
-    columns: ColumnMap,
-): ConstraintDescription {
-    if (constraint.kind === "check") {
-        return {
-            kind: "check",
-            name: constraint.name,
-            condition: Condition.schema.parse(constraint.condition),
-        };
-    } else if (constraint instanceof Index) {
-        return {
-            kind: "index",
-            name: constraint.name,
-            isUnique: constraint.isUnique,
-            columns: constraint.columns.map((column) => {
-                if (!isColumn(column)) {
-                    throw new TypeError(
-                        `index ${constraint.name} has an SQL expression, which a description cannot keep`,
-                    );
-                }
-
-                return propertyOf(column, columns);
-            }),
-            ...(constraint.predicate === undefined
-                ? {}
-                : { where: Condition.schema.parse(constraint.predicate) }),
-            ...(constraint.isNullsNotDistinct ? { isNullsNotDistinct: true } : {}),
-        };
-    } else if (constraint instanceof Unique) {
-        return {
-            kind: "unique",
-            ...(constraint.name === undefined ? {} : { name: constraint.name }),
-            columns: constraint.columns.map((column) => propertyOf(column, columns)),
-        };
-    }
-
-    return {
-        kind: "foreignKey",
-        ...(constraint.name === undefined ? {} : { name: constraint.name }),
-        columns: constraint.columns.map((column) => propertyOf(column, columns)),
-        references: {
-            table: constraint.references,
-            columns: constraint.foreignColumns.map((column) => column.definition.name),
-        },
-        ...constraint.actions,
-    };
-}
-
-/** Rebuild a declared constraint over a table's columns, against the known declarations. */
-function constraintOf(
-    description: ConstraintDescription,
-    columns: ColumnMap,
-    known: DeclarationIndex,
-): TableConstraint {
-    switch (description.kind) {
-        case "check":
-            return check(description.name, description.condition);
-        case "index": {
-            const built = (description.isUnique ? uniqueIndex : index)(description.name);
-            const [first, ...rest] = description.columns.map((column) => columnOf(column, columns));
-            if (first === undefined) {
-                throw new TypeError(`index ${description.name} has no column`);
-            }
-            const selected = built.on(first, ...rest);
-            const filtered =
-                description.where === undefined ? selected : selected.where(description.where);
-
-            return description.isNullsNotDistinct === true ? filtered.nullsNotDistinct() : filtered;
-        }
-        case "unique": {
-            const [first, ...rest] = description.columns.map((column) => columnOf(column, columns));
-            if (first === undefined) {
-                throw new TypeError("a unique constraint keeps no column");
-            }
-
-            return new Unique(description.name).on(first, ...rest);
-        }
-        case "foreignKey": {
-            const referenced = known.table(description.references.table);
-            const { onDelete, onUpdate } = description;
-
-            return new ForeignKey(
-                {
-                    ...(description.name === undefined ? {} : { name: description.name }),
-                    columns: description.columns.map((column) => columnOf(column, columns)),
-                    foreignColumns: description.references.columns.map((name) =>
-                        sqlColumnOf(name, referenced),
-                    ),
-                },
-                {
-                    ...(onDelete === undefined ? {} : { onDelete }),
-                    ...(onUpdate === undefined ? {} : { onUpdate }),
-                },
-            );
-        }
-    }
-}
-
-/** Read a table's column by its SQL name. */
-function sqlColumnOf(name: string, table: Table): Column {
-    const column = Object.values(table[TABLE].columns).find(
-        (each) => each.definition.name === name,
-    );
-    if (column === undefined) {
-        throw new TypeError(`table ${table[TABLE].sqlName} has no column ${name}`);
-    }
-
-    return column;
-}
-
-/** Decide whether an index entry is a column rather than an expression. */
-function isColumn(entry: Column | SQL): entry is Column {
-    return "definition" in entry;
-}
-
-/** Read the property a table keeps a column under. */
-function propertyOf(column: Column, columns: ColumnMap): string {
-    const entry = Object.entries(columns).find(([, each]) => each === column);
-    if (entry === undefined) {
-        throw new TypeError(`column ${column.definition.name} is not one of the table's`);
-    }
-
-    return entry[0];
-}
-
-/** Read a table's column by property. */
-function columnOf(property: string, columns: ColumnMap): Column {
-    const column = columns[property];
-    if (column === undefined) {
-        throw new TypeError(`the table has no column ${property}`);
-    }
-
-    return column;
 }
 
 /** Key a declaration by its declaring package and name. */

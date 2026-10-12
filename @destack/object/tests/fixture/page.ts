@@ -23,13 +23,12 @@ export const page = defineObject({
     },
     recoverable: { within: { days: 30 }, by: "manage" },
     shareable: { isPublic: true },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("edit"),
-        update: method.update("edit"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("edit"),
+    update: method.update("edit"),
+}));
 
 /** Pages, their trees, sharing, links, trash and sync. */
 export const pagesService = defineService("pages", { objects: { page } });

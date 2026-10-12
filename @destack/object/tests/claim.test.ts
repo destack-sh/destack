@@ -296,7 +296,7 @@ test.each(TEST_DIALECTS)(
             isScope: true,
             fields: {},
             permissions: { read: none() },
-        });
+        }).methods();
         const folder = defineObject({
             name: "folder",
             plural: "folders",
@@ -304,7 +304,7 @@ test.each(TEST_DIALECTS)(
             isScope: true,
             fields: {},
             permissions: { read: none() },
-        });
+        }).methods();
         const route = defineObject({
             name: "route",
             plural: "routes",
@@ -312,7 +312,7 @@ test.each(TEST_DIALECTS)(
             fields: { path: field.string() },
             indexes: { path: { on: ["path"], unique: true, across: () => account } },
             permissions: { read: none() },
-        });
+        }).methods();
 
         // record two folders of one account and one of another
         const storage = await TestDatabase.create(dialect, [...account.tables, ...folder.tables], {
@@ -388,7 +388,7 @@ test("keep a trashed object's names, activate them on restore, and release them 
         indexes: { name: { on: ["name"], unique: true, across: () => universe } },
         recoverable: { within: { days: 30 }, by: "manage", keep: "record" },
         permissions: { read: none(), manage: none() },
-    });
+    }).methods();
     const storage = await TestDatabase.create("sqlite", [claimTable], { isMigrated: true });
     onTestFinished(() => storage.close());
     const claims = new DatabaseClaimStore(storage.database, Clock.system);

@@ -15,9 +15,11 @@ import { space, spacePrincipal } from "./fixture/space.ts";
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
 /** A space's roles. */
-const role = defineObject(Intrinsic.role(space));
+const role = defineObject(Intrinsic.role.definition(space)).methods(Intrinsic.role.methods);
 /** A space's relationships. */
-const relationship = defineObject(Intrinsic.relationship(space));
+const relationship = defineObject(Intrinsic.relationship.definition(space)).methods(
+    Intrinsic.relationship.methods,
+);
 
 test.for(TEST_DIALECTS)(
     "follow a space's roles and members as the owner defines and binds them on %s",
@@ -130,3 +132,15 @@ test.for(TEST_DIALECTS)(
         expect(await next()).toEqual([["destack__access__relationship", "insert", "member"]]);
     },
 );
+
+test("refuse traits on an object type over a foreign table", () => {
+    // declare roles that would be recoverable
+    const recoverable = defineObject({
+        ...Intrinsic.role.definition(space),
+        recoverable: { by: "delete", within: { days: 30 } },
+    });
+
+    expect(() => recoverable.methods(Intrinsic.role.methods)).toThrow(
+        new TypeError("object role over a foreign table takes no recoverable"),
+    );
+});

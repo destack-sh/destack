@@ -180,10 +180,14 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
 }
 
 /** The method declarations of one object type, typed by its table. */
-export interface MethodBuilder<Definition extends Table = Table, Written extends string = string> {
+export interface MethodBuilder<
+    Definition extends Table = Table,
+    Written extends string = string,
+    Granted extends string = string,
+> {
     /** Declare a method reading one object, as tRPC's `query`. */
     query<
-        const Permission extends string,
+        const Permission extends Granted,
         Input extends InputSchema = never,
         Output extends schema.Schema = never,
         Prepared extends schema.Schema = never,
@@ -204,7 +208,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
     }>;
     /** Declare a method changing one object, as tRPC's `mutation`. */
     mutation<
-        const Permission extends string,
+        const Permission extends Granted,
         Input extends InputSchema = never,
         Output extends schema.Schema = never,
         Prepared extends schema.Schema = never,
@@ -224,16 +228,16 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         scoped: Target extends "none" ? true : false;
     }>;
     /** Read one object. */
-    get<const Permission extends string>(
+    get<const Permission extends Granted>(
         permission: Permission,
     ): Method<{ kind: "get"; permission: Permission; mutates: false; table: Definition }>;
     /** List the objects a query selects. */
-    list<const Permission extends string>(
+    list<const Permission extends Granted>(
         permission: Permission,
     ): Method<{ kind: "list"; permission: Permission; mutates: false; table: Definition }>;
     /** Create an object from the fields the caller writes. */
     create<
-        const Permission extends string,
+        const Permission extends Granted,
         const Fields extends Written = Written,
         Input extends schema.JsonObject = never,
         Prepared extends schema.Schema = never,
@@ -255,7 +259,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
     }>;
     /** Update an object's written fields. */
     update<
-        const Permission extends string,
+        const Permission extends Granted,
         const Fields extends Written = Written,
         Input extends schema.JsonObject = never,
         Prepared extends schema.Schema = never,
@@ -273,7 +277,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
     }>;
     /** Update every matching object the caller may change, returning the count. */
     updateMany<
-        const Permission extends string,
+        const Permission extends Granted,
         const Fields extends Written = Written,
         const Match extends string = string,
     >(
@@ -288,7 +292,7 @@ export interface MethodBuilder<Definition extends Table = Table, Written extends
         table: Definition;
     }>;
     /** Delete an object. */
-    delete<const Permission extends string, Prepared extends schema.Schema = never>(
+    delete<const Permission extends Granted, Prepared extends schema.Schema = never>(
         permission: Permission,
         options?: RemoveOptions<Prepared>,
     ): Method<{

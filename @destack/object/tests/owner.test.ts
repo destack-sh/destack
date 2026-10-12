@@ -36,17 +36,16 @@ const declared = defineObject({
     },
     indexes: { name: { on: ["holderId", "name"], unique: true, across: () => universe } },
     permissions: { read: through("holder", "read"), manage: none() },
-    methods: (method) => ({
-        create: method.create("manage"),
-        /** Count the owner's assets, checked as on a new asset of the owner the input names. */
-        count: method.mutation({
-            permission: "manage",
-            target: "none",
-            input: schema.object({ holderId: schema.identifier("space") }),
-            output: schema.object({ count: schema.int() }),
-        }),
+}).methods((method) => ({
+    create: method.create("manage"),
+    /** Count the owner's assets, checked as on a new asset of the owner the input names. */
+    count: method.mutation({
+        permission: "manage",
+        target: "none",
+        input: schema.object({ holderId: schema.identifier("space") }),
+        output: schema.object({ count: schema.int() }),
     }),
-});
+}));
 
 /** The assets, counted by owner. */
 const asset = declared.implement({
@@ -90,7 +89,7 @@ test("map a reference to an object of another scope type across scopes, and one 
         isScope: true,
         fields: {},
         permissions: { read: none() },
-    });
+    }).methods();
     const vault = defineObject({
         name: "vault",
         plural: "vaults",
@@ -98,14 +97,14 @@ test("map a reference to an object of another scope type across scopes, and one 
         isScope: true,
         fields: {},
         permissions: { read: none() },
-    });
+    }).methods();
     const tag = defineObject({
         name: "tag",
         plural: "tags",
         scope: vault,
         fields: {},
         permissions: { read: none() },
-    });
+    }).methods();
     const item = defineObject({
         name: "item",
         plural: "items",
@@ -116,7 +115,7 @@ test("map a reference to an object of another scope type across scopes, and one 
             tag: field.reference(tag).relate("tag"),
         },
         permissions: { read: union(through("team", "read"), through("tag", "read")) },
-    });
+    }).methods();
 
     // follow the team in any scope, and the tag in the item's own scope
     expect(item.mapping.relations).toEqual({
@@ -133,7 +132,7 @@ test("refuse an owner that no reference relates", () => {
             scope: space,
             owner: "holder",
             fields: { name: field.string() },
-        }),
+        }).methods(),
     ).toThrow("object orphan is owned through holder, which no reference relates");
 });
 

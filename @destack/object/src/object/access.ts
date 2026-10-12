@@ -152,96 +152,109 @@ export const ObjectAccess = {
     },
 };
 
-/** Define a scope type's roles as objects. */
-export function role<const Scope extends ObjectScope>(scope: Scope) {
-    return {
-        name: "role",
-        plural: "roles",
-        [INTRINSIC]: { table: accessRole, mapping: mappingOf(accessRole) },
-        scope,
-        represents: access.role,
-        permissions: access.role.definition.permissions,
-        methods: (method: MethodBuilder<typeof accessRole>) => ({
-            get: method.get("read"),
-            list: method.list("read"),
-            create: unpredicted(
-                method.create("create", {
-                    fields: ["name", "description"],
-                    input: RoleRequest.pick({ permissions: true }),
+/** A scope type's roles as objects. */
+export const role = {
+    /** Define a scope type's roles over the access role table. */
+    definition<const Scope extends ObjectScope>(scope: Scope) {
+        return {
+            name: "role",
+            plural: "roles",
+            [INTRINSIC]: { table: accessRole, mapping: mappingOf(accessRole) },
+            scope,
+            represents: access.role,
+            permissions: access.role.definition.permissions,
+        } as const;
+    },
+
+    /** Declare the roles' methods, which change roles through the access role API. */
+    methods: (method: MethodBuilder<typeof accessRole>) => ({
+        get: method.get("read"),
+        list: method.list("read"),
+        create: unpredicted(
+            method.create("create", {
+                fields: ["name", "description"],
+                input: RoleRequest.pick({ permissions: true }),
+            }),
+        ).handle(async (call) => {
+            // create the role through the access role API
+            const { name, description, permissions } = call.input;
+            const created = await call
+                .requireAuthorization()
+                .createRole(await scopeObject(call), { name, description, permissions });
+
+            return readRow(call, created.id);
+        }),
+        update: unpredicted(
+            method.update("update", {
+                fields: ["name", "description"],
+                input: schema.object({
+                    permissions: RoleRequest.shape.permissions.exactOptional(),
                 }),
-            ).handle(async (call) => {
-                // create the role through the access role API
-                const { name, description, permissions } = call.input;
-                const created = await call
-                    .requireAuthorization()
-                    .createRole(await scopeObject(call), { name, description, permissions });
-
-                return readRow(call, created.id);
             }),
-            update: unpredicted(
-                method.update("update", {
-                    fields: ["name", "description"],
-                    input: schema.object({
-                        permissions: RoleRequest.shape.permissions.exactOptional(),
-                    }),
-                }),
-            ).handle(async (call) => {
-                // change the given values at the loaded revision
-                const { name, description, permissions } = call.input;
-                await call
-                    .requireAuthorization()
-                    .updateRole(await scopeObject(call), call.target.id, {
-                        ...(name === undefined ? {} : { name }),
-                        ...(description === undefined ? {} : { description }),
-                        ...(permissions === undefined ? {} : { permissions }),
-                        revision: call.target.revision,
-                    });
+        ).handle(async (call) => {
+            // change the given values at the loaded revision
+            const { name, description, permissions } = call.input;
+            await call.requireAuthorization().updateRole(await scopeObject(call), call.target.id, {
+                ...(name === undefined ? {} : { name }),
+                ...(description === undefined ? {} : { description }),
+                ...(permissions === undefined ? {} : { permissions }),
+                revision: call.target.revision,
+            });
 
-                return readRow(call, call.target.id);
-            }),
-            delete: unpredicted(method.delete("delete")).handle(async (call) => {
-                // delete the unbound role at the loaded revision
-                await call
-                    .requireAuthorization()
-                    .deleteRole(await scopeObject(call), call.target.id, call.target.revision);
-
-                return {};
-            }),
+            return readRow(call, call.target.id);
         }),
-    } as const;
-}
+        delete: unpredicted(method.delete("delete")).handle(async (call) => {
+            // delete the unbound role at the loaded revision
+            await call
+                .requireAuthorization()
+                .deleteRole(await scopeObject(call), call.target.id, call.target.revision);
 
-/** Define a scope type's relationships as objects, changed only through sharing methods. */
-export function relationship<const Scope extends ObjectScope>(scope: Scope) {
-    return {
-        name: "relationship",
-        plural: "relationships",
-        [INTRINSIC]: { table: accessRelationship, mapping: mappingOf(accessRelationship) },
-        scope,
-        represents: access.relationship,
-        permissions: access.relationship.definition.permissions,
-        methods: (method: MethodBuilder<typeof accessRelationship>) => ({
-            get: method.get("read"),
-            list: method.list("read"),
+            return {};
         }),
-    } as const;
-}
+    }),
+};
 
-/** Define a scope type's invitations as objects, answered through sharing methods. */
-export function invitation<const Scope extends ObjectScope>(scope: Scope) {
-    return {
-        name: "invitation",
-        plural: "invitations",
-        [INTRINSIC]: { table: accessInvitation, mapping: mappingOf(accessInvitation) },
-        scope,
-        represents: access.invitation,
-        permissions: access.invitation.definition.permissions,
-        methods: (method: MethodBuilder<typeof accessInvitation>) => ({
-            get: method.get("read"),
-            list: method.list("read"),
-        }),
-    } as const;
-}
+/** A scope type's relationships as objects, changed only through sharing methods. */
+export const relationship = {
+    /** Define a scope type's relationships over the access relationship table. */
+    definition<const Scope extends ObjectScope>(scope: Scope) {
+        return {
+            name: "relationship",
+            plural: "relationships",
+            [INTRINSIC]: { table: accessRelationship, mapping: mappingOf(accessRelationship) },
+            scope,
+            represents: access.relationship,
+            permissions: access.relationship.definition.permissions,
+        } as const;
+    },
+
+    /** Declare the relationships' read methods. */
+    methods: (method: MethodBuilder<typeof accessRelationship>) => ({
+        get: method.get("read"),
+        list: method.list("read"),
+    }),
+};
+
+/** A scope type's invitations as objects, answered through sharing methods. */
+export const invitation = {
+    /** Define a scope type's invitations over the access invitation table. */
+    definition<const Scope extends ObjectScope>(scope: Scope) {
+        return {
+            name: "invitation",
+            plural: "invitations",
+            [INTRINSIC]: { table: accessInvitation, mapping: mappingOf(accessInvitation) },
+            scope,
+            represents: access.invitation,
+            permissions: access.invitation.definition.permissions,
+        } as const;
+    },
+
+    /** Declare the invitations' read methods. */
+    methods: (method: MethodBuilder<typeof accessInvitation>) => ({
+        get: method.get("read"),
+        list: method.list("read"),
+    }),
+};
 
 /** Keep a method on the server. */
 function unpredicted<Declared extends Method>(declared: Declared): Declared {

@@ -15,14 +15,13 @@ export const notebook = defineObject({
         noteCount: field.count(),
     },
     shareable: {},
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("manage"),
-        update: method.update("manage"),
-        delete: method.delete("manage"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("manage"),
+    update: method.update("manage"),
+    delete: method.delete("manage"),
+}));
 
 /** A plain-text note, private to its owner until shared. */
 export const note = defineObject({
@@ -44,13 +43,12 @@ export const note = defineObject({
     recoverable: { within: { days: 30 }, by: "manage" },
     aggregates: { noteCount: { function: "count", where: { deletionRequestedAt: null } } },
     shareable: {},
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("edit"),
-        update: method.update("edit"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("edit"),
+    update: method.update("edit"),
+}));
 
 /** Notebooks and notes, with their sharing, trash and sync. */
 export const notesService = defineService("notes", { objects: { notebook, note } });

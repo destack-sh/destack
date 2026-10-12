@@ -31,13 +31,12 @@ export const project = defineObject({
         manage: relation("owner"),
     },
     shareable: { by: "manage" },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("manage"),
-        update: method.update("manage"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("manage"),
+    update: method.update("manage"),
+}));
 
 /** A piece of work in a project, done by its assignee. */
 export const task = defineObject({
@@ -69,14 +68,13 @@ export const task = defineObject({
         plan: through("parent", "plan"),
         manage: through("parent", "manage"),
     },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("plan"),
-        update: method.update("plan"),
-        delete: method.delete("plan"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("plan"),
+    update: method.update("plan"),
+    delete: method.delete("plan"),
+}));
 
 /** A remark on a task, made and read by the task's readers. */
 export const comment = defineObject({
@@ -89,13 +87,12 @@ export const comment = defineObject({
         text: field.string(schema.string().min(1).max(10_000)),
     },
     permissions: { read: through("parent", "read"), edit: relation("author") },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("read"),
-        update: method.update("edit"),
-        delete: method.delete("edit"),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("read"),
+    update: method.update("edit"),
+    delete: method.delete("edit"),
+}));
 
 /** Projects, tasks and comments, with their sharing and sync. */
 export const tasksService = defineService("tasks", { objects: { project, task, comment } });

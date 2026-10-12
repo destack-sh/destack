@@ -9,4 +9,4 @@ export const client = defineObject({
     represents: principal.client,
     fields: {},
     permissions: [],
-});
+}).methods();

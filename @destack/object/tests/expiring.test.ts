@@ -35,11 +35,10 @@ const alert = defineObject({
         { after: { days: 180 }, from: "createdAt", where: { readAt: { isNull: true } } },
     ],
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({
-        get: method.get("read"),
-        create: method.create("write", { fields: ["title"] }),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    create: method.create("write", { fields: ["title"] }),
+}));
 
 /** The database with the alerts, their access and the journal. */
 const alertDatabase = defineDatabase({

@@ -15,8 +15,7 @@ test("change state fields only through their transitions, modifiers keeping the 
         scope: space,
         fields: { title: field.string(), review: field.state(review).optional() },
         permissions: ["write", "review"],
-        methods: (method) => ({ create: method.create("write"), update: method.update("write") }),
-    });
+    }).methods((method) => ({ create: method.create("write"), update: method.update("write") }));
 
     // leave the state out of what callers write, and keep its transition through the modifier
     expect([article.written, Object.keys(article.methods).toSorted()]).toEqual([

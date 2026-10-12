@@ -30,13 +30,12 @@ const machine = defineObject({
         address: field.string().optional(),
     },
     permissions: { read: relation("owner"), write: relation("owner"), provision: none() },
-    methods: (method) => ({
-        create: method.create("write", { fields: ["size"] }),
-        provision: method.create("provision", { isInternal: true }),
-        update: method.update("write", { fields: ["size"] }),
-        delete: method.delete("write"),
-    }),
-});
+}).methods((method) => ({
+    create: method.create("write", { fields: ["size"] }),
+    provision: method.create("provision", { isInternal: true }),
+    update: method.update("write", { fields: ["size"] }),
+    delete: method.delete("write"),
+}));
 
 /** The database with the machines, their access and the journal. */
 const machineDatabase = defineDatabase({

@@ -1,6 +1,6 @@
 import type { Page } from "@destack/sync";
 import { present, schema, Clock } from "@destack/schema";
-import { unique, type Dialect, defineDatabase, Expression } from "@destack/db";
+import { type Dialect, defineDatabase, Expression } from "@destack/db";
 import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { journal } from "@destack/audit/stack";
@@ -36,19 +36,20 @@ const presence = defineObject({
         cursor: field.integer().optional(),
         profile: field.reference("profile", (): ObjectType => profile).optional(),
     },
-    constraints: (entry) => [unique("presence_writer").on(entry.parentId, entry.writerId)],
     permissions: {
         read: through("parent", "present"),
         write: intersection(relation("member"), through("parent", "present")),
     },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-        update: method.update("write"),
-        delete: method.delete("write"),
-        idle: method.updateMany("write", { fields: ["activity"], match: ["activity"] }),
-    }),
-});
+    constraints: {
+        writer: { kind: "unique", on: ["parentId", "writerId"] },
+    },
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+    update: method.update("write"),
+    delete: method.delete("write"),
+    idle: method.updateMany("write", { fields: ["activity"], match: ["activity"] }),
+}));
 
 /** Boards their owner shares with viewers, who are present on them. */
 const board = defineObject({
@@ -63,8 +64,7 @@ const board = defineObject({
     },
     shareable: { by: "manage" },
     attachments: [presence.attach({ by: "read" })],
-    methods: (method) => ({ list: method.list("read"), create: method.create("manage") }),
-});
+}).methods((method) => ({ list: method.list("read"), create: method.create("manage") }));
 
 /** The profiles of a board's members. */
 const profile = defineObject({
@@ -74,8 +74,7 @@ const profile = defineObject({
     nested: { in: board, receive: "manage" },
     fields: { name: field.string() },
     permissions: { read: through("parent", "read"), manage: through("parent", "manage") },
-    methods: (method) => ({ list: method.list("read"), create: method.create("manage") }),
-});
+}).methods((method) => ({ list: method.list("read"), create: method.create("manage") }));
 
 /** The service serving the boards, profiles and presence. */
 const boardsService = defineService("boards", { objects: { presence, board, profile } });
@@ -199,7 +198,9 @@ test.for(TEST_DIALECTS)(
         const { east } = await serveBoards(dialect);
 
         // let the owner share a board, both users editing on it
-        const plans = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
+        const plans = await east.call("alice", board, "create", {
+            requestId: RequestId.create(Date.now()),
+        });
         await east.call("alice", board, "grant", {
             requestId: RequestId.create(Date.now()),
             id: plans.id,
@@ -249,7 +250,9 @@ test.for(TEST_DIALECTS)(
     "write and follow presence through object clients of both instances on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
+        const plans = await east.call("alice", board, "create", {
+            requestId: RequestId.create(Date.now()),
+        });
         await east.call("alice", board, "grant", {
             requestId: RequestId.create(Date.now()),
             id: plans.id,
@@ -290,7 +293,9 @@ test.for(TEST_DIALECTS)(
     "deliver an object's events to a reader granted it while already following on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
+        const plans = await east.call("alice", board, "create", {
+            requestId: RequestId.create(Date.now()),
+        });
 
         // listen for the board's events as bob before he may read it
         const alice = await clientOf(east, "alice");
@@ -317,8 +322,12 @@ test.for(TEST_DIALECTS)(
     "include live presence with durable profiles, and count live viewers per board, across storages on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
-        const notes = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
+        const plans = await east.call("alice", board, "create", {
+            requestId: RequestId.create(Date.now()),
+        });
+        const notes = await east.call("alice", board, "create", {
+            requestId: RequestId.create(Date.now()),
+        });
         for (const shared of [plans, notes]) {
             await east.call("alice", board, "grant", {
                 requestId: RequestId.create(Date.now()),

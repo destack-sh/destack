@@ -35,11 +35,10 @@ const credential = defineObject({
         write: relation("owner"),
         purge: relation("custodian"),
     },
-    methods: (method) => ({
-        get: method.get("read"),
-        create: method.create("write", { fields: ["custodianId", "value"] }),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    create: method.create("write", { fields: ["custodianId", "value"] }),
+}));
 
 /** The database with the credentials, their access and the journal. */
 const credentialDatabase = defineDatabase({

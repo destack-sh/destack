@@ -64,6 +64,7 @@ import {
 } from "../replica/replica.ts";
 import { ObjectType } from "../object/object.ts";
 import { ObjectAccess } from "../object/access.ts";
+import type { KnownDeclaration } from "../object/description.ts";
 import { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { Authorization } from "./authorization.ts";
@@ -372,6 +373,8 @@ export class ObjectStore {
     readonly #provisioned: readonly ObjectType[];
     /** The providers reconciling the served kinds' resources, none for a store reconciling none. */
     readonly providers: ProvisionedOptions["providers"];
+    /** The declarations installed object types resolve against: the types, policies and kinds. */
+    readonly known: readonly KnownDeclaration[];
     /** Whether reads of the objects record access events. */
     readonly isAccessAudited: boolean;
     /** The copies the objects stream to clients and databases below. */
@@ -431,6 +434,12 @@ export class ObjectStore {
         this.decided = followed.decided;
         this.copied = followed.copied;
         this.feed = followed.feed;
+        this.known = [
+            ...this.objects,
+            ...this.copied,
+            ...(options.policies ?? []).filter((policy) => policy instanceof Policy),
+            ...this.providers.map((provider) => provider.kind),
+        ];
         if (followed.sends !== undefined) {
             this.#sends = followed.sends;
         }

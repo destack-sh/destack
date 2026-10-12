@@ -102,12 +102,11 @@ test("route a creation other than create below its collection by name", () => {
         plural: "notes",
         scope: "universe",
         fields: { title: field.string(schema.string().min(1)) },
-        methods: (declared) => ({
-            create: declared.create("write", { fields: ["title"] }),
-            import: declared.create("write", { fields: ["title"] }),
-        }),
         permissions: { write: none() },
-    });
+    }).methods((declared) => ({
+        create: declared.create("write", { fields: ["title"] }),
+        import: declared.create("write", { fields: ["title"] }),
+    }));
 
     // route create at the collection and import below it
     const routes = PROCEDURES.parse(note.procedures);
@@ -149,7 +148,11 @@ test.each(TEST_DIALECTS)(
         const drafted = { requestId: RequestId.create(Date.now()), id: chosen, title: "Draft" };
         expect((await execute("create", drafted)).id).toBe(chosen);
         await expect(
-            execute("create", { requestId: RequestId.create(Date.now()), id: chosen, title: "Again" }),
+            execute("create", {
+                requestId: RequestId.create(Date.now()),
+                id: chosen,
+                title: "Again",
+            }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "task identifier is taken" });
         const ahead = schema
             .identifier("task")
@@ -676,7 +679,10 @@ test("prepare external work after the access check, settle it after commit, comp
         name: Name,
         input: Record<string, unknown>,
     ) => request(store, handled, name, { spaceId, ...input }, context);
-    const created = await execute("create", { requestId: RequestId.create(Date.now()), title: "Plan" });
+    const created = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Plan",
+    });
     const reservation = `reservation-${created.id}`;
 
     // refuse a caller without the permission before any external work
@@ -727,7 +733,10 @@ test("prepare external work after the access check, settle it after commit, comp
     expect(external).toEqual(["reserve Plan", `confirm ${reservation}`]);
 
     // release the work prepared for earlier calls and the failed preparation's own once a later call's preparation fails
-    const other = await execute("create", { requestId: RequestId.create(Date.now()), title: "Other" });
+    const other = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Other",
+    });
     const broken = await execute("create", {
         requestId: RequestId.create(Date.now()),
         title: "Broken",
@@ -1007,14 +1016,17 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         // create two tasks as their owner and archive one
         const { store, execute } = await serveTasks(dialect);
-        const first = await execute("create", { requestId: RequestId.create(Date.now()), title: "First" });
+        const first = await execute("create", {
+            requestId: RequestId.create(Date.now()),
+            title: "First",
+        });
         await execute("create", { requestId: RequestId.create(Date.now()), title: "Second" });
         await execute("archive", { requestId: RequestId.create(Date.now()), id: first.id });
 
         // refuse the owner of the tasks, who does not own the space
-        const refused = await execute("archiveAll", { requestId: RequestId.create(Date.now()) }).catch(
-            (error: unknown) => error,
-        );
+        const refused = await execute("archiveAll", {
+            requestId: RequestId.create(Date.now()),
+        }).catch((error: unknown) => error);
 
         // archive the rest as the space, which owns it
         const [archived] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
@@ -1090,8 +1102,7 @@ test("add suspending and handing over through their traits", () => {
         fields: {},
         permissions: ["read", "update"],
         suspendable: { by: "update" },
-        methods: (builder) => ({ get: builder.get("read") }),
-    });
+    }).methods((builder) => ({ get: builder.get("read") }));
     const card = defineObject({
         name: "card",
         plural: "cards",
@@ -1100,8 +1111,7 @@ test("add suspending and handing over through their traits", () => {
         fields: {},
         permissions: ["read", "write"],
         adoptable: { by: "write" },
-        methods: (builder) => ({ get: builder.get("read") }),
-    });
+    }).methods((builder) => ({ get: builder.get("read") }));
     expect([Object.keys(room.methods).toSorted(), Object.keys(card.methods).toSorted()]).toEqual([
         ["get", "resume", "suspend"],
         ["adopt", "apply", "detach", "get"],

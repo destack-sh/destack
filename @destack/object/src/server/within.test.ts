@@ -26,8 +26,7 @@ const person = defineObject({
     fields: { name: field.string() },
     relations: { joined: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("joined") },
-    methods: (method) => ({ list: method.list("read") }),
-});
+}).methods((method) => ({ list: method.list("read") }));
 
 /** Profiles living in their person's own scope, read by whoever reads the person. */
 const profile = defineObject({
@@ -39,8 +38,7 @@ const profile = defineObject({
         email: field.string().guard({ read: "manage" }),
     },
     permissions: { read: through("person", "read"), manage: none() },
-    methods: (method) => ({ list: method.list("read") }),
-});
+}).methods((method) => ({ list: method.list("read") }));
 
 /** Teams of the universe, which the space keeps no copies of. */
 const team = defineObject({
@@ -50,8 +48,7 @@ const team = defineObject({
     isScope: true,
     fields: { name: field.string() },
     permissions: { read: none() },
-    methods: (method) => ({ list: method.list("read") }),
-});
+}).methods((method) => ({ list: method.list("read") }));
 
 /** Badges living in a person's or a team's scope, each listed to the spaces it is shown to. */
 const badge = defineObject({
@@ -61,8 +58,7 @@ const badge = defineObject({
     fields: { label: field.string() },
     relations: { shown: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("shown") },
-    methods: (method) => ({ list: method.list("read") }),
-});
+}).methods((method) => ({ list: method.list("read") }));
 
 /** Serve people and profiles over a database. */
 function serve(

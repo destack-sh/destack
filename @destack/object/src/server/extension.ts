@@ -1,7 +1,11 @@
 import { type Policy, principal, type TableMapping } from "@destack/access";
 import type { Table } from "@destack/db";
 import type { Identifier } from "@destack/schema";
-import { Egress, type Service, type ServiceRouter } from "@destack/service";
+import { Egress, Service, type ServiceRouter } from "@destack/service";
+import { SERVICE_DECLARATION, ServiceDescription } from "@destack/service/inspect";
+import { present } from "@destack/schema";
+import type { KnownDeclaration } from "../object/description.ts";
+import { declareInstalled, type InstalledDeclaration } from "../inspect/object.ts";
 import type { Router, ServiceContext, ServiceImplementation } from "@destack/service/server";
 import type { Shape, Subject, Uplink } from "@destack/sync";
 import type { InstallationContext } from "@destack/service/workload";
@@ -93,6 +97,36 @@ export const ObjectExtension = {
                 ]),
             ),
         };
+    },
+
+    /** Serve an installation's objects-only services over the types its declarations describe. */
+    installed(
+        declarations: readonly InstalledDeclaration[],
+        known: Iterable<KnownDeclaration>,
+    ): ObjectExtension[] {
+        // declare the installation's types
+        const types = declareInstalled(declarations, known);
+        const byName = new Map(types.map((type) => [type.name, type]));
+
+        // rebuild each service whose procedures are all object methods
+        return declarations
+            .filter((entry) => entry.kind === SERVICE_DECLARATION)
+            .map((entry) => ServiceDescription.parse(entry.description))
+            .filter((service) => service.routes.length === 0)
+            .map((service) => {
+                const objects = Object.fromEntries(
+                    Object.entries(service.objects).map(([route, name]) => [
+                        route,
+                        present(byName.get(name), `the object type ${name} of ${service.name}`),
+                    ]),
+                );
+                const owner = present(types[0], `the object types of ${service.name}`).package;
+
+                return {
+                    service: Service.of(owner, service.name, { objects }),
+                    objects,
+                };
+            });
     },
 };
 

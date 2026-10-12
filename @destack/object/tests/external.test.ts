@@ -27,8 +27,7 @@ const entry = defineObject({
     nested: { in: notebook, receive: "read" },
     fields: { term: field.string() },
     permissions: { read: through("parent", "read") },
-    methods: (method) => ({ get: method.get("read"), list: method.list("read") }),
-});
+}).methods((method) => ({ get: method.get("read"), list: method.list("read") }));
 
 test("read external objects named by their key from the database their files open per scope, admitting callers by the durable database", async () => {
     // keep a public space's notebook in the durable database

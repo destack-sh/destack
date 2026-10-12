@@ -28,9 +28,8 @@ const memo = defineObject({
     scope: space,
     fields: { recipient: field.subject(), title: field.string() },
     permissions: { read: none() },
-    methods: (method) => ({ get: method.get("read") }),
     projections: (): readonly ObjectType[] => [receipt],
-});
+}).methods((method) => ({ get: method.get("read") }));
 
 /** A person, whose personal account's home keeps the receipts of the memos they receive. */
 const person = defineObject({
@@ -40,7 +39,7 @@ const person = defineObject({
     isScope: true,
     fields: { name: field.string() },
     permissions: { read: none() },
-});
+}).methods();
 
 /** An account of a person, whose personal one's home is the person's home. */
 const holder = defineObject({
@@ -50,7 +49,7 @@ const holder = defineObject({
     isScope: true,
     fields: { kind: field.enum(["personal", "shared"]) },
     permissions: { read: none() },
-});
+}).methods();
 
 /** An installation keeping memos for a person. */
 const sender = defineObject({
@@ -60,7 +59,7 @@ const sender = defineObject({
     inherited: {},
     fields: { source: field.string(), installation: field.string() },
     permissions: { read: none() },
-});
+}).methods();
 
 /** A recipient's receipt of a memo: its own object with its own note and seen time, keeping the memo's title. */
 const receipt = defineObject({
@@ -82,8 +81,7 @@ const receipt = defineObject({
         residence: { account: holder, residence: sender },
     },
     permissions: { read: none() },
-    methods: (method) => ({ get: method.get("read") }),
-});
+}).methods((method) => ({ get: method.get("read") }));
 
 /** Sort projected rows by their title. */
 function byTitle(rows: unknown[][]): unknown[][] {

@@ -10,8 +10,7 @@ const board = defineObject({
     scope: space,
     fields: { title: field.string() },
     shareable: {},
-    methods: (method) => ({ get: method.get("read"), update: method.update("edit") }),
-});
+}).methods((method) => ({ get: method.get("read"), update: method.update("edit") }));
 
 /** Hold a permission through each of some relations. */
 function holders(...relations: string[]): ReturnType<typeof relation>[] {
@@ -29,14 +28,14 @@ test("derive each role's permissions on an object, inherited from its parent or 
         shareable: {},
         relations: { auditor: { subjects: [principal.user] } },
         permissions: { read: relation("auditor") },
-    });
+    }).methods();
     const sheet = defineObject({
         name: "sheet",
         plural: "sheets",
         scope: folder,
         fields: {},
         shareable: {},
-    });
+    }).methods();
     const card = defineObject({
         name: "card",
         plural: "cards",
@@ -45,8 +44,7 @@ test("derive each role's permissions on an object, inherited from its parent or 
         fields: { pinned: field.boolean().default(false) },
         shareable: {},
         permissions: { pin: permission("edit") },
-        methods: (method) => ({ pin: method.update("pin", { fields: ["pinned"] }) }),
-    });
+    }).methods((method) => ({ pin: method.update("pin", { fields: ["pinned"] }) }));
 
     // derive each permission from the roles at or above it, the inherited same permission and the type's own
     const derived = (inherit: (name: string) => ReturnType<typeof through>[]) => ({

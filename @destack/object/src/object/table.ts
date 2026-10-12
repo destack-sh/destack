@@ -18,6 +18,7 @@ import type { ParentBuilderMap } from "../trait/nested.ts";
 import type { TraitObject } from "../trait/trait.ts";
 import type { VersionBuilderMap } from "../trait/versioned.ts";
 import type { approvalColumns, controlledColumns } from "../trait/controlled.ts";
+import { ObjectConstraint } from "./constraint.ts";
 import { snakeCase, type SnakeCase } from "./name.ts";
 import {
     ObjectScope,
@@ -77,21 +78,20 @@ type TraitBuilderMap = {
 } & ReturnType<typeof controlledColumns> &
     ReturnType<typeof managedColumns>;
 
-/** The columns a definition's constraints refer to. */
-export type ConstraintColumns<
-    Name extends string,
-    Scope,
+/** The properties of the columns a definition's constraints name. */
+export type ConstraintColumn<
     Fields extends Readonly<Record<string, Field>>,
-    Identity extends string = Name,
     Storage = "durable",
-> = TableColumnMap<
-    RecordBuilderMap<Identity> &
-        WriterBuilderMap<Storage> &
-        ScopeBuilderMap<Scope> &
-        TraitBuilderMap &
-        FieldBuilderMap<Fields>,
-    SnakeCase<Name>
->;
+> = (
+    | keyof RecordBuilderMap
+    | keyof WriterBuilderMap<Storage>
+    | "scope"
+    | keyof TraitBuilderMap
+    | {
+          [Property in keyof Fields]: Fields[Property] extends TextField ? never : Property;
+      }[keyof Fields]
+) &
+    string;
 
 /** The option a definition gives a trait, undefined without the trait. */
 export type TraitOf<Traits, Name extends string> = Traits extends {
@@ -176,7 +176,9 @@ export function deriveTable(
                 ...applied.flatMap(({ trait, options }) =>
                     trait.constraints(options, tableName, built),
                 ),
-                ...(definition.constraints?.(built) ?? []),
+                ...Object.entries(definition.constraints ?? {}).map(([constraint, declared]) =>
+                    ObjectConstraint.build(constraint, declared, table()),
+                ),
             ],
             // keep the aggregates of these objects and of their attachments
             aggregates: [

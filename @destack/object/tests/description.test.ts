@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { principal } from "@destack/access";
-import { check, declareState, foreignKey, index, TABLE, unique } from "@destack/db";
+import { declareState, TABLE } from "@destack/db";
 import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import { schema, toJsonSchema } from "@destack/schema";
 import { defineObject, field, type FileBucket, ObjectType } from "../src/index.ts";
@@ -25,7 +25,7 @@ const box = defineObject({
     scope: space,
     provisioned: { kind: BoxKind },
     fields: {},
-});
+}).methods();
 
 /** A type with a field of every builder and modifier, a method of every builder and option, and a constraint of every kind. */
 const sample = defineObject({
@@ -60,45 +60,45 @@ const sample = defineObject({
         elsewhere: field.reference(note, { qualified: true }),
     },
     permissions: ["read", "write", "edit", "audit", "tidy"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("write", {
-            fields: ["title", "kind"],
-            variants: { kind: { draft: ["rank"], final: [] } },
-            input: schema.object({ note: schema.string().exactOptional() }),
-            creator: "owner",
-        }),
-        update: method.update("write", { fields: ["title"], isPredicted: false }),
-        updateMany: method.updateMany("write", { fields: ["title"], match: ["kind"] }),
-        delete: method.delete("write", { isInternal: true }),
-        count: method.query({
-            permission: "read",
-            input: schema.discriminatedUnion("by", [
-                schema.object({ by: schema.literal("kind"), kind: schema.string() }),
-                schema.object({ by: schema.literal("title"), prefix: schema.string() }),
-            ]),
-            output: schema.object({ total: schema.int() }),
-        }),
-        archive: method.mutation({
-            permission: "write",
-            prepared: schema.string(),
-            audit: { details: schema.object({ reason: schema.string() }) },
-            inverse: "restore",
-        }),
-        tidy: method.mutation({ permission: "tidy", target: "none", isInternal: true }),
+    constraints: {
+        rank: { kind: "check", condition: { rank: { gte: 0 }, title: { length: { lte: 80 } } } },
+        title: { kind: "index", on: ["title"], where: { kind: "draft" }, nullsNotDistinct: true },
+        kindTitle: { kind: "unique", on: ["kind", "title"] },
+        note: {
+            kind: "foreignKey",
+            on: ["noteId"],
+            references: { object: () => note, on: ["id"] },
+            onDelete: "cascade",
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("write", {
+        fields: ["title", "kind"],
+        variants: { kind: { draft: ["rank"], final: [] } },
+        input: schema.object({ note: schema.string().exactOptional() }),
+        creator: "owner",
     }),
-    constraints: (columns) => [
-        check("sample_rank", { rank: { gte: 0 }, title: { length: { lte: 80 } } }),
-        index("sample_title").on(columns.title).where({ kind: "draft" }).nullsNotDistinct(),
-        unique("sample_kind_title").on(columns.kind, columns.title),
-        foreignKey({
-            name: "sample_note",
-            columns: [columns.noteId],
-            foreignColumns: [note.table[TABLE].columns.id],
-        }).onDelete("cascade"),
-    ],
-});
+    update: method.update("write", { fields: ["title"], isPredicted: false }),
+    updateMany: method.updateMany("write", { fields: ["title"], match: ["kind"] }),
+    delete: method.delete("write", { isInternal: true }),
+    count: method.query({
+        permission: "read",
+        input: schema.discriminatedUnion("by", [
+            schema.object({ by: schema.literal("kind"), kind: schema.string() }),
+            schema.object({ by: schema.literal("title"), prefix: schema.string() }),
+        ]),
+        output: schema.object({ total: schema.int() }),
+    }),
+    archive: method.mutation({
+        permission: "write",
+        prepared: schema.string(),
+        audit: { details: schema.object({ reason: schema.string() }) },
+        inverse: "restore",
+    }),
+    tidy: method.mutation({ permission: "tidy", target: "none", isInternal: true }),
+}));
 
 /** The test types, in declaration order. */
 const TYPES = [
@@ -267,10 +267,9 @@ test("refuse code, unknown declarations and intrinsic types at their path", () =
         scope: space,
         fields: { title: field.string() },
         permissions: ["write"],
-        methods: (method) => ({
-            rename: method.mutation({ permission: "write", inverse: () => [] }),
-        }),
-    });
+    }).methods((method) => ({
+        rename: method.mutation({ permission: "write", inverse: () => [] }),
+    }));
     expect(() => coded.describe()).toThrow(
         new TypeError(
             "coded.methods.rename.mutation[0].inverse is code, which a description cannot keep",
@@ -289,7 +288,7 @@ test("refuse code, unknown declarations and intrinsic types at their path", () =
         scope: space,
         fields: {},
         projections: () => [],
-    });
+    }).methods();
     expect(() => empty.describe()).toThrow(
         new TypeError("empty.projections returns no object types or policies"),
     );

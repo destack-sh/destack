@@ -25,8 +25,7 @@ const card = defineObject({
     scope: space,
     fields: { owner: field.reference(principal.user).caller() },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({ create: method.create("write", { fields: [] }) }),
-});
+}).methods((method) => ({ create: method.create("write", { fields: [] }) }));
 
 /** A room inside the space, a partition of its own. */
 const room = defineObject({
@@ -37,8 +36,7 @@ const room = defineObject({
     partition: true,
     fields: {},
     permissions: { read: none() },
-    methods: (method) => ({ get: method.get("read") }),
-});
+}).methods((method) => ({ get: method.get("read") }));
 
 /** The room the scenarios serve a partition of. */
 const ROOM = "room-01996ab0-0000-7000-8000-0000000000a3";

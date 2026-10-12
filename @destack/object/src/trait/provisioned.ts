@@ -1,5 +1,5 @@
 import { permission, principal, relation, union } from "@destack/access";
-import { check, type Select, unique, type Column, type ColumnMap, type Table } from "@destack/db";
+import type { Select, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import {
@@ -10,7 +10,7 @@ import {
     type KindState,
     type ResourceKind,
 } from "@destack/resource";
-import { Digest, present, schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
 import { field, type FieldOf } from "../field/field.ts";
@@ -22,6 +22,7 @@ import {
     type ObjectType,
     type ScopeIdentityOf,
 } from "../object/object.ts";
+import type { ObjectConstraint } from "../object/constraint.ts";
 import type { ObjectTable } from "../object/table.ts";
 import type { DeclarationHandler } from "../server/stack.ts";
 import type { ControlledMethodMap } from "./controlled.ts";
@@ -31,6 +32,35 @@ import type { RolePermission } from "./shareable.ts";
 import type { Erasure } from "./trait.ts";
 
 import { adopt, specify } from "../method/provisioned.ts";
+
+/** The constraints every resource takes. */
+const RESOURCE_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
+    scopeName: { kind: "unique", on: ["scope", "name"] },
+    scopeId: { kind: "unique", on: ["scope", "id"] },
+    provider: {
+        kind: "check",
+        condition: {
+            OR: [
+                { provider: { isNull: true }, reference: { isNull: true } },
+                { provider: { isNotNull: true }, reference: { isNotNull: true } },
+            ],
+        },
+    },
+    location: {
+        kind: "check",
+        condition: {
+            OR: [
+                { location: { isNull: true } },
+                { provider: { isNotNull: true }, location: { length: { gt: 0 } } },
+            ],
+        },
+    },
+    machine: {
+        kind: "check",
+        condition: { OR: [{ machineId: { isNull: true } }, { provider: { isNotNull: true } }] },
+    },
+};
+
 /** Objects that are a kind's resources, provisioned by the kind's providers. */
 export interface ProvisionedDefinition<Kind extends ResourceKind = ResourceKind> {
     /** The resource kind, whose specification the objects keep. */
@@ -204,8 +234,6 @@ export const Provisioned = {
         }
 
         // declare, reconcile, bind, share and adopt the resources as every kind does
-        const declared = definition.constraints;
-
         return {
             ...definition,
             controlled: { approval: true },
@@ -213,10 +241,7 @@ export const Provisioned = {
             declarable: { schema: ResourceDefinition },
             shareable: {},
             fields: { ...resourceFields(provisioned.kind), ...definition.fields },
-            constraints: (columns: ColumnMap) => [
-                ...Provisioned.constraints(definition.name, columns),
-                ...(declared?.(columns) ?? []),
-            ],
+            constraints: { ...RESOURCE_CONSTRAINTS, ...definition.constraints },
             permissions: {
                 read: relation(CONSUMER),
                 write: union(relation(CONSUMER), permission("edit")),
@@ -224,35 +249,6 @@ export const Provisioned = {
             },
             methods: { ...resourceMethods(), ...definition.methods },
         };
-    },
-
-    /** Constrain a kind's resource table, with constraints named after the kind. */
-    constraints(kind: string, columns: Record<string, Column>) {
-        return [
-            unique(`${kind}_scope_name`).on(
-                present(columns["scope"], "the scope column"),
-                present(columns["name"], "the name column"),
-            ),
-            unique(`${kind}_scope_id`).on(
-                present(columns["scope"], "the scope column"),
-                present(columns["id"], "the id column"),
-            ),
-            check(`${kind}_provider`, {
-                OR: [
-                    { provider: { isNull: true }, reference: { isNull: true } },
-                    { provider: { isNotNull: true }, reference: { isNotNull: true } },
-                ],
-            }),
-            check(`${kind}_location`, {
-                OR: [
-                    { location: { isNull: true } },
-                    { provider: { isNotNull: true }, location: { length: { gt: 0 } } },
-                ],
-            }),
-            check(`${kind}_machine`, {
-                OR: [{ machineId: { isNull: true } }, { provider: { isNotNull: true } }],
-            }),
-        ];
     },
 
     /** Declare how a stack's resources become records, provisioned or declared by reference. */

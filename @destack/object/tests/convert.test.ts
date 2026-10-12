@@ -24,12 +24,11 @@ const card = defineObject({
         name: field.string(schema.string().min(1)),
     },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({
-        get: method.get("read"),
-        create: method.create("write"),
-        update: method.update("write"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    create: method.create("write"),
+    update: method.update("write"),
+}));
 
 test.for(TEST_DIALECTS)(
     "execute calls made against an earlier release with the fields they renamed, and refuse calls of a later release, on %s",

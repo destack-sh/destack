@@ -39,7 +39,7 @@ const box = defineObject({
     scope: space,
     provisioned: { kind: BoxKind },
     fields: {},
-});
+}).methods();
 
 /** A space's link: a resource of the link kind. */
 const link = defineObject({
@@ -48,7 +48,7 @@ const link = defineObject({
     scope: space,
     provisioned: { kind: LinkKind },
     fields: {},
-});
+}).methods();
 
 /** The boxes and links the scenarios use. */
 const ids = {

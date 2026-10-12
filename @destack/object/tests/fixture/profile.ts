@@ -17,13 +17,12 @@ export const profile = defineObject({
     },
     indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
     permissions: { read: relation("owner"), manage: relation("owner") },
-    methods: (method) => ({
-        get: method.get("read"),
-        create: method.create("manage"),
-        update: method.update("manage"),
-        delete: method.delete("manage"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    create: method.create("manage"),
+    update: method.update("manage"),
+    delete: method.delete("manage"),
+}));
 
 /** Profiles, with handles unique across the universe. */
 export const profilesService = defineService("profiles", { objects: { profile } });

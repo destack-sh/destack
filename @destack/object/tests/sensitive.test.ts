@@ -25,20 +25,19 @@ const holder = defineObject({
     scope: space,
     fields: { label: field.string(), token: field.string().sensitive().optional() },
     permissions: { read: through("space", "read"), provision: none() },
-    methods: (method) => ({
-        get: method.get("read"),
-        create: method.create("read", {
-            fields: ["label", "token"],
-            input: schema.object({ key: ApiKey }),
-        }),
-        /** Create a holder as the space. */
-        provision: method.create("provision", {
-            isInternal: true,
-            fields: ["label"],
-            input: schema.object({ key: ApiKey }),
-        }),
+}).methods((method) => ({
+    get: method.get("read"),
+    create: method.create("read", {
+        fields: ["label", "token"],
+        input: schema.object({ key: ApiKey }),
     }),
-});
+    /** Create a holder as the space. */
+    provision: method.create("provision", {
+        isInternal: true,
+        fields: ["label"],
+        input: schema.object({ key: ApiKey }),
+    }),
+}));
 
 test("keep a sensitive input out of the rows, the journal, the audit events, the telemetry and the error of a refused call, and a sensitive column in its row alone", async () => {
     // serve the holders, delivering audit events and exporting telemetry to lists

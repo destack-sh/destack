@@ -29,13 +29,12 @@ const chore = defineObject({
         assignee: field.string().optional(),
     },
     permissions: { read: relation("owner"), write: relation("owner") },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write", { fields: ["list", "done"] }),
-        finish: method.updateMany("write", { fields: ["done"], match: ["list"] }),
-        claim: method.updateMany("write", { fields: ["assignee"], match: ["list", "assignee"] }),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write", { fields: ["list", "done"] }),
+    finish: method.updateMany("write", { fields: ["done"], match: ["list"] }),
+    claim: method.updateMany("write", { fields: ["assignee"], match: ["list", "assignee"] }),
+}));
 
 /** The database with the chores, their access and the journal. */
 const choreDatabase = defineDatabase({
@@ -128,10 +127,9 @@ test("refuse many updates at once of guarded fields", () => {
                 done: field.boolean().guardWrite("write"),
             },
             permissions: { read: relation("owner"), write: relation("owner") },
-            methods: (method) => ({
-                finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
-            }),
-        }),
+        }).methods((method) => ({
+            finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
+        })),
     ).toThrow(
         new TypeError("object secret-chore guards field done, which many updates at once skip"),
     );

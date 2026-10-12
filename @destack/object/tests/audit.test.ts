@@ -22,14 +22,13 @@ const locker = defineObject({
     audited: { reads: true },
     fields: { owner: field.reference(principal.user).caller(), version: field.integer() },
     permissions: { read: relation("owner") },
-    methods: (method) => ({
-        open: method.query({
-            permission: "read",
-            output: schema.object({ version: schema.number(), value: schema.string() }),
-            audit: { details: schema.object({ version: schema.number() }) },
-        }),
+}).methods((method) => ({
+    open: method.query({
+        permission: "read",
+        output: schema.object({ version: schema.number(), value: schema.string() }),
+        audit: { details: schema.object({ version: schema.number() }) },
     }),
-});
+}));
 
 test("name the version a read disclosed in its recorded call, apart from its value", async () => {
     const storage = await TestDatabase.create("sqlite", [...locker.tables, journal], {

@@ -9,8 +9,8 @@ export const page = defineObject({
     scope: space,
     fields,
     permissions,
-    methods,
-});
+    constraints: { title: { kind: "index", on: ["title"] } },
+}).methods((method) => ({ get: method.get("read"), create: method.create("edit") }));
 // serves it over one database
 const store = new ObjectStore({ objects: { page }, principal: space, database, callKey, origin });
 const [created] = await store.mutate(caller, {
@@ -22,7 +22,7 @@ const listed = client.query.page.findMany().subscribe(); // a client's live loca
 
 ## Objects
 
-`defineObject` declares a type inside its `scope`, the object type whose rows contain its rows, and `implement` attaches its code (method handlers, a controller, a declaration handler): a handler in the type's own module also runs on clients as a prediction, one in a server module runs on the server alone.
+`defineObject` declares a type inside its `scope`, the object type whose rows contain its rows, `.methods` completes it, and `implement` attaches its code (method handlers, a controller, a declaration handler): a handler in the type's own module also runs on clients as a prediction, one in a server module runs on the server alone.
 
 ```ts
 import { relation } from "@destack/access";
@@ -41,7 +41,8 @@ export const page = defineObject({
         url: field.string(schema.string()).optional(),
     },
     permissions: { read: relation("viewer"), edit: relation("editor") },
-    methods: (method) => ({
+})
+    .methods((method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("edit"),
@@ -51,10 +52,10 @@ export const page = defineObject({
             permission: "edit",
             prepared: schema.object({ url: schema.string() }),
         }),
-    }),
-}).implement({
-    methods: { archive: (call) => call.update({ archivedAt: call.now }) },
-});
+    }))
+    .implement({
+        methods: { archive: (call) => call.update({ archivedAt: call.now }) },
+    });
 
 // server/page.ts: prepare runs outside the transaction, so clients never predict publish
 export const servedPage = page.implement({
@@ -84,7 +85,7 @@ defineObject({
     tracked: { by: "edit", activity, session: { minutes: 10 } }, // history and revert
     orderable: true, // a fractional index among the siblings
     search: { searchable: ["title"], filterable: ["status"], sortable: ["dueAt"] },
-});
+}).methods(build);
 ```
 
 ## Controllers
@@ -153,7 +154,7 @@ const room = defineObject({
     scope: space,
     isScope: true,
     partition: true,
-});
+}).methods();
 const store = new ObjectStore({
     objects: { message },
     partition: roomId,

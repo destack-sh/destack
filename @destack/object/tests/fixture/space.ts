@@ -24,7 +24,7 @@ export const space = defineObject({
     relations: { reader: { subjects: [anyone.all()] } },
     permissions: { read: relation("reader"), share: none() },
     shareable: { by: "share" },
-});
+}).methods();
 
 /** Reference a space as the principal its server's own work runs as. */
 export function spacePrincipal(id: string): Subject {
