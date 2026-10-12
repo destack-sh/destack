@@ -1,6 +1,6 @@
 import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
-import { uniqueIndex, type Select } from "@destack/db";
+import { type Select } from "@destack/db";
 import { type Call, defineObject, field } from "@destack/object";
 import { ServiceError } from "@destack/service/error";
 import { defineSchema, schema, type Identifier } from "@destack/schema";
@@ -68,23 +68,25 @@ export const customer = defineObject({
     },
     permissions: BILLING_PERMISSIONS,
     reserved: ["provide"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("bill", {
-            fields: ["accountId", "email", "name", "address", "taxIds"],
-        }),
-        update: method.update("bill", { fields: ["email", "name", "address", "taxIds"] }),
-        /** Record the provider's identifier of the customer. */
-        record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+    constraints: {
+        account: { kind: "index", on: ["accountId"], unique: true },
+        provider: {
+            kind: "index",
+            on: ["providerId"],
+            unique: true,
+            where: { providerId: { isNotNull: true } },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("bill", {
+        fields: ["accountId", "email", "name", "address", "taxIds"],
     }),
-    constraints: (entry) => [
-        uniqueIndex("customer_account").on(entry.accountId),
-        uniqueIndex("customer_provider")
-            .on(entry.providerId)
-            .where({ providerId: { isNotNull: true } }),
-    ],
-});
+    update: method.update("bill", { fields: ["email", "name", "address", "taxIds"] }),
+    /** Record the provider's identifier of the customer. */
+    record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+}));
 /** A persisted customer. */
 export type Customer = Select<typeof customer.table>;
 

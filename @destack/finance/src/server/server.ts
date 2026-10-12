@@ -1,4 +1,3 @@
-import { principal } from "@destack/access";
 import {
     account,
     allowance,
@@ -9,21 +8,17 @@ import {
     universeAllowanceShape,
 } from "@destack/account/object";
 import type { accountService } from "@destack/account/service";
-import { type DatabaseConnection, Snapshot, TABLE } from "@destack/db";
-import type { Event, EventKind, EventStore } from "@destack/event";
+import { TABLE } from "@destack/db";
+import type { EventStore } from "@destack/event";
 import type { Registry } from "@destack/forge/client";
 import { serveActivities } from "@destack/notification/server";
-import { ObjectStore, Stack, Subscriber } from "@destack/object/server";
-import { type Clock, Digest, type JsonObject, JsonValue } from "@destack/schema";
+import { type ObjectExtension, Stack } from "@destack/object/server";
+import { Digest, type Identifier, type JsonObject, JsonValue } from "@destack/schema";
 import type { ServiceClient } from "@destack/service/client";
 import { ServiceError } from "@destack/service/error";
-import type { CallKey } from "@destack/service/request";
-import { type ServiceContext, type ServiceImplementation } from "@destack/service/server";
-import { type InstallationContext, WEBHOOK_PATH } from "@destack/service/workload";
-import { Scope, Uplink } from "@destack/sync";
+import { WEBHOOK_PATH } from "@destack/service/workload";
 import { Catalog } from "../catalog/catalog.ts";
 import { FeatureGrant } from "../feature/grant.ts";
-import { usage } from "../meter/usage.ts";
 import {
     charge,
     checkoutSession,
@@ -53,122 +48,57 @@ import { UsageController } from "./usage.ts";
 /** The hex digits of a price's terms digest its declaration name carries: 48 bits. */
 const TERMS_DIGEST_LENGTH = 12;
 
-/** The database, account service and registry the finance service serves with. */
+/** The account directory, registry, provider and events the finance extension serves with. */
 export interface FinanceOptions {
-    /** The finance database, copying its residency's accounts, organisations, machines and keys. */
-    readonly database: DatabaseConnection;
-    /** The universe's account service, called as the installation. */
-    readonly accounts: ServiceClient<typeof accountService>;
-    /** The clock the service runs at. */
-    readonly clock: Clock;
-    /** The finance installation, which keeps residency account copies below its space. */
-    readonly installation: Pick<InstallationContext, "id" | "scope">;
-    /** The key sensitive call inputs are fingerprinted under in the journal. */
-    readonly callKey: CallKey;
+    /** The universe's account directory, which finds the seller of each handle. */
+    readonly accounts: Pick<ServiceClient<typeof accountService>, "directory">;
+    /** The residency home finance serves, where its rows live. */
+    readonly home: Identifier<"space">;
     /** The registry opening the releases of packages declaring features, meters and SKUs. */
     readonly registry: Pick<Registry, "open">;
     /** The distribution tag of each package's current release, such as latest or dev. */
     readonly tag: string;
     /** The payment provider charging buyers, absent if accounts run on default products alone. */
     readonly provider: PaymentProvider | undefined;
-    /** The usage events of the residency's paying accounts, in the finance database and bucket. */
+    /** The space's events, with the usage routed to the residency's paying accounts. */
     readonly events: EventStore;
     /** Report committed external work that fails to settle, and uses their declarations refuse. */
     readonly report: (error: unknown) => void;
 }
 
-/** The finance service with the object store executing its methods. */
-export interface FinanceImplementation extends ServiceImplementation {
-    /** The object store executing the finance service's methods. */
-    readonly objects: ObjectStore;
-}
-
 /** The announcements of the accounts' usage limits. */
 const activities = serveActivities({ notifications: [usageLimit] });
 
-/** Implement the finance service over a residency's database. */
-export function implementFinance(options: FinanceOptions): FinanceImplementation {
+/** Extend a residency home's store with finance: its objects, webhooks and controllers. */
+export function implementFinance(options: FinanceOptions): ObjectExtension {
     // find each handle's seller to the home's buyers through the account directory
+    const { home, provider } = options;
     const catalog = Catalog.tagged(options.registry, options.tag);
-    const home = options.installation.scope;
     const publisher = (handle: string) => options.accounts.directory.publisher({ handle, home });
     const metering = new Metering(options.events, catalog, publisher, options.report);
-    const objects: ObjectStore = new ObjectStore({
-        principal: principal.installation.reference(
-            options.installation.scope,
-            options.installation.id,
-        ),
-        objects: serveFinance(metering, options.provider, home),
-        clock: options.clock,
-        policies: [account, organisation, machine, key],
-        database: options.database,
-        callKey: options.callKey,
-        origin: { package: financeService.package, service: financeService.name },
-        subscriber: Subscriber.of(
-            Uplink.of(() => options.accounts.replica),
-            () => objects.source.servedSubscriptions(options.installation.scope),
-        ),
-        shapes: [allowanceShape, universeAllowanceShape],
-        report: options.report,
-    });
-
-    // take the provider's webhook deliveries at their path below the machine's webhook mount
-    const { provider } = options;
     const path = provider === undefined ? undefined : `${WEBHOOK_PATH}/${provider.name}`;
-    const fetch = async (request: Request): Promise<Response | undefined> => {
-        if (provider === undefined || new URL(request.url).pathname !== path) {
-            return undefined;
-        } else if (request.method !== "POST") {
-            return new Response(null, { status: 405 });
-        }
-        await ProviderEvent.receive(objects, options.installation.scope, provider, request);
-
-        return new Response(null, { status: 204 });
-    };
-
-    // rate the usage routed here, derive each account's entitlements, and keep the events' segments
-    const controllers = [
-        new UsageController(objects, options.installation.scope),
-        new EntitlementController(objects, options.installation.scope),
-        ...options.events.controllers,
-    ];
 
     return {
-        ...objects.implement(
-            financeService,
-            objects.routed,
-            [...objects.controllers(), ...controllers],
-            {},
-        ),
-        objects,
-        fetch,
-    };
-}
+        service: financeService,
+        objects: serveFinance(metering, provider, home),
+        policies: [account, organisation, machine, key],
+        shapes: [allowanceShape, universeAllowanceShape],
+        serve: (store) => ({
+            // take the provider's webhook deliveries at their path below the machine's webhook mount
+            fetch: async (request: Request): Promise<Response | undefined> => {
+                if (provider === undefined || new URL(request.url).pathname !== path) {
+                    return undefined;
+                } else if (request.method !== "POST") {
+                    return new Response(null, { status: 405 });
+                }
+                await ProviderEvent.receive(store, home, provider, request);
 
-/** Admit usage of accounts the caller serves. */
-export function admitUsage(
-    objects: ObjectStore,
-): (context: ServiceContext, kind: EventKind, events: readonly Event[]) => Promise<void> {
-    return async (context, kind, events) => {
-        // take usage alone, the one kind routed here
-        if (kind.key !== usage.key) {
-            throw new ServiceError("FORBIDDEN", {
-                message: `finance takes no ${kind.name} events`,
-            });
-        }
+                return new Response(null, { status: 204 });
+            },
 
-        // require the caller to serve each paying account
-        const authorization = context.requireAuthorization();
-        for (const scope of new Set(events.map((event) => event.scope))) {
-            const [link] = await Scope.chain(Snapshot.live(objects.database), scope);
-            if (link === undefined) {
-                throw new ServiceError("NOT_FOUND", { message: `no account ${scope}` });
-            }
-            const decision = await authorization.check(account.permission("serve"), link.object);
-            if (!decision.isAllowed) {
-                throw new ServiceError("NOT_FOUND", { message: `no account ${scope}` });
-            }
-        }
+            // rate the usage routed here and derive each account's entitlements
+            controllers: [new UsageController(store, home), new EntitlementController(store, home)],
+        }),
     };
 }
 

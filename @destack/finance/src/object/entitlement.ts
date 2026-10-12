@@ -8,7 +8,7 @@ import {
     type UsageState,
     space,
 } from "@destack/account/object";
-import { check, type Select, type Snapshot, uniqueIndex } from "@destack/db";
+import { type Select, type Snapshot } from "@destack/db";
 import { type Message, t } from "@destack/locale";
 import { announcement } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
@@ -124,58 +124,59 @@ export const entitlement = defineObject({
         provide: through("account", "serve"),
     },
     attachments: [announcement.attach({ by: "read" })],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("provide", { isInternal: true }),
-        update: method.update("provide", {
-            isInternal: true,
-            fields: ["value", "limit", "usage", "resetAt", "state"],
-        }),
-        delete: method.delete("provide", { isInternal: true }),
-        derive: method.mutation({
-            permission: "provide",
-            target: "none",
-            isInternal: true,
-            input: schema.object({
-                /** The account whose entitlements are derived. */
-                accountId: schema.identifier("account"),
-            }),
-            output: schema.object({}),
-        }),
+    constraints: {
+        unique: {
+            kind: "index",
+            on: ["accountId", "source", "packageId", "feature"],
+            unique: true,
+        },
+        kind: {
+            kind: "check",
+            condition: {
+                AND: [
+                    {
+                        OR: [
+                            { kind: "metered", usage: { isNotNull: true } },
+                            { kind: { ne: "metered" }, usage: { isNull: true } },
+                        ],
+                    },
+                    {
+                        OR: [
+                            { kind: "metered", state: { isNotNull: true } },
+                            { kind: { ne: "metered" }, state: { isNull: true } },
+                        ],
+                    },
+                    {
+                        OR: [
+                            { kind: "metered" },
+                            { limit: { isNull: true }, resetAt: { isNull: true } },
+                        ],
+                    },
+                    { OR: [{ kind: "static" }, { value: { isNull: true } }] },
+                ],
+            },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("provide", { isInternal: true }),
+    update: method.update("provide", {
+        isInternal: true,
+        fields: ["value", "limit", "usage", "resetAt", "state"],
     }),
-    constraints: (entry) => [
-        uniqueIndex("entitlement_unique").on(
-            entry.accountId,
-            entry.source,
-            entry.packageId,
-            entry.feature,
-        ),
-        check("entitlement_kind", {
-            AND: [
-                {
-                    OR: [
-                        { kind: "metered", usage: { isNotNull: true } },
-                        { kind: { ne: "metered" }, usage: { isNull: true } },
-                    ],
-                },
-                {
-                    OR: [
-                        { kind: "metered", state: { isNotNull: true } },
-                        { kind: { ne: "metered" }, state: { isNull: true } },
-                    ],
-                },
-                {
-                    OR: [
-                        { kind: "metered" },
-                        { limit: { isNull: true }, resetAt: { isNull: true } },
-                    ],
-                },
-                { OR: [{ kind: "static" }, { value: { isNull: true } }] },
-            ],
+    delete: method.delete("provide", { isInternal: true }),
+    derive: method.mutation({
+        permission: "provide",
+        target: "none",
+        isInternal: true,
+        input: schema.object({
+            /** The account whose entitlements are derived. */
+            accountId: schema.identifier("account"),
         }),
-    ],
-});
+        output: schema.object({}),
+    }),
+}));
 /** A persisted entitlement. */
 export type Entitlement = Select<typeof entitlement.table>;
 

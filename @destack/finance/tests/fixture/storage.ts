@@ -112,7 +112,7 @@ export const capacity = defineFeature(
         name: "capacity",
         description: "Bytes kept in storage and the archive together.",
         kind: "metered",
-        allowance: "storage",
+        allowance: "data",
         meters: [stored.reference, archived.reference],
         reset: "never",
     },

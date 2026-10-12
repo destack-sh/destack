@@ -8,7 +8,8 @@ import type {
     ProviderEvent,
 } from "../provider/provider.ts";
 import type { Customer, Price, Product, ProviderSubscription } from "../object/index.ts";
-import { StripeClient, type StripeParameter, type StripeSecret } from "./client.ts";
+import type { Secret } from "@destack/vault";
+import { StripeClient, type StripeParameter } from "./client.ts";
 import {
     Stripe,
     StripeAccount,
@@ -54,7 +55,7 @@ export const STRIPE_EVENTS: readonly string[] = [
 /** The key and home a Stripe provider runs with. */
 export interface StripeProviderOptions {
     /** The platform account's secret API key, read through the vault. */
-    readonly key: StripeSecret;
+    readonly key: Secret;
     /** The home whose finance bills through the provider, which its customers and sellers carry. */
     readonly home: string;
     /** The fetch calling Stripe. */

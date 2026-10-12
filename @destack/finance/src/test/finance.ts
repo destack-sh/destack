@@ -30,12 +30,10 @@ import { MemoryBucket } from "@destack/bucket/test";
 import { type Plan } from "@destack/resource";
 import { StackDefinition } from "@destack/stack/declare";
 import { usage } from "../meter/usage.ts";
+import { homeDatabase } from "./home.ts";
 import { EntitlementController } from "../server/entitlement.ts";
 import { Metering } from "../meter/metering.ts";
 import { UsageController } from "../server/usage.ts";
-import { admitUsage } from "../server/server.ts";
-import { eventService } from "@destack/event/service";
-import { implementEvents } from "@destack/event/server";
 import { createClient, type ServiceClient } from "@destack/service/client";
 import { Feature } from "../feature/index.ts";
 import { describeFeature, describeMeter, describeSku } from "../inspect/index.ts";
@@ -44,7 +42,6 @@ import type { PaymentProvider } from "../provider/index.ts";
 import { serveFinance } from "../server/index.ts";
 import { Sku } from "../sku/index.ts";
 import { financeService } from "../service/index.ts";
-import { financeDatabase } from "../stack/index.ts";
 import { Catalog } from "../catalog/catalog.ts";
 import { CatalogReference } from "../catalog/reference.ts";
 
@@ -121,8 +118,6 @@ export class FinanceFixture {
     readonly store: ObjectStore;
     /** The HTTP server clients call. */
     readonly http: Server;
-    /** The event service taking routed usage. */
-    readonly eventHttp: Server;
     /** The latest release of each package, by identifier. */
     readonly #releases: Map<PackageId, Promise<BuildReader>>;
     /** The clock the service runs at. */
@@ -209,21 +204,6 @@ export class FinanceFixture {
             authorizeMachine: async () => {},
             authenticate: async (request) => this.#authenticate(request),
         });
-        this.eventHttp = Server.start({
-            ...implementEvents({
-                store: this.events,
-                access: this.store.access,
-                admit: admitUsage(this.store),
-            }),
-            clock: this.clock,
-            controllers: [],
-            audience: financeService.package.id,
-            drainTimeout: 1000,
-            health: new Health("finance"),
-            resources: new ResourceContext(),
-            authorizeMachine: async () => {},
-            authenticate: async (request) => this.#authenticate(request),
-        });
     }
 
     /** Receive an account's uses, then rate them page by page. */
@@ -268,7 +248,7 @@ export class FinanceFixture {
         options: FinanceFixtureOptions = {},
     ): Promise<FinanceFixture> {
         // migrate the database, serving the residency, and build each package's release
-        const test = await TestDatabase.create(dialect, financeDatabase, { isMigrated: true });
+        const test = await TestDatabase.create(dialect, homeDatabase, { isMigrated: true });
         await FinanceFixture.#serveResidency(test.database);
         await FinanceFixture.#copyHome(test.database);
         const built = new Map(
@@ -480,25 +460,6 @@ export class FinanceFixture {
         return this.#connect(`machine ${name} ${residencies.join(",")} ${lapsesAt}`);
     }
 
-    /** Open an event service client calling as a cloud machine serving residencies. */
-    machineEvents(
-        name: string,
-        claims: { readonly residencies?: readonly string[]; readonly lapsesAt?: number } = {},
-    ) {
-        const {
-            residencies = [RESIDENCY],
-            lapsesAt = this.clock.now() + TOKEN_LIFETIME_MILLISECONDS,
-        } = claims;
-
-        return createClient(eventService, {
-            url: ORIGIN,
-            headers: {
-                authorization: `Bearer machine ${name} ${residencies.join(",")} ${lapsesAt}`,
-            },
-            fetch: (request: Request) => this.eventHttp.fetch(request),
-        });
-    }
-
     /** Open a client calling with a bearer of its principal. */
     #connect(bearer: string): ServiceClient<typeof financeService> {
         return createClient(financeService, {
@@ -529,7 +490,6 @@ export class FinanceFixture {
     /** Stop serving and close the database. */
     async close(): Promise<void> {
         await this.http.close();
-        await this.eventHttp.close();
         await this.test.close();
     }
 

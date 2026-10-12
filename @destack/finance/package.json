@@ -14,7 +14,6 @@
         "./service": "./src/service/index.ts",
         "./server": "./src/server/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./workload": "./src/workload/index.ts",
         "./provider": "./src/provider/index.ts",
         "./stripe": "./src/stripe/index.ts",
         "./test": "./src/test/index.ts",

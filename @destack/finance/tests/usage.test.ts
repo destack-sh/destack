@@ -640,8 +640,8 @@ test.each(TEST_DIALECTS)(
         });
 
         expect({ within, blocked: await allowances(finance) }).toEqual({
-            within: [["storage", CAPACITY, 0, "within"]],
-            blocked: [["storage", CAPACITY, 1200, "blocked"]],
+            within: [["data", CAPACITY, 0, "within"]],
+            blocked: [["data", CAPACITY, 1200, "blocked"]],
         });
     },
 );

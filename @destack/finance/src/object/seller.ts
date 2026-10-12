@@ -1,6 +1,6 @@
 import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
-import { uniqueIndex, type Select, type Snapshot } from "@destack/db";
+import { type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { type Package, PackageName } from "@destack/package";
 import { Identifier, present, schema } from "@destack/schema";
@@ -53,47 +53,49 @@ export const seller = defineObject({
         provide: through("account", "serve"),
     },
     reserved: ["provide"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("sell", {
-            fields: ["accountId", "provider", "country", "creditPrices"],
+    constraints: {
+        account: { kind: "index", on: ["accountId"], unique: true },
+        provider: {
+            kind: "index",
+            on: ["providerId"],
+            unique: true,
+            where: { providerId: { isNotNull: true } },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("sell", {
+        fields: ["accountId", "provider", "country", "creditPrices"],
+    }),
+    /** Open the provider's onboarding page for the seller's connected account. */
+    onboard: method.mutation({
+        permission: "sell",
+        input: schema.object({
+            /** The page to return to once onboarding ends. */
+            returnUrl: schema.url(),
+            /** The page to return to when the onboarding link expired. */
+            refreshUrl: schema.url(),
         }),
-        /** Open the provider's onboarding page for the seller's connected account. */
-        onboard: method.mutation({
-            permission: "sell",
-            input: schema.object({
-                /** The page to return to once onboarding ends. */
-                returnUrl: schema.url(),
-                /** The page to return to when the onboarding link expired. */
-                refreshUrl: schema.url(),
-            }),
-            output: schema.object({
-                /** The onboarding page. */
-                url: schema.url(),
-            }),
-            prepared: schema.object({
-                /** The onboarding page. */
-                url: schema.url(),
-                /** The provider's identifier of the connected account, opened once. */
-                providerId: schema.string(),
-            }),
+        output: schema.object({
+            /** The onboarding page. */
+            url: schema.url(),
         }),
-        /** Replace the seller's price book: the price of a credit in each currency it bills. */
-        update: method.update("sell", { fields: ["creditPrices"] }),
-        /** Record the provider's identifier and capabilities of the connected account. */
-        record: method.update("provide", {
-            isInternal: true,
-            fields: ["providerId", "chargesEnabled", "payoutsEnabled"],
+        prepared: schema.object({
+            /** The onboarding page. */
+            url: schema.url(),
+            /** The provider's identifier of the connected account, opened once. */
+            providerId: schema.string(),
         }),
     }),
-    constraints: (entry) => [
-        uniqueIndex("seller_account").on(entry.accountId),
-        uniqueIndex("seller_provider")
-            .on(entry.providerId)
-            .where({ providerId: { isNotNull: true } }),
-    ],
-});
+    /** Replace the seller's price book: the price of a credit in each currency it bills. */
+    update: method.update("sell", { fields: ["creditPrices"] }),
+    /** Record the provider's identifier and capabilities of the connected account. */
+    record: method.update("provide", {
+        isInternal: true,
+        fields: ["providerId", "chargesEnabled", "payoutsEnabled"],
+    }),
+}));
 /** A persisted seller. */
 export type Seller = Select<typeof seller.table>;
 

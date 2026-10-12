@@ -1,6 +1,6 @@
 import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
-import { check, index, type Select, type Snapshot, uniqueIndex } from "@destack/db";
+import { type Select, type Snapshot } from "@destack/db";
 import { type Call, type CallOf, defineObject, field, type ObjectCall } from "@destack/object";
 import { defineSchema, type Identifier, present, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
@@ -193,51 +193,59 @@ export const subscription = defineObject({
     },
     permissions: BILLING_PERMISSIONS,
     reserved: ["provide"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("provide", { isInternal: true }),
-        update: method.update("bill", { fields: ["cancelAtPeriodEnd", "spendingLimit"] }),
-        /** Move the subscription to another product, or cancel it for the default product. */
-        change: method.mutation({ permission: "bill", input: Purchasable, prepared: PlanChange }),
-        /** Follow the subscription as the provider bills it: its period, state and items. */
-        sync: method.mutation({
-            permission: "provide",
-            isInternal: true,
-            input: ProviderSubscription,
-        }),
-        /** Close an ended period onto the provider's draft invoice. */
-        closePeriod: method.mutation({
-            permission: "provide",
-            isInternal: true,
-            input: schema.object({
-                /** When the period started, in UTC epoch milliseconds. */
-                periodStart: schema.number().int(),
-                /** When it ended. */
-                periodEnd: schema.number().int(),
-                /** The draft invoice closing the period. */
-                invoice: schema.object({
-                    /** The provider's identifier of the invoice. */
-                    providerId: schema.string().min(1),
-                    /** The provider's identifier of the billed customer. */
-                    customer: schema.string().min(1),
-                }),
-            }),
-            prepared: PeriodClose,
-        }),
+    constraints: {
+        status: { kind: "index", on: ["accountId", "status"] },
+        provider: { kind: "index", on: ["providerId"], unique: true },
+        granting: {
+            kind: "index",
+            on: ["accountId", "seller"],
+            unique: true,
+            where: { status: { in: [...GRANTING_STATES] } },
+        },
+        period: {
+            kind: "check",
+            condition: { currentPeriodStart: { lt: { field: "currentPeriodEnd" } } },
+        },
+        spendingLimit: {
+            kind: "check",
+            condition: {
+                spendingLimit: { OR: [{ isNull: true }, { gte: 0 }] },
+            },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("provide", { isInternal: true }),
+    update: method.update("bill", { fields: ["cancelAtPeriodEnd", "spendingLimit"] }),
+    /** Move the subscription to another product, or cancel it for the default product. */
+    change: method.mutation({ permission: "bill", input: Purchasable, prepared: PlanChange }),
+    /** Follow the subscription as the provider bills it: its period, state and items. */
+    sync: method.mutation({
+        permission: "provide",
+        isInternal: true,
+        input: ProviderSubscription,
     }),
-    constraints: (entry) => [
-        index("subscription_status").on(entry.accountId, entry.status),
-        uniqueIndex("subscription_provider").on(entry.providerId),
-        uniqueIndex("subscription_granting")
-            .on(entry.accountId, entry.seller)
-            .where({ status: { in: [...GRANTING_STATES] } }),
-        check("subscription_period", { currentPeriodStart: { lt: { field: "currentPeriodEnd" } } }),
-        check("subscription_spending_limit", {
-            spendingLimit: { OR: [{ isNull: true }, { gte: 0 }] },
+    /** Close an ended period onto the provider's draft invoice. */
+    closePeriod: method.mutation({
+        permission: "provide",
+        isInternal: true,
+        input: schema.object({
+            /** When the period started, in UTC epoch milliseconds. */
+            periodStart: schema.number().int(),
+            /** When it ended. */
+            periodEnd: schema.number().int(),
+            /** The draft invoice closing the period. */
+            invoice: schema.object({
+                /** The provider's identifier of the invoice. */
+                providerId: schema.string().min(1),
+                /** The provider's identifier of the billed customer. */
+                customer: schema.string().min(1),
+            }),
         }),
-    ],
-});
+        prepared: PeriodClose,
+    }),
+}));
 /** A persisted subscription. */
 export type Subscription = Select<typeof subscription.table>;
 
@@ -263,15 +271,16 @@ export const subscriptionItem = defineObject({
         read: through("parent", "read"),
         provide: through("parent", "provide"),
     },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("provide", { isInternal: true }),
-        update: method.update("provide", { isInternal: true, fields: ["quantity", "providerId"] }),
-        delete: method.delete("provide", { isInternal: true }),
-    }),
-    constraints: () => [check("subscription_item_quantity", { quantity: { gte: 0 } })],
-});
+    constraints: {
+        quantity: { kind: "check", condition: { quantity: { gte: 0 } } },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("provide", { isInternal: true }),
+    update: method.update("provide", { isInternal: true, fields: ["quantity", "providerId"] }),
+    delete: method.delete("provide", { isInternal: true }),
+}));
 /** A persisted subscription item. */
 export type SubscriptionItem = Select<typeof subscriptionItem.table>;
 

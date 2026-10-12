@@ -1,6 +1,6 @@
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { check, type Row, TABLE, type Select, type Snapshot } from "@destack/db";
+import { type Row, TABLE, type Select, type Snapshot } from "@destack/db";
 import { type Call, defineObject, field } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { defineSchema, present, schema, Text } from "@destack/schema";
@@ -93,54 +93,59 @@ export const price = defineObject({
         sell: through("parent", "sell"),
         provide: through("parent", "provide"),
     },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("sell", {
-            fields: [
-                "currency",
-                "unitAmount",
-                "unitAmountDecimal",
-                "includedUsage",
-                "recurring",
-                "billingScheme",
-                "tiers",
-                "active",
-            ],
-        }),
-        update: method.update("sell", { fields: ["active"] }),
-        /** Record the provider's identifier of the price. */
-        record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+    constraints: {
+        billingScheme: {
+            kind: "check",
+            condition: {
+                OR: [
+                    {
+                        billingScheme: "per_unit",
+                        tiers: { isNull: true },
+                        OR: [
+                            {
+                                unitAmount: { isNull: true },
+                                unitAmountDecimal: { isNotNull: true },
+                            },
+                            {
+                                unitAmount: { isNotNull: true },
+                                unitAmountDecimal: { isNull: true },
+                            },
+                        ],
+                    },
+                    {
+                        billingScheme: "tiered",
+                        unitAmount: { isNull: true },
+                        unitAmountDecimal: { isNull: true },
+                        tiers: { isNotNull: true },
+                    },
+                ],
+            },
+        },
+        unitAmount: {
+            kind: "check",
+            condition: { unitAmount: { OR: [{ isNull: true }, { gte: 0 }] } },
+        },
+        includedUsage: { kind: "check", condition: { includedUsage: { gte: 0 } } },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("sell", {
+        fields: [
+            "currency",
+            "unitAmount",
+            "unitAmountDecimal",
+            "includedUsage",
+            "recurring",
+            "billingScheme",
+            "tiers",
+            "active",
+        ],
     }),
-    constraints: () => [
-        check("price_billing_scheme", {
-            OR: [
-                {
-                    billingScheme: "per_unit",
-                    tiers: { isNull: true },
-                    OR: [
-                        {
-                            unitAmount: { isNull: true },
-                            unitAmountDecimal: { isNotNull: true },
-                        },
-                        {
-                            unitAmount: { isNotNull: true },
-                            unitAmountDecimal: { isNull: true },
-                        },
-                    ],
-                },
-                {
-                    billingScheme: "tiered",
-                    unitAmount: { isNull: true },
-                    unitAmountDecimal: { isNull: true },
-                    tiers: { isNotNull: true },
-                },
-            ],
-        }),
-        check("price_unit_amount", { unitAmount: { OR: [{ isNull: true }, { gte: 0 }] } }),
-        check("price_included_usage", { includedUsage: { gte: 0 } }),
-    ],
-});
+    update: method.update("sell", { fields: ["active"] }),
+    /** Record the provider's identifier of the price. */
+    record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+}));
 /** The provider's identifiers of the product and prices a sale mirrored first, by finance's own. */
 export const PriceMirror = defineSchema(
     schema.object({

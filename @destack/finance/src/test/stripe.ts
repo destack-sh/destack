@@ -1,4 +1,4 @@
-import { StripeSecret } from "../stripe/client.ts";
+import { Secret } from "@destack/vault";
 
 /** The API key the fixture accepts. */
 const API_KEY = "sk_test_destack";
@@ -30,7 +30,7 @@ interface Route {
 /** An in-process Stripe serving the API subset finance uses, after stripe-mock. */
 export class StripeFixture {
     /** The API key, as the vault would hand it. */
-    readonly key: StripeSecret = StripeSecret.of(API_KEY);
+    readonly key: Secret = Secret.of(API_KEY);
     /** The kept objects, by identifier. */
     readonly objects = new Map<string, StripeObject>();
     /** The answers kept per idempotency key. */

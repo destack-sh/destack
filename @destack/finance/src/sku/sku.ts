@@ -1,4 +1,4 @@
-import { CapacityClass, ProviderCode } from "@destack/account/object";
+import { ProviderCode, Tenancy } from "@destack/account/object";
 import type { Package } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { Currency, DecimalAmount } from "../rate/amount.ts";
@@ -27,8 +27,8 @@ export const SkuMetadata = defineSchema(
         service: schema.string().min(1),
         /** The FOCUS ServiceCategory. */
         category: ServiceCategory,
-        /** The capacity class of the priced machines, absent for a SKU all classes use. */
-        capacityClass: CapacityClass.exclude(["personal"]).exactOptional(),
+        /** The tenancy of the priced machines, absent for a SKU every tenancy uses. */
+        tenancy: Tenancy.exclude(["own"]).exactOptional(),
         /** The meter measuring its billing unit. */
         meter: CatalogReference,
         /** The FOCUS PricingUnit, such as GB-month. */

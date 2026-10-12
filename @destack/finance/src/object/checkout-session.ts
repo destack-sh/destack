@@ -1,5 +1,5 @@
 import { account, space } from "@destack/account/object";
-import { type Select, uniqueIndex } from "@destack/db";
+import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { BILLING_PERMISSIONS } from "./customer.ts";
@@ -41,46 +41,48 @@ export const checkoutSession = defineObject({
     },
     permissions: BILLING_PERMISSIONS,
     reserved: ["provide"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("bill", {
-            fields: ["accountId", "product", "currency"],
-            input: schema.object({
-                /** The page Checkout returns the buyer to once they paid. */
-                successUrl: schema.url(),
-                /** The page Checkout returns the buyer to when they leave without paying. */
-                cancelUrl: schema.url(),
-            }),
-            prepared: schema.object({
-                /** The provider's identifier of the buying customer. */
-                customer: schema.string(),
-                /** The checkout the buyer pays at. */
-                session: schema.object({ providerId: schema.string(), url: schema.url() }),
-                /** The buyer's earlier open session with the seller, expired for this one. */
-                replaced: schema.string().nullable(),
-                /** The product and prices the checkout mirrored first. */
-                mirrored: PriceMirror,
-            }),
+    constraints: {
+        provider: { kind: "index", on: ["providerId"], unique: true },
+        open: {
+            kind: "index",
+            on: ["accountId", "seller"],
+            unique: true,
+            where: { status: "open" },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("bill", {
+        fields: ["accountId", "product", "currency"],
+        input: schema.object({
+            /** The page Checkout returns the buyer to once they paid. */
+            successUrl: schema.url(),
+            /** The page Checkout returns the buyer to when they leave without paying. */
+            cancelUrl: schema.url(),
         }),
-        /** Complete the session with its subscription. */
-        settle: method.mutation({
-            permission: "provide",
-            isInternal: true,
-            input: schema.object({
-                /** The subscription as the provider bills it. */
-                subscription: ProviderSubscription,
-            }),
+        prepared: schema.object({
+            /** The provider's identifier of the buying customer. */
+            customer: schema.string(),
+            /** The checkout the buyer pays at. */
+            session: schema.object({ providerId: schema.string(), url: schema.url() }),
+            /** The buyer's earlier open session with the seller, expired for this one. */
+            replaced: schema.string().nullable(),
+            /** The product and prices the checkout mirrored first. */
+            mirrored: PriceMirror,
         }),
-        /** Record the subscription the session started. */
-        record: method.update("provide", { isInternal: true, fields: ["subscriptionId"] }),
     }),
-    constraints: (entry) => [
-        uniqueIndex("checkout_session_provider").on(entry.providerId),
-        uniqueIndex("checkout_session_open")
-            .on(entry.accountId, entry.seller)
-            .where({ status: "open" }),
-    ],
-});
+    /** Complete the session with its subscription. */
+    settle: method.mutation({
+        permission: "provide",
+        isInternal: true,
+        input: schema.object({
+            /** The subscription as the provider bills it. */
+            subscription: ProviderSubscription,
+        }),
+    }),
+    /** Record the subscription the session started. */
+    record: method.update("provide", { isInternal: true, fields: ["subscriptionId"] }),
+}));
 /** A persisted checkout session. */
 export type CheckoutSession = Select<typeof checkoutSession.table>;

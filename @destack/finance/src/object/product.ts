@@ -1,6 +1,6 @@
 import { resource, through, union } from "@destack/access";
 import { account, space } from "@destack/account/object";
-import { uniqueIndex, type Select } from "@destack/db";
+import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
@@ -37,21 +37,20 @@ export const product = defineObject({
         sell: through("account", "manage"),
         provide: through("account", "serve"),
     },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("sell", {
-            fields: ["accountId", "name", "description", "active", "isDefault"],
-        }),
-        update: method.update("sell", {
-            fields: ["name", "description", "active", "isDefault"],
-        }),
-        /** Record the provider's identifier of the product. */
-        record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+    constraints: {
+        default: { kind: "index", on: ["accountId"], unique: true, where: { isDefault: true } },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("sell", {
+        fields: ["accountId", "name", "description", "active", "isDefault"],
     }),
-    constraints: (entry) => [
-        uniqueIndex("product_default").on(entry.accountId).where({ isDefault: true }),
-    ],
-});
+    update: method.update("sell", {
+        fields: ["name", "description", "active", "isDefault"],
+    }),
+    /** Record the provider's identifier of the product. */
+    record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+}));
 /** A persisted product. */
 export type Product = Select<typeof product.table>;

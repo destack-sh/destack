@@ -1,3 +1,4 @@
+import { Secret } from "@destack/vault";
 import type { Fetch } from "@destack/service";
 import { ServiceError } from "@destack/service/error";
 
@@ -17,29 +18,15 @@ export type StripeParameter =
     | readonly StripeParameter[]
     | { readonly [key: string]: StripeParameter };
 
-/** A secret read through the vault, such as the API key. */
-export interface StripeSecret {
-    /** Read the secret's current value. */
-    read(): Promise<{ readonly value: { readonly encoding: string; readonly value: string } }>;
-}
-
-/** The secrets a Stripe client authenticates with. */
-export const StripeSecret = {
-    /** Hold a key given directly, such as one an operator's environment sets. */
-    of(key: string): StripeSecret {
-        return { read: async () => ({ value: { encoding: "text", value: key } }) };
-    },
-};
-
 /** A Stripe API client authenticating with a secret key read through the vault at each request. */
 export class StripeClient {
     /** The API key. */
-    readonly #key: StripeSecret;
+    readonly #key: Secret;
     /** The fetch calling the API. */
     readonly #fetch: Fetch;
 
     /** Call Stripe with a vault secret's key through a fetch. */
-    constructor(key: StripeSecret, fetch: Fetch) {
+    constructor(key: Secret, fetch: Fetch) {
         this.#key = key;
         this.#fetch = fetch;
     }
@@ -52,7 +39,7 @@ export class StripeClient {
         idempotencyKey?: string,
     ): Promise<Record<string, unknown>> {
         // authenticate with the current key and send the version
-        const key = await StripeClient.text(this.#key);
+        const key = await Secret.text(this.#key);
         const headers = new Headers({
             authorization: `Bearer ${key}`,
             "stripe-version": STRIPE_VERSION,
@@ -85,16 +72,6 @@ export class StripeClient {
         }
 
         return { ...body };
-    }
-
-    /** Read a secret's text value. */
-    static async text(secret: StripeSecret): Promise<string> {
-        const { value } = await secret.read();
-        if (value.encoding !== "text") {
-            throw new TypeError(`a stripe secret is ${value.encoding}, not text`);
-        }
-
-        return value.value;
     }
 
     /** Encode parameters as Stripe's forms nest them: `items[0][price]=price_1`. */

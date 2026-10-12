@@ -1,5 +1,5 @@
 import { account, space } from "@destack/account/object";
-import { check, index, uniqueIndex, type Select, type Snapshot } from "@destack/db";
+import type { Select, Snapshot } from "@destack/db";
 import { EventTime } from "@destack/event";
 import { type Call, defineObject, field } from "@destack/object";
 import type { PackageId } from "@destack/package";
@@ -84,56 +84,67 @@ export const charge = defineObject({
     },
     permissions: BILLING_PERMISSIONS,
     reserved: ["provide"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("provide", { isInternal: true }),
-        update: method.update("provide", {
-            isInternal: true,
-            fields: [
-                "skuPriceId",
-                "consumedQuantity",
-                "pricingQuantity",
-                "listUnitPrice",
-                "listCost",
-                "billedCost",
-                "effectiveCost",
-                "status",
-                "providerId",
-            ],
+    constraints: {
+        usage: {
+            kind: "index",
+            on: ["accountId", "chargePeriodStart", "resourceId", "skuId"],
+            unique: true,
+            where: { chargeCategory: "Usage" },
+        },
+        price: {
+            kind: "index",
+            on: ["accountId", "chargePeriodStart", "price"],
+            unique: true,
+            where: { chargeCategory: "Usage", skuId: { isNull: true } },
+        },
+        credit: {
+            kind: "index",
+            on: ["accountId", "seller", "chargePeriodStart"],
+            unique: true,
+            where: { chargeCategory: "Credit" },
+        },
+        sku: { kind: "index", on: ["skuId", "status"] },
+        period: {
+            kind: "check",
+            condition: { chargePeriodStart: { lt: { field: "chargePeriodEnd" } } },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("provide", { isInternal: true }),
+    update: method.update("provide", {
+        isInternal: true,
+        fields: [
+            "skuPriceId",
+            "consumedQuantity",
+            "pricingQuantity",
+            "listUnitPrice",
+            "listCost",
+            "billedCost",
+            "effectiveCost",
+            "status",
+            "providerId",
+        ],
+    }),
+    rate: method.mutation({
+        permission: "provide",
+        target: "none",
+        isInternal: true,
+        input: schema.object({
+            /** The account whose usage is rated. */
+            accountId: schema.identifier("account"),
+            /** The log position the account's usage is rated up to. */
+            after: schema.int().nonnegative(),
         }),
-        rate: method.mutation({
-            permission: "provide",
-            target: "none",
-            isInternal: true,
-            input: schema.object({
-                /** The account whose usage is rated. */
-                accountId: schema.identifier("account"),
-                /** The log position the account's usage is rated up to. */
-                after: schema.int().nonnegative(),
-            }),
-            output: schema.object({
-                /** The log position the rating reached. */
-                sequence: schema.int().nonnegative(),
-                /** The usage events rated. */
-                events: schema.int().nonnegative(),
-            }),
+        output: schema.object({
+            /** The log position the rating reached. */
+            sequence: schema.int().nonnegative(),
+            /** The usage events rated. */
+            events: schema.int().nonnegative(),
         }),
     }),
-    constraints: (entry) => [
-        uniqueIndex("charge_usage")
-            .on(entry.accountId, entry.chargePeriodStart, entry.resourceId, entry.skuId)
-            .where({ chargeCategory: "Usage" }),
-        uniqueIndex("charge_price")
-            .on(entry.accountId, entry.chargePeriodStart, entry.price)
-            .where({ chargeCategory: "Usage", skuId: { isNull: true } }),
-        uniqueIndex("charge_credit")
-            .on(entry.accountId, entry.seller, entry.chargePeriodStart)
-            .where({ chargeCategory: "Credit" }),
-        index("charge_sku").on(entry.skuId, entry.status),
-        check("charge_period", { chargePeriodStart: { lt: { field: "chargePeriodEnd" } } }),
-    ],
-});
+}));
 /** A persisted charge. */
 export type Charge = Select<typeof charge.table>;
 

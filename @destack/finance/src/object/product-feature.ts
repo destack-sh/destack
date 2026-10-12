@@ -1,6 +1,6 @@
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { uniqueIndex, type Select, type Snapshot } from "@destack/db";
+import { type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
@@ -29,17 +29,16 @@ export const productFeature = defineObject({
         read: through("parent", "read"),
         sell: through("parent", "sell"),
     },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("sell", { fields: ["packageId", "feature", "value"] }),
-        update: method.update("sell", { fields: ["value"] }),
-        delete: method.delete("sell"),
-    }),
-    constraints: (entry) => [
-        uniqueIndex("product_feature_unique").on(entry.parentId, entry.packageId, entry.feature),
-    ],
-});
+    constraints: {
+        unique: { kind: "index", on: ["parentId", "packageId", "feature"], unique: true },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("sell", { fields: ["packageId", "feature", "value"] }),
+    update: method.update("sell", { fields: ["value"] }),
+    delete: method.delete("sell"),
+}));
 /** A persisted product feature. */
 export type ProductFeature = Select<typeof productFeature.table>;
 

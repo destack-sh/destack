@@ -10,9 +10,6 @@
         "./stack": {
             "runtimes": ["bun", "workerd"]
         },
-        "./workload": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./inspect": {
             "runtimes": ["bun"]
         },

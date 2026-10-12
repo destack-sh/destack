@@ -1,5 +1,5 @@
 import { account, space } from "@destack/account/object";
-import { type Select, uniqueIndex } from "@destack/db";
+import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { BILLING_PERMISSIONS } from "./customer.ts";
@@ -60,16 +60,17 @@ export const invoice = defineObject({
     },
     permissions: BILLING_PERMISSIONS,
     reserved: ["provide"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("provide", {
-            isInternal: true,
-            fields: ["accountId", ...INVOICE_FIELDS],
-        }),
-        update: method.update("provide", { isInternal: true, fields: INVOICE_FIELDS }),
+    constraints: {
+        provider: { kind: "index", on: ["providerId"], unique: true },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("provide", {
+        isInternal: true,
+        fields: ["accountId", ...INVOICE_FIELDS],
     }),
-    constraints: (entry) => [uniqueIndex("invoice_provider").on(entry.providerId)],
-});
+    update: method.update("provide", { isInternal: true, fields: INVOICE_FIELDS }),
+}));
 /** A persisted invoice. */
 export type Invoice = Select<typeof invoice.table>;
