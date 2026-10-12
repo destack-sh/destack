@@ -124,11 +124,11 @@ export interface WaterOptions extends Sizing, Pick<ShaderProperties, "speed" | "
     readonly colorBack?: ShaderColor;
     /** The highlight color, needs highlights > 0. */
     readonly colorHighlight?: ShaderColor;
-    /** The coloring added over image/background following caustic shape, needs colorHighlight alpha > 0, from 0 to 1. */
+    /** The coloring added over image or background along the caustic shape, from 0 to 1. */
     readonly highlights?: number;
-    /** The power of 2nd layer of caustic distortion, needs caustic or highlights > 0, from 0 to 1. */
+    /** The power of the second layer of caustic distortion, from 0 to 1. */
     readonly layering?: number;
-    /** The caustic distortion power on the image edges, needs image and caustic > 0, from 0 to 1. */
+    /** The caustic distortion power on the image edges, from 0 to 1. */
     readonly edges?: number;
     /** The additional distortion based on simplex noise, independent from caustic, from 0 to 1. */
     readonly waves?: number;

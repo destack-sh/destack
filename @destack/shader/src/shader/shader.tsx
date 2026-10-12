@@ -45,9 +45,9 @@ export interface ShaderProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "style"
 > {
-    /** The GLSL ES 3.0 fragment shader, which reads the vertex shader's coordinates and the uniforms. */
+    /** The GLSL ES 3.0 fragment shader. */
     readonly fragmentShader: string;
-    /** The uniforms by their GLSL names: numbers, vectors, CSS colors and theme tokens, or images. */
+    /** The uniforms by GLSL name: numbers, vectors, CSS colors and theme tokens, or images. */
     readonly uniforms: ShaderValues;
     /** The speed of animation time, 0 to hold one frame; held still under reduced motion. */
     readonly speed?: number;
@@ -75,7 +75,7 @@ export interface ShaderProperties extends Omit<
     readonly style?: JSX.CSSProperties | string;
 }
 
-/** Draw a fragment shader behind its content, colored by theme tokens and held still under the theme's reduced motion. */
+/** Draw a fragment shader behind its content, colored by theme tokens. */
 export function Shader(properties: ShaderProperties): JSX.Element {
     // hold the canvas, the running mount, the failure and the device preferences
     const rest = omit(

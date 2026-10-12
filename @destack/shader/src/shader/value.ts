@@ -1,6 +1,6 @@
 import type { ShaderUniform, ShaderUniforms } from "../mount/mount.ts";
 
-/** The shorter side an image is drawn at least at, in pixels, so vector images rasterize sharply. */
+/** The shorter side an image is drawn at least at, in pixels. */
 const MIN_IMAGE_SIDE = 1024;
 
 /** A transparent 1 by 1 image, which an image effect samples until it has an image of its own. */
@@ -16,7 +16,7 @@ export interface ShaderImage {
     readonly image: string | HTMLImageElement;
 }
 
-/** A value an effect passes to its fragment shader: a uniform, a color or list of colors, or an image. */
+/** A value an effect passes to its fragment shader. */
 export type ShaderValue = ShaderUniform | ShaderColor | readonly ShaderColor[] | ShaderImage;
 
 /** The values an effect passes to its fragment shader, by their GLSL names. */
@@ -25,7 +25,7 @@ export type ShaderValues = Readonly<Record<string, ShaderValue>>;
 /** The images loading or loaded, by address, so effects sharing an image load it once. */
 const images = new Map<string, Promise<HTMLImageElement>>();
 
-/** Resolve colors to RGBA vectors as the element computes them and load images, returning the uniforms. */
+/** Resolve colors to RGBA vectors as the element computes them, and load images. */
 export async function resolveValues(
     values: ShaderValues,
     element: Element,
@@ -40,7 +40,7 @@ export async function resolveValues(
     return Object.fromEntries(entries);
 }
 
-/** Resolve one value: a color to RGBA, a list of colors to a list of RGBA, an image to a loaded element. */
+/** Resolve one value. */
 async function resolveValue(value: ShaderValue, element: Element): Promise<ShaderUniform> {
     // resolve colors and lists of colors
     if (typeof value === "string") {

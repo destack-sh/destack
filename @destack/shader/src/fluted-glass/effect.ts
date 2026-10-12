@@ -368,7 +368,7 @@ export interface FlutedGlassOptions extends Sizing, Pick<ShaderProperties, "spee
     readonly colorShadow?: ShaderColor;
     /** The highlights color, needs highlights > 0. */
     readonly colorHighlight?: ShaderColor;
-    /** The color gradient added over image and background, following distortion shape, needs colorShadow alpha > 0, from 0 to 1. */
+    /** The color gradient over image and background along the distortion shape, from 0 to 1. */
     readonly shadows?: number;
     /** The size of the distortion shape grid, from 0 to 1. */
     readonly size?: number;
@@ -376,7 +376,7 @@ export interface FlutedGlassOptions extends Sizing, Pick<ShaderProperties, "spee
     readonly angle?: number;
     /** The shape of distortion. */
     readonly distortionShape?: FlutedGlassDistortionShape;
-    /** The thin strokes along distortion shape, useful for antialiasing on small grid, from 0 to 1. */
+    /** The thin strokes along the distortion shape, from 0 to 1. */
     readonly highlights?: number;
     /** The grid shape. */
     readonly shape?: FlutedGlassGridShape;
@@ -400,7 +400,7 @@ export interface FlutedGlassOptions extends Sizing, Pick<ShaderProperties, "spee
     readonly marginTop?: number;
     /** The distance from the bottom edge to the effect, from 0 to 1. */
     readonly marginBottom?: number;
-    /** The strength of grain distortion applied to shape edges, needs distortion > 0, from 0 to 1. */
+    /** The strength of grain distortion on shape edges, from 0 to 1. */
     readonly grainMixer?: number;
     /** The post-processing black/white grain overlay, from 0 to 1. */
     readonly grainOverlay?: number;

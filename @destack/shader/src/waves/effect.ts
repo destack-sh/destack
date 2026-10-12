@@ -66,7 +66,7 @@ export interface WavesOptions extends Sizing, Pick<ShaderProperties, "speed" | "
     readonly colorFront?: ShaderColor;
     /** The background color. */
     readonly colorBack?: ShaderColor;
-    /** The line shape, 0 = zigzag, 1 = sine, 2-3 = irregular waves, fractional values morph between shapes, needs amplitude > 0, frequency > 0, from 0 to 3. */
+    /** The line shape, from 0 to 3. */
     readonly shape?: number;
     /** The wave frequency, needs amplitude > 0, from 0 to 2. */
     readonly frequency?: number;

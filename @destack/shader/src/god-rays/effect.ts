@@ -145,7 +145,7 @@ export interface GodRaysOptions extends Sizing, Pick<ShaderProperties, "speed" |
     readonly midSize?: number;
     /** The visibility/strength of the rays, from 0 to 1. */
     readonly intensity?: number;
-    /** The strength of the bloom/overlay effect, 0 = alpha blend, 1 = additive blend, from 0 to 1. */
+    /** The strength of the bloom or overlay effect, from 0 to 1. */
     readonly bloom?: number;
 }
 

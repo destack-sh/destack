@@ -23,7 +23,7 @@ test("show the fallback and report why where the browser draws no WebGL 2", asyn
     ]).toEqual(["fallback", null, "/still.png"]);
 });
 
-/** Stand in for a WebGL 2 context: every call succeeds with another stand-in and every check passes. */
+/** Stand in for a WebGL 2 context. */
 function stubContext(): object {
     return new Proxy(
         {},

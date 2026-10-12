@@ -124,9 +124,9 @@ export interface DotGridOptions extends Sizing, Pick<ShaderProperties, "speed" |
     readonly gapY?: number;
     /** The outline stroke width in pixels, needs colorStroke alpha > 0, from 0 to 50. */
     readonly strokeWidth?: number;
-    /** The random variation in shape size, 0 = uniform, higher = random up to base size, from 0 to 1. */
+    /** The random variation in shape size, from 0 to 1. */
     readonly sizeRange?: number;
-    /** The random variation in shape opacity, 0 = opaque, higher = semi-transparent, from 0 to 1. */
+    /** The random variation in shape opacity, from 0 to 1. */
     readonly opacityRange?: number;
     /** The shape type. */
     readonly shape?: DotGridShape;

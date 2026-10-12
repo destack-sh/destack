@@ -175,7 +175,7 @@ export interface PerlinNoiseOptions extends Sizing, Pick<ShaderProperties, "spee
     readonly octaveCount?: number;
     /** The roughness, falloff between octaves, needs octaveCount > 1, from 0.3 to 1. */
     readonly persistence?: number;
-    /** The frequency step, defines how compressed the pattern is, needs octaveCount > 1, from 1.5 to 10. */
+    /** The frequency step, from 1.5 to 10. */
     readonly lacunarity?: number;
 }
 

@@ -537,7 +537,7 @@ export interface PaperTextureOptions extends Sizing, Pick<ShaderProperties, "spe
     readonly distortion?: number;
     /** Cuts the paper sheet to the image frame, needs image. */
     readonly clip?: boolean;
-    /** The direction the surface is lit from in degrees, also the roughness rows direction, needs crumples, wrinkles, folds, roughnessRows or drops > 0, from 0 to 360. */
+    /** The direction the surface is lit from, in degrees from 0 to 360. */
     readonly angle?: number;
     /** The seed applied to every pattern, from 0 to 1000. */
     readonly seed?: number;
@@ -545,13 +545,13 @@ export interface PaperTextureOptions extends Sizing, Pick<ShaderProperties, "spe
     readonly roughness?: number;
     /** The scale of the roughness grain, needs roughness > 0, from 0 to 1. */
     readonly roughnessSize?: number;
-    /** Lines the roughness up into stripes, 0 = even scatter, 1 = laid-paper rows, needs roughness > 0, from 0 to 1. */
+    /** Lines the roughness up into stripes, from 0 to 1. */
     readonly roughnessRows?: number;
     /** The curly thread-like noise covering the surface evenly, from 0 to 1. */
     readonly fiber?: number;
     /** The scale of the fiber noise, needs fiber > 0, from 0 to 1. */
     readonly fiberSize?: number;
-    /** The straight vertical and horizontal fold lines producing ridges and valleys, from 0 to 1. */
+    /** The straight vertical and horizontal folds that make ridges and valleys, from 0 to 1. */
     readonly folds?: number;
     /** The size of the vertical folds, needs folds > 0, from 0 to 1. */
     readonly foldSizeX?: number;
@@ -569,7 +569,7 @@ export interface PaperTextureOptions extends Sizing, Pick<ShaderProperties, "spe
     readonly crumples?: number;
     /** The number of facets in the crumple field, needs crumples > 0, from 2 to 15. */
     readonly crumpleCount?: number;
-    /** The visibility of the speckle pattern, darkens the image instead of coloring it, from 0 to 1. */
+    /** The visibility of the speckle pattern, from 0 to 1. */
     readonly drops?: number;
 }
 

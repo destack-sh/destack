@@ -203,7 +203,7 @@ export interface ImageDitheringOptions extends Sizing, Pick<ShaderProperties, "s
     readonly colorFront?: ShaderColor;
     /** The background color, needs originalColors off. */
     readonly colorBack?: ShaderColor;
-    /** The secondary foreground color (set same as colorFront for classic 2-color dithering), needs originalColors off. */
+    /** The secondary foreground color. */
     readonly colorHighlight?: ShaderColor;
     /** The dithering type. */
     readonly type?: ImageDitheringType;

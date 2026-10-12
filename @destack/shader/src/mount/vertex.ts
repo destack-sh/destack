@@ -1,4 +1,4 @@
-/** The vertex shader of every effect: it places the canvas and passes object, pattern and image coordinates. */
+/** The vertex shader of every effect. */
 export const VERTEX_SHADER = `#version 300 es
 precision mediump float;
 

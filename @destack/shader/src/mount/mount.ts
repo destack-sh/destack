@@ -3,7 +3,7 @@ import { VERTEX_SHADER } from "./vertex.ts";
 /** The most device pixels a shader renders: a 4K screen at twice the density on each side. */
 const MAX_PIXEL_COUNT = 1920 * 1080 * 4;
 
-/** The least pixel ratio a shader renders at, twice the CSS pixels so edges stay smooth on 1x screens. */
+/** The least pixel ratio a shader renders at: twice the CSS pixels. */
 const MIN_PIXEL_RATIO = 2;
 
 /** The density factors adaptive resolution steps through, from full to coarsest. */
@@ -12,25 +12,25 @@ const DENSITY_STEPS = [1, 0.75, 0.5, 0.35];
 /** The frame intervals the density judges at once. */
 const JUDGED_FRAMES = 20;
 
-/** The median frame interval above which the density coarsens, in milliseconds: below 42 frames a second. */
+/** The median frame interval above which the density coarsens, in milliseconds. */
 const SLOW_INTERVAL = 24;
 
-/** The median frame interval below which a judged window counts as smooth, in milliseconds: 55 frames a second. */
+/** The median frame interval below which a judged window counts as smooth, in milliseconds. */
 const SMOOTH_INTERVAL = 18;
 
 /** The smooth windows in a row the density waits for before it sharpens again. */
 const SMOOTH_WINDOWS = 4;
 
-/** The longest gap between frames that counts as a frame interval, in milliseconds; longer gaps are pauses. */
+/** The longest gap between frames that counts as a frame interval, in milliseconds. */
 const PAUSE_INTERVAL = 250;
 
 /** The corners of the two triangles that cover the canvas, in clip space. */
 const SQUARE = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
 
-/** The bits of floating-point precision the effects need; devices whose medium precision is lower get high precision. */
+/** The bits of floating-point precision the effects need. */
 const FLOAT_PRECISION = 23;
 
-/** A value a shader uniform takes: a float, a boolean, a vector or matrix, a list of vectors, or an image texture. */
+/** A value a shader uniform takes. */
 export type ShaderUniform =
     | number
     | boolean
@@ -49,7 +49,7 @@ export type ShaderResolution = "adaptive" | "fixed";
 
 /** The motion and resolution a shader starts with. */
 export interface ShaderMountOptions {
-    /** The speed of animation time, 0 to hold one frame, negative to play backwards; 0 by default. */
+    /** The speed of animation time, 0 by default. */
     readonly speed?: number;
     /** The animation time to start at, in milliseconds, for a repeatable picture; 0 by default. */
     readonly frame?: number;
@@ -78,7 +78,7 @@ export class ShaderError extends Error {
     }
 }
 
-/** The density every shader on the page renders at, lowered while frames run long and raised once they run smooth. */
+/** The density every shader on the page renders at. */
 export class Density {
     /** The index into the density steps. */
     #step = 0;
@@ -99,7 +99,7 @@ export class Density {
         this.#step = DENSITY_STEPS.length - 1;
     }
 
-    /** Record one animation frame, once per frame however many shaders draw it, and judge each full window. */
+    /** Record one animation frame, once per frame however many shaders draw it. */
     observe(now: number): void {
         // skip repeats within a frame and the gaps of paused or hidden pages
         if (now === this.#observedAt) {
@@ -139,7 +139,7 @@ export class Density {
 /** The one density the page's shaders share, since they draw on one GPU. */
 export const density = new Density();
 
-/** Draw a fragment shader over a canvas at its device pixels, animating its time while the canvas shows. */
+/** Draw a fragment shader over a canvas at its device pixels. */
 export class ShaderMount {
     /** The canvas drawn on. */
     readonly canvas: HTMLCanvasElement;
@@ -305,7 +305,7 @@ export class ShaderMount {
         this.canvas.ownerDocument.removeEventListener("visibilitychange", this.#updateSpeed);
     }
 
-    /** Follow the canvas's size in CSS pixels and, where the browser reports them, device pixels. */
+    /** Follow the canvas's size in CSS pixels and, where reported, device pixels. */
     #observeSize(): void {
         this.#resizeObserver = new ResizeObserver(([entry]) => {
             // read both sizes of the canvas's box
@@ -342,7 +342,7 @@ export class ShaderMount {
         this.#intersectionObserver.observe(this.canvas);
     }
 
-    /** Size the drawing buffer to the canvas's device pixels, within the pixel ratio, pixel count and density. */
+    /** Size the drawing buffer to the canvas's device pixels. */
     #resize(): void {
         // aim for at least the physical pixels, plus pinch zoom
         const pixelRatio = Math.max(1, devicePixelRatio);
@@ -584,7 +584,7 @@ export class ShaderMount {
     }
 }
 
-/** Compile and link a program, raising medium precision to high where the device's medium precision is too low. */
+/** Compile and link a program. */
 function linkProgram(
     context: WebGL2RenderingContext,
     vertex: string,
@@ -674,7 +674,7 @@ function isSameValue(left: unknown, right: unknown): boolean {
 /** Whether the browser warns that WebGL draws slowly here, probed once per page. */
 let isSlow: boolean | undefined;
 
-/** Report whether the browser warns that WebGL draws slowly here, such as on a software renderer. */
+/** Report whether the browser warns that WebGL draws slowly here, as on a software renderer. */
 function isSlowGraphics(): boolean {
     // ask once for a context the browser refuses when drawing would be slow, and release it
     if (isSlow === undefined) {
@@ -687,7 +687,7 @@ function isSlowGraphics(): boolean {
     return isSlow;
 }
 
-/** Estimate the browser zoom from the window's outer width and the viewport, rounded to the browser's zoom steps. */
+/** Estimate the browser zoom from the window's outer width and the viewport. */
 function browserZoom(document: Document): number {
     // measure the viewport, adding the scrollbar the visual viewport leaves out
     const pinch = visualViewport?.scale ?? 1;

@@ -89,9 +89,9 @@ void main() {
 export interface SimplexNoiseOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
     /** Up to 10 base colors. */
     readonly colors?: readonly ShaderColor[];
-    /** The number of extra colors between base colors, 1 = N colors, 2 = 2×N, etc., needs 2+ colors, from 1 to 10. */
+    /** The number of extra colors between base colors, from 1 to 10. */
     readonly stepsPerColor?: number;
-    /** The color transition sharpness, 0 = hard edge, 1 = smooth gradient, needs 2+ colors, from 0 to 1. */
+    /** The color transition sharpness, from 0 to 1. */
     readonly softness?: number;
 }
 

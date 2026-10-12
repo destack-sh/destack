@@ -314,29 +314,29 @@ export interface HalftoneCmykOptions extends Sizing, Pick<ShaderProperties, "spe
     readonly contrast?: number;
     /** The edge softness of dots, from 0 to 1. */
     readonly softness?: number;
-    /** The size of grain texture, applied to both grain and overlay, needs grainMixer or grainOverlay > 0, from 0 to 1. */
+    /** The size of grain texture for both grain and overlay, from 0 to 1. */
     readonly grainSize?: number;
     /** The strength of grain affecting dot size, from 0 to 1. */
     readonly grainMixer?: number;
     /** The strength of grain overlay on final output, from 0 to 1. */
     readonly grainOverlay?: number;
-    /** The strength of smooth noise applied to both dot positions and color sampling, positions only with sharp type, from 0 to 1. */
+    /** The strength of smooth noise on dot positions and color sampling, from 0 to 1. */
     readonly gridNoise?: number;
     /** The flat cyan dot size adjustment applied uniformly, needs colorC alpha > 0, from 0 to 1. */
     readonly floodC?: number;
-    /** The flat magenta dot size adjustment applied uniformly, needs colorM alpha > 0, from 0 to 1. */
+    /** The flat magenta dot size adjustment applied uniformly, from 0 to 1. */
     readonly floodM?: number;
-    /** The flat yellow dot size adjustment applied uniformly, needs colorY alpha > 0, from 0 to 1. */
+    /** The flat yellow dot size adjustment applied uniformly, from 0 to 1. */
     readonly floodY?: number;
-    /** The flat black dot size adjustment applied uniformly, needs colorK alpha > 0, from 0 to 1. */
+    /** The flat black dot size adjustment applied uniformly, from 0 to 1. */
     readonly floodK?: number;
-    /** The proportional cyan dot size gain, needs colorC alpha > 0, enhances existing dots, -1 to 1. */
+    /** The proportional cyan dot size gain, from -1 to 1. */
     readonly gainC?: number;
-    /** The proportional magenta dot size gain, needs colorM alpha > 0, enhances existing dots, -1 to 1. */
+    /** The proportional magenta dot size gain, from -1 to 1. */
     readonly gainM?: number;
-    /** The proportional yellow dot size gain, needs colorY alpha > 0, enhances existing dots, -1 to 1. */
+    /** The proportional yellow dot size gain, from -1 to 1. */
     readonly gainY?: number;
-    /** The proportional black dot size gain, needs colorK alpha > 0, enhances existing dots, -1 to 1. */
+    /** The proportional black dot size gain, from -1 to 1. */
     readonly gainK?: number;
     /** The dot shape style. */
     readonly type?: HalftoneCmykType;

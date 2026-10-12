@@ -334,7 +334,7 @@ export interface HalftoneDotsOptions extends Sizing, Pick<ShaderProperties, "spe
     readonly size?: number;
     /** The maximum dot size relative to grid cell, from 0 to 2. */
     readonly radius?: number;
-    /** The contrast applied to the sampled image, at 0 the luminance is flat so all the dots get equal size, from 0 to 1. */
+    /** The contrast applied to the sampled image, from 0 to 1. */
     readonly contrast?: number;
     /** Use sampled image's original colors instead of colorFront. */
     readonly originalColors?: boolean;
@@ -344,7 +344,7 @@ export interface HalftoneDotsOptions extends Sizing, Pick<ShaderProperties, "spe
     readonly grainMixer?: number;
     /** The post-processing black/white grain overlay, from 0 to 1. */
     readonly grainOverlay?: number;
-    /** The scale applied to both grain distortion and grain overlay, needs grainMixer or grainOverlay > 0, from 0 to 1. */
+    /** The scale of both grain distortion and grain overlay, from 0 to 1. */
     readonly grainSize?: number;
     /** The grid type. */
     readonly grid?: HalftoneDotsGrid;

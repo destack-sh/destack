@@ -137,7 +137,7 @@ void main() {
 export interface VoronoiOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
     /** Up to 5 base cell colors. */
     readonly colors?: readonly ShaderColor[];
-    /** The number of extra colors between base colors, 1 = N colors, 2 = 2×N, etc., needs 2+ colors, from 1 to 3. */
+    /** The number of extra colors between base colors, from 1 to 3. */
     readonly stepsPerColor?: number;
     /** The color tint for radial inner shadow inside cells, needs glow > 0. */
     readonly colorGlow?: ShaderColor;
@@ -147,7 +147,7 @@ export interface VoronoiOptions extends Sizing, Pick<ShaderProperties, "speed" |
     readonly distortion?: number;
     /** The width of the border/gap between cells, from 0 to 0.1. */
     readonly gap?: number;
-    /** The strength of the radial inner shadow inside cells, needs colorGlow alpha > 0, from 0 to 1. */
+    /** The strength of the radial inner shadow inside cells, from 0 to 1. */
     readonly glow?: number;
 }
 

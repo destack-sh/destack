@@ -1,6 +1,6 @@
 import type { ShaderUniforms } from "../mount/mount.ts";
 
-/** How an effect's graphic fits its canvas: at its world size, inside the canvas, or covering it. */
+/** How an effect's graphic fits its canvas: at world size, inside the canvas, or covering it. */
 export type Fit = "none" | "contain" | "cover";
 
 /** The number the vertex shader reads for each fit. */
@@ -22,9 +22,9 @@ export interface Sizing {
     readonly offsetX?: number;
     /** The vertical shift of the graphic's center, from -1 to 1. */
     readonly offsetY?: number;
-    /** The width of the graphic before it fits the canvas, in CSS pixels, 0 for the canvas's own. */
+    /** The width of the graphic before it fits the canvas, in CSS pixels. */
     readonly worldWidth?: number;
-    /** The height of the graphic before it fits the canvas, in CSS pixels, 0 for the canvas's own. */
+    /** The height of the graphic before it fits the canvas, in CSS pixels. */
     readonly worldHeight?: number;
 }
 
