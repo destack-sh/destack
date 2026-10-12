@@ -189,54 +189,53 @@ export const connection = defineObject({
         lend: relation(CONSUMER),
     },
     reserved: ["lend"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        /** Create a connection, keeping the material its kind sends in the vault. */
-        create: method.create("manage", {
-            fields: ["protocol", "integration", "resource", "scopes", "vault"],
-            input: schema.object({
-                /** The material a key, signature, SigV4, JWT or mTLS connection sends. */
-                material: schema.sensitive(Material).exactOptional(),
-            }),
-            prepared: schema.object({}),
-            isPredicted: false,
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    /** Create a connection, keeping the material its kind sends in the vault. */
+    create: method.create("manage", {
+        fields: ["protocol", "integration", "resource", "scopes", "vault"],
+        input: schema.object({
+            /** The material a key, signature, SigV4, JWT or mTLS connection sends. */
+            material: schema.sensitive(Material).exactOptional(),
         }),
-        /** Start authorizing the external account, answering the page a person approves it on. */
-        authorize: method.mutation({
-            permission: "manage",
-            input: schema.object({
-                /** The URI the authorization server redirects the person back to. */
-                redirectUri: schema.httpUrl().exactOptional(),
-            }),
-            output: schema.object({
-                /** The page the person approves the authorization on. */
-                url: schema.httpUrl(),
-                /** The code the person enters on the page, for the device authorization grant. */
-                userCode: schema.string().min(1).exactOptional(),
-            }),
-            prepared: AuthorizationStart,
-        }),
-        /** Complete the authorization with the authorization server's redirect parameters. */
-        complete: method.mutation({
-            permission: "manage",
-            input: schema.object({
-                /** The redirect's query parameters, its state and code among them. */
-                parameters: schema.record(schema.string(), schema.string()),
-            }),
-            prepared: AuthorizationGrant,
-        }),
-        /** Request the current access token for an installation bound to the connection. */
-        requestToken: method.query({
-            permission: "lend",
-            output: schema.sensitive(Token),
-            prepared: schema.sensitive(Token),
-            audited: true,
-        }),
-        /** Revoke the credential at the authorization server and destroy it. */
-        revoke: method.mutation({ permission: "manage", prepared: Withdrawal }),
-        delete: method.delete("manage"),
+        prepared: schema.object({}),
+        isPredicted: false,
     }),
-});
+    /** Start authorizing the external account, answering the page a person approves it on. */
+    authorize: method.mutation({
+        permission: "manage",
+        input: schema.object({
+            /** The URI the authorization server redirects the person back to. */
+            redirectUri: schema.httpUrl().exactOptional(),
+        }),
+        output: schema.object({
+            /** The page the person approves the authorization on. */
+            url: schema.httpUrl(),
+            /** The code the person enters on the page, for the device authorization grant. */
+            userCode: schema.string().min(1).exactOptional(),
+        }),
+        prepared: AuthorizationStart,
+    }),
+    /** Complete the authorization with the authorization server's redirect parameters. */
+    complete: method.mutation({
+        permission: "manage",
+        input: schema.object({
+            /** The redirect's query parameters, its state and code among them. */
+            parameters: schema.record(schema.string(), schema.string()),
+        }),
+        prepared: AuthorizationGrant,
+    }),
+    /** Request the current access token for an installation bound to the connection. */
+    requestToken: method.query({
+        permission: "lend",
+        output: schema.sensitive(Token),
+        prepared: schema.sensitive(Token),
+        audited: true,
+    }),
+    /** Revoke the credential at the authorization server and destroy it. */
+    revoke: method.mutation({ permission: "manage", prepared: Withdrawal }),
+    delete: method.delete("manage"),
+}));
 /** A persisted connection. */
 export type Connection = Select<typeof connection.table>;

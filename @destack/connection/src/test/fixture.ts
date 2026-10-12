@@ -102,8 +102,7 @@ export const placement = defineObject({
     },
     relations: { self: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("self") },
-    methods: (method) => ({ get: method.get("read") }),
-});
+}).methods((method) => ({ get: method.get("read") }));
 
 /** A database of connections and their vaults, as a space or the account service keeps it. */
 export const connectionDatabase = defineDatabase({

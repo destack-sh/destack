@@ -97,77 +97,76 @@ export const integration = defineObject({
         request: union(contained(principal.space), resource({ visibility: "public" })),
     },
     reserved: ["request"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        /** Register an integration, keeping its client secret or private key in the vault. */
-        create: method.create("manage", {
-            fields: [
-                "issuer",
-                "endpoints",
-                "clientId",
-                "authentication",
-                "redirectUris",
-                "vault",
-                "visibility",
-            ],
-            input: schema.object({
-                /** The client secret or private key as JWK or PEM text, kept in the vault. */
-                secret: schema.sensitive(schema.string().min(1)).exactOptional(),
-            }),
-            prepared: schema.object({}),
-            isPredicted: false,
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    /** Register an integration, keeping its client secret or private key in the vault. */
+    create: method.create("manage", {
+        fields: [
+            "issuer",
+            "endpoints",
+            "clientId",
+            "authentication",
+            "redirectUris",
+            "vault",
+            "visibility",
+        ],
+        input: schema.object({
+            /** The client secret or private key as JWK or PEM text, kept in the vault. */
+            secret: schema.sensitive(schema.string().min(1)).exactOptional(),
         }),
-        update: method.update("manage", { fields: ["endpoints", "redirectUris"] }),
-        /** Request a token for another space's connection as the client (RFC 6749 3.2). */
-        requestToken: method.query({
-            permission: "request",
-            input: schema.object({
-                /** The grant proving possession of the connection's authorization. */
-                grant: schema.sensitive(TokenGrant),
-            }),
-            output: schema.sensitive(Token),
-            prepared: schema.sensitive(Token),
-            audited: true,
-        }),
-        /** Revoke a token of another space's connection as the client (RFC 7009 2.1). */
-        revokeToken: method.query({
-            permission: "request",
-            input: schema.object({
-                /** The token revoked. */
-                revocation: schema.sensitive(TokenRevocation),
-            }),
-            output: schema.object({}),
-            prepared: schema.object({}),
-            audited: true,
-        }),
-        /** Start a device authorization for another space's connection (RFC 8628 3.1). */
-        authorizeDevice: method.query({
-            permission: "request",
-            input: schema.object({
-                /** The scopes and resource asked for. */
-                request: DeviceRequest,
-            }),
-            output: schema.sensitive(DeviceAuthorization),
-            prepared: schema.sensitive(DeviceAuthorization),
-            audited: true,
-        }),
-        delete: method.delete("manage"),
-        /** Register a client at a resource's authorization server, for a space's connection. */
-        register: method.create("request", {
-            fields: [],
-            input: schema.object({
-                /** The protected resource whose metadata lists the authorization server. */
-                resource: schema.url({ protocol: /^https$/u }),
-                /** The URI the authorization server redirects the person back to. */
-                redirectUri: schema.httpUrl(),
-                /** The scope's vault for an issued secret, null if the connection has none. */
-                vault: ObjectReference.nullable(),
-            }),
-            prepared: Registration,
-            isPredicted: false,
-        }),
+        prepared: schema.object({}),
+        isPredicted: false,
     }),
-});
+    update: method.update("manage", { fields: ["endpoints", "redirectUris"] }),
+    /** Request a token for another space's connection as the client (RFC 6749 3.2). */
+    requestToken: method.query({
+        permission: "request",
+        input: schema.object({
+            /** The grant proving possession of the connection's authorization. */
+            grant: schema.sensitive(TokenGrant),
+        }),
+        output: schema.sensitive(Token),
+        prepared: schema.sensitive(Token),
+        audited: true,
+    }),
+    /** Revoke a token of another space's connection as the client (RFC 7009 2.1). */
+    revokeToken: method.query({
+        permission: "request",
+        input: schema.object({
+            /** The token revoked. */
+            revocation: schema.sensitive(TokenRevocation),
+        }),
+        output: schema.object({}),
+        prepared: schema.object({}),
+        audited: true,
+    }),
+    /** Start a device authorization for another space's connection (RFC 8628 3.1). */
+    authorizeDevice: method.query({
+        permission: "request",
+        input: schema.object({
+            /** The scopes and resource asked for. */
+            request: DeviceRequest,
+        }),
+        output: schema.sensitive(DeviceAuthorization),
+        prepared: schema.sensitive(DeviceAuthorization),
+        audited: true,
+    }),
+    delete: method.delete("manage"),
+    /** Register a client at a resource's authorization server, for a space's connection. */
+    register: method.create("request", {
+        fields: [],
+        input: schema.object({
+            /** The protected resource whose metadata lists the authorization server. */
+            resource: schema.url({ protocol: /^https$/u }),
+            /** The URI the authorization server redirects the person back to. */
+            redirectUri: schema.httpUrl(),
+            /** The scope's vault for an issued secret, null if the connection has none. */
+            vault: ObjectReference.nullable(),
+        }),
+        prepared: Registration,
+        isPredicted: false,
+    }),
+}));
 /** A registered integration. */
 export type Integration = Select<typeof integration.table>;

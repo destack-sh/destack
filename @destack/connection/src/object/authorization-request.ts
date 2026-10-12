@@ -1,5 +1,5 @@
 import { principal, through } from "@destack/access";
-import { check, type Select, unique } from "@destack/db";
+import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Duration, schema } from "@destack/schema";
 import { connection } from "./connection.ts";
@@ -38,57 +38,59 @@ export const authorizationRequest = defineObject({
         /** The seconds between polls the authorization server asks for (RFC 8628 3.2). */
         interval: field.integer().optional(),
     },
-    constraints: (entry) => [
-        unique("authorization_request_state").on(entry.state),
-        check("authorization_request_kind", {
-            OR: [
-                {
-                    kind: "page",
-                    state: { isNotNull: true },
-                    redirectUri: { isNotNull: true },
-                    verifier: { isNotNull: true },
-                    deviceCode: { isNull: true },
-                    interval: { isNull: true },
-                },
-                {
-                    kind: "installation",
-                    state: { isNotNull: true },
-                    redirectUri: { isNotNull: true },
-                    verifier: { isNull: true },
-                    deviceCode: { isNull: true },
-                    interval: { isNull: true },
-                },
-                {
-                    kind: "device",
-                    deviceCode: { isNotNull: true },
-                    interval: { isNotNull: true },
-                    state: { isNull: true },
-                    redirectUri: { isNull: true },
-                    verifier: { isNull: true },
-                },
-            ],
-        }),
-    ],
     // the connection's managers start and use its authorizations
     permissions: { read: through("parent", "read"), record: through("parent", "manage") },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        /** Record a started authorization of one kind, as its connection's service. */
-        start: method.create("record", {
-            isInternal: true,
-            fields: ["userId", "session"],
-            variants: {
-                kind: {
-                    page: ["state", "redirectUri", "verifier"],
-                    installation: ["state", "redirectUri"],
-                    device: ["deviceCode", "interval"],
-                },
+    constraints: {
+        state: { kind: "unique", on: ["state"] },
+        kind: {
+            kind: "check",
+            condition: {
+                OR: [
+                    {
+                        kind: "page",
+                        state: { isNotNull: true },
+                        redirectUri: { isNotNull: true },
+                        verifier: { isNotNull: true },
+                        deviceCode: { isNull: true },
+                        interval: { isNull: true },
+                    },
+                    {
+                        kind: "installation",
+                        state: { isNotNull: true },
+                        redirectUri: { isNotNull: true },
+                        verifier: { isNull: true },
+                        deviceCode: { isNull: true },
+                        interval: { isNull: true },
+                    },
+                    {
+                        kind: "device",
+                        deviceCode: { isNotNull: true },
+                        interval: { isNotNull: true },
+                        state: { isNull: true },
+                        redirectUri: { isNull: true },
+                        verifier: { isNull: true },
+                    },
+                ],
             },
-        }),
-        /** Use the authorization once, as its connection's service. */
-        delete: method.delete("record", { isInternal: true }),
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    /** Record a started authorization of one kind, as its connection's service. */
+    start: method.create("record", {
+        isInternal: true,
+        fields: ["userId", "session"],
+        variants: {
+            kind: {
+                page: ["state", "redirectUri", "verifier"],
+                installation: ["state", "redirectUri"],
+                device: ["deviceCode", "interval"],
+            },
+        },
     }),
-});
+    /** Use the authorization once, as its connection's service. */
+    delete: method.delete("record", { isInternal: true }),
+}));
 /** A pending authorization of a connection. */
 export type AuthorizationRequest = Select<typeof authorizationRequest.table>;
