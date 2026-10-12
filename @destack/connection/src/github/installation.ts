@@ -18,7 +18,7 @@ const InstallationToken = schema.looseObject({
     expires_at: schema.string().min(1),
 });
 
-/** GitHub Apps installed on accounts, issuing installation access tokens with the app's private key, and the REST API they call. */
+/** GitHub Apps installed on accounts, and the REST API they call. */
 export class GitHubIssuer implements InstallationIssuer {
     /** The GitHub instance's origin, such as https://github.com. */
     readonly issuer: string;
@@ -29,7 +29,7 @@ export class GitHubIssuer implements InstallationIssuer {
     /** The clock the app's JWTs are issued by. */
     readonly #clock: Clock;
 
-    /** Call github.com, or a GitHub Enterprise Server at its origin and API, on the system clock unless given another. */
+    /** Call github.com or a GitHub Enterprise Server, on the system clock unless given another. */
     constructor(options: {
         readonly issuer?: string;
         readonly api?: string;
@@ -72,7 +72,7 @@ export class GitHubIssuer implements InstallationIssuer {
         return installation;
     }
 
-    /** Issue an installation access token, limited to some repositories by identifier or name and some permissions when granted. */
+    /** Issue an installation access token, limited to a grant's repositories and permissions. */
     async token(
         clientId: string,
         installation: string,
@@ -114,7 +114,7 @@ export class GitHubIssuer implements InstallationIssuer {
         await this.request("DELETE", `/app/installations/${installation}`, bearer);
     }
 
-    /** Send a REST API request with a bearer credential, the API version and the user agent, refusing an error answer. */
+    /** Send a REST API request with a bearer, API version and user agent, refusing errors. */
     async request(method: string, path: string, bearer: string, body?: unknown): Promise<Response> {
         // send the API version, the user agent and the credential
         const response = await this.#fetch(

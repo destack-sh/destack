@@ -9,7 +9,7 @@ export const Token = defineSchema(
         tokenType: schema.string().min(1),
         /** The refresh token, absent where the server issues none. */
         refreshToken: schema.string().min(1).exactOptional(),
-        /** The access token's expiry in UTC epoch milliseconds, absent where the server gives none. */
+        /** The access token's expiry in UTC epoch milliseconds, if the server gives one. */
         expiresAt: schema.number().int().exactOptional(),
         /** The scopes the server granted, absent where they equal the requested ones. */
         scopes: schema.array(schema.string()).exactOptional(),
@@ -62,7 +62,7 @@ export const Material = defineSchema(
 /** The long-lived material a connection's owner supplies. */
 export type Material = schema.Infer<typeof Material>;
 
-/** What a connection keeps in its vault secret: the material its owner supplied and the current token its authorization server issued. */
+/** What a connection keeps in its vault secret. */
 const credential = schema.object({
     /** The supplied material, absent for kinds an authorization server issues tokens to alone. */
     material: Material.exactOptional(),
@@ -70,7 +70,7 @@ const credential = schema.object({
     token: Token.exactOptional(),
 });
 
-/** What a connection keeps in its vault secret, read from and written as the secret's JSON value. */
+/** What a connection keeps in its vault secret, read and written as the secret's JSON value. */
 export const Credential = Object.assign(defineSchema(credential), {
     /** Read a secret's value as a credential. */
     read(value: string): Credential {

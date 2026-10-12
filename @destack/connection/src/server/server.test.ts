@@ -24,7 +24,7 @@ async function create(
 ): Promise<ObjectReference> {
     const created = await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
@@ -63,11 +63,11 @@ async function lend(
     return loan.request.headers.get("authorization");
 }
 
-/** Start authorizing a connection as the owner in a session, redirected back to the test redirect URI. */
+/** Start authorizing a connection as the owner in a session, redirected to the test URI. */
 function authorize(fixture: ConnectionFixture, reference: ObjectReference, session?: string) {
     return fixture.objects
         .mutate(fixture.context(session).caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -88,7 +88,7 @@ function completeAuthorization(
 ) {
     return fixture.objects
         .mutate(fixture.context(session).caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,
@@ -208,7 +208,7 @@ test("register a client dynamically at a protected resource's authorization serv
     // discover the server, register a client and authorize with the resource indicator
     const { url } = await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -220,7 +220,7 @@ test("register a client dynamically at a protected resource's authorization serv
         .then(([written]) => written);
     await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,
@@ -259,7 +259,7 @@ test("poll a device authorization in the controller until the person approves it
     });
     const { url, userCode } = await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [connection.call("authorize", { scope: fixture.scope.id, id: reference.id })],
         })
         .then(([written]) => written);
@@ -293,7 +293,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
     });
     const { url } = await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -305,7 +305,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
         .then(([written]) => written);
     await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,
@@ -319,7 +319,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
     // revoke it and refuse to lend it
     await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [connection.call("revoke", { scope: fixture.scope.id, id: reference.id })],
         })
         .then(([written]) => written);
@@ -412,7 +412,7 @@ test("answer no credential from any procedure: connections, integrations and aut
     const reference = await authorizeCode(fixture, registered);
     await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -451,7 +451,7 @@ test("answer no credential from any procedure: connections, integrations and aut
     expect(credentials.filter((credential) => answers.includes(credential))).toEqual([]);
 });
 
-/** Authorize a code connection of an integration through the test server, answering its reference. */
+/** Authorize a code connection of an integration through the test server, returning it. */
 async function authorizeCode(
     fixture: ConnectionFixture,
     registered: ObjectReference,
@@ -462,7 +462,7 @@ async function authorizeCode(
     });
     const { url } = await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -474,7 +474,7 @@ async function authorizeCode(
         .then(([written]) => written);
     await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,

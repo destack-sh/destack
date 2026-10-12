@@ -6,7 +6,7 @@ import { integration, connection } from "../object/index.ts";
 import { ConnectionFixture } from "../test/index.ts";
 import { GitHubIssuer } from "./installation.ts";
 
-/** The DER length of a PKCS #8 RSA key's prefix before its PKCS #1 key: sequence, version, algorithm and octet string headers. */
+/** The DER length of a PKCS #8 RSA key's prefix before its PKCS #1 key. */
 const PKCS8_PREFIX_BYTES = 26;
 
 /** Write a PEM of a label around DER bytes. */
@@ -36,7 +36,7 @@ async function appKey(): Promise<{ readonly publicKey: CryptoKey; readonly priva
     };
 }
 
-/** Open a connection service beside GitHub's API, which verifies the app's JWT and records each call until the test ends. */
+/** Open a connection service beside GitHub's API until the test ends. */
 async function openGitHub(publicKey: CryptoKey, calls: string[]): Promise<ConnectionFixture> {
     // issue installation tokens through GitHub's API
     const opened = await ConnectionFixture.open({
@@ -70,7 +70,7 @@ async function register(opened: ConnectionFixture, privateKey: string) {
     // register the app with its key
     const created = await opened.objects
         .mutate(opened.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 integration.call("create", {
                     scope: opened.scope.id,
@@ -92,7 +92,7 @@ async function register(opened: ConnectionFixture, privateKey: string) {
     // create the installation connection
     return opened.objects
         .mutate(opened.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
                     scope: opened.scope.id,
@@ -105,13 +105,13 @@ async function register(opened: ConnectionFixture, privateKey: string) {
         .then(([written]) => written);
 }
 
-/** Install the app as a person does: start on the installation page and complete with GitHub's redirect, answering the page and its state. */
+/** Install the app as a person does, answering the installation page and its state. */
 async function install(opened: ConnectionFixture, id: string) {
     // start on the installation page
     const { scope } = opened;
     const { url } = await opened.objects
         .mutate(opened.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
                     scope: scope.id,
@@ -126,7 +126,7 @@ async function install(opened: ConnectionFixture, id: string) {
     // complete with the installation GitHub redirects back with
     await opened.objects
         .mutate(opened.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
                     scope: scope.id,
@@ -156,7 +156,7 @@ test("install a GitHub App on an account, issue installation tokens with its PKC
     );
     await opened.objects
         .mutate(opened.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [connection.call("revoke", { scope: opened.scope.id, id: reference.id })],
         })
         .then(([written]) => written);

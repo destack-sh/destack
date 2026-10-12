@@ -26,7 +26,7 @@ import { connection } from "../object/connection.ts";
 /** The name of the shape copying an integration to the spaces holding its connections. */
 const INTEGRATION_SHAPE = "integration";
 
-/** The name of the shape copying a connection and its scope's integrations to a platform installation opening repositories through it. */
+/** The shape copying a connection and its scope's integrations to a platform installation. */
 const CONNECTION_SHAPE = "connection";
 
 /** The integration a follower copies. */
@@ -78,7 +78,7 @@ export const IntegrationCopy = {
         return copied !== undefined;
     },
 
-    /** List the copies of the integrations of other scopes the database's connections authorize at, followed as its space. */
+    /** List the copies of other scopes' integrations the connections use, followed as the space. */
     async subscriptions(
         database: DatabaseConnection,
         space: string,
@@ -117,7 +117,7 @@ export const IntegrationCopy = {
     },
 };
 
-/** The shape copying one connection and the integrations of its scope, decided for the calling follower where they live. */
+/** The shape copying a connection and its scope's integrations, decided for the follower. */
 export const connectionShape = defineShape({
     name: CONNECTION_SHAPE,
     parameters: ConnectionSelection,
@@ -132,7 +132,7 @@ export const connectionShape = defineShape({
         }),
 });
 
-/** The copies of single connections a platform installation keeps, such as the forge's of the connections its repositories reference. */
+/** The copies of single connections a platform installation keeps. */
 export const ConnectionCopy = {
     /** Write the name of a follower's copy of a connection, one per connection. */
     copy(id: string): string {

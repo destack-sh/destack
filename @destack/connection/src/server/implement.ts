@@ -10,17 +10,17 @@ import { TokenSource, type TokenSourceOptions } from "./token.ts";
 
 /** What a machine serves a space's connections with: the token source's options and the space. */
 export interface ConnectionOptions extends TokenSourceOptions {
-    /** The space whose connections the extension keeps, which follows the copies of other scopes' integrations. */
+    /** The space of the extension's connections, following other scopes' integration copies. */
     readonly space: Identifier<"space">;
 }
 
-/** The connection extension of a space, with the lender the machine's egress lends its connections through. */
+/** The connection extension of a space, with the lender the machine's egress lends through. */
 export interface ConnectionImplementation extends ObjectExtension {
-    /** Lend the space's connections through its store, applying their credentials to its installations' outbound calls. */
+    /** Lend the space's connections, applying their credentials to installations' calls. */
     lender(store: ObjectStore): Lender;
 }
 
-/** Implement the connection service: keep a space's connections, their credentials current, and lend them to the machine's egress; keep the space's integrations where it has no home, else copy them from it. */
+/** Implement the connection service. */
 export function implementConnections(options: ConnectionOptions): ConnectionImplementation {
     // request the tokens of the integrations the space keeps, or of copies through their home
     const { home, space, ...rest } = options;

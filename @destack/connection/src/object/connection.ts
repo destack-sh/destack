@@ -8,7 +8,7 @@ import { Material, Token } from "../credential/credential.ts";
 /** The token type of an access token exchanged for another (RFC 8693 3). */
 export const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
 
-/** How a connection authenticates at its external system, with what each kind needs beside its credential. */
+/** How a connection authenticates at its external system, with what each kind needs. */
 export const ConnectionProtocol = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -16,7 +16,7 @@ export const ConnectionProtocol = defineSchema(
             kind: schema.literal("key"),
             /** The header sending the key, such as authorization or x-api-key. */
             header: schema.string().min(1),
-            /** The scheme before the key in the header, such as Bearer, absent to send the key alone. */
+            /** The scheme before the key, such as Bearer, absent to send the key alone. */
             scheme: schema.string().min(1).exactOptional(),
         }),
         schema.object({
@@ -77,11 +77,11 @@ export type ConnectionProtocol = schema.Infer<typeof ConnectionProtocol>;
 /** A kind of connection. */
 export type ConnectionKind = ConnectionProtocol["kind"];
 
-/** A started authorization of one kind: the page the person approves it on, and what the request keeps until it completes. */
+/** A started authorization: the page the person approves it on, and the request's state. */
 export const AuthorizationStart = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
-            /** An authorization page with the authorization code grant and PKCE (RFC 6749 4.1, RFC 7636). */
+            /** An authorization page with code grant and PKCE (RFC 6749 4.1, RFC 7636). */
             kind: schema.literal("page"),
             /** The page the person approves the authorization on. */
             url: schema.httpUrl(),
@@ -91,7 +91,7 @@ export const AuthorizationStart = defineSchema(
             redirectUri: schema.httpUrl(),
             /** The PKCE code verifier. */
             verifier: schema.string().min(1),
-            /** The client a dynamic registration created, which the connection then references, null without one. */
+            /** The client of a dynamic registration, then used by the connection, if any. */
             registered: ObjectReference.nullable(),
         }),
         schema.object({
@@ -137,7 +137,7 @@ export const AuthorizationGrant = defineSchema(
 /** What a completed authorization granted. */
 export type AuthorizationGrant = schema.Infer<typeof AuthorizationGrant>;
 
-/** A revoked connection's credential, withdrawn at its authorization server and destroyed once the revocation commits. */
+/** A revoked connection's credential, withdrawn at its server and destroyed after commit. */
 export const Withdrawal = defineSchema(
     schema.object({
         /** The connection. */
@@ -155,7 +155,7 @@ export const Withdrawal = defineSchema(
 /** A revoked connection's credential. */
 export type Withdrawal = schema.Infer<typeof Withdrawal>;
 
-/** Credentials for one external account, held in a vault and lent to outbound calls by the machine. */
+/** Credentials for one external account, kept in a vault and lent to outbound calls. */
 export const connection = defineObject({
     name: "connection",
     plural: "connections",
@@ -167,9 +167,9 @@ export const connection = defineObject({
     fields: {
         /** How the connection authenticates. */
         protocol: field.json(ConnectionProtocol),
-        /** The integration whose client the authorization server issues tokens to, for the OAuth kinds and installations. */
+        /** The integration whose client receives tokens, for OAuth kinds and installations. */
         integration: field.json(ObjectReference).optional(),
-        /** The protected resource the tokens are for (RFC 8707), whose metadata lists its authorization server (RFC 9728). */
+        /** The protected resource of the tokens (RFC 8707), listing its server (RFC 9728). */
         resource: field.string(schema.url({ protocol: /^https$/u })).optional(),
         /** The scopes requested, then the ones granted. */
         scopes: field.json(schema.array(schema.string().min(1))).default([]),
@@ -177,7 +177,7 @@ export const connection = defineObject({
         vault: field.json(ObjectReference),
 
         // the controller's authorization
-        /** The external account's identifier, such as a provider's user or installation identifier. */
+        /** The external account's identifier, such as a user or installation identifier. */
         subject: field.string(schema.string().min(1)).optional(),
         /** The current access token's expiry, absent for credentials that do not expire. */
         expiresAt: field.time().optional(),
@@ -196,7 +196,7 @@ export const connection = defineObject({
         create: method.create("manage", {
             fields: ["protocol", "integration", "resource", "scopes", "vault"],
             input: schema.object({
-                /** The material a key, signature, SigV4, JWT or mTLS connection sends, kept in the vault. */
+                /** The material a key, signature, SigV4, JWT or mTLS connection sends. */
                 material: schema.sensitive(Material).exactOptional(),
             }),
             prepared: schema.object({}),
@@ -226,7 +226,7 @@ export const connection = defineObject({
             }),
             prepared: AuthorizationGrant,
         }),
-        /** Request the current access token for an installation the connection is bound to, as the space lending it, which lends it to the installation's calls. */
+        /** Request the current access token for an installation bound to the connection. */
         requestToken: method.query({
             permission: "lend",
             output: schema.sensitive(Token),

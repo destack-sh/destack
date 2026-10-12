@@ -32,7 +32,7 @@ const STATE_BYTES = 32;
 /** The milliseconds a device poll slows down by when asked to (RFC 8628 3.5). */
 const SLOW_DOWN_MILLISECONDS = 5000;
 
-/** Start authorizing a connection: register its client where its resource's server allows, then draw the state and verifier, or start a device authorization. */
+/** Start authorizing a connection, or start a device authorization. */
 export async function start(
     call: CallOf<typeof connection, "authorize">,
     tokens: TokenSource,
@@ -50,7 +50,7 @@ export async function start(
     return kind === "device-code" ? startDevice(call, tokens) : startPage(call, target, tokens);
 }
 
-/** Send a person to an installation page or an authorization page in a browser, registering the client of a connection without an integration first. */
+/** Send a person to an installation or authorization page in a browser. */
 async function startPage(
     call: CallOf<typeof connection, "authorize">,
     target: Connection,
@@ -116,7 +116,7 @@ async function startDevice(
     return { kind: "device", ...device };
 }
 
-/** Register the client of a connection without an integration in the account enclosing its space, or in the connection's scope with its vault where integrations are kept. */
+/** Register the client of a connection without an integration. */
 async function register(
     call: CallOf<typeof connection, "authorize">,
     target: Connection,
@@ -139,7 +139,7 @@ async function register(
     return tokens.register(placement.scope, request, call.requireStore());
 }
 
-/** Record a started authorization bound to the person and session starting it, and the client a registration created. */
+/** Record a started authorization bound to its person and session, and a registered client. */
 export async function started(
     call: PreparedCallOf<typeof connection, "authorize">,
 ): Promise<ResultOf<typeof connection, "authorize">> {
@@ -177,7 +177,7 @@ export async function started(
         : { url: prepared.url };
 }
 
-/** Exchange an authorization's redirect for the external account's credential, kept in the vault before the transaction. */
+/** Exchange an authorization's redirect for the credential, kept in the vault before commit. */
 export async function exchange(
     call: CallOf<typeof connection, "complete">,
     tokens: TokenSource,
@@ -262,7 +262,7 @@ export async function complete(
     });
 }
 
-/** Poll a connection's device authorization once (RFC 8628 3.4), returning when to poll again, absent once it settles. */
+/** Poll a device authorization once (RFC 8628 3.4), returning when to poll again if unsettled. */
 export async function poll(
     reconciliation: ObjectReconciliation<typeof connection>,
     row: Connection,
@@ -299,7 +299,7 @@ export async function poll(
     return undefined;
 }
 
-/** Use a device authorization's request up, then keep its token and mark the connection authorized, or record it denied or expired. */
+/** Use up a device authorization's request, then settle the connection. */
 async function settle(
     reconciliation: ObjectReconciliation<typeof connection>,
     row: Connection,
@@ -332,7 +332,7 @@ async function settle(
     }
 }
 
-/** Require the issuer an authorization response returns to be the integration's, and present where the server returns it (RFC 9207 2.4). */
+/** Require an authorization response's issuer to be the integration's (RFC 9207 2.4). */
 function requireIssuer(named: Integration, issuer: string | undefined): void {
     if (
         (issuer !== undefined && issuer !== named.issuer) ||

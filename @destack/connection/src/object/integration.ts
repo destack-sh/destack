@@ -1,4 +1,5 @@
 import { contained, none, principal, resource, through, union } from "@destack/access";
+import { VISIBILITIES } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { defineSchema, schema } from "@destack/schema";
@@ -18,7 +19,7 @@ export const CLIENT_AUTHENTICATIONS = [
 /** How a client authenticates at a token endpoint. */
 export type ClientAuthentication = (typeof CLIENT_AUTHENTICATIONS)[number];
 
-/** The endpoints of an authorization server (RFC 8414 2), and where its integrations are installed. */
+/** The endpoints of an authorization server (RFC 8414 2), and its installation page. */
 export const AuthorizationEndpoints = defineSchema(
     schema.object({
         /** The authorization endpoint, for the authorization code grant. */
@@ -31,16 +32,16 @@ export const AuthorizationEndpoints = defineSchema(
         deviceAuthorization: schema.url({ protocol: /^https$/u }).exactOptional(),
         /** The dynamic client registration endpoint (RFC 7591). */
         registration: schema.url({ protocol: /^https$/u }).exactOptional(),
-        /** The page where a person installs the integration on an account, for app installations. */
+        /** The page where a person installs the integration, for app installations. */
         installation: schema.url({ protocol: /^https$/u }).exactOptional(),
-        /** Whether the server returns its issuer in its authorization responses (RFC 9207), false where its metadata omits it (RFC 8414 2). */
+        /** Whether the server returns its issuer in authorization responses (RFC 9207). */
         isIssuerReturned: schema.boolean(),
     }),
 );
 /** The endpoints of an authorization server. */
 export type AuthorizationEndpoints = schema.Infer<typeof AuthorizationEndpoints>;
 
-/** A client an authorization server registered dynamically (RFC 7591 3.2.1), with the vault keeping a secret it issued. */
+/** A dynamically registered client (RFC 7591 3.2.1), with the vault of an issued secret. */
 export const Registration = defineSchema(
     schema.object({
         /** The authorization server's issuer identifier. */
@@ -60,10 +61,7 @@ export const Registration = defineSchema(
 /** A client an authorization server registered dynamically. */
 export type Registration = schema.Infer<typeof Registration>;
 
-/** Who an integration serves: its owner's spaces and the spaces below them, or every space. */
-export const INTEGRATION_VISIBILITIES = ["private", "public"] as const;
-
-/** An integration registered at an external authorization server, by a platform or an organisation, which OAuth connections authorize. */
+/** An integration registered at an external authorization server, used by OAuth connections. */
 export const integration = defineObject({
     name: "integration",
     plural: "integrations",
@@ -80,12 +78,12 @@ export const integration = defineObject({
         authentication: field.enum(CLIENT_AUTHENTICATIONS),
         /** The redirect URIs the client registered. */
         redirectUris: field.json(schema.array(schema.httpUrl())),
-        /** Whether the owner registered the client, or a connection registered it dynamically (RFC 7591). */
+        /** Whether the owner registered the client, or a connection did dynamically (RFC 7591). */
         registration: field.enum(["static", "dynamic"]).default("static"),
         /** The vault keeping the client secret or private key, absent for a public client. */
         vault: field.json(ObjectReference).optional(),
-        /** Whether the integration serves its owner's spaces and the spaces below them, or every space. */
-        visibility: field.enum(INTEGRATION_VISIBILITIES).default("private"),
+        /** Whether it serves its owner's spaces and the spaces below them, or every space. */
+        visibility: field.enum(VISIBILITIES).default("private"),
     },
     attributes: { visibility: "string" },
     // let the spaces it serves copy it and request its tokens, and the servers of its scope's residency copy it
@@ -114,14 +112,14 @@ export const integration = defineObject({
                 "visibility",
             ],
             input: schema.object({
-                /** The client secret, or the private key as a JWK's or PEM's text, kept in the vault. */
+                /** The client secret or private key as JWK or PEM text, kept in the vault. */
                 secret: schema.sensitive(schema.string().min(1)).exactOptional(),
             }),
             prepared: schema.object({}),
             isPredicted: false,
         }),
         update: method.update("manage", { fields: ["endpoints", "redirectUris"] }),
-        /** Request a token for a connection of another space, authenticating as the client (RFC 6749 3.2). */
+        /** Request a token for another space's connection as the client (RFC 6749 3.2). */
         requestToken: method.query({
             permission: "request",
             input: schema.object({
@@ -132,7 +130,7 @@ export const integration = defineObject({
             prepared: schema.sensitive(Token),
             audited: true,
         }),
-        /** Revoke a token of a connection of another space, authenticating as the client (RFC 7009 2.1). */
+        /** Revoke a token of another space's connection as the client (RFC 7009 2.1). */
         revokeToken: method.query({
             permission: "request",
             input: schema.object({
@@ -143,7 +141,7 @@ export const integration = defineObject({
             prepared: schema.object({}),
             audited: true,
         }),
-        /** Start a device authorization for a connection of another space, authenticating as the client (RFC 8628 3.1). */
+        /** Start a device authorization for another space's connection (RFC 8628 3.1). */
         authorizeDevice: method.query({
             permission: "request",
             input: schema.object({
@@ -155,7 +153,7 @@ export const integration = defineObject({
             audited: true,
         }),
         delete: method.delete("manage"),
-        /** Register a client at the authorization server of a protected resource (RFC 9728, RFC 8414, RFC 7591), for a connection a space holds, keeping a secret it issues in the connection's vault. */
+        /** Register a client at a resource's authorization server, for a space's connection. */
         register: method.create("request", {
             fields: [],
             input: schema.object({
@@ -163,7 +161,7 @@ export const integration = defineObject({
                 resource: schema.url({ protocol: /^https$/u }),
                 /** The URI the authorization server redirects the person back to. */
                 redirectUri: schema.httpUrl(),
-                /** The vault of the scope keeping a secret the server issues, null where the registering connection keeps no vault in the scope. */
+                /** The scope's vault for an issued secret, null if the connection has none. */
                 vault: ObjectReference.nullable(),
             }),
             prepared: Registration,

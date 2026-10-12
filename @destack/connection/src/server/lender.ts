@@ -8,7 +8,7 @@ import { ConnectionRequest } from "../lend/lend.ts";
 import { type Connection, type ConnectionKind, connection } from "../object/connection.ts";
 import type { TokenSource } from "./token.ts";
 
-/** The machine side of lending: it applies a connection's current credential to an installation's outbound request, which never sees the credential. */
+/** The machine side of lending, applying a credential to an installation's outbound request. */
 export class Lender {
     /** The object store keeping the connections. */
     readonly #system: ObjectStore;
@@ -21,7 +21,7 @@ export class Lender {
         this.#tokens = tokens;
     }
 
-    /** Read the kind of a connection a database keeps, such as a machine refusing mTLS where it cannot present client certificates, absent for a connection it keeps none of. */
+    /** Read the kind of a connection a database keeps, absent if it keeps none. */
     static async kind(
         database: DatabaseConnection,
         reference: ObjectReference,
@@ -39,7 +39,7 @@ export class Lender {
         return row?.protocol.kind;
     }
 
-    /** Apply an authorized connection's current credential to an outbound request, of a consumer it is bound to when one is named. */
+    /** Apply an authorized connection's credential to a request, of a bound consumer if given. */
     async lend(
         reference: ObjectReference,
         request: Request,

@@ -1,13 +1,13 @@
 import { defineSchema, schema } from "@destack/schema";
 import { DEVICE_CODE, JWT_BEARER, TOKEN_EXCHANGE } from "./server.ts";
 
-/** The optional parameters a token request narrows its token with: scopes (RFC 6749 3.3) and the resource (RFC 8707 2). */
+/** The optional token request parameters: scopes (RFC 6749 3.3) and resource (RFC 8707 2). */
 const NARROWING = {
     scope: schema.string().min(1).exactOptional(),
     resource: schema.url({ protocol: /^https$/u }).exactOptional(),
 };
 
-/** A token request's grant that proves possession of the account's authorization, which a client's home authenticates the client for (RFC 6749 4.1.3, 6, RFC 8628 3.4, RFC 7523 2.1, RFC 8693 2.1). */
+/** A token request's grant that proves possession of the account's authorization. */
 const grant = defineSchema(
     schema.discriminatedUnion("grant_type", [
         schema.object({
@@ -68,7 +68,7 @@ export const TokenGrant = Object.assign(grant, {
     },
 });
 
-/** A token a client asks its authorization server to revoke (RFC 7009 2.1), which proves possession by itself. */
+/** A token a client asks its server to revoke (RFC 7009 2.1), which proves possession itself. */
 export const TokenRevocation = defineSchema(
     schema.object({
         /** The token. */

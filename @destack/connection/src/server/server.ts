@@ -29,10 +29,10 @@ import { complete, exchange, poll, start, started } from "./authorization.ts";
 import { ConsumerSecret } from "@destack/vault/server";
 import type { ObjectStore } from "@destack/object/server";
 
-/** How long a connection waits after its authorization server failed to answer before trying again: a minute. */
+/** How long a connection waits to try again after its server failed to answer: a minute. */
 const RETRY_MILLISECONDS = 60_000;
 
-/** Serve connections: credentials kept in vaults as the service, authorized by people, kept current by the controller beside the lender, and issued to the spaces lending them to bound installations. */
+/** Serve connections with credentials kept in vaults as the service. */
 export function serveConnections(tokens: TokenSource) {
     return {
         connection: connection.implement({
@@ -141,7 +141,7 @@ async function revoke(
     });
 }
 
-/** Revoke a committed revocation's tokens at their server, or uninstall its integration, then destroy its credential. */
+/** Revoke a revocation's tokens at their server or uninstall its integration, then destroy it. */
 async function withdraw(
     system: ObjectStore,
     prepared: unknown,
@@ -171,7 +171,7 @@ async function withdraw(
     await ConsumerSecret.destroy(system, withdrawn.vault, secret, tokens.options.consumer);
 }
 
-/** Keep a connection's credential current: mark supplied material authorized, poll a device authorization, and obtain or refresh tokens before they expire. */
+/** Keep a connection's credential current. */
 async function reconcile(
     reconciliation: ObjectReconciliation<typeof connection>,
     tokens: TokenSource,
@@ -238,7 +238,7 @@ async function finalize(
     await reconciliation.mutate([connection.call("finalize", connection.target(current))]);
 }
 
-/** Poll a connection's device authorization, or mark it pending until a person authorizes it, returning when to look again. */
+/** Poll a device authorization, or mark it pending for a person, returning when to look again. */
 async function awaitPerson(
     reconciliation: ObjectReconciliation<typeof connection>,
     current: Connection,
@@ -292,7 +292,7 @@ async function keepToken(
     return refresh(system, current, tokens, now);
 }
 
-/** Refresh a connection's token, recording a failure other than a refused grant and waiting before the next try. */
+/** Refresh a connection's token, recording failures besides a refused grant, then waiting. */
 async function refresh(
     system: ObjectStore,
     row: Connection,
@@ -324,7 +324,7 @@ async function refresh(
     }
 }
 
-/** Answer a connection's current access token for a space lending it, refusing a credential lent only where it is kept. */
+/** Answer a connection's access token for a lending space, refusing a local-only credential. */
 async function lend(
     row: Connection,
     tokens: TokenSource,
@@ -346,7 +346,7 @@ async function lend(
     return token;
 }
 
-/** Refuse an installation connection where its integration is a copy, as installations issue their tokens with the integration's key at its home. */
+/** Refuse an installation connection where its integration is a copy. */
 function requireHome(kind: ConnectionKind, tokens: TokenSource): void {
     if (kind === "installation" && tokens.options.home !== undefined) {
         throw new ServiceError("BAD_REQUEST", {
@@ -355,7 +355,7 @@ function requireHome(kind: ConnectionKind, tokens: TokenSource): void {
     }
 }
 
-/** Refuse a connection lacking the client its kind authorizes through: an integration, or for the authorization code grant a resource whose server registers one. */
+/** Refuse a connection without the client its kind authorizes through. */
 function requireClient(input: CallOf<typeof connection, "create">["input"]): void {
     // read whether the kind authorizes through a client and whether the connection has one
     const { protocol, integration, resource } = input;

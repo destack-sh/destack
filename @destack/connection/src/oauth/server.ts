@@ -70,13 +70,13 @@ const RegistrationResponse = schema.looseObject({
         .exactOptional(),
 });
 
-/** A client of an authorization server: its identifier, how it authenticates, and its secret or private key. */
+/** A client of an authorization server: its identifier, authentication, and secret or key. */
 export interface Client {
     /** The client identifier. */
     readonly clientId: string;
     /** How the client authenticates at the token endpoint. */
     readonly authentication: ClientAuthentication;
-    /** The client secret, or the private key as a JWK's or PEM's text, absent for a public client. */
+    /** The client secret or private key as JWK or PEM text, absent for a public client. */
     readonly secret?: string;
 }
 
@@ -96,7 +96,7 @@ export const DeviceAuthorization = defineSchema(
 /** A started device authorization. */
 export type DeviceAuthorization = schema.Infer<typeof DeviceAuthorization>;
 
-/** The requests a client sends its authorization server, which authenticate the client where they need to (RFC 6749 2.3). */
+/** The requests a client sends its authorization server, authenticated where needed. */
 export interface AuthorizationClient {
     /** The issuer identifier. */
     readonly issuer: string;
@@ -129,7 +129,7 @@ export interface AuthorizationPage {
     readonly resource?: string;
 }
 
-/** An external OAuth 2.0 authorization server as one client calls it: its endpoints, and the requests the client sends there. */
+/** An external OAuth 2.0 authorization server as one client calls it. */
 export class AuthorizationServer implements AuthorizationClient {
     /** The issuer identifier. */
     readonly issuer: string;
@@ -158,7 +158,7 @@ export class AuthorizationServer implements AuthorizationClient {
         this.#clock = options.clock;
     }
 
-    /** Find a protected resource's authorization server (RFC 9728 3) and read its metadata (RFC 8414 3). */
+    /** Find a resource's authorization server (RFC 9728 3) and read its metadata (RFC 8414 3). */
     static async discover(
         resource: string,
         fetch: Fetch,
@@ -215,7 +215,7 @@ export class AuthorizationServer implements AuthorizationClient {
         };
     }
 
-    /** Register a public client using the authorization code grant with redirect URIs (RFC 7591 3.1). */
+    /** Register a public authorization code client with redirect URIs (RFC 7591 3.1). */
     static async register(
         endpoint: string,
         redirectUris: readonly string[],
@@ -246,7 +246,7 @@ export class AuthorizationServer implements AuthorizationClient {
         };
     }
 
-    /** Write the authorization page a person approves a code grant on (RFC 6749 4.1.1, RFC 7636 4.3, RFC 8707 2). */
+    /** Write the authorization page of a code grant (RFC 6749 4.1.1, RFC 7636 4.3, RFC 8707 2). */
     authorizationUrl(request: AuthorizationPage): URL {
         // write the code grant's parameters, PKCE and the resource indicator into the page's query
         const url = new URL(this.#require("authorization"));
@@ -267,7 +267,7 @@ export class AuthorizationServer implements AuthorizationClient {
         return url;
     }
 
-    /** Request a token with a grant's parameters at the token endpoint, as the client (RFC 6749 3.2). */
+    /** Request a token with a grant's parameters as the client (RFC 6749 3.2). */
     async token(grant: Readonly<Record<string, string>>): Promise<Token> {
         // authenticate the client and post the grant
         const endpoint = this.#require("token");
@@ -313,7 +313,7 @@ export class AuthorizationServer implements AuthorizationClient {
         };
     }
 
-    /** Revoke a token at the revocation endpoint (RFC 7009 2.1), doing nothing at a server without one. */
+    /** Revoke a token (RFC 7009 2.1), doing nothing at a server without a revocation endpoint. */
     async revoke(token: string, hint: "refresh_token" | "access_token"): Promise<void> {
         // revoke nothing at a server without a revocation endpoint
         const endpoint = this.endpoints.revocation;
@@ -329,7 +329,7 @@ export class AuthorizationServer implements AuthorizationClient {
         }
     }
 
-    /** Build a form post to an endpoint, authenticating the client as it registered (RFC 6749 2.3, RFC 7523 2.2). */
+    /** Build a form post authenticating the client as registered (RFC 6749 2.3, RFC 7523 2.2). */
     async #authenticated(
         endpoint: string,
         parameters: Readonly<Record<string, string>>,

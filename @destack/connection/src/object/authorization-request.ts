@@ -4,20 +4,20 @@ import { defineObject, field } from "@destack/object";
 import { Duration, schema } from "@destack/schema";
 import { connection } from "./connection.ts";
 
-/** How long an authorization waits for the person, ten minutes as common authorization codes and RFC 8628's device codes last. */
+/** How long an authorization waits for the person: ten minutes. */
 const AUTHORIZATION_WINDOW: Duration = { minutes: 10 };
 
-/** How a person authorizes a connection: on an authorization page, on an integration's installation page, or on a device's verification page (RFC 8628). */
+/** How a person authorizes a connection: on an authorization, installation or device page. */
 export const AUTHORIZATION_KINDS = ["page", "installation", "device"] as const;
 
-/** A pending authorization of a connection's external account, bound to the person and session that started it and used once (RFC 9700 4.7). */
+/** A pending authorization of a connection's external account, used once (RFC 9700 4.7). */
 export const authorizationRequest = defineObject({
     name: "authorization-request",
     plural: "authorizationRequests",
     nested: { in: connection, delete: "cascade", receive: "manage" },
     expiring: [{ after: AUTHORIZATION_WINDOW, from: "createdAt" }],
     fields: {
-        /** How the person authorizes: on an authorization page, on an installation page, or on a device's verification page. */
+        /** How the person authorizes: on an authorization, installation or device page. */
         kind: field.enum(AUTHORIZATION_KINDS),
         /** The person authorizing the external account. */
         user: field.reference(principal.user),
@@ -27,9 +27,9 @@ export const authorizationRequest = defineObject({
         // a page or installation authorization
         /** The state the authorization server returns, for a page or installation authorization. */
         state: field.string(schema.string().min(1)).optional(),
-        /** The URI the authorization server redirects the person back to, for a page or installation authorization. */
+        /** The URI the server redirects the person back to, for a page or installation. */
         redirectUri: field.string(schema.httpUrl()).optional(),
-        /** The PKCE code verifier the code exchange presents (RFC 7636), for a page authorization. */
+        /** The PKCE code verifier of the code exchange (RFC 7636), for a page authorization. */
         verifier: field.string(schema.string().min(1)).sensitive().optional(),
 
         // a device authorization

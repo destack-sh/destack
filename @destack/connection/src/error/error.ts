@@ -10,17 +10,17 @@ const SERVICE_CODES = {
     UNSUPPORTED: "PRECONDITION_FAILED",
 } as const satisfies Readonly<Record<string, ServiceErrorCode>>;
 
-/** A failure code of connections: an authorization server's refusal or answer, an authorization's mismatch, or a connection unfit to lend. */
+/** A failure code of connections. */
 export type ConnectionErrorCode = keyof typeof SERVICE_CODES;
 
 /** A failure of a connection or its authorization server, which never holds a credential. */
 export class ConnectionError extends Error implements DomainError {
     /** The stable failure code. */
     readonly code: ConnectionErrorCode;
-    /** The OAuth error code the authorization server answered (RFC 6749 5.2), absent for other failures. */
+    /** The authorization server's OAuth error code (RFC 6749 5.2), absent for other failures. */
     readonly error: string | undefined;
 
-    /** Report a failure, with the authorization server's OAuth error code for a refusal and the failure causing it. */
+    /** Report a failure and its cause, with the server's OAuth error code for a refusal. */
     constructor(
         code: ConnectionErrorCode,
         message: string,

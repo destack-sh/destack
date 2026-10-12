@@ -59,13 +59,13 @@ const TOKEN_SECONDS = 3600;
 /** The origin clients call a fixture's connection service at, in process. */
 const ORIGIN = "https://connection.test";
 
-/** The machine serving the fixture's space, the consumer of its credentials and the holder of its vault keys. */
+/** The machine serving the space, consuming its credentials and keeping its vault keys. */
 const MACHINE = schema.identifier("machine").parse("machine-01a1134b-0000-7000-8000-00000000c4ed");
 
 /** The bytes of a vault keyring's root key. */
 const ROOT_KEY_BYTES = 32;
 
-/** The tables of the spaces, installations, bindings, captures and deployments a vault's checks read, which a space's database copies. */
+/** The tables a vault's checks read, which a space's database copies. */
 const SPACE_COPIES: readonly Table[] = [
     space.table,
     installation.table,
@@ -86,7 +86,7 @@ export const placementTable = defineTable(
     { log: {} },
 );
 
-/** A space placed in a scope, standing for the space as a principal inside it, as the directory's placements do. */
+/** A space placed in a scope as a principal inside it, as directory placements do. */
 export const placement = defineObject({
     name: "placement",
     plural: "placements",
@@ -105,14 +105,14 @@ export const placement = defineObject({
     methods: (method) => ({ get: method.get("read") }),
 });
 
-/** A database keeping connections with the vaults of their credentials, as a space or the account service keeps them. */
+/** A database of connections and their vaults, as a space or the account service keeps it. */
 export const connectionDatabase = defineDatabase({
     name: "connection",
     tables: [...connectionTables, ...integrationTables, ...vaultTables, journal],
     copies: SPACE_COPIES,
 });
 
-/** An authorization server in memory (RFC 6749, 7009, 7591, 7636, 8414, 8628, 8693, 9728), issuing numbered tokens that rotate on refresh. */
+/** An authorization server in memory, issuing numbered tokens that rotate on refresh. */
 export class TestAuthorizationServer {
     /** The client secret of the static test client. */
     readonly clientSecret = "client-secret";
@@ -211,7 +211,7 @@ export class TestAuthorizationServer {
         return { code, state: String(url.searchParams.get("state")), iss: ISSUER };
     }
 
-    /** Approve a device authorization by its user code, as a person does on the verification page. */
+    /** Approve a device authorization by user code, as a person does on the verification page. */
     approveDevice(userCode: string): void {
         for (const device of this.#devices.values()) {
             if (device.userCode === userCode) {
@@ -278,24 +278,24 @@ export class TestAuthorizationServer {
     }
 }
 
-/** What a fixture opens with: installation issuers, the tables of services sharing its database, and the home of other scopes' integrations. */
+/** What a fixture opens with. */
 export interface ConnectionFixtureOptions {
     /** The installation issuers of the test server's integrations. */
     readonly issuers?: (fetch: Fetch) => readonly InstallationIssuer[];
     /** The tables of services sharing the database, which read the connections as their copies. */
     readonly tables?: readonly Table[];
-    /** The home of the integrations of other scopes and the space copying them, as a space's connection service does. */
+    /** The home of other scopes' integrations and the space copying them, as a space has. */
     readonly home?: {
         readonly home: (scope: string, signer?: Subject) => ServiceClient<typeof connectionService>;
         readonly space: string;
-        /** The scope at home enclosing the space, such as its account, absent for a space of the universe. */
+        /** The home scope enclosing the space, such as its account, absent in the universe. */
         readonly enclosing?: ObjectReference;
     };
-    /** The tables services sharing the database copy, such as an installation's copies of integrations. */
+    /** The tables sharing services copy, such as an installation's integration copies. */
     readonly copies?: readonly Table[];
 }
 
-/** A connection service over a database with a scope, its owner, its vault and a test authorization server. */
+/** A connection service over a database with a scope, owner, vault and test server. */
 export class ConnectionFixture {
     /** The database. */
     readonly database: DatabaseConnection;
@@ -343,7 +343,7 @@ export class ConnectionFixture {
         this.#close = fields.close;
     }
 
-    /** Open a connection service over a fresh database, its scope owned by a person with a vault, with the installation issuers and the tables of the services reading its connections. */
+    /** Open a connection service over a fresh database. */
     static async open(options: ConnectionFixtureOptions = {}): Promise<ConnectionFixture> {
         // keep the database and the authorization server
         const storage = await TestDatabase.create("sqlite", ConnectionFixture.#declare(options), {
@@ -411,7 +411,7 @@ export class ConnectionFixture {
         return vault.reference(scope.id, id);
     }
 
-    /** Declare the database: the connections, and the integrations kept at their home or copied in a space. */
+    /** Declare the database: connections, and integrations at their home or copied in a space. */
     static #declare(options: ConnectionFixtureOptions) {
         // keep the integrations at their home, or copy them as a space
         const isHome = options.home === undefined;
@@ -436,7 +436,7 @@ export class ConnectionFixture {
         });
     }
 
-    /** Serve the connections and the vaults, and the integrations at their home, else follow their copies. */
+    /** Serve connections and vaults, and integrations at their home, else follow their copies. */
     static #objects(
         database: DatabaseConnection,
         tokens: TokenSource,
@@ -485,7 +485,7 @@ export class ConnectionFixture {
         });
     }
 
-    /** Keep a scope with a space's name, which the person and the space itself own, below the scope enclosing it. */
+    /** Keep a scope with a space's name below its parent, owned by the person and the space. */
     static async #scope(
         database: DatabaseConnection,
         enclosing: ObjectReference | undefined,
@@ -544,7 +544,7 @@ export class ConnectionFixture {
         });
     }
 
-    /** Connect to this service as the home of every scope's integrations, as a space or a signing installation of it calls its home. */
+    /** Connect to this service as the home of every scope's integrations. */
     home(
         spaceId: string,
     ): (scope: string, signer?: Subject) => ServiceClient<typeof connectionService> {
@@ -560,7 +560,7 @@ export class ConnectionFixture {
         };
     }
 
-    /** Run the connection controller over every connection once, answering the waits it asks for. */
+    /** Run the connection controller over every connection once, answering its waits. */
     async control(): Promise<(number | undefined)[]> {
         // find the controller and reconcile each key once
         const controller = this.objects.controllers().find((each) => each.name === connection.name);
@@ -585,7 +585,7 @@ export class ConnectionFixture {
         return rows;
     }
 
-    /** Read the live values of the secrets the fixture's vault keeps, as the consumer they are bound to. */
+    /** Read the live secret values of the fixture's vault, as their bound consumer. */
     async secrets(): Promise<string[]> {
         // read every secret of the vault in the order it was kept
         const rows = await this.database
@@ -615,13 +615,13 @@ export class ConnectionFixture {
         return this.database.select().from(connection.table);
     }
 
-    /** Register the test server's static confidential client in the scope, private unless public, answering its reference. */
+    /** Register the test server's static confidential client with a visibility, returning it. */
     async staticIntegration(
         visibility: Integration["visibility"] = "private",
     ): Promise<ObjectReference> {
         const created = await this.objects
             .mutate(this.context().caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [
                     integration.call("create", {
                         scope: this.scope.id,

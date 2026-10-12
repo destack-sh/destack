@@ -2,13 +2,13 @@ import { present, schema } from "@destack/schema";
 import { importJWK, importPKCS8, SignJWT } from "jose";
 import { ConnectionError } from "../error/error.ts";
 
-/** How long an assertion stays valid, five minutes as RFC 7523 3 asks for short lifetimes and under GitHub's ten-minute limit for app JWTs. */
+/** How long an assertion stays valid: five minutes. */
 const LIFETIME_SECONDS = 5 * 60;
 
-/** The seconds an assertion's issue time dates back against clock drift, a minute as GitHub advises for app JWTs. */
+/** The seconds an assertion's issue time dates back against clock drift, as GitHub advises. */
 const DRIFT_SECONDS = 60;
 
-/** The DER of a PKCS #8 RSA private key before its PKCS #1 key's length: the version and the rsaEncryption algorithm. */
+/** The DER of a PKCS #8 RSA private key before its PKCS #1 key's length. */
 const PKCS8_RSA_HEADER = Uint8Array.fromHex("020100300d06092a864886f70d0101010500");
 
 /** The signature algorithm of each JWK key type and curve without an `alg`. */
@@ -28,7 +28,7 @@ export const PrivateKeyJwk = schema.looseObject({
 
 /** JWT assertions a client or a service account signs for an authorization server (RFC 7523). */
 export const Assertion = {
-    /** Sign an assertion issued now, in Unix milliseconds, with a private key given as a JWK's JSON or a PKCS #1 or PKCS #8 PEM, the PEM signing with RS256 unless named, without a subject and audience for a GitHub app JWT. */
+    /** Sign an assertion issued now, in Unix milliseconds. */
     async sign(
         claims: {
             readonly issuer: string;
@@ -63,7 +63,7 @@ export const Assertion = {
         return jwt.sign(key);
     },
 
-    /** Import a private key given as a JWK's JSON or a PKCS #1 or PKCS #8 PEM, with the algorithm it signs with. */
+    /** Import a JWK's JSON or PKCS #1 or PKCS #8 PEM private key, with its signing algorithm. */
     async importKey(
         text: string,
         named?: string,

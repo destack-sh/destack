@@ -25,7 +25,7 @@ import { ConsumerSecret } from "@destack/vault/server";
 import type { ObjectStore } from "@destack/object/server";
 import { Caller } from "@destack/access";
 
-/** How long before its expiry an access token is refreshed: a minute, as client libraries refresh ahead of clock drift and request time. */
+/** How long before expiry an access token is refreshed: a minute. */
 export const REFRESH_MARGIN = 60_000;
 
 /** The kinds whose credential is material their owner supplied, sent as it is. */
@@ -43,7 +43,7 @@ export const PERSON_KINDS: ReadonlySet<ConnectionKind> = new Set([
     "device-code",
 ]);
 
-/** What a token source works with: the consumer of the credentials, the fetch, the installation issuers and the home of other scopes' integrations. */
+/** What a token source works with. */
 export interface TokenSourceOptions {
     /** The machine serving the space, the consumer the credentials in the vaults are bound to. */
     readonly consumer: Subject;
@@ -51,21 +51,21 @@ export interface TokenSourceOptions {
     readonly fetch: Fetch;
     /** The issuers of installed integrations, by their issuer identifiers. */
     readonly issuers: readonly InstallationIssuer[];
-    /** Connect to the connection service of the space keeping a scope's integrations and connections, as this space or a signing installation, absent where every integration is kept here. */
+    /** Connect to the connection service of the space keeping a scope's integrations. */
     readonly home?: (scope: string, signer?: Subject) => ServiceClient<typeof connectionService>;
 }
 
-/** An integration as the client of its connections: its authorization server here with the secret, or through its home for a copy. */
+/** An integration as its connections' client: here with the secret, or through its home. */
 export interface IntegrationClient {
     /** The integration. */
     readonly integration: Integration;
-    /** The authorization server as the client: here with the secret, or through the integration's home. */
+    /** The authorization server as the client: here with the secret, or through the home. */
     readonly server: AuthorizationClient;
-    /** The secret or private key, kept only where the integration is kept, absent for a copy and for a public client. */
+    /** The secret or private key, absent for a copy and for a public client. */
     readonly secret: string | undefined;
 }
 
-/** The current tokens of connections, refreshed once per connection at a time, as the controller and the lender ask for them. */
+/** The current tokens of connections for the controller and lender, one refresh at a time. */
 export class TokenSource {
     /** The consumer, fetch, installation issuers and home the tokens come through. */
     readonly options: TokenSourceOptions;
@@ -98,7 +98,7 @@ export class TokenSource {
         return this.refresh(system, row, now);
     }
 
-    /** Refresh a connection's token once at a time, writing it to the vault and the expiry to the connection. */
+    /** Refresh a connection's token once at a time, writing it to the vault and its expiry. */
     refresh(system: ObjectStore, row: Connection, now: number): Promise<Credential> {
         // join a refresh in flight as a rotated refresh token is used once (RFC 9700 4.14)
         const flying = this.#refreshing.get(row.id);
@@ -131,7 +131,7 @@ export class TokenSource {
         return value === undefined ? {} : Credential.read(value);
     }
 
-    /** Read an integration as its connections' client: here with the secret its vault keeps, or through its home for a copy. */
+    /** Read an integration as client: here with its vault's secret, or through its home. */
     async integration(
         system: ObjectStore,
         reference: ObjectReference | null,
@@ -179,12 +179,12 @@ export class TokenSource {
         return { integration: row, server: this.server(row, secret, system.clock), secret };
     }
 
-    /** Address a kept integration's authorization server as its client, with the secret its vault keeps. */
+    /** Address a kept integration's server as its client, with its vault's secret. */
     async local(system: ObjectStore, row: Integration): Promise<AuthorizationServer> {
         return this.server(row, await this.#secret(system, row), system.clock);
     }
 
-    /** Register a client in a scope at the authorization server of a resource, at the home of the scope's integrations, or here where they are kept. */
+    /** Register a client in a scope at a resource's authorization server. */
     async register(
         scope: string,
         request: {
@@ -199,14 +199,15 @@ export class TokenSource {
         if (home !== undefined) {
             return home(scope).integration.register({
                 scope,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(system.clock.now()),
                 ...request,
             });
         }
 
         // register here as the system of the scope
-        const [registered] = await system.mutate(Caller.of(system.principal, system.clock.now()), {
-            id: RequestId.create(),
+        const now = system.clock.now();
+        const [registered] = await system.mutate(Caller.of(system.principal, now), {
+            id: RequestId.create(now),
             calls: [
                 integration.call("register", {
                     ...integration.in(scope),
@@ -218,7 +219,7 @@ export class TokenSource {
         return present(registered, `the client registered in ${scope}`);
     }
 
-    /** Find the issuer of an installed integration, refusing an integration no configured issuer serves. */
+    /** Find the issuer of an installed integration, refusing one no configured issuer serves. */
     issuer(found: Pick<Integration, "issuer">): InstallationIssuer {
         const issuer = this.options.issuers.find((each) => each.issuer === found.issuer);
         if (issuer === undefined) {
@@ -246,7 +247,7 @@ export class TokenSource {
         );
     }
 
-    /** Record a connection's Authorized condition with the fields an authorization writes, refusing a connection gone meanwhile. */
+    /** Record a connection's Authorized condition and fields, refusing a deleted connection. */
     async observe(
         system: ObjectStore,
         row: Connection,
@@ -277,7 +278,7 @@ export class TokenSource {
         });
     }
 
-    /** Address an integration's authorization server as its client, with its secret or as a public client, on a store's clock. */
+    /** Address an integration's server as its client, with its secret or public, on a clock. */
     server(
         row: Pick<Integration, "issuer" | "endpoints" | "clientId" | "authentication">,
         secret: string | undefined,
@@ -308,7 +309,7 @@ export class TokenSource {
               );
     }
 
-    /** Obtain a new token for a connection, keep it, and mark the connection authorized or its grant expired. */
+    /** Obtain and keep a new token, marking the connection authorized or its grant expired. */
     async #refresh(system: ObjectStore, row: Connection, now: number): Promise<Credential> {
         // obtain the token and mark a refused grant expired for a person to authorize again
         const credential = await this.read(system, row);
@@ -388,7 +389,7 @@ export class TokenSource {
         return refreshGrant(client.server, row, credential);
     }
 
-    /** Request a client credentials token (RFC 6749 4.4) or a JWT bearer token (RFC 7523 2.1) issued now. */
+    /** Request a client credentials (RFC 6749 4.4) or JWT bearer (RFC 7523 2.1) token now. */
     async #grant(
         server: AuthorizationClient,
         row: Connection,
@@ -473,7 +474,7 @@ function refreshGrant(
     });
 }
 
-/** Write a connection's requested scopes as a token request's scope parameter, absent without any. */
+/** Write a connection's requested scopes as a scope parameter, absent without any. */
 function scopeParameter(row: Connection): { readonly scope?: string } {
     return row.scopes.length === 0 ? {} : { scope: row.scopes.join(" ") };
 }

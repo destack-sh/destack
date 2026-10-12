@@ -10,7 +10,7 @@ import { TokenSource } from "./token.ts";
 import { ConsumerSecret } from "@destack/vault/server";
 import type { ObjectStore } from "@destack/object/server";
 
-/** Serve integrations, keeping each one's client secret or private key in its vault as the service. */
+/** Serve integrations, keeping each client secret or private key in its vault as the service. */
 export function serveIntegrations(tokens: TokenSource): typeof integration {
     return integration.implement({
         methods: {
@@ -67,7 +67,7 @@ export function serveIntegrations(tokens: TokenSource): typeof integration {
     });
 }
 
-/** Require the vault of a confidential client in the integration's scope, and a secret with every vault. */
+/** Require a confidential client's vault in the integration's scope, and a secret with a vault. */
 function requireSecretVault(call: CallOf<typeof integration, "create">): void {
     // require a vault exactly with a secret, in the integration's scope
     const vault = call.input.vault ?? undefined;
@@ -121,7 +121,7 @@ async function destroy(
     return deleted;
 }
 
-/** Register a client at the authorization server of a resource (RFC 9728, RFC 8414, RFC 7591), keeping a secret it issues in the registration's vault. */
+/** Register a client at a resource's authorization server, keeping an issued secret. */
 async function register(
     scope: string,
     id: string,
@@ -173,7 +173,7 @@ async function register(
     return { ...registration, vault };
 }
 
-/** Require a vault of the scope itself, which the service holding the scope keeps, as a connection's or integration's credential lives in its scope. */
+/** Require a vault of the scope itself, which the scope's service keeps. */
 export function requireVault(vault: ObjectReference, scope: string): void {
     if (vault.scope !== scope) {
         throw new ServiceError("BAD_REQUEST", {
@@ -182,7 +182,7 @@ export function requireVault(vault: ObjectReference, scope: string): void {
     }
 }
 
-/** Call the target integration's authorization server as its client, with the secret its home vault keeps. */
+/** Call the target integration's server as its client, with its home vault's secret. */
 async function client(
     call: CallOf<typeof integration, "requestToken" | "revokeToken" | "authorizeDevice">,
     tokens: TokenSource,

@@ -12,7 +12,7 @@ export interface ClientCertificate {
     readonly privateKey: string;
 }
 
-/** A request with a connection's credential applied, and the client certificate the machine presents for it. */
+/** A request with a connection's credential applied, and the machine's client certificate. */
 export interface ConnectionRequest {
     /** The authenticated request. */
     readonly request: Request;
@@ -99,7 +99,7 @@ function isKind<const Kind extends Material["kind"]>(
     return held.kind === kind;
 }
 
-/** Sign a request with AWS Signature Version 4, its body hashed and its path encoded as the service reads it. */
+/** Sign a request with AWS Signature Version 4, with the body hashed and the path encoded. */
 async function sigv4(
     protocol: Extract<ConnectionProtocol, { kind: "sigv4" }>,
     held: Extract<Material, { kind: "sigv4" }>,

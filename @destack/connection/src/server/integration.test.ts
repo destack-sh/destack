@@ -4,7 +4,7 @@ import type { ObjectReference } from "@destack/sync";
 import { DEVICE_CODE } from "../oauth/server.ts";
 import { ConnectionFixture } from "../test/index.ts";
 
-/** Ask an integration's home for a device authorization, a token and a revocation, as a space of another account. */
+/** Ask an integration's home for a device authorization, token and revocation as a space. */
 async function ask(home: ConnectionFixture, integration: ObjectReference, space: string) {
     // call the home as the space
     const client = home.home(space)(integration.scope);

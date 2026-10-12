@@ -14,7 +14,7 @@ import { type Clock, schema } from "@destack/schema";
 import type { Fetch } from "@destack/service";
 import type { ObjectReference } from "@destack/sync";
 
-/** A copied integration's client: its authorization pages written here, its authenticated requests sent through its home, which keeps the secret. */
+/** A copied integration's client, which writes its authorization pages here. */
 export class HomeClient implements AuthorizationClient {
     /** The issuer identifier. */
     readonly issuer: string;
@@ -56,7 +56,7 @@ export class HomeClient implements AuthorizationClient {
         return this.#pages.authorizationUrl(request);
     }
 
-    /** Request a token through the home, refusing a grant that proves no possession, such as client credentials. */
+    /** Request a token through the home, refusing grants without possession. */
     async token(grant: Readonly<Record<string, string>>): Promise<Token> {
         const parsed = TokenGrant.safeParse(grant);
         if (!parsed.success) {

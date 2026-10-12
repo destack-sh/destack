@@ -4,28 +4,28 @@ import { schema } from "@destack/schema";
 import { type Integration, integration } from "../object/integration.ts";
 import { connection } from "../object/connection.ts";
 
-/** An authorization server whose integrations are installed on external accounts and issue their tokens, which no RFC describes. */
+/** An authorization server whose integrations install on external accounts and issue tokens. */
 export interface InstallationIssuer {
     /** The issuer identifier of the integrations it serves, such as the server's origin. */
     readonly issuer: string;
-    /** Write the page a person installs the integration on, returning to the redirect with the state. */
+    /** Write the installation page of the integration, returning to the redirect with the state. */
     installationUrl(integration: Pick<Integration, "clientId" | "endpoints">, state: string): URL;
     /** Read the installation from a completed installation's redirect parameters. */
     installation(parameters: Readonly<Record<string, string>>): string;
-    /** Issue an access token of an installation with the integration's client identifier and private key, narrowed to a grant when given. */
+    /** Issue an installation access token with the client identifier and private key. */
     token(
         clientId: string,
         installation: string,
         privateKey: string,
         grant?: InstallationGrant,
     ): Promise<Token>;
-    /** Remove the integration from the installation's account with the integration's client identifier and private key. */
+    /** Remove the integration from the account with its client identifier and private key. */
     revoke(clientId: string, installation: string, privateKey: string): Promise<void>;
 }
 
-/** What an installation token opens, narrower than the installation: some of its resources, with some permissions. */
+/** What an installation token opens: some of the installation's resources and permissions. */
 export interface InstallationGrant {
-    /** The installation's resources the token opens, such as repositories, by identifier or by name. */
+    /** The resources the token opens, such as repositories, by identifier or name. */
     readonly resources?:
         | { readonly ids: readonly string[] }
         | { readonly names: readonly string[] };
@@ -33,7 +33,7 @@ export interface InstallationGrant {
     readonly permissions?: Readonly<Record<string, string>>;
 }
 
-/** An authorized installation of an integration on an external account, which a connection keeps. */
+/** An authorized installation of an integration on an external account, kept by a connection. */
 export interface Installation {
     /** The scope holding the connection. */
     readonly scope: string;
@@ -45,7 +45,7 @@ export interface Installation {
 
 /** The installations of integrations that connections authorized. */
 export const Installation = {
-    /** List the authorized installations of the integrations with a client identifier, narrowed to a connection or an installation. */
+    /** List the authorized installations of the integrations with a client identifier. */
     async list(
         database: DatabaseConnection,
         selection: {

@@ -13,7 +13,7 @@ import { ConnectionFixture, RESOURCE } from "../test/index.ts";
 /** The redirect URI the test integration registered. */
 const REDIRECT = "https://app.test/callback";
 
-/** Open the service keeping an integration, and a space copying it to serve its connections, both until the test ends. */
+/** Open the service with an integration and a space copying it, both until the test ends. */
 async function open(spaceId = "space-two") {
     // keep the integration at its home
     const home = await ConnectionFixture.open();
@@ -28,7 +28,7 @@ async function open(spaceId = "space-two") {
     return { home, space, registered, signal: controller.signal };
 }
 
-/** Open a space copying a home's integrations in a control loop until the test ends, failing the test on a failed follow. */
+/** Open a space copying a home's integrations in a control loop until the test ends. */
 async function follow(
     home: ConnectionFixture,
     spaceId: string,
@@ -65,7 +65,7 @@ async function follow(
     return space;
 }
 
-/** Create a connection through the copied integration in a space, with its external account, and wait for the copy to hold the home's head. */
+/** Create a connection through the copied integration in a space, with its external account. */
 async function connect(
     fixture: Awaited<ReturnType<typeof open>>,
     space: ConnectionFixture,
@@ -77,7 +77,7 @@ async function connect(
     // create the connection referencing the home's integration
     const created = await space.objects
         .mutate(space.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
                     scope: space.scope.id,
@@ -102,11 +102,11 @@ async function connect(
     return connection.reference(space.scope.id, created.id);
 }
 
-/** Start authorizing a connection of a space as its owner, redirected back to the test redirect URI. */
+/** Start authorizing a space's connection as its owner, redirected to the test redirect URI. */
 function authorize(space: ConnectionFixture, id: string) {
     return space.objects
         .mutate(space.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", { scope: space.scope.id, id, redirectUri: REDIRECT }),
             ],
@@ -118,7 +118,7 @@ function authorize(space: ConnectionFixture, id: string) {
 function complete(space: ConnectionFixture, id: string, parameters: Record<string, string>) {
     return space.objects
         .mutate(space.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [connection.call("complete", { scope: space.scope.id, id, parameters })],
         })
         .then(([written]) => written);
@@ -133,7 +133,7 @@ async function bindAtHome(
     // create the connection and acquire its token
     const created = await home.objects
         .mutate(home.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
                     scope: home.scope.id,
@@ -149,7 +149,7 @@ async function bindAtHome(
     // bind it to the consumer
     await home.objects
         .mutate(home.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("bindConsumer", { scope: home.scope.id, id: created.id, consumer }),
             ],
@@ -251,7 +251,7 @@ test("register the client of a space's connection without an integration at the 
     // create a connection with only its protected resource in a space of the home's scope
     const created = await space.objects
         .mutate(space.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
                     scope: space.scope.id,
@@ -315,7 +315,7 @@ test("lend a connection its home keeps to a space's bound installation through t
     const installed = await refusal(
         space.objects
             .mutate(space.context().caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [
                     connection.call("create", {
                         scope: space.scope.id,

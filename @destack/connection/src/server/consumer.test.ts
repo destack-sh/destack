@@ -19,7 +19,7 @@ async function createKey(
 ) {
     const created = await fixture.objects
         .mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
@@ -50,7 +50,7 @@ test("lend a connection to an installation's calls only while it is bound to tha
         );
     const change = (name: "bindConsumer" | "releaseConsumer") =>
         fixture.objects.mutate(fixture.context().caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 connection.call(name, {
                     ...connection.target({ scope: fixture.scope.id, id }),

@@ -3,9 +3,9 @@ import { PrivateKeyJwk } from "../oauth/assertion.ts";
 /** The label of the one signature a request sends (RFC 9421 4.1). */
 const LABEL = "sig1";
 
-/** HTTP message signatures over a request's method, target URI and content digest (RFC 9421, RFC 9530). */
+/** HTTP message signatures over method, target URI and content digest (RFC 9421, 9530). */
 export const MessageSignature = {
-    /** Sign a request with an HMAC secret in base64url or an Ed25519 private key as a JWK's JSON, answering the signed copy. */
+    /** Sign a request with a base64url HMAC secret or an Ed25519 JWK, returning the signed copy. */
     async sign(
         request: Request,
         signer: {
