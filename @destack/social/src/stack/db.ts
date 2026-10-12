@@ -4,7 +4,7 @@ import { favourite } from "../object/favourite.ts";
 import { reaction } from "../object/reaction.ts";
 import { receipt } from "../object/receipt.ts";
 
-/** The tables of the comments, reactions, receipts and favourites on a space's objects, which the space's database keeps once. */
+/** The tables of comments, reactions, receipts and favourites on a space's objects. */
 export const socialTables: readonly Table[] = [comment, reaction, receipt, favourite].flatMap(
     (object) => object.tables,
 );

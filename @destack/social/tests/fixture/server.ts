@@ -102,7 +102,7 @@ export async function serveArticles(dialect: Dialect) {
 
             const result = object.method(name).mutates
                 ? store
-                      .mutate(caller, { id: RequestId.create(), calls: [call] }, options)
+                      .mutate(caller, { id: RequestId.create(Date.now()), calls: [call] }, options)
                       .then(([written]) => written)
                 : store.query(caller, call);
 
@@ -228,7 +228,7 @@ async function expand(
     // expand them until none waits
     for (let rows = await waiting(); rows.length > 0; rows = await waiting()) {
         await store.mutate(Caller.of(store.principal, Date.now()), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: rows.map((row) =>
                 notifications.announcement.call("expand", notifications.announcement.target(row)),
             ),
