@@ -19,7 +19,7 @@ export class Stream {
     #evaluation: Evaluation;
     /** The shortest time between two pages at the head. */
     readonly #every: number | undefined;
-    /** The subscriber's own origin, whose replicated writes never advance the bare positions it receives. */
+    /** The subscriber's origin, whose replicated writes never advance its bare positions. */
     readonly #origin: string | undefined;
 
     /** Create the stream of a subscriber. */
@@ -39,12 +39,7 @@ export class Stream {
         this.#evaluation = new Evaluation(feed, queries, audience);
     }
 
-    /**
-     * Stream the queries from a position until aborted, or to a completed page once drained.
-     *
-     * A stream without a current position starts with a snapshot.
-     * From previous queries, it moves the subscriber's rows to these.
-     */
+    /** Stream the queries from a position until aborted, or to a completed page once drained. */
     async *run(
         after: LogPosition | undefined,
         signal: AbortSignal,
@@ -101,7 +96,7 @@ export class Stream {
         }
     }
 
-    /** Publish the pages after a position and the bare position once caught up, until aborted or drained. */
+    /** Publish pages after a position, then the bare position once caught up, until done. */
     async *#follow(
         start: LogPosition,
         signal: AbortSignal,
@@ -211,7 +206,7 @@ export class Stream {
         return yield* this.#catchUp(position, moved, signal);
     }
 
-    /** Send a pending page and the changes up to the latest position, returning the sequence reached. */
+    /** Send a pending page and changes up to the latest position, returning the sequence. */
     async *#catchUp(
         position: LogPosition,
         pending: Page,

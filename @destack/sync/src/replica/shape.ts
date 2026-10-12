@@ -8,7 +8,7 @@ import type { Replica } from "./replica.ts";
 /** A shape's parameters in JSON form. */
 const PARAMETERS = schema.record(schema.string(), schema.json());
 
-/** A follower's subscription to a declared shape over one scope, decided for the scope it serves, from the position it reached. */
+/** A follower's subscription to a declared shape over a scope, from the position it reached. */
 export const Subscription = defineSchema(
     schema.object({
         /** The copy's name, shared with a relaying source's own copy. */
@@ -23,11 +23,11 @@ export const Subscription = defineSchema(
         parameters: PARAMETERS,
         /** The log position the copy reached, absent before its first snapshot. */
         after: LogPosition.exactOptional(),
-        /** The parameters the copy at its position reflects, when they differ from the subscribed ones. */
+        /** The parameters the copy reflects at its position, if they differ from the subscribed. */
         previous: PARAMETERS.exactOptional(),
         /** How often merged pages arrive, absent for one page per change. */
         refresh: schema.object({ every: Duration.schema }).exactOptional(),
-        /** The follower's own origin, its log epoch, whose writes the source's copies replicate and never send back. */
+        /** The follower's origin, its log epoch, whose writes the source never sends back. */
         origin: schema.string().min(1).exactOptional(),
     }),
 );
@@ -37,10 +37,10 @@ export type Subscription = schema.Infer<typeof Subscription>;
 /** Where a copy resumes its subscription, and the origin it follows as. */
 export type Resumption = Pick<Subscription, "after" | "previous" | "origin">;
 
-/** Who a shape's copy is for, which admits its followers and decides its rows: the scope below by containment, the reader where the rows live, the calling follower, or each row's recipient. */
+/** Who a shape's copy is for, which admits its followers and decides its rows. */
 export type ShapeAudience = "contained" | "reader" | "caller" | "recipient";
 
-/** A shape a server serves and follows: the copy a request's parameters build, and the audience deciding its rows. */
+/** A shape a server serves and follows: the copy its parameters build and its audience. */
 export interface Shape {
     /** The shape's name, which requests name. */
     readonly name: string;
@@ -62,7 +62,7 @@ export interface ShapeOf<Parameters> extends Shape {
     ): Subscription;
 }
 
-/** Declare a shape: its name, the schema of its parameters, its audience and the copy they build. */
+/** Declare a shape: its name, parameter schema, audience and the copy they build. */
 export function defineShape<Parameters extends object>(definition: {
     /** The shape's name. */
     readonly name: string;
@@ -97,7 +97,7 @@ export function defineShape<Parameters extends object>(definition: {
     };
 }
 
-/** Serves the subscriptions of a copy one step closer to its rows' home: its machine, or the installation keeping its rows. */
+/** Serves a copy's subscriptions one step closer to its rows' home. */
 export interface Publisher {
     /** Stream a subscription's pages from its position, or a snapshot without one. */
     stream(subscription: Subscription, signal: AbortSignal): AsyncIterable<Page>;
@@ -105,13 +105,13 @@ export interface Publisher {
 
 /** A publisher that also receives the changes its follower's server sends to the rows' home. */
 export interface Uplink extends Publisher {
-    /** Run a mutation of the rows at their home, signed as the follower's space or one of its installations, once however often it is delivered. */
+    /** Run a mutation of the rows at their home, once however often it is delivered. */
     receive(mutation: Mutation, signer?: Subject): Promise<void>;
 }
 
 /** A publisher that also receives the changes its follower's server sends to the rows' home. */
 export const Uplink = {
-    /** Copy and send through a client's replica procedures, called as the follower or as the signer of a forwarded change. */
+    /** Copy and send through a client's replica procedures, as follower or a change's signer. */
     of(
         replica: (signer?: Subject) => {
             stream(

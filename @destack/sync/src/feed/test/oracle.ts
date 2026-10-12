@@ -236,7 +236,7 @@ function measureRelations(
     }
 }
 
-/** Select each include of a query per selected row, with its join rows and a tree include's chains. */
+/** Select each include of a query per selected row, with join rows and tree include chains. */
 function selectIncludes(
     name: string,
     query: Level,
@@ -285,7 +285,7 @@ function selectIncludes(
     }
 }
 
-/** Keep the rows between a row of a table and each member of its limited or filtered tree include. */
+/** Keep the rows between a table row and each member of its limited or filtered tree include. */
 function keepChains(
     table: Table,
     include: Level & { readonly on: Path },
@@ -562,7 +562,7 @@ function rollupsOf(expression: Expression): Extract<Expression, { readonly kind:
     }
 }
 
-/** Read the rows a tree path reaches from one row: its descendants level by level, or its ancestors up to the root. */
+/** Read the rows a tree path finds from a row: descendants level by level, or ancestors. */
 function treeOf(
     path: Extract<Path, { readonly kind: "descendants" | "ancestors" }>,
     table: Table,
@@ -771,7 +771,7 @@ class Rows {
     }
 }
 
-/** List the tables a query reads: its own, its includes' and the relations its conditions and values follow. */
+/** List the tables a query reads: its own, its includes', and its followed relations'. */
 function tablesOf(query: Level, relations: Relations): Table[] {
     return [
         query.table,

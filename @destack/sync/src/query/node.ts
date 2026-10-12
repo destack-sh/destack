@@ -29,7 +29,7 @@ import {
 import { canonicalize, type JsonValue } from "@destack/schema";
 import type { Query } from "./query.ts";
 
-/** A relation a node includes or measures: its table and path, and what it selects of the related rows. */
+/** A relation a node includes or measures: its table, path, and selection of related rows. */
 interface Include extends QueryOptions {
     /** The related table. */
     readonly table: Table;
@@ -165,7 +165,7 @@ export class Node {
         this.#requireAggregate(query);
     }
 
-    /** Resolve a query's includes and the relations its lookups and rollups measure, noting the logged columns they read. */
+    /** Resolve a query's includes and measured relations, noting the logged columns they read. */
     #measured(query: Query | Include): {
         readonly children: readonly Node[];
         readonly lookups: ReadonlySet<string>;
@@ -610,7 +610,7 @@ export class Node {
         return Condition.resolve(condition, this.#fields);
     }
 
-    /** Express the node's rows as a condition, within one partition when given one other than null. */
+    /** Express the node's rows as a condition, within a partition when given a non-null one. */
     condition(partition?: ColumnValue): Condition {
         const key = this.#partition(partition);
 
@@ -659,7 +659,7 @@ export class Node {
         return Object.fromEntries([[link.partitionName, partition], ...grouped]);
     }
 
-    /** Write a column or computed value in its scalar JSON form, as groups and partitions compare it. */
+    /** Write a column or computed value as scalar JSON, as groups and partitions compare it. */
     scalar(name: string, value: ColumnValue | undefined): Scalar {
         // write a missing value as null and a computed one as it is without negative zero
         if (value === null || value === undefined) {
@@ -850,7 +850,7 @@ export class Node {
         }
     }
 
-    /** Describe the relations a condition and the computed values follow, as the node's identity names them. */
+    /** Describe the relations a condition and computed values follow, for the node's identity. */
     #followed(condition: Condition): unknown {
         const followed = new Set([
             ...Predicate.relations(Condition.resolve(condition, this.#fields)).map(
@@ -977,7 +977,7 @@ interface RelationMeasure {
     readonly values: Record<string, Measure>;
 }
 
-/** Collect each relation and condition a node's condition, lookups and rollups measure, once each by key. */
+/** Collect each relation and condition a node's condition, lookups and rollups measure, once. */
 function measuredRelations(
     where: Predicate,
     lookups: readonly { readonly via: string; readonly column: string }[],

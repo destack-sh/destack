@@ -118,7 +118,7 @@ type Layer =
           readonly branch: string;
       };
 
-/** What a client's copy shows over the server's rows: queued mutations, and the checked-out branch. */
+/** What a client's copy shows over the server's rows: queued mutations and the branch. */
 export class Prediction {
     /** The tables predictions change. */
     readonly tables: ReadonlyMap<string, Table>;
@@ -230,7 +230,7 @@ export class Prediction {
         await this.#revertFrom(transaction, 1);
     }
 
-    /** Settle the queue a copy's completed page reaches and predict the stack again over the reverted copy. */
+    /** Settle the queue a completed page covers and predict the stack again over the copy. */
     async replay(
         transaction: DatabaseConnection,
         reached?: { readonly position: LogPosition; readonly isSnapshot: boolean },
@@ -253,7 +253,7 @@ export class Prediction {
         await this.#apply(transaction, await this.#stack(transaction), 1, undefined);
     }
 
-    /** List the layers in the order they apply: the main line before the checked-out branch's rows and edits. */
+    /** List the layers in apply order: the main line, then the branch's rows and edits. */
     async #stack(transaction: DatabaseConnection): Promise<Layer[]> {
         // read the branch shown and the queue
         const branch = await this.checkedOut(transaction);
@@ -521,7 +521,7 @@ export class Prediction {
         return reached !== undefined;
     }
 
-    /** Drop the executed mutations a copy's position reaches, and push again what a snapshot of a later epoch lost. */
+    /** Drop executed mutations a copy's position covers, and push again what a snapshot lost. */
     async #settle(
         transaction: DatabaseConnection,
         position: LogPosition,
@@ -614,7 +614,7 @@ function countWhen(condition: SQL | undefined): SQL<number> {
     return count(sql`CASE WHEN ${condition} THEN 1 END`);
 }
 
-/** Read a mutation's state from its recorded error: executed without a row, pending without an error, else rejected. */
+/** Read a mutation's state from its error: executed without a row, pending without an error. */
 function mutationState(
     error: Extract<MutationState, { kind: "rejected" }>["error"] | null | undefined,
 ): MutationState {

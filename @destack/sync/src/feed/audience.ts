@@ -29,7 +29,7 @@ export const EVERYONE: Audience = {
 export interface Audience {
     /** The tables whose changes decide visibility. */
     readonly watches: readonly Watch[];
-    /** Match the rows of a table the subscriber may have, as SQL, or "memory" when only `admits` decides. */
+    /** Match the table rows the subscriber may have as SQL, or "memory" if `admits` decides. */
     where(table: Table): SQL | "memory";
     /** The name of everything the audience decides. */
     readonly key: string;

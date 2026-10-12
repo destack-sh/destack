@@ -1,6 +1,6 @@
 import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
-/** The service error code of each sync failure: capacity, an unready copy, a bad stream or scope, a copy cycle. */
+/** The service error code per sync failure: capacity, unready copy, bad stream or scope, cycle. */
 const SERVICE_CODES = {
     OVERLOADED: "SERVICE_UNAVAILABLE",
     OVER_CAPACITY: "UNPROCESSABLE_CONTENT",

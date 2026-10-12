@@ -22,7 +22,7 @@ export interface Upstream {
     readonly isMeasured?: (node: Node) => boolean;
 }
 
-/** The arrangement of a copy's relations as its source measured them, with the copy's predictions. */
+/** The arrangement of a copy's relations as its source measured them, with its predictions. */
 export class Trace implements Arrangement {
     /** What the copy knows of its source. */
     readonly #upstream: Upstream;

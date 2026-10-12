@@ -81,7 +81,7 @@ export class Tally implements Result {
         }
     }
 
-    /** Measure an aggregate node's groups among the rows a selection matches, at one log sequence. */
+    /** Measure an aggregate node's groups among a selection's rows, at one log sequence. */
     static async measure(
         database: DatabaseConnection,
         node: Node,
@@ -321,7 +321,7 @@ export interface Measurement {
     readonly extremes: Readonly<Record<string, ColumnValue>>;
 }
 
-/** One column's sum over a group, exact for bigints and as nonoverlapping partials for numbers, and its count of present values. */
+/** One column's sum over a group, with its count of present values. */
 type Sum =
     | {
           /** The exact sum of a bigint column. */
@@ -531,7 +531,7 @@ function columnValueOf(value: unknown): ColumnValue {
         : DriverValue.parse(value);
 }
 
-/** Read rows beside the log's head in one statement, or with the head in one read transaction when there are none. */
+/** Read rows with the log's head in one statement, or in one read transaction without rows. */
 async function headed<Group>(
     database: DatabaseConnection,
     read: (reader: DatabaseConnection) => PromiseLike<

@@ -7,7 +7,7 @@ import {
     type Table,
 } from "@destack/db";
 
-/** Rows of one logged table a subscriber keeps, with the related rows they include, or aggregates of them. */
+/** Rows of one logged table a subscriber keeps, with their included rows, or aggregates. */
 export interface Query extends QueryOptions {
     /** The logged table. */
     readonly table: Table;
@@ -21,9 +21,9 @@ export interface Query extends QueryOptions {
 export type Item = {
     /** The row's readable columns and computed values. */
     readonly row: Row;
-    /** Each include's items, a key include's one item as a one-element list and none as an empty list. */
+    /** Each include's items, a key include's item as a one-element or empty list. */
     readonly with: Readonly<Record<string, readonly Item[]>>;
-    /** Each aggregate include's groups, a whole include's measures as one group without group values. */
+    /** Each aggregate include's groups, a whole include's measures as one ungrouped group. */
     readonly measures: Readonly<Record<string, readonly AggregateRow[]>>;
 };
 

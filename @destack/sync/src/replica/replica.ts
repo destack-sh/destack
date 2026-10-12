@@ -79,7 +79,7 @@ export const replica = defineTable(
         name: text("name").primaryKey(),
         /** The scope whose rows the copy keeps. */
         scope: text("scope").primaryKey(),
-        /** The subscription the copy completed a run of, absent for a copy no subscription names. */
+        /** The subscription of the copy's last completed run, if a subscription exists. */
         subscription: json("subscription", SubscriptionRecord),
         /** The scopes the copy reads, nearest first, absent until its source sends them. */
         scopes: json("scopes", schema.array(schema.string())),
@@ -93,7 +93,7 @@ export const replica = defineTable(
     },
 );
 
-/** How far each copy a database keeps has come: its source and home positions and its last confirmation. */
+/** How far each copy of a database has come: source and home positions and last confirmation. */
 export const replicaPosition = defineTable(
     "replica_position",
     {
@@ -212,7 +212,7 @@ export class Replica {
     readonly scopes: ReadonlyMap<Table, readonly string[]>;
     /** The tables whose rows are copied from whichever scope they live in. */
     readonly everywhere: ReadonlySet<Table>;
-    /** The parent tables of each table copied across scopes: each of its rows lives in the scope of a parent row's `id`. */
+    /** The parent tables of each cross-scope table: each row lives in a parent row's scope. */
     readonly within: ReadonlyMap<Table, readonly Table[]>;
     /** Whether the source may keep a copy itself, which the copy follows to its home. */
     readonly isRelayed: boolean;
@@ -278,7 +278,7 @@ export class Replica {
         );
     }
 
-    /** The queries the copy follows, by table name: its logged tables, and the source's own copy record when relayed. */
+    /** The queries the copy follows, by table: its logged tables and the source's copy record. */
     get queries(): Record<string, Query> {
         // follow each logged table outside a parent's rows
         const queries = this.tables
@@ -405,7 +405,7 @@ export class Replica {
         return copies.some((copy) => name === undefined || copy.tables.includes(name));
     }
 
-    /** Wait until every copy of a scope reflects its home up to a position, returning false once the signal aborts. */
+    /** Wait until every copy of a scope reflects its home up to a position, or until aborted. */
     static async wait(
         database: DatabaseConnection,
         scope: string,
@@ -437,7 +437,7 @@ export class Replica {
         }, signal);
     }
 
-    /** Wait until the copy reflects its home up to a position, returning false once the signal aborts. */
+    /** Wait until the copy reflects its home up to a position, or the signal aborts. */
     async wait(
         database: DatabaseConnection,
         position: LogPosition,
@@ -469,7 +469,7 @@ export class Replica {
         return (await snapshot.row(replica, { name: this.name, scope: this.scope })) !== null;
     }
 
-    /** Report whether a database's copy of a scope holds a complete snapshot, as an informer has synced. */
+    /** Report whether a database's copy of a scope is a complete snapshot, as an informer syncs. */
     static async isSynced(
         database: DatabaseConnection,
         name: string,
@@ -478,6 +478,21 @@ export class Replica {
         const record = await Replica.#find(database, name, scope);
 
         return record !== undefined && Replica.#origin(record) !== undefined;
+    }
+
+    /** Report whether a copy completed a run of a subscription as it is requested now. */
+    static async isCurrent(
+        database: DatabaseConnection,
+        subscription: Subscription,
+    ): Promise<boolean> {
+        const record = await Replica.#find(database, subscription.name, subscription.scope);
+
+        return (
+            record !== undefined &&
+            Replica.#origin(record) !== undefined &&
+            record.subscription !== undefined &&
+            canonicalize(record.subscription) === canonicalize(subscribedOf(subscription))
+        );
     }
 
     /** Read a database's record of a named copy of a scope, absent before the copy follows. */
@@ -507,11 +522,7 @@ export class Replica {
         }
     }
 
-    /**
-     * Refuse publishing the copy to a subscriber whose rows the database copies into one of the copy's tables.
-     *
-     * A table copies only from its owner, through relays that pass copies onward, so no copied row returns to its source or home.
-     */
+    /** Refuse publishing the copy to a subscriber whose rows the database copies into it. */
     async requireAcyclic(database: DatabaseConnection, origin: string): Promise<void> {
         // read the database's copies with the tables each copies
         const records = await database
@@ -540,7 +551,7 @@ export class Replica {
         }
     }
 
-    /** Read the home position and confirmation time of the earliest confirmed complete copy of a shape, by scope. */
+    /** Read the earliest confirmed complete copy's home position and confirmation, by scope. */
     static async origins(
         database: DatabaseConnection,
         shape: string,
@@ -606,7 +617,7 @@ export class Replica {
         return [...pairs.values()];
     }
 
-    /** Read the source position the copy has, absent before its first snapshot or after a layout change. */
+    /** Read the copy's source position, absent before a first snapshot or after a layout change. */
     async position(database: DatabaseConnection): Promise<LogPosition | undefined> {
         return this.#positionOf(await this.#record(database), await this.#layout);
     }
@@ -616,7 +627,7 @@ export class Replica {
         return Replica.#find(database, this.name, this.scope);
     }
 
-    /** Read a record's source position, absent before its first snapshot or after a layout change. */
+    /** Read a record's source position, absent before a first snapshot or after a layout change. */
     #positionOf(record: ReplicaRecord | undefined, layout: string): LogPosition | undefined {
         return record === undefined ||
             record.epoch === null ||
@@ -661,14 +672,14 @@ export class Replica {
         };
     }
 
-    /** Read the subscription the copy completed a run of, absent before its first run or for a copy no subscription names. */
+    /** Read the subscription of the copy's last completed run, if any. */
     async subscribed(database: DatabaseConnection): Promise<SubscriptionRecord | undefined> {
         const record = await this.#record(database);
 
         return record?.subscription ?? undefined;
     }
 
-    /** Resume a subscription from the copy: from its position for the same parameters, reshaped from the parameters it reflects, or from a snapshot. */
+    /** Resume a subscription from the copy. */
     async resume(database: DatabaseConnection, subscription?: Subscription): Promise<Resumption> {
         // resume a copy no subscription names from its position
         const after = await this.position(database);
@@ -693,7 +704,7 @@ export class Replica {
             : { after, previous: reflected, origin };
     }
 
-    /** Read the scope chain the copy reads, nearest first: its own scope alone until its source sends it. */
+    /** Read the copy's scope chain, nearest first: its scope alone until its source sends it. */
     async chain(database: DatabaseConnection): Promise<readonly string[]> {
         const record = await this.#record(database);
 
@@ -861,7 +872,7 @@ export class Replica {
         });
     }
 
-    /** Drop the copy: delete the rows it wrote that no other copy includes, retract its projections and forget its record. */
+    /** Drop the copy: delete its unshared rows, retract its projections and forget its record. */
     async drop(database: DatabaseConnection): Promise<void> {
         await database.transaction(
             async (transaction) => {
@@ -891,7 +902,7 @@ export class Replica {
         );
     }
 
-    /** List the subscriptions of the copies a database keeps, those no subscription names left out. */
+    /** List the subscriptions of a database's copies, leaving out copies without one. */
     static async subscriptions(database: DatabaseConnection): Promise<SubscriptionRecord[]> {
         const records = await database.select({ subscription: replica.subscription }).from(replica);
 
@@ -936,7 +947,7 @@ export class Replica {
         }
     }
 
-    /** Apply a source's pages until the signal aborts, resuming each stream that ends where the copy is. */
+    /** Apply a source's pages until aborted, resuming each stream that ends where the copy is. */
     async follow(
         database: DatabaseConnection,
         source: (from: Resumption, signal: AbortSignal) => AsyncIterable<Page>,
@@ -1035,7 +1046,7 @@ export class Replica {
         await this.#advance(transaction, page, run, record, relayed, options);
     }
 
-    /** Record a completed run's position, home position, scopes and subscription, and drop its staged pages. */
+    /** Record a completed run's positions, scopes and subscription, and drop its staged pages. */
     async #advance(
         transaction: DatabaseConnection,
         page: Page,
@@ -1085,7 +1096,7 @@ export class Replica {
         );
     }
 
-    /** Write the staged pages in batches, returning the last home position a relaying source sent. */
+    /** Write the staged pages in batches, returning a relaying source's last home position. */
     async #writeStaged(
         transaction: DatabaseConnection,
         staged: number,
@@ -1129,7 +1140,7 @@ export class Replica {
         }
     }
 
-    /** Write a page's changes in commit order, returning the home position a relaying source sent. */
+    /** Write a page's changes in commit order, returning a relaying source's home position. */
     async #write(
         transaction: DatabaseConnection,
         page: Page,
@@ -1692,7 +1703,7 @@ function predict(node: Node, groups: Map<string, GroupPrediction>, row: Row, sig
     }
 }
 
-/** Take the predictions a completing page rebases: those of a snapshot, a staged run, groups or a touched table. */
+/** Take the predictions a completing page rebases: of a snapshot, run, group or touched table. */
 async function rebasedBy(
     transaction: DatabaseConnection,
     page: Page,
@@ -1731,7 +1742,7 @@ function storedRows(
     );
 }
 
-/** Clear the columns a copy showed alone on the rows other copies keep, given the columns each copy hides. */
+/** Clear the columns only a copy showed on rows other copies keep, given each copy's hidden. */
 async function clearShown(
     database: DatabaseConnection,
     table: Table,
@@ -1793,14 +1804,14 @@ export interface ApplyOptions extends RegisterOptions {
 export interface Projector {
     /** The source table whose rows the copy projects. */
     readonly source: Table;
-    /** Write the target rows of a source scope's kept rows, and retract those of removed ones, which hold only their key. */
+    /** Write the target rows of a source scope's kept rows, and retract key-only removed ones. */
     write(
         transaction: DatabaseConnection,
         scope: string,
         kept: readonly Row[],
         removed: readonly Row[],
     ): Promise<void>;
-    /** Retract the target rows of a source scope's rows a snapshot left out, given the keys it delivered. */
+    /** Retract the target rows of source rows a snapshot left out, given its delivered keys. */
     prune(
         transaction: DatabaseConnection,
         scope: string,
@@ -1838,7 +1849,7 @@ export interface ReplicaInspection {
     readonly results: number;
 }
 
-/** Read a predicted change's images of a node's rows: its row before, signed negative, and after, signed positive. */
+/** Read a predicted change's images of a node's rows: before signed negative, after positive. */
 function predictedImages(
     node: Node,
     change: RowChange,
@@ -1868,7 +1879,7 @@ function predictedImages(
     ];
 }
 
-/** Write the home position a copy's rows reflect: a relaying source's, its own at home, or none to keep. */
+/** Write the home position a copy's rows reflect: a relaying source's, its own, or none. */
 function originColumns(
     relayed: Origin | undefined,
     isHome: boolean,

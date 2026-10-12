@@ -399,7 +399,7 @@ export class Aggregation extends Pipeline {
         return tallies;
     }
 
-    /** Count changed rows back out of or into their tallies and return the groups that lost an extreme. */
+    /** Count changed rows out of or into their tallies, returning groups that lost an extreme. */
     async #undo(
         tallies: Map<string, Tally>,
         beyond: readonly Change[],

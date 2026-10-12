@@ -1145,6 +1145,42 @@ test("resume a subscription from the copy's position, reshape one of other param
     ]);
 });
 
+test("report a copy current for the request it completed a run of, and for a reshaped request only once a run of it completes", async () => {
+    const copy = await openCopy("sqlite");
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    const subscription = {
+        name: "notes",
+        shape: "queries",
+        scope: "inbox",
+        below: "inbox",
+        parameters: { queries: { open: { object: "note" } } },
+    };
+    const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
+    const position = { epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
+    const snapshot: Page = { reset: true, complete: true, changes: [], position };
+    const current = async () => [
+        await Replica.isCurrent(copy, subscription),
+        await Replica.isCurrent(copy, reshaped),
+    ];
+
+    // report neither before the first run, then the completed request alone
+    await notes.register(copy, { clock: Clock.system });
+    const registered = await current();
+    await Array.fromAsync(notes.apply(copy, [snapshot], { clock: Clock.system, subscription }));
+    const completed = await current();
+
+    // report the reshaped request once a run of it completes, and no longer the first
+    const next = { ...snapshot, position: { ...position, sequence: 5 } };
+    await Array.fromAsync(
+        notes.apply(copy, [next], { clock: Clock.system, subscription: reshaped }),
+    );
+    expect({ registered, completed, reshaped: await current() }).toEqual({
+        registered: [false, false],
+        completed: [true, false],
+        reshaped: [false, true],
+    });
+});
+
 /** Follow a copy of the inbox's labels until it reaches the source's position. */
 async function syncLabels(
     labels: Replica,
@@ -1213,7 +1249,7 @@ const NoteProjection = schema.looseObject({
     title: schema.string(),
 });
 
-/** Project the notes of a scope into a reader's list, keeping each entry's own identity and state. */
+/** Project the notes of a scope into a reader's list, keeping each entry's identity and state. */
 function projectNotes(list: string): Projector {
     // match the entries of the list's projected notes
     const named = (rows: readonly Row[]) =>

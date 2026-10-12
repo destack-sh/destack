@@ -166,7 +166,7 @@ export class View {
         return this.#snapshot.rows(table, where);
     }
 
-    /** Read the first visible rows of a node's partitions in order after each segment's row, up to a count each. */
+    /** Read the first visible rows of each partition after each segment's row, up to a count. */
     ordered(
         node: Node,
         segments: readonly Segment[],
@@ -234,7 +234,7 @@ export class View {
         }
     }
 
-    /** Measure an aggregate node's visible groups among the rows a condition selects, in one grouped read. */
+    /** Measure an aggregate node's visible groups among a condition's rows, in one grouped read. */
     measure(
         node: Node,
         within: Condition,
@@ -449,7 +449,7 @@ export interface Cache {
     readonly row: Memo<Promise<Row | null>>;
     /** The shared encodings of selected rows. */
     readonly encodings: Memo<RowChange>;
-    /** Read the images a table's rows had before their first change between two sequences, by key. */
+    /** Read a table's row images before their first change between two sequences, by key. */
     images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>>;
 }
 

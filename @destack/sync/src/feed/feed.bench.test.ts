@@ -46,32 +46,16 @@ const SNAPSHOT_QUERIES = { ...FILTERS, ...WINDOWS, ...TREE, ...TALLIES, ...PATHS
 /** The tables the workload writes and subscribers copy. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
 
-/**
- * The most database operations a snapshot of every query set may cost.
- *
- * A snapshot reads each root page, window partition and aggregate batch once: about 65.
- */
+/** The most database operations a snapshot of every query set may cost. */
 const SNAPSHOT_OPERATIONS = 100;
 
-/**
- * The most database operations a replica may cost to keep the same snapshot.
- *
- * A replica stages the pages and applies them in one transaction: about 5.
- */
+/** The most database operations a replica may cost to keep the same snapshot. */
 const REPLICA_OPERATIONS = 8;
 
-/**
- * The most database operations one write may cost a hundred subscribers of one audience, on average.
- *
- * The subscribers share one decision: well under one.
- */
+/** The most database operations one write may cost a hundred subscribers of one audience. */
 const DECISION_OPERATIONS = 1;
 
-/**
- * The most database operations one write may cost a thousand subscribers, on average.
- *
- * One shared evaluation reads the changed rows and the log once: about 6.
- */
+/** The most database operations one write may cost a thousand subscribers, on average. */
 const FAN_OUT_OPERATIONS = 10;
 
 /** The subscribers of one space. */
@@ -80,21 +64,13 @@ const SPACE_SUBSCRIBERS = 300;
 /** The distinct audiences of the space's subscribers. */
 const SPACE_AUDIENCES = 50;
 
-/**
- * The most database operations one write may cost every subscriber of a space, on average.
- *
- * The 50 audiences share each read: about 6.
- */
+/** The most database operations one write may cost every subscriber of a space, on average. */
 const SPACE_OPERATIONS = 10;
 
 /** The rows a follower of every query set has at scale. */
 const SCALE_ROWS = 3000;
 
-/**
- * The most database operations one write may cost a follower of every query set at scale, on average.
- *
- * Each touched node reads its changed partitions and relations in one batch.
- */
+/** The most database operations one write may cost a follower of every query set at scale. */
 const SCALE_OPERATIONS = 12;
 
 /** The rows one write flips in and out of every query. */
@@ -478,7 +454,7 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-/** Run a scenario's writes after warmup, returning the average CPU time and operations per write. */
+/** Run a scenario's writes after warmup, returning average CPU time and operations per write. */
 async function measure(
     source: DatabaseConnection,
     writes: number,

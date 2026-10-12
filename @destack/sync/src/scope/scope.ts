@@ -66,7 +66,7 @@ export interface ScopeLink {
     readonly movedTo: string | undefined;
 }
 
-/** Read the rows of some scopes by identifier, the universe's among them when asked, which no database stores. */
+/** Read some scopes' rows by identifier, and the universe's when asked, stored nowhere. */
 async function read(
     snapshot: Snapshot,
     ids: readonly string[],
@@ -93,7 +93,7 @@ async function chain(snapshot: Snapshot, scope: string): Promise<ScopeLink[]> {
     return found(chained, scope);
 }
 
-/** Read the chains of some scopes, nearest first, by scope, reading each level of ancestors once for all of them. */
+/** Read the chains of some scopes, nearest first, reading each ancestor level once for all. */
 async function chains(
     snapshot: Snapshot,
     scopes: readonly string[],
@@ -157,7 +157,7 @@ async function object(snapshot: Snapshot, id: string): Promise<ObjectReference> 
     return link.object;
 }
 
-/** Cap a scope's storage from a time in a transaction, refusing writes within it but deletes, or lift the cap with null. */
+/** Cap a scope's storage from a time, refusing writes but deletes, or lift the cap with null. */
 async function cap(
     transaction: Transaction,
     scope: string,
@@ -166,7 +166,7 @@ async function cap(
     await change(transaction, scope, { cappedAt });
 }
 
-/** Send a scope and the scopes below it to another machine, failing the commits of transactions that read its chain before. */
+/** Send a scope and its subtree to another machine, failing commits that read its chain before. */
 async function fence(
     transaction: Transaction,
     scope: string,

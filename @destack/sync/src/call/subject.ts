@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 import { NAME_PATTERN, PackageId } from "@destack/package";
 
-/** A stable declaration-local name of an object type, relation or permission, in lowercase kebab case. */
+/** A stable declaration-local name of an object type, relation or permission, in kebab case. */
 export const AccessName = schema.string().regex(NAME_PATTERN);
 
 /** A subject's key: its package, type, scope, identifier and relation or null. */
@@ -28,10 +28,10 @@ const shape = defineSchema(
         relation: AccessName.exactOptional(),
     }),
 );
-/** A subject: a principal or other object, a subject set of its relation's members, or every object of a type. */
+/** A subject: a principal or object, a subject set of a relation's members, or a type's objects. */
 export type Subject = schema.Infer<typeof shape>;
 
-/** A subject: a principal or other object, a subject set of its relation's members, or every object of a type. */
+/** A subject: a principal or object, a subject set of a relation's members, or a type's objects. */
 export const Subject = Object.assign(shape, {
     /** Encode a subject as a collision-free key. */
     key(subject: Subject): string {

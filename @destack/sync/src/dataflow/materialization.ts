@@ -3,7 +3,7 @@ import { aligned } from "@destack/schema";
 import type { Item, AggregateRow } from "../query/query.ts";
 import type { Member, Partition } from "./pipeline.ts";
 
-/** One built result row: the selected row it came from, its concealed columns, and the entry readers see. */
+/** One built result row: its selected row, its concealed columns, and the entry readers see. */
 interface ResultRow {
     /** The selected row the entry was built from. */
     readonly source: Row;
@@ -21,11 +21,7 @@ interface PartitionOrder {
     readonly sources: Map<string, Row>;
 }
 
-/**
- * The entries a selection's last read built, kept so a read rebuilds only what changed.
- *
- * Unchanged rows keep their entry and unchanged partitions their list, so readers compare results by identity.
- */
+/** The entries a selection's last read built, kept so a read rebuilds only what changed. */
 export class Materialization {
     /** The built entries, by row key. */
     readonly #built = new Map<string, ResultRow>();
@@ -77,12 +73,12 @@ export class Materialization {
         return order;
     }
 
-    /** Read the groups a row's last entry had for an aggregate include, so equal new groups keep their identity. */
+    /** Read a row's last groups of an aggregate include, so equal new groups keep identity. */
     previous(key: string, name: string): readonly AggregateRow[] | undefined {
         return this.#built.get(key)?.entry.measures[name];
     }
 
-    /** Take a row's entry again when its row, concealment and nested results are unchanged, else build it. */
+    /** Reuse a row's entry if its row, concealment and nested results are unchanged, else build. */
     entry(
         key: string,
         source: Row,
@@ -118,7 +114,7 @@ export class Materialization {
         return kept;
     }
 
-    /** Keep a partition's entries, taking the earlier list again when it has the same entries in the same order. */
+    /** Keep a partition's entries, reusing the earlier list if entries and order are equal. */
     list(name: string, entries: readonly Item[]): readonly Item[] {
         // keep the earlier list when it has the same entries in the same order
         const listed = this.#listed.get(name);
@@ -132,7 +128,7 @@ export class Materialization {
         return kept;
     }
 
-    /** Forget the rows and partitions the selection no longer has, once fewer are selected than were kept. */
+    /** Forget unselected rows and partitions, once fewer are selected than were kept. */
     prune(members: ReadonlyMap<string, Member>, partitions: ReadonlyMap<string, Partition>): void {
         // forget the entries of rows no partition has
         if (this.#built.size > members.size) {
@@ -154,7 +150,7 @@ export class Materialization {
         }
     }
 
-    /** Report whether two values are the same: the same object, or equal JSON values field by field. */
+    /** Report whether two values are the same object, or equal JSON values field by field. */
     static isSame(left: unknown, right: unknown): boolean {
         // take identical values, and compare objects by their fields
         if (Object.is(left, right)) {

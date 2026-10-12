@@ -270,7 +270,7 @@ export class Selection extends Pipeline {
         this.#assign(key, row, partitions, run);
     }
 
-    /** Let go of the row a window evicted from one partition, which an arranged window may hold apart from its members. */
+    /** Release a row a window evicted from a partition, which an arranged window may keep apart. */
     #evict(evictedKey: string | undefined, name: string, isArranged: boolean, run: Run): void {
         const evicted = evictedKey === undefined ? undefined : this.members.get(evictedKey);
         if (evictedKey !== undefined && evicted !== undefined) {

@@ -5,7 +5,7 @@ import type { Pipeline } from "./pipeline.ts";
 import { Patch } from "./sink.ts";
 import type { View } from "./view.ts";
 
-/** One step of a dataflow: the database as of one position, its decisions, and the page it fills. */
+/** One step of a dataflow: the database at one position, its decisions, and its page. */
 export class Run {
     /** The database as of the position. */
     readonly view: View;
@@ -120,13 +120,7 @@ export class Run {
     }
 }
 
-/**
- * How a hydration treats its rows.
- *
- * A snapshot sends every row and result in pages.
- * A rebuild restores the subscriber's state, sending only results.
- * A collection gathers every row and result at once.
- */
+/** How a hydration treats its rows. */
 export type Walk = "snapshot" | "rebuild" | "collect";
 
 /** What a run has one pipeline do. */

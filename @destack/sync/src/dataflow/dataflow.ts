@@ -25,7 +25,7 @@ import { PAGE_ROWS, Selection } from "./selection.ts";
 import { Sink } from "./sink.ts";
 import { Trace, type Upstream } from "./upstream.ts";
 
-/** The rows of an include naming no partition, one list shared so equal reads keep their identity. */
+/** The rows of an include without a partition, one shared list so equal reads keep identity. */
 const NO_ROWS: readonly Item[] = Object.freeze([]);
 
 /** Queries compiled to one pipeline per node, kept current as of a log position. */
@@ -344,7 +344,7 @@ export class Dataflow implements Arrangement {
         return true;
     }
 
-    /** Decide again the rows the audience's changed access rows name, returning false when it names everything. */
+    /** Decide again the rows the audience's changed access rows cover, false if they cover all. */
     async #redecide(run: Run): Promise<boolean> {
         // collect the rows each change names
         const affected = new Map<Table, Row[]>();
@@ -459,7 +459,7 @@ export class Dataflow implements Arrangement {
         );
     }
 
-    /** Build a node's pipeline: a relation's unless traced upstream, an aggregate's, or a selection's, none for a node measured elsewhere. */
+    /** Build a node's pipeline: a relation's, an aggregate's or a selection's. */
     #pipelineOf(node: Node, upstream: Upstream | undefined): Pipeline | undefined {
         const hasTreeIndex = upstream === undefined;
         const isMeasured = upstream !== undefined && upstream.isMeasured?.(node) !== false;
@@ -582,7 +582,7 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Read a selection's rows in order, with concealed columns left out and includes nested, rebuilding only what changed. */
+    /** Read a selection's rows in order, without concealed columns and with includes nested. */
     async #nest(
         pipeline: Selection,
         names: readonly string[],
@@ -658,7 +658,7 @@ export class Dataflow implements Arrangement {
         return started;
     }
 
-    /** Read each include's nested items, or its groups kept equal to the last read's, by the partition each selected row names. */
+    /** Read each include's nested items or groups, by the partition of each selected row. */
     async #includes(
         pipeline: Selection,
         orders: readonly (readonly string[])[],
@@ -774,7 +774,7 @@ function reuseEqualGroups(
     );
 }
 
-/** Read an aggregate include's groups for one selected row's partition, a whole include's measures as one group. */
+/** Read an aggregate include's groups for a row's partition, a whole include as one group. */
 function measuresOf(
     child: Node,
     pipeline: Pipeline,

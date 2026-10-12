@@ -25,42 +25,22 @@ import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { Run, type RunCost } from "../dataflow/run.ts";
 import { Memo, View, type Cache } from "../dataflow/view.ts";
 
-/**
- * The default count of recent changes a feed keeps in memory.
- *
- * At about 1 KB a change, a busy feed keeps about 10 MB.
- */
+/** The default count of recent changes a feed keeps in memory. */
 const FEED_CHANGES = 10_000;
 
-/**
- * The default subscriber limit of a feed.
- *
- * A row every subscriber follows costs each about 4 µs to publish, about 4 ms in all.
- */
+/** The default subscriber limit of a feed. */
 const FEED_SUBSCRIBERS = 1000;
 
-/**
- * The default count of rows and groups one evaluation knows.
- *
- * Window rows take about 1 KB and arranged entries about 100 B: 100k fit in about 20 MB.
- */
+/** The default count of rows and groups one evaluation knows. */
 const CAPACITY = 100_000;
 
 /** The recent log sequences whose reads and encodings the memos keep for subscribers to share. */
 const MEMO_SEQUENCES = 8;
 
-/**
- * The default wait before a caught-up stream repeats its position, in milliseconds.
- *
- * A copy three beats unconfirmed, 30 seconds, is stale.
- */
+/** The default wait before a caught-up stream repeats its position, in milliseconds. */
 const HEARTBEAT_MILLISECONDS = 10_000;
 
-/**
- * The rows of one page of a capture.
- *
- * At 0.1 to 2 KB a row, a page is up to about 1 MB.
- */
+/** The rows of one page of a capture. */
 const CAPTURE_ROWS = 500;
 
 /** One database's log, read once per commit and served to every subscriber. */
@@ -163,13 +143,7 @@ export class Feed implements Cache {
         return this.#sequence;
     }
 
-    /**
-     * Follow queries from a position for an audience.
-     *
-     * A subscriber without a current position first receives a paged snapshot.
-     * With an interval, pages at the head merge within the interval.
-     * Once the drain aborts, the stream ends after its next completed page.
-     */
+    /** Follow queries from a position for an audience. */
     async *subscribe(
         queries: Readonly<Record<string, Query>>,
         after: LogPosition | undefined,
@@ -196,12 +170,7 @@ export class Feed implements Cache {
         }
     }
 
-    /**
-     * Read every column of the queries' rows as one consistent snapshot run, in one read transaction.
-     *
-     * The run includes what the log leaves out: unlogged tables and sensitive columns.
-     * Sealing turns a row's machine-bound values into values only the target opens.
-     */
+    /** Read every column of the queries' rows as one snapshot run, in one read transaction. */
     async *capture(
         queries: Readonly<Record<string, Query>>,
         signal: AbortSignal,
@@ -230,7 +199,7 @@ export class Feed implements Cache {
         }
     }
 
-    /** Read every column of some queries' rows as pages of one snapshot run at the database's position. */
+    /** Read every column of some queries' rows as pages of one snapshot run at a position. */
     static async *#pages(
         database: DatabaseConnection,
         queries: Readonly<Record<string, Query>>,
@@ -388,7 +357,7 @@ export class Feed implements Cache {
         }
     }
 
-    /** Report whether every kept change between two sequences, at least one, replicated an origin's writes, as far as memory keeps them. */
+    /** Report whether every kept change between two sequences replicated an origin's writes. */
     isOriginated(after: number, through: number, origin: string): boolean {
         // know nothing of a range memory does not keep
         if (after < this.#start || this.#sequence < through) {
@@ -480,7 +449,7 @@ export class Feed implements Cache {
         }
     }
 
-    /** Read the images a table's rows had before their first change between two sequences, by key. */
+    /** Read a table's row images before their first change between two sequences, by key. */
     images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>> {
         // share the images per range
         return this.#images.share(after, `images:${table[TABLE].sqlName}:${upto}`, async () => {
@@ -505,7 +474,7 @@ export class Feed implements Cache {
         });
     }
 
-    /** Share the evaluation of streams deciding alike at a position, returning the one to follow. */
+    /** Share the evaluation of streams deciding alike at a position, returning the one to use. */
     join(evaluation: Evaluation, position: LogPosition): Evaluation {
         // rekey a shared evaluation whose audience changed
         const key = evaluation.key;
@@ -688,7 +657,7 @@ export interface FeedOptions {
     readonly every?: number;
     /** The signal ending the stream after its next completed page. */
     readonly drain?: AbortSignal;
-    /** The subscriber's own origin, whose replicated writes never advance the bare positions it receives. */
+    /** The subscriber's origin, whose replicated writes never advance its bare positions. */
     readonly origin?: string;
 }
 
@@ -713,7 +682,7 @@ export interface FeedInspection {
     }[];
 }
 
-/** One value at a time from a producer to a consumer, the producer waiting until the consumer takes each. */
+/** One value at a time from a producer to a consumer, the producer waiting for each take. */
 class Handoff<Value> {
     /** The value given and not yet taken, with the wake-up of its giver. */
     #given: { readonly value: Value; readonly taken: () => void } | undefined;
@@ -724,7 +693,7 @@ class Handoff<Value> {
     /** The producer's failure. */
     #failure: { readonly error: unknown } | undefined;
 
-    /** Give a value, resolving once the consumer took it, and refusing once the consumer stopped. */
+    /** Give a value, resolving once the consumer took it, refusing once the consumer stopped. */
     give(value: Value): Promise<void> {
         // refuse a value once the consumer stopped
         if (this.#isEnded) {
