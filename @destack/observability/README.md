@@ -72,16 +72,32 @@ export const rollback = defineAlertRule({
 
 ## Meters
 
-`databaseStorage`, `bucketStorage`, `compute`, `egress` and `operations` measure a space's use in the units of the SKUs that rate them.
+`METERS` measure a space's use in generic units, the same on every machine kind, which each vendor's pricing model maps to its own SKUs, grouped by the resource people see: Compute, Database, Storage and Network.
 
 ```ts
 import {
-    bucketStorage,
-    compute,
-    databaseStorage,
-    egress,
-    operations,
+    memory, // compute.memory, GB-seconds held
+    cpu, // compute.cpu, CPU milliseconds
+    requests, // compute.requests
+    databaseBytes, // database.bytes, averaged over the month
+    rowsRead, // database.rows.read
+    rowsWritten, // database.rows.written
+    storageBytes, // storage.bytes, averaged over the month
+    storageWrites, // storage.writes
+    storageReads, // storage.reads
+    egress, // network.egress, bytes
 } from "@destack/observability/meter";
+import { Reading } from "@destack/observability/server";
+
+Reading.counted(rowsRead, [{ scope, installation, value: 1200 }]);
+```
+
+`machineHours` measures the hours a dedicated machine stays awake, beside the spaces' meters.
+
+```ts
+import { machineHours } from "@destack/observability/meter";
+
+machineHours.reference; // { packageId, name: "machine.hours" }
 ```
 
 ## Settings

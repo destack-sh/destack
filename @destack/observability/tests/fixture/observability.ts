@@ -84,6 +84,7 @@ function run(
 export const ids = {
     account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000001"),
     space: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
+    owner: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000b1"),
     package: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
     notes: schema
         .identifier("installation")
@@ -238,7 +239,7 @@ export async function createSpace(database: DatabaseConnection): Promise<void> {
     await Authorization.run(
         new Authorizer([space.policy], [space.mapping]),
         database,
-        () => ({ subjects: [principal.user.reference("universe", "owner")], now, attributes: {} }),
+        () => ({ subjects: [principal.user.reference("universe", ids.owner)], now, attributes: {} }),
         (authorization) =>
             authorization.grant({
                 object: space.reference(ids.account, ids.space),

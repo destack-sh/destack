@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { EventFixture } from "@destack/event/test";
 import { defineSku, usage } from "@destack/finance/declare";
-import { compute, databaseStorage } from "../src/meter/index.ts";
+import { databaseBytes, memory } from "../src/meter/index.ts";
 import { MeterController, type Reading } from "../src/server/index.ts";
 import { ids, serveObservability } from "./fixture/observability.ts";
 import { CatalogReference } from "@destack/finance";
@@ -16,7 +16,7 @@ const databaseSku = defineSku({
     provider: "test",
     service: "Database",
     category: "Storage",
-    meter: databaseStorage.reference,
+    meter: databaseBytes.reference,
     pricingUnit: "GB-month",
     unitSize: 1_000_000_000,
     currency: "USD",
@@ -25,14 +25,14 @@ const databaseSku = defineSku({
     observedAt: OBSERVED_AT,
 });
 
-/** Compute, rated per GB-second. */
-const computeSku = defineSku({
-    name: "test.compute",
+/** Memory, rated per GB-second. */
+const memorySku = defineSku({
+    name: "test.memory",
     description: "Memory held while installations run.",
     provider: "test",
     service: "Compute",
     category: "Compute",
-    meter: compute.reference,
+    meter: memory.reference,
     pricingUnit: "GB-second",
     unitSize: 1,
     currency: "USD",
@@ -47,7 +47,7 @@ test("append a space's measured use as usage events once, a failed round's count
     onTestFinished(() => account[Symbol.asyncDispose]());
     let isRouting = false;
     const { events, settle } = await serveObservability({
-        skus: [databaseSku, computeSku],
+        skus: [databaseSku, memorySku],
         targets: async () => {
             if (!isRouting) {
                 isRouting = true;
@@ -65,16 +65,16 @@ test("append a space's measured use as usage events once, a failed round's count
     const clock = new TestClock(start);
     const rounds: Reading[][] = [
         [
-            { meter: databaseStorage, scope: ids.space, value: 2_000_000_000 },
-            { meter: compute, scope: ids.space, installation: ids.notes, value: 100 },
+            { meter: databaseBytes, scope: ids.space, value: 2_000_000_000 },
+            { meter: memory, scope: ids.space, installation: ids.notes, value: 100 },
         ],
         [
-            { meter: databaseStorage, scope: ids.space, value: 0 },
-            { meter: compute, scope: ids.space, installation: ids.notes, value: 50 },
+            { meter: databaseBytes, scope: ids.space, value: 0 },
+            { meter: memory, scope: ids.space, installation: ids.notes, value: 50 },
         ],
     ];
     const meters = new MeterController(events, async () => rounds.shift() ?? [], {
-        skus: [databaseSku, computeSku],
+        skus: [databaseSku, memorySku],
         interval: 1,
         clock,
     });
@@ -93,25 +93,25 @@ test("append a space's measured use as usage events once, a failed round's count
     const routed = uses(await account.store.query(usage, { scope: ids.account }));
     const expected = [
         {
-            meter: CatalogReference.key(compute.reference),
+            meter: CatalogReference.key(memory.reference),
             installation: ids.notes,
             quantity: 100,
             level: null,
         },
         {
-            meter: CatalogReference.key(databaseStorage.reference),
+            meter: CatalogReference.key(databaseBytes.reference),
             installation: null,
             quantity: 1_000_000_000,
             level: 2_000_000_000,
         },
         {
-            meter: CatalogReference.key(compute.reference),
+            meter: CatalogReference.key(memory.reference),
             installation: ids.notes,
             quantity: 50,
             level: null,
         },
         {
-            meter: CatalogReference.key(databaseStorage.reference),
+            meter: CatalogReference.key(databaseBytes.reference),
             installation: null,
             quantity: 0,
             level: 0,
