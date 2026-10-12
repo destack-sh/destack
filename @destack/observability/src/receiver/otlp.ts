@@ -20,10 +20,10 @@ import {
 } from "../event/index.ts";
 import type * as kinds from "../event/index.ts";
 
-/** The resource attributes naming an export's emitter, which only the receiver records and no export claims. */
+/** The resource attributes of an export's emitter. */
 export const RESOURCE_ATTRIBUTES = ["service.instance.id", "destack.build.manifest"] as const;
 
-/** The attribute naming the session a signal belongs to, from the OpenTelemetry semantic conventions. */
+/** The attribute of the session a signal belongs to. */
 const SESSION_ATTRIBUTE = "session.id";
 
 /** A 64-bit integer as OTLP/JSON writes it: a decimal string, or a number when small. */
@@ -256,7 +256,7 @@ export interface Decoded {
     readonly action: InputOf<typeof kinds.action>[];
 }
 
-/** A log record's or a span's attributes split for keeping: the queried ones, the personal ones and their person. */
+/** A log record's or a span's attributes split for keeping. */
 interface Split {
     /** The attributes kept as a key. */
     readonly attributes: AttributeKey;
@@ -266,9 +266,9 @@ interface Split {
     readonly person: string | null;
 }
 
-/** Read OTLP/JSON exports as the events of their kinds, under the emitter their receiver verified. */
+/** Read OTLP/JSON exports as events of their kinds, under the emitter the receiver verified. */
 export const Otlp = {
-    /** Read the events of a signal's export request, refusing a resource that names its own emitter. */
+    /** Read the events of a signal's export request. */
     async read(signal: OtlpSignal, body: unknown, emitter: OtlpEmitter): Promise<Decoded> {
         const decoded: Decoded = { log: [], span: [], metric: [], visit: [], action: [] };
         if (signal === "logs") {
@@ -282,7 +282,7 @@ export const Otlp = {
         return decoded;
     },
 
-    /** Read the log records of a logs request: visits and actions by their reserved names, every other record as a log. */
+    /** Read the log records of a logs request. */
     async logs(request: OtlpLogsRequest, emitter: OtlpEmitter, decoded: Decoded): Promise<void> {
         for (const group of request.resourceLogs) {
             requireUnclaimed(group.resource.attributes);
@@ -352,7 +352,7 @@ export const Otlp = {
         }
     },
 
-    /** Read the points of a metrics request: delta sums, gauges and delta exponential histograms. */
+    /** Read the points of a metrics request. */
     async metrics(
         request: OtlpMetricsRequest,
         emitter: OtlpEmitter,
@@ -373,7 +373,7 @@ export const Otlp = {
 type OtlpMetric =
     OtlpMetricsRequest["resourceMetrics"][number]["scopeMetrics"][number]["metrics"][number];
 
-/** Read a metric's points: a delta sum's or a gauge's values, or a delta exponential histogram's, refusing any other. */
+/** Read a metric's points. */
 async function pointsOf(
     metric: OtlpMetric,
     scope: Instrumentation,
@@ -434,7 +434,7 @@ async function pointsOf(
     }
 }
 
-/** Write one point of a metric as a metric event, timed by its interval and named by its contents. */
+/** Write one point of a metric as a metric event. */
 async function metricPoint(
     metric: OtlpMetric,
     scope: Instrumentation,
@@ -482,7 +482,7 @@ async function metricPoint(
 type OtlpLogRecord =
     OtlpLogsRequest["resourceLogs"][number]["scopeLogs"][number]["logRecords"][number];
 
-/** Read what every log record carries: its event name, time, identity, body text, trace and attributes. */
+/** Read what every log record carries. */
 async function recordOf(record: OtlpLogRecord, emitter: OtlpEmitter) {
     // require the event name and the time
     const time = record.timeUnixNano ?? record.observedTimeUnixNano;
@@ -629,7 +629,7 @@ function actionOf(
     };
 }
 
-/** Split attributes into the queried ones and the personal ones, dropping personal ones without a person to seal them under. */
+/** Split attributes into the queried ones and the personal ones. */
 function splitOf(attributes: Attributes, emitter: OtlpEmitter): Split {
     // read the person the emitter verified, else the one the attributes name
     const named = attributes[PERSON_ATTRIBUTE];
@@ -689,7 +689,7 @@ function instanceOf(emitter: OtlpEmitter): { readonly instance?: string } {
     return emitter.instance === undefined ? {} : { instance: emitter.instance };
 }
 
-/** Name an event without an identity of its own by its time and a digest of its contents, so a repeated export keeps it once. */
+/** Identify an event without its own identity by its time and a digest of its contents. */
 async function identityOf(time: number, contents: unknown): Promise<string> {
     const bytes = new TextEncoder().encode(JSON.stringify(contents));
     const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex();

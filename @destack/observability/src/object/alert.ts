@@ -6,7 +6,7 @@ import { defineObject, field, type ObjectType } from "@destack/object";
 import { schema } from "@destack/schema";
 import { alertRule } from "./alert-rule.ts";
 
-/** The values of the keys naming an alert's subject: an issue condition's issue, or an events condition's group. */
+/** The key values of an alert's subject. */
 export const AlertGroup = schema.record(
     schema.string(),
     schema.union([schema.string(), schema.number()]).nullable(),
@@ -36,7 +36,7 @@ export const firingAlert = defineNotification({
     summary: (count) => t`${count} alerts`,
 });
 
-/** A rule's subject crossing its condition: an issue that opened, regressed or escalated, or a group of events past a threshold. */
+/** A rule's subject crossing its condition. */
 export const alert = defineObject({
     name: "alert",
     plural: "alerts",
@@ -44,7 +44,7 @@ export const alert = defineObject({
     fields: {
         /** The rule that fired it. */
         rule: field.reference("alert-rule", (): ObjectType => alertRule, { delete: "cascade" }),
-        /** The subject: `{ issue }` for an issue condition, the group's key values for an events condition. */
+        /** The subject. */
         group: field.json(AlertGroup),
         /** The value that crossed the rule's condition: the issue's count, or the events' fold. */
         value: field.number(),

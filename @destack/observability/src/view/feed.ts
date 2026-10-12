@@ -9,12 +9,7 @@ import {
 import { type Accessor, createMemo, onCleanup, useService } from "@destack/view";
 import { PAGE_ROWS } from "./page.tsx";
 
-/**
- * The pages of events a live feed keeps, dropping older ones as new ones arrive.
- *
- * At 1,000 logs/s of about 1 KB each, an uncapped feed holds about 3.6 GB after an hour.
- * Ten pages of 100 rows hold about 1 MB, the last second of such a stream.
- */
+/** The pages of events a live feed keeps, dropping older ones as new ones arrive. */
 const LIVE_PAGES = 10;
 
 /** A client of the event service. */
@@ -31,7 +26,7 @@ export interface EventList {
     readonly more: (() => void) | undefined;
 }
 
-/** A selection's events newest first: a first read, the events its tail follows, and older pages on demand. */
+/** A selection's events newest first. */
 export class EventFeed {
     /** The event service. */
     readonly #client: EventClient;
@@ -70,7 +65,7 @@ export class EventFeed {
         });
     }
 
-    /** Take a first read, follow the tail while live, and yield the events after each change until the signal aborts. */
+    /** Take a first read and follow the tail while live. */
     async *follow(
         first: () => Promise<EventResult>,
         isLive: boolean,
@@ -110,7 +105,7 @@ export class EventFeed {
         return { events: this.#events, more };
     }
 
-    /** Add each event a tail yields, failing the follower once the tail fails or ends before the signal aborts. */
+    /** Add each event a tail yields. */
     async #tail(tail: AsyncIterable<Event>, signal: AbortSignal): Promise<void> {
         // add each tailed event, closing the tail once paused
         try {
@@ -143,7 +138,7 @@ export class EventFeed {
         }
     }
 
-    /** Pause the tail and read the page of events older than the oldest held, failing the follower on a failed read. */
+    /** Pause the tail and read the page of events older than the oldest one kept. */
     async #more(oldest: Event): Promise<void> {
         this.#isPaused = true;
         try {
@@ -172,7 +167,7 @@ export class EventFeed {
     }
 }
 
-/** Follow a selection's events newest first: its latest page, each new one as it commits while live, and older pages on demand. */
+/** Follow a selection's events newest first. */
 export function useEvents(
     range: Accessor<EventRange | undefined>,
     isLive: Accessor<boolean>,

@@ -22,7 +22,7 @@ import { observabilityService } from "../service/index.ts";
 import { EventFeed, useEvents } from "./feed.ts";
 import { Elapsed, FilterField, MoreButton, OpenButton, styles, Time, useFilter } from "./page.tsx";
 
-/** The time line of a trace: each span a row indented below its parent, its bar placed by its start and length. */
+/** The time line of a trace. */
 const spanStyles = style.create({
     span: {
         display: "grid",
@@ -69,7 +69,7 @@ interface TraceSpan {
     readonly trace: string;
 }
 
-/** List a space's recent traces by their root spans the typed filter selects, newest first, opening the one chosen. */
+/** List a space's recent traces by the root spans the typed filter selects, newest first. */
 export default function Traces() {
     // follow the root spans the filter selects, and the open trace
     const locale = useLocale();
@@ -267,7 +267,7 @@ function spanOf(event: Event): TraceSpan {
     };
 }
 
-/** Order spans depth first below their parents in start order, each with its depth, roots and orphans at the top. */
+/** Order spans depth first below their parents in start order, each with its depth. */
 function tree(spans: readonly TraceSpan[]): { span: TraceSpan; depth: number }[] {
     // index the children of each span in start order
     const ids = new Set(spans.map((span) => span.span));

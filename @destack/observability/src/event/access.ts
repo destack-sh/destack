@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { analytics, telemetry } from "../access/index.ts";
 
-/** The installation a read of a scope's telemetry or analytics narrows to, whose own grants then decide. */
+/** The installation a read of a scope's telemetry or analytics narrows to. */
 const emitter = {
     key: "installation",
     reference: (scope: string, id: string) =>

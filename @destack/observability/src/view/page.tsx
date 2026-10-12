@@ -8,7 +8,7 @@ import { itemVariants } from "@destack/ui/item";
 import { t } from "@destack/locale";
 import { createMemo, createSignal, type JSX, Show, useLocale } from "@destack/view";
 
-/** The microseconds in a millisecond, as events time themselves and their lengths in microseconds. */
+/** The microseconds in a millisecond. */
 const MICROSECONDS = 1000;
 
 /** How the pages write an instant: the date and the time to the second. */
@@ -80,7 +80,7 @@ export const styles = style.create({
     },
 });
 
-/** Read a filter as a person types it: over an object type's fields, or over an event kind's keys and their dotted entries when given none. */
+/** Read a filter as a person types it, over an object type's fields. */
 export function useFilter(fields?: ReadonlySet<string>) {
     // parse the text against the fields
     const [typed, type] = createSignal("");

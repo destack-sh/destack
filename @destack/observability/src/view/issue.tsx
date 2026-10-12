@@ -43,7 +43,7 @@ const STATUSES = [
 /** The lifecycle methods a person calls on an issue. */
 type LifecycleMethod = "resolve" | "ignore" | "reopen";
 
-/** List a space's issues of a status the typed filter selects, most recently seen first, opening the one chosen. */
+/** List a space's issues of a status the typed filter selects, most recently seen first. */
 export default function Issues() {
     // hold the filter, the status and the open issue
     const locale = useLocale();
@@ -89,7 +89,7 @@ export default function Issues() {
     );
 }
 
-/** List the issues of a status a condition selects, most recently seen first, opening the one chosen. */
+/** List the issues of a status a condition selects, most recently seen first. */
 function IssueList(properties: {
     /** The status listed. */
     status: Issue["status"];
@@ -159,7 +159,7 @@ function IssueDetail(properties: {
     const objects = useSpace({ issue });
     const current = useQuery(() => objects.query.issue.findFirst({ where: { id: properties.id } }));
 
-    /** Call a lifecycle method of the issue as one mutation, setting what reopens it first when given. */
+    /** Call a lifecycle method of the issue as one mutation. */
     async function change(method: LifecycleMethod, until?: Issue["until"]): Promise<void> {
         const id = properties.id;
         await objects.mutation(async (mutation) => {
@@ -204,7 +204,7 @@ function IssueDetail(properties: {
     );
 }
 
-/** Offer the lifecycle moves an issue's status allows: resolve or ignore an open issue, reopen a settled one. */
+/** Offer the lifecycle moves an issue's status allows. */
 function Lifecycle(properties: {
     /** The issue. */
     issue: Pick<Issue, "status" | "lastRevisionId">;

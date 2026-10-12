@@ -10,7 +10,7 @@ export interface AlertRuleDeclaration {
     readonly definition: AlertRuleDefinition;
 }
 
-/** Declare an alert rule each installation of the package keeps in its space, such as rolling back new fatal issues. */
+/** Declare an alert rule each installation of the package keeps in its space. */
 export function defineAlertRule(
     definition: schema.Input<typeof AlertRuleDefinition>,
     module?: ModuleMetadata,

@@ -75,7 +75,7 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
     const rule = (title: string, condition: AlertRuleDefinition["condition"]) =>
         alice.alertRule.create({
             spaceId: ids.space,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title,
             condition,
             actions: [{ kind: "notify" }],
@@ -124,7 +124,7 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
     // settle the errors' alert once its threshold rises above the count
     await alice.alertRule.update({
         spaceId: ids.space,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         id: errors.id,
         condition: {
             kind: "events",
@@ -173,7 +173,7 @@ test("refuse an events rule calling an installation its group names none of", as
     const refused = await refusal(
         client(server, "alice").alertRule.create({
             spaceId: ids.space,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Refused",
             condition: {
                 kind: "events",
@@ -210,7 +210,7 @@ test("roll an installation back through installation.rollBack when a rule watchi
     // roll back on every new issue
     await alice.alertRule.create({
         spaceId: ids.space,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         title: "Roll back new issues",
         condition: { kind: "issue", on: "open" },
         actions: [{ kind: "call", method: "rollBack" }],

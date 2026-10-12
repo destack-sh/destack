@@ -10,7 +10,7 @@ import { levelOf, log } from "../event/index.ts";
 import { useEvents } from "./feed.ts";
 import { FilterField, MoreButton, styles, Time, useFilter } from "./page.tsx";
 
-/** Search a space's log records with the field query language, newest first, following new ones while live. */
+/** Search a space's log records with the field query language, newest first. */
 export default function Logs() {
     // follow the records the filter selects while live
     const locale = useLocale();

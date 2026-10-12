@@ -8,14 +8,14 @@ import type { Grouper, Occurrence } from "../issue/group.ts";
 import { type Decoded, Otlp } from "./otlp.ts";
 import { VisitorSalt } from "./visitor.ts";
 
-/** The event name of a log record recording an exception, from the OpenTelemetry semantic conventions. */
+/** The event name of a log record that records an exception. */
 const EXCEPTION = "exception";
 
-/** What a receiver keeps exports with: the space's events, the grouping of its exceptions and the visitor salt. */
+/** What a receiver keeps exports with. */
 export interface ReceiverOptions {
     /** The event store the exports are appended to. */
     readonly events: EventStore;
-    /** Group a space's exceptions into issues, absent on a machine keeping only its own telemetry. */
+    /** Group a space's exceptions into issues. */
     readonly grouper?: Grouper;
     /** The database keeping the day's visitor salt, absent where no views export. */
     readonly salt?: DatabaseConnection;
@@ -35,7 +35,7 @@ interface Recorded {
     readonly trace: string | undefined;
 }
 
-/** Receives the OTLP exports of a space's installations and pages: decoded into events, exceptions grouped into issues, visitors hashed, appended once each. */
+/** Receives the OTLP exports of a space's installations and pages. */
 export class ObservabilityReceiver implements OtlpReceiver {
     /** What the receiver keeps exports with. */
     readonly #options: ReceiverOptions;
@@ -72,7 +72,7 @@ export class ObservabilityReceiver implements OtlpReceiver {
         }
     }
 
-    /** Group a space's exceptions into issues and stamp each recording event with its issue, keeping the export as it came when grouping fails. */
+    /** Group a space's exceptions into issues and stamp each recording event with its issue. */
     async #grouped(decoded: Decoded, emitter: OtlpEmitter): Promise<Decoded> {
         // group the exceptions of a space's installations only
         const { grouper, report } = this.#options;
@@ -129,7 +129,7 @@ export class ObservabilityReceiver implements OtlpReceiver {
         };
     }
 
-    /** Find the issue an earlier export grouped the same exception of a trace into, as every span it escapes and its log record record it again. */
+    /** Find the issue an earlier export grouped the same exception of a trace into. */
     async #known(scope: Identifier<"space">, recorded: Recorded): Promise<string | undefined> {
         // look only for exceptions recorded in a trace
         const { events } = this.#options;
@@ -163,7 +163,7 @@ export class ObservabilityReceiver implements OtlpReceiver {
         return annotated?.keys.issue ?? logged?.keys.issue ?? undefined;
     }
 
-    /** Stamp the visits and actions of a page's export with its visitor's hash under the day's salt. */
+    /** Stamp the visits and actions of a page's export with its visitor's hash. */
     async #visited(decoded: Decoded, emitter: OtlpEmitter): Promise<Decoded> {
         // hash the visitor of a page's analytics only
         const { salt } = this.#options;
@@ -196,7 +196,7 @@ export class ObservabilityReceiver implements OtlpReceiver {
     }
 }
 
-/** Read the exceptions of an export's installations once per trace: each exception log record, and each exception a span annotated. */
+/** Read the exceptions of an export's installations once per trace. */
 function recordedOf(decoded: Decoded, build: Digest | undefined): Recorded[] {
     // read the exception log records
     const logs = decoded.log.flatMap((event, index): Recorded[] => {
@@ -272,7 +272,7 @@ function identityOf(exception: Exception): string {
     return JSON.stringify([exception.type, exception.message, exception.stacktrace]);
 }
 
-/** Read an exception of an installation as an occurrence, none without an exception or an installation. */
+/** Read an exception of an installation as an occurrence. */
 function occurrenceOf(
     exception: Exception | undefined,
     installation: string | null,

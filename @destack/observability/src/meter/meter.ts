@@ -17,7 +17,7 @@ export const bucketStorage = defineMeter({
     unit: "byte",
 });
 
-/** The memory a space's installations hold while they run, in GB-seconds, as compute SKUs bill it. */
+/** The memory a space's installations keep while they run, in GB-seconds. */
 export const compute = defineMeter({
     name: "compute",
     description: "Memory held while installations run, in GB-seconds.",
@@ -33,7 +33,7 @@ export const egress = defineMeter({
     unit: "byte",
 });
 
-/** The requests and storage reads and writes of a space, each weighted by its SKU, as request units weigh operations. */
+/** The requests and storage reads and writes of a space, each weighted by its SKU. */
 export const operations = defineMeter({
     name: "operations",
     description:

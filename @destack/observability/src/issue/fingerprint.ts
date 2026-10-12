@@ -4,7 +4,7 @@ import type { Exception } from "./exception.ts";
 /** The fingerprint part standing for the default grouping. */
 const DEFAULT_PART = "{{ default }}";
 
-/** Group an exception: by its error type and the symbols of its in-app frames, else its message, unless its capture names the grouping. */
+/** Group an exception by its error type and the symbols of its in-app frames. */
 export async function fingerprint(
     exception: Pick<Exception, "errorType" | "message" | "fingerprint">,
     frames: readonly StackFrame[],

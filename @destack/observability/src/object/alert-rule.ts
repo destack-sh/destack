@@ -10,7 +10,7 @@ import { EVENT_FOLDS } from "../query/query.ts";
 /** The issue changes an issue condition fires on. */
 export const ISSUE_CHANGES = ["open", "regress", "escalate"] as const;
 
-/** What fires an alert: a change of the issues a filter selects, or a fold of events crossing a threshold over a window. */
+/** What fires an alert. */
 export const AlertCondition = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -22,7 +22,7 @@ export const AlertCondition = defineSchema(
             filter: FilterText.exactOptional(),
         }),
         schema.object({
-            /** A fold of the events a filter selects, or its ratio to another selection's, crosses a threshold over a window, per group. */
+            /** A fold of the events a filter selects crosses a threshold over a window. */
             kind: schema.literal("events"),
             /** The event kind's name, such as log, span, metric or call. */
             event: schema.string().min(1),
@@ -32,9 +32,9 @@ export const AlertCondition = defineSchema(
             measure: schema.string().min(1).exactOptional(),
             /** The fold. */
             fold: schema.enum(EVENT_FOLDS),
-            /** The keys each value of gets an alert of its own, such as installation or attributes.http.route. */
+            /** The keys whose values each get an alert of their own. */
             group: schema.array(schema.string().min(1)).max(4),
-            /** The events the fold is a ratio of: counted for a count, else folded alike, absent for the fold itself. */
+            /** The events the fold is a ratio of. */
             per: schema
                 .object({
                     /** The events of the denominator, every event of the kind when absent. */
@@ -64,7 +64,7 @@ const InstallationMethod = schema.enum([
     ...otherMethods,
 ]);
 
-/** What a firing alert does: notify the rule's subscribers, or call a method of its installation. */
+/** What a firing alert does. */
 export const AlertAction = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -91,14 +91,14 @@ export const AlertRuleDefinition = defineSchema(
         condition: AlertCondition,
         /** What a firing alert does. */
         actions: schema.array(AlertAction).min(1).max(10),
-        /** The least time between two alerts of the rule for the same subject, 30 minutes when absent. */
+        /** The least time between two alerts of the rule for the same subject. */
         interval: Duration.schema.exactOptional(),
     }),
 );
 /** An alert rule a package declares. */
 export type AlertRuleDefinition = schema.Infer<typeof AlertRuleDefinition>;
 
-/** A rule its controller evaluates against a space's issues and events, firing alerts and running their actions. */
+/** A rule its controller evaluates against a space's issues and events. */
 export const alertRule = defineObject({
     name: "alert-rule",
     plural: "alertRules",

@@ -23,7 +23,7 @@ const lineAt = (line: number) =>
         .slice(0, line - 1)
         .join("\n").length + (line > 1 ? 1 : 0);
 
-/** The note module's graph: the class, its method and the helper, the object type at the class with its method member. */
+/** The note module's graph. */
 const module = graph.Module.parse({
     path: "src/note.ts",
     digest: "0000000000000000000000000000000000000000000000000000000000000000",
@@ -73,7 +73,7 @@ const module = graph.Module.parse({
     edges: [],
 });
 
-/** The workload's source map: line 1 into `rename`, line 2 into `check`, line 3 into a dependency. */
+/** The workload's source map. */
 const MAP = JSON.stringify({
     version: 3,
     sources: ["../../src/note.ts", "../../node_modules/@example/pad/index.js"],
@@ -82,7 +82,7 @@ const MAP = JSON.stringify({
     mappings: "AAEQ;AAIJ;ACNJ",
 });
 
-/** A build whose workload maps into the note module, which its graph and retained source describe. */
+/** A build whose workload maps into the note module. */
 const build = {
     sourceMaps: async () => [
         { generated: "output/bun/workload.js", map: "output/bun/workload.js.map" },

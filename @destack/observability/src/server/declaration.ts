@@ -9,13 +9,13 @@ import { AlertRuleDefinition, alertRule } from "../object/index.ts";
 import { Caller } from "@destack/access";
 import { RequestId } from "@destack/service/request";
 
-/** Keep the alert rules each installation's applied revision declares in its space, retiring those it no longer declares. */
+/** Keep the alert rules each installation's applied revision declares in its space. */
 export class DeclarationController implements Controller {
     /** The controller's name. */
     readonly name = "alert-rule-declarations";
     /** The copies whose changes name the installations to reconcile. */
     readonly watches = [installation.table, installationRevision.table];
-    /** The object store keeping the rules beside copies of the installations and their revisions. */
+    /** The object store of the rules, beside copies of the installations and their revisions. */
     readonly #store: ObjectStore;
     /** Open an installation revision's build. */
     readonly #buckets: BucketHost;
@@ -114,7 +114,7 @@ export class DeclarationController implements Controller {
         return undefined;
     }
 
-    /** Read the rules an installation's applied revision declares with its space, absent while it applies none. */
+    /** Read the rules an installation's applied revision declares, with its space. */
     async #declaring(id: Identifier<"installation">) {
         // read the installation's applied revision from the copies
         const [applied] = await this.#store.database

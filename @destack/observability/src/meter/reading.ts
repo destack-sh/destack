@@ -7,24 +7,24 @@ import { database, deployment, instance } from "@destack/stack/object";
 import { Subject } from "@destack/sync";
 import { bucketStorage, compute, databaseStorage, egress, operations } from "./meter.ts";
 
-/** A machine's reading of one meter in a space: the bytes kept now, or the amount used over the measured interval, such as GB-seconds run or bytes sent. */
+/** A machine's reading of one meter in a space. */
 export interface Reading {
     /** The meter read. */
     readonly meter: Meter;
     /** The space measured. */
     readonly scope: Identifier<"space">;
-    /** The installation using the resource, absent for one the space keeps itself, such as a bucket. */
+    /** The installation using the resource. */
     readonly installation?: Identifier<"installation">;
     /** The measured value, in the meter's unit. */
     readonly value: number;
 }
 
-/** A machine's count of some work in a space since it last measured, by the installation it did the work for. */
+/** A machine's count of some work in a space since it last measured. */
 export type Count = Omit<Reading, "meter">;
 
-/** The readings a machine takes from its spaces' records: run time from their instances, bytes through the machines keeping their resources. */
+/** The readings a machine takes from its spaces' records. */
 export const Reading = {
-    /** Read each installation's GB-seconds within an interval from its instances' starts and stops, each instance holding the gigabytes its runtime bills. */
+    /** Read each installation's GB-seconds in an interval from its instances' starts and stops. */
     async compute(
         records: DatabaseConnection,
         from: number,
@@ -68,7 +68,7 @@ export const Reading = {
         });
     },
 
-    /** Read the bytes of each space's provisioned databases through the machine keeping them, by reference. */
+    /** Read the bytes of each space's provisioned databases, by reference. */
     async databases(
         records: DatabaseConnection,
         bytes: (reference: string) => Promise<number>,
@@ -92,12 +92,12 @@ export const Reading = {
         );
     },
 
-    /** Read the bytes of the object a machine keeps a space in as the space's own databases: its kinds' and its stack service's beside the databases no installation owns. */
+    /** Read the bytes of the object a machine keeps a space in, as the space's own databases. */
     async space(scope: Identifier<"space">, bytes: () => Promise<number>): Promise<Reading[]> {
         return [{ meter: databaseStorage, scope, value: await bytes() }];
     },
 
-    /** Read the bytes of each installation's databases through the machine keeping them together, by installation. */
+    /** Read the bytes of each installation's databases, by installation. */
     async installations(
         records: DatabaseConnection,
         bytes: (installed: {
@@ -128,7 +128,7 @@ export const Reading = {
         );
     },
 
-    /** Price a machine's counts of one kind of operation: each count times the operation's price in millionths of a credit. */
+    /** Price a machine's counts of one kind of operation. */
     operations(counts: readonly Count[], price: number): Reading[] {
         return counts.map((count) => ({
             ...count,
@@ -142,7 +142,7 @@ export const Reading = {
         return counts.map((count) => ({ ...count, meter: egress }));
     },
 
-    /** Read the bytes of each space's provisioned buckets through the machine keeping them, by bucket. */
+    /** Read the bytes of each space's provisioned buckets, by bucket. */
     async buckets(
         records: DatabaseConnection,
         bytes: (bucketId: Identifier<"bucket">) => Promise<number>,

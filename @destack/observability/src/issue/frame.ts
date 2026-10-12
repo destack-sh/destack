@@ -1,6 +1,6 @@
 import type { graph } from "@destack/package";
 
-/** One frame of a stack trace: where it ran, and once symbolicated the source and graph symbol it ran. */
+/** One frame of a stack trace. */
 export interface StackFrame {
     /** The function's name, absent for an anonymous one. */
     readonly function?: string;
@@ -10,13 +10,13 @@ export interface StackFrame {
     readonly line: number;
     /** The one-based column, in the source once symbolicated. */
     readonly column: number;
-    /** Whether the frame runs the package's own code rather than a dependency's or the runtime's. */
+    /** Whether the frame runs the package's own code, not a dependency's or the runtime's. */
     readonly isInApp: boolean;
     /** The package-relative source path, absent until a source map covers the frame. */
     readonly path?: string;
     /** The innermost graph symbol the frame ran, absent outside the package's graph. */
     readonly moniker?: graph.Moniker;
-    /** The declaration the symbol is or belongs to, such as an object method, absent for undeclared code. */
+    /** The declaration the symbol is or belongs to, such as an object method. */
     readonly declaration?: Pick<graph.Declaration, "moniker" | "kind" | "name">;
 }
 
@@ -26,7 +26,7 @@ const V8_FRAME = /^\s*at (?:(?:async )?(.+?) \()?(.+?):(\d+):(\d+)\)?$/u;
 /** A SpiderMonkey or JavaScriptCore frame: `name@file:line:column`. */
 const GECKO_FRAME = /^\s*(?:(.*?)@)?(.+?):(\d+):(\d+)$/u;
 
-/** Read a stack trace's frames, innermost first, in V8, SpiderMonkey and JavaScriptCore formats, taking dependency code as not in app. */
+/** Read a stack trace's frames, innermost first. */
 export function parseStack(stack: string): StackFrame[] {
     return stack.split("\n").flatMap((line) => {
         // read a V8 frame, else a Gecko or WebKit one, skipping the message and native frames

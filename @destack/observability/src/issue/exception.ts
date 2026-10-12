@@ -32,7 +32,7 @@ export interface Exception {
 
 /** Read exception records. */
 export const Exception = {
-    /** Read the exception OpenTelemetry's exception attributes describe at a severity, absent without a message. */
+    /** Read the exception OpenTelemetry's exception attributes describe at a severity. */
     read(attributes: Attributes, severity: number): Exception | undefined {
         // read exceptions with a message only
         const message = attributes["exception.message"];
@@ -57,7 +57,7 @@ export const Exception = {
         };
     },
 
-    /** Report whether an exception is a declared outcome its caller receives: a service error refusing the caller, never an issue. */
+    /** Report whether an exception is a declared outcome its caller receives. */
     isExpected(exception: Pick<Exception, "errorType">): boolean {
         const statuses: Readonly<Record<string, number>> = SERVICE_ERROR_STATUSES;
         const status = statuses[exception.errorType];

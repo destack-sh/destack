@@ -18,9 +18,9 @@ export interface VisitorOrigin {
     readonly userAgent: string;
 }
 
-/** The visitors of a space's views, each a hash of the day's salt and the browser, the salt deleted once its day ends. */
+/** The visitors of a space's views, each a hash of the day's salt and the browser. */
 export const VisitorSalt = {
-    /** Hash a browser under the salt of the day a time falls in, creating the day's salt once and deleting every earlier day's then. */
+    /** Hash a browser under the salt of the day a time falls in. */
     async hash(database: DatabaseConnection, now: number, origin: VisitorOrigin): Promise<string> {
         // read the day's salt, creating it once
         const day = new Date(now).toISOString().slice(0, "2026-10-07".length);
@@ -35,7 +35,7 @@ export const VisitorSalt = {
     },
 };
 
-/** Create a day's salt once, deleting every other day's so no earlier hash can be made again, and read the day's salt kept. */
+/** Create a day's salt once, and read the day's salt kept. */
 async function createSalt(database: DatabaseConnection, day: string) {
     // insert the day's salt unless another receiver did first
     await database

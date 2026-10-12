@@ -4,7 +4,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { AttributeKey, Instrumentation } from "./attribute.ts";
 import { DAY, TELEMETRY_FLUSH } from "./policy.ts";
 
-/** The instruments a metric point aggregates: a sum of increments, a gauge's value, or a histogram. */
+/** The instruments a metric point aggregates. */
 export const INSTRUMENTS = ["sum", "gauge", "histogram"] as const;
 
 /** The buckets of a base-2 exponential histogram above or below zero. */
@@ -15,7 +15,7 @@ const Buckets = schema.object({
     counts: schema.array(schema.number().int().nonnegative()),
 });
 
-/** A base-2 exponential histogram: bucket i above zero counts values in (base^i, base^(i+1)], base = 2^(2^-scale). */
+/** A base-2 exponential histogram. */
 export const Histogram = defineSchema(
     schema.object({
         /** The recorded values. */
@@ -39,7 +39,7 @@ export const Histogram = defineSchema(
 /** A base-2 exponential histogram. */
 export type Histogram = schema.Infer<typeof Histogram>;
 
-/** One data point of a metric an installation or a machine emitted, as OpenTelemetry's metric data model records it. */
+/** One data point of a metric an installation or a machine emitted. */
 export const metric = defineEventKind({
     name: "metric",
     description: "One data point of a metric an installation or a machine emitted.",

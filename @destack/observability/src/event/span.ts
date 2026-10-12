@@ -21,7 +21,7 @@ export const SpanAnnotation = defineSchema(
 /** Something that happened during a span. */
 export type SpanAnnotation = schema.Infer<typeof SpanAnnotation>;
 
-/** A span an installation or a machine emitted, one wide event each, as OpenTelemetry's span model records it. */
+/** A span an installation or a machine emitted, one wide event each. */
 export const span = defineEventKind({
     name: "span",
     description: "A span an installation or a machine emitted.",

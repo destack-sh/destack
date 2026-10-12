@@ -6,10 +6,10 @@ import { alert, alertRule, issue } from "../object/index.ts";
 import { PercentileSeries, TraceRequest, TraceResult } from "../query/index.ts";
 import type {} from "@destack/package/import-meta";
 
-/** A procedure reading telemetry, each kind's declared read decided on the installation or the scope its events live in. */
+/** A procedure that reads telemetry. */
 const procedure = defineProcedure({ authentication: "identity", permission: "rows", audit: false });
 
-/** The observability service: a scope's traces and metric percentiles beside the event service's reads, and its issues, alert rules and alerts with their comments and notifications. */
+/** The observability service. */
 export const observabilityService = defineService("observability", {
     objects: {
         issue,

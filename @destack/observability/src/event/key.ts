@@ -1,6 +1,6 @@
 /** The value of an event key or of an entry of a map key, as groups and alerts read them. */
 export const EventKey = {
-    /** Read a key's value, or the entry of a map key a dotted name such as `attributes.http.route` names, null where absent. */
+    /** Read a key's value, or the entry of a map key under a dotted name. */
     read(keys: Readonly<Record<string, unknown>>, name: string): string | number | null {
         // read a key itself, else the entry after the first dot of a map key
         const dot = name.indexOf(".");

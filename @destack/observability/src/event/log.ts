@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { AttributeKey, Instrumentation, PersonalAttributes } from "./attribute.ts";
 import { DAY, TELEMETRY_FLUSH } from "./policy.ts";
 
-/** A log record an installation or a machine emitted, as OpenTelemetry's log data model records it. */
+/** A log record an installation or a machine emitted. */
 export const log = defineEventKind({
     name: "log",
     description: "A log record an installation or a machine emitted.",

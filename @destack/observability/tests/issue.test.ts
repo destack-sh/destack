@@ -99,7 +99,7 @@ test("group failures logged and annotated on spans into an issue at the declarat
     const spans = await events.query(span, { scope: ids.space });
 
     // regress the issue once it fails again after alice resolves it
-    await alice.issue.resolve({ spaceId: ids.space, id: opened.id, requestId: RequestId.create() });
+    await alice.issue.resolve({ spaceId: ids.space, id: opened.id, requestId: RequestId.create(Date.now()) });
     await exportLogs({ receive }, [renameFailure(Date.now(), "dana")]);
     expect({
         logged: logged.events.map((event) => log.parseKeys(event.keys).issue),

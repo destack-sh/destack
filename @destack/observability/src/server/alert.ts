@@ -40,7 +40,7 @@ type Group = Readonly<Record<string, string | number | null>>;
 
 /** One subject crossing a rule's condition, with the value that crossed. */
 interface Crossing {
-    /** The subject: `{ issue }` for an issue condition, the group's key values for an events condition. */
+    /** The subject. */
     readonly group: Group;
     /** The value that crossed. */
     readonly value: number;
@@ -54,9 +54,9 @@ export interface AlertOptions {
     readonly events: EventStore;
 }
 
-/** The checks a rule passes before it is written, so its evaluation reads only rules the space can evaluate. */
+/** The checks a rule passes before it is written. */
 export const AlertRuleCheck = {
-    /** Refuse a condition naming fields, kinds or folds the space cannot evaluate, or a call action naming no installation. */
+    /** Refuse a condition with fields, kinds or folds the space cannot evaluate. */
     require(rule: Pick<AlertRule, "condition" | "actions">, events: EventStore): void {
         const { condition } = rule;
         const isCalling = rule.actions.some((action) => action.kind === "call");
@@ -73,7 +73,7 @@ export const AlertRuleCheck = {
     },
 };
 
-/** Evaluate a space's alert rules: fire alerts for the subjects crossing each condition, settle those that cleared and report each rule's evaluation. */
+/** Evaluate a space's alert rules. */
 export async function evaluateRules(
     reconciliation: ObjectReconciliation<typeof alertRule>,
     options: AlertOptions,
@@ -99,7 +99,7 @@ export async function evaluateRules(
     return EVALUATION_MILLISECONDS;
 }
 
-/** Fire for crossing subjects without a firing alert or one within the rule's interval, call the rule's actions, and settle the alerts that cleared. */
+/** Fire for crossing subjects without a firing alert or one within the rule's interval. */
 async function fireAndSettle(
     reconciliation: ObjectReconciliation<typeof alertRule>,
     rule: AlertRule,
@@ -150,7 +150,7 @@ async function fireAndSettle(
     await reconciliation.mutate(settled.map((each) => alert.call("settle", alert.target(each))));
 }
 
-/** Read the issues a filter selects that opened, regressed or escalated since the rule's last evaluation. */
+/** Read the issues a filter selects that opened, regressed or escalated. */
 async function issueCrossings(
     database: DatabaseConnection,
     rule: AlertRule,
@@ -188,7 +188,7 @@ async function issueCrossings(
     return rows.map((row) => ({ group: { issue: row.id }, value: row.count, title: row.title }));
 }
 
-/** Read the groups whose fold of the events over the window, or its ratio to another selection's, crosses the threshold. */
+/** Read the groups whose fold of the events over the window crosses the threshold. */
 async function eventCrossings(
     events: EventStore,
     rule: AlertRule,
@@ -242,7 +242,7 @@ async function eventCrossings(
     });
 }
 
-/** Fold a selection of a condition's events over its range: percentiles of histogram points in observability, every other fold in the store, a ratio's denominator counted for a count. */
+/** Fold a selection of a condition's events over its range. */
 async function foldOf(
     events: EventStore,
     condition: Extract<AlertCondition, { kind: "events" }>,
@@ -312,7 +312,7 @@ function subjectOf(named: Pick<Alert, "group"> | Crossing): string {
     );
 }
 
-/** Call a method of a fired alert's installation, named by its subject or through its subject's issue. */
+/** Call a method of a fired alert's installation. */
 async function call(
     reconciliation: ObjectReconciliation<typeof alertRule>,
     fired: Alert,
@@ -368,7 +368,7 @@ async function observe(
     }
 }
 
-/** Refuse an events condition over a kind the space lacks, keys the kind lacks, a fold it cannot take, or a call naming no installation. */
+/** Refuse an events condition over a kind the space lacks or keys the kind lacks. */
 function requireEvents(
     condition: Extract<AlertCondition, { kind: "events" }>,
     isCalling: boolean,

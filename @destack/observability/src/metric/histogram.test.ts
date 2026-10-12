@@ -14,7 +14,7 @@ const coarse: Histogram = {
     negative: { offset: 0, counts: [] },
 };
 
-/** The value 20 at scale 1, where bucket i counts (2^(i/2), 2^((i+1)/2)]: bucket 8 counts (16, 22.6]. */
+/** The value 20 at scale 1, where bucket i counts (2^(i/2), 2^((i+1)/2)]. */
 const fine: Histogram = {
     count: 1,
     sum: 20,

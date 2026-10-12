@@ -4,10 +4,10 @@ import { schema } from "@destack/schema";
 import { PersonalAttributes } from "./attribute.ts";
 import { DAY, TELEMETRY_FLUSH } from "./policy.ts";
 
-/** How long analytics stay unless a space's setting says otherwise: 13 months, as the CNIL guideline keeps audience measurement. */
+/** How long analytics stay unless a space's setting says otherwise: 13 months. */
 export const ANALYTICS_RETENTION = 395 * DAY;
 
-/** A view a person opened: anonymous by a daily-rotating salted hash, signed in by their identity as personal data. */
+/** A view a person opened. */
 export const visit = defineEventKind({
     name: "visit",
     description: "A view a person opened.",
@@ -22,7 +22,7 @@ export const visit = defineEventKind({
         session: schema.string().nullable(),
         /** The trace the visit was recorded in. */
         trace: schema.string().nullable(),
-        /** The visitor: a hash of the day's salt, the installation, the address and the user agent. */
+        /** The visitor, as a hash. */
         visitor: schema.string().nullable(),
         /** The signed-in person, whose key seals their personal values. */
         person: schema.string().nullable(),

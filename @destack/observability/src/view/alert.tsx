@@ -14,7 +14,7 @@ import { For, Loading, useLocale, useQuery, useSpace } from "@destack/view";
 import { alert, type Alert, alertRule, type AlertRule } from "../object/index.ts";
 import { PAGE_ROWS, styles, Time } from "./page.tsx";
 
-/** List a space's alert rules with their evaluation beside the alerts they fired, newest first, resolving firing ones by hand. */
+/** List a space's alert rules with their evaluation and the alerts they fired, newest first. */
 export default function Alerts() {
     // follow the rules by title and the alerts newest first
     const locale = useLocale();

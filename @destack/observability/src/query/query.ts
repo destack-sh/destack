@@ -21,7 +21,7 @@ export const TraceRequest = defineSchema(
     schema.object({
         /** The space of the installation, or the machine whose own trace to read. */
         scope: schema.string().min(1),
-        /** The installation whose trace to read, every installation's and the scope's own when absent. */
+        /** The installation whose trace to read. */
         object: schema.identifier("installation").exactOptional(),
         /** The trace, as 32 hexadecimal digits. */
         trace: schema.string().regex(/^[0-9a-f]{32}$/u),

@@ -3,7 +3,7 @@ import type { graph } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import type { StackFrame } from "./frame.ts";
 
-/** Symbolicates stack frames against one build: maps them through its source maps and resolves them to its graph's symbols and declarations. */
+/** Symbolicates stack frames against one build. */
 export class Symbolicator {
     /** The build the frames ran: its source maps, graph and files. */
     readonly #reader: Pick<BuildReader, "sourceMaps" | "graph" | "module" | "load">;
@@ -23,7 +23,7 @@ export class Symbolicator {
         this.#reader = reader;
     }
 
-    /** Map each frame to its source, marking the package's own code as in app, and resolve in-app frames to their symbol and declaration. */
+    /** Map each frame to its source, marking the package's own code as in app. */
     async frames(frames: readonly StackFrame[]): Promise<StackFrame[]> {
         return Promise.all(frames.map(async (frame) => this.#attribute(await this.#map(frame))));
     }
@@ -133,7 +133,7 @@ export class Symbolicator {
         };
     }
 
-    /** Read a module's graph file and the UTF-16 offsets its source lines start at, once per path. */
+    /** Read a module's graph file and the UTF-16 offsets its source lines start at. */
     #module(path: string): Promise<{ module: graph.Module; lines: number[] } | undefined> {
         let found = this.#modules.get(path);
         if (found === undefined) {

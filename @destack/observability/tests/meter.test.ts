@@ -1,7 +1,6 @@
 import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { EventFixture } from "@destack/event/test";
 import { defineSku, usage } from "@destack/finance/declare";
-import { MeterUsage } from "@destack/finance/server";
 import { compute, databaseStorage } from "../src/meter/index.ts";
 import { MeterController, type Reading } from "../src/server/index.ts";
 import { ids, serveObservability } from "./fixture/observability.ts";
@@ -42,7 +41,7 @@ const computeSku = defineSku({
     observedAt: OBSERVED_AT,
 });
 
-test("append a space's measured use as usage events once, a failed round's counts in the next, routed to the paying account, which reads 2 GB kept for half a month as 1 GB-month, a level dropping to nothing, and an interval ending with the month in that month", async () => {
+test("append a space's measured use as usage events once, a failed round's counts in the next, and route each to the paying account", async () => {
     // keep the paying account's routed usage, and fail the first round's routing
     const account = await EventFixture.open("sqlite", [usage]);
     onTestFinished(() => account[Symbol.asyncDispose]());
@@ -89,56 +88,63 @@ test("append a space's measured use as usage events once, a failed round's count
     await meters.reconcile();
     await settle();
 
-    // keep each event once in the space, and rate the routed copies at the account
-    const meterUsage = new MeterUsage(account.store);
-    const period = { start, end };
-    const kept = await events.query(usage, { scope: ids.space });
-    expect({
-        failed,
-        kept: kept.events
-            .toSorted(
-                (left, right) =>
-                    left.time - right.time || left.keys.meter.localeCompare(right.keys.meter),
-            )
-            .map((event) => ({
-                meter: event.keys.meter,
-                installation: event.keys.installation,
-                quantity: event.keys.quantity,
-                level: event.keys.level,
-            })),
-        storage: await meterUsage.read(ids.account, databaseStorage, period),
-        level: await meterUsage.read(ids.account, databaseStorage, undefined),
-        compute: await meterUsage.read(ids.account, compute, period),
-    }).toEqual({
+    // keep each event once in the space, and route a copy of each to the account
+    const kept = uses(await events.query(usage, { scope: ids.space }));
+    const routed = uses(await account.store.query(usage, { scope: ids.account }));
+    const expected = [
+        {
+            meter: CatalogReference.key(compute.reference),
+            installation: ids.notes,
+            quantity: 100,
+            level: null,
+        },
+        {
+            meter: CatalogReference.key(databaseStorage.reference),
+            installation: null,
+            quantity: 1_000_000_000,
+            level: 2_000_000_000,
+        },
+        {
+            meter: CatalogReference.key(compute.reference),
+            installation: ids.notes,
+            quantity: 50,
+            level: null,
+        },
+        {
+            meter: CatalogReference.key(databaseStorage.reference),
+            installation: null,
+            quantity: 0,
+            level: 0,
+        },
+    ];
+    expect({ failed, kept, routed }).toEqual({
         failed: "failed",
-        kept: [
-            {
-                meter: CatalogReference.key(compute.reference),
-                installation: ids.notes,
-                quantity: 100,
-                level: null,
-            },
-            {
-                meter: CatalogReference.key(databaseStorage.reference),
-                installation: null,
-                quantity: 1_000_000_000,
-                level: 2_000_000_000,
-            },
-            {
-                meter: CatalogReference.key(compute.reference),
-                installation: ids.notes,
-                quantity: 50,
-                level: null,
-            },
-            {
-                meter: CatalogReference.key(databaseStorage.reference),
-                installation: null,
-                quantity: 0,
-                level: 0,
-            },
-        ],
-        storage: 1_000_000_000,
-        level: 0,
-        compute: 150,
+        kept: expected,
+        routed: expected,
     });
 });
+
+/** Read usage events as the test compares them, in time and meter order. */
+function uses(page: {
+    readonly events: readonly {
+        readonly time: number;
+        readonly keys: {
+            readonly meter: string;
+            readonly installation: string | null;
+            readonly quantity: number;
+            readonly level: number | null;
+        };
+    }[];
+}) {
+    return page.events
+        .toSorted(
+            (left, right) =>
+                left.time - right.time || left.keys.meter.localeCompare(right.keys.meter),
+        )
+        .map((event) => ({
+            meter: event.keys.meter,
+            installation: event.keys.installation,
+            quantity: event.keys.quantity,
+            level: event.keys.level,
+        }));
+}

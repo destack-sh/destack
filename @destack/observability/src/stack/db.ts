@@ -23,7 +23,7 @@ export const issuePerson = defineTable(
     },
 );
 
-/** The salt of the current day, which hashes a space's anonymous visitors and is deleted once its day ends. */
+/** The salt of the current day, which hashes a space's anonymous visitors. */
 export const visitorSalt = defineTable("visitor_salt", {
     /** The day, in UTC, such as 2026-10-07. */
     day: text("day").primaryKey(),
@@ -31,7 +31,7 @@ export const visitorSalt = defineTable("visitor_salt", {
     salt: text("salt").notNull(),
 });
 
-/** The observability kind's tables in a space: the issues with their people, the alert rules and alerts, and the visitor salt. */
+/** The observability kind's tables in a space. */
 export const observabilityTables: readonly Table[] = [
     ...[issue, alertRule, alert].flatMap((object) => object.tables),
     issuePerson,

@@ -10,7 +10,7 @@ import { Clock } from "@destack/schema";
 /** How often machines measure their spaces by default: hourly, as usage is billed. */
 const INTERVAL_MILLISECONDS = 3_600_000;
 
-/** A space's readings over one measured interval, in Unix milliseconds, waiting to be appended as usage. */
+/** A space's readings over one measured interval, in Unix milliseconds. */
 interface Measurement {
     /** The space measured. */
     readonly scope: Identifier<"space">;
@@ -32,7 +32,7 @@ export interface MeterOptions {
     readonly clock: Clock;
 }
 
-/** Measures what a machine's spaces use each interval, ending on its multiples within a month, and appends it as usage events stamped at the interval's start, once each, which their route copies to the accounts paying for them: bytes as their share of the month, amounts as measured. */
+/** Measures what a machine's spaces use each interval, ending on its multiples within a month. */
 export class MeterController implements Controller {
     /** The controller's name in reports. */
     readonly name = "meters";
@@ -48,10 +48,10 @@ export class MeterController implements Controller {
     readonly #clock: Clock;
     /** The end of the last measured interval, in Unix milliseconds. */
     #measuredAt: number;
-    /** The measurements not appended yet, oldest first, kept across a failed append so no count is dropped. */
+    /** The measurements not appended yet, oldest first. */
     #pending: readonly Measurement[] = [];
 
-    /** Measure through a machine's reading from now on, rating each meter by its SKU on the machine. */
+    /** Measure through a machine's reading from now on. */
     constructor(
         events: EventStore,
         measure: (from: number, to: number) => Promise<readonly Reading[]>,
@@ -71,7 +71,7 @@ export class MeterController implements Controller {
         return [this.name];
     }
 
-    /** Measure the time since the last reading up to the last interval boundary within its month, append every measurement not appended yet, then wait for the next. */
+    /** Measure the time since the last reading up to the last interval boundary in its month. */
     async reconcile(): Promise<number> {
         // wait for the next multiple of the interval, or the month's end before it
         const from = this.#measuredAt;
@@ -121,7 +121,7 @@ export class MeterController implements Controller {
         return 0;
     }
 
-    /** Write a measurement as one usage event per meter and installation, named by the interval so a repeated append keeps it once. */
+    /** Write a measurement as one usage event per meter and installation. */
     #usage(measurement: Measurement) {
         // sum the readings of each meter and installation
         const { scope, readings, from, to } = measurement;

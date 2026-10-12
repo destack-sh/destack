@@ -14,7 +14,7 @@ const TRACE_MICROSECONDS = 60 * 60 * 1_000_000;
 /** The events one trace read returns of each kind. */
 const TRACE_EVENTS = 1000;
 
-/** Route observability's own reads beside the event service's: one trace's spans and logs, and percentiles of metric histograms, each as the caller may read telemetry. */
+/** Route observability's own reads beside the event service's. */
 export function observabilityProcedures(
     events: EventStore,
     unmasked: (context: ServiceContext, read: UnmaskedRead) => Promise<void>,

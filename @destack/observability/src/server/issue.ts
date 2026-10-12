@@ -9,7 +9,7 @@ import { ServiceError } from "@destack/service/error";
 import * as base from "../object/index.ts";
 import { AlertRuleCheck, evaluateRules } from "./alert.ts";
 
-/** The activities and announcements of issues, alert rules and their comments, under their notifications. */
+/** The activities and announcements of issues, alert rules and their comments. */
 const activities = serveActivities({
     notifications: [
         base.regressedIssue,
@@ -27,7 +27,7 @@ export interface IssueOptions {
     readonly events: EventStore;
 }
 
-/** Serve issues announcing resolutions and regressions, alert rules a controller evaluates, alerts announced on their rule, and their comments and notifications. */
+/** Serve issues, which announce resolutions and regressions. */
 export function serveIssues(options: IssueOptions) {
     const alertRule = alertRuleOf(options);
 
@@ -74,7 +74,7 @@ const issue = base.issue.implement({
     },
 });
 
-/** Alert rules refusing conditions they cannot evaluate or their author may not read, and subscribing their author. */
+/** Alert rules that refuse conditions they cannot evaluate or their author may not read. */
 function alertRuleOf(options: IssueOptions) {
     return base.alertRule.implement({
         methods: {
@@ -133,7 +133,7 @@ function noticeOf(row: base.Issue) {
     } as const;
 }
 
-/** Refuse a written rule whose condition names fields, kinds or folds the space cannot evaluate, or whose call action names no installation, rolling its write back. */
+/** Refuse a written rule whose condition the space cannot evaluate, and roll its write back. */
 function requireRule(row: base.AlertRule, options: IssueOptions): base.AlertRule {
     try {
         AlertRuleCheck.require(row, options.events);

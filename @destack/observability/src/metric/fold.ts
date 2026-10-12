@@ -28,7 +28,7 @@ export const MetricFold = {
         return Object.hasOwn(QUANTILES, fold);
     },
 
-    /** Read a percentile per step and group of the histogram points a filter selects, merging each group's histograms of a step. */
+    /** Read a percentile per step and group of the histogram points a filter selects. */
     async series(
         store: EventStore,
         filter: EventFilter,

@@ -20,9 +20,9 @@ import { DeclarationController } from "./declaration.ts";
 import { serveIssues } from "./issue.ts";
 import { observabilityProcedures } from "./procedure.ts";
 
-/** What a machine observes of the spaces it serves beside their telemetry: their builds, whose exceptions become issues, and their use of the meters. */
+/** What a machine observes of the spaces it serves beside their telemetry. */
 export interface SpaceObservation {
-    /** The host keeping the spaces' build buckets, whose builds' source maps and graphs resolve exceptions into issues. */
+    /** The host that keeps the spaces' build buckets. */
     readonly buckets: BucketHost;
     /** Read what the spaces use over each measured interval. */
     readonly measure: (from: number, to: number) => Promise<readonly Reading[]>;
@@ -31,33 +31,29 @@ export interface SpaceObservation {
         /** How often the spaces are measured, in milliseconds. */
         readonly interval: number;
     };
-    /** The SKUs rating each meter on the machine, absent on a machine billing no usage, such as a person's computer. */
+    /** The SKUs that rate each meter on the machine. */
     readonly skus?: readonly Sku[];
 }
 
 /** The events and spaces a space or a machine serves observability with. */
 export interface ObservabilityOptions {
-    /** The event store keeping the kinds the implementation lists, over the space's or the machine's database. */
+    /** The event store for the kinds the implementation lists. */
     readonly events: EventStore;
-    /**
-     * What a machine observes of its spaces beside their telemetry.
-     *
-     * A machine observing only its own machine passes none: a machine runs no installations, so it keeps no issues, rules, alerts, visits or usage.
-     */
+    /** What a machine observes of its spaces beside their telemetry. */
     readonly spaces?: SpaceObservation;
     /** Report failures grouping exceptions. */
     readonly report: (error: unknown) => void;
 }
 
-/** The observability extension of a space or a machine, with the event kinds it appends and the receiver of its installations' and pages' OTLP exports. */
+/** The observability extension of a space or a machine. */
 export interface ObservabilityImplementation extends ObjectExtension {
     /** The event kinds the space's or the machine's event store keeps for it. */
     readonly events: readonly EventKind[];
-    /** Receive the OTLP exports of the installations and pages over the space's or machine's store, grouping a machine's exceptions into issues. */
+    /** Receive the installations' and pages' OTLP exports over the space's or machine's store. */
     receiver(store: Pick<ObjectStore, "database" | "principal" | "mutate" | "clock">): OtlpReceiver;
 }
 
-/** Implement observability over a space's or a machine's events, deciding reads by the policies of the store's scopes. */
+/** Implement observability over a space's or a machine's events. */
 export function implementObservability(options: ObservabilityOptions): ObservabilityImplementation {
     const { events, spaces } = options;
 
@@ -90,7 +86,7 @@ export function implementObservability(options: ObservabilityOptions): Observabi
     };
 }
 
-/** List the controllers of a machine's observability: the declared rules, and the meters where usage is billed. */
+/** List the controllers of a machine's observability. */
 function controllersOf(options: ObservabilityOptions, objects: ObjectStore): Controller[] {
     const { spaces } = options;
     if (spaces === undefined) {
@@ -113,7 +109,7 @@ function controllersOf(options: ObservabilityOptions, objects: ObjectStore): Con
 
 /** The retention of a space's telemetry and analytics, read from its settings. */
 export const TelemetryPolicy = {
-    /** Read the policy of an observability kind in a scope from a database's settings, absent for any other kind or a scope without settings. */
+    /** Read the policy of an observability kind in a scope from a database's settings. */
     of(
         database: DatabaseConnection,
     ): (kind: EventKind, scope: string) => Promise<EventPolicy | undefined> {

@@ -27,7 +27,7 @@ import { RequestId } from "@destack/service/request";
 /** The component name the grouper records its calls under. */
 const GROUPER = "issues";
 
-/** An unexpected exception of an installation a log record or a span recorded, as the grouper reads it. */
+/** An unexpected exception of an installation that a log record or a span recorded. */
 export interface Occurrence {
     /** The exception. */
     readonly exception: Exception;
@@ -41,7 +41,7 @@ export interface Occurrence {
     readonly time: number;
 }
 
-/** One exception grouped into an issue: its occurrence, frames, fingerprint and the revision that ran it. */
+/** One exception grouped into an issue. */
 interface IssueEvent {
     /** The occurrence. */
     readonly occurrence: Occurrence;
@@ -55,7 +55,7 @@ interface IssueEvent {
     readonly revision: Revision | undefined;
 }
 
-/** An installation revision an exception ran: its identifier and when it was made, which orders an installation's revisions. */
+/** An installation revision an exception ran: its identifier and when it was made. */
 interface Revision {
     /** The revision. */
     readonly id: Identifier<"installation-revision">;
@@ -63,16 +63,16 @@ interface Revision {
     readonly createdAt: number;
 }
 
-/** Groups unexpected exceptions into a space's issues: symbolicated, attributed to the graph and fingerprinted. */
+/** Groups unexpected exceptions into a space's issues. */
 export class Grouper {
-    /** The object store keeping the issues beside copies of the installations and their revisions. */
+    /** The object store of the issues, beside copies of the installations and their revisions. */
     readonly #objects: Pick<ObjectStore, "database" | "principal" | "mutate">;
     /** Open an installation revision's build. */
     readonly #buckets: BucketHost;
     /** The symbolicators of the builds read recently. */
     readonly #symbolicators = new BuildCache(async (reader) => new Symbolicator(reader));
 
-    /** Group exceptions into the issues an object store keeps, opening the builds of the revisions that ran them. */
+    /** Group exceptions into the issues an object store keeps. */
     constructor(
         objects: Pick<ObjectStore, "database" | "principal" | "mutate">,
         buckets: BucketHost,
@@ -81,7 +81,7 @@ export class Grouper {
         this.#buckets = buckets;
     }
 
-    /** Group a space's unexpected exceptions into its issues, opening, counting, regressing and escalating them, and answer each occurrence's issue. */
+    /** Group a space's unexpected exceptions into its issues. */
     async group(
         scope: Identifier<"space">,
         occurrences: readonly Occurrence[],
@@ -127,7 +127,7 @@ export class Grouper {
         );
     }
 
-    /** Open the issues the grouped events are new to, then count each group's events and people into its issue. */
+    /** Open the issues the grouped events are new to. */
     async #count(scope: Identifier<"space">, grouped: Map<string, IssueEvent[]>, now: number) {
         // open new issues
         const events = [...grouped.values()].flat();
@@ -181,7 +181,7 @@ export class Grouper {
         return { issues, counted };
     }
 
-    /** Resolve one occurrence into an event: the revision that ran it, its frames through that revision's build, and its fingerprint. */
+    /** Resolve one occurrence into an event. */
     async #event(scope: Identifier<"space">, occurrence: Occurrence): Promise<IssueEvent> {
         // find the revision built from the occurrence's manifest in the copied revisions
         const { exception } = occurrence;
@@ -206,7 +206,7 @@ export class Grouper {
         };
     }
 
-    /** Find an installation's revision built from a manifest in the copies, with how to open its build, absent once none is. */
+    /** Find an installation's revision built from a manifest in the copies. */
     async #revision(
         scope: Identifier<"space">,
         installationId: Identifier<"installation">,
@@ -315,7 +315,7 @@ export class Grouper {
         return new Map(rows.map((row) => [keyOf(row), row]));
     }
 
-    /** Keep the people each issue's events affected, with their latest time, returning each issue's people count. */
+    /** Keep the people each issue's events affected, with their latest time. */
     async #affect(
         scope: Identifier<"space">,
         counted: readonly { readonly row: Issue; readonly group: readonly IssueEvent[] }[],
@@ -440,7 +440,7 @@ function keyOf(grouped: Pick<Issue, "installationId" | "fingerprint"> | IssueEve
     return `${installationId}\0${grouped.fingerprint}`;
 }
 
-/** Report whether a resolved or ignored issue reopens: its condition met by the new events, a total count or the time. */
+/** Report whether a resolved or ignored issue reopens. */
 function reopens(
     row: Issue,
     group: readonly IssueEvent[],

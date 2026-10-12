@@ -22,7 +22,7 @@ export const action = defineEventKind({
         session: schema.string().nullable(),
         /** The trace the action was tracked in. */
         trace: schema.string().nullable(),
-        /** The visitor: a hash of the day's salt, the installation, the address and the user agent. */
+        /** The visitor, as a hash. */
         visitor: schema.string().nullable(),
         /** The signed-in person, whose key seals their personal values. */
         person: schema.string().nullable(),

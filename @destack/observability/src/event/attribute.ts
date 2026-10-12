@@ -18,7 +18,7 @@ export const AttributeKey = schema.record(schema.string(), Primitive);
 /** The attributes an event is queried by. */
 export type AttributeKey = schema.Infer<typeof AttributeKey>;
 
-/** The library or package that recorded an event, as OpenTelemetry names its instrumentation scope. */
+/** The library or package that recorded an event. */
 export const Instrumentation = defineSchema(
     schema.object({
         /** The library or package name. */
@@ -30,11 +30,11 @@ export const Instrumentation = defineSchema(
 /** The library or package that recorded an event. */
 export type Instrumentation = schema.Infer<typeof Instrumentation>;
 
-/** The attributes only a person's key opens and only readers holding unmask see, a schema apart from the plain attributes it marks. */
+/** The attributes only a person's key opens and only readers with unmask see. */
 export const PersonalAttributes = schema.sensitive(Attributes, "personal");
 
 /** The prefix of attribute keys an emitter marks personal. */
 export const SENSITIVE_PREFIX = "sensitive.";
 
-/** The attribute naming the person a signal acted for, from the OpenTelemetry semantic conventions. */
+/** The attribute of the person a signal acted for. */
 export const PERSON_ATTRIBUTE = "enduser.id";
