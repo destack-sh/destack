@@ -12,7 +12,7 @@ import { BuildError } from "../error/index.ts";
 import { modulePath } from "./dependency.ts";
 import { TypeScriptCompiler } from "../typescript/compiler.ts";
 
-/** This package's directory, whose dependencies hold the runtime declarations when running from a workspace. */
+/** This package's directory, whose dependencies have runtime declarations in a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** Runtime type environments retained across builds of one package. */
@@ -134,7 +134,7 @@ export class RuntimeCompiler implements AsyncDisposable {
     }
 }
 
-/** Write one access expression per distinct global, refusing dynamic access and code evaluation on workerd. */
+/** Write one access expression per global, refusing dynamic access and eval on workerd. */
 function accessExpressions(
     references: readonly GlobalReference[],
     runtime: Runtime,
@@ -154,7 +154,7 @@ function accessExpressions(
     return expressions;
 }
 
-/** Report whether a global reaches `eval` or the `Function` constructor, which workerd refuses to run. */
+/** Report whether a global is `eval` or the `Function` constructor, which workerd refuses. */
 function isEvaluation(reference: GlobalReference): boolean {
     // read the access path from the global object
     const path =

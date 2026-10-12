@@ -43,7 +43,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
         return join(Toolchain.locate(["typescript", platform], PACKAGE), "lib", "tsc");
     }
 
-    /** Inspect a configuration, collecting the declarations of the modules its entries import, the package as its build releases it. */
+    /** Inspect a configuration, collecting the declarations of the modules its entries import. */
     inspect(
         configuration: string,
         entries: readonly string[],
@@ -76,7 +76,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
         });
     }
 
-    /** Parse a configuration into its effective options and root files, without loading its program. */
+    /** Parse a configuration into options and root files, without loading its program. */
     async configure(configuration: string): Promise<ParsedConfiguration> {
         const path = await realpath(resolve(this.directory, configuration));
         const parsed = await this.#api.parseConfigFile(path);

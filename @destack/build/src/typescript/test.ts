@@ -114,7 +114,7 @@ async function testBindings(
     return bindings;
 }
 
-/** Collect the outermost calls and the names they call through modifiers and parameterized calls. */
+/** Collect the outermost calls and the callees through modifiers and parameterized calls. */
 function collectCalls(source: SourceFile): TestCall[] {
     // walk the module breadth first
     const calls: TestCall[] = [];
@@ -148,7 +148,7 @@ function collectCalls(source: SourceFile): TestCall[] {
     return calls;
 }
 
-/** Describe a test registration in module or suite scope, absent for one inside another function. */
+/** Describe a test registration in module or suite scope, absent inside another function. */
 function describeTest(
     call: TestCall,
     kind: "test" | "suite",

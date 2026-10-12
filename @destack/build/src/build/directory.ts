@@ -6,7 +6,7 @@ import type { PackageFile } from "@destack/package/file";
 import { type BuildContents, BuildWriter, type PackageManifest } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 
-/** The directory a build writes into: its sources retained until written, then every file and the build format through its writer. */
+/** The directory a build writes into: its sources retained until written, then its files. */
 export class BuildDirectory {
     /** The build directory. */
     readonly directory: string;

@@ -53,10 +53,10 @@ const SYMBOL_KINDS: Readonly<Record<string, graph.Symbol["kind"]>> = {
     EnumMember: "member",
 };
 
-/** The longest printed signature line, TypeScript's hover truncation length (defaultMaximumTruncationLength). */
+/** The longest printed signature line, TypeScript's defaultMaximumTruncationLength. */
 const SIGNATURE_LENGTH = 160;
 
-/** The names the compiler gives anonymous symbols, such as function expressions and type literals. */
+/** The compiler's internal symbol names, such as for function expressions and type literals. */
 const INTERNAL_NAMES = new Set([
     "__function",
     "__object",
@@ -99,7 +99,7 @@ class Edges {
     }
 }
 
-/** Describe each module's graph file from the checker's descriptions, the evaluated declarations, the tests, examples and scenarios. */
+/** Describe each module's graph file from the checker's descriptions and evaluations. */
 export function describeGraph(
     source: Package,
     modules: readonly ModuleDescription[],
@@ -122,7 +122,7 @@ export function describeGraph(
     );
 }
 
-/** Join two outputs' descriptions of one module, keeping each runtime's imports, globals and errors once, refusing descriptions of other source bytes. */
+/** Join two outputs' descriptions of one module. */
 export function joinModules(kept: ModuleDescription, other: ModuleDescription): ModuleDescription {
     // require the same source bytes, which give both outputs the same symbols and exports
     if (kept.source.digest !== other.source.digest) {
@@ -247,7 +247,7 @@ class ModuleSymbols {
         return isAnonymous(name) ? undefined : monikerOf(this.source, reference);
     }
 
-    /** Describe a symbol and its members, leaving anonymous types and functions to their enclosing symbol. */
+    /** Describe a symbol and its members, leaving anonymous types to the enclosing symbol. */
     add(symbol: SymbolDescription): void {
         // name the symbol
         if (isAnonymous(symbol.name)) {
@@ -329,7 +329,7 @@ class ModuleSymbols {
         }
     }
 
-    /** Keep the first description of a symbol the checker describes twice, as a member and as a symbol. */
+    /** Keep the first description of a symbol the checker describes as member and symbol. */
     #keep(symbol: graph.Symbol): void {
         if (!this.#symbols.has(symbol.moniker)) {
             this.#symbols.set(symbol.moniker, symbol);
@@ -362,7 +362,7 @@ export function monikerOf(source: Package, reference: SymbolReference): graph.Mo
     });
 }
 
-/** Attribute a module's calls and globals to their innermost enclosing symbol or test, a test covering the package's own symbols it calls. */
+/** Attribute a module's calls and globals to their innermost enclosing symbol or test. */
 function attributeUses(
     module: ModuleDescription,
     symbols: ModuleSymbols,
@@ -417,7 +417,7 @@ function isCovered(source: Package, tested: TestGraph, symbol: graph.Moniker): b
     return !tested.has(path);
 }
 
-/** Report whether a qualified name passes through a symbol the compiler names internally, such as `__function`. */
+/** Report whether a qualified name has an internal compiler symbol, such as `__function`. */
 function isAnonymous(name: string): boolean {
     return name.split(".").some((part) => INTERNAL_NAMES.has(part));
 }

@@ -8,7 +8,7 @@ import { BuildError } from "../error/index.ts";
 import { relativePath } from "../source/dependency.ts";
 import { schema } from "@destack/schema";
 
-/** The namespaces of virtual module identifiers: plugins' modules, and Vite's for absent optional peers. */
+/** The virtual module namespaces: plugin modules, and Vite's for absent optional peers. */
 const VIRTUAL_NAMESPACES = ["virtual:", "__vite-optional-peer-dep:"];
 
 /** The sources of a source map and their contents. */
@@ -98,7 +98,7 @@ function omitUrlSources(bundle: OutputBundle): void {
     }
 }
 
-/** Return a module path relative to the package directory, or nothing outside the package's own files. */
+/** Return a module path relative to the package directory, if inside the package. */
 function packageFile(directory: string, path: string): string | undefined {
     // skip virtual modules
     if (!isAbsolute(path)) {

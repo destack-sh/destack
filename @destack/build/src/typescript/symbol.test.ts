@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Compiler } from "../build/compiler.ts";
 
-/** The workspace's packages: an app declaring a document, and a sibling dependency augmenting it. */
+/** The workspace's packages: an app declaring a document, and a dependency augmenting it. */
 const FILES: Readonly<Record<string, string>> = {
     "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
     "app/destack.json": JSON.stringify({

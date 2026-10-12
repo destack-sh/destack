@@ -30,7 +30,7 @@ import type { SymbolInspector } from "./symbol.ts";
 /** The module declaring the example and scenario constructors. */
 const DECLARE_MODULE = "@destack/package/declare";
 
-/** Where a module defines a declaration: its literal name, the exported constant holding it and its defining call. */
+/** Where a module defines a declaration: its literal name, constant and defining call. */
 export interface DefinitionSite {
     /** The literal name. */
     readonly name: string;
@@ -40,7 +40,7 @@ export interface DefinitionSite {
     readonly source: SourceRange;
 }
 
-/** A constructor call initializing an exported module constant, with its site and its definition's fields. */
+/** A constructor call initializing an exported constant, with its site and fields. */
 export interface Definition {
     /** Where the module defines the declaration. */
     readonly site: DefinitionSite;
@@ -48,7 +48,7 @@ export interface Definition {
     readonly fields: DefinitionFields;
 }
 
-/** Locate a module's calls of a constructor of `@destack/package/declare` at exported module constants. */
+/** Locate a module's `@destack/package/declare` constructor calls at exported constants. */
 export async function locateDefinitions(
     source: SourceFile,
     file: string,
@@ -135,7 +135,7 @@ export class DefinitionFields {
         return field;
     }
 
-    /** Read a field mapping names to lists of object literals, such as an example's calls by scope, none when absent. */
+    /** Read a field of keyed object literal lists, such as an example's calls by scope. */
     lists(name: string): Map<string, DefinitionFields[]> {
         // read nothing for an absent field
         const field = this.#fields.get(name);
@@ -312,7 +312,7 @@ function collectCalls(source: SourceFile): CallExpression[] {
     return calls;
 }
 
-/** Require a constructor call to initialize an exported module constant, returning the constant's name. */
+/** Require a constructor call to initialize an exported constant, returning its name. */
 async function locateConstant(
     call: CallExpression,
     kind: string,

@@ -53,7 +53,7 @@ export class BuildError extends Error implements DomainError {
         return BuildError.fromBundle(cause);
     }
 
-    /** Report a failed bundle by the messages of its errors, keeping the bundler's error as cause. */
+    /** Report a failed bundle by its error messages, keeping the bundler's error as cause. */
     static fromBundle(error: unknown): BuildError {
         // read the errors a Rolldown bundle failure aggregates
         const errors = BundleErrors.safeParse(

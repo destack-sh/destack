@@ -30,7 +30,7 @@ import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
 import { checkRuntime, type RuntimeCompiler } from "./runtime.ts";
 import { mapSource, sourcePlugin } from "./source.ts";
 
-/** One pass of an output kind compiling several outputs, with the build's sources, dependencies and files it lends the kind. */
+/** One pass of an output kind compiling several outputs. */
 export class OutputPass implements Pass {
     /** The opened package source. */
     readonly project: PackageSource;
@@ -111,12 +111,12 @@ export class OutputPass implements Pass {
         ];
     }
 
-    /** Return the plugins the extensions of the package's dependency closure transform its modules with. */
+    /** Return the plugins of the dependency closure's extensions, transforming the modules. */
     transforms(context: Omit<TransformContext, "directory">): PluginOption[] {
         return transformPlugins(this.extensions, { ...context, directory: this.project.directory });
     }
 
-    /** Return the plugin recording what one Vite environment compiles, into an output when it has one. */
+    /** Return the plugin recording what one Vite environment compiles, into its output if any. */
     record(environment: string, output?: string): Plugin {
         // require an output of the pass, or record only the environment's module locations
         const inspection =
@@ -143,7 +143,7 @@ export class OutputPass implements Pass {
         );
     }
 
-    /** Return what an output's modules import and emit, refusing an output no environment recorded. */
+    /** Return what an output's modules import and emit, refusing an unrecorded output. */
     inspection(output: string): BuildDescription {
         const inspection = this.#inspections.get(output);
         if (inspection === undefined || !this.#recorded.has(output)) {

@@ -14,7 +14,7 @@ export interface PackageAccess {
     upload?(request: Request): Promise<void>;
 }
 
-/** HTTP reads of stored builds, their manifests, files and whole archives, and uploads of builds by digest. */
+/** HTTP reads of stored builds, manifests, files and archives, and uploads by digest. */
 export class PackageServer {
     /** The URL the reads are mounted at. */
     readonly url: URL;
@@ -41,7 +41,7 @@ export class PackageServer {
         );
     }
 
-    /** Serve immutable manifests, selected files and complete archives, as the host decides each read. */
+    /** Serve immutable manifests, selected files and archives, as the host decides each read. */
     async fetch(request: Request, access: PackageAccess): Promise<Response> {
         try {
             return await this.#read(request, access);
@@ -59,7 +59,7 @@ export class PackageServer {
         }
     }
 
-    /** Receive an upload: tell whether a file is held, store a file by its digest, or store a manifest whose files are held. */
+    /** Receive an upload: check a file, store a file by digest, or store a complete manifest. */
     async #write(request: Request, access: PackageAccess, path: string): Promise<Response> {
         // refuse uploads and find no uploaded file where nobody uploads
         if (access.upload === undefined) {
@@ -150,7 +150,7 @@ export class PackageServer {
         return this.#serve(request, digest, selected, file);
     }
 
-    /** Find the manifest or a file a build lists by its selected path, answering a malformed or unknown path. */
+    /** Find the manifest or a listed file by its path, answering malformed or unknown paths. */
     async #select(digest: string, selected: string): Promise<PackageFile | Response> {
         // describe the manifest itself
         if (selected === "manifest.json") {
@@ -235,7 +235,7 @@ export class PackageServer {
         });
     }
 
-    /** Serve a stored build as one archive, whole, which answers cache conditions without reading its files. */
+    /** Serve a stored build as one whole archive, answering cache conditions without file reads. */
     async #archive(request: Request, digest: string): Promise<Response> {
         // require the stored build before promising its archive
         await this.store.head(digest);
@@ -295,7 +295,7 @@ function decodePath(encoded: string): string | undefined {
     }
 }
 
-/** Read the byte range a GET requests of a file, absent for the whole file or a validator naming another version. */
+/** Read a GET's byte range of a file, absent for the whole file or another version. */
 function readRange(
     request: Request,
     etag: string,

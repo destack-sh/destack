@@ -51,7 +51,7 @@ export interface LoadedExtension {
     readonly extension: BuildExtension;
 }
 
-/** Load each extension of the package's runtime dependency closure once in name order, and of its own development dependencies in development. */
+/** Load each extension of the runtime dependency closure once in alphabetical order. */
 export async function loadExtensions(
     directory: string,
     declaration: PackageDescription,
@@ -122,7 +122,7 @@ export async function loadExtensions(
     return extensions;
 }
 
-/** Load the plugins the extensions of a package's dependency closure, its development dependencies included, transform its modules with in development. */
+/** Load the dependency closure extensions' module transforms for development. */
 export async function loadTransforms(context: TransformContext): Promise<PluginOption[]> {
     const declaration = await readPackageDescription(context.directory);
     const loaded = await loadExtensions(context.directory, declaration, { development: true });
@@ -133,7 +133,7 @@ export async function loadTransforms(context: TransformContext): Promise<PluginO
     );
 }
 
-/** Collect the plugins extensions transform a package's modules with, reporting a failure as a build failure. */
+/** Collect the extensions' module transform plugins, reporting failures as build failures. */
 export function transformPlugins(
     extensions: readonly BuildExtension[],
     context: TransformContext,

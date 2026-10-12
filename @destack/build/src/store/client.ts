@@ -4,7 +4,7 @@ import { PackageManifest } from "@destack/package/manifest";
 import { ServiceError } from "@destack/service/error";
 import { distinctFiles, encodeManifest, inBatches } from "./store.ts";
 
-/** The client of a package server: it pushes builds by digest, as a registry client pushes images. */
+/** The client of a package server, pushing builds by digest as registry clients push images. */
 export class PackageClient {
     /** The URL the server's builds are mounted at, ending in a slash. */
     readonly url: string;
@@ -17,7 +17,7 @@ export class PackageClient {
         this.#fetch = fetch;
     }
 
-    /** Push a build: each file the server lacks, then the manifest under the build's digest, returning that digest. */
+    /** Push a build's missing files, then its manifest under its digest, and return the digest. */
     async push(build: BuildReader, signal?: AbortSignal): Promise<string> {
         // upload each distinct file the server lacks
         const files = distinctFiles(await build.distributed());

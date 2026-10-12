@@ -1,7 +1,7 @@
 import { Text } from "@destack/schema";
 import { graph, type Package, type DeclarationDescription } from "@destack/package";
 
-/** A declaration or member of the build a relationship may name, with the declaration it belongs to. */
+/** A declaration or member a relationship may refer to, with its declaration. */
 interface Referent {
     /** The declaration or member. */
     readonly declaration: graph.Declaration;
@@ -86,7 +86,7 @@ export class DeclarationGraph {
         this.#referents.set(key, [...(this.#referents.get(key) ?? []), referent]);
     }
 
-    /** Keep one of the package's declarations with its members, resolving the edges their relationships draw. */
+    /** Keep a package declaration with its members, resolving their relationship edges. */
     #derive(entry: Located): void {
         // resolve each relationship of the declaration and the members it derives
         const { declaration, described, members } = entry;

@@ -1,10 +1,10 @@
 import { sep } from "node:path";
 import { Compiler, CompilerCommand } from "./compiler.ts";
 
-/** The warm compilers a machine keeps at once: a compiler holds 0.5 to 1 GB, so four stay within a quarter of a 16 GB laptop. */
+/** The warm compilers a machine keeps at once. */
 const MAX_WARM_COMPILERS = 4;
 
-/** How long a compiler stays warm unused: fifteen minutes outlast a pause between edits, and a cold start costs seconds. */
+/** How long an unused compiler stays warm: fifteen minutes, since a cold start costs seconds. */
 const IDLE_MILLISECONDS = 15 * 60_000;
 
 /** A package directory's warm compiler and when it was last used. */
@@ -17,7 +17,7 @@ interface Warm {
     idle: ReturnType<typeof setTimeout>;
 }
 
-/** Warm compilers, one per package directory, closed when idle or least recently used beyond the cap. */
+/** Warm compilers, one per package directory, closed when idle or beyond the cap. */
 export class CompilerPool implements AsyncDisposable {
     /** The command the pool starts each compiler with. */
     readonly #command: CompilerCommand;
@@ -37,7 +37,7 @@ export class CompilerPool implements AsyncDisposable {
         return new CompilerPool(await CompilerCommand.current(), report);
     }
 
-    /** Use a package directory's warm compiler, starting it once and closing the least recently used beyond the cap. */
+    /** Use a directory's warm compiler, starting it once and closing the oldest beyond the cap. */
     compiler(directory: string): Promise<Compiler> {
         // keep a warm compiler warm for another idle period
         const now = Date.now();
@@ -88,7 +88,7 @@ export class CompilerPool implements AsyncDisposable {
         await this.#close([...this.#warm.keys()]);
     }
 
-    /** Forget the warm compilers of some package directories and close each after its queued requests. */
+    /** Forget the warm compilers of some directories, closing each after its queued requests. */
     async #close(directories: readonly string[]): Promise<void> {
         // forget each warm compiler of the directories
         const closing = directories.flatMap((directory) => {

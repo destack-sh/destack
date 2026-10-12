@@ -7,7 +7,7 @@ import { BuildError, isMissing } from "../error/index.ts";
 /** The directory of a package keeping its catalogs. */
 const CATALOG_DIRECTORY = "locale";
 
-/** Read a package's catalogs by package path, refusing another file, another package's catalog or a misnamed one. */
+/** Read a package's catalogs by path, refusing other files, packages or misnamed catalogs. */
 export async function readCatalogs(
     directory: string,
     owner: PackageId,

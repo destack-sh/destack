@@ -149,7 +149,7 @@ export class Template {
     }
 }
 
-/** Read the files of declared template paths, refusing symbolic links and parents that are not directories. */
+/** Read the files of declared template paths, refusing symbolic links and file parents. */
 async function readDeclared(
     root: string,
     declared: readonly string[],
@@ -353,7 +353,7 @@ export function replaceImports(
     return source;
 }
 
-/** Report whether a parsed package.json has a template's fields, keeping the parsed object and its key order. */
+/** Report whether a parsed package.json has a template's fields, keeping its key order. */
 function isTemplateManifest(value: unknown): value is TemplateManifest {
     return TemplateManifest.safeParse(value).success;
 }

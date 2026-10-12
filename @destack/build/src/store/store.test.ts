@@ -501,7 +501,7 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
     ]);
 });
 
-/** Upload a body to a server's path as a host decides, answering the status and the error it reports. */
+/** Upload a body to a server path as a host decides, returning the status and error. */
 async function upload(
     server: PackageServer,
     path: string,

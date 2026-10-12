@@ -18,7 +18,7 @@ const packages = {
 const GREETING =
     'import { defineGreeting } from "@example/other";\n\nexport const greeting = defineGreeting({ name: "greeting" });\n';
 
-/** Write a workspace whose app declares a greeting, described as a kind it declares and as the owner's kind. */
+/** Write a workspace whose app declares a greeting, as its own kind and the owner's kind. */
 async function writeWorkspace(directory: string, owner: string, app = GREETING): Promise<void> {
     // write each package's constructor, the function describing a declaration by its name, and the function reading a greeting as a thing
     const describe =

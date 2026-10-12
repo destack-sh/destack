@@ -102,7 +102,7 @@ interface InspectedOutput {
     readonly evaluation: Evaluation;
 }
 
-/** The compiler inside the sandbox: its state and configurations for one source package, kept across the requests its host sends. */
+/** The compiler inside the sandbox, keeping state for one source package across requests. */
 export class CompilerWorker implements AsyncDisposable {
     /** The native TypeScript compiler. */
     readonly typescript: TypeScriptCompiler;
@@ -116,7 +116,7 @@ export class CompilerWorker implements AsyncDisposable {
     readonly #sources = new Map<string, { declaration: string; source: PackageSource }>();
     /** The identity of the toolchain this process runs, read once. */
     #toolchain: Promise<Digest> | undefined;
-    /** The identity of each loaded extension's package, read once, since the process keeps the code it first imported. */
+    /** The identity of each loaded extension's package, read once as the process keeps its code. */
     readonly #extensions = new Map<string, Promise<Digest>>();
 
     /** Start the compiler for one source checkout. */
@@ -141,7 +141,7 @@ export class CompilerWorker implements AsyncDisposable {
         return inspectModules(project.declaration.package, modules, tests, evaluation.declarations);
     }
 
-    /** Identify a build's inputs beside its modules: the toolchain, the extensions, the package's manifests and its catalogs. */
+    /** Identify a build's non-module inputs: toolchain, extensions, manifests and catalogs. */
     async #identifyInputs(
         directory: string,
         packageId: PackageId,
@@ -334,7 +334,7 @@ export class CompilerWorker implements AsyncDisposable {
         });
     }
 
-    /** Key the modules of each distinct program once, and collect the keys of the modules each requested output imports. */
+    /** Key each distinct program's modules once, and collect each output's module keys. */
     async #keyModules(
         options: BuildOptions,
         planned: ReadonlyMap<string, PlannedOutput>,
@@ -385,7 +385,7 @@ export class CompilerWorker implements AsyncDisposable {
         return { imports, keys };
     }
 
-    /** Identify an extension's package once, as this process keeps the extension it first imported. */
+    /** Identify an extension's package once, as the process keeps the first imported extension. */
     #identify(loaded: LoadedExtension): Promise<Digest> {
         let identity = this.#extensions.get(loaded.directory);
         if (identity === undefined) {
@@ -396,7 +396,7 @@ export class CompilerWorker implements AsyncDisposable {
         return identity;
     }
 
-    /** Open and inspect each output, check every source, then evaluate each distinct inspection once. */
+    /** Open and inspect each output, check every source, then evaluate each inspection once. */
     async #inspect(
         options: BuildOptions,
         planned: ReadonlyMap<string, PlannedOutput>,
@@ -444,7 +444,7 @@ export class CompilerWorker implements AsyncDisposable {
         return inspected;
     }
 
-    /** Compile each requested output the cache lacks, a kind's outputs in one pass, and reuse the others. */
+    /** Compile each uncached output, a kind's outputs in one pass, and reuse the others. */
     async #compile(
         options: BuildOptions,
         planned: ReadonlyMap<string, PlannedOutput>,
@@ -648,7 +648,7 @@ export class CompilerWorker implements AsyncDisposable {
         return { graph: described, resolved };
     }
 
-    /** Require an output's dependency declarations at their resolved versions and check its runtime. */
+    /** Require an output's dependency declarations at resolved versions and check its runtime. */
     async #checkOutput(
         inspected: InspectedOutput,
         planned: PlannedOutput,
@@ -673,7 +673,7 @@ export class CompilerWorker implements AsyncDisposable {
     }
 }
 
-/** Join each module's descriptions across outputs and keep every evaluated declaration of an output. */
+/** Join each module's descriptions across outputs and keep each output's declarations. */
 function retainGraphInputs(
     inspected: InspectedOutput,
     modules: Map<string, ModuleDescription>,
@@ -695,7 +695,7 @@ function sourcePackage(inspected: ReadonlyMap<string, InspectedOutput>): Package
         .package;
 }
 
-/** Read a source's package.json as its build releases it: as authored, or at the release's version. */
+/** Read a source's package.json as released: as authored, or at the release's version. */
 async function releasedManifest(project: PackageSource): Promise<Uint8Array<ArrayBuffer>> {
     // keep the authored bytes of the version they name
     const authored = await readFile(resolve(project.directory, "package.json"), "utf8");
@@ -855,7 +855,7 @@ function createCompilation(
     );
 }
 
-/** Retain every inspected source, template asset, authored manifest and catalog before compiling. */
+/** Retain every inspected source, template asset, manifest and catalog before compiling. */
 async function retain(
     inspected: ReadonlyMap<string, InspectedOutput>,
     files: BuildDirectory,
@@ -1000,7 +1000,7 @@ function planUpgrade(
     );
 }
 
-/** Join two outputs' resolutions of one dependency, uniting the files they read of a source package. */
+/** Join two outputs' resolutions of a dependency, uniting the source package files they read. */
 function joinResolutions(
     key: string,
     previous: DependencyResolution | undefined,
@@ -1059,7 +1059,7 @@ async function findPackage(name: string, locator: PackageLocator): Promise<Packa
     return owner.metadata.package;
 }
 
-/** Answer sequential requests on standard input with one retained compiler for the package directory the arguments name. */
+/** Answer sequential stdin requests with one retained compiler for the given directory. */
 export async function runCompiler(): Promise<void> {
     // reserve stdout for framed build results and send package logs to diagnostics
     Object.assign(

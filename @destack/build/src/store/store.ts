@@ -15,10 +15,10 @@ import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
 import { CacheEntry } from "../cache/entry.ts";
 
-/** The uploads one store runs at once: at tens of milliseconds per R2 upload, eight store 2000 files in about 10 seconds. */
+/** The concurrent uploads of one store. */
 const CONCURRENT_UPLOADS = 8;
 
-/** The key of the marks a sweep leaves for the next one: each dropped object's key to the instant a sweep first marked it. */
+/** The key of a sweep's marks: each dropped object's key to the instant a sweep marked it. */
 const MARKS_KEY = "marks";
 
 /** The marks of the objects a sweep drops, by key. */
@@ -69,7 +69,7 @@ export class PackageStore {
         return (await this.bucket.head(`manifests/${Digest.parse(digest)}`)) !== null;
     }
 
-    /** Copy a build a package server serves by its manifest's digest unless the store keeps it, fetching only the files the store lacks. */
+    /** Copy a served build by manifest digest unless kept, fetching only missing files. */
     async copy(
         location: PackageLocation,
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
@@ -109,7 +109,7 @@ export class PackageStore {
         );
     }
 
-    /** Store an uploaded manifest whose files the store holds, refusing bytes of another digest and a build lacking a file. */
+    /** Store an uploaded manifest with all its files, refusing other digests and missing files. */
     async adopt(digest: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         // read the manifest its digest names
         if ((await Digest.of(bytes)) !== Digest.parse(digest)) {
@@ -141,7 +141,7 @@ export class PackageStore {
         });
     }
 
-    /** Store a file under its digest unless the bucket has it, opening its bytes only when needed. */
+    /** Store a file under its digest unless the bucket has it, opening its bytes only if needed. */
     async putFile(file: PackageFile, open: () => Promise<BucketBody>): Promise<void> {
         const key = `files/${file.digest}`;
         if (!(await this.#has(key, file))) {
@@ -198,7 +198,7 @@ export class PackageStore {
         return reader;
     }
 
-    /** Read the entry a cache key names, a miss when it names none or names something the store no longer keeps. */
+    /** Read a cache key's entry, a miss when absent or when it refers to dropped objects. */
     async cached(key: string): Promise<CacheEntry | undefined> {
         // read the entry
         const object = await this.bucket.get(`cache/${Digest.parse(key)}`);
@@ -224,21 +224,14 @@ export class PackageStore {
         });
     }
 
-    /** Lease a manifest or file by its digest until a moment, keeping it and the files a leased manifest lists from sweeps. */
+    /** Lease a manifest or file until a moment, keeping it and its listed files from sweeps. */
     async lease(digest: string, until: Date): Promise<void> {
         await this.bucket.put(`leases/${Digest.parse(digest)}`, JSON.stringify(until.getTime()), {
             httpMetadata: { contentType: "application/json" },
         });
     }
 
-    /**
-     * Delete what retention drops, stored before a moment: unretained manifests, files no kept manifest lists, and cache entries naming either.
-     *
-     * Manifests stored since the moment stay, with every file they list.
-     * Retained files stay too, such as archives no manifest lists.
-     * Leased manifests and files stay until their lease expires, with every file a leased manifest lists.
-     * A sweep marks each object it drops, and a later sweep deletes it once it was marked at or before the marking moment.
-     */
+    /** Delete what retention drops and was stored before a moment. */
     async sweep(
         retained: ReadonlySet<string>,
         before: Date,
@@ -407,7 +400,7 @@ export class PackageStore {
         return object;
     }
 
-    /** Stream a stored build as a tarball of its manifest and its files in path order, each verified before it is written. */
+    /** Stream a stored build as a tarball of its manifest and files in path order, verified. */
     export(digest: string): ReadableStream<Uint8Array<ArrayBuffer>> {
         return Tarball.stream(this.#entries(digest));
     }
@@ -501,7 +494,7 @@ export class PackageStore {
         }
     }
 
-    /** Decide whether the bucket has a file's exact bytes under its key, refusing different bytes stored there. */
+    /** Decide whether the bucket has a file's exact bytes at its key, refusing other bytes. */
     async #has(key: string, file: PackageFile): Promise<boolean> {
         const stored = await this.bucket.head(key);
         if (stored === null) {
@@ -515,7 +508,7 @@ export class PackageStore {
         return true;
     }
 
-    /** Create an immutable object the bucket verifies by checksum, or keep the one another writer created first. */
+    /** Create an immutable checksum-verified object, or keep one another writer created first. */
     async #put(key: string, body: BucketBody, file: PackageFile): Promise<void> {
         // create the object, or read the object another writer created first
         const stored = await this.bucket

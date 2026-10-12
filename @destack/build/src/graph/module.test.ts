@@ -3,7 +3,7 @@ import type { ModuleDescription } from "@destack/package/code";
 import { Digest } from "@destack/schema";
 import { joinModules } from "./module.ts";
 
-/** Describe the module a runtime inspects: its source digest, the one import and the one global it resolves. */
+/** Describe an inspected module: its source digest, one resolved import and one global. */
 function described(digest: string, specifier: string, global: string): ModuleDescription {
     return {
         path: "src/platform.ts",

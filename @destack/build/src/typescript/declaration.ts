@@ -65,7 +65,7 @@ interface ResolvedConstructor {
     readonly kinds: readonly ConstructorKind[];
 }
 
-/** The packages and inspected constructors one inspection finds, each read once per package directory. */
+/** The packages and constructors one inspection finds, each read once per directory. */
 export class ConstructorCatalog {
     /** The package containing each module directory. */
     readonly #locations = new Map<string, Promise<PackageLocation>>();
@@ -83,7 +83,7 @@ export class ConstructorCatalog {
     /** The package the inspection's build compiles, as it releases it. */
     readonly #compiled: ModulePackage;
 
-    /** Inspect the constructors of a build's packages, the compiled one as the build releases it. */
+    /** Inspect the constructors of a build's packages, the compiled one as released. */
     constructor(compiled: ModulePackage) {
         this.#compiled = compiled;
         this.#packages = new PackageLocator(compiled);
@@ -143,7 +143,7 @@ export class ConstructorCatalog {
         return location;
     }
 
-    /** Read a package's identity, with the stable id its destack.json declares when it has one, the compiled package's as its build releases it. */
+    /** Read a package's identity, with the stable id of its destack.json if declared. */
     owner(location: PackageLocation): Promise<Package | DependencyPackage> {
         let owner = this.#owners.get(location.directory);
         if (owner === undefined) {
@@ -206,7 +206,7 @@ export class ConstructorCatalog {
         return inspected;
     }
 
-    /** Describe a kind a constructor lists, with the functions of the package declaring the kind. */
+    /** Describe a constructor's kind, with the functions of the package declaring it. */
     async #describeKind(
         location: PackageLocation,
         identity: Package,
@@ -250,7 +250,7 @@ export class ConstructorCatalog {
         };
     }
 
-    /** Find the dependency declaring a kind another package's constructor describes, with the entry declaring it. */
+    /** Find the dependency and entry declaring a kind another package's constructor describes. */
     async #locateKind(
         name: string,
         kind: string,
@@ -386,7 +386,7 @@ export async function collectDeclarations(
     return declarations;
 }
 
-/** Find the last call chained on a call's result, such as `implement` on a declared type, or the call itself. */
+/** Find the last call chained on a call, such as `implement` on a declared type, or itself. */
 function chainEnd(node: CallExpression): CallExpression {
     const member = node.parent;
     const chained = member.parent;
@@ -426,7 +426,7 @@ function collectCalls(source: SourceFile, tests: readonly TestDeclaration[]): Ca
     return calls;
 }
 
-/** Name each symbol a module exports through the compiler, including export lists and aliases, by symbol. */
+/** Read the exported name of each symbol a module exports, including lists and aliases. */
 export async function exportedNames(
     source: SourceFile,
     inspector: SymbolInspector,
@@ -444,7 +444,7 @@ export async function exportedNames(
     return exported;
 }
 
-/** Require a constructor call to initialize an exported module constant, returning its name and export. */
+/** Require a constructor call to initialize an exported constant, returning name and export. */
 async function locateDeclaration(
     node: CallExpression,
     resolved: ResolvedConstructor,

@@ -90,7 +90,7 @@ export class OutputCompilation implements Compilation {
     readonly isLent: boolean;
     /** The modules extensions emit, by package entrypoint. */
     readonly #entries = new Map<string, string>();
-    /** The host modules the runtime supplies, and those the importing packages replace with nothing. */
+    /** The host modules the runtime supplies, and those importers replace with nothing. */
     readonly #hosts: HostModules;
 
     /** Create the compilation of one output from its settings, package and inspection. */
@@ -183,7 +183,7 @@ export class OutputCompilation implements Compilation {
         this.#entries.set(entrypoint, module);
     }
 
-    /** Compile the output with Vite and the extensions' plugins, then let the extensions describe it. */
+    /** Compile the output with Vite and extension plugins, then let the extensions describe it. */
     async compile(
         dependencies: Readonly<Record<string, DependencyResolution>>,
         sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
@@ -262,7 +262,7 @@ export class OutputCompilation implements Compilation {
         }
     }
 
-    /** Collect the extensions' transforms before their compiling plugins, reporting an extension's failure as a build failure. */
+    /** Collect extension transforms before compiling plugins, reporting failures as build ones. */
     #plugins(): PluginOption[] {
         const compiling = this.extensions.flatMap((extension) => {
             try {
@@ -445,7 +445,7 @@ export class OutputCompilation implements Compilation {
         }
     }
 
-    /** Export each emitted entry's chunk under its entrypoint, requiring every export to be generated. */
+    /** Export each emitted entry's chunk under its entrypoint, requiring every export. */
     #exportEntries(
         generated: readonly (OutputChunk | OutputAsset)[],
         exports: Record<string, string>,
@@ -584,7 +584,7 @@ export class OutputCompilation implements Compilation {
         return true;
     }
 
-    /** Select the declarations an entrypoint's modules declare, including declarations shaken out of its chunks. */
+    /** Select an entrypoint's module declarations, including ones shaken out of its chunks. */
     #declarationsOf(
         entrypoint: string,
         exports: Readonly<Record<string, string>>,

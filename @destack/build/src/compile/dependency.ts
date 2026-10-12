@@ -97,7 +97,7 @@ class DependencyRecorder {
     readonly locations: Map<string, ModuleSource>;
     /** The assets read beside modules, by path. */
     readonly assets: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
-    /** The build files the compilation writes, which keep the catalogs of unpublished dependencies. */
+    /** The compiled build files, with the catalogs of unpublished dependencies. */
     readonly files: Map<string, Uint8Array<ArrayBuffer>>;
     /** The package manifests read so far. */
     readonly resolver = new DependencyResolver();
@@ -192,7 +192,7 @@ class DependencyRecorder {
         return owner.directory === target.directory && owner.directory !== this.project.directory;
     }
 
-    /** Narrow the runtimes a recorded dependency module is reviewed for, as an export importing it declares. */
+    /** Narrow the runtimes a dependency module is reviewed for, as an importing export declares. */
     narrow(id: string, runtimes: Runtime[]): void {
         const recorded = this.locations.get(id);
         if (recorded?.kind === "source" && recorded.package !== undefined) {
@@ -211,7 +211,7 @@ class DependencyRecorder {
         }
     }
 
-    /** Record an asset a bundle emits from an original file, keeping a copied directory asset in its package's snapshot. */
+    /** Record a bundle's asset from an original file, keeping a directory asset in a snapshot. */
     async asset(root: string, original: string): Promise<void> {
         // attribute assets read by CSS plugins without creating JavaScript modules
         const absolute = resolve(root, original);
@@ -244,7 +244,7 @@ class DependencyRecorder {
         addFile(snapshot, file);
     }
 
-    /** Record a dependency module: an unpublished source by its files, an installed one by its release. */
+    /** Record a dependency module: unpublished sources by files, installed ones by release. */
     async #dependency(
         source: PackageLocation,
         definition: PackageDefinition | undefined,
@@ -277,7 +277,7 @@ class DependencyRecorder {
         addFile(await this.#snapshot(source, definition, key), file);
     }
 
-    /** Read an unpublished dependency's snapshot, starting it with the manifests that control its exports. */
+    /** Read an unpublished dependency's snapshot, starting with the manifests of its exports. */
     async #snapshot(
         source: PackageLocation,
         definition: PackageDefinition | undefined,
@@ -309,7 +309,7 @@ class DependencyRecorder {
         return snapshot;
     }
 
-    /** Keep an unpublished dependency's catalogs in its snapshot, and their bytes in the build below its package. */
+    /** Keep an unpublished dependency's catalogs in its snapshot and in the build. */
     async #keepCatalogs(snapshot: SourceSnapshot, directory: string): Promise<void> {
         const owner = this.project.declaration.package.id;
         for (const [path, bytes] of await readCatalogs(directory, snapshot.package.id)) {
@@ -499,7 +499,7 @@ export function resolutionPlugin(
     };
 }
 
-/** Require an authored module's import to name the package or a dependency its manifest declares. */
+/** Require an authored import to be the package itself or a declared dependency. */
 function requireDeclared(source: PackageSource, importer: string, name: string): void {
     // leave imports of dependency modules to the dependencies' manifests
     const local = relativePath(source.directory, importer);

@@ -60,7 +60,7 @@ export interface TypeScriptInspection {
     scenarios: ScenarioDeclaration[];
 }
 
-/** Describe source modules, and collect the declarations of the modules the entries import, identifying the compiled package as its build releases it. */
+/** Describe source modules, and collect the declarations of the modules entries import. */
 export async function describeProject(
     project: Project,
     compiled: ModulePackage,
@@ -111,7 +111,7 @@ export async function describeProject(
     };
 }
 
-/** What one source module holds besides its description: directory references, tests and declarations. */
+/** What a source module has beside its description: directory references, tests, declarations. */
 interface CollectedModule {
     /** The module's absolute path. */
     readonly file: string;
@@ -123,7 +123,7 @@ interface CollectedModule {
     readonly declarations: DeclarationExport[];
 }
 
-/** One inspection of a compiler project: its modules, their bytes and the declarations they queue. */
+/** One inspection of a compiler project: its modules, bytes and queued declarations. */
 class ProjectInspection {
     /** The compiler project. */
     readonly project: Project;
@@ -159,7 +159,7 @@ class ProjectInspection {
         );
     }
 
-    /** Locate a symbol once, queueing the package's declarations its exports and public types name. */
+    /** Locate a symbol once, queueing the declarations its exports and public types refer to. */
     reference(symbol: TypeScriptSymbol): Promise<SymbolReference> {
         let result = this.#locations.get(symbol.id);
         if (result === undefined) {
@@ -177,7 +177,7 @@ class ProjectInspection {
         return result;
     }
 
-    /** Read a module's directory references, and the tests and runtime declarations of an authored one. */
+    /** Read a module's directory references, and an authored one's tests and declarations. */
     async collect(
         file: string,
         authored: SourceFile | undefined,
@@ -208,7 +208,7 @@ class ProjectInspection {
         return { file, references, tests, declarations };
     }
 
-    /** Register an authored module under its package-relative path, requiring its bytes to match the compiler snapshot. */
+    /** Register an authored module by package path, requiring bytes equal to the snapshot. */
     async register(file: string, source: SourceFile): Promise<void> {
         // require source bytes to match the compiler snapshot
         const path = relativePath(this.root, file);
@@ -232,7 +232,7 @@ class ProjectInspection {
         });
     }
 
-    /** Describe a registered module's imports, globals, errors, exports, examples and scenarios together. */
+    /** Describe a module's imports, globals, errors, exports, examples and scenarios together. */
     async describe(file: string, source: SourceFile): Promise<void> {
         // describe the module's imports, globals, errors, exports, examples and scenarios together
         const module = found(this.modules, relativePath(this.root, file));
@@ -352,7 +352,7 @@ async function describeExports(
     return exports.toSorted((left, right) => Text.compare(left.name, right.name));
 }
 
-/** Collect the package's modules the entries import through imports and reexports kept at runtime. */
+/** Collect the package modules the entries import through runtime imports and reexports. */
 async function collectRuntimeFiles(
     project: Project,
     entries: readonly string[],
@@ -637,7 +637,7 @@ async function declarationName(symbol: TypeScriptSymbol): Promise<string> {
     return names.join(".");
 }
 
-/** Report whether a file holds declarations only, by the compiler's naming rule for `.d.ts` files. */
+/** Report whether a file has declarations only, by the compiler's `.d.ts` rule. */
 export function isDeclarationPath(path: string): boolean {
     return /\.d\.[cm]?ts$/u.test(path) || (path.endsWith(".ts") && basename(path).includes(".d."));
 }

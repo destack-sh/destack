@@ -17,10 +17,10 @@ const MAPPED_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
     ".cjs": [".cts"],
 };
 
-/** A module specifier after `from`, a bare `import` or `import(`, type-only imports and re-exports among them. */
+/** A specifier after `from`, `import` or `import(`, including type-only imports and re-exports. */
 const SPECIFIER_PATTERN = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(["'])([^"'\n]+)\1/gu;
 
-/** A literal directory a module reads beside itself, as `new URL("./dir/", import.meta.url)` gives it. */
+/** A literal directory a module reads, as `new URL("./dir/", import.meta.url)` gives it. */
 const DIRECTORY_PATTERN =
     /new\s+URL\(\s*(["'`])(\.{1,2}\/[^"'`$\n]*\/)\1\s*,\s*import\.meta\.url\s*\)/gu;
 
@@ -28,9 +28,9 @@ const DIRECTORY_PATTERN =
 export type ImportTarget =
     /** One of the package's modules, by absolute path. */
     | { readonly kind: "module"; readonly file: string }
-    /** A file the bundler reads and the compiler does not, such as a stylesheet, by absolute path. */
+    /** A file only the bundler reads, such as a stylesheet, by absolute path. */
     | { readonly kind: "file"; readonly file: string }
-    /** A dependency, compiler library, runtime builtin or virtual module, kept by its specifier alone. */
+    /** A dependency, compiler library, builtin or virtual module, kept by its specifier. */
     | { readonly kind: "external" };
 
 /** One of the package's modules: its bytes, its imports and the directories it reads. */
@@ -43,11 +43,11 @@ export interface ModuleImports {
     readonly directories: readonly string[];
 }
 
-/** A package's program as a cache key sees it: its options, its packages and the package's modules. */
+/** A package's program as a cache key sees it: its options, packages and modules. */
 export interface ProgramImports {
-    /** The effective compiler options as JSON, without the location of the generated configuration. */
+    /** The effective compiler options as JSON, without the generated configuration's path. */
     readonly options: string;
-    /** The directories of the packages installed for the program, whose closures the keys identify. */
+    /** The directories of the program's installed packages, whose closures the keys identify. */
     readonly packages: readonly string[];
     /** The package's modules, by absolute path. */
     readonly modules: ReadonlyMap<string, ModuleImports>;
@@ -55,11 +55,7 @@ export interface ProgramImports {
 
 /** The scan of a package's program for its cache keys. */
 export const ProgramImports = {
-    /**
-     * Read a package's program as cache keys see it, without loading the program: its options, its packages and the modules its root files import.
-     *
-     * The scan over-approximates what a compiler reads: every specifier it finds counts, type-only ones and ones in comments among them.
-     */
+    /** Read a package's program as cache keys see it, without loading the program. */
     async scan(
         directory: string,
         configuration: ParsedConfiguration,
@@ -100,11 +96,11 @@ export const ProgramImports = {
     },
 };
 
-/** The resolver of a package's specifiers as its compiler resolves them, checking each path once. */
+/** The resolver of a package's specifiers as its compiler resolves them, checking paths once. */
 class SpecifierResolver {
     /** The package directory. */
     readonly #root: string;
-    /** The package's subpath imports, each `#name` or `#prefix/*` with the files its conditions map to. */
+    /** The package's subpath imports, `#name` or `#prefix/*`, with their conditions' files. */
     readonly #subpaths: ReadonlyMap<string, readonly string[]>;
     /** Whether each checked path is a file, by path. */
     readonly #files = new Map<string, Promise<boolean>>();
@@ -115,7 +111,7 @@ class SpecifierResolver {
         this.#subpaths = subpaths;
     }
 
-    /** Read one module: its bytes' digest, each specifier resolved within the package, and the directories it reads. */
+    /** Read one module: its digest, its specifiers resolved within the package, and its reads. */
     async scan(file: string): Promise<ModuleImports> {
         // read the module and find its specifiers and directory references
         const bytes = new Uint8Array(await readFile(file));
@@ -140,7 +136,7 @@ class SpecifierResolver {
         return { digest: await Digest.of(bytes), imports, directories };
     }
 
-    /** Map a subpath import to the absolute files of its conditions, and keep any other specifier. */
+    /** Map a subpath import to its conditions' absolute files, and keep other specifiers. */
     #mapped(specifier: string): readonly string[] {
         // map an exact subpath import
         const exact = this.#subpaths.get(specifier);
@@ -162,7 +158,7 @@ class SpecifierResolver {
         return [specifier];
     }
 
-    /** Resolve a specifier from a module: a module of the package, another file it reads, or something external. */
+    /** Resolve a specifier to a package module, another file it reads, or something external. */
     async #resolve(specifier: string, from: string): Promise<ImportTarget> {
         // keep a bare specifier, a builtin or a dependency, external
         const isRelative = specifier.startsWith("./") || specifier.startsWith("../");
@@ -183,7 +179,7 @@ class SpecifierResolver {
         return { kind: "file", file: path };
     }
 
-    /** Report whether a path is a file, checking it once and refusing any failure but its absence. */
+    /** Report whether a path is a file, checking once and refusing failures but absence. */
     #isFile(path: string): Promise<boolean> {
         let checked = this.#files.get(path);
         if (checked === undefined) {
@@ -206,7 +202,7 @@ class SpecifierResolver {
     }
 }
 
-/** List the modules a compiler tries for a path, in its order: the path, its TypeScript twin, an extensionless module, a directory's index. */
+/** List the modules a compiler tries for a path, in order. */
 function moduleCandidates(path: string): string[] {
     // take a TypeScript module as it is
     if (MODULE_EXTENSIONS.some((extension) => path.endsWith(extension))) {

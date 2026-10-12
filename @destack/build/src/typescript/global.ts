@@ -20,7 +20,7 @@ import {
 import type { GlobalReference, SymbolReference } from "@destack/package/code";
 import { isDeclarationPath } from "./module.ts";
 
-/** The symbols a runtime declares as globals: variables, functions, classes, enums and namespaces, never properties. */
+/** The symbols a runtime declares as globals: variables, functions, classes, enums, namespaces. */
 const GLOBAL_SYMBOL =
     SymbolFlags.Variable |
     SymbolFlags.Function |

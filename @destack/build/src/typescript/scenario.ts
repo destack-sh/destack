@@ -13,11 +13,11 @@ export interface ScenarioDeclaration extends DefinitionSite {
     readonly interaction: SymbolReference;
     /** The examples the scenario starts from. */
     readonly examples: readonly SymbolReference[];
-    /** The description without its interaction and examples: the literal environment, steps and observations. */
+    /** The description without interaction and examples: environment, steps and observations. */
     readonly description: Omit<ScenarioDescription, "interaction" | "examples">;
 }
 
-/** Collect a module's exported scenarios through the compiler, reading their interaction as a symbol and their steps and observations as literal JSON. */
+/** Collect a module's exported scenarios through the compiler. */
 export async function collectScenarios(
     source: SourceFile,
     file: string,

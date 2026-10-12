@@ -33,7 +33,7 @@ type Literal = string | number | boolean;
 export interface ExampleDeclaration extends DefinitionSite {
     /** The symbol the example shows. */
     readonly of: SymbolReference;
-    /** The calls bringing the shown declaration's objects into the example's state, by scope, each object type by symbol. */
+    /** The calls bringing the shown objects into the example's state, by scope and symbol. */
     readonly objects: Readonly<
         Record<
             string,
@@ -44,7 +44,7 @@ export interface ExampleDeclaration extends DefinitionSite {
             }[]
         >
     >;
-    /** The description without its calls: the literal properties and the controls of the shown symbol. */
+    /** The description without its calls: literal properties and the shown symbol's controls. */
     readonly description: Omit<ExampleDescription, "objects">;
 }
 
@@ -91,7 +91,7 @@ export async function collectExamples(
     );
 }
 
-/** Derive a control for each property the package declares on what a symbol renders with, such as a component's properties. */
+/** Derive a control for each declared property a symbol renders with, such as a component's. */
 async function describeControls(
     symbol: TypeScriptSymbol,
     inspector: SymbolInspector,
@@ -140,7 +140,7 @@ async function describeControls(
     return controls;
 }
 
-/** Read the input a control shows for a property's type, its options in the order the source spells them. */
+/** Read a control's input for a property type, its options in source order. */
 async function inputOf(type: Type, spelled: readonly Literal[]): Promise<ControlInput | undefined> {
     // read the union's members other than undefined
     const members = (type.isUnionType() ? ((await type.getTypes()) ?? []) : [type]).filter(

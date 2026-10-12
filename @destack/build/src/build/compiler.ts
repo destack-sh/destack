@@ -31,7 +31,7 @@ const EXECUTABLE = "destack-build";
 /** The most diagnostics a compiler retains, 1 MiB. */
 const MAX_DIAGNOSTICS = 1_048_576;
 
-/** How a host starts the compiler: its executable and arguments, and the directories with the tools it reads. */
+/** How a host starts the compiler: its executable, arguments, and tool directories. */
 export interface CompilerCommand {
     /** The executable starting the compiler. */
     readonly executable: string;
@@ -41,9 +41,9 @@ export interface CompilerCommand {
     readonly read: readonly string[];
 }
 
-/** The commands a host starts the compiler with: a release's beside its executables, or a workspace's from source. */
+/** The commands that start the compiler: a release's beside its executables, or from source. */
 export const CompilerCommand = {
-    /** Name the released compiler beside an executable: `destack-build` reading the toolchain directory beside it. */
+    /** Find the released `destack-build` beside an executable, reading its toolchain directory. */
     beside(executable: string): CompilerCommand {
         const compiler = join(dirname(executable), EXECUTABLE);
 
@@ -54,7 +54,7 @@ export const CompilerCommand = {
         };
     },
 
-    /** Find the compiler this process starts: the released one beside a standalone executable, else Bun running this package's entry from its workspace. */
+    /** Find the compiler this process starts. */
     async current(): Promise<CompilerCommand> {
         // start the release's compiler from a standalone executable
         if (BunProcess.isStandalone) {
@@ -79,7 +79,7 @@ export class Compiler implements AsyncDisposable {
     readonly directory: string;
     /** The compiler's files, its temporary files and the builds it writes, removed on shutdown. */
     readonly #temporary: string;
-    /** The directories the compiler reads: the package's workspace with its installed dependencies, and the compiler's tools. */
+    /** The directories the compiler reads: the workspace with its dependencies, and its tools. */
     readonly #read: readonly string[];
     /** How the compiler starts. */
     readonly #compiler: CompilerCommand;
@@ -105,10 +105,10 @@ export class Compiler implements AsyncDisposable {
     #stderr = "";
     /** The builds the compiler wrote, naming the directory of the next. */
     #builds = 0;
-    /** The last request's work, settled, which the next one follows since the compiler takes one at a time. */
+    /** The last request's settled work, since the compiler takes one request at a time. */
     #queue: Promise<void> = Promise.resolve();
 
-    /** Retain the package directory, the compiler's files, what it reads, how it starts and the started compiler. */
+    /** Retain the package directory, compiler files, read paths, command and started compiler. */
     private constructor(
         directory: string,
         temporary: string,
@@ -127,7 +127,7 @@ export class Compiler implements AsyncDisposable {
         this.#closed = this.#watch(sandbox);
     }
 
-    /** Start a reusable compiler for one source package, the one this process starts unless given another. */
+    /** Start a reusable compiler for one source package, this process's unless given another. */
     static async start(directory: string, command?: CompilerCommand): Promise<Compiler> {
         // read the package's workspace with its installed dependencies, and the compiler's tools
         directory = await realpath(resolve(directory));
@@ -217,7 +217,7 @@ export class Compiler implements AsyncDisposable {
         }
     }
 
-    /** Build current source using retained compiler state after the requests before it, reusing and filling the store's cache when given one. */
+    /** Build current source with retained compiler state after the requests before it. */
     build(options: Omit<BuildOptions, "directory">): Promise<PackageBuild> {
         return this.#serially(() => this.#build(options));
     }
@@ -306,7 +306,7 @@ export class Compiler implements AsyncDisposable {
         return planned.keys;
     }
 
-    /** Compile current source into a directory among the compiler's temporary files, holding the files of the reused outputs. */
+    /** Compile current source into a temporary directory with the reused outputs' files. */
     async #compile(
         options: RequestedBuild,
         reuse: Readonly<Record<string, CachedOutput>>,
@@ -454,7 +454,7 @@ export class Compiler implements AsyncDisposable {
     }
 }
 
-/** Start a sandboxed compiler without network or host environment, writing only its temporary files. */
+/** Start a sandboxed compiler without network or host environment, writing only temp files. */
 function spawn(
     directory: string,
     temporary: string,
@@ -492,7 +492,7 @@ function resultOf(response: BuildResponse): BuildResult {
     return response.result;
 }
 
-/** Write the files of each output the cache names into a build directory once, outputs sharing a file among them, returning the outputs to reuse. */
+/** Write the files of each cached output into a build directory once, returning the outputs. */
 async function reuseOutputs(
     store: PackageStore,
     keys: BuildKeys,

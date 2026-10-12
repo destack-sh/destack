@@ -4,7 +4,7 @@ import { PackageOutput } from "@destack/package/manifest";
 import { SourceMapReference } from "@destack/package/source";
 import { Digest, schema } from "@destack/schema";
 
-/** A requested output a build reuses instead of compiling it: its outputs, source maps and files. */
+/** A requested output a build reuses instead of compiling: its outputs, maps and files. */
 export const CachedOutput = schema.object({
     /** Each output the request compiled into, a kind's request into several, by name. */
     outputs: schema.record(

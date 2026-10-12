@@ -143,7 +143,7 @@ function streamFile(file: string, signal: AbortSignal | undefined): ReadableStre
     });
 }
 
-/** Refuse a file list naming the reserved manifest path, one path twice or a file below another, returning the paths. */
+/** Refuse the manifest path, a duplicate path or a file below another, returning the paths. */
 function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
     // refuse reserved and duplicate paths
     const paths = new Set<string>();
@@ -249,7 +249,7 @@ export type ModuleOptions = schema.Infer<typeof ModuleOptions>;
 export interface BuildOptions {
     /** The source package directory, kept unchanged for the duration of this build. */
     directory: string;
-    /** Named module outputs, and outputs of kinds the extensions of the package's dependency closure compile. */
+    /** Named module outputs, and outputs of kinds the dependency closure's extensions compile. */
     outputs: Readonly<Record<string, ModuleOptions | OutputRequest>>;
     /** Exact dependency releases selected by the package resolver. */
     dependencies: Readonly<Record<string, DependencyResolution>>;
@@ -261,15 +261,15 @@ export interface BuildOptions {
     timeout?: number;
     /** What the package has published, to plan the upgrade from. */
     history?: History;
-    /** The commit the source directory holds, absent for a working tree with uncommitted changes. */
+    /** The commit of the source directory, absent for a working tree with changes. */
     commit?: Commit;
-    /** The version the build releases the package at, such as a prerelease, absent for the one its package.json names. */
+    /** The release version, such as a prerelease, absent for its package.json version. */
     version?: Version;
     /** The store whose cache the build reuses and fills, absent to build without a cache. */
     store?: PackageStore;
 }
 
-/** Read the module outputs a package ships, or those of them a build names, refusing a name its exports imply no output for: one bundled module per runtime its exports but the test layer compile for, named after the runtime. */
+/** Read the module outputs a package ships, or the ones a build selects. */
 export async function readOutputs(
     directory: string,
     names?: readonly string[],

@@ -55,12 +55,12 @@ export const BuildResponse = schema.union([
 /** A compiler result transferred directly to its caller. */
 export type BuildResponse = schema.Infer<typeof BuildResponse>;
 
-/** The most bytes one compiler message has, bounding what a compiler running package code makes the host allocate. */
+/** The most bytes of one compiler message, bounding what package code makes the host allocate. */
 const MAX_MESSAGE_BYTES = 256 * 1024 * 1024;
 
 /** The options of a build beside its package directory. */
 export const RequestedBuild = schema.object({
-    /** Named module outputs, and outputs of kinds the extensions of the package's dependency closure compile. */
+    /** Named module outputs, and outputs of kinds the dependency closure's extensions compile. */
     outputs: schema
         .record(schema.string(), schema.union([ModuleOptions, OutputRequest]))
         .readonly(),
@@ -70,9 +70,9 @@ export const RequestedBuild = schema.object({
     configuration: schema.string().exactOptional(),
     /** What the package has published, to plan the upgrade from. */
     history: History.exactOptional(),
-    /** The commit the source directory holds, absent for a working tree with uncommitted changes. */
+    /** The commit of the source directory, absent for a working tree with changes. */
     commit: Commit.exactOptional(),
-    /** The version the build releases the package at, such as a prerelease, absent for the one its package.json names. */
+    /** The release version, such as a prerelease, absent for its package.json version. */
     version: Version.exactOptional(),
 });
 
@@ -107,7 +107,7 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
 /** Work accepted by the isolated compiler. */
 export type BuildRequest = schema.Infer<typeof BuildRequest>;
 
-/** Read length-prefixed compiler messages the peer wrote with writeMessage, parsing each, without copying accumulated chunks. */
+/** Read and parse length-prefixed messages from writeMessage without copying chunks. */
 export async function* readMessages<Message>(
     stream: AsyncIterable<Uint8Array>,
     message: schema.Schema<Message>,

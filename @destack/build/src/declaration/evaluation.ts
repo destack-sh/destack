@@ -104,7 +104,7 @@ export async function evaluateDeclarations(
     return { declarations: described, compare };
 }
 
-/** Write the entry importing each declaration and its inspecting modules, exporting what the kinds' functions return. */
+/** Write the entry importing each declaration and inspector, exporting the kinds' results. */
 function generateEntry(declarations: readonly DeclarationExport[], project: PackageSource): string {
     // select each inspecting module once
     const conditions = new Set(["import", "default", ...runtimeConditions(project.runtime)]);
@@ -174,7 +174,7 @@ function locateFunction(
     return `inspector${index}[${JSON.stringify(inspector.name)}]`;
 }
 
-/** Bundle the generated entry and evaluate it as a fresh module, outside the process import cache. */
+/** Bundle the generated entry and evaluate it as a fresh module, past the import cache. */
 async function evaluateEntry(
     source: string,
     project: PackageSource,
@@ -227,7 +227,7 @@ async function evaluateEntry(
     }
 }
 
-/** Resolve and load the generated entry, defining each module's URL and leaving lazy imports unloaded. */
+/** Resolve and load the generated entry, setting module URLs and leaving lazy imports. */
 function entryPlugin(source: string): Plugin {
     return {
         name: "destack-declarations",
@@ -340,7 +340,7 @@ function nameOf(description: unknown, fallback: string): string {
     return name.success ? name.data.name : fallback;
 }
 
-/** Require an evaluated declaration to name the package declaring it, the one the compiler located. */
+/** Require an evaluated declaration's package to be the one the compiler located. */
 function requireDeclaringPackage(declaration: DeclarationExport, value: unknown): void {
     const stamped = Package.declaring(value);
     const owner = declaration.description.symbol.package;

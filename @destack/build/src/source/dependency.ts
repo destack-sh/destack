@@ -20,7 +20,7 @@ const InstalledPackage = schema.looseObject({
 /** The release an installed package.json names. */
 type InstalledPackage = schema.Infer<typeof InstalledPackage>;
 
-/** The release a package.json names, absent from a subpath manifest that only configures modules. */
+/** A package.json release, absent from a subpath manifest that only configures modules. */
 const ReleasedPackage = schema.looseObject({ name: schema.string(), version: schema.string() });
 
 /** The lockfile format version whose package records dependency resolution reads. */
@@ -162,7 +162,7 @@ export function relativePath(directory: string, file: string): string {
     return relative(directory, file).split(sep).join("/");
 }
 
-/** Report whether a compiler file is one of the package's modules: below the root, outside any node_modules. */
+/** Report whether a compiler file is a package module: below the root, outside node_modules. */
 export function isAuthored(root: string, file: string): boolean {
     // compare the forward-slash paths the compiler reports by prefix
     const prefix = `${root.replaceAll(sep, "/").replace(/\/$/u, "")}/`;

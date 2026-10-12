@@ -40,7 +40,7 @@ const REFERENCE_FLAGS =
     SymbolFlags.Function |
     SymbolFlags.ValueModule;
 
-/** The name the compiler gives a private class member, `__#<class symbol id>@#name`, whose id numbers symbols per program. */
+/** The compiler's private member name `__#<symbol id>@#name`, numbered per program. */
 const PRIVATE_NAME = /^__#\d+@(#.+)$/u;
 
 /** One step of a reference walk: a type's named declaration and the types it leads to. */
@@ -131,7 +131,7 @@ export class SymbolInspector {
         return result;
     }
 
-    /** Describe a symbol's declared type, call signatures, index signatures and authored alias expression. */
+    /** Describe a symbol's type, call and index signatures and authored alias expression. */
     async #describeType(
         result: SymbolDescription,
         declared: Type,
@@ -159,7 +159,7 @@ export class SymbolInspector {
         }
     }
 
-    /** List a symbol's declared members once, recording a module's exports instead of its members. */
+    /** List a symbol's declared members once, or a module's exports in their place. */
     async #members(
         symbol: TypeScriptSymbol,
         declared: Type | undefined,
@@ -204,7 +204,7 @@ export class SymbolInspector {
         });
     }
 
-    /** Describe a member from its declarations in the package, with its type, overloads and documentation. */
+    /** Describe a member from its package declarations, with type, overloads and documentation. */
     async member(
         symbol: TypeScriptSymbol,
         parent: TypeScriptSymbol,
@@ -350,7 +350,7 @@ export class SymbolInspector {
         return { text, references };
     }
 
-    /** Walk a type breadth first through the steps shared by every walk, stopping at named declarations. */
+    /** Walk a type breadth first through the shared steps, stopping at named declarations. */
     async #references(type: Type): Promise<SymbolReference[]> {
         // fetch each level's steps together and visit each type once
         const references = new Map<string, SymbolReference>();
@@ -650,7 +650,7 @@ export class SymbolInspector {
         return Promise.all(symbol.declarations.map((handle) => this.node(handle)));
     }
 
-    /** Resolve a symbol's declarations in the package's modules, leaving dependency augmentations. */
+    /** Resolve a symbol's declarations in package modules, leaving dependency augmentations. */
     async #authored(symbol: TypeScriptSymbol): Promise<Node[]> {
         const nodes = await this.nodes(symbol);
 
@@ -670,7 +670,7 @@ export class SymbolInspector {
         return { file: path, start: node.getStart(), end: node.getEnd() };
     }
 
-    /** Resolve a declaration, fetching its source file once however many walks resolve it together. */
+    /** Resolve a declaration, fetching its source file once for all concurrent walks. */
     async node(handle: NodeHandle): Promise<Node> {
         // fetch the source file once, after which the compiler client serves its nodes
         let source = this.#sources.get(handle.path);
@@ -690,7 +690,7 @@ export class SymbolInspector {
     }
 }
 
-/** Read the name a symbol's declaration writes, a private member's without the compiler's per-program prefix, which differs between compilations. */
+/** Read the name a symbol's declaration writes, stable across compilations. */
 export function declaredName(symbol: TypeScriptSymbol): string {
     return PRIVATE_NAME.exec(symbol.name)?.[1] ?? symbol.name;
 }

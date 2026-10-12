@@ -35,7 +35,7 @@ export interface PackageSource extends AsyncDisposable {
     entries: readonly string[];
 }
 
-/** Name the package a source compiles as the build releases it, with the metadata its modules receive. */
+/** Read the package a source compiles as released, with the metadata its modules receive. */
 export function compiledPackage(
     source: Pick<PackageSource, "directory" | "declaration">,
 ): ModulePackage {
@@ -49,7 +49,7 @@ export async function openSource(
         entries?: Readonly<Record<string, string>>;
         /** Framework modules compiled in addition to package exports. */
         files?: readonly string[];
-        /** The version the build releases the package at, absent for the one its package.json names. */
+        /** The release version, absent for its package.json version. */
         version?: string;
     },
 ): Promise<PackageSource> {
@@ -106,7 +106,7 @@ export async function openSource(
     };
 }
 
-/** Apply runtime resolution and the standard type checks to an authored configuration, or to generated defaults without one. */
+/** Apply runtime resolution and the standard type checks to a configuration or defaults. */
 function compilerSettings(
     definition: Pick<PackageSource, "directory" | "runtime">,
     files: readonly string[],
@@ -195,7 +195,7 @@ async function readPackageDeclaration(
     };
 }
 
-/** Decide whether an output compiles an export, refusing invalid names and selected entries the runtime lacks. */
+/** Decide whether an output compiles an export, refusing invalid names and missing entries. */
 function isCompiled(
     name: string,
     definition: PackageDefinition,
@@ -244,7 +244,7 @@ function selectType(entry: PackageExport, conditions: ReadonlySet<string>): stri
     return PackagePath.parse(type.slice(2));
 }
 
-/** Select an export's runtime module by package path, absent for no target or a declaration file. */
+/** Select an export's runtime module by path, absent for no target or a declaration file. */
 function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): string | undefined {
     // select a relative target, leaving declaration files to the types
     const path = selectExport(entry, conditions);
@@ -258,7 +258,7 @@ function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): st
     return /\.d\.[cm]?ts$/u.test(path) ? undefined : PackagePath.parse(path.slice(2));
 }
 
-/** Read a package's manifests into its description, at the version a build releases it at when given. */
+/** Read a package's manifests into its description, at a release version when given. */
 export async function readPackageDescription(
     directory: string,
     version?: string,
@@ -285,6 +285,17 @@ export async function readPackageDescription(
         devDependencies: field(metadata, "devDependencies"),
     });
     const definition = declaration.definition;
+
+    // require each runtime override to name an export of package.json
+    const overridden = Object.keys(definition.exports ?? {});
+    const exported = overridden.length === 0 ? {} : mapExports(declaration);
+    const stale = overridden.find((name) => !Object.hasOwn(exported, name));
+    if (stale !== undefined) {
+        throw new PackageError(
+            "INVALID_DEFINITION",
+            `destack.json overrides the runtimes of an export package.json lacks: ${stale}`,
+        );
+    }
 
     // require a TypeScript package
     if (definition.language !== "typescript") {

@@ -37,14 +37,14 @@ export const BuildKeys = schema.object({
 /** The cache keys of a build. */
 export type BuildKeys = schema.Infer<typeof BuildKeys>;
 
-/** The identities of the packages, files and directories one derivation of keys reads, each read once. */
+/** The identities of packages, files and directories a key derivation reads, each once. */
 export class Identities {
     /** The installed packages and source packages the derivation found. */
     readonly #locator = new PackageLocator();
     /** Each package's identity and the packages it depends on, by directory. */
     readonly #packages = new Map<string, Promise<PackageIdentity>>();
 
-    /** Identify a package with every package it depends on: releases by version, source packages by their files. */
+    /** Identify a package with its dependencies: releases by version, source packages by files. */
     async package(directory: string): Promise<Digest> {
         // collect the package and every package it depends on
         const visited = new Map<string, PackageIdentity>();
@@ -63,7 +63,7 @@ export class Identities {
         );
     }
 
-    /** List the directories of every package a package depends on, development dependencies included. */
+    /** List the directories of a package's dependencies, development ones included. */
     async installed(directory: string): Promise<readonly string[]> {
         // read the manifest's dependencies of every kind
         const manifest = await readManifest(directory);
@@ -73,7 +73,7 @@ export class Identities {
         return [...names].flatMap((name) => this.#locator.directory(name, directory) ?? []);
     }
 
-    /** Read a package's subpath imports, each `#name` or `#prefix/*` with the files of all its conditions. */
+    /** Read a package's subpath imports, `#name` or `#prefix/*`, with all conditions' files. */
     async subpaths(directory: string): Promise<ReadonlyMap<string, readonly string[]>> {
         const manifest = await readManifest(directory);
 
@@ -119,7 +119,7 @@ export class Identities {
         return identity;
     }
 
-    /** Identify an installed release by name and version, and a source package by its manifests and sources. */
+    /** Identify a release by name and version, and a source package by manifests and sources. */
     async #read(directory: string): Promise<PackageIdentity> {
         // read the manifest and locate each installed dependency, leaving absent optional ones
         const manifest = await readManifest(directory);
@@ -161,7 +161,7 @@ interface PackageIdentity {
     readonly dependencies: readonly string[];
 }
 
-/** Identify the toolchain running this compiler: a standalone executable by its bytes, else Bun, TypeScript and the build package with its dependencies. */
+/** Identify the toolchain running this compiler. */
 export async function identifyToolchain(identities: Identities): Promise<Digest> {
     // identify a standalone executable by its bytes
     if (BunProcess.isStandalone) {
@@ -182,7 +182,7 @@ export async function identifyToolchain(identities: Identities): Promise<Digest>
     });
 }
 
-/** Key each of the package's modules by the toolchain, the program, its bytes and its import cycle's digest. */
+/** Key each module by toolchain, program, bytes and its import cycle's digest. */
 export async function deriveModuleKeys(
     program: ProgramImports,
     root: string,
@@ -219,11 +219,11 @@ export async function deriveModuleKeys(
     return keys;
 }
 
-/** The description of one module of an import cycle: its bytes, its imports and the directories it reads. */
+/** One module of an import cycle: its bytes, its imports and the directories it reads. */
 interface CycleMember {
     /** The digest of the module's bytes. */
     readonly digest: Digest;
-    /** What each import names: a member's path, another cycle's digest, a file's digest or the specifier. */
+    /** Each import's target: a member path, a cycle digest, a file digest or the specifier. */
     readonly imports: Readonly<Record<string, string>>;
     /** The digest of each directory the module reads, by path. */
     readonly directories: Readonly<Record<string, Digest>>;
@@ -294,7 +294,7 @@ export function importClosure(program: ProgramImports, entries: readonly string[
     return visited;
 }
 
-/** A search for the import cycles of a program's modules, each after the cycles it imports (Tarjan). */
+/** A search for the import cycles of a program's modules, each after its imports (Tarjan). */
 class CycleFinder {
     /** The program whose modules the finder visits. */
     readonly program: ProgramImports;
@@ -397,7 +397,7 @@ async function readManifest(directory: string): Promise<schema.Infer<typeof Mani
     return Manifest.parse(JSON.parse(await readFile(join(directory, "package.json"), "utf8")));
 }
 
-/** List the files a subpath import maps to under any of its conditions, none for an excluded one. */
+/** List the files a subpath import maps to under any condition, none for an excluded one. */
 function subpathTargets(mapped: unknown): string[] {
     // take a path, or every condition's paths
     if (typeof mapped === "string") {
