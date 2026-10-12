@@ -11,6 +11,7 @@ export {
     type ProvisionedRecord,
 } from "./provisioned.ts";
 export { tracked, type TrackedDefinition } from "./tracked.ts";
+export { ParentReference } from "./nested.ts";
 export { expiring, type ExpiryRule } from "./expiring.ts";
 export { projected, type ProjectedDefinition, type Residence } from "./projected.ts";
 export {

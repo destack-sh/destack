@@ -7,7 +7,13 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { v7 } from "uuid";
 
 import { RequestId } from "@destack/service/request";
-import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
+import {
+    defineObject,
+    field,
+    ParentReference,
+    type CallableName,
+    type ObjectType,
+} from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -31,6 +37,13 @@ const remark = defineObject({
     list: method.list("read"),
     create: method.create("write"),
     delete: method.delete("write"),
+    /** Count the remarks on a parent, checked as on a new remark there. */
+    count: method.query({
+        permission: "read",
+        target: "none",
+        input: schema.object({ parent: ParentReference }),
+        output: schema.object({ count: schema.int() }),
+    }),
 }));
 
 /** Pins that keep any hosting object from deletion. */
@@ -249,6 +262,29 @@ test.for(TEST_DIALECTS)(
         as("alice");
         await call(board, "delete", { id: plans.id });
         expect(await listed()).toEqual([]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "authorize a scoped method of attachments on the parent its input refers to, on %s",
+    async (dialect) => {
+        const counted = remark.implement({
+            methods: {
+                count: async (call) => ({
+                    count: (await call.read(remark).rows({ parentId: call.input.parent.id }))
+                        .length,
+                }),
+            },
+        });
+        const { call, host, as } = await serveObjects(dialect, { remark: counted, article });
+
+        // count the remarks on alice's article as alice, and refuse bob, who reads no article
+        const draft = await call(article, "create", {});
+        await call(counted, "create", { ...host(article, draft.id), text: "Tighten the intro" });
+        const mine = await call(counted, "count", host(article, draft.id));
+        as("bob");
+        const theirs = await refusal(call(counted, "count", host(article, draft.id)));
+        expect([mine, theirs]).toEqual([{ count: 1 }, ["FORBIDDEN", "permission denied: read"]]);
     },
 );
 

@@ -918,13 +918,15 @@ function isScopedTarget(target: CustomTarget | undefined): boolean {
 
 /** Require a scoped method's permission in the call's scope, as on a new object there. */
 async function authorizeScoped(call: Call<ObjectTable>): Promise<void> {
-    // read the owner the input names for an owned type
+    // read the owner the input names for an owned type, and the parent for a nested one
     const column = call.object.ownerColumn;
     const owned = column === undefined ? {} : { [column]: call.input[column] };
+    const parent = call.parentColumns();
 
-    // check the permission on a new object of that owner
+    // check the permission on a new object of that owner and parent
     const definition = call.object.table[TABLE];
-    const row = definition.defaults({ id: call.object.generateId(), scope: call.scope, ...owned });
+    const id = call.object.generateId();
+    const row = definition.defaults({ id, scope: call.scope, ...owned, ...parent });
     await requirePermitted(call, row, await call.requireAuthorization().reader(call.scope));
 }
 
