@@ -333,7 +333,7 @@ function installationDirectory(
                     .values({
                         id: Identifier.create("residence"),
                         scope: id,
-                        source: scope,
+                        sourceId: schema.identifier("space").parse(scope),
                         installation,
                         service: PackageId.parse(service.package.id),
                         createdAt: now,
