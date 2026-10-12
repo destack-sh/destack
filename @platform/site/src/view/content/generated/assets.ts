@@ -18,8 +18,8 @@ export const assets: Record<string, () => Promise<string>> = {
         import("../../../../public/_content/tree/d1d4b8a9d8548e19153001b7086fdbdf22a7dbc533708ab95bd0985490418411.json?raw").then(
             (module) => module.default,
         ),
-    "/_content/tree/f843bb5cef2d93b0fc3f23e4d0481e514cb6afce0a5e160fcb5f563f4906eb25.json": () =>
-        import("../../../../public/_content/tree/f843bb5cef2d93b0fc3f23e4d0481e514cb6afce0a5e160fcb5f563f4906eb25.json?raw").then(
+    "/_content/tree/d24741d2f28e120fac841d9ec2af8d53775bc45312aef88b9bf64fe67872b53f.json": () =>
+        import("../../../../public/_content/tree/d24741d2f28e120fac841d9ec2af8d53775bc45312aef88b9bf64fe67872b53f.json?raw").then(
             (module) => module.default,
         ),
 };

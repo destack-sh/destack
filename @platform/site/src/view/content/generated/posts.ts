@@ -54,43 +54,133 @@ export const posts = [
     {
         author: "Florian",
         contentRoute:
-            "/_content/tree/f843bb5cef2d93b0fc3f23e4d0481e514cb6afce0a5e160fcb5f563f4906eb25.json",
+            "/_content/tree/d24741d2f28e120fac841d9ec2af8d53775bc45312aef88b9bf64fe67872b53f.json",
         cover: {
             image: {
-                src: "/_content/assets/aade6fe26c510ace.jpg",
-                width: 673,
-                height: 600,
+                src: "/_content/assets/9f1ff7f1d24e2f62.jpg",
+                width: 2560,
+                height: 1170,
                 format: "jpeg",
                 srcSet: [
                     {
                         width: 640,
                         format: "avif",
-                        src: "/_content/assets/aade6fe26c510ace-640.avif",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-640.avif",
                     },
                     {
                         width: 640,
                         format: "webp",
-                        src: "/_content/assets/aade6fe26c510ace-640.webp",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-640.webp",
                     },
                     {
                         width: 640,
                         format: "jpeg",
-                        src: "/_content/assets/aade6fe26c510ace-640.jpeg",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-640.jpeg",
                     },
                     {
-                        width: 673,
+                        width: 750,
                         format: "avif",
-                        src: "/_content/assets/aade6fe26c510ace-673.avif",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-750.avif",
                     },
                     {
-                        width: 673,
+                        width: 750,
                         format: "webp",
-                        src: "/_content/assets/aade6fe26c510ace-673.webp",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-750.webp",
                     },
-                    { width: 673, format: "jpeg", src: "/_content/assets/aade6fe26c510ace.jpg" },
+                    {
+                        width: 750,
+                        format: "jpeg",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-750.jpeg",
+                    },
+                    {
+                        width: 828,
+                        format: "avif",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-828.avif",
+                    },
+                    {
+                        width: 828,
+                        format: "webp",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-828.webp",
+                    },
+                    {
+                        width: 828,
+                        format: "jpeg",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-828.jpeg",
+                    },
+                    {
+                        width: 1080,
+                        format: "avif",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1080.avif",
+                    },
+                    {
+                        width: 1080,
+                        format: "webp",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1080.webp",
+                    },
+                    {
+                        width: 1080,
+                        format: "jpeg",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1080.jpeg",
+                    },
+                    {
+                        width: 1200,
+                        format: "avif",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1200.avif",
+                    },
+                    {
+                        width: 1200,
+                        format: "webp",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1200.webp",
+                    },
+                    {
+                        width: 1200,
+                        format: "jpeg",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1200.jpeg",
+                    },
+                    {
+                        width: 1920,
+                        format: "avif",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1920.avif",
+                    },
+                    {
+                        width: 1920,
+                        format: "webp",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1920.webp",
+                    },
+                    {
+                        width: 1920,
+                        format: "jpeg",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-1920.jpeg",
+                    },
+                    {
+                        width: 2048,
+                        format: "avif",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-2048.avif",
+                    },
+                    {
+                        width: 2048,
+                        format: "webp",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-2048.webp",
+                    },
+                    {
+                        width: 2048,
+                        format: "jpeg",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-2048.jpeg",
+                    },
+                    {
+                        width: 2560,
+                        format: "avif",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-2560.avif",
+                    },
+                    {
+                        width: 2560,
+                        format: "webp",
+                        src: "/_content/assets/9f1ff7f1d24e2f62-2560.webp",
+                    },
+                    { width: 2560, format: "jpeg", src: "/_content/assets/9f1ff7f1d24e2f62.jpg" },
                 ],
             },
-            alt: "Illustration of Cambrian marine life, with Opabinia swimming above trilobites, spiny animals, and sponges.",
+            alt: "Illustration of a Cambrian ecosystem, with Kylinxia, trilobites, worms, and colourful sponges beneath deep blue water.",
         },
         date: "2026-10-14",
         markdownRoute: "/blog/introducing-destack.md",
@@ -104,7 +194,7 @@ export const posts = [
         ],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 2422,
+        tokens: 2500,
     },
 ] as const satisfies readonly Post[];
 

@@ -12,19 +12,19 @@ Both products and processes will evolve under intense competition, with free mig
 [Cambrian marine life](https://www.eurekalert.org/multimedia/686747) — Huang Diying, Chinese Academy of Sciences.
 :::
 
-The current stack is fundamentally broken:
-We've got a thousand little software silos, each with their own slightly incompatible slice of the stack and terms and standards.
-The "stack" was never really designed, re-designed or integrated; it's an evolved mosaic of different technologies and services where nothing _quite_ works together. 
+The contemporary stack is architecturally broken:
+We have a thousand little software silos, each with their own slightly incompatible slice of the stack with its own terms and standards.
+The "stack" was never really designed, and never re-designed; it's an evolved mosaic of different technologies and services where nothing _quite_ fits together. 
 
 Now, the technical debt accumulated over decades of organic software growth is coming due.
-Probabilistic computing is finally here and we _could_ let AI become part of all software, but we structurally can't, because software is stuck on an immovable, opaque stack that rejects integration and modification at every layer.
-And no, APIs and MCPs are barely bandaids.
+Probabilistic computing is finally here and we _could_ infuse AI into all software, but we can't, because software is stuck on an opaque stack that rejects integration and modification at every layer.
+Instead, we get "APIs" and "MCPs".
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
 > — Edsger Dijkstra, *The Humble Programmer* (1972)
 
-The familiar features that make modern software "modern" - SaaS, multiplayer, multi-vendor, multi-cloud, heterogenous stacks - also make it downright hostile to agents. 
+The familiar features that make modern software "modern" - APIs, SaaS, multiplayer, multi-vendor, multi-cloud, heterogenous stacks - also make it hostile to agents. 
 Our new class of machine user requires the broadest possible access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
 
 So, half a century after the last software crisis, the computing stack is once again buckling under the weight, volume and speed of a more powerful machine.
@@ -32,7 +32,7 @@ Once again, we get to retrace from the beginning, reconsider what programming ev
 
 # Higher Order Programming
 
-The history of programming machines to do our bidding is one of monotonically increasing levels of abstraction: from handcrafting mechanical gears, to wiring up vacuum tubes, to punching paper cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script in whatever way.
+The history of programming is one of monotonically increasing levels of abstraction in specifying mechanical behavior: from handcrafting mechanical gears, to wiring up vacuum tubes, to punching paper cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script in whatever way.
 
 Climbing the ladder of abstraction yields more output for every (human) bit of input.
 We gradually remove ourselves from the cumbersome burden of having to spell out _exactly_ what we want the machine to be doing: which gears? which wires? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
@@ -61,8 +61,8 @@ The best game engines are integrated software platforms: a runtime, an editor, t
 Like most new abstractions, game engines _initially_ didn't provide quite the same level of control as their underlying substrate.
 Over time, however, building with a game engine became so much more productive that it enabled a new scale of project, and empowered a new type of contributor - designers, writers, and artists, could now contribute _directly_.
 
-Over all these years games never "superseded" code as such, even as a lot of code was abstracted away for use cases that previously required it.
-Code is still there, it's still relevant, but, thanks to modern game engines, you can now build and ship real commercial games without thinking in code.
+Games never "superseded" code, even as a lot of code was abstracted away for use cases that previously required it.
+Code is still there, it's still relevant, but - thanks to game engines - you can build and ship commercial games without thinking in code.
 
 # The Software Engine
 
@@ -100,24 +100,26 @@ Software development - from databases to web apps to spreadsheets - spans one co
 So far, the cardinal sins of "malleable software" has been that "userland software" like spreadsheets are too limited, while "general software" is annoying to build and maintain.
 Now, the equation has flipped: building is cheap, and the lack of integration is expensive.
 How do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
-It simply does not compute.
 
 There are amazing new probabilistic computing capabilities to embed deep and wide into all software, but we just have MCPs and chatboxes in the sidebar. 
 Forms don't even _prefill_, software is not adaptive, apps are not magic - where is all the automation?
-That is: where is the higher order software?
+If we have higher order programming, with higher order specification, then where is the higher order software?
 
 # The Destack
 
-Higher order programming requires higher order processes and tools for higher level specification.
-The lack of control and integration can only be solved by full stack ownership and standardisation.
-Thus, we need a new integrated _software engine_ that provides both the fundamental building blocks for development and the platform services for deployment.
+Higher order programming requires higher order processes with higher level specifications.
+The necessary control and integration can only be achieved by owning and standardising the full stack.
+Thus, we need an integrated _software engine_ that provides both the fundamental building blocks for development and the platform services for deployment.
 
 That is Destack: an open source, hackable, personal software engine and platform.
-In technical terms, think of Destack as a personal GitHub + NPM + SQlite + workers with all the boring integration - auth, schemas, migration, sync, triggers, workflows, telemetry, infra - and standardisation to built on at a higher level of abstraction.
+In technical terms, think of Destack as a personal GitHub + NPM + SQlite + workers with all the boring integration like auth, schemas, migration, sync, triggers, workflows, telemetry, infra; all standardised to enable a higher level of abstraction.
 
 :::figure src="./picasso-bull.jpg" alt="Eleven versions of Picasso's bull, progressing from a detailed animal to a few essential lines."
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
 :::
+
+Destack does not require everyone to "own their stack" _literally_ - that would be too annoying, and give up all the nice benefits of modern cloud-based software.
+Rather, the standardised Destack users to actually own their data, makes deep integration and customisation table stakes, and reduces app switching to just a single click. 
 
 <!-- TODO: demo #1 -->
 
