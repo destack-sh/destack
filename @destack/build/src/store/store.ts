@@ -24,6 +24,9 @@ const MARKS_KEY = "marks";
 /** The marks of the objects a sweep drops, by key. */
 const Marks = schema.record(schema.string(), Instant);
 
+/** The manifests one root retains. */
+const Roots = schema.array(Digest);
+
 /** Immutable package builds in a bucket: files by digest, and manifests by digest. */
 export class PackageStore {
     /** The bucket storing the builds. */
@@ -229,6 +232,39 @@ export class PackageStore {
         await this.bucket.put(`leases/${Digest.parse(digest)}`, JSON.stringify(until.getTime()), {
             httpMetadata: { contentType: "application/json" },
         });
+    }
+
+    /** Keep the manifests a root retains, such as a space's, replacing what it retained before. */
+    async root(name: string, manifests: ReadonlySet<string>): Promise<void> {
+        // forget a root that retains nothing
+        const key = `roots/${name}`;
+        if (manifests.size === 0) {
+            await this.bucket.delete(key);
+
+            return;
+        }
+
+        // keep the root's manifests
+        await this.bucket.put(key, JSON.stringify([...manifests].toSorted()), {
+            httpMetadata: { contentType: "application/json" },
+        });
+    }
+
+    /** Read the manifests every root retains. */
+    async roots(): Promise<ReadonlySet<string>> {
+        const retained = new Set<string>();
+        for await (const file of this.#list("roots/")) {
+            // skip a root forgotten since the listing
+            const object = await this.bucket.get(file.key);
+            if (object === null) {
+                continue;
+            }
+            for (const manifest of Roots.parse(await object.json())) {
+                retained.add(manifest);
+            }
+        }
+
+        return retained;
     }
 
     /** Delete what retention drops and was stored before a moment. */

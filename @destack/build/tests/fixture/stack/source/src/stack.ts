@@ -2,7 +2,7 @@ import { defineStack, install } from "@destack/stack";
 import stack from "./package.ts";
 import type {} from "@destack/package/import-meta";
 import { defineAccount } from "@destack/account/declare";
-import { database } from "@template/stack";
+import { files } from "@template/stack";
 import { defineSetting } from "@destack/setting/declare";
 import { schema } from "@destack/schema";
 
@@ -18,8 +18,8 @@ export const language = defineSetting({
     apply: "immediate",
 });
 
-/** Reuse the database declaration from the shared stack package. */
-export { database } from "@template/stack";
+/** Reuse the bucket declaration from the shared stack package. */
+export { files } from "@template/stack";
 
 /** Declare environments independently of the destination space. */
 export const account = defineAccount({ environments: { development: {}, production: {} } });
@@ -27,10 +27,10 @@ export const account = defineAccount({ environments: { development: {}, producti
 /** Configure a space without provisioning resources during compilation. */
 export const personal = defineStack({
     resources: {
-        main: { declaration: database, retention: { within: { days: 30 } }, tags: {} },
+        files: { declaration: files, retention: { within: { days: 30 } }, tags: {} },
     },
     installations: {
-        notes: install(stack, { main: "main" }),
+        notes: install(stack, { files: "files" }),
     },
     settings: {
         language: { setting: language, value: "de", mode: "set" },

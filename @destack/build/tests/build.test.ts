@@ -107,19 +107,19 @@ test.concurrent.for(fixtures)(
                 exported(build.manifest.outputs["stack"], "."),
             );
 
-            // retain the shared database's description in the stack definition
-            const database = property(module, "database");
-            const owner = property(database, "package");
+            // retain the shared bucket's description in the stack definition
+            const files = property(module, "files");
+            const owner = property(files, "package");
             const ownerId = property(owner, "id");
             if (typeof ownerId !== "string") {
-                throw new TypeError("the database's package has no identifier");
+                throw new TypeError("the bucket's package has no identifier");
             }
             const declaration = Object.fromEntries(
-                ["name", "kind", "version", "spec"].map((key) => [key, property(database, key)]),
+                ["name", "kind", "version", "spec"].map((key) => [key, property(files, key)]),
             );
             const definition = property(property(module, "personal"), "definition");
             expect(property(definition, "resources")).toEqual({
-                main: {
+                files: {
                     declaration: { package: owner, ...declaration },
                     retention: { within: { days: 30 } },
                     tags: {},
@@ -136,9 +136,9 @@ test.concurrent.for(fixtures)(
                     alias: "stack",
                     bindings: {
                         [ownerId]: {
-                            main: {
-                                target: { type: "resource", name: "main" },
-                                state: { tables: { sqlite: [], postgresql: [] } },
+                            files: {
+                                target: { type: "resource", name: "files" },
+                                state: {},
                             },
                         },
                     },

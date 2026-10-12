@@ -520,3 +520,23 @@ async function upload(
 
     return [response.status, text === "" ? null : JSON.parse(text)];
 }
+
+test("retain the union of every root's builds, and forget a root that retains nothing", async () => {
+    // store two builds, each retained by its own root
+    const directory = await temporary();
+    await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
+    const store = new PackageStore(bucket);
+    const first = await store.put(await written(SOURCES));
+    const second = await store.put(await written({ ...SOURCES, "src/extra.ts": "export {};\n" }));
+    await store.root("space-a", new Set([first]));
+    await store.root("space-b", new Set([second]));
+    const both = await store.roots();
+
+    // forget one root, leaving the other's builds retained
+    await store.root("space-a", new Set());
+
+    expect({ both: [...both].toSorted(), after: [...(await store.roots())] }).toEqual({
+        both: [first, second].toSorted(),
+        after: [second],
+    });
+});
