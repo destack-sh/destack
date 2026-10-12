@@ -1,11 +1,12 @@
 import type { EventStore } from "@destack/event";
-import { Subscription, subscription } from "@destack/notification";
+import { subscription } from "@destack/notification";
 import { serveActivities } from "@destack/notification/server";
 import * as social from "@destack/social";
 import { reaction } from "@destack/social";
 import * as socialServer from "@destack/social/server";
 import { ObjectWatch } from "@destack/object";
 import { ServiceError } from "@destack/service/error";
+import { Subject } from "@destack/sync";
 import * as base from "../object/index.ts";
 import { AlertRuleCheck, evaluateRules } from "./alert.ts";
 
@@ -44,9 +45,7 @@ export function serveIssues(options: IssueOptions) {
         alert,
         comment: socialServer.comment,
         reaction,
-        subscription,
-        activity: activities.activity,
-        announcement: activities.announcement,
+        ...activities,
     };
 }
 
@@ -55,7 +54,7 @@ const issue = base.issue.implement({
     methods: {
         resolve: async (call, next) => {
             const row = await next();
-            await base.resolvedIssue.notify(call, noticeOf(row));
+            await call.mutate(call.caller, [base.resolvedIssue.call(noticeOf(row))]);
 
             return row;
         },
@@ -65,7 +64,7 @@ const issue = base.issue.implement({
                 reopenedAt: call.now,
                 until: { kind: "event" },
             });
-            await base.regressedIssue.notify(call, noticeOf(row));
+            await call.mutate(call.caller, [base.regressedIssue.call(noticeOf(row))]);
 
             return row;
         },
@@ -81,12 +80,14 @@ function alertRuleOf(options: IssueOptions) {
             create: async (call, next) => {
                 // refuse an unreadable rule, then follow the rule as its author
                 const row = requireRule(await next(), options);
-                await Subscription.add(
-                    call,
-                    base.alertRule.reference(row.scope, row.id),
-                    call.requireCaller(),
-                    "author",
-                );
+                const host = base.alertRule.reference(row.scope, row.id);
+                await call.mutate(call.caller, [
+                    subscription.call("add", {
+                        parent: { packageId: host.packageId, type: host.type, id: host.id },
+                        owner: Subject.key(call.requireCaller()),
+                        reason: "author",
+                    }),
+                ]);
 
                 return row;
             },
@@ -112,11 +113,13 @@ const alert = base.alert.implement({
                     ? null
                     : await call.read(base.alertRule).row({ id: row.ruleId });
             if (rule?.actions.some((action) => action.kind === "notify") === true) {
-                await base.firingAlert.notify(call, {
-                    source: base.alertRule.reference(rule.scope, rule.id),
-                    audience: { kind: "subscribers" },
-                    payload: { alert: row.id, rule: rule.title, title: row.title },
-                });
+                await call.mutate(call.caller, [
+                    base.firingAlert.call({
+                        source: base.alertRule.reference(rule.scope, rule.id),
+                        audience: { kind: "subscribers" },
+                        payload: { alert: row.id, rule: rule.title, title: row.title },
+                    }),
+                ]);
             }
 
             return row;
