@@ -8,11 +8,7 @@ import type { Plugin, PluginOption } from "vite";
 import { modulePlugin } from "@destack/package/vite";
 import { schema } from "@destack/schema";
 
-/**
- * The shared test options: one module graph per worker, cached modules, and quick polls.
- *
- * Re-importing every module graph per test file cost a fifth of object's suite; tests keep their state in their own databases and fixtures.
- */
+/** The shared test options: one module graph per worker, cached modules, and quick polls. */
 const TEST = { isolate: false, fsModuleCache: true } as const;
 
 /** How often `expect.poll` rechecks in milliseconds, a local sync round trip taking a few. */
@@ -64,7 +60,7 @@ export interface DriverReference {
     readonly name: string;
 }
 
-/** Play each scenario a scenario module exports as a test of that module, through the driver of its interaction. */
+/** Play each exported scenario of a scenario module as a test of that module. */
 export function scenarioPlugin(drivers: readonly DriverReference[]): Plugin {
     return {
         name: "destack-scenarios",
@@ -91,7 +87,7 @@ export function scenarioPlugin(drivers: readonly DriverReference[]): Plugin {
     };
 }
 
-/** Drop the development server hook of a plugin, since tests serve nothing and its timers would outlive them. */
+/** Drop a plugin's development server hook. */
 async function withoutServer(
     option: PluginOption,
 ): Promise<Exclude<PluginOption, Promise<unknown>>> {
@@ -108,7 +104,7 @@ async function withoutServer(
     return { ...settled, configureServer: undefined };
 }
 
-/** Key cached module transforms by every package definition the module transform reads, and by its own sources. */
+/** Key cached module transforms by every package definition the module transform reads. */
 function cachePlugin(): Plugin {
     let fingerprint: string | undefined;
 
@@ -120,7 +116,7 @@ function cachePlugin(): Plugin {
     };
 }
 
-/** Digest the workspace's package definitions and the sources of the module transform and every build extension. */
+/** Digest the workspace's package definitions and the module transform's sources. */
 function definitions(): string {
     // find the workspace root listing the packages
     let root = process.cwd();
@@ -165,7 +161,7 @@ function definitions(): string {
     return hash.digest("hex");
 }
 
-/** List the sources of the build extension a package declares, the modules beside its build export. */
+/** List the sources of a package's build extension: the modules beside its build export. */
 function extensionSources(directory: string): string[] {
     // read the build export the package's definition names, if it names one
     const definition = Definition.parse(

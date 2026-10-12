@@ -64,7 +64,7 @@ const createTallyMarkTwice = defineScenario({
     },
 });
 
-/** The drivers of tallies: a mark step marks the tally, a set step replaces its marks, and its marks read as text. */
+/** The drivers of tallies. */
 const TallyDriver: DriverType<Tallying, Tally> = {
     interaction: tallyInteraction,
     start(given: Given<Tally>): Driver<Tallying> {

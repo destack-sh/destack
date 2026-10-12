@@ -2,7 +2,7 @@ import type { Given, Scenario, SetStep, Interaction } from "@destack/package/dec
 import type { JsonValue, schema } from "@destack/schema";
 import { expect, test } from "vitest";
 
-/** A driver playing one scenario's steps and reading its observations, after WebDriver: a test DOM in process, or a real browser. */
+/** A driver that plays one scenario's steps and reads its observations, after WebDriver. */
 export interface Driver<Speaks extends Interaction = Interaction> {
     /** Take one step. */
     act(step: SetStep | schema.Infer<Speaks["step"]>): void | Promise<void>;
@@ -23,7 +23,7 @@ export type Observations = Record<string, JsonValue>;
 
 /** The runner playing scenarios through the driver of each one's interaction. */
 export const Runner = {
-    /** Take a scenario's steps through a driver, reading its named observations after each step or once at the end. */
+    /** Take a scenario's steps through a driver and read its named observations. */
     async observe<Speaks extends Interaction, Instance>(
         scenario: Scenario<Speaks, Instance>,
         type: DriverType<Speaks, Instance>,
@@ -42,7 +42,7 @@ export const Runner = {
         return observed;
     },
 
-    /** Play a scenario as a test through the driver of its interaction, expecting the observations it names. */
+    /** Play a scenario as a test through the driver of its interaction. */
     play(scenario: Scenario, types: readonly DriverType[]): void {
         // pick the driver speaking the scenario's interaction
         const name = scenario.interaction.name;
