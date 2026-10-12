@@ -10,7 +10,7 @@ export interface LauncherCommand {
     readonly arguments: readonly string[];
 }
 
-/** Name the launcher command: the release's launcher beside a standalone executable, else Bun running the launcher entry. */
+/** Find the launcher command. */
 export function launcherCommand(): LauncherCommand {
     // start the release's launcher from a standalone executable
     if (Bun.isStandaloneExecutable) {

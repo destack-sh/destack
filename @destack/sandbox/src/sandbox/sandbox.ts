@@ -23,7 +23,7 @@ export class Sandbox implements AsyncDisposable {
     readonly stdout: Readable;
     /** Workload standard error. */
     readonly stderr: Readable;
-    /** The workload's termination after manager cleanup, rejecting on a launcher or cleanup failure. */
+    /** The workload's exit after manager cleanup, rejecting on a launcher or cleanup failure. */
     readonly exited: Promise<SandboxExit>;
     /** The launcher process outside the workload sandbox. */
     readonly #launcher: ChildProcess;
@@ -74,7 +74,7 @@ export class Sandbox implements AsyncDisposable {
         }
     }
 
-    /** Stop the workload's process group and release its proxies, which may leave detached children running. */
+    /** Stop the workload's process group and release its proxies. */
     stop(gracePeriod = STOP_TIMEOUT_MILLISECONDS): Promise<SandboxExit> {
         // require a bounded grace period
         if (
@@ -179,7 +179,7 @@ function spawnLauncher(directory: string): ChildProcess {
     });
 }
 
-/** Watch a launcher's messages and termination, retaining the workload result apart from failures. */
+/** Watch a launcher's messages and exit, keeping the workload result apart from failures. */
 function watchLauncher(launcher: ChildProcess): WatchedLauncher {
     // fail startup or shutdown by whether the workload has started
     const ready = Promise.withResolvers<void>();

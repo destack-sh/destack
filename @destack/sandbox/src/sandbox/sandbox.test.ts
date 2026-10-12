@@ -9,7 +9,7 @@ import { createInterface } from "node:readline";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-/** The errors a denied read and a denied write report: Seatbelt refuses both, bubblewrap hides denied files and mounts allowed ones read-only. */
+/** The errors a denied read and a denied write report, by platform. */
 const DENIED_FAILURES: Partial<Record<NodeJS.Platform, readonly string[]>> = {
     darwin: ["EPERM", "EPERM"],
     linux: ["ENOENT", "EROFS"],

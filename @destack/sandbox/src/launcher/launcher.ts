@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { SandboxError } from "../error/index.ts";
 import { LauncherRequest, type SandboxExit, type SandboxOptions } from "../sandbox/message.ts";
 
-/** The system files every process reads, by platform: libraries, the dynamic linker, the shell and random devices. */
+/** The system files every process reads, by platform. */
 export const RUNTIME_PATHS: Partial<Record<NodeJS.Platform, readonly string[]>> = {
     darwin: [
         "/System/Library",
