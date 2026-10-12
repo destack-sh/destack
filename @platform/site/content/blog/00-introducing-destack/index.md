@@ -8,8 +8,8 @@ author: "Florian"
 Software is entering its Cambrian Explosion, and - it is worth remembering - that means most specimen will go extinct, and the survivors will look very different.
 Both products and processes will evolve under intense competition, with free migrations enabling the full exploration of the space of all possible software - until a new optima is found.
 
-:::figure width="600" src="./cambrian-sea.jpg" alt="Illustration of Cambrian marine life, with Opabinia swimming above trilobites, spiny animals, and sponges."
-[Cambrian marine life](https://es.knowablemagazine.org/content/articulo/alimentos-ambiente/2026/como-los-herbivoros-obtienen-aminoacidos-esenciales) — Christian Jégou, Science Source.
+:::figure width="600" src="./cambrian-sea.jpg" alt="Illustration of a Cambrian ecosystem, with Kylinxia, trilobites, worms, and colourful sponges beneath deep blue water."
+[Cambrian marine life](https://www.eurekalert.org/multimedia/686747) — Huang Diying, Chinese Academy of Sciences.
 :::
 
 The current stack is fundamentally broken:
