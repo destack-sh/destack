@@ -54,6 +54,21 @@ export const Head = {
         return { status: response.status, headers: entries(response.headers) };
     },
 
+    /** Write a head as a frame's payload. */
+    encode(head: RequestHead | ResponseHead): Uint8Array<ArrayBuffer> {
+        return new TextEncoder().encode(JSON.stringify(head));
+    },
+
+    /** Read a request head from a SYN's payload, absent for another shape. */
+    decodeRequest(payload: Uint8Array): RequestHead | undefined {
+        return RequestHead.safeParse(decode(payload)).data;
+    },
+
+    /** Read a response head from an ACK's payload, absent for another shape. */
+    decodeResponse(payload: Uint8Array): ResponseHead | undefined {
+        return ResponseHead.safeParse(decode(payload)).data;
+    },
+
     /** Build the headers a head lists. */
     headers(head: RequestHead | ResponseHead): Headers {
         const headers = new Headers();
@@ -75,7 +90,16 @@ export const Head = {
     },
 };
 
-/** List the end-to-end headers in order, keeping each `set-cookie` apart as the Fetch standard combines the rest. */
+/** Read a payload as JSON, absent for invalid JSON. */
+function decode(payload: Uint8Array): unknown {
+    try {
+        return JSON.parse(new TextDecoder().decode(payload));
+    } catch {
+        return undefined;
+    }
+}
+
+/** List the end-to-end headers in order. */
 function entries(headers: Headers): [string, string][] {
     // drop the connection's own headers and those it lists
     const listed = new Set(

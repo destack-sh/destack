@@ -1,14 +1,14 @@
 import { Frame, FrameFlag, FrameType, MAX_PAYLOAD_BYTES } from "./frame.ts";
-import { Head, RequestHead, ResponseHead } from "./head.ts";
+import { Head, type RequestHead, type ResponseHead } from "./head.ts";
 import type { Session } from "./session.ts";
 
-/** The bytes a stream sends before its receiver credits them at first: 256 KiB, about 5 MB/s at 50 ms. */
+/** The bytes a stream sends before its receiver first credits them: 256 KiB. */
 export const WINDOW_BYTES = 256 * 1024;
 
 /** The widest a receiver grows a stream's window: 16 MiB, about 320 MB/s at 50 ms. */
 export const MAX_WINDOW_BYTES = 16 * 1024 * 1024;
 
-/** One HTTP exchange of a session: the request's bytes one way and the response's back, flow-controlled by credit as yamux streams are. */
+/** One HTTP exchange of a session: the request's bytes one way and the response's back. */
 export class Stream {
     /** The stream's identifier within its session. */
     readonly id: number;
@@ -101,13 +101,13 @@ export class Stream {
 
         // take the answer's head
         if (frame.type === FrameType.data && frame.has(FrameFlag.ack)) {
-            const head = ResponseHead.safeParse(parseJson(frame.payload));
-            if (!head.success) {
+            const head = Head.decodeResponse(frame.payload);
+            if (head === undefined) {
                 this.reset(new Error(`stream ${this.id} was answered with no response head`));
 
                 return;
             }
-            this.#answered.resolve(head.data);
+            this.#answered.resolve(head);
         }
         // take bytes within the window
         else if (frame.type === FrameType.data && frame.payload.length > 0) {
@@ -145,8 +145,7 @@ export class Stream {
     async respond(response: Response): Promise<void> {
         // send the head
         const head = Head.response(response);
-        const payload = new TextEncoder().encode(JSON.stringify(head));
-        this.#session.send(new Frame(FrameType.data, FrameFlag.ack, this.id, 0, payload));
+        this.#session.send(new Frame(FrameType.data, FrameFlag.ack, this.id, 0, Head.encode(head)));
 
         // send the body, or end at once without one
         if (response.body === null || !Head.hasResponseBody(head)) {
@@ -156,7 +155,7 @@ export class Stream {
         }
     }
 
-    /** Read the peer's request, its body the stream's readable, aborted once the stream ends early. */
+    /** Read the peer's request, with the stream's readable as its body. */
     request(): Request {
         const hasBody = Head.hasRequestBody(this.head);
 
@@ -215,12 +214,7 @@ export class Stream {
         return this.#window;
     }
 
-    /** The bytes received that readers have not taken yet. */
-    get #queued(): number {
-        return this.#pendingBytes;
-    }
-
-    /** Hand a reader the oldest received chunk once one arrives, crediting what it took, and close once the peer finished and every byte was taken. */
+    /** Hand a reader the oldest received chunk once one arrives, crediting what it took. */
     async #deliver(): Promise<void> {
         // wait for a chunk or the peer's FIN
         while (this.#pending.length === 0 && !this.#isFinishReceived) {
@@ -291,17 +285,17 @@ export class Stream {
         }
     }
 
-    /** Return the bytes readers took to the session's window, and credit the peer's stream once they reach half its window. */
+    /** Return the bytes readers took to the session's window. */
     #credit(): void {
         // return what readers took to the session's window
-        const read = this.#unreleased - this.#queued;
+        const read = this.#unreleased - this.#pendingBytes;
         if (read > 0) {
             this.#session.release(read);
             this.#unreleased -= read;
         }
 
         // wait for half the window taken by readers
-        const taken = this.#owed - this.#queued;
+        const taken = this.#owed - this.#pendingBytes;
         if (taken < this.#window / 2 || this.#failure !== undefined) {
             return;
         }
@@ -312,7 +306,7 @@ export class Stream {
         this.#owed -= taken;
     }
 
-    /** Count the bytes arriving within one ping's round trip, estimating the bandwidth-delay product. */
+    /** Count the bytes arriving within one ping's round trip. */
     #probe(): void {
         // run one probe at a time, below the widest window
         if (this.#isProbing || this.#window >= MAX_WINDOW_BYTES) {
@@ -329,12 +323,12 @@ export class Stream {
         );
     }
 
-    /** Double the window once a round trip carried two thirds of it to readers keeping up, crediting the growth. */
+    /** Double the window once a round trip carried two thirds of it to readers keeping up. */
     #grow(): void {
         // end the probe, and keep a window the round trip did not fill or readers left waiting
         this.#isProbing = false;
         const isFilled = this.#sample >= (this.#window * 2) / 3;
-        const isKeptUp = this.#queued < this.#window / 2;
+        const isKeptUp = this.#pendingBytes < this.#window / 2;
         if (this.#failure !== undefined || !isFilled || !isKeptUp) {
             return;
         }
@@ -344,14 +338,5 @@ export class Stream {
         this.#window += growth;
         this.#receiveWindow += growth;
         this.#session.send(new Frame(FrameType.window, 0, this.id, growth));
-    }
-}
-
-/** Read a payload as JSON, reading one of another kind as undefined. */
-function parseJson(payload: Uint8Array): unknown {
-    try {
-        return JSON.parse(new TextDecoder().decode(payload));
-    } catch {
-        return undefined;
     }
 }

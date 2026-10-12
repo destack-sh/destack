@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 /** The WebSocket subprotocol of a machine's tunnel, the only one the relay answers with. */
 export const TUNNEL_PROTOCOL = "destack.tunnel";
 
-/** The text message a machine probes its tunnel's liveness with, which the relay answers without waking. */
+/** The text message a machine probes its tunnel's liveness with. */
 export const PING_MESSAGE = "ping";
 
 /** The text message the relay answers a liveness probe with. */
@@ -23,7 +23,7 @@ export const TunnelProtocol = {
         return [TUNNEL_PROTOCOL, `${BEARER_PREFIX}${encoded}`];
     },
 
-    /** Read the bearer token a `Sec-WebSocket-Protocol` header offers, absent for none or an invalid one. */
+    /** Read the bearer token a `Sec-WebSocket-Protocol` header offers. */
     token(offered: string | null): string | undefined {
         // require the tunnel protocol and one bearer token
         const protocols = offered === null ? [] : offered.split(",").map((entry) => entry.trim());
@@ -45,12 +45,17 @@ export const TunnelProtocol = {
     },
 };
 
-/** The answer to a machine's renewal: its name, and the seconds until its new token lapses, as OAuth's `expires_in` counts them (RFC 6749). */
+/** The answer to a machine's renewal: its name and the seconds until its new token lapses. */
 export const Renewal = schema.object({
-    /** The name the relay routes to the machine, such as `laptop.florian.destack.computer`. */
+    /** The name the relay routes to the machine, such as `laptop--florian.destack.computer`. */
     name: schema.string().min(1),
     /** The seconds until the renewed token lapses. */
     expiresIn: schema.number().nonnegative(),
 });
 /** The answer to a machine's renewal. */
 export type Renewal = schema.Infer<typeof Renewal>;
+
+/** The name the relay sends a machine once it changes. */
+export const MachineName = Renewal.pick({ name: true });
+/** The name the relay sends a machine once it changes. */
+export type MachineName = schema.Infer<typeof MachineName>;

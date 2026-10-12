@@ -1,7 +1,7 @@
 /** The length of a frame header: type, flags, stream and value. */
 const HEADER_BYTES = 10;
 
-/** The most bytes one frame carries, a request head included: 64 KiB, as HTTP servers cap heads at 8 to 64 KiB. */
+/** The most bytes one frame carries, a request head included: 64 KiB. */
 export const MAX_PAYLOAD_BYTES = 64 * 1024;
 
 /** The most bytes one frame's message takes. */
@@ -71,7 +71,7 @@ export class Frame {
         this.payload = payload;
     }
 
-    /** Read a frame from a message and refuse one shorter than a header, longer than a frame, or of an unknown type. */
+    /** Read a frame from a message. */
     static decode(message: Uint8Array): Frame {
         // require a whole header and a bounded payload
         if (message.length < HEADER_BYTES) {

@@ -1,11 +1,12 @@
 import { defineDatabase } from "@destack/db";
-import { account, key, machine, zone } from "@destack/account/object";
+import { account, claim, key, machine, placement } from "@destack/account/object";
 import { journal } from "@destack/audit/stack";
-import { serverTables } from "@destack/object";
+import { storeTables } from "@destack/object";
+import { connection, tunnel } from "../object/index.ts";
 
-/** The relay's database: copies of the accounts, machines, machine keys and zones names resolve with, and the journal of tunnels opening and closing. */
+/** The relay's database: its tunnels and connections, its journal and the copies it routes by. */
 export const relayDatabase = defineDatabase({
     name: "main",
-    tables: [...serverTables, journal],
-    copies: [account.table, machine.table, key.table, zone.table],
+    tables: [...storeTables, ...tunnel.tables, ...connection.tables, journal],
+    copies: [account.table, machine.table, key.table, placement.table, claim.table],
 });

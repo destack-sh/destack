@@ -5,7 +5,7 @@ import { Frame, FrameFlag, FrameType, PING_MESSAGE, TUNNEL_PROTOCOL } from "../s
 import { freePort, until } from "../test/index.ts";
 import { TunnelClient } from "./client.ts";
 
-/** The GUID a WebSocket server appends to the client's key to accept it, from RFC 6455 section 1.3. */
+/** The GUID a WebSocket server appends to the client's key to accept it (RFC 6455 1.3). */
 const WEBSOCKET_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 /** The opcode of a text WebSocket message, from RFC 6455 section 5.2. */
@@ -17,7 +17,7 @@ const BINARY_OPCODE = 2;
 /** The opcode of a WebSocket close, from RFC 6455 section 5.2. */
 const CLOSE_OPCODE = 8;
 
-/** A connection to a silent relay: the offered subprotocols and the bytes sent after the upgrade. */
+/** A connection to a silent relay. */
 interface SilentConnection {
     /** The offered subprotocols, as the client listed them. */
     readonly protocols: string | undefined;

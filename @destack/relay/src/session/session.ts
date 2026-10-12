@@ -1,11 +1,11 @@
 import { Frame, FrameFlag, FrameType, GoAwayCode } from "./frame.ts";
-import { Head, RequestHead } from "./head.ts";
+import { Head, type RequestHead } from "./head.ts";
 import { Stream } from "./stream.ts";
 
-/** The most streams a session keeps open each way: 1,000, a live subscription for each tab of every visitor to a machine. */
+/** The most streams a session keeps open each way: 1,000. */
 export const MAX_STREAMS = 1000;
 
-/** The bytes a session lets its peer send across all its streams before crediting more (RFC 9113 6.9): 16 MiB, which bounds what it buffers however many streams are open. */
+/** The bytes a session lets its peer send across all its streams before crediting more. */
 export const SESSION_WINDOW_BYTES = 16 * 1024 * 1024;
 
 /** The WebSocket, or any other message channel, a session sends its frames over. */
@@ -78,8 +78,7 @@ export class Session {
         const stream = new Stream(this, this.#next, head);
         this.#next += 2;
         this.#streams.set(stream.id, stream);
-        const payload = new TextEncoder().encode(JSON.stringify(head));
-        this.send(new Frame(FrameType.data, FrameFlag.syn, stream.id, 0, payload));
+        this.send(new Frame(FrameType.data, FrameFlag.syn, stream.id, 0, Head.encode(head)));
 
         return stream;
     }
@@ -175,7 +174,7 @@ export class Session {
         this.#sendWindow -= bytes;
     }
 
-    /** Count bytes a stream received against the session's window, refusing a peer sending beyond it. */
+    /** Count bytes a stream received against the session's window. */
     take(bytes: number): void {
         if (bytes > this.#receiveWindow) {
             throw new TypeError("session received beyond its window");
@@ -183,7 +182,7 @@ export class Session {
         this.#receiveWindow -= bytes;
     }
 
-    /** Return bytes readers took or a stream dropped, crediting the peer once half the window is owed. */
+    /** Return bytes readers took or a stream dropped. */
     release(bytes: number): void {
         this.#owed += bytes;
         if (this.#owed >= SESSION_WINDOW_BYTES / 2) {
@@ -254,7 +253,7 @@ export class Session {
         return undefined;
     }
 
-    /** Keep a stream the peer opened with a SYN, refuse identifiers of this side or in use, and reset one beyond the limit. */
+    /** Keep a stream the peer opened with a SYN. */
     #open(frame: Frame): Stream | undefined {
         // refuse identifiers the peer may not open
         const isOwn = frame.stream % 2 === this.#next % 2;
@@ -269,28 +268,13 @@ export class Session {
         }
 
         // keep the stream under the request head it carries
-        const stream = new Stream(this, frame.stream, readHead(frame.payload));
+        const head = Head.decodeRequest(frame.payload);
+        if (head === undefined) {
+            throw new TypeError(`peer opened stream ${frame.stream} without a request head`);
+        }
+        const stream = new Stream(this, frame.stream, head);
         this.#streams.set(stream.id, stream);
 
         return stream;
     }
-}
-
-/** Read a request head from a SYN's payload and refuse another shape. */
-function readHead(payload: Uint8Array): RequestHead {
-    // decode the JSON
-    let value: unknown;
-    try {
-        value = JSON.parse(new TextDecoder().decode(payload));
-    } catch (error) {
-        throw new TypeError("stream head is no JSON", { cause: error });
-    }
-
-    // require a request head
-    const parsed = RequestHead.safeParse(value);
-    if (!parsed.success) {
-        throw new TypeError("stream head is no request head", { cause: parsed.error });
-    }
-
-    return parsed.data;
 }

@@ -1,7 +1,7 @@
 import { defineAuditAction } from "@destack/audit";
 import { schema } from "@destack/schema";
 
-/** The machine a tunnel reaches. */
+/** The machine a tunnel leads to. */
 const tunnelTarget = schema.object({
     type: schema.literal("machine"),
     id: schema.identifier("machine"),

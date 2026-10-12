@@ -1,144 +1,60 @@
 # @destack/relay
 
-Relay HTTP requests for Destack names to the machines and regions serving them.
-
-## Names
-
-The relay forwards a request for a space's or a machine's name to the cell serving it, through the machine's tunnel or to the region.
+`@destack/relay` is Cloudflare Tunnel for Destack names: each machine dials out over a WebSocket carrying yamux-shaped frames, and the relay forwards requests for a space's or a machine's name through that tunnel or to the machine's published endpoint.
 
 ```ts
-await fetch("https://notes.feature-x--personal.flotothemoon.destack.space/");
-await fetch("https://macbook.flotothemoon.destack.computer/");
+await fetch("https://pages--feature-x---personal--ada.destack.space/"); // a tunnel's public hostname
+const tunnel = TunnelClient.open({ url, token, fetch, name, report }); // cloudflared tunnel run
+const relay = implementRelay(options); // Cloudflare's edge
+WINDOW_BYTES; // 256 KiB of credit per stream, as yamux's window
 ```
 
 ## Service
 
-`implementRelay` follows the account service's copies of accounts, machines, machine keys and zones, and its `Relay` routes names and admits tunnels over them into a `MemoryTunnelHost` or `DurableObjectTunnelHost`.
+`implementRelay` runs a residency's relay installation, routing names at its root and keeping each machine's tunnel in a partition of its own.
 
 ```ts
-import { implementRelay, MemoryTunnelHost } from "@destack/relay/server";
-import { BunRelay } from "@destack/relay/bun";
+import { implementRelay } from "@destack/relay/server";
 
-const tunnels = new MemoryTunnelHost();
-const service = implementRelay({
+const relay = implementRelay({
     origin: "https://relay.destack.space",
-    database: relayDatabase.get(context),
-    identity, // the WorkloadIdentity following the account service with its workload token
-    tokens, // the verifier of the universe's tokens for RELAY_PACKAGE
-    tunnels,
+    database,
+    accounts, // the account service, followed for accounts, machines and the directory
+    installation, // its id, scope, partition, and how it reaches itself
+    hibernation, // the WebSockets its host keeps open
+    tokens,
+    callKey,
+    clock,
     report,
 });
-const listener = BunRelay.listen(service.relay, tunnels, { hostname: "0.0.0.0", port: 443, tls });
-```
-
-## Cloudflare
-
-A Worker keeps a `DestinationCache` in its isolate, admits tunnels with a `Relay` and hands each machine's WebSocket to its `DurableObjectTunnel` in the jurisdiction of its account's residency, which it calls over RPC and which answers liveness probes asleep and verifies renewals without a database.
-
-```ts
-import { DurableObjectTunnel, DurableObjectTunnelHost } from "@destack/relay/cloudflare";
-import { DestinationCache, Relay } from "@destack/relay/server";
-
-const destinations = new DestinationCache(); // per isolate: a kept name reads no database until its cell answers 421
-const relay = new Relay({ ...options, database: () => connect(), destinations }); // connects only on a miss
-const tunnels = new DurableObjectTunnelHost(environment.TUNNEL, { eu: "eu" }); // an EU account's machines' objects stay in the EU
-const routed = await relay.route(request); // a name's response, or a machine's admission
-return routed instanceof Response ? routed : tunnels.open(routed, request); // fetch with Destack-Admission
-
-export class DurableObjectRelayTunnel extends DurableObjectTunnel {
-    constructor(state: DurableObjectTunnelState, environment: Environment) {
-        super(state, environment, { url, tokens, report }); // tokens: the universe's verifier, no database
-    }
-}
-```
-
-## Workload
-
-`relayWorkload` runs one relay per universe over `relayDatabase` (its copies of the accounts, machines, machine keys and zones, and the journal of tunnels opening and closing), the `workloadIdentity` and `relayConfiguration`, whose `serve` hands the started relay to a runtime serving its WebSockets, absent where a Worker serves them.
-
-```ts
-const tunnels = new MemoryTunnelHost();
-const resources = new ResourceContext()
-    .bind(relayDatabase, database)
-    .bind(workloadIdentity, identity)
-    .bind(relayConfiguration, {
-        origin,
-        tokens,
-        tunnels,
-        serve: (service) => BunRelay.listen(service.relay, tunnels, listener),
-    }); // operators bind the workload RELAY_ROLE, reading accounts, machines, machine keys and zones
+await relay.relay.route(request); // a name's request, or a machine's WebSocket upgrade
+await relay.tunnels.fetch(machineId, request); // inside the machine's tunnel partition
 ```
 
 ## Tunnels
 
-`TunnelClient.open` keeps a machine's tunnel open, probing its liveness each heartbeat, renewing its token at 80% of its lifetime and dialing again with backoff whenever it ends.
+`TunnelClient.open` keeps a machine's tunnel open, renews its token and dials again with backoff whenever the tunnel ends.
 
 ```ts
-import { RELAY_PACKAGE } from "@destack/relay/server";
 import { TunnelClient } from "@destack/relay/tunnel";
 
 const tunnel = TunnelClient.open({
     url: "https://relay.destack.space/tunnel",
     token: async () => (await identity.token(RELAY_PACKAGE.id, accounts, fetch)).accessToken,
-    fetch: (request) => gateway.relay(request), // the machine's space service, installations and views
-    name: (name) => publish(`https://${name}`), // on every token renewal and after renames: laptop.florian.destack.computer
-    heartbeat: 15_000, // a text ping the relay answers pong without waking
+    fetch: (request) => gateway.relay(request),
+    name: (name) => publish(`https://${name}`),
+    heartbeat: 15_000,
     report,
 });
-```
-
-## Limits
-
-A tunnel caps each frame payload, the streams open per machine, the bytes in flight per stream and per session (RFC 9113 6.9), and the wait for a response head; an edge keeps destinations for a minute.
-
-```ts
-export const MAX_PAYLOAD_BYTES = 64 * 1024;
-export const MAX_STREAMS = 1000; // a live subscription for each tab of every visitor
-export const WINDOW_BYTES = 256 * 1024; // per stream at first, growing to MAX_WINDOW_BYTES
-export const SESSION_WINDOW_BYTES = 16 * 1024 * 1024; // across a session's streams, bounding what it buffers
-const ANSWER_TIMEOUT_MILLISECONDS = 100_000;
-const NAME_TTL_MILLISECONDS = 60_000;
-const MAX_NAMES = 10_000;
-```
-
-## Audit
-
-The relay records a machine opening its tunnel, as the machine, and closing it once the machine or its last standing key is revoked, as the relay, in the machine's account history.
-
-```ts
-// tunnel.open  { machine: { type: "machine", id } }  { name: "laptop.florian.destack.computer" }
-// tunnel.close { machine: { type: "machine", id } }  { reason: "machine-revoked" | "key-revoked" }
-```
-
-## Protocol
-
-A tunnel sends one yamux frame per binary WebSocket message, the relay opens the even streams, and a text `ping` is answered `pong` without waking the object.
-
-```ts
-const socket = new WebSocket("wss://relay.destack.space/tunnel", ["destack.tunnel", token]);
-socket.send("ping");
-```
-
-## Handshake
-
-A machine sends its token in base64url as a second WebSocket subprotocol after `destack.tunnel`, and the relay verifies the token and answers with `destack.tunnel` alone.
-
-```http
-GET /tunnel HTTP/1.1
-Upgrade: websocket
-Sec-WebSocket-Protocol: destack.tunnel, destack.bearer.<token>
-
-HTTP/1.1 101 Switching Protocols
-Sec-WebSocket-Protocol: destack.tunnel
+await tunnel.opened();
 ```
 
 ## Tests
 
-`RelayFixture` enrolls a machine of a test account with a space, and starts relays and tunnels to it, closed on disposal.
+`RelayHost` serves a relay installation in process as a machine hosts it, and `RelayFixture` enrolls a machine of a test account with a space and starts relays and tunnels to it.
 
 ```ts
-import { RelayFixture } from "@destack/relay/test";
-
-await using relay = await RelayFixture.open(accounts, await RelayFixture.workload(accounts));
-await relay.rename("notes-next");
+await using fixture = await RelayFixture.open(accounts, await accounts.relay());
+const relay = await fixture.relay(await freePort(), { destinations: new DestinationCache() });
+await fixture.tunnel(relay);
 ```

@@ -1,8 +1,7 @@
 import { expect, test } from "@destack/test";
 import { DOMAINS } from "@destack/account/address";
-import { schema } from "@destack/schema";
+import { Clock, schema } from "@destack/schema";
 import type { ServiceError } from "@destack/service/error";
-import type { Alarm } from "@destack/service/control";
 import { MAX_STREAMS, Session } from "../session/index.ts";
 import { machineTokens } from "../test/token.ts";
 import { Tunnel, type TunnelOptions } from "./tunnel.ts";
@@ -13,25 +12,26 @@ const machineId = schema
     .parse("machine-01996ab0-0000-7000-8000-0000000000d1");
 
 /** The name the relay routes to the machine. */
-const NAME = "laptop.acme.destack.computer";
+const NAME = "laptop--acme.destack.computer";
 
 /** The relay's tunnel URL the machine dials. */
 const TUNNEL_URL = "https://relay.destack.space/tunnel";
 
-/** Keep the test machine's tunnel on an alarm, failing on any report. */
-function options(alarm: Alarm, answerTimeout?: number): TunnelOptions {
+/** Keep the test machine's tunnel, recording its renewals and failing on any report. */
+function options(renewals: [string, number][] = [], answerTimeout?: number): TunnelOptions {
     return {
         url: TUNNEL_URL,
         tokens: machineTokens(machineId),
-        alarm,
         report: fail,
         domains: DOMAINS,
+        renewed: async (id, lapsesAt) => void renewals.push([id, lapsesAt]),
+        clock: Clock.system,
         ...(answerTimeout === undefined ? {} : { answerTimeout }),
     };
 }
 
-/** A machine's end of a tunnel joined to the relay in memory, answering with its label. */
-async function connect(tunnel: Tunnel, label: string, lapsesAt: number) {
+/** A machine's end of a connection joined to the relay in memory, answering with its label. */
+function connect(tunnel: Tunnel, label: string): Session {
     // join the machine's session to the relay's
     let relay: Session | undefined;
     const machine: Session = new Session(
@@ -42,13 +42,10 @@ async function connect(tunnel: Tunnel, label: string, lapsesAt: number) {
                 void stream.respond(new Response(`${label} ${new URL(stream.head.url).pathname}`)),
         },
     );
-    relay = tunnel.attach(
-        {
-            send: (message) => setImmediate(() => machine.receive(message)),
-            close: () => machine.terminate(),
-        },
-        lapsesAt,
-    );
+    relay = tunnel.attach(label, {
+        send: (message) => setImmediate(() => machine.receive(message)),
+        close: () => machine.terminate(),
+    });
 
     return machine;
 }
@@ -58,53 +55,42 @@ function fail(error: unknown): never {
     throw error;
 }
 
-/** An alarm recording the time it is set to. */
-function recording(): Alarm & { at?: number } {
-    const alarm: Alarm & { at?: number } = {
-        setAlarm: async (at) => void (alarm.at = at),
-        deleteAlarm: async () => void delete alarm.at,
-    };
-
-    return alarm;
-}
-
 /** Forward a request for a path, answering its body or the refusal's code. */
 function forward(tunnel: Tunnel, path: string): Promise<string> {
-    return tunnel.fetch(new Request(`https://notes.personal.acme.destack.space${path}`)).then(
+    return tunnel.fetch(new Request(`https://notes--personal--acme.destack.space${path}`)).then(
         (response) => response.text(),
         (error: ServiceError<string, unknown>) => error.code,
     );
 }
 
-test("forward through the newest tunnel, close each tunnel once its token lapses, and set the alarm to the earliest lapse", async () => {
-    const alarm = recording();
-    const tunnel = new Tunnel(machineId, NAME, options(alarm));
+test("forward through the newest connection, fall back to the older once the newest ends, and close the rest at once", async () => {
+    const tunnel = new Tunnel(machineId, NAME, options());
 
-    // open an older and a newer tunnel
-    await connect(tunnel, "older", 1000);
-    await connect(tunnel, "newer", 2000);
-    const both = [await forward(tunnel, "/a"), alarm.at];
+    // open an older and a newer connection
+    connect(tunnel, "older");
+    connect(tunnel, "newer");
+    const both = await forward(tunnel, "/a");
 
-    // close the older at its lapse and the newer at its own
-    await tunnel.lapse(1000);
-    const newer = [await forward(tunnel, "/b"), alarm.at];
-    await tunnel.lapse(2000);
+    // end the newer, then close the tunnel
+    tunnel.end("newer");
+    const older = await forward(tunnel, "/b");
+    const closed = tunnel.close();
 
-    expect([both, newer, await forward(tunnel, "/c"), alarm.at, tunnel.isEmpty]).toEqual([
-        ["newer /a", 1000],
-        ["newer /b", 2000],
+    expect([both, older, closed, await forward(tunnel, "/c"), tunnel.isEmpty]).toEqual([
+        "newer /a",
+        "older /b",
+        ["older"],
         "SERVICE_UNAVAILABLE",
-        undefined,
         true,
     ]);
 });
 
-test("renew a tunnel's token through a stream the machine opens, answering its name and lifetime, and close the tunnel on a refused token", async () => {
-    const alarm = recording();
-    const tunnel = new Tunnel(machineId, NAME, options(alarm));
-    const machine = await connect(tunnel, "host", 1000);
+test("renew a connection's token through a stream the machine opens, answering its name and lifetime, and lapse the connection on a refused token", async () => {
+    const renewals: [string, number][] = [];
+    const tunnel = new Tunnel(machineId, NAME, options(renewals));
+    const machine = connect(tunnel, "host");
 
-    // renew with a token lasting 5 s and reach no other path before closing the tunnel on an empty one
+    // renew with a token lasting 5 s and call no other path before refusing an empty one
     const renew = (path: string, token: string) =>
         machine
             .fetch(
@@ -117,32 +103,30 @@ test("renew a tunnel's token through a stream the machine opens, answering its n
                 response.status,
                 response.ok ? await response.json() : null,
             ]);
+    const before = Date.now();
     const [status, renewal] = await renew("/tunnel", "5000");
     const renewed = [status, schema.looseObject({ name: schema.string() }).parse(renewal).name];
-    const isArmed = alarm.at !== undefined && alarm.at > Date.now() + 4000;
     const other = await renew("/other", "5000");
     const refused = await renew("/tunnel", "");
 
-    // lapse the refused tunnel at once, and close it as the alarm wakes
-    const isLapsed = alarm.at !== undefined && alarm.at <= Date.now();
-    await tunnel.lapse();
-    expect([renewed, isArmed, other, refused, isLapsed, tunnel.isEmpty, alarm.at]).toEqual([
-        [200, NAME],
-        true,
-        [404, null],
-        [401, null],
-        true,
-        true,
-        undefined,
-    ]);
+    // record the renewed lapse 5 s out, then the refused one as lapsed already
+    const [first, second] = renewals;
+    expect([
+        renewed,
+        other,
+        refused,
+        renewals.map(([id]) => id),
+        (first?.[1] ?? 0) >= before + 5000,
+        (second?.[1] ?? Infinity) <= Date.now(),
+    ]).toEqual([[200, NAME], [404, null], [401, null], ["host", "host"], true, true]);
 });
 
 test("refuse a machine name the machine no longer has, as after its rename", async () => {
-    const tunnel = new Tunnel(machineId, NAME, options(recording()));
-    await connect(tunnel, "host", Number.MAX_SAFE_INTEGER);
+    const tunnel = new Tunnel(machineId, NAME, options());
+    connect(tunnel, "host");
 
-    // rename the machine and reach it by its new name only
-    await tunnel.rename("renamed.acme.destack.computer");
+    // rename the machine and call it by its new name only
+    await tunnel.rename("renamed--acme.destack.computer");
     const answer = (name: string) =>
         tunnel.fetch(new Request(`https://${name}/status`)).then(
             (response) => response.text(),
@@ -150,27 +134,24 @@ test("refuse a machine name the machine no longer has, as after its rename", asy
         );
     expect([
         await answer(NAME),
-        await answer("renamed.acme.destack.computer"),
-        await answer("notes.personal.acme.destack.space"),
+        await answer("renamed--acme.destack.computer"),
+        await answer("notes--personal--acme.destack.space"),
     ]).toEqual(["MISDIRECTED_REQUEST", "host /status", "host /status"]);
 });
 
 test("refuse a request beyond a machine's open requests, and time out the ones the machine answers no head for", async () => {
     // join a machine that never answers, with a short answer timeout
-    const tunnel = new Tunnel(machineId, NAME, options(recording(), 50));
+    const tunnel = new Tunnel(machineId, NAME, options([], 50));
     let relay: Session | undefined;
     const machine: Session = new Session(
         { send: (message) => setImmediate(() => relay?.receive(message)), close: () => {} },
         "client",
         { accept: () => {} },
     );
-    relay = tunnel.attach(
-        {
-            send: (message) => setImmediate(() => machine.receive(message)),
-            close: () => machine.terminate(),
-        },
-        Number.MAX_SAFE_INTEGER,
-    );
+    relay = tunnel.attach("silent", {
+        send: (message) => setImmediate(() => machine.receive(message)),
+        close: () => machine.terminate(),
+    });
 
     // fill the machine's open requests, refuse one more and time the open ones out
     const open = Array.from({ length: MAX_STREAMS }, () => forward(tunnel, "/slow"));

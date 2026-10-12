@@ -1,71 +1,100 @@
-import type { Fetch } from "@destack/service";
-import type { DirectoryClient } from "@destack/account/client";
-import { Resolver } from "@destack/account/directory";
-import { AuditRecorder, Journal } from "@destack/audit/server";
-import { and, Change, eq, gt, isNull, type DatabaseConnection, type Table } from "@destack/db";
-import { zoneTable } from "@destack/directory";
+import { AccessContext, Authorization, Caller } from "@destack/access";
 import {
     DOMAINS,
     type Domains,
-    MachineAddress,
     InstallationOrigin,
+    MachineAddress,
+    SpaceAddress,
 } from "@destack/account/address";
-import { account, key, Machine, machine } from "@destack/account/object";
-import { schema, type Identifier } from "@destack/schema";
-import type { TokenVerifier } from "@destack/service/authentication";
-import type { AuditCaller } from "@destack/audit";
-import type { CallKey } from "@destack/service/request";
+import { DatabaseDirectory, HandleResolver } from "@destack/account/directory";
+import { account, directoryShape, key, Machine, machine, space } from "@destack/account/object";
+import { AuditRecorder, Journal } from "@destack/audit/server";
+import {
+    and,
+    Change,
+    type DatabaseConnection,
+    eq,
+    gt,
+    isNull,
+    TABLE,
+    type Table,
+    Transaction,
+} from "@destack/db";
+import { Call } from "@destack/object";
+import { DatabaseClaimStore, type ObjectStore } from "@destack/object/server";
 import type {} from "@destack/package/import-meta";
-import type { Controller } from "@destack/service/control";
+import { type Identifier, present, schema } from "@destack/schema";
+import type { Fetch } from "@destack/service";
+import type { TokenVerifier } from "@destack/service/authentication";
+import type { Controller, Reconciliation } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
+import { type CallKey, RequestId } from "@destack/service/request";
 import { refusal, reportError } from "@destack/service/server";
-import { space, SpaceCell } from "@destack/space/object";
+import {
+    FORWARDED_URL_HEADER,
+    type InstallationContext,
+    PARTITION_HEADER,
+} from "@destack/service/workload";
+import { ServiceMount } from "@destack/service";
+import { Scope, type Subscription, type Uplink } from "@destack/sync";
+import type * as sync from "@destack/sync";
 import { tunnelClose, tunnelOpen } from "../audit/index.ts";
+import { tunnel } from "../object/index.ts";
 import { relayService } from "../service/index.ts";
 import { TunnelProtocol } from "../session/index.ts";
 import type { DestinationCache } from "./destination.ts";
 import {
+    ADMISSION_HEADER,
     type Admission,
     type MachineDestination,
     Tunnel,
     TUNNEL_PATH,
-    type TunnelHost,
+    TUNNELS_PATH,
 } from "./tunnel.ts";
 
 /** The relay's package, the audience of the tokens machines open their tunnels with. */
 export const RELAY_PACKAGE = import.meta.destack.package;
 
-/** The lifetime of the tokens machines renew their tunnels with: ten minutes, so a tunnel renews rarely. */
+/** The lifetime of the tokens machines renew their tunnels with: ten minutes. */
 export const RELAY_TOKEN_LIFETIME_MILLISECONDS = 10 * 60_000;
+
+/** The host a relay names in the Forwarded header of a request it forwards (RFC 7239). */
+const FORWARDED_HOST = /host="?([^";,]+)"?/u;
+
+/** The answer of a tunnel's close: whether a connection was open. */
+const Closing = schema.object({ closed: schema.boolean() });
+
+/** The protocol a relay names in the Forwarded header of a request it forwards (RFC 7239). */
+const FORWARDED_PROTO = /proto=([a-z]+)/u;
 
 /** What a relay routes by, and where. */
 export interface RelayOptions {
     /** The relay's own origin, where machines open their tunnels. */
     readonly origin: string;
-    /** The relay's database keeping copies of the accounts, machines, machine keys and zones names resolve with, or its opening on first use, as an edge Worker opens it only on a missed name. */
-    readonly database: DatabaseConnection | (() => Promise<DatabaseConnection>);
-    /** The universe's directory, which names' claims and cells' endpoints resolve through. */
-    readonly directory: DirectoryClient;
+    /** The account service's uplink, used as the relay installation. */
+    readonly publisher: Uplink;
     /** Verify the universe's tokens machines open tunnels with, for the relay's package. */
     readonly tokens: TokenVerifier;
-    /** The key the relay's journal fingerprints sensitive values under, which records tunnels opening and closing. */
+    /** The key the relay's journal fingerprints sensitive values under. */
     readonly callKey: CallKey;
-    /** Where the machines keep their tunnels. */
-    readonly tunnels: TunnelHost;
+    /** The relay installation itself, which reaches each machine's tunnel in its partition. */
+    readonly itself: ReturnType<InstallationContext["at"]>;
+    /** The relay installation's store, keeping a row per tunnelled machine and the copies. */
+    readonly store: Pick<ObjectStore, "principal" | "clock" | "database" | "authorizer">;
     /** Report a failure the relay answers to no one. */
     readonly report: (error: unknown) => void;
     /** The domains names resolve under. */
     readonly domains?: Domains;
-    /** Reach regions at their published endpoints. */
+    /** Call cloud machines at their published endpoints. */
     readonly fetch?: Fetch;
-    /** The destinations an edge Worker's isolate keeps across requests, absent where the copies are local. */
+    /** The destinations the relay keeps across requests. */
     readonly destinations?: DestinationCache;
 }
 
-/** Where the relay forwards a name's requests: a machine's tunnel, or a region's published endpoint. */
+/** Where the relay forwards a name's requests. */
 export type Destination = MachineDestination | { readonly endpoint: string };
 
-/** The edge of Destack's names: requests for a space's or a machine's name go to the machine through its tunnel, or to the region serving it. */
+/** The edge of Destack's names. */
 export class Relay {
     /** Verify the universe's tokens machines open and renew their tunnels with. */
     readonly tokens: TokenVerifier;
@@ -73,44 +102,80 @@ export class Relay {
     readonly domains: Domains;
     /** Report a failure the relay answers to no one. */
     readonly report: (error: unknown) => void;
-    /** The relay's database with the copies, opened on first use. */
-    readonly #database: () => Promise<DatabaseConnection>;
-    /** The key the journal fingerprints under. */
-    readonly #callKey: CallKey;
-    /** The resolver of handles from the copies and of names through the directory. */
-    readonly #resolver: Resolver;
-    /** Where the machines keep their tunnels. */
-    readonly #tunnels: TunnelHost;
+    /** The journal recording tunnel openings and closes. */
+    readonly journal: Journal;
+    /** The account service's uplink, which publishes the relay's tunnelled machines' endpoints. */
+    readonly #publisher: Uplink;
+    /** The directory over the copied placements and machines. */
+    readonly #directory: DatabaseDirectory;
+    /** The claims over the copied claims of names. */
+    readonly #claims: DatabaseClaimStore;
+    /** The relay installation itself, which reaches each machine's tunnel in its partition. */
+    readonly #itself: ReturnType<InstallationContext["at"]>;
+    /** The relay installation's store, keeping a row per tunnelled machine and the copies. */
+    readonly #store: RelayOptions["store"];
     /** The relay's own origin. */
     readonly #origin: URL;
-    /** Call regions. */
+    /** Call cloud machines. */
     readonly #fetch: Fetch;
-    /** The destinations kept across requests, absent where the copies are local. */
+    /** The destinations kept across requests. */
     readonly #destinations: DestinationCache | undefined;
 
     /** Route as the options describe. */
     constructor(options: RelayOptions) {
-        // open the database once on first use, and resolve handles from its copies and names through the directory
-        const { database } = options;
-        let opened: Promise<DatabaseConnection> | undefined;
-        this.#database = () => {
-            opened ??= typeof database === "function" ? database() : Promise.resolve(database);
+        // resolve handles and names through the copies in the store's database
+        const { database, clock } = options.store;
+        this.#store = options.store;
+        this.#directory = new DatabaseDirectory(database, clock);
+        this.#claims = new DatabaseClaimStore(database, clock);
+        this.journal = new Journal(database, options.callKey, { clock });
 
-            return opened;
-        };
-        this.#resolver = new Resolver(options.directory, async (handle) =>
-            Resolver.account(await this.#database(), handle),
-        );
-
-        // keep the token verifier, the journal's key and the calls to tunnels and regions
+        // keep the token verifier and the calls to the account service, tunnels and cloud machines
         this.tokens = options.tokens;
-        this.#callKey = options.callKey;
         this.domains = options.domains ?? DOMAINS;
         this.report = options.report;
-        this.#tunnels = options.tunnels;
+        this.#publisher = options.publisher;
+        this.#itself = options.itself;
         this.#origin = new URL(options.origin);
         this.#fetch = options.fetch ?? globalThis.fetch;
         this.#destinations = options.destinations;
+    }
+
+    /** Ask the relay's root to withdraw the endpoint of a machine left without a connection. */
+    async withdrawAtRoot(machineId: Identifier<"machine">): Promise<void> {
+        const url = `${this.#itself.url}${ServiceMount.path(RELAY_PACKAGE.id)}${TUNNELS_PATH}/${machineId}/withdraw`;
+        const response = await this.#itself.fetch(new Request(url, { method: "POST" }));
+        await requireAnswer(response, `withdraw machine ${machineId}`);
+    }
+
+    /** Call a machine's tunnel in its partition through the relay installation itself. */
+    #tunnel(
+        destination: MachineDestination,
+        call: string,
+        options: RequestInit,
+    ): Promise<Response> {
+        // address the machine's tunnel partition
+        const headers = new Headers(options.headers);
+        headers.set(PARTITION_HEADER, Tunnel.id(destination.machineId));
+        const path = `${ServiceMount.path(RELAY_PACKAGE.id)}${TUNNELS_PATH}`;
+        const url = `${this.#itself.url}${path}/${destination.machineId}/${call}`;
+
+        return this.#itself.fetch(new Request(url, { ...options, headers }));
+    }
+
+    /** Request the copy of the directory a relay installation keeps below its space. */
+    static subscription(below: string): Subscription {
+        return directoryShape.subscription({
+            name: `${directoryShape.name}:${below}`,
+            scope: Scope.universe.id,
+            below,
+            parameters: {},
+        });
+    }
+
+    /** Keep the reads of the copies until the signal aborts. */
+    async follow(signal: AbortSignal): Promise<void> {
+        await Promise.all([this.#directory.follow(signal), this.#claims.follow(signal)]);
     }
 
     /** The URL machines open their tunnels at. */
@@ -118,8 +183,8 @@ export class Relay {
         return new URL(TUNNEL_PATH, this.#origin).href;
     }
 
-    /** Admit a machine opening its tunnel at the relay's own origin, or answer a request for a name. */
-    async route(request: Request): Promise<Admission | Response> {
+    /** Admit a machine opening its tunnel at the relay's own origin. */
+    async route(request: Request): Promise<Response> {
         // forward requests for names
         const url = new URL(request.url);
         const isTunnel = url.host === this.#origin.host && url.pathname === TUNNEL_PATH;
@@ -127,9 +192,14 @@ export class Relay {
             return this.fetch(request);
         }
 
-        // admit the machine by its offered token, answering a refusal's status alone
+        // admit the machine by its offered token and open its tunnel, answering a refusal's status alone
         try {
-            return await this.open(request);
+            const admission = await this.admit(request, this.#store.clock.now());
+
+            return await this.#tunnel(admission, "open", {
+                method: "POST",
+                headers: { [ADMISSION_HEADER]: JSON.stringify(admission) },
+            });
         } catch (error) {
             const reported = reportError(error);
 
@@ -137,7 +207,7 @@ export class Relay {
         }
     }
 
-    /** Bring a machine's tunnel in line with its copy: tell it its name, or close it once the machine or its last standing key is revoked, recording the close. */
+    /** Bring a machine's tunnel in line with its copy. */
     async reconcile(machineId: Identifier<"machine">): Promise<void> {
         // leave a machine the copies no longer keep
         const copied = await this.#machine(machineId);
@@ -147,39 +217,53 @@ export class Relay {
 
         // tell a standing machine with a standing key its name
         const { destination, name } = copied;
-        if (name !== undefined && (await this.#isKeyed(machineId))) {
-            await this.#tunnels.rename(destination, name);
+        if (name !== undefined && (await this.#isKeyed(machineId, this.#store.clock.now()))) {
+            const renamed = await this.#tunnel(destination, "rename", {
+                method: "POST",
+                body: JSON.stringify({ name }),
+            });
+            await requireAnswer(renamed, `rename machine ${machineId}`);
 
             return;
         }
 
-        // close the tunnel of a revoked or keyless machine, recording the close in its account's history
+        // close the tunnel of a revoked or keyless machine, withdrawing its endpoint
         const reason = name === undefined ? "machine-revoked" : "key-revoked";
-        if (await this.#tunnels.close(destination)) {
-            await this.#record(
-                machineId,
-                { type: "system", name: "relay" },
-                (recorder, transaction) =>
-                    recorder.record(transaction, tunnelClose, {
-                        target: { type: "machine", id: machineId },
-                        details: { reason },
-                        outcome: { kind: "success" },
-                    }),
-            );
+        const closing = await this.#tunnel(destination, "close", { method: "POST" });
+        const answer = await requireAnswer(closing, `close machine ${machineId}`);
+        if (!Closing.parse(JSON.parse(answer)).closed) {
+            return;
         }
+        await this.withdraw(machineId);
+
+        // record the close as the relay in the machine's account history
+        const now = this.#store.clock.now();
+        const caller = Caller.of(this.#store.principal, now);
+        await this.#record(caller, copied.accountId, machineId, (recorder, transaction) =>
+            recorder.record(transaction, tunnelClose, {
+                target: { type: "machine", id: machineId },
+                details: { reason },
+                outcome: { kind: "success" },
+            }),
+        );
     }
 
-    /** Read a copied machine's destination and the name the relay routes to it below the machine domain while it stands, absent for a machine the copies do not keep. */
-    async #machine(
-        machineId: Identifier<"machine">,
-    ): Promise<
-        { readonly destination: MachineDestination; readonly name: string | undefined } | undefined
+    /** Read a copied machine's destination and kind while it stands. */
+    async #machine(machineId: Identifier<"machine">): Promise<
+        | {
+              readonly destination: MachineDestination;
+              readonly accountId: string;
+              readonly kind: Machine["kind"];
+              readonly name: string | undefined;
+          }
+        | undefined
     > {
         // read the machine with its account's handle and residency
-        const database = await this.#database();
-        const [copied] = await database
+        const [copied] = await this.#store.database
             .select({
                 machine: machine.table.name,
+                accountId: machine.table.scope,
+                kind: machine.table.kind,
                 revokedAt: machine.table.revokedAt,
                 handle: account.table.handle,
                 residencyId: account.table.residencyId,
@@ -194,6 +278,8 @@ export class Relay {
         // name the machine only while it stands
         return {
             destination: { machineId, residencyId: copied.residencyId },
+            accountId: copied.accountId,
+            kind: copied.kind,
             name:
                 copied.revokedAt === null
                     ? MachineAddress.format(copied, this.domains.machine)
@@ -203,8 +289,7 @@ export class Relay {
 
     /** List the standing machines of an account. */
     async machines(accountId: Identifier<"account">): Promise<readonly Identifier<"machine">[]> {
-        const database = await this.#database();
-        const rows = await database
+        const rows = await this.#store.database
             .select({ id: machine.table.id })
             .from(machine.table)
             .where(and(eq(machine.table.scope, accountId), isNull(machine.table.revokedAt)));
@@ -212,8 +297,8 @@ export class Relay {
         return rows.map((row) => row.id);
     }
 
-    /** Admit a machine opening its tunnel with the token it offers as a WebSocket subprotocol, while its key and the machine stand. */
-    async open(request: Request, now = Date.now()): Promise<Admission> {
+    /** Admit a machine opening its tunnel with the token it offers as a WebSocket subprotocol. */
+    async admit(request: Request, now: number): Promise<Admission> {
         // require a machine's token
         const token = TunnelProtocol.token(request.headers.get("sec-websocket-protocol"));
         if (token === undefined) {
@@ -222,22 +307,15 @@ export class Relay {
         const { machineId, caller } = await Tunnel.admit(this.tokens, token, now);
 
         // require its key and the machine to stand
-        await Machine.requireAuthenticating(await this.#database(), caller, now);
+        await Machine.requireAuthenticating(this.#store.database, caller, now);
         const copied = await this.#machine(machineId);
         if (copied?.name === undefined) {
             throw new ServiceError("UNAUTHORIZED", { message: `machine ${machineId} is revoked` });
         }
-        const { destination, name } = copied;
+        const { destination, accountId, name } = copied;
 
         // record the opening as the machine in its account's history
-        const journal = await this.#journal();
-        const recorder = AuditRecorder.from(caller, journal, {
-            package: RELAY_PACKAGE,
-            service: relayService.name,
-            scope: caller.claims.subject.scope,
-            machineId,
-        });
-        await journal.database.transaction((transaction) =>
+        await this.#record(caller, accountId, machineId, (recorder, transaction) =>
             recorder.record(transaction, tunnelOpen, {
                 target: { type: "machine", id: machineId },
                 details: { name },
@@ -245,13 +323,87 @@ export class Relay {
             }),
         );
 
-        return { ...destination, lapsesAt: caller.lapsesAt, name };
+        // publish the relay's origin as where the machine answers, under a new publication kept on its tunnel
+        const publication = crypto.randomUUID();
+        const published = { scope: accountId, id: machineId, url: this.#origin.href, publication };
+        await this.#call(Call.wire(machine.call("publish", published)));
+        await this.#keepTunnel(machineId, name, publication);
+
+        return {
+            ...destination,
+            lapsesAt: Caller.requireCredential(caller).expiresAt,
+            name,
+            publication,
+        };
+    }
+
+    /** Withdraw the endpoint of a machine whose tunnel to the relay closed. */
+    async withdraw(machineId: Identifier<"machine">): Promise<void> {
+        // read the publication of the machine's tunnel, none once closed
+        const id = Tunnel.id(machineId);
+        const { database } = this.#store;
+        const [kept] = await database
+            .select({ publication: tunnel.table.publication })
+            .from(tunnel.table)
+            .where(eq(tunnel.table.id, id));
+        if (kept?.publication === undefined || kept.publication === null) {
+            return;
+        }
+
+        // withdraw the endpoint and clear the publication
+        const accountId = await this.#account(machineId);
+        const withdrawn = { scope: accountId, id: machineId, publication: kept.publication };
+        await this.#call(Call.wire(machine.call("unpublish", withdrawn)));
+        await database
+            .update(tunnel.table)
+            .set({ publication: null, updatedAt: this.#store.clock.now() })
+            .where(eq(tunnel.table.id, id));
+    }
+
+    /** Keep a machine's tunnel row with the name the relay routes to it. */
+    async #keepTunnel(
+        machineId: Identifier<"machine">,
+        name: string,
+        publication: string,
+    ): Promise<void> {
+        const id = Tunnel.id(machineId);
+        const now = this.#store.clock.now();
+        await Transaction.run(this.#store.database, async (transaction) => {
+            // update the tunnel the machine keeps
+            const kept = await transaction.row(tunnel.table, { id });
+            if (kept !== null) {
+                await transaction.write({
+                    table: tunnel.table,
+                    before: kept,
+                    after: {
+                        ...kept,
+                        name,
+                        publication,
+                        updatedAt: now,
+                    },
+                });
+
+                return;
+            }
+
+            // create it, recording the tunnel as a partition in the universe
+            const created = { id, name, publication, createdAt: now, updatedAt: now };
+            await transaction.write({
+                table: tunnel.table,
+                before: null,
+                after: tunnel.table[TABLE].complete(created),
+            });
+            const self = this.#store.principal;
+            const authorization = new Authorization(this.#store.authorizer, transaction, () =>
+                AccessContext.of(Caller.of(self, now), now),
+            );
+            await authorization.create(tunnel.reference(Scope.universe.id, id), {});
+        });
     }
 
     /** Report whether a machine keeps a standing key, unrevoked, unsuspended and unexpired. */
-    async #isKeyed(machineId: Identifier<"machine">, now = Date.now()): Promise<boolean> {
-        const database = await this.#database();
-        const [kept] = await database
+    async #isKeyed(machineId: Identifier<"machine">, now: number): Promise<boolean> {
+        const [kept] = await this.#store.database
             .select({ id: key.table.id })
             .from(key.table)
             .where(
@@ -268,79 +420,111 @@ export class Relay {
         return kept !== undefined;
     }
 
-    /** Record a tunnel's event as a caller in its machine's account history, nothing for a machine its copies no longer keep. */
+    /** Record a tunnel's event as a caller in its machine's account history. */
     async #record(
+        caller: Caller,
+        accountId: string,
         machineId: Identifier<"machine">,
-        caller: AuditCaller,
         record: (
             recorder: AuditRecorder<DatabaseConnection>,
             transaction: DatabaseConnection,
         ) => Promise<unknown>,
     ): Promise<void> {
-        // find the machine's account
-        const journal = await this.#journal();
-        const [kept] = await journal.database
-            .select({ scope: machine.table.scope })
-            .from(machine.table)
-            .where(eq(machine.table.id, machineId));
-        if (kept === undefined) {
-            return;
-        }
-
-        // record under the caller in one transaction
-        const recorder = new AuditRecorder(
-            {
-                caller,
-                package: RELAY_PACKAGE,
-                service: relayService.name,
-                scope: kept.scope,
-                machineId,
-            },
-            journal,
-        );
-        await journal.database.transaction((transaction) => record(recorder, transaction));
+        const recorder = AuditRecorder.from(caller, this.journal, {
+            package: RELAY_PACKAGE,
+            service: relayService.name,
+            scope: accountId,
+            machineId,
+        });
+        await this.journal.database.transaction((transaction) => record(recorder, transaction));
     }
 
-    /** Open the relay's journal over its database on first use. */
-    async #journal(): Promise<Journal> {
-        return new Journal(await this.#database(), this.#callKey);
-    }
-
-    /** Forward a request for a name to its cell, answering a failure with its status and message. */
+    /** Forward a request for a name to its machine. */
     async fetch(request: Request): Promise<Response> {
         try {
-            return await this.#forward(request);
+            const restored = this.#restore(request);
+
+            return await (restored === undefined
+                ? this.#forward(request, false)
+                : this.#forward(restored, true));
         } catch (error) {
             return refusal(error);
         }
     }
 
-    /** Forward a request for a name to its destination, kept or resolved, and resolve a kept one again once its cell answers it misdirected. */
-    async #forward(request: Request): Promise<Response> {
-        // find the name's kept or resolved destination
-        const name = new URL(request.url).hostname;
-        const kept = this.#destinations?.get(name);
-        const destination = kept ?? (await this.#resolve(name));
-        if (kept === undefined) {
-            this.#destinations?.set(name, destination);
+    /** Restore a request another relay forwarded to this relay's origin (RFC 7239). */
+    #restore(request: Request): Request | undefined {
+        // take a request at the relay's origin with a Forwarded header
+        const url = new URL(request.url);
+        const forwarded = request.headers.get("forwarded");
+        if (url.host !== this.#origin.host || forwarded === null) {
+            return undefined;
         }
 
-        // forward and drop a kept destination the cell answers misdirected
+        // require the forwarded host and protocol
+        const host = FORWARDED_HOST.exec(forwarded)?.[1];
+        const proto = FORWARDED_PROTO.exec(forwarded)?.[1];
+        if (host === undefined || proto === undefined) {
+            throw new ServiceError("BAD_REQUEST", {
+                message: "the forwarded request names no host and protocol",
+            });
+        }
+
+        // ask for the name as the client did
+        const restored = new Request(`${proto}://${host}${url.pathname}${url.search}`, request);
+        restored.headers.delete("forwarded");
+
+        return restored;
+    }
+
+    /** Forward a request for a name to its destination, kept or resolved. */
+    async #forward(request: Request, isForwarded: boolean): Promise<Response> {
+        // find the name's kept or resolved destination
+        const name = new URL(request.url).hostname;
+        const now = this.#store.clock.now();
+        const kept = this.#destinations?.get(name, now);
+        const destination = kept ?? (await this.#resolve(name));
+        if (kept === undefined) {
+            this.#destinations?.set(name, destination, now);
+        }
+
+        // refuse a forwarded request for a machine tunnelled elsewhere, which its relay resolves again
+        if (isForwarded && !("machineId" in destination)) {
+            this.#destinations?.delete(name);
+            throw new ServiceError("MISDIRECTED_REQUEST", {
+                message: `${name} is tunnelled to no machine at this relay`,
+            });
+        }
+
+        // forward and drop a kept destination the machine answers misdirected
         const response = await this.#send(destination, request);
         if (kept === undefined || response.status !== ServiceError.status("MISDIRECTED_REQUEST")) {
             return response;
         }
         this.#destinations?.delete(name);
 
-        // resolve once more for a bodiless request and ask one with a body to retry (RFC 9110)
-        return request.body === null ? this.#forward(request) : response;
+        // resolve once more for a bodiless request, dropping the misdirected answer, and ask one with a body to retry (RFC 9110)
+        if (request.body !== null) {
+            return response;
+        }
+        await response.body?.cancel();
+
+        return this.#forward(request, isForwarded);
     }
 
-    /** Forward a request to a machine through its tunnel, or to a region at its endpoint naming the host asked for (RFC 7239). */
+    /** Forward a request to a machine through its tunnel (RFC 7239). */
     async #send(destination: Destination, request: Request): Promise<Response> {
-        // reach a machine through its tunnel
+        // call a machine through its tunnel
         if ("machineId" in destination) {
-            return this.#tunnels.fetch(destination, request);
+            const headers = new Headers(request.headers);
+            headers.set(FORWARDED_URL_HEADER, request.url);
+
+            return this.#tunnel(destination, "forward", {
+                method: request.method,
+                headers,
+                body: request.body,
+                ...(request.body === null ? {} : { duplex: "half" }),
+            });
         }
 
         // keep the path and query and streamed body under the endpoint's origin
@@ -352,78 +536,119 @@ export class Relay {
         return this.#fetch(forwarded);
     }
 
-    /** Find where a name's requests go, refusing a name that resolves to nothing. */
+    /** Find where a name's requests go through the copies of the directory and the machines. */
     async #resolve(name: string): Promise<Destination> {
-        // find the name's cell
-        const cell = await this.#cell(name);
-        if (cell === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `${name} resolves to nothing` });
-        } else if ("machineId" in cell) {
-            return await this.#destination(cell.machineId, name);
-        }
-
-        // read a region's published endpoint
-        const published = await this.#resolver.directory.cell(cell.regionId);
-        if (published === undefined) {
-            throw new ServiceError("SERVICE_UNAVAILABLE", {
-                message: `region ${cell.regionId} published no endpoint`,
-            });
-        }
-
-        return { endpoint: published.endpoint };
-    }
-
-    /** Read where a machine serving a name keeps its tunnel, refusing a machine the copies do not keep. */
-    async #destination(
-        machineId: Identifier<"machine">,
-        name: string,
-    ): Promise<MachineDestination> {
-        const copied = await this.#machine(machineId);
-        if (copied === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `${name} resolves to nothing` });
-        }
-
-        return copied.destination;
-    }
-
-    /** Find the machine or region serving a name. */
-    async #cell(name: string): Promise<SpaceCell | undefined> {
         const origin = InstallationOrigin.parse(name, this.domains.space);
         const computer = MachineAddress.parse(name, this.domains.machine);
 
-        // find the cell of a space's copied zone, which also serves its branches
+        // route a space's name, and its branches', to the machine its placement names
         if (origin !== undefined) {
-            const named = await this.#resolver.find(space, `${origin.space}.${origin.handle}`);
-            const [placed] =
-                named === undefined
-                    ? []
-                    : await (
-                          await this.#database()
-                      )
-                          .select({ cell: zoneTable.cell })
-                          .from(zoneTable)
-                          .where(eq(zoneTable.id, named.id));
-
-            return placed === undefined ? undefined : SpaceCell.parse(placed.cell);
+            return this.#locateSpace(name, SpaceAddress.of(origin));
         }
-        // find a standing machine by its name within its account
+        // route a machine's name to its tunnel
         else if (computer !== undefined) {
-            const accountId = await this.#resolver.account(computer.handle);
-            const machineId =
-                accountId === undefined
-                    ? undefined
-                    : await Machine.find(await this.#database(), accountId, computer.machine);
-
-            return machineId === undefined ? undefined : { machineId };
+            return this.#locateMachine(name, computer.handle, computer.machine);
         }
         // resolve nothing else
         else {
-            return undefined;
+            throw new ServiceError("NOT_FOUND", { message: `${name} resolves to nothing` });
         }
+    }
+
+    /** Find the machine serving a space by its address through the directory's copy. */
+    async #locateSpace(name: string, address: SpaceAddress): Promise<Destination> {
+        // find the space's placement through the copied claims
+        const resolver = new HandleResolver(this.#directory, this.#claims);
+        const named = await resolver.find(space, address);
+        const placed = named === undefined ? undefined : await resolver.directory.locate(named.id);
+        if (placed === undefined) {
+            throw new ServiceError("NOT_FOUND", { message: `${name} resolves to nothing` });
+        }
+
+        return this.#destination(schema.identifier("machine").parse(placed.machine));
+    }
+
+    /** Run a call of the account service as the relay installation. */
+    async #call(call: sync.Call): Promise<void> {
+        const now = this.#store.clock.now();
+        await this.#publisher.receive({ id: RequestId.create(now), calls: [call] });
+    }
+
+    /** Read the account a copied machine belongs to. */
+    async #account(machineId: Identifier<"machine">): Promise<Identifier<"account">> {
+        const [copied] = await this.#store.database
+            .select({ scope: machine.table.scope })
+            .from(machine.table)
+            .where(eq(machine.table.id, machineId));
+
+        return schema
+            .identifier("account")
+            .parse(present(copied, `the copy of ${machineId}`).scope);
+    }
+
+    /** Find a standing machine of any residency by its name within its account. */
+    async #locateMachine(name: string, handle: string, machineName: string): Promise<Destination> {
+        // find the account by its handle, and its machine by name
+        const accountId = await new HandleResolver(this.#directory, this.#claims).account(handle);
+        const machineId =
+            accountId === undefined
+                ? undefined
+                : await Machine.find(this.#store.database, accountId, machineName);
+        if (machineId === undefined) {
+            throw new ServiceError("NOT_FOUND", { message: `${name} resolves to nothing` });
+        }
+
+        return this.#destination(machineId);
+    }
+
+    /** Find where a machine's requests go. */
+    async #destination(machineId: Identifier<"machine">): Promise<Destination> {
+        // route to a person's computer of the relay's residency through its tunnel
+        const copied = await this.#machine(machineId);
+        if (copied?.kind === "personal") {
+            return copied.destination;
+        }
+
+        // route to a cloud machine, or to the relay another residency's computer is tunnelled to
+        const url = await this.#directory.url(machineId);
+        if (url === undefined) {
+            throw new ServiceError("SERVICE_UNAVAILABLE", {
+                message: `machine ${machineId} is not connected`,
+            });
+        }
+
+        return { endpoint: url };
     }
 }
 
-/** Tell each connected machine its name once its own or its account's copy changes, as a rename or a new handle does, and close the tunnel of a revoked machine or one whose last key was revoked. */
+/** Keep the reads of a relay's copy of the directory current while the relay runs. */
+export class DirectoryController implements Controller {
+    /** The controller's name in reports. */
+    readonly name = "directory";
+    /** Follow the copy's log until the relay stops. */
+    readonly mode = "follow";
+    /** The relay reading the copy. */
+    readonly #relay: Relay;
+
+    /** Follow the copy a relay reads. */
+    constructor(relay: Relay) {
+        this.#relay = relay;
+    }
+
+    /** List the one copy. */
+    async list(): Promise<readonly string[]> {
+        return ["directory"];
+    }
+
+    /** Follow the copy's log until stopped. */
+    async reconcile(_key: string, reconciliation: Reconciliation): Promise<undefined> {
+        await this.#relay.follow(reconciliation.signal);
+
+        return undefined;
+    }
+}
+
+/** Tell each connected machine its name once its own or its account's copy changes. */
 export class NameController implements Controller {
     /** The controller's name in reports. */
     readonly name = "name";
@@ -437,7 +662,7 @@ export class NameController implements Controller {
         this.#relay = relay;
     }
 
-    /** List the machine whose name or revocation changed, or the machines of an account whose handle changed, leaving other changes such as a machine's reports. */
+    /** List the machine whose name or revocation changed. */
     async keys(change: Change): Promise<readonly string[]> {
         // select a machine that was renamed or revoked or created or deleted
         if (Change.of(change, machine.table)) {
@@ -483,4 +708,16 @@ export class NameController implements Controller {
 
         return undefined;
     }
+}
+
+/** Read a call's answer to the end, refusing a failed one. */
+async function requireAnswer(response: Response, action: string): Promise<string> {
+    const text = await response.text();
+    if (!response.ok) {
+        throw new ServiceError("BAD_GATEWAY", {
+            message: `${action} failed with ${response.status}: ${text}`,
+        });
+    }
+
+    return text;
 }

@@ -9,7 +9,7 @@ import { MAX_WINDOW_BYTES, WINDOW_BYTES, type Stream } from "./stream.ts";
 /** The head of a request for a note. */
 const head: RequestHead = {
     method: "POST",
-    url: "https://notes.personal.acme.destack.space/notes",
+    url: "https://notes--personal--acme.destack.space/notes",
     headers: [["content-type", "text/plain"]],
 };
 
@@ -237,7 +237,7 @@ test("reset the streams a peer opens beyond the open stream limit, keeping the s
 });
 
 test("drop the connection's own headers and those it lists from a forwarded head", () => {
-    const request = new Request("https://notes.personal.acme.destack.space/notes", {
+    const request = new Request("https://notes--personal--acme.destack.space/notes", {
         headers: {
             connection: "keep-alive, x-hop",
             "keep-alive": "timeout=5",
