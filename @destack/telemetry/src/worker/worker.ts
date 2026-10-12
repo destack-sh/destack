@@ -1,7 +1,7 @@
 import { Telemetry, type TelemetryOptions } from "../sdk/index.ts";
 import { WorkerContextManager } from "./context.ts";
 
-/** Start telemetry once per worker isolate, keeping context in the AsyncLocalStorage workerd provides under nodejs_compat. */
+/** Start telemetry once per worker isolate. */
 export function startTelemetry(options: TelemetryOptions): Promise<Telemetry> {
     return Telemetry.start(options, new WorkerContextManager());
 }
@@ -12,15 +12,7 @@ export interface ExecutionContext {
     waitUntil(operation: Promise<unknown>): void;
 }
 
-/**
- * Run an invocation with isolated providers and export before releasing them.
- *
- * Record a failure the operation throws before throwing it on.
- * Use the supplied providers and pass trace context explicitly between operations.
- * Pass telemetry.propagator to extractContext and injectContext for HTTP propagation.
- * Resolve the operation after its instrumented work finishes.
- * Use Telemetry directly when a response stream or background task extends that work.
- */
+/** Run an invocation with isolated providers and export before releasing them. */
 export async function withTelemetry<Result>(
     options: TelemetryOptions,
     operation: (telemetry: Telemetry) => Result | Promise<Result>,

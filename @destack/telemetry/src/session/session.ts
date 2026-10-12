@@ -2,7 +2,7 @@ import type { Context } from "@opentelemetry/api";
 import type { LogRecordProcessor, ReadWriteLogRecord } from "@opentelemetry/sdk-logs";
 import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace";
 
-/** The attribute naming the session a signal belongs to, from the OpenTelemetry semantic conventions. */
+/** The attribute of the session a signal belongs to, from OpenTelemetry semantic conventions. */
 export const SESSION_ATTRIBUTE = "session.id";
 
 /** How a session ended: without failures, with handled ones, or by an escaped one. */
@@ -11,7 +11,7 @@ export const SESSION_STATUSES = ["ok", "errored", "crashed"] as const;
 /** How a session ended. */
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
-/** One run of an application a person uses, such as a page load or a desktop window, as of one moment of it. */
+/** One run of an application a person uses, such as a page load or a desktop window. */
 export interface Session {
     /** The session's identifier, which every signal it records carries. */
     readonly id: string;
@@ -21,7 +21,7 @@ export interface Session {
     readonly status: SessionStatus;
 }
 
-/** Stamps signals with the running session and marks it by the exceptions it records, after OpenTelemetry's session processors. */
+/** Stamps signals with the running session and marks it by the exceptions it records. */
 export class SessionProcessor {
     /** The running session as of its last exception, absent between sessions. */
     #session: Session | undefined;
@@ -38,7 +38,7 @@ export class SessionProcessor {
         shutdown: async () => {},
     };
 
-    /** The log record processor stamping records with the running session and marking it by their exceptions. */
+    /** The log record processor that stamps records with the running session. */
     readonly logs: LogRecordProcessor = {
         onEmit: (record: ReadWriteLogRecord, _context?: Context) => this.#emit(record),
         forceFlush: async () => {},
@@ -65,7 +65,7 @@ export class SessionProcessor {
         return ended;
     }
 
-    /** Stamp a log record with the running session, marking it errored by a handled exception and crashed by an escaped one. */
+    /** Stamp a log record with the running session. */
     #emit(record: ReadWriteLogRecord): void {
         // stamp records of the running session only
         const session = this.#session;

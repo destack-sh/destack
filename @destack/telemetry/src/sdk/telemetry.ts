@@ -48,7 +48,7 @@ export interface TelemetryOptions {
     readonly report: (error: Error) => void;
 }
 
-/** Install a realm's capture of uncaught failures into running telemetry, returning how to remove it. */
+/** Install a realm's capture of uncaught failures into running telemetry. */
 export type Capture = (telemetry: Telemetry) => () => void;
 
 /** Manage one application's trace, metric, and log providers. */
@@ -127,7 +127,7 @@ export class Telemetry {
         emitException(this.#logger, exceptionAttributes(error, true));
     }
 
-    /** Start a session of a person using the application, ending the running one, after OpenTelemetry's session events. */
+    /** Start a session of a person using the application, ending the running one. */
     startSession(): Session {
         // end the running session and start the next one
         this.endSession();
@@ -159,7 +159,7 @@ export class Telemetry {
         return this.#sessionProcessor.end();
     }
 
-    /** Register providers, the host's context manager and the realm's capture once per application. */
+    /** Register providers, the host's context manager and the realm's capture. */
     static async start(
         options: TelemetryOptions,
         manager: ContextManager,
@@ -221,7 +221,7 @@ export class Telemetry {
         return telemetry;
     }
 
-    /** Export buffered signals before a request or application finishes, after the flush in progress. */
+    /** Export buffered signals before a request or application finishes. */
     flush(): Promise<void> {
         if (this.#stopped) {
             return Promise.reject(new Error("telemetry is shut down"));

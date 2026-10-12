@@ -7,12 +7,12 @@ const FATAL_FLUSH_MILLISECONDS = 2000;
 /** The process events reporting an uncaught failure. */
 type FailureEvent = "uncaughtException" | "unhandledRejection";
 
-/** Start telemetry in a Bun process with asynchronous context propagation, capturing the process's uncaught failures. */
+/** Start telemetry in a Bun process with asynchronous context propagation. */
 export function startTelemetry(options: TelemetryOptions): Promise<Telemetry> {
     return Telemetry.start(options, new AsyncLocalStorageContextManager(), captureProcess);
 }
 
-/** Record and export a process's uncaught exceptions and unhandled rejections, ending it as it would have ended. */
+/** Record and export a process's uncaught exceptions and unhandled rejections. */
 export function captureProcess(telemetry: Telemetry): () => void {
     // record a failure and export it, ending the process when no other listener handles it
     const fail = (event: FailureEvent, error: unknown, raise: () => void) => {
@@ -45,7 +45,7 @@ export function captureProcess(telemetry: Telemetry): () => void {
     return remove;
 }
 
-/** Settle once an export settles or its deadline passes, the exporter reporting a failed delivery. */
+/** Settle once an export settles or its deadline passes. */
 async function within(operation: Promise<void>, milliseconds: number): Promise<void> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const deadline = new Promise<void>((resolve) => {

@@ -33,7 +33,7 @@ const ExportResponse = schema.looseObject({
         .exactOptional(),
 });
 
-/** The path below which an origin receives OTLP/HTTP exports: an installation's origin its pages', a host's egress origin its instances'. */
+/** The path below which an origin receives OTLP/HTTP exports. */
 export const OTLP_ORIGIN_PATH = "/.destack/telemetry";
 
 /** The OTLP signals, named as their HTTP paths name them. */
@@ -54,7 +54,7 @@ export const OtlpSignal = {
     },
 };
 
-/** The emitter of an OTLP export, as its receiver verified it: the export itself claims none of it. */
+/** The emitter of an OTLP export, as its receiver verified it. */
 export interface OtlpEmitter {
     /** The space of the installation, or the machine whose own telemetry it is. */
     readonly scope: string;
@@ -64,14 +64,14 @@ export interface OtlpEmitter {
     readonly instance?: Identifier<"instance">;
     /** The digest of the emitting build's manifest, absent for a release no host resolved. */
     readonly build?: Digest;
-    /** The browser a page's export came from, as the server forwarding it saw it, absent for a workload. */
+    /** The browser a page's export came from, as the forwarding server saw it. */
     readonly visitor?: {
         /** The browser's address. */
         readonly address: string;
         /** The browser's user agent. */
         readonly userAgent: string;
     };
-    /** The person signed in to the page whose export it is, as the server forwarding it verified them. */
+    /** The person signed in to the page of the export, as the forwarding server verified them. */
     readonly person?: Identifier<"user">;
 }
 
@@ -84,7 +84,7 @@ export interface OtlpReceiver {
 /** Deliver one OTLP/JSON export request of a signal, rejecting a refused delivery. */
 export type OtlpSend = (signal: OtlpSignal, body: Uint8Array) => Promise<void>;
 
-/** Exports every signal as OTLP/JSON through one delivery, such as HTTP to an observability service. */
+/** Exports every signal as OTLP/JSON through one delivery. */
 export class OtlpExporter {
     /** Deliver one request. */
     readonly #send: OtlpSend;
@@ -143,7 +143,7 @@ export class OtlpExporter {
         );
     }
 
-    /** Export a page's signals over OTLP/HTTP to its own origin, as its session, delivering as the page unloads. */
+    /** Export a page's signals over OTLP/HTTP to its own origin, as its session. */
     static origin(
         report: (error: Error) => void,
         send: (url: string, options: RequestInit) => Promise<Response> = fetch,
@@ -155,7 +155,7 @@ export class OtlpExporter {
         );
     }
 
-    /** Build telemetry options sampling an owner's traces and batching its signals through this exporter. */
+    /** Build telemetry options that sample an owner's traces. */
     options(
         owner: { readonly name: string; readonly version: string },
         options: { readonly ratio?: number } = {},
@@ -220,7 +220,7 @@ export class OtlpExporter {
     }
 }
 
-/** Post one OTLP/JSON request of a signal, refusing a delivery the endpoint refused in whole or in part. */
+/** Post one OTLP/JSON request of a signal. */
 async function post(
     send: (url: string, options: RequestInit) => Promise<Response>,
     url: string,

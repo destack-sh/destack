@@ -67,7 +67,7 @@ export class DevtoolsExporter {
     }
 }
 
-/** Report a failure of telemetry itself to the developer tools console, outside the page's captured errors. */
+/** Report a failure of telemetry itself to the developer tools console. */
 export function reportToDevtools(error: Error): void {
     console.warn("telemetry failed:", error);
 }

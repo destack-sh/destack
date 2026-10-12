@@ -9,10 +9,10 @@ import type {} from "@destack/package/import-meta";
 /** How long a local root runs before its trace counts as slow and is kept: a second. */
 const SLOW_MILLISECONDS = 1000;
 
-/** The most local traces whose root runs that the sampler follows at once: older ones are dropped beyond it. */
+/** The most local traces with a running root that the sampler follows at once. */
 const PENDING_TRACES = 1000;
 
-/** The most spans or log records one unsampled trace buffers, as OpenTelemetry's span limits bound events: further ones are dropped. */
+/** The most spans or log records one unsampled trace buffers. */
 const PENDING_SIGNALS = 1000;
 
 /** The traces dropped because too many local roots ran at once. */
@@ -43,11 +43,7 @@ interface PendingTrace {
     readonly logs: ReadWriteLogRecord[];
 }
 
-/**
- * Keeps unsampled local traces that fail or run slow, and drops the rest when their root ends.
- *
- * A trace is kept as soon as a span fails or the trace outlives the slow threshold, and its later signals pass at once.
- */
+/** Keeps unsampled local traces that fail or run slow, and drops the rest when their root ends. */
 export class TailSampler {
     /** The processor receiving kept spans. */
     readonly #spans: SpanProcessor;
@@ -66,7 +62,7 @@ export class TailSampler {
         shutdown: () => this.#spans.shutdown(),
     };
 
-    /** The log record processor: warnings and sampled records pass, the rest wait with their trace. */
+    /** The log record processor. */
     readonly logs: LogRecordProcessor = {
         onEmit: (record: ReadWriteLogRecord, context?: Context) => this.#emit(record, context),
         forceFlush: () => this.#logs.forceFlush(),
@@ -99,7 +95,7 @@ export class TailSampler {
         }
     }
 
-    /** Pass a sampled span or one of a kept trace on, or buffer an unsampled one until its trace is decided. */
+    /** Pass on a sampled span or one of a kept trace. */
     #end(span: ReadableSpan): void {
         // find the span's trace and whether it is the trace's local root
         const { traceId, traceFlags } = span.spanContext();
@@ -137,7 +133,7 @@ export class TailSampler {
         }
     }
 
-    /** Pass warnings, records outside pending traces and records of kept traces on, and buffer the rest with their trace. */
+    /** Pass on warnings, records outside pending traces and records of kept traces. */
     #emit(record: ReadWriteLogRecord, context?: Context): void {
         // find the record's trace
         const span =
@@ -173,7 +169,7 @@ export class TailSampler {
         }
     }
 
-    /** Keep a pending trace whose root still runs, passing what it buffered and its later signals. */
+    /** Keep a pending trace whose root still runs, passing its buffer and its later signals. */
     #keep(traceId: string, pending: PendingTrace): void {
         this.#traces.set(traceId, "kept");
         this.#pass(pending);

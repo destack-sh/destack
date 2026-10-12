@@ -68,7 +68,7 @@ export interface CaptureContext {
     readonly fingerprint?: readonly string[];
     /** Details beside the tags that issues never group by, such as the failing key. */
     readonly attributes?: Attributes;
-    /** Whether the failure escaped the code it ran in, such as a request handler, false by default. */
+    /** Whether the failure escaped the code it ran in, such as a request handler. */
     readonly isEscaped?: boolean;
 }
 
@@ -240,7 +240,7 @@ export function instrument(tracer: Tracer, meter: PackageMeter, logger: Logger):
     };
 }
 
-/** Mark a failure captured where it happened, such as a service's answer the service captured, so no capture records it again. */
+/** Mark a failure captured where it happened, so no capture records it again. */
 export function markCaptured(error: unknown): void {
     if (typeof error === "object" && error !== null) {
         Object.defineProperty(error, CAPTURED, { value: true });
@@ -252,7 +252,7 @@ function isCaptured(error: unknown): boolean {
     return typeof error === "object" && error !== null && CAPTURED in error;
 }
 
-/** Emit an exception record in the active span's context with its level, details, tags and fingerprint. */
+/** Emit an exception record in the active span's context. */
 export function emitException(
     logger: Logger,
     attributes: Attributes,
@@ -307,7 +307,7 @@ function options(definition: MetricDefinition<AttributeDomain>) {
     };
 }
 
-/** Describe a failure by the OpenTelemetry exception attributes, its error type and whether it escaped the code recording it. */
+/** Describe a failure by the OpenTelemetry exception attributes. */
 export function exceptionAttributes(error: unknown, isEscaped: boolean): Attributes {
     const exception = error instanceof Error ? error : new Error(String(error));
 
@@ -320,7 +320,7 @@ export function exceptionAttributes(error: unknown, isEscaped: boolean): Attribu
     };
 }
 
-/** Read a failure's error type: the service error code it reports, else its own code, else its name. */
+/** Read a failure's error type: its service error code, else its own code, else its name. */
 function errorType(exception: Error): string {
     // the service error code a domain error reports
     if (DomainError.is(exception)) {

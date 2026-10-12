@@ -43,7 +43,7 @@ const Named = schema.looseObject({
         .exactOptional(),
 });
 
-/** Run work under a tail sampler behind a sampler keeping no trace by ratio, reading what it exports. */
+/** Run work under a tail sampler behind a sampler that keeps no trace by ratio. */
 async function exportThroughTail(
     work: (scope: TelemetryScope) => Promise<void>,
 ): Promise<string[]> {

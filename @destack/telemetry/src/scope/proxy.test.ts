@@ -51,7 +51,7 @@ function registerMeter(): CollectingReader {
     return reader;
 }
 
-/** Register a tracer and a logger provider globally, each with an exporter keeping what it receives. */
+/** Register a tracer and a logger provider globally. */
 function registerTracing(): { spans: InMemorySpanExporter; records: InMemoryLogRecordExporter } {
     const spans = new InMemorySpanExporter();
     const records = new InMemoryLogRecordExporter();

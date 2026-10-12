@@ -4,7 +4,7 @@ import { type Sampler, SamplingDecision, type SamplingResult } from "@openteleme
 /** The trailing hexadecimal digits of a trace identifier the decision reads, all random. */
 const DECISION_DIGITS = 8;
 
-/** Samples a ratio of root traces, children following their parent, and records the rest for tail sampling. */
+/** Samples a ratio of root traces, with children following their parent. */
 export class RatioSampler implements Sampler {
     /** The sampled ratio of root traces, from 0 to 1. */
     readonly ratio: number;

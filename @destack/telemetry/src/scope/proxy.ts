@@ -109,7 +109,7 @@ export class ProxyTracer implements Tracer {
         context: Context,
         run: Run,
     ): ReturnType<Run>;
-    /** Run a function in a new active span on the current tracer, its options and context optional. */
+    /** Run a function in a new active span on the current tracer. */
     startActiveSpan<Run extends (span: Span) => unknown>(
         name: string,
         ...rest: [Run] | [SpanOptions, Run] | [SpanOptions, Context, Run]

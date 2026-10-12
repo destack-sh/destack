@@ -7,7 +7,7 @@ export type CaptureWindow = Pick<Window, "addEventListener"> & {
     readonly document: Pick<Document, "visibilityState">;
 };
 
-/** Start browser telemetry capturing a window's uncaught failures, with context passed explicitly across asynchronous calls. */
+/** Start browser telemetry that captures a window's uncaught failures. */
 export function startTelemetry(
     options: TelemetryOptions,
     target: CaptureWindow = window,
@@ -17,7 +17,7 @@ export function startTelemetry(
     );
 }
 
-/** Record a window's session with its uncaught errors and unhandled rejections, exporting them at once and whenever the page hides. */
+/** Record a window's session with its uncaught errors and unhandled rejections. */
 export function captureWindow(telemetry: Telemetry, target: CaptureWindow): () => void {
     // run the page's session from now until it hides
     telemetry.startSession();

@@ -5,7 +5,7 @@ import { expect, test } from "@destack/test";
 /** The package directory, whose preload a child process runs with. */
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
-/** A process writing each logs export to its output that fails as its environment's failure asks. */
+/** A process that writes each logs export to its output and fails as its environment asks. */
 const failing = `
 import { startTelemetry } from ${JSON.stringify(fileURLToPath(new URL("index.ts", import.meta.url)))};
 import { OtlpExporter } from ${JSON.stringify(fileURLToPath(new URL("../otlp/index.ts", import.meta.url)))};
