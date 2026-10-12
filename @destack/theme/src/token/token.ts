@@ -17,7 +17,7 @@ export const EXTENSION = "app.destack";
 /** The envelope fraction at which a spring counts as settled: 0.1% of its travel. */
 const SPRING_SETTLED = 0.001;
 
-/** The segments of a spring's `linear()` easing, smooth at 60 Hz for durations up to half a second. */
+/** The segments of a spring's `linear()` easing. */
 const SPRING_SEGMENTS = 32;
 
 /** The members of a typography token, each its own custom property. */
@@ -203,7 +203,7 @@ export class TokenEntry {
         return constantKey(this.path);
     }
 
-    /** List the constant key and custom property of each member, the token itself unless composite. */
+    /** List the constant key and custom property of each member. */
     members(): readonly TokenMember[] {
         const paths =
             this.token.$type === "typography"

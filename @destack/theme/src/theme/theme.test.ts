@@ -37,7 +37,7 @@ function changes(
     );
 }
 
-/** Keep a theme root's role and scale properties, leaving out the swatches the swatch test covers. */
+/** Keep a theme root's role and scale properties, without the swatches the swatch test covers. */
 function withoutSwatches(style: ThemeStyle): Readonly<Record<string, string>> {
     return Object.fromEntries(
         Object.entries(style).filter(([name]) => !name.startsWith("--destack-swatch-")),
@@ -62,7 +62,7 @@ const WIDTH = {
     toast: 356,
 };
 
-/** The text sizes and letter spacings at the largest text size, 23 over 16 points of the default. */
+/** The text sizes and letter spacings at the largest text size. */
 const LARGEST_TEXT = {
     "--destack-text-caption-font-size": "15.813px",
     "--destack-text-footnote-font-size": "17.25px",

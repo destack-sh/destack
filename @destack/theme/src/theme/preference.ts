@@ -36,7 +36,7 @@ export const Density = defineSchema(schema.enum(["compact", "regular", "spacious
 /** How tightly controls and content pack. */
 export type Density = schema.Infer<typeof Density>;
 
-/** How far text, lines and graphics stand out: the device preference, or a level from 0, the standard, to 1, the most. */
+/** How far text, lines and graphics stand out. */
 export const Contrast = defineSchema(
     schema.union([schema.literal("system"), schema.number().min(0).max(1)]),
 );

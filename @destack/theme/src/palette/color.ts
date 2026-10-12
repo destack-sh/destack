@@ -6,7 +6,7 @@ export type Vector = readonly [number, number, number];
 /** A 3x3 color space conversion matrix. */
 type Matrix = readonly [Vector, Vector, Vector];
 
-/** The linear sRGB to LMS matrix of OKLab, after Björn Ottosson's reference implementation (2020). */
+/** The linear sRGB to LMS matrix of OKLab, after Björn Ottosson's implementation (2020). */
 const LMS_FROM_RGB: Matrix = [
     [0.4122214708, 0.5363325363, 0.0514459929],
     [0.2119034982, 0.6806995451, 0.1073969566],
@@ -101,7 +101,7 @@ export class Color {
         return `${hex}${byte(alpha)}`;
     }
 
-    /** Blend a color over an opaque one in gamma-encoded sRGB, as CSS composites, an opaque color staying itself. */
+    /** Blend a color over an opaque one in gamma-encoded sRGB, as CSS composites. */
     static composite(hex: string, under: string): string {
         // keep an opaque color
         if (HEX.test(hex)) {
@@ -117,7 +117,7 @@ export class Color {
         return Color.format([blend(0), blend(1), blend(2)]);
     }
 
-    /** Convert to a six-digit sRGB hex color, reducing chroma at the same lightness and hue until it fits sRGB. */
+    /** Convert to a six-digit sRGB hex color. */
     hex(): string {
         // search the largest displayable chroma
         let low = 0;

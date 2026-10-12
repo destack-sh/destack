@@ -121,7 +121,7 @@ export const ThemeDefinition = defineSchema(
         name: ThemeName,
         /** The seed of surfaces, text and lines, slate when absent. */
         base: Seed.exactOptional(),
-        /** The seed of primary actions, selection, focus and the first chart series, indigo when absent. */
+        /** The seed of primary actions, selection, focus and the first chart series. */
         accent: Seed.exactOptional(),
         /** The seeds of the status roles, red, green, amber and blue when absent. */
         status: schema
@@ -136,13 +136,13 @@ export const ThemeDefinition = defineSchema(
                 info: Seed.exactOptional(),
             })
             .exactOptional(),
-        /** The seeds of the chart series after the accent, the rest picked from the presets by hue. */
+        /** The seeds of the chart series after the accent. */
         chart: schema.array(Seed).max(SERIES.length).exactOptional(),
         /** The corner treatment, medium when absent. */
         radius: Radius.exactOptional(),
         /** The interface scale, 100% when absent. */
         scaling: Scaling.exactOptional(),
-        /** The font stacks of interface and code text as CSS `font-family` values, the tokens' and their tracking when absent. */
+        /** The font stacks of interface and code text as CSS `font-family` values. */
         fonts: schema
             .object({
                 /** The interface font stack. */
@@ -155,7 +155,7 @@ export const ThemeDefinition = defineSchema(
         text: schema.partialRecord(TextStyleName, TextOverride).exactOptional(),
         /** The density a person's density setting overrides, regular when absent. */
         density: Density.exactOptional(),
-        /** The roles the theme replaces with a palette's seed or tone or explicit colors, checked like every role. */
+        /** The roles the theme replaces with a palette's seed or tone or explicit colors. */
         roles: schema.partialRecord(RoleName, RoleOverride).exactOptional(),
     }),
 );
@@ -170,7 +170,7 @@ export type ThemeStyle = {
     [variable: Variable]: string;
 };
 
-/** A theme: palettes, roles, corners, scaling, fonts and density, resolved into token values per person. */
+/** A theme: palettes, roles, corners, scaling, fonts and density. */
 export class Theme {
     /** The declaring package. */
     readonly package: Package;
@@ -208,14 +208,14 @@ export class Theme {
         return this.definition.name;
     }
 
-    /** Derive the theme over another background, such as a selected row's, every role reading against it. */
+    /** Derive the theme over another background, such as a selected row's. */
     rebase(background: RoleOverride): Theme {
         const roles = { ...this.definition.roles, background };
 
         return new Theme(this.package, { ...this.definition, roles });
     }
 
-    /** Resolve the roles of an appearance at a contrast level from 0, the standard, to 1, the most, under the theme's own accent or a person's. */
+    /** Resolve the roles of an appearance at a contrast level from 0, the standard, to 1. */
     resolve(scheme: Scheme, level: number, accent?: Seed): Resolution {
         // reuse the resolution of this accent, appearance and level
         const seed = accent ?? this.definition.accent ?? DEFAULT_ACCENT;
@@ -230,7 +230,7 @@ export class Theme {
         return resolution;
     }
 
-    /** Compute the custom properties of a theme root for an appearance and a person's preferences. */
+    /** Compute a theme root's custom properties for an appearance and a person's preferences. */
     variables(appearance: Appearance, preferences: Preferences): ThemeStyle {
         // let the appearance drive light-dark() and native controls
         const style: ThemeStyle = {
@@ -274,7 +274,7 @@ export class Theme {
         return style;
     }
 
-    /** Refuse a theme whose roles read below their APCA contrast in either appearance at the standard or the most contrast. */
+    /** Refuse a theme whose roles read below their APCA contrast. */
     requireContrast(): void {
         for (const [scheme, level] of CHECKS) {
             const resolution = this.resolve(scheme, level);
@@ -299,7 +299,7 @@ export class Theme {
         }
     }
 
-    /** Format a role's color in both appearances at a contrast, mixing toward the most contrast as far as the device asks for `system`. */
+    /** Format a role's color in both appearances at a contrast. */
     #css(name: RoleName, contrast: Contrast, accent: Seed | undefined): string {
         // resolve both appearances at the explicit or the standard level
         const pair = (level: number) =>
@@ -324,7 +324,7 @@ export class Theme {
         return lightDark(mix(light, lightMore), mix(dark, darkMore));
     }
 
-    /** Grow the palettes of an accent once: the base, the accent, the statuses and the chart series. */
+    /** Grow the palettes of an accent once: the base, accent, statuses and chart series. */
     #palettesOf(accent: Seed): Palettes {
         // reuse the palettes of a known accent
         const known = this.#accents.get(accent);
@@ -359,7 +359,7 @@ export class Theme {
         return palettes;
     }
 
-    /** Select the length factor of a token family, or none for families the theme resolves itself. */
+    /** Select the length factor of a token family. */
     #factor(family: string, preferences: Preferences): number | undefined {
         const scaling = Number.parseInt(this.definition.scaling ?? DEFAULT_SCALING, 10) / 100;
         const density =
@@ -434,7 +434,7 @@ function lightDark(light: string, dark: string): string {
     return light === dark ? light : `light-dark(${light}, ${dark})`;
 }
 
-/** Pick the chart series after the accent: the declared ones, then candidates reading on the light background, each the hue farthest from those taken. */
+/** Pick the chart series after the accent. */
 function seriesOf(accent: Palette, declared: readonly Palette[], background: string): Palette[] {
     // keep the candidates whose seeds read as graphics on the light background, where pale hues would darken into muddy tones
     const isVisible = (palette: Palette) =>

@@ -31,7 +31,7 @@ const LOW_CLIP = 0.1;
 /** The luminance difference below which contrast reads as zero, APCA-W3 0.0.98G `deltaYmin`. */
 const DELTA_MIN = 0.0005;
 
-/** Measure the APCA-W3 0.0.98G lightness contrast Lc of text on a background: positive for dark text on light, negative for light on dark. */
+/** Measure the APCA-W3 0.0.98G lightness contrast Lc of text on a background. */
 export function apca(foreground: string, background: string): number {
     // soft-clamp both luminances near black
     const text = clamp(luminance(foreground));

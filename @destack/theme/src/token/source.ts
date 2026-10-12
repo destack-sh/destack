@@ -5,7 +5,7 @@ const HEADER = "// generate with `bun run generate` from tokens.json";
 
 /** The TypeScript modules generated from a token tree. */
 export const Source = {
-    /** Render the StyleX constants of every family with primitive tokens, each a token's custom property, typography tokens rendering as text styles instead. */
+    /** Render the StyleX constants of every family with primitive tokens. */
     constants(tree: TokenTree): string {
         const primitives = tree.families.filter((family) =>
             family.entries.some((entry) => entry.token.$type !== "typography"),

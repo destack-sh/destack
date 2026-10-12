@@ -78,7 +78,7 @@ export const surface = defineConsts({
     overlay: "var(--destack-surface-overlay)",
 });
 
-/** One swatch per colorful preset, the colors an object marked with it takes, with the default theme's values. */
+/** One swatch per colorful preset: the colors an object marked with it takes. */
 export const swatch = defineConsts({
     /** The tomato swatch's solid fill, such as a tag's dot. */
     tomatoSolid: "var(--destack-swatch-tomato-solid)",
@@ -408,6 +408,6 @@ export const motion = defineConsts({
     easingStandard: "var(--destack-motion-easing-standard)",
     /** Elements entering the screen. */
     easingEmphasised: "var(--destack-motion-easing-emphasised)",
-    /** Playful movement with a slight overshoot, sampled from a spring as linear(), with an overshooting cubic Bézier as its portable form. */
+    /** Playful movement with a slight overshoot, sampled from a spring as linear(). */
     easingSpring: "var(--destack-motion-easing-spring)",
 });

@@ -55,7 +55,7 @@ export class Palette {
         return this.#color.hue;
     }
 
-    /** Read the color at an OKLCH lightness: the seed at its own, its chroma falling toward white and black elsewhere. */
+    /** Read the color at an OKLCH lightness. */
     tone(lightness: number): string {
         // keep the seed exact at its own lightness
         const seed = this.#color;
@@ -73,7 +73,7 @@ export class Palette {
         return new Color(clamped, seed.chroma * relative, seed.hue).hex();
     }
 
-    /** Find the lightness nearest a start whose tone passes, moving one way or either way with darker on a tie, absent when none does. */
+    /** Find the lightness nearest a start whose tone passes, absent when none does. */
     nearest(
         start: number,
         passes: (color: string) => boolean,
@@ -92,7 +92,7 @@ export class Palette {
         return start - darker <= lighter - start ? darker : lighter;
     }
 
-    /** Find the first passing lightness one way from a start, in coarse strides refined to fine steps. */
+    /** Find the first passing lightness one way from a start, in coarse strides then fine steps. */
     #first(start: number, sign: number, passes: (color: string) => boolean): number | undefined {
         // stride from the start toward the bound
         const bound = sign < 0 ? 0 : 1;

@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 import { apca, Color, HexColor, type Palette, type Scheme } from "../palette/index.ts";
 
-/** An APCA lightness contrast Lc a role needs, at the standard contrast and at the most a person asks for. */
+/** An APCA lightness contrast Lc a role needs. */
 export interface Floor {
     /** The magnitude at the standard contrast. */
     readonly standard: number;
@@ -12,13 +12,13 @@ export interface Floor {
 /** The APCA-W3 bronze level for body text, Lc 75, and its fluent level, Lc 90. */
 export const BODY_CONTRAST: Floor = { standard: 75, more: 90 };
 
-/** The APCA-W3 bronze level for content text other than body text, Lc 60, and body text's fluent level at the most. */
+/** The APCA-W3 bronze level for content text other than body text, Lc 60. */
 export const CONTENT_CONTRAST: Floor = { standard: 60, more: 90 };
 
-/** The contrast of labels on solid fills, Lc 60, and Lc 75 at the most, where the fill keeps its hue. */
+/** The contrast of labels on solid fills, Lc 60, and Lc 75 at the most. */
 export const LABEL_CONTRAST: Floor = { standard: 60, more: 75 };
 
-/** The contrast of solid graphics such as chart series and focus rings, Lc 45 as APCA asks of large shapes, and Lc 60. */
+/** The contrast of solid graphics such as chart series and focus rings. */
 export const GRAPHIC_CONTRAST: Floor = { standard: 45, more: 60 };
 
 /** The contrast of borders and dividers, free at the standard contrast and Lc 30 at the most. */
@@ -80,7 +80,7 @@ export const ROLE_NAMES = [
     "chart5",
 ] as const;
 
-/** The palette names of a theme: its base and accent, one per status and the chart series after the accent. */
+/** The palette names of a theme. */
 export const PALETTE_NAMES = [
     "base",
     "accent",
@@ -118,7 +118,7 @@ export interface Reading {
     readonly contrast: Floor;
 }
 
-/** Where a role's color comes from: another role's color moved in lightness, a tone of a palette, a palette's seed, the best label on the role it reads on, or explicit colors; translucent ones settle in opacity. */
+/** Where a role's color comes from. */
 export type RoleSource =
     | {
           /** Another role's color at a lightness offset, keeping its chroma and hue. */
@@ -149,7 +149,7 @@ export type RoleSource =
           readonly palette: PaletteName;
       }
     | {
-          /** White, or the darkest text of the base or of the palette under it, whichever reads best on the role it reads on. */
+          /** White, or the darkest text of the base or of the palette under it. */
           readonly kind: "label";
       }
     | {
@@ -179,7 +179,7 @@ const LightnessPair = schema.object({
 /** An opacity from 0 to 1. */
 const Alpha = schema.number().min(0).max(1);
 
-/** A theme's replacement for one role, in the sources the built-in roles use: a palette's tone or seed, another role moved in lightness, or explicit colors. */
+/** A theme's replacement for one role, in the sources the built-in roles use. */
 export const RoleOverride = defineSchema(
     schema.union([
         schema.object({
@@ -193,7 +193,7 @@ export const RoleOverride = defineSchema(
             alpha: Alpha.exactOptional(),
         }),
         schema.object({
-            /** The palette whose seed the role takes, moved by the least lightness that lets it and its label read. */
+            /** The palette whose seed the role takes. */
             palette: PaletteName,
         }),
         schema.object({
@@ -305,7 +305,7 @@ export class Resolution {
         return color;
     }
 
-    /** Measure the APCA lightness contrast a role reads at on the role it reads on, as a magnitude. */
+    /** Measure, as a magnitude, the APCA lightness contrast of a role on the role it reads on. */
     reads(name: RoleName): number {
         // require the role it reads on
         const reading = this.#roles[name].reading;
@@ -324,7 +324,7 @@ export class Resolution {
         return contrast.standard + this.level * (contrast.more - contrast.standard);
     }
 
-    /** Pick the label that reads best on a background: white, or the palette's or the base's darkest text. */
+    /** Pick the label that reads best on a background. */
     label(palette: Palette, background: string): string {
         // measure each candidate on the background and keep the strongest
         const dark = TEXT_LIGHTNESS.light;
@@ -336,7 +336,7 @@ export class Resolution {
         );
     }
 
-    /** Resolve a role from its source, moving a tone or seed by the least lightness that meets its contrast. */
+    /** Resolve a role from its source. */
     #resolve(role: Role): string {
         const source = role.source;
         switch (source.kind) {
@@ -383,7 +383,7 @@ export class Resolution {
         }
     }
 
-    /** Apply an opacity to a color, raised by the least amount that lets its blend read on the role it reads on. */
+    /** Apply an opacity to a color. */
     #translucent(color: string, alpha: number | undefined, role: Role): string {
         // keep an opaque color, and a translucent one reading on nothing
         const reading = role.reading;
@@ -412,7 +412,7 @@ export class Resolution {
         return Color.translucent(color, high);
     }
 
-    /** Find the lightness nearest a start at which a role and its label read, the farthest from its background when none does. */
+    /** Find the lightness nearest a start at which a role and its label read. */
     #settle(palette: Palette, start: number, role: Role): number {
         // require the role's reading and its label's at the level
         const { reading, labelled } = role;
@@ -494,7 +494,7 @@ export const SURFACE_ROLES: Readonly<Record<SurfaceLevel, RoleName>> = {
     overlay: "popover",
 };
 
-/** The parts of a swatch, the colors one preset gives an object marked with it, each the role it resolves as under the preset as accent. */
+/** The parts of a swatch: the colors one preset gives an object marked with it. */
 export const SWATCH_ROLES = {
     /** The preset's solid fill, such as a tag's dot. */
     solid: "primary",
