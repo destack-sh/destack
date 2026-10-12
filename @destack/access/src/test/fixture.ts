@@ -43,7 +43,7 @@ export const module3 = testModule(3);
 /** The fourth test package, declaring the scope and group types the tests use. */
 export const module4 = testModule(4);
 
-/** The authentication sensitive test permissions ask for: several factors within fifteen minutes. */
+/** The authentication sensitive test permissions ask for: several factors in fifteen minutes. */
 const RECENT = { assurance: 2, maxAge: 15 * 60 * 1000 };
 
 /** The permissions the test scope and group types grant through roles. */

@@ -10,11 +10,7 @@ import { Attribute } from "../declare/expression.ts";
 /** The assurance of a principal proven by its server's key: phishing-resistant, as level 3 is. */
 export const KEY_ASSURANCE = 3;
 
-/**
- * The largest clock difference between a credential's verifier and the service it reaches.
- *
- * Five seconds is far above the few milliseconds NTP keeps hosts apart and below the minute JWT libraries default to.
- */
+/** The largest clock difference between a credential's verifier and its service. */
 export const CLOCK_TOLERANCE_MILLISECONDS = 5000;
 
 /** The header a host forwards a verified caller to its runner in. */
@@ -35,7 +31,7 @@ const contactSchema = defineSchema(
 /** A way to reach someone outside Destack that they prove control of. */
 export type Contact = schema.Infer<typeof contactSchema>;
 
-/** A way to reach someone outside Destack that they prove control of, after Matrix's third-party identifiers. */
+/** A way to contact someone outside Destack, with proven control, after Matrix's 3PIDs. */
 export const Contact = Object.assign(contactSchema, {
     /** Read an email address as the contact its owner proves. */
     email(address: string): Contact {
@@ -53,22 +49,22 @@ export const Contact = Object.assign(contactSchema, {
     },
 });
 
-/** One principal acting in a request, for the principal before it in the chain, the first for the represented subject. */
+/** One principal acting in a request for the one before it, the first for the subject. */
 export const Delegate = defineSchema(
     schema.object({
         /** The acting principal. */
         subject: Subject,
-        /** The authority it acts with: lent by the one before, or all of the one before's authority. */
+        /** The authority it acts with: lent by the one before, or all of the one before's. */
         authority: schema.enum(["lent", "full"]),
     }),
 );
-/** One principal acting in a request, for the principal before it in the chain, the first for the represented subject. */
+/** One principal acting in a request for the one before it, the first for the subject. */
 export type Delegate = schema.Infer<typeof Delegate>;
 
 /** How strongly and how recently a caller authenticated. */
 export const AuthenticationAssurance = defineSchema(
     schema.object({
-        /** The assurance level: 1 for one factor, 2 for several, 3 for phishing-resistant factors. */
+        /** The assurance level: 1 for one factor, 2 for several, 3 for phishing-resistant ones. */
         level: schema.number().int().min(1).max(3),
         /** The authentication time in UTC epoch milliseconds. */
         authenticatedAt: Instant,
@@ -97,9 +93,9 @@ export interface Caller {
     readonly linkSecrets?: readonly string[];
     /** Trusted attributes access policies read. */
     readonly attributes?: Readonly<Record<string, Attribute>>;
-    /** The token a space exchanged for the caller, lending its authority to one installation (RFC 8693). */
+    /** The token a space exchanged for the caller, lending to one installation (RFC 8693). */
     readonly delegation?: string;
-    /** The credential the caller presented, absent for an anonymous caller or a principal running its own code. */
+    /** The caller's presented credential, absent if anonymous or running its own code. */
     readonly credential?: CallerCredential;
     /** The deployments the workload identities among the subjects run in. */
     readonly deployments?: readonly CallerDeployment[];
@@ -107,7 +103,7 @@ export interface Caller {
     readonly loan?: CallerLoan;
 }
 
-/** A credential a caller presented, verified for one audience until it lapses (RFC 7662 introspection). */
+/** A caller's credential, verified for one audience until it lapses (RFC 7662). */
 export const CallerCredential = schema.object({
     /** The credential kind, such as session. */
     kind: schema.string().min(1),
@@ -117,13 +113,13 @@ export const CallerCredential = schema.object({
     client: schema.identifier("client").exactOptional(),
     /** The package the credential was verified for. */
     audience: PackageId,
-    /** The scope the credential acts within, with the scopes inside it, absent for a credential acting anywhere. */
+    /** The credential's scope with the scopes inside it, absent for an unscoped credential. */
     scope: schema.string().min(1).exactOptional(),
     /** The verification time in UTC epoch milliseconds. */
     verifiedAt: Instant,
     /** The time the credential lapses: its expiry, capped by its audience's lifetime. */
     expiresAt: Instant,
-    /** The identifier of the access token that carried the credential (RFC 7519 jti), absent for a credential presented directly. */
+    /** The credential's access token identifier (RFC 7519 jti), absent if presented directly. */
     token: schema.string().min(1).exactOptional(),
 });
 /** A credential a caller presented. */
@@ -139,7 +135,7 @@ export const CallerDeployment = schema.object({
 /** A workload identity authenticated within one deployment. */
 export type CallerDeployment = schema.Infer<typeof CallerDeployment>;
 
-/** The Loan a caller's authority came with: its identifier, the home space that signed it, and the one method it lends. */
+/** The Loan of a caller's authority: its identifier, signing home space, and lent method. */
 export const CallerLoan = schema.object({
     /** The Loan's identifier (RFC 7519 4.1.7). */
     id: schema.string().min(1),
@@ -173,7 +169,7 @@ export const Caller = {
         linkSecrets: schema.array(schema.string().min(1)).exactOptional(),
         /** Trusted attributes access policies read. */
         attributes: schema.record(schema.string(), Attribute).exactOptional(),
-        /** The token a space exchanged for the caller, lending its authority to one installation (RFC 8693). */
+        /** The token a space exchanged for the caller, lending to one installation (RFC 8693). */
         delegation: schema.string().min(1).exactOptional(),
         /** The credential the caller presented. */
         credential: CallerCredential.exactOptional(),
@@ -183,7 +179,7 @@ export const Caller = {
         loan: CallerLoan.exactOptional(),
     }),
 
-    /** Key a caller by its represented subject and the principal sending its calls, as retries and writers are identified. */
+    /** Key a caller by represented subject and sending principal, as retries and writers are. */
     key(caller: Pick<Caller, "subject" | "delegates">): string {
         const { subject } = caller;
         const sender = Caller.sender(caller);
@@ -194,7 +190,7 @@ export const Caller = {
         ]);
     },
 
-    /** Report whether a caller is remote: it presented a credential or none, unlike a principal running its own code. */
+    /** Report whether a caller is remote, unlike a principal running its own code. */
     isRemote(caller: Pick<Caller, "subject" | "credential">): boolean {
         return caller.credential !== undefined || caller.subject === undefined;
     },
@@ -240,7 +236,7 @@ export const Caller = {
         return sender;
     },
 
-    /** Pair each delegate with the principal it acts for, from the represented subject to the principal sending the request. */
+    /** Pair each delegate with its principal, from the represented subject to the sender. */
     delegation(
         caller: Caller,
     ): { delegate: Subject; delegator: Subject; authority: Delegate["authority"] }[] {
@@ -279,21 +275,21 @@ export const Caller = {
         return isLent ? [] : (caller.contacts ?? []);
     },
 
-    /** Read the key of the credential a caller presents, `<kind>:<id>`, which grants bound to one credential match, absent without a credential. */
+    /** Read a caller's credential key, `<kind>:<id>`, matching credential grants, if any. */
     credentialKey(caller: Pick<Caller, "credential">): string | undefined {
         const { credential } = caller;
 
         return credential === undefined ? undefined : `${credential.kind}:${credential.id}`;
     },
 
-    /** Read the deployment a workload identity among the caller's subjects runs in, absent for none. */
+    /** Read the deployment of a workload identity among the caller's subjects, if any. */
     deployment(caller: Caller, subject: Subject): Identifier<"deployment"> | undefined {
         const deployments = caller.deployments ?? [];
 
         return deployments.find((entry) => Subject.same(entry.subject, subject))?.id;
     },
 
-    /** Report whether a space lent a person's authority to an installation by token exchange (RFC 8693). */
+    /** Report whether a space lent a person's authority to an installation (RFC 8693). */
     isExchanged(caller: Caller): boolean {
         const { subject, delegates = [], contacts = [], loan } = caller;
         const [lent, ...rest] = delegates;
@@ -318,7 +314,7 @@ export const Caller = {
         return caller.credential;
     },
 
-    /** Require a caller's credential verified and unlapsed at a time; a principal running its own code has none and never lapses. */
+    /** Require a caller's credential verified and unlapsed at a time. */
     requireLive(caller: Caller, now: number): void {
         const { credential } = caller;
         if (
@@ -330,7 +326,7 @@ export const Caller = {
         }
     },
 
-    /** Require a caller current at a time for an audience and a scope, its subject among its verified ones. */
+    /** Require a caller current at a time for an audience and scope, with a verified subject. */
     requireCurrent(caller: Caller, audience: PackageId, now: number, scope?: string): void {
         // refuse a credential for another audience or scope
         const { credential, subject } = caller;
@@ -355,7 +351,7 @@ export const Caller = {
         }
     },
 
-    /** Clamp a time to a caller's lifetime: the time itself, or just before its credential lapses. */
+    /** Clamp a time to a caller's lifetime: the time, or just before its credential lapses. */
     clamp(caller: Caller, now: number): number {
         return caller.credential === undefined
             ? now

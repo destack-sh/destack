@@ -1,0 +1,186 @@
+import { defineDatabase, defineTable, Snapshot, asc, text } from "@destack/db";
+import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { expect, onTestFinished, test } from "@destack/test";
+import { Scope, type ObjectReference, type Subject } from "@destack/sync";
+import { v7 } from "uuid";
+import {
+    accessRelationship,
+    Authorizer,
+    Policy,
+    principal,
+    Relationship,
+    through,
+    type AccessContext,
+    type TableMapping,
+} from "../index.ts";
+import { AccessFixture } from "../test/access.ts";
+import {
+    account,
+    fixtureTables,
+    homeMappings,
+    module4,
+    policies,
+    space,
+    spaceTable,
+} from "../test/fixture.ts";
+
+/** Assets kept in one scope, each belonging to the space its holder column names. */
+const assetTable = defineTable("example_asset", {
+    id: text("id").primaryKey(),
+    scope: text("scope").notNull(),
+    holder: text("holder").notNull(),
+});
+
+/** Assets belonging to a space in another account's chain, read by the space's readers. */
+const asset = new Policy(module4.package, {
+    name: "asset",
+    relations: { holder: { subjects: [space], grantedBy: null } },
+    permissions: { read: through("holder", "read") },
+});
+
+/** The assets' mapping, owned through their holder wherever the holder lives. */
+const assetMapping: TableMapping = {
+    policy: asset,
+    table: assetTable,
+    id: "id",
+    scope: "scope",
+    attributes: {},
+    relations: { holder: { column: "holder", scope: "*" } },
+    owner: "holder",
+};
+
+/** The person reading the assets. */
+const carol = principal.user.reference(Scope.universe.id, "carol");
+
+/** The holder's account, which encloses the holder. */
+const holding = account.reference(Scope.universe.id, "account-1");
+
+/** The holder space, inside its account. */
+const holder = space.reference("account-1", "personal");
+
+/** An account unrelated to the holder. */
+const unrelated = account.reference(Scope.universe.id, "account-2");
+
+/** The scope keeping the assets, inside a third account. */
+const home = space.reference("account-3", "home");
+
+/** Open a database keeping assets of a space in another account's home, with the scopes copied. */
+async function openOwned() {
+    // migrate the access tables beside the scopes and the assets
+    const storage = await TestDatabase.create(
+        TEST_DIALECTS[TEST_DIALECTS.length - 1] ?? "sqlite",
+        defineDatabase({ name: "main", tables: [...fixtureTables, assetTable] }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+
+    // copy the accounts, the holder and the home, and keep the holder and an asset it holds
+    const copies = new AccessFixture(database);
+    for (const scope of [holding, unrelated, account.reference(Scope.universe.id, "account-3")]) {
+        await copies.copyScope(scope);
+    }
+    await copies.copyScope(holder);
+    await copies.copyScope(home, "own");
+    await database.insert(spaceTable).values({ id: holder.id, account: holder.scope });
+    await database.insert(assetTable).values({ id: "asset-1", scope: home.id, holder: holder.id });
+
+    // read the assets carol may read, by SQL and by grant trees
+    const authorizer = new Authorizer([...policies, asset], [...homeMappings, assetMapping]);
+    const readable = async () => {
+        const snapshot = Snapshot.live(database);
+        const context: AccessContext = { subjects: [carol], now: Date.now(), attributes: {} };
+        const access = await authorizer.resolve(snapshot, home.id, context);
+        const selected = await database
+            .select({ id: assetTable.id })
+            .from(assetTable)
+            .where(authorizer.where(asset.permission("read"), access, assetTable))
+            .orderBy(asc(assetTable.id));
+        const rows = await database.select().from(assetTable).orderBy(asc(assetTable.id));
+        const checked = await authorizer.checkRows(
+            snapshot,
+            asset.permission("read"),
+            access,
+            rows,
+        );
+
+        return {
+            selected: selected.map((row) => row.id),
+            checked: rows.flatMap((row, position) =>
+                checked.permitted.has(position) ? [row.id] : [],
+            ),
+        };
+    };
+
+    // define a role reading assets in a scope, bound there to carol
+    const reader = (scope: ObjectReference) =>
+        copies.copyRole(
+            scope,
+            {
+                name: "asset-reader",
+                description: "Reads assets",
+                permissions: [asset.permission("read")],
+            },
+            carol,
+        );
+
+    // bind a role to carol on another object
+    const bind = async (object: ObjectReference, role: string, subject: Subject = carol) => {
+        await database.insert(accessRelationship).values(
+            Relationship.encode(
+                {
+                    id: `relationship-${v7()}`,
+                    object,
+                    role,
+                    subject,
+                    createdAt: 0,
+                    expiresAt: null,
+                },
+                authorizer.governingScope(object),
+            ),
+        );
+    };
+
+    return { readable, reader, bind, copies };
+}
+
+test("cover an owned row with the roles bound on its owner and on the scopes enclosing the owner, in SQL and in grant trees", async () => {
+    const { readable, reader } = await openOwned();
+    const none = { selected: [], checked: [] };
+    const covered = { selected: ["asset-1"], checked: ["asset-1"] };
+
+    // read nothing without a role, and nothing through a role on an unrelated account
+    const before = await readable();
+    await reader(unrelated);
+    const unrelatedRole = await readable();
+
+    // read the asset through a role on its holder, and through one on the holder's account
+    await reader(holder);
+    const byOwner = await readable();
+
+    expect({ before, unrelatedRole, byOwner }).toEqual({
+        before: none,
+        unrelatedRole: none,
+        byOwner: covered,
+    });
+});
+
+test("cover an owned row with a role bound on the account enclosing its owner", async () => {
+    const { readable, reader } = await openOwned();
+
+    // read the asset through a role defined and bound on the holder's account
+    await reader(holding);
+    expect(await readable()).toEqual({ selected: ["asset-1"], checked: ["asset-1"] });
+});
+
+test("grant nothing through a role bound on an owner when a scope outside the owner's chain defines it", async () => {
+    const { readable, reader, bind, copies } = await openOwned();
+
+    // define a reader in an unrelated account, then bind it on the holder
+    await copies.copyScope(space.reference("account-2", "elsewhere"));
+    const foreign = await reader(space.reference("account-2", "elsewhere"));
+    await bind(holder, foreign);
+
+    // keep the asset hidden, since the role binds only within its own scope's chain
+    expect(await readable()).toEqual({ selected: [], checked: [] });
+});

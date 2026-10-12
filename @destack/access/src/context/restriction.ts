@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { PermissionReference } from "../declare/policy.ts";
 import type { Caller } from "./context.ts";
 
-/** The schema of a restriction: a permission a restricted credential allows, in one scope and optionally on one object. */
+/** The schema of a restriction: an allowed permission in one scope, optionally on one object. */
 const restrictionSchema = defineSchema(
     PermissionReference.extend({
         /** The scope in which the permission applies. */
@@ -23,7 +23,7 @@ export const Restriction = {
     intersect,
 };
 
-/** Report whether a credential's restrictions allow a permission on an object, as unrestricted credentials do. */
+/** Report whether a credential's restrictions allow a permission on an object. */
 function allows(
     permission: PermissionReference,
     object: { readonly scope: string; readonly id?: string },
@@ -38,7 +38,7 @@ function allows(
     );
 }
 
-/** List the objects a credential's restrictions select for a permission in a scope, or every object. */
+/** List the objects a credential's restrictions select for a permission in a scope, or all. */
 function select(
     permission: PermissionReference,
     scope: string,

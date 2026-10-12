@@ -1,4 +1,4 @@
-import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
+import { ObjectReference, type ObjectTypeReference, Scope, Subject } from "@destack/sync";
 import {
     alias,
     type CommonTable,
@@ -6,6 +6,7 @@ import {
     hashName,
     inArray,
     jsonElements,
+    listed,
     sql,
     type SQL,
     type SQLWrapper,
@@ -36,14 +37,11 @@ import { ANY_SCOPE, column, TableMapping } from "./mapping.ts";
 interface Compilation {
     /** The caller's resolved access in the query's scope. */
     readonly access: Access;
-    /** The authority whose grants the predicate matches: the represented subject or one delegate. */
+    /** The authority whose grants the predicate matches: the represented subject or a delegate. */
     readonly authority: Authority;
     /** The next free alias number. */
     readonly aliases: { next: number };
 }
-
-/** The name of the list element a value is matched against. */
-const LISTED = "access_listed";
 
 /** The name of the list element a binding's role is read from. */
 const GRANTED = "access_granted";
@@ -54,7 +52,7 @@ type Field = TableMapping["relations"][string];
 /** An expression following a relation to a related object's permission. */
 type ThroughExpression = Extract<AccessExpression, { kind: "through" }>;
 
-/** A type a relation relates, with an alias of its table and its permission compiled against that alias. */
+/** A relation's target type, with its table alias and its permission compiled against it. */
 interface RelationTarget {
     /** The related subject type. */
     readonly subject: SubjectType;
@@ -66,11 +64,7 @@ interface RelationTarget {
     readonly predicate: SQL;
 }
 
-/**
- * Compile policies to SQL over the tables their objects live in, for a caller resolved in one scope.
- *
- * Every predicate requires each of the caller's authorities to have the permission, as the grants decide in memory.
- */
+/** Compile policies to SQL over their objects' tables, for a caller resolved in one scope. */
 export class Compiler {
     /** The authorizer whose policies and mappings the compiler reads. */
     readonly #authorizer: Authorizer;
@@ -80,7 +74,7 @@ export class Compiler {
         this.#authorizer = authorizer;
     }
 
-    /** Restrict the rows of a table, the mapped one by default, to those the caller has a permission on in its scope. */
+    /** Restrict a table's rows, the mapped one by default, to the caller's permitted ones. */
     where(permission: PermissionReference, access: Access, source?: Table): SQL {
         // deny a request its gate refuses
         const mapping = this.#authorizer.mapping(permission);
@@ -118,7 +112,7 @@ export class Compiler {
         return sql`(${located} AND (${sql.join(predicates, sql` AND `)}))`;
     }
 
-    /** Match one object in its scope, or the scope's own object, if the caller has a permission on it. */
+    /** Match one object in its scope, or the scope's object, if the caller has a permission. */
     permits(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
         // deny a request that its elevation, suspension or credential refuses
         const isSameType =
@@ -147,7 +141,7 @@ export class Compiler {
         });
     }
 
-    /** Match one object of the resolved scope when every authority satisfies a predicate on its row. */
+    /** Match one object of the resolved scope when every authority meets a row predicate. */
     #target(
         target: ObjectReference,
         access: Access,
@@ -174,11 +168,7 @@ export class Compiler {
         )`;
     }
 
-    /**
-     * Match the objects the credential allows a permission on, directly or through its source.
-     *
-     * A derivation through a relation needs the objects' rows to find the related objects.
-     */
+    /** Match the objects the credential allows a permission on, directly or through its source. */
     #restricted(
         permission: PermissionReference,
         id: SQLWrapper,
@@ -190,7 +180,8 @@ export class Compiler {
         if (selected === "every") {
             return sql`true`;
         }
-        const named = selected.length === 0 ? sql`false` : listed(id, selected);
+        const named =
+            selected.length === 0 ? sql`false` : listed(id, sql`${JSON.stringify(selected)}`);
 
         // match a derivation as its source is matched: on the same object, or on the related one each row names
         const source = this.#authorizer.source(permission);
@@ -239,14 +230,14 @@ export class Compiler {
         return sql`(${sql.join([named, ...arrows], sql` OR `)})`;
     }
 
-    /** Evaluate every authority of the caller with one alias allocation, the represented subject first. */
+    /** Evaluate every authority with one alias allocation, the represented subject first. */
     #authorities(access: Access, evaluate: (compilation: Compilation) => SQL): SQL[] {
         const aliases = { next: 0 };
 
         return access.authorities.map((authority) => evaluate({ access, authority, aliases }));
     }
 
-    /** Permit through the permission's expression or a role bound on the row, an ancestor or an enclosing scope. */
+    /** Permit by the expression or a role bound on the row, an ancestor or an enclosing scope. */
     #permission(
         permission: PermissionReference,
         mapping: TableMapping,
@@ -259,7 +250,7 @@ export class Compiler {
         return sql`(${compiled} OR ${this.#bound(permission, mapping, source, compilation)})`;
     }
 
-    /** Match a current role binding granting the permission to the authority on a covering object. */
+    /** Match a current role binding granting the permission to the authority on a cover. */
     #bound(
         permission: PermissionReference,
         mapping: TableMapping,
@@ -271,7 +262,7 @@ export class Compiler {
         );
     }
 
-    /** Match a binding on the row itself, an owning ancestor, or a scope enclosing the query's scope. */
+    /** Match a binding on the row, an owning ancestor, or a scope enclosing the query's scope. */
     #covers(
         binding: RelationshipColumnMap,
         mapping: TableMapping,
@@ -314,7 +305,57 @@ export class Compiler {
             )`);
         }
 
+        // match the owner, its own coverage and the scopes enclosing it
+        if (mapping.owner !== undefined) {
+            covering.push(this.#owned(binding, mapping, source, mapping.owner, compilation));
+        }
+
         return sql`(${sql.join(covering, sql` OR `)})`;
+    }
+
+    /** Match a binding on a row's owner, covering the owner, or on a scope enclosing the owner. */
+    #owned(
+        binding: RelationshipColumnMap,
+        mapping: TableMapping,
+        source: Table,
+        relation: string,
+        compilation: Compilation,
+    ): SQL {
+        // find the owner the relation's field refers to
+        const subject = this.#authorizer.onlySubject(mapping.policy, relation);
+        const target = this.#authorizer.mapping(subject);
+        const referred = column(source, TableMapping.field(mapping, relation).column);
+        const enclosing = alias(Scope.table, `access_enclosing_${compilation.aliases.next++}`);
+
+        // match a scope owner and the scopes enclosing it by its scope row alone
+        if (target.policy.definition.scope === true) {
+            return sql`(
+                ${binding.objectId} = ${referred}
+                OR EXISTS (
+                    SELECT 1 FROM ${from(enclosing)}
+                    WHERE ${enclosing.scope} = ${referred}
+                        AND ${listed(binding.objectId, enclosing.ancestors)}
+                )
+            )`;
+        }
+
+        // match any other owner's coverage, its scope and the scopes enclosing that
+        const owner = alias(target.table, `access_owner_${compilation.aliases.next++}`);
+        const governing = TableMapping.scopeColumn(owner, target);
+
+        return sql`EXISTS (
+            SELECT 1 FROM ${from(owner)}
+            WHERE ${column(owner, target.id)} = ${referred}
+                AND (
+                    ${this.#covers(binding, target, owner, compilation)}
+                    OR ${binding.objectId} = ${governing}
+                    OR EXISTS (
+                        SELECT 1 FROM ${from(enclosing)}
+                        WHERE ${enclosing.scope} = ${governing}
+                            AND ${listed(binding.objectId, enclosing.ancestors)}
+                    )
+                )
+        )`;
     }
 
     /** Translate one expression using bound values and generated SQL aliases. */
@@ -378,7 +419,7 @@ export class Compiler {
         }
     }
 
-    /** Decide whether an authority may hold a containment grant: one acting for itself, of the named principal types alone when given. */
+    /** Decide whether an authority may have a containment grant, acting for itself. */
     static #admits(
         authority: Compilation["authority"],
         principals: readonly ObjectTypeReference[] | undefined,
@@ -390,7 +431,7 @@ export class Compiler {
         return authority.delegator === undefined && isTyped;
     }
 
-    /** Match a row when the authority lives inside its scope, or inside the scope it is, lending nothing to delegates. */
+    /** Match a row when the authority lives in its scope or the scope it is, not for delegates. */
     static #contained(
         expression: Extract<AccessExpression, { kind: "contained" }>,
         mapping: TableMapping,
@@ -425,7 +466,7 @@ export class Compiler {
             : sql`false`;
     }
 
-    /** Match the authority by a current relationship or containment on an object of the scope chain granting the enclosing scope's permission. */
+    /** Match the authority by a current relationship or containment on a chain object. */
     #enclosing(
         expression: ThroughExpression,
         mapping: TableMapping,
@@ -508,7 +549,7 @@ export class Compiler {
         return branches.length === 0 ? sql`false` : sql`(${sql.join(branches, sql` OR `)})`;
     }
 
-    /** Match whoever sees the relationships of the object a row references, a concealed relation's only through its grant permission. */
+    /** Match who sees the relationships of a row's referenced object. */
     #readers(
         expression: Extract<AccessExpression, { kind: "readers" }>,
         mapping: TableMapping,
@@ -595,7 +636,7 @@ export class Compiler {
         )`;
     }
 
-    /** Match the subject a field keeps: a subject key, typed columns, or an identifier of the relation's one type. */
+    /** Match a field's subject: a subject key, typed columns, or an identifier of the one type. */
     #field(
         name: string,
         field: Field,
@@ -616,7 +657,7 @@ export class Compiler {
 
             return keys.length === 0
                 ? sql`false`
-                : sql`coalesce(${listed(column(source, field.column), keys)}, false)`;
+                : sql`coalesce(${listed(column(source, field.column), sql`${JSON.stringify(keys)}`)}, false)`;
         }
         // match a subject by the type, scope and relation in the row's columns
         else if (field.subject !== undefined) {
@@ -639,7 +680,7 @@ export class Compiler {
         return sql`coalesce(${authority.match(subject)}, false)`;
     }
 
-    /** Correlate a related object's permission through a field, an ancestor index, or relationships. */
+    /** Correlate a related object's permission through a field, ancestor index or relationships. */
     #through(
         expression: ThroughExpression,
         mapping: TableMapping,
@@ -767,7 +808,7 @@ function followRelationships(
     )`;
 }
 
-/** Correlate the parent of whichever type the row's columns name, for a field with several types. */
+/** Correlate the parent of the row's typed columns' type, for a field with several types. */
 function followTypedField(
     field: Field,
     typed: NonNullable<Field["subject"]>,
@@ -792,7 +833,7 @@ function followTypedField(
     return arrows.length === 0 ? sql`false` : sql`(${sql.join(arrows, sql` OR `)})`;
 }
 
-/** Correlate the direct parent a field refers to, in the source object's scope or the scope the field gives. */
+/** Correlate a field's direct parent, in the source object's scope or the field's scope. */
 function followField(
     field: Field,
     mapping: TableMapping,
@@ -841,7 +882,7 @@ function followAncestors(
     )`;
 }
 
-/** Match a current binding of a role granting the permission to the compiled authority on a covered object, the access's roles bound as one list; only roles naming a reserved permission. */
+/** Match a current binding to the authority of a role granting the permission. */
 function matchBinding(
     permission: PermissionReference,
     compilation: Compilation,
@@ -860,7 +901,9 @@ function matchBinding(
         SELECT 1 FROM ${current(compilation)} AS ${relationship}
         WHERE EXISTS (
                 SELECT 1 FROM ${jsonElements(sql`${compilation.access.grantedRoles}`, GRANTED)}
-                WHERE ${isGranting} AND ${granted}.value ->> 1 = ${relationship.roleId}
+                WHERE ${isGranting}
+                    AND ${granted}.value ->> 1 = ${relationship.roleId}
+                    AND (${granted}.value ->> 2 IS NULL OR ${granted}.value ->> 2 = ${relationship.id})
             )
             AND ${covers(relationship)}
     )`;
@@ -889,7 +932,7 @@ function accepted(relationship: RelationshipColumnMap, relation: RelationDefinit
     return sql`(${sql.join(types, sql` OR `)})`;
 }
 
-/** Bind a condition's fields to a mapping's columns or the request's attributes, and its placeholders to request attributes. */
+/** Bind a condition's fields to columns or request attributes, and placeholders to attributes. */
 function bindAttributes(
     expression: ConditionExpression,
     mapping: TableMapping,
@@ -911,15 +954,7 @@ function bindAttributes(
     };
 }
 
-/** Match a value in a list bound as one JSON list, whatever the list's length. */
-function listed(value: SQLWrapper, values: readonly string[]): SQL {
-    const entry = sql.identifier(LISTED);
-    const list = JSON.stringify(values.map((element) => [element]));
-
-    return sql`${value} IN (SELECT ${entry}.value ->> 0 FROM ${jsonElements(sql`${list}`, LISTED)})`;
-}
-
-/** Read the relationships current for a compiled authority: those whose conditions pass for the request and whose subject the authority is, defined once per statement. */
+/** Read the relationships current for a compiled authority, once per statement. */
 function current(compilation: Compilation): CommonTable {
     // name the query by everything it reads of the request and the authority
     const { access, authority } = compilation;

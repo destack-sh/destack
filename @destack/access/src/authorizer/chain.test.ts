@@ -261,7 +261,7 @@ test("copy the chains of the accounts a follower outside them replicates in one 
     ]);
 });
 
-/** Apply a chain request's pages to the follower until it reaches the home's head, reshaping from the parameters the copy reflects. */
+/** Apply a chain request's pages to the follower until it is at the home's head. */
 async function followChain(
     database: DatabaseConnection,
     authorizer: Authorizer,
@@ -304,7 +304,7 @@ function isOutsideSecond(row: { readonly scope: string }): boolean {
     return row.scope !== "account-2";
 }
 
-/** Read the decision rows about the account and the space, skipping the nodes' own relationships. */
+/** Read the decision rows of the account and the space, skipping node relationships. */
 async function copied(database: DatabaseConnection) {
     // read each decision table in key order
     const relationships = await database

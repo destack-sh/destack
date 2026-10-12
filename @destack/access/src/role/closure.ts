@@ -1,6 +1,7 @@
 import { PermissionReference } from "../declare/policy.ts";
+import type { Role } from "./role.ts";
 
-/** What a role grants: every permission but reserved ones, or its own and its included roles' permissions. */
+/** What a role grants: all but reserved permissions, or its own and included roles' ones. */
 export interface RoleGrant {
     /** Whether the role, or a role it includes, grants every permission. */
     readonly isUniversal: boolean;
@@ -8,23 +9,13 @@ export interface RoleGrant {
     readonly permissions: readonly PermissionReference[];
 }
 
-/** One role as a scope chain defines it, with the permissions it grants itself. */
-export interface RoleDefinition {
-    /** The role identifier. */
-    readonly id: string;
-    /** Whether the role grants every permission but reserved ones. */
-    readonly isUniversal: boolean;
-    /** The permissions the role grants itself. */
-    readonly permissions: readonly PermissionReference[];
-}
-
-/** Close each defined role over the defined roles it includes, following only roles the same chain defines. */
+/** Close each role over its included roles, following only roles of the same chain. */
 export function close(
-    roles: readonly RoleDefinition[],
+    roles: readonly Pick<Role, "id" | "isUniversal" | "permissions">[],
     includes: readonly { readonly role: string; readonly included: string }[],
 ): Map<string, RoleGrant> {
     // index the defined roles and their inclusions
-    const defined = new Map(roles.map((role) => [role.id, role]));
+    const defined = new Map<string, (typeof roles)[number]>(roles.map((role) => [role.id, role]));
     const included = new Map<string, string[]>();
     for (const entry of includes) {
         included.set(entry.role, [...(included.get(entry.role) ?? []), entry.included]);
@@ -36,7 +27,7 @@ export function close(
         const permissions = new Map<string, PermissionReference>();
         const visited = new Set<string>();
         let isUniversal = false;
-        const pending = [role.id];
+        const pending: string[] = [role.id];
         for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
             // visit each defined role once
             const next = defined.get(id);

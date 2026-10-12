@@ -24,7 +24,7 @@ export const accessRelationship = defineTable(
         updatedAt: integer("updated_at").notNull(),
         /** The revision a declaration's reconciliation advances. */
         revision: integer("revision").notNull().default(1),
-        /** The installation whose declaration manages the relationship, absent for relationships granted at runtime. */
+        /** The installation whose declaration manages it, absent if granted at runtime. */
         managerInstallationId: identifier("manager_installation_id", "installation"),
         /** The package of the managing declaration. */
         managerPackageId: identifier("manager_package_id", "package"),
@@ -62,7 +62,7 @@ export const accessRelationship = defineTable(
         expiresAt: integer("expires_at"),
         /** The request the relationship applies to alone, until it commits. */
         requestId: text("request_id"),
-        /** The credential a call presents for the relationship to apply, such as a session or an agent instance. */
+        /** The credential a call presents for it to apply, such as a session or agent. */
         credential: text("credential"),
         /** The digest of the link secret a request must present. */
         linkSecret: text("link_secret"),
@@ -70,7 +70,7 @@ export const accessRelationship = defineTable(
         assurance: integer("assurance"),
         /** The longest time since authentication, in milliseconds. */
         maxAge: integer("max_age"),
-        /** The key of the principal a delegate must act for, making the relationship a delegation. */
+        /** The key of the principal a delegate acts for, making it a delegation. */
         onBehalfOf: text("on_behalf_of"),
     },
     {
@@ -136,8 +136,11 @@ export const accessRelationship = defineTable(
     },
 );
 
-/** A relationship as `Relationship.encode` stores it, its subject and conditions in columns of their own. */
+/** A relationship as `Relationship.encode` stores it, with subject and condition columns. */
 export type RelationshipRow = Select<typeof accessRelationship>;
+
+/** A relationship binding a role. */
+export type RoleBinding = RelationshipRow & { readonly roleId: string };
 
 /** The relationship columns of the table or one of its aliases. */
 export type RelationshipColumnMap = Readonly<

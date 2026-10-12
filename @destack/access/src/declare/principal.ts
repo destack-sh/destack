@@ -9,19 +9,19 @@ const OWNER = import.meta.destack.package;
 /** The identity of the package declaring access's own types. */
 export const ACCESS_PACKAGE_ID = OWNER.id;
 
-/** The kinds of principal: people, machines, clients and installed software that authenticate, and the groups that objects are shared with. */
+/** The kinds of principal: authenticating people, machines, clients and software, and groups. */
 export const principal = {
     /** A person, identified globally, and the scope with their own objects. */
     user: new Policy(OWNER, { name: "user", permissions: {}, scope: true, isGlobal: true }),
     /** A machine running spaces, identified globally, and the scope of its local operations. */
     machine: new Policy(OWNER, { name: "machine", permissions: {}, scope: true, isGlobal: true }),
-    /** A program a person signs in through, such as a browser profile, identified globally by its key, and the scope of the objects it keeps on its own. */
+    /** A program a person signs in through, such as a browser profile, global by its key. */
     client: new Policy(OWNER, { name: "client", permissions: {}, scope: true, isGlobal: true }),
     /** An application installed into a space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
     /** A space, which signs with its own key and keeps copies for itself. */
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
-    /** A way to contact someone outside Destack that they prove control of, such as an email address. */
+    /** A way to contact someone outside Destack with proven control, such as an email. */
     contact: new Policy(OWNER, { name: "contact", permissions: {} }),
     /** A set of people, software and other groups that objects are shared with at once. */
     group: new Policy(OWNER, {
@@ -31,7 +31,7 @@ export const principal = {
     }),
 };
 
-/** The universe, the root scope: roles and inherited rows bound on it apply in every scope, bound by the holders of its grant permission. */
+/** The universe, the root scope, whose roles and inherited rows apply in every scope. */
 export const universe = new Policy(SYNC_PACKAGE, {
     name: "universe",
     permissions: { grant: none() },
@@ -39,7 +39,7 @@ export const universe = new Policy(SYNC_PACKAGE, {
     scope: true,
 });
 
-/** Every caller related through its wildcard, signed in or anonymous, which links condition on a link secret. */
+/** Every caller through its wildcard, signed in or anonymous, as links on a link secret. */
 export const anyone = new Policy(OWNER, { name: "anyone", permissions: {} });
 
 /** A named set of permissions, including the permissions of the roles it includes. */

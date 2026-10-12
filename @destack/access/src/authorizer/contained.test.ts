@@ -22,7 +22,7 @@ const realm = new Policy(module4.package, {
     scope: true,
 });
 
-/** Districts, scopes inside a realm, read by the principals inside them and visited by the installations inside them. */
+/** Districts: scopes in a realm, read by principals inside and visited by installations inside. */
 const district = new Policy(module4.package, {
     name: "district",
     permissions: { reside: contained(), visit: contained(principal.installation) },

@@ -24,9 +24,9 @@ export interface RelationDefinition {
     readonly subjects: readonly SubjectType[];
     /** The permission to grant and revoke the relation, absent when only the system relates it. */
     readonly grantedBy?: string;
-    /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
+    /** Whether other types add themselves as subject types, as an attachment's hosts do. */
     readonly open?: true;
-    /** Whether the relation is to the scope containing each object, which the scope chain decides rather than a row. */
+    /** Whether the relation is to each object's containing scope, decided by the scope chain. */
     readonly isScope?: true;
     /** Whether the relation's relationships show only to holders of the permission granting it. */
     readonly concealed?: true;

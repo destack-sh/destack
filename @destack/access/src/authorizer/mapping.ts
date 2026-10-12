@@ -18,10 +18,10 @@ import { principal } from "../declare/principal.ts";
 import type { SubjectType } from "../declare/subject.ts";
 import type { Authorizer } from "./authorizer.ts";
 
-/** The scope of a field relation naming objects by identifier across scopes, which only `through` follows. */
+/** The scope of a field relation with identifiers across scopes, followed only by `through`. */
 export const ANY_SCOPE = "*";
 
-/** Where a policy's objects live: their table and the columns with their identity, scope, attributes and relations. */
+/** Where a policy's objects live: their table and identity, scope, attribute, relation columns. */
 export interface TableMapping {
     /** The policy of the objects. */
     readonly policy: Policy;
@@ -31,6 +31,8 @@ export interface TableMapping {
     readonly id: string;
     /** The column selecting the object's scope, absent for objects living in the universe. */
     readonly scope?: string;
+    /** The relation to each object's owner in another scope, whose bindings cover the object. */
+    readonly owner?: string;
     /** Whether the table has several object types, told apart by its packageId and type columns. */
     readonly isShared?: boolean;
     /** The rows the scopes inside each row's scope copy, for inherited objects. */
@@ -44,13 +46,13 @@ export interface TableMapping {
             {
                 /** The column with the subject identifier. */
                 readonly column: string;
-                /** The scope of every subject in the column, the object's own scope when absent, and `*` for objects identified across scopes. */
+                /** The scope of the column's subjects, the object's if absent, or `*`. */
                 readonly scope?: string;
-                /** The columns with the subject's type, scope and relation, for relations with several subject types. */
+                /** The subject's type, scope and relation columns, for several subject types. */
                 readonly subject?: Omit<ReferenceColumns, "id"> & {
                     readonly relation?: string;
                 };
-                /** Whether the column has whole subject keys of any type, as `Subject.key` writes them. */
+                /** Whether the column has whole subject keys, as `Subject.key` writes them. */
                 readonly isKey?: true;
             }
         >
@@ -63,7 +65,7 @@ export interface TableMapping {
     readonly parent?: string;
 }
 
-/** Where a policy's objects live: reading their rows and scopes, and validating a mapping against its policy. */
+/** Where a policy's objects live: reading rows and scopes, and validating mappings. */
 export const TableMapping = {
     read,
     scope,
@@ -78,7 +80,7 @@ export const TableMapping = {
     decides,
 };
 
-/** Decide whether a mapping reads every attribute a policy condition reads, which a scope type mapped onto its scope rows does not. */
+/** Decide whether a mapping reads every attribute a policy condition reads. */
 function decides(mapping: TableMapping, predicate: Predicate): boolean {
     return [...Predicate.fields(predicate)].every((name) => mapping.attributes[name] !== undefined);
 }
@@ -177,7 +179,7 @@ function validateReferenceColumns(mapping: TableMapping): void {
     }
 }
 
-/** Require a field relation to accept one type in a text column, unless columns keep its subject's type. */
+/** Require a field relation to accept one type in a text column, unless typed columns exist. */
 function validateRelations(authorizer: Authorizer, mapping: TableMapping): void {
     for (const [name, field] of Object.entries(mapping.relations)) {
         const relation = authorizer.relation(mapping.policy, name);
@@ -192,6 +194,14 @@ function validateRelations(authorizer: Authorizer, mapping: TableMapping): void 
         ) {
             throw new AccessError("INVALID_DECLARATION", `invalid relation mapping: ${name}`);
         }
+    }
+
+    // require an owner mapped to a field relating one type
+    const { owner } = mapping;
+    if (owner !== undefined && mapping.relations[owner]?.subject !== undefined) {
+        throw new AccessError("INVALID_DECLARATION", `invalid owner mapping: ${owner}`);
+    } else if (owner !== undefined && mapping.relations[owner] === undefined) {
+        throw new AccessError("INVALID_DECLARATION", `owner ${owner} is no mapped relation`);
     }
 }
 
@@ -312,7 +322,7 @@ function readAttribute(mapping: TableMapping, name: string): string {
     return mapped;
 }
 
-/** Read the ancestor index maintaining a mapping's self relation, refusing a relation without one. */
+/** Read the ancestor index of a mapping's self relation, refusing a relation without one. */
 function readTree(mapping: TableMapping, relation: string): Tree {
     // require the declared index
     const trees = mapping.trees ?? {};

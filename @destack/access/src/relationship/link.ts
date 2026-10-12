@@ -4,7 +4,7 @@ import { AccessError } from "../error/index.ts";
 /** The form of a link secret: 32 bytes as lowercase hexadecimal. */
 const SECRET = /^[0-9a-f]{64}$/u;
 
-/** A link: a relationship to anyone who presents its secret, revoked by deleting the relationship. */
+/** A link: a relationship to anyone presenting its secret, revoked by deleting it. */
 export interface Link {
     /** The relationship the link is. */
     readonly id: string;

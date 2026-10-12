@@ -173,7 +173,7 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-/** Decide a type's derived permission for every row: listed in SQL, permitted one at a time in SQL, and checked in memory. */
+/** Decide a derived permission per row: listed in SQL, permitted in SQL, checked in memory. */
 async function decided(
     database: DatabaseConnection,
     authorizer: Authorizer,

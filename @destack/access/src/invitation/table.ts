@@ -12,7 +12,7 @@ export const InvitationStatus = defineSchema(schema.enum(INVITATION_STATUSES));
 /** Where an invitation stands. */
 export type InvitationStatus = schema.Infer<typeof InvitationStatus>;
 
-/** A relationship an invitation offers or asks for: through a declared relation, or binding a role. */
+/** A relationship an invitation offers or asks for: by a declared relation, or a role binding. */
 export const InvitationRelationship = defineSchema(
     schema.union([
         relationshipBase.omit({ id: true, createdAt: true }).extend({
@@ -28,7 +28,7 @@ export const InvitationRelationship = defineSchema(
 /** A relationship an invitation offers or asks for. */
 export type InvitationRelationship = schema.Infer<typeof InvitationRelationship>;
 
-/** A pending grant, kept apart from the relationships that apply until its addressee or a grantor accepts it. */
+/** A pending grant, kept apart from relationships until its addressee or a grantor accepts. */
 export const accessInvitation = defineTable(
     "invitation",
     {
@@ -60,9 +60,9 @@ export const accessInvitation = defineTable(
         inviter: json("inviter", Subject),
         /** The inviting principal's key, listing what a principal offered or asked for. */
         inviterKey: text("inviter_key"),
-        /** The invited subject's key, a principal or a contact, listing what addresses a principal. */
+        /** The invited principal or contact's key, listing invitations to a principal. */
         addressee: text("addressee").notNull(),
-        /** The key of the principal an invited delegation lends from, listing what awaits its consent. */
+        /** The key of an invited delegation's lender, listing what awaits its consent. */
         lender: text("lender"),
         /** Why the inviting principal offers or asks for the relationship. */
         purpose: text("purpose"),

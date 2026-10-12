@@ -23,7 +23,7 @@ export class AccessError extends Error implements DomainError {
     /** The authentication that would admit the caller, for insufficient authentication. */
     readonly stepUp?: StepUp;
 
-    /** Retain the error classification and cause, and the authentication that would admit the caller. */
+    /** Retain the classification, cause, and the authentication that would admit the caller. */
     constructor(
         code: AccessErrorCode,
         message: string,
@@ -40,7 +40,7 @@ export class AccessError extends Error implements DomainError {
         }
     }
 
-    /** Convert the failure to the service error a caller receives, with the step-up it challenges for. */
+    /** Convert the failure to the caller's service error, with its step-up challenge. */
     toServiceError(): ServiceErrorReport {
         const code = SERVICE_CODES[this.code];
 

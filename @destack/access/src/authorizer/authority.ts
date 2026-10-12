@@ -23,11 +23,7 @@ export interface SubjectColumns {
     readonly relation?: SQLWrapper;
 }
 
-/**
- * One authority of a caller: the represented subject, or a delegate with the principal it acts for.
- *
- * It matches subjects in memory with `isMember` and in SQL with `match`, with the same rules.
- */
+/** One authority of a caller: the represented subject. */
 export class Authority {
     /** The authority's identities and every subject set they belong to. */
     readonly subjects: readonly Subject[];
@@ -35,7 +31,7 @@ export class Authority {
     readonly delegation: { readonly delegate: Subject; readonly delegator: Subject } | undefined;
     /** The authority's plain identities as one JSON list, each `[package, type, scope, id]`. */
     readonly #identities: string;
-    /** The authority's subject sets as one JSON list, each `[package, type, scope, id, relation]`. */
+    /** The authority's subject sets as one JSON list of `[package, type, scope, id, relation]`. */
     readonly #sets: string;
 
     /** Name an authority's subjects and, for a delegate, the principal it acts for. */
@@ -65,7 +61,7 @@ export class Authority {
         return this.delegation?.delegator;
     }
 
-    /** Decide whether a subject matches the authority: through a subject set, a wildcard identity, or anyone. */
+    /** Decide whether a subject matches the authority by subject set, wildcard or anyone. */
     isMember(subject: Subject): boolean {
         // match a subject set exactly
         if (subject.relation !== undefined) {
@@ -93,7 +89,7 @@ export class Authority {
         );
     }
 
-    /** Match a subject's columns against the authority, as `isMember` decides in memory, its subjects bound as one list whatever their number. */
+    /** Match a subject's columns against the authority, as `isMember` decides in memory. */
     match(subject: SubjectColumns): SQL {
         // match a subject set exactly
         const entry = sql.identifier(SUBJECT);
@@ -155,14 +151,7 @@ export class Authority {
                   : "subject";
         }
         // require a bound role to grant the permission, or everything for ownership
-        else if (
-            grant.role &&
-            !(
-                grant.role.permission === undefined
-                    ? access.universal()
-                    : access.granting(grant.role.permission)
-            ).includes(grant.role.id)
-        ) {
+        else if (grant.role && !access.binds(grant.role)) {
             return "role";
         }
 

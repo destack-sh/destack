@@ -1,5 +1,6 @@
 import type { DatabaseConnection, Row, Select, Snapshot } from "@destack/db";
 import { Replica, type ScopeLink, Scope, type ObjectReference, Subject } from "@destack/sync";
+import { found } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../declare/policy.ts";
 import { type SubjectType } from "../declare/subject.ts";
@@ -10,10 +11,10 @@ import { AccessContext, Caller, Contact } from "../context/context.ts";
 import { Elevation } from "../context/elevation.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import type { RelationshipRow } from "../relationship/table.ts";
+import type { RelationshipRow, RoleBinding } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { Role } from "../role/role.ts";
-import type { RoleDefinition, RoleGrant } from "../role/closure.ts";
+import type { RoleGrant } from "../role/closure.ts";
 import { CHAIN_SHAPE } from "../replica/replica.ts";
 import { Authority } from "./authority.ts";
 import { GrantCondition, type ConditionContext } from "./condition.ts";
@@ -24,34 +25,38 @@ import { type FieldRelation, TableMapping } from "./mapping.ts";
 /** The permission key the roles granting every permission but reserved ones are listed under. */
 export const UNIVERSAL = "*";
 
-/** A caller's access in one scope: its authorities, the scope chain, the roles along it, and the time it is valid for. */
+/** A caller's access in one scope: authorities, scope chain, roles along it and validity time. */
 export class Access {
     /** The scope every protected row of a query belongs to. */
     readonly scope: string;
     /** The caller. */
     readonly context: AccessContext;
-    /** The represented subject and each delegate with its lent authority, all of which must be admitted. */
+    /** The represented subject and each delegate with its lent authority, all admitted. */
     readonly authorities: readonly Authority[];
     /** The objects of the scope and every scope enclosing it, nearest first. */
     readonly scopes: readonly ObjectReference[];
-    /** What each role defined along the scope chain grants, itself or through the roles it includes. */
+    /** What each role along the scope chain grants, directly or through included roles. */
     readonly grants: ReadonlyMap<string, RoleGrant>;
-    /** Whether the scope or one enclosing it is suspended, withholding every permission but administration. */
+    /** Whether the scope or an enclosing one is suspended, withholding all but administration. */
     readonly isSuspended: boolean;
-    /** Whether the storage of the scope or one enclosing it is capped, refusing writes but deletes. */
+    /** Whether the scope's or an enclosing scope's storage is capped, refusing all but deletes. */
     readonly isCapped: boolean;
     /** The fenced scope nearest in the chain and the machine it moves to. */
     readonly moved: { readonly scope: string; readonly machine: string } | undefined;
-    /** The partition the scope's objects live in, absent for a scope this database does not record. */
+    /** The partition of the scope's objects, absent for a scope this database lacks. */
     readonly partition: string | undefined;
     /** The next moment time changes the caller's subject sets, roles or elevation. */
     readonly until: number | undefined;
-    /** The roles along the scope chain under each permission key they grant as one JSON list, each `[permission, role]`, the roles granting every permission under `*`. */
+    /** The chain's and the caller's roles by permission, as one JSON list of `[permission. */
     readonly grantedRoles: string;
-    /** The roles along the scope chain that grant each permission, by permission key. */
+    /** The role bindings of the caller's authorities, wherever the objects they bind on live. */
+    readonly bindings: readonly RoleBinding[];
+    /** The chain's and the caller's roles granting each permission, by permission key. */
     readonly #roles: ReadonlyMap<string, readonly string[]>;
-    /** The roles along the scope chain that grant every permission but reserved ones, as owners' do. */
+    /** The chain's and the caller's roles granting all but reserved permissions, as owners' do. */
     readonly #universal: readonly string[];
+    /** The roles held outside the scope chain, each with the bindings it grants through alone. */
+    readonly #confined: ReadonlyMap<string, ReadonlySet<string>>;
     /** The authorizer whose reserved, elevated and administration permissions apply. */
     readonly #authorizer: Authorizer;
     /** The scope and every scope enclosing it, nearest first. */
@@ -66,6 +71,8 @@ export class Access {
             readonly authorities: readonly Authority[];
             readonly links: readonly ScopeLink[];
             readonly grants: ReadonlyMap<string, RoleGrant>;
+            readonly confined: ReadonlyMap<string, ReadonlySet<string>>;
+            readonly bindings: readonly RoleBinding[];
             readonly until: number | undefined;
         },
     ) {
@@ -77,6 +84,7 @@ export class Access {
         this.#links = resolved.links;
         this.scopes = resolved.links.map((link) => link.object);
         this.grants = resolved.grants;
+        this.bindings = resolved.bindings;
         this.isSuspended = resolved.links.some((link) => link.isSuspended);
         this.isCapped = resolved.links.some((link) => link.isCapped);
         const fenced = Scope.fenced(resolved.links);
@@ -105,18 +113,25 @@ export class Access {
         }
         this.#roles = roles;
         this.#universal = universal;
+        this.#confined = resolved.confined;
+
+        // list each role under its permission keys, a confined role once per binding it grants through
+        const entries = (key: string, role: string) => {
+            const confined = resolved.confined.get(role);
+
+            return confined === undefined
+                ? [[key, role]]
+                : [...confined].map((binding) => [key, role, binding]);
+        };
         this.grantedRoles = JSON.stringify([
-            ...[...roles].flatMap(([key, granted]) => granted.map((role) => [key, role])),
-            ...universal.map((role) => [UNIVERSAL, role]),
+            ...[...roles].flatMap(([key, granted]) =>
+                granted.flatMap((role) => entries(key, role)),
+            ),
+            ...universal.flatMap((role) => entries(UNIVERSAL, role)),
         ]);
     }
 
-    /**
-     * Resolve a caller in a scope as a snapshot shows its access: its subject sets, the scope chain and the roles along it, in small indexed reads issued together.
-     *
-     * It refuses to decide on a stale copy of the chain's access.
-     * A caller that read the chain in the same snapshot passes its links as `known`.
-     */
+    /** Resolve a caller's access in a scope as a snapshot shows it. */
     static async resolve(
         snapshot: Snapshot,
         scope: string,
@@ -135,17 +150,16 @@ export class Access {
         const scopes = links.map((link) => link.object);
 
         // refuse a credential bound to a scope the chain leaves out
-        const bound = context.credential?.scope;
-        if (bound !== undefined && !chain.includes(bound)) {
+        const confined = context.credential?.scope;
+        if (confined !== undefined && !chain.includes(confined)) {
             throw new AccessError(
                 "UNAUTHORIZED",
-                `the caller's credential acts within ${bound} alone`,
+                `the caller's credential acts within ${confined} alone`,
             );
         }
 
-        // read the roles and the subject sets of the caller and every lent delegate with their containing scopes
-        const [roles, , represented, delegates] = await Promise.all([
-            readRoles(snapshot, chain, context),
+        // read the subject sets of the caller and every lent delegate with their containing scopes
+        const [, represented, delegates] = await Promise.all([
             snapshot.position === undefined
                 ? requireConfirmed(snapshot.database, chain, authorizer.lag, context.now)
                 : undefined,
@@ -158,6 +172,11 @@ export class Access {
             ),
             Access.#expandDelegates(snapshot, context, authorizer, scopes),
         ]);
+
+        // read the chain's roles and the roles bound to the caller
+        const expansions = [represented, ...delegates.map((delegate) => delegate.expanded)];
+        const bindings = expansions.flatMap((expanded) => expanded.bindings);
+        const roles = await readRoles(snapshot, chain, bindings, context);
 
         // take the earliest moment a subject set, an inclusion or an elevation the caller has changes by time
         const until = earliest([
@@ -180,11 +199,13 @@ export class Access {
             ],
             links,
             grants: roles.grants,
+            confined: roles.confined,
+            bindings,
             until,
         });
     }
 
-    /** List the subjects the caller represents: its own, its contacts' and the subject sets of the scopes containing them. */
+    /** List the caller's represented subjects: its own, its contacts', and their scopes' sets. */
     static async #represented(
         snapshot: Snapshot,
         context: AccessContext,
@@ -197,7 +218,7 @@ export class Access {
         ];
     }
 
-    /** Expand the subject sets of every delegate lent to the caller, with the delegation lending it. */
+    /** Expand the subject sets of each delegate lent to the caller, with the lending delegation. */
     static async #expandDelegates(
         snapshot: Snapshot,
         context: AccessContext,
@@ -220,12 +241,7 @@ export class Access {
         );
     }
 
-    /**
-     * Resolve the caller in scopes this one encloses, in reads shared by all of them.
-     *
-     * The caller's subject sets and the roles along this scope's chain are reused.
-     * A scope this one does not enclose is left out.
-     */
+    /** Resolve the caller in scopes this one encloses, in reads shared by all of them. */
     async descend(snapshot: Snapshot, scopes: readonly string[]): Promise<Map<string, Access>> {
         // link each scope up to this one, leaving out the scopes it does not enclose
         const rows = await this.#readBetween(snapshot, scopes);
@@ -310,7 +326,7 @@ export class Access {
         return undefined;
     }
 
-    /** Resolve the caller in one enclosed scope, reusing this scope's roles unless the chain defines more. */
+    /** Resolve the caller in one enclosed scope, reusing these roles unless the chain adds more. */
     async #below(
         snapshot: Snapshot,
         scope: string,
@@ -341,16 +357,23 @@ export class Access {
                       ({ authority, expanded }) =>
                           new Authority(expanded.subjects, authority.delegation),
                   );
+        const bindings =
+            expansions.length === 0
+                ? this.bindings
+                : expansions.flatMap(({ expanded }) => expanded.bindings);
 
-        // read the roles of a chain that defines more
-        const isDefining = links.some((link) => defined.has(link.object.id));
+        // read the roles of a chain that defines more, or of new bindings
+        const isDefining =
+            links.some((link) => defined.has(link.object.id)) ||
+            bindings.some((binding) => !this.bindings.some((known) => known.id === binding.id));
         const roles = isDefining
             ? await readRoles(
                   snapshot,
                   chain.map((link) => link.object.id),
+                  bindings,
                   this.context,
               )
-            : { grants: this.grants, until: undefined };
+            : { grants: this.grants, confined: this.#confined, until: undefined };
 
         return new Access(this.#authorizer, {
             scope,
@@ -358,6 +381,8 @@ export class Access {
             authorities,
             links: chain,
             grants: roles.grants,
+            confined: roles.confined,
+            bindings,
             until: earliest([
                 this.until,
                 roles.until,
@@ -366,11 +391,7 @@ export class Access {
         });
     }
 
-    /**
-     * Add the subject sets of some subjects breadth first, with the next moment time changes them.
-     *
-     * A set on a scope reaches the sets of the scopes it encloses along the chain.
-     */
+    /** Add the subject sets of some subjects breadth first. */
     static async expand(
         snapshot: Snapshot,
         subjects: readonly Subject[],
@@ -379,25 +400,36 @@ export class Access {
         chain: readonly ObjectReference[],
     ): Promise<{
         readonly subjects: Subject[];
+        readonly bindings: RoleBinding[];
         readonly until: number | undefined;
     }> {
         // admit the identities and verified subject sets, with the sets they reach on the chain
         const expanded = new Map<string, Subject>();
+        const bindings = new Map<string, RoleBinding>();
         const moments: (number | undefined)[] = [];
         let frontier = Access.#admit(subjects, expanded, authorizer, chain);
         while (frontier.length > 0) {
             // read the sets relationships and fields make the frontier subjects members of, together
             const level = frontier;
-            const [related, ...fielded] = await Promise.all([
-                memberships(snapshot, level, context, authorizer.memberships),
+            const [current, ...fielded] = await Promise.all([
+                currentOf(snapshot, level, context),
                 ...authorizer.fields.map((entry) => fieldSets(snapshot, entry, level)),
             ]);
+            const related = current.filter((row) => isMembership(row, authorizer.memberships));
+            const bound = current.filter(Relationship.isBinding);
 
-            // note when each relationship making a membership next changes by time
-            moments.push(...related.map((row) => GrantCondition.until(row, context)));
+            // keep the role bindings of the frontier subjects
+            for (const binding of bound) {
+                bindings.set(binding.id, binding);
+            }
+
+            // note when each relationship making a membership or binding a role next changes by time
+            moments.push(
+                ...[...related, ...bound].map((row) => GrantCondition.until(row, context)),
+            );
 
             // continue from each relationship's set and the permissions accepted as subject sets it decides
-            const found = [
+            const reached = [
                 ...related.flatMap((row) => {
                     // refuse a role binding among the memberships
                     if (row.relation === null) {
@@ -416,13 +448,17 @@ export class Access {
                 }),
                 ...fielded.flat(),
             ];
-            frontier = Access.#admit(found, expanded, authorizer, chain);
+            frontier = Access.#admit(reached, expanded, authorizer, chain);
         }
 
-        return { subjects: [...expanded.values()], until: earliest(moments) };
+        return {
+            subjects: [...expanded.values()],
+            bindings: [...bindings.values()],
+            until: earliest(moments),
+        };
     }
 
-    /** List the containment sets of the scopes each principal lives in or is, and of the scopes enclosing them. */
+    /** List the containment sets of each principal's scopes and the scopes enclosing them. */
     static async #contained(
         snapshot: Snapshot,
         subjects: readonly Subject[],
@@ -455,16 +491,16 @@ export class Access {
         return sets;
     }
 
-    /** Add the subjects not seen before to an expansion, with the sets they reach on the chain's enclosed scopes, returning those added. */
+    /** Add unseen subjects to an expansion with their sets on enclosed scopes, returning them. */
     static #admit(
-        found: readonly Subject[],
+        reached: readonly Subject[],
         expanded: Map<string, Subject>,
         authorizer: Pick<Authorizer, "enclosed">,
         chain: readonly ObjectReference[],
     ): Subject[] {
-        // walk the found subjects and the sets they reach, in order
+        // walk the reached subjects and the sets they reach, in order
         const added: Subject[] = [];
-        const pending = [...found];
+        const pending = [...reached];
         for (const subject of pending) {
             // take each subject not seen before, in order
             const key = Subject.key(subject);
@@ -501,30 +537,38 @@ export class Access {
         return this.#authorizer.reserved.has(PermissionReference.key(permission));
     }
 
-    /** List the roles along the scope chain that grant a permission, only the roles naming a reserved one. */
-    granting(permission: PermissionReference): readonly string[] {
-        const naming = this.#roles.get(PermissionReference.key(permission)) ?? [];
+    /** Decide whether a role binding grants its permission. */
+    binds(role: {
+        readonly id: string;
+        readonly binding: string;
+        readonly permission: PermissionReference | null;
+    }): boolean {
+        // find the role among the universal roles for ownership, or among those granting the permission
+        const confined = this.#confined.get(role.id);
+        const isGranting =
+            role.permission === null
+                ? this.#universal.includes(role.id)
+                : this.#grants(role.permission, role.id);
 
-        return this.isReserved(permission) ? naming : [...naming, ...this.#universal];
+        return isGranting && (confined === undefined || confined.has(role.binding));
     }
 
-    /** List the roles along the scope chain granting every permission but reserved ones, as owners' do. */
-    universal(): readonly string[] {
-        return this.#universal;
+    /** Report whether a role grants a permission, universally unless the permission is reserved. */
+    #grants(permission: PermissionReference, roleId: string): boolean {
+        const listed = this.#roles.get(PermissionReference.key(permission)) ?? [];
+        const isUniversal = !this.isReserved(permission) && this.#universal.includes(roleId);
+
+        return listed.includes(roleId) || isUniversal;
     }
 
-    /** Read the gate a request fails on a row before any grant: its credential, elevation or suspension. */
+    /** Read the gate a request fails on a row before grants: credential, elevation, suspension. */
     gate(permission: PermissionReference, mapping: TableMapping, row: Row): Gate | undefined {
         return this.admits(permission, TableMapping.text(row, mapping.id), { mapping, row })
             ? this.blocked(permission)
             : "restricted";
     }
 
-    /**
-     * Decide whether the credential allows a permission on an object, directly or through its source.
-     *
-     * A derivation through a relation needs the object's row to find the related object.
-     */
+    /** Decide whether the credential allows a permission on an object, directly or by source. */
     admits(
         permission: PermissionReference,
         id: string,
@@ -582,7 +626,7 @@ export class Access {
         return elevation === undefined || Elevation.admits(elevation, this.context);
     }
 
-    /** Read the object that is the scope, from its containing scope, when a mapping has its type. */
+    /** Read the scope's own object from its containing scope, when a mapping has its type. */
     scopeObject(mapping: TableMapping): ObjectReference | undefined {
         // match the containing scope's object by the mapped type
         const object = this.scopes[0];
@@ -613,21 +657,52 @@ async function requireConfirmed(
     }
 }
 
-/** Read the roles a chain of scopes defines with their permissions and current inclusions, closed over the inclusions. */
+/** Read a scope chain's roles and the caller's bound roles, closed over their inclusions. */
 async function readRoles(
     snapshot: Snapshot,
     chain: readonly string[],
+    bindings: readonly RoleBinding[],
     context: ConditionContext,
 ): Promise<{
     readonly grants: Map<string, RoleGrant>;
+    readonly confined: ReadonlyMap<string, ReadonlySet<string>>;
     readonly until: number | undefined;
 }> {
-    // read the roles of every scope of the chain, their permissions, and the relationships on them
-    const rows = await snapshot.select(
-        accessRole,
-        ["scope"],
-        chain.map((id) => [id]),
-    );
+    // read the chain's roles, the caller's bound roles, and the chains of those bindings' scopes
+    const [chained, held, bound] = await Promise.all([
+        snapshot.select(
+            accessRole,
+            ["scope"],
+            chain.map((id) => [id]),
+        ),
+        snapshot.select(
+            accessRole,
+            ["id"],
+            [...new Set(bindings.map((binding) => binding.roleId))].map((id) => [id]),
+        ),
+        Scope.chains(snapshot, [...new Set(bindings.map((binding) => binding.objectScope))]),
+    ]);
+
+    // confine a bound role outside the chain to bindings at or below its scope
+    const chainedIds = new Set(chained.map((row) => row.id));
+    const confined = new Map<string, ReadonlySet<string>>();
+    for (const role of held.filter((each) => !chainedIds.has(each.id))) {
+        const admitted = bindings.filter(
+            (binding) =>
+                binding.roleId === role.id &&
+                (role.scope === binding.objectId ||
+                    role.scope === binding.objectScope ||
+                    found(bound, binding.objectScope).some(
+                        (link) => link.object.id === role.scope,
+                    )),
+        );
+        if (admitted.length > 0) {
+            confined.set(role.id, new Set(admitted.map((binding) => binding.id)));
+        }
+    }
+    const rows = [...chained, ...held.filter((role) => confined.has(role.id))];
+
+    // read their permissions, and the relationships on them
     const ids = rows.map((row) => [row.id]);
     const objects = rows.map((row) => principal.role.reference(row.scope, row.id));
     const [permissions, relationships] = await Promise.all([
@@ -647,7 +722,7 @@ async function readRoles(
     );
 
     // close the roles over their inclusions
-    const roles: RoleDefinition[] = rows.map((row) => ({
+    const roles = rows.map((row): Pick<Role, "id" | "isUniversal" | "permissions"> => ({
         id: row.id,
         isUniversal: row.isUniversal,
         permissions: (byRole.get(row.id) ?? []).map((granted) => ({
@@ -658,6 +733,7 @@ async function readRoles(
     }));
 
     return {
+        confined,
         grants: Role.close(
             roles,
             includes.map((include) => ({
@@ -669,26 +745,30 @@ async function readRoles(
     };
 }
 
-/** Read the relationships making subjects members of sets of some types, or of every type, under a request's conditions. */
-async function memberships(
+/** Read the relationships of some subjects that hold under a request's conditions. */
+async function currentOf(
     snapshot: Snapshot,
     subjects: readonly Subject[],
     context: ConditionContext,
-    sets: readonly SubjectType[] | undefined,
 ): Promise<RelationshipRow[]> {
     const rows = await Relationship.readBySubject(snapshot, subjects);
 
     return rows.filter(
-        (row) =>
-            row.relation !== null &&
-            (sets === undefined ||
-                sets.some(
-                    (set) =>
-                        set.packageId === row.packageId &&
-                        set.type === row.type &&
-                        set.relation === row.relation,
-                )) &&
-            new GrantCondition(row).failure(context, undefined, undefined) === undefined,
+        (row) => new GrantCondition(row).failure(context, undefined, undefined) === undefined,
+    );
+}
+
+/** Decide whether a relationship makes its subject a member of a set of some or all types. */
+function isMembership(row: RelationshipRow, sets: readonly SubjectType[] | undefined): boolean {
+    return (
+        row.relation !== null &&
+        (sets === undefined ||
+            sets.some(
+                (set) =>
+                    set.packageId === row.packageId &&
+                    set.type === row.type &&
+                    set.relation === row.relation,
+            ))
     );
 }
 

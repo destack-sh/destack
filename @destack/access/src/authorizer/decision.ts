@@ -2,16 +2,16 @@ import { ObjectReference, Subject } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
 import { PermissionReference } from "../declare/policy.ts";
 
-/** Whether a caller has a permission on one object, and until when that stays true by time alone. */
+/** Whether a caller has a permission on one object, and until when by time alone. */
 export const Decision = defineSchema(
     schema.object({
         /** Whether the caller has the permission. */
         isAllowed: schema.boolean(),
-        /** The next moment time alone may change the decision, absent when only changes to access do. */
+        /** The next moment time alone may change the decision, absent if only access changes do. */
         until: schema.number().int().exactOptional(),
     }),
 );
-/** Whether a caller has a permission on one object, and until when that stays true by time alone. */
+/** Whether a caller has a permission on one object, and until when by time alone. */
 export type Decision = schema.Infer<typeof Decision>;
 
 /** The gate that refuses a request before any grant: credential, elevation, suspension or scope. */

@@ -15,10 +15,10 @@ import { Contact, type AccessContext, Caller } from "../context/context.ts";
 import { Relationship, type RelationshipCondition } from "../relationship/relationship.ts";
 import { accessInvitation, InvitationRelationship, InvitationStatus } from "./table.ts";
 
-/** How long an invitation stays acceptable unless it sets its own lapse, seven days in milliseconds. */
+/** How long an invitation stays acceptable without its own lapse: seven days, in milliseconds. */
 export const INVITATION_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
-/** The most invitations one page lists, a screen of pending invitations at a few hundred bytes each. */
+/** The most invitations per page: a screen of pending invitations of a few hundred bytes. */
 const INVITATION_PAGE_LIMIT = 100;
 
 /** The schema of an invitation: a pending grant of a relationship, which applies once accepted. */
@@ -40,16 +40,16 @@ const invitationSchema = defineSchema(
         expiresAt: Instant,
     }),
 );
-/** A pending grant: a relationship a grantor offers to a principal or contact, or a principal asks for itself. */
+/** A pending grant: a relationship offered to a principal or contact, or asked for by one. */
 export type Invitation = schema.Infer<typeof invitationSchema>;
 
-/** An invited relationship: offered to a principal or a contact, or asked for by the inviting principal itself. */
+/** An invited relationship: offered to a principal or contact, or asked for by the inviter. */
 export interface InvitationRequest {
-    /** The relationship to grant once accepted, its subject the invited principal or contact, or the inviting principal. */
+    /** The relationship to grant on acceptance, for the invited subject or the inviter. */
     readonly relationship: {
         /** The related object. */
         readonly object: ObjectReference;
-        /** The invited subject: a principal or a contact, or the inviting principal asking for itself. */
+        /** The invited subject: a principal or contact, or the inviter asking for itself. */
         readonly subject: Subject;
         /** Optional expiry in UTC epoch milliseconds. */
         readonly expiresAt?: number;
@@ -118,7 +118,7 @@ function invitationId(id: string) {
     return schema.identifier("invitation").parse(id);
 }
 
-/** Read a pending invitation on an object as a transaction sees it, refusing one that is no longer pending. */
+/** Read a pending invitation on an object in a transaction, refusing one no longer pending. */
 async function read(
     transaction: Transaction,
     object: ObjectReference,
@@ -141,7 +141,7 @@ async function read(
     return decode(row);
 }
 
-/** Read a page of the pending invitations addressed to some principals or contacts, oldest first. */
+/** Read a page of the pending invitations to some principals or contacts, oldest first. */
 async function addressed(
     database: DatabaseConnection,
     addressees: readonly Subject[],
@@ -181,7 +181,7 @@ function addresses(invitation: Invitation, principal: Subject, context: AccessCo
     );
 }
 
-/** Write an invitation as its row, keyed for listing by inviting principal, addressee and lender. */
+/** Write an invitation as its row, keyed for listing by inviter, addressee and lender. */
 function encode(invitation: Invitation, scope: string) {
     const invited = invitation.relationship;
     const lender = invited.conditions?.onBehalfOf;

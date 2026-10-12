@@ -62,15 +62,15 @@ export const PolicyDescription = defineSchema(
         relations: schema.record(
             AccessName,
             schema.object({
-                /** The subject types the relation accepts itself, beside those other types contribute to an open relation. */
+                /** The relation's own subject types, beside an open relation's contributed ones. */
                 subjects: schema.array(SubjectType),
                 /** The permission whose holders grant and revoke the relation. */
                 grantedBy: AccessName.exactOptional(),
                 /** Whether other types contribute themselves as subject types. */
                 open: schema.literal(true).exactOptional(),
-                /** Whether the relation is to the scope containing each object, which the scope chain decides. */
+                /** Whether the relation is to each object's scope, decided by the chain. */
                 isScope: schema.literal(true).exactOptional(),
-                /** Whether the relation's relationships show only to holders of the permission granting it. */
+                /** Whether relationships show only to holders of the granting permission. */
                 concealed: schema.literal(true).exactOptional(),
             }),
         ),
@@ -93,7 +93,7 @@ export const PolicyDescription = defineSchema(
         permissions: schema.record(AccessName, AccessExpressionDescription),
         /** The permission required to bind roles on an object. */
         grantedBy: AccessName.exactOptional(),
-        /** The permissions owners' roles leave out, granted only by their expressions and the roles naming them. */
+        /** Permissions owner roles leave out, granted only by expressions and listing roles. */
         reserved: schema.array(AccessName).exactOptional(),
         /** The permissions that apply only after the authentication each names. */
         elevated: schema.record(AccessName, Elevation.schema).exactOptional(),
@@ -103,7 +103,7 @@ export const PolicyDescription = defineSchema(
         scope: schema.literal(true).exactOptional(),
         /** Whether each object is a partition. */
         partition: schema.literal(true).exactOptional(),
-        /** Whether the type's objects live in the universe and an identifier alone refers to each. */
+        /** Whether objects live in the universe, each found by identifier alone. */
         isGlobal: schema.literal(true).exactOptional(),
     }),
 );

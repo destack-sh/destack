@@ -47,7 +47,7 @@ function including(entry: TableMapping): TableMapping[] {
     return [...mappings, entry];
 }
 
-/** Build the copy of a scope's chain row an authorizer's database follows, with its subscription. */
+/** Build the copy of a scope's chain row for an authorizer's database, with its subscription. */
 function chainOf(authorizer: Authorizer, scope: string) {
     const subscription = authorizer.chainShape.subscription({
         name: Authorizer.chainCopy(scope),

@@ -113,16 +113,12 @@ export function through(
     };
 }
 
-/** Permit whoever may grant on the object a row references, through the grant permission of that object's own type. */
+/** Permit who may grant on a row's referenced object, by that object type's grant permission. */
 export function grantersOf(reference: string): AccessExpression {
     return { kind: "granters", reference: AccessName.parse(reference) };
 }
 
-/**
- * Permit whoever sees the relationships of the object a row references: holders of its type's relationship read permission or its grant permission.
- *
- * A row of a concealed relation, named by the row's relation field, is permitted only to holders of the permission granting that relation.
- */
+/** Permit who sees the relationships of a row's referenced object. */
 export function readersOf(reference: string, field: string): AccessExpression {
     return {
         kind: "readers",
@@ -131,12 +127,7 @@ export function readersOf(reference: string, field: string): AccessExpression {
     };
 }
 
-/**
- * Permit the principals inside a scope: those living in it or in a scope it encloses, and the scope's own principal.
- *
- * A scope object decides for itself, any other object for the scope it lives in.
- * Named principal types narrow the principals to those types.
- */
+/** Permit the principals inside a scope, its enclosed scopes, and the scope's own principal. */
 export function contained(...principals: readonly Policy[]): AccessExpression {
     return principals.length === 0
         ? { kind: "contained" }
@@ -149,7 +140,7 @@ export function contained(...principals: readonly Policy[]): AccessExpression {
           };
 }
 
-/** Permit objects whose attributes meet a condition, reading request attributes through placeholders. */
+/** Permit objects whose attributes meet a condition, reading request attributes as placeholders. */
 export function resource(where: Condition): AccessExpression {
     return { kind: "resource", condition: where };
 }

@@ -1,12 +1,12 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PermissionReference } from "./policy.ts";
 
-/** A scope relative to a view's or workload's context: its space, the person's home, or the space's account. */
+/** A scope relative to a view's or workload's context: space, person's home, or account. */
 export const PermissionScope = defineSchema(schema.enum(["space", "home", "account"]));
 /** A scope relative to a view's or workload's context. */
 export type PermissionScope = schema.Infer<typeof PermissionScope>;
 
-/** The permissions a view or workload requests by the scope they apply in, consented to at install and granted exactly. */
+/** A view's or workload's requested permissions by scope, consented at install, granted exactly. */
 export const PermissionRequest = Object.assign(
     defineSchema(
         schema
@@ -21,7 +21,7 @@ export const PermissionRequest = Object.assign(
             .strict(),
     ),
     {
-        /** Grant requested permissions in the scopes they name, dropping those of a scope the context lacks. */
+        /** Grant requested permissions in their scopes, dropping scopes the context lacks. */
         grant(
             request: PermissionRequest,
             scopes: {

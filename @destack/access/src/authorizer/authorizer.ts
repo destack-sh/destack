@@ -57,27 +57,27 @@ import { column, TableMapping, type FieldRelation } from "./mapping.ts";
 /** The identifier of a wildcard subject, which relates every identity of its type. */
 const WILDCARD = "*";
 
-/** The default time a copy of access may go unheard before decisions refuse it, three ten-second feed beats, in milliseconds. */
+/** The default time an unheard access copy lasts before refusal: three 10-second beats, in ms. */
 const LAG_MILLISECONDS = 30_000;
 
 /** The name of the shape copying the universe's rows a scope reads. */
 const UNIVERSE_SHAPE = "universe";
 
-/** The parameters of a chain copy: the object types whose access rows the follower keeps, those whose rows it copies, and the scopes a follower outside the chain copies it via. */
+/** The parameters of a chain copy. */
 export const ChainParameters = schema.object({
     /** The object types whose access rows live in the follower's own database. */
     local: schema.array(ObjectTypeReference),
-    /** The object types the follower keeps copies of: the inherited rows of inherited types, the scopes' own rows of scope types, and the rows of scoped types in the replicated scopes. */
+    /** The object types the follower copies. */
     copied: schema.array(ObjectTypeReference),
-    /** The scopes a follower outside their chains replicates, copied with the copied scope above them and the scopes between. */
+    /** The scopes an outside follower replicates, with the copied scope above and those between. */
     via: schema.array(schema.string().min(1)).min(1).exactOptional(),
-    /** The scopes between the replicated ones and the copied scope, as far as the follower's copies list them. */
+    /** The scopes between the replicated ones and the copied scope, as the follower knows them. */
     between: schema.array(schema.string().min(1)).exactOptional(),
 });
 /** The parameters of a chain copy. */
 export type ChainParameters = schema.Infer<typeof ChainParameters>;
 
-/** The parameters of a copy of the universe's rows: the rows of each object type, decided for their reader. */
+/** The parameters of a universe copy: each object type's rows, decided for their reader. */
 const UniverseParameters = schema.object({
     /** The rows of each object type. */
     rows: schema.array(
@@ -86,9 +86,9 @@ const UniverseParameters = schema.object({
             type: ObjectTypeReference,
             /** The rows copied. */
             where: Condition.schema,
-            /** The requested object types whose copied rows are the scopes of these rows, absent for rows of the copied scope. */
+            /** The requested types whose rows these rows scope, absent for the copied scope. */
             within: schema.array(ObjectTypeReference).min(1).exactOptional(),
-            /** Whether the rows are copied from whichever scope they live in, rather than from the copied scope. */
+            /** Whether rows copy from whichever scope they live in, instead of the copied scope. */
             isEverywhere: schema.literal(true).exactOptional(),
         }),
     ),
@@ -96,10 +96,10 @@ const UniverseParameters = schema.object({
 /** The parameters of a copy of the universe's rows. */
 export type UniverseParameters = schema.Infer<typeof UniverseParameters>;
 
-/** A table a chain copy reads: the condition on its rows, absent for every row, and the scopes it reads them in. */
+/** A table a chain copy reads: its row condition, absent for all rows, and its scopes. */
 type ChainTable = [Table, Condition | undefined, readonly string[]];
 
-/** The rows of a set a caller has a permission on, by position, and the next moment time alone may change that. */
+/** A caller's permitted rows of a set by position, and the next moment time alone changes that. */
 export interface Admission {
     /** The positions of the rows the caller has the permission on. */
     readonly permitted: ReadonlySet<number>;
@@ -113,13 +113,13 @@ export interface ChainStep {
     readonly type: Pick<PermissionReference, "packageId" | "type">;
     /** The relations whose relationships on its object grant the permission. */
     readonly relations: readonly string[];
-    /** The containment set of its object the permission admits, of the named principal types alone when given, absent where containment grants nothing. */
+    /** The containment set the permission admits, of some principal types alone when given. */
     readonly contained?: { readonly principals?: readonly ObjectTypeReference[] };
 }
 
 /** Decide policies over their objects' tables, in SQL or in memory from grants. */
 export class Authorizer {
-    /** The keys of permissions owners' roles leave out, granted only by their expressions and the roles naming them. */
+    /** The permission keys owner roles leave out, granted only by expressions and listing roles. */
     readonly reserved: ReadonlySet<string>;
     /** The authentication each elevated permission asks for, by permission key. */
     readonly elevated: ReadonlyMap<string, Elevation>;
@@ -129,23 +129,23 @@ export class Authorizer {
     readonly fields: FieldRelation[] = [];
     /** The subject sets that relations accept and roles may bind to. */
     readonly memberships: SubjectType[] = [];
-    /** The permissions accepted as subject sets, by the type and relation of each relationship deciding them. */
+    /** The permissions accepted as subject sets, by the type and relation of each relationship. */
     readonly #implied = new Map<string, string[]>();
-    /** The permissions accepted as subject sets on enclosed scopes, by the type and permission of the enclosing scope's set. */
+    /** The permissions accepted as sets on enclosed scopes, by enclosing type and permission. */
     readonly #enclosed = new Map<string, PermissionReference[]>();
     /** The scope types that take subject sets from the scopes enclosing them. */
     readonly #enclosedTypes = new Set<string>();
     /** The scope chain steps of permissions read through enclosing scopes, by permission key. */
     readonly #inherited = new Map<string, readonly ChainStep[]>();
-    /** How long a copy of access may go without its home before decisions refuse it, in milliseconds. */
+    /** How long an access copy may go without its home before refusal, in milliseconds. */
     readonly lag: number;
     /** The object types whose access rows live in this database, rather than as copies. */
     readonly local: readonly ObjectTypeReference[];
-    /** The object types this database keeps copies of from the scopes above it: inherited rows, and the scopes' own rows of the scope types it keeps a table of. */
+    /** The object types copied from scopes above: inherited rows, and kept scope types' rows. */
     readonly copied: readonly ObjectTypeReference[];
-    /** The object types this database keeps copies of whose rows live in a scope, which a follower outside their chains copies in the scopes it replicates. */
+    /** The copied object types whose rows live in a scope. */
     readonly scoped: readonly ObjectTypeReference[];
-    /** The types of global principals, identified apart from any scope chain, whose access rows stay in the account service's database. */
+    /** The global principal types, outside scope chains. */
     readonly global: readonly ObjectTypeReference[];
     /** The policies indexed by package and type. */
     readonly #policies = new Map<string, Policy>();
@@ -163,7 +163,7 @@ export class Authorizer {
         options: {
             /** How long a copy of access may go without hearing from its home, in milliseconds. */
             readonly lag?: number;
-            /** Decide whether the database keeps a table's rows as copies from their home, which writes their access rows. */
+            /** Decide whether the database copies a table's rows from their home. */
             readonly copies?: (table: Table) => boolean;
         } = {},
     ) {
@@ -239,7 +239,7 @@ export class Authorizer {
         }
     }
 
-    /** Validate every permission a policy names, including unused reserved, elevated and administration permissions. */
+    /** Validate every permission of a policy, including unused reserved and elevated ones. */
     #validatePermissions(type: Policy): void {
         // resolve each relation's grant permission and subject types
         const definition = type.definition;
@@ -270,7 +270,7 @@ export class Authorizer {
         }
     }
 
-    /** List the mappings every database has: scope types onto the ancestry, and access's types onto its tables. */
+    /** List every database's mappings: scope types onto ancestry, access types onto tables. */
     #implicitMappings(mappings: readonly TableMapping[]): TableMapping[] {
         // map scope types this database has no table of onto the ancestry every database has
         const scopes = this.policies()
@@ -353,7 +353,7 @@ export class Authorizer {
             }));
     }
 
-    /** List the mapped types this database keeps copies of: inherited types, and copied scope types. */
+    /** List the mapped types this database copies: inherited types and copied scope types. */
     #copiedTypes(copies: (table: Table) => boolean): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
@@ -369,7 +369,7 @@ export class Authorizer {
             }));
     }
 
-    /** List the copied types whose rows live in a scope, neither inherited nor scopes themselves. */
+    /** List the copied types whose rows live in a scope, apart from inherited and scope types. */
     #scopedTypes(copies: (table: Table) => boolean): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
@@ -417,7 +417,7 @@ export class Authorizer {
         );
     }
 
-    /** Expand the declared subject sets and every scope's relations into the memberships roles may bind to. */
+    /** Expand the declared sets and every scope's relations into the memberships roles bind to. */
     #expandMemberships(sets: ReadonlyMap<string, PermissionReference>): void {
         // add every relation of each scope type to the declared sets
         const expanded = new Map(sets);
@@ -455,7 +455,7 @@ export class Authorizer {
         }
     }
 
-    /** Expand a permission's set through the relations deciding it on the object and the same sets of the enclosing scopes. */
+    /** Expand a permission's set through its deciding relations and the enclosing scopes' sets. */
     #expandPermissionSet(
         set: PermissionReference,
         expanded: Map<string, PermissionReference>,
@@ -605,7 +605,7 @@ export class Authorizer {
         };
     }
 
-    /** Return the table mapping of an object type, failing for a type this database maps no table of. */
+    /** Return an object type's table mapping, failing for a type without a mapped table. */
     mapping(reference: Pick<PermissionReference, "packageId" | "type">): TableMapping {
         const mapping = this.mappingOf(reference);
         if (!mapping) {
@@ -618,7 +618,7 @@ export class Authorizer {
         return mapping;
     }
 
-    /** Read the table mapping of an object type, absent for a type this database maps no table of. */
+    /** Read an object type's table mapping, absent for a type without a mapped table. */
     mappingOf(
         reference: Pick<PermissionReference, "packageId" | "type">,
     ): TableMapping | undefined {
@@ -630,7 +630,7 @@ export class Authorizer {
         return [...this.#mappings.values()];
     }
 
-    /** Read what a permission of a scope type grants through a scope chain: each type along the chain, and the relations on its object that grant it. */
+    /** Read what a scope permission grants through a chain: each type and granting relation. */
     inherited(reference: PermissionReference): readonly ChainStep[] {
         // read a permission's chain once, refusing a scope type that encloses itself
         const key = PermissionReference.key(reference);
@@ -667,7 +667,7 @@ export class Authorizer {
         ];
     }
 
-    /** Read the permission another purely derives from, on its object or through a field relation. */
+    /** Read the permission another purely derives from, on its object or by a field relation. */
     source(
         permission: PermissionReference,
     ): { readonly permission: string; readonly relation?: string } | undefined {
@@ -721,12 +721,12 @@ export class Authorizer {
         };
     }
 
-    /** Read the scope with the chain that decides access to an object: a scope object itself, else its containing scope. */
+    /** Read the scope deciding an object's access: a scope object itself, else its scope. */
     governingScope(target: ObjectReference): string {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
     }
 
-    /** Decide whether the transaction's database keeps an object's access rows: those of the types it maps a table of, and the universe's where it keeps no copy of them. */
+    /** Decide whether the transaction's database keeps an object's access rows. */
     async isLocal(transaction: Transaction, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
         if (this.mappingOf(object)?.table === accessRole) {
@@ -761,7 +761,7 @@ export class Authorizer {
         }
     }
 
-    /** List the requests of the copies of the scopes above one, and of the scope itself unless the database is its home, one copy per scope. */
+    /** List the copy requests of the scopes above one, one per scope. */
     async chain(
         database: DatabaseConnection,
         scope: string,
@@ -788,11 +788,11 @@ export class Authorizer {
         );
     }
 
-    /** Request the one copy of the scope chains above the scopes a follower replicates, recorded at the universe, with the scoped types the publisher keeps, every copied one by default, leaving out the types another publisher copies. */
+    /** Request the one copy of the scope chains above a follower's replicated scopes. */
     async chainVia(
         database: DatabaseConnection,
         follower: string,
-        via: readonly ObjectReference[],
+        via: readonly { readonly id: string; readonly scope: string | null }[],
         scoped: readonly ObjectTypeReference[] = this.scoped,
         elsewhere: readonly ObjectTypeReference[] = [],
     ): Promise<Subscription | undefined> {
@@ -808,7 +808,7 @@ export class Authorizer {
             .from(Scope.table)
             .where(inArray(Scope.table.scope, [...replicated]));
         const containing = [
-            ...via.map((object) => object.scope),
+            ...via.flatMap((object) => (object.scope === null ? [] : [object.scope])),
             ...rows.flatMap((row) => row.ancestors),
         ];
         const between = new Set(
@@ -839,12 +839,12 @@ export class Authorizer {
         });
     }
 
-    /** Name the chain copies a database keeps for the scope below, so each follower's copy of a scope has its own record. */
+    /** Build the chain copy's name for the scope below, giving each follower's copy a record. */
     static chainCopy(below: string): string {
         return `${CHAIN_SHAPE}:${below}`;
     }
 
-    /** The shape of a scope's chain copy: its access rows, inherited rows and own object, decided for the scope below by containment. */
+    /** The shape of a scope's chain copy: access rows, inherited rows and own object. */
     readonly chainShape = defineShape({
         name: CHAIN_SHAPE,
         parameters: ChainParameters,
@@ -853,7 +853,7 @@ export class Authorizer {
         replica: ({ name, scope, parameters }) => this.#chainReplica(name, scope, parameters),
     });
 
-    /** The shape of the rows of the universe a scope reads, decided for their reader where they live. */
+    /** The shape of the universe's rows a scope reads, decided for their reader. */
     readonly universeShape = defineShape({
         name: UNIVERSE_SHAPE,
         parameters: UniverseParameters,
@@ -867,7 +867,7 @@ export class Authorizer {
         return [this.chainShape, this.universeShape];
     }
 
-    /** Build the copy a request of one of the policies' shapes asks for, refusing any other shape. */
+    /** Build the copy a request of a policy shape asks for, refusing any other shape. */
     replicaOf(request: Subscription): Replica {
         const shape = this.shapes.find((declared) => declared.name === request.shape);
         if (shape === undefined) {
@@ -877,7 +877,7 @@ export class Authorizer {
         return shape.replica(request);
     }
 
-    /** Build a chain copy: the access rows of its scopes, its copied types' inherited rows and the scopes' own rows. */
+    /** Build a chain copy: scope access rows, copied types' inherited rows and scopes' rows. */
     #chainReplica(name: string, scope: string, parameters: ChainParameters): Replica {
         // copy the scope, and the replicated scopes and those between for a follower outside their chains
         const via = parameters.via ?? [];
@@ -926,7 +926,7 @@ export class Authorizer {
         });
     }
 
-    /** Select a copied type's rows in a chain copy: an inherited type's inherited rows, the scopes' own rows of a scope type, or a scoped type's rows in the replicated scopes. */
+    /** Select a copied type's rows in a chain copy. */
     #copiedRows(
         type: ObjectTypeReference,
         scopes: readonly string[],
@@ -973,7 +973,7 @@ export class Authorizer {
         }
     }
 
-    /** Build a copy of the universe's rows: each requested type's rows, those living in other requested rows' scopes copied across them. */
+    /** Build a universe copy: each requested type's rows, across other requested rows' scopes. */
     #universeReplica(name: string, scope: string, parameters: UniverseParameters): Replica {
         // add each requested type's rows
         const rows = parameters.rows.map(({ type, where }): [Table, Condition] => [
@@ -1001,7 +1001,7 @@ export class Authorizer {
         });
     }
 
-    /** Read the table of an object type a copy asks for, refusing a type this database keeps no table of. */
+    /** Read the table of a requested object type, refusing a type without a kept table. */
     #copiedTable(type: ObjectTypeReference): Table {
         const mapping = this.#mappings.get(ObjectTypeReference.key(type));
         if (mapping === undefined || mapping.table === Scope.table) {
@@ -1029,7 +1029,7 @@ export class Authorizer {
         ];
     }
 
-    /** Read a page of one object's relationships and role bindings as a snapshot shows them, ordered by identifier. */
+    /** Read a page of an object's relationships and role bindings in a snapshot, by identifier. */
     async relationships(
         snapshot: Snapshot,
         object: ObjectReference,
@@ -1176,7 +1176,7 @@ export class Authorizer {
         );
     }
 
-    /** Resolve a caller in a scope inside its transaction: its subject sets, the scope chain and the roles along it. */
+    /** Resolve a caller in a scope inside its transaction: subject sets, scope chain and roles. */
     resolve(
         snapshot: Snapshot,
         scope: string,
@@ -1186,22 +1186,22 @@ export class Authorizer {
         return Access.resolve(snapshot, scope, context, this, links);
     }
 
-    /** Restrict the rows of a table to those the caller has a permission on, before sorting, counting, pagination, or mutation. */
+    /** Restrict a table's rows to the caller's permitted ones, before any sort, count or page. */
     where(permission: PermissionReference, access: Access, source?: Table): SQL {
         return this.#compiler.where(permission, access, source);
     }
 
-    /** Match one object, in its own scope, if the caller has a permission on it or through a role bound on or above it. */
+    /** Match one object in its scope if the caller has a permission directly or by a role above. */
     permits(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
         return this.#compiler.permits(permission, target, access);
     }
 
-    /** Start reading the grants of rows within a scope chain, as a snapshot shows them, shared by every caller of the scope. */
+    /** Start reading the grants of rows in a scope chain from a snapshot, shared by all callers. */
     reader(snapshot: Snapshot, scopes: readonly ObjectReference[]): GrantReader {
         return new GrantReader(this, snapshot, scopes);
     }
 
-    /** Decide whether a caller has a permission on one object, and until when that stays true by time alone. */
+    /** Decide whether a caller has a permission on one object, and until when by time alone. */
     async check(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1274,7 +1274,7 @@ export class Authorizer {
         }
     }
 
-    /** Find the lowest fresh assurance level that would admit a refused caller, with the permission's elevation age. */
+    /** Find the lowest fresh assurance level admitting a refused caller, with elevation age. */
     async challenge(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1303,7 +1303,7 @@ export class Authorizer {
         return undefined;
     }
 
-    /** List a page of the principals of a type with a permission on one object now, in subject key order. */
+    /** List a page of a type's principals with a permission on one object now, by subject key. */
     async subjects(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1382,7 +1382,7 @@ export class Authorizer {
         return access.authorities.every((authority) => GrantTree.permits(tree, authority, access));
     }
 
-    /** Check a permission on each row, returning the positions the caller has it on and until when that holds. */
+    /** Check a permission on each row, returning the caller's permitted positions and expiry. */
     async checkRows(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1421,7 +1421,7 @@ export class Authorizer {
         return { permitted: new Set(permitted), ...(until === undefined ? {} : { until }) };
     }
 
-    /** Explain whether a caller has a permission on one object: the gate and each grant with why it fails, per authority. */
+    /** Explain a caller's permission on one object: the gate and grant failures, per authority. */
     async explain(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1471,7 +1471,7 @@ export class Authorizer {
         };
     }
 
-    /** Refuse a caller a permission on one object, challenging it for the authentication that would admit it. */
+    /** Refuse a caller a permission on one object, challenging it for admitting authentication. */
     async #refuse(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1494,7 +1494,7 @@ export class Authorizer {
         throw new AccessError("FORBIDDEN", `permission denied: ${permission.name}`);
     }
 
-    /** Read the gate a request fails on a row before any grant: its credential, elevation or suspension, or a listed row outside the scope. */
+    /** Read the gate a request fails on a row before any grant. */
     #gate(
         permission: PermissionReference,
         mapping: TableMapping,
@@ -1529,7 +1529,7 @@ export class Authorizer {
             : undefined;
     }
 
-    /** Require a mapping to supply the trees and reference columns its policy's expressions need. */
+    /** Require a mapping to supply the trees and reference columns its expressions need. */
     #requireCompilable(mapping: TableMapping): void {
         const pending = Object.values(mapping.policy.definition.permissions);
         for (let expression = pending.pop(); expression !== undefined; expression = pending.pop()) {
@@ -1558,7 +1558,7 @@ export class Authorizer {
         }
     }
 
-    /** List the types a relation leads to for a permission: its subject types, or for the scope of whichever type holds each object, every scope type declaring the permission. */
+    /** List the types a relation leads to for a permission. */
     scopeTypes(type: Policy, name: string, permission: string): readonly SubjectType[] {
         // follow a relation to its declared subject types
         const relation = this.relation(type, name);
@@ -1576,7 +1576,7 @@ export class Authorizer {
             .map((policy) => ({ packageId: policy.definition.packageId, type: policy.name }));
     }
 
-    /** List the scope types an arrow to an enclosing scope follows along a chain, nearest first: its declared one, or for the scope of any type the nearest scope's own type where it declares the permission. */
+    /** List the scope types an arrow to an enclosing scope follows along a chain, nearest first. */
     enclosingTypes(
         type: Policy,
         expression: Extract<AccessExpression, { kind: "through" }>,
@@ -1613,7 +1613,7 @@ export class Authorizer {
         return only;
     }
 
-    /** Require a relation to the scope holding each object to accept one scope type alone, kept by the scope chain rather than a field. */
+    /** Require a relation to each object's scope to accept one scope type, kept by the chain. */
     #validateScopeRelation(type: Policy, name: string, relation: RelationDefinition): void {
         // require one scope type, kept by the scope chain, or none for the scope of whichever type holds each object
         const [scope, ...others] = relation.subjects;
@@ -1659,7 +1659,7 @@ export class Authorizer {
         }
     }
 
-    /** List the objects of a scope chain deciding an arrow to the enclosing scope, with the relations and containment granting its permission on each. */
+    /** List the chain objects deciding an arrow to the enclosing scope. */
     chainSteps(
         policy: Policy,
         expression: Extract<AccessExpression, { kind: "through" }>,
@@ -1699,7 +1699,7 @@ export class Authorizer {
         }));
     }
 
-    /** Refuse deciding a permission along a scope chain by a relation a field or the scope chain keeps, which relationships on the chain cannot hold. */
+    /** Refuse deciding a chain permission by a field or scope chain relation. */
     #requireRelationships(reference: PermissionReference, name: string): void {
         const isScope = this.policy(reference).definition.relations[name]?.isScope === true;
         const isField = this.mappingOf(reference)?.relations[name] !== undefined;
@@ -1711,7 +1711,7 @@ export class Authorizer {
         }
     }
 
-    /** Read what decides a permission along a scope chain: relations on the object and permissions of enclosing scopes. */
+    /** Read what decides a chain permission: object relations and enclosing scope permissions. */
     deciding(reference: PermissionReference): {
         readonly relations: readonly string[];
         readonly contained?: ChainStep["contained"];
@@ -1778,7 +1778,7 @@ export class Authorizer {
         };
     }
 
-    /** List the permissions accepted as subject sets on enclosed scopes of a type that an enclosing scope's set makes its members members of. */
+    /** List the permissions accepted as sets on a type's enclosed scopes. */
     enclosed(
         reference: Pick<PermissionReference, "packageId" | "type">,
         set: string,
@@ -1791,7 +1791,7 @@ export class Authorizer {
         return this.#enclosedTypes.has(ObjectTypeReference.key(reference));
     }
 
-    /** List the permissions accepted as subject sets that a relationship of a type's relation makes its subject a member of. */
+    /** List the permissions accepted as sets that a relationship makes its subject a member of. */
     implied(
         reference: Pick<PermissionReference, "packageId" | "type">,
         relation: string,
@@ -1898,7 +1898,7 @@ export class Authorizer {
     }
 }
 
-/** Take the next moment time alone changes whether any of some grants passes, absent when it never does. */
+/** Take the next moment time alone changes whether any grant passes, absent if never. */
 function grantsUntil(grants: readonly Grant[], access: Access): number | undefined {
     const context = access.context;
 
@@ -1910,7 +1910,7 @@ function grantsUntil(grants: readonly Grant[], access: Access): number | undefin
     );
 }
 
-/** Require a condition to read declared attributes of the object or the request, and compare values of their type. */
+/** Require a condition to read declared attributes and compare values of their type. */
 function validateCondition(expression: ConditionExpression, type: Policy): void {
     // read the object's or the request's attributes
     const isObject = expression.kind === "resource";
@@ -1998,7 +1998,7 @@ function validatePredicate(
     }
 }
 
-/** Require a comparison with a value or another attribute of the attribute's type, ordering only numbers. */
+/** Require a comparison with a value or attribute of the same type, ordering only numbers. */
 function validateCompare(
     predicate: Extract<Predicate, { readonly kind: "compare" }>,
     declared: Readonly<Record<string, AttributeType>>,
@@ -2077,7 +2077,7 @@ function placeholderType(
     return attributeType(name, placeholders);
 }
 
-/** Collect every policy the declared policies name, one per type, with the intrinsic policies no declared policy represents. */
+/** Collect every policy the declared ones refer to, one per type, with intrinsic policies. */
 function collectPolicies(policies: readonly Policy[]): Policy[] {
     // include every policy the declared policies name
     const byType = new Map<string, Policy>();
@@ -2173,7 +2173,7 @@ function policyKey(policy: Policy): string {
     });
 }
 
-/** Read the members of subject sets: the subjects their objects' relationships of the set's relation have. */
+/** Read the members of subject sets: the subjects of their objects' set relation. */
 async function members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Subject[]> {
     // read nothing for no sets
     if (sets.length === 0) {

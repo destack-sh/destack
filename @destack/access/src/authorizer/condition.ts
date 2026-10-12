@@ -11,7 +11,7 @@ export type ConditionContext = Pick<
     "now" | "request" | "credential" | "linkSecrets" | "assurance"
 >;
 
-/** The request values a relationship's conditions compare against, as SQL values, null where the request has none. */
+/** The request values a relationship's conditions compare, as SQL values, null if absent. */
 export interface ConditionValues {
     /** The request time. */
     readonly now: SQLWrapper;
@@ -19,7 +19,7 @@ export interface ConditionValues {
     readonly request: SQLWrapper;
     /** The key of the credential the request presents. */
     readonly credential: SQLWrapper;
-    /** The digests of the link secrets the request presented, as a JSON list of one-element lists. */
+    /** The digests of the request's link secrets, as a JSON list of one-element lists. */
     readonly linkSecrets: SQLWrapper;
     /** The request's authentication assurance level. */
     readonly level: SQLWrapper;
@@ -29,11 +29,7 @@ export interface ConditionValues {
     readonly delegator: SQLWrapper;
 }
 
-/**
- * A relationship's conditions on the requests it applies to, decided in memory and in SQL alike.
- *
- * Each condition appears in `failure` and in `where` in the same order, and both evaluators decide it the same way.
- */
+/** A relationship's conditions on its requests, decided in memory and in SQL alike. */
 export class GrantCondition {
     /** The relationship's creation time. */
     readonly createdAt: number;
@@ -65,7 +61,7 @@ export class GrantCondition {
         this.onBehalfOf = row.onBehalfOf;
     }
 
-    /** Read why the conditions fail a request for an authority acting for a delegator, absent when they pass. */
+    /** Read why the conditions fail a request for a delegator's authority, absent if they pass. */
     failure(
         context: ConditionContext,
         delegator: Subject | undefined,
@@ -115,7 +111,7 @@ export class GrantCondition {
         return isLent ? undefined : "delegation";
     }
 
-    /** Read the next moment time alone changes whether the conditions pass, absent when it never does. */
+    /** Read the next moment time alone changes whether the conditions pass, absent if never. */
     until(context: ConditionContext): number | undefined {
         return GrantCondition.until(this, context);
     }
@@ -142,7 +138,7 @@ export class GrantCondition {
         return moments.length === 0 ? undefined : Math.min(...moments);
     }
 
-    /** Require a relationship's conditions to pass for a request, as `failure` decides in memory. */
+    /** Require a relationship's conditions to pass for a request, as `failure` decides. */
     static where(relationship: RelationshipColumnMap, values: ConditionValues): SQL {
         // type the request time for engines that type parameters
         const now = castInteger(values.now);
@@ -222,7 +218,7 @@ export class GrantCondition {
     }
 }
 
-/** Determine whether a request matches a relationship's binding, which a null binding always does. */
+/** Determine whether a request matches a relationship's binding, always for a null binding. */
 function isBound(value: string | null, actual: string | undefined): boolean {
     return value === null || (actual !== undefined && value === actual);
 }

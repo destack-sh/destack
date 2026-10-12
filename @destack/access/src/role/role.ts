@@ -92,7 +92,7 @@ async function permissions(
     return rows.map(referenceOf);
 }
 
-/** Define a role under a name free in its scope with its permissions and manager, absent when another role holds the name. */
+/** Define a role with permissions and manager under a name, absent if the name is taken. */
 export async function define(
     transaction: Transaction,
     scope: string,
@@ -149,7 +149,7 @@ export async function permit(
     );
 }
 
-/** Replace the permissions a role grants with a declared set, keeping the rows of the ones it grants already. */
+/** Replace a role's permissions with a declared set, keeping rows of existing ones. */
 export async function replace(
     transaction: Transaction,
     roleId: Select<typeof accessRole>["id"],
@@ -191,7 +191,7 @@ function describe(
     };
 }
 
-/** Define a scope's owner role and bind it to an owner on the scope's object, returning the role. */
+/** Define a scope's owner role and bind it to an owner on the scope object, returning it. */
 export async function own(
     transaction: Transaction,
     scope: ObjectReference,
@@ -219,7 +219,7 @@ export async function own(
     return role;
 }
 
-/** Bind a scope's owner role to an owner once, as the scope's creation binds it, defining the role when the scope has none, and return the role. */
+/** Bind a scope's owner role to an owner once, as creation does, and return the role. */
 async function keepOwner(
     transaction: Transaction,
     scope: ObjectReference,
@@ -241,7 +241,7 @@ async function keepOwner(
     return defined.id;
 }
 
-/** Keep a role a scope's creation defines with exactly some permissions, bound to one subject on the scope, as the owner role is, and return the role. */
+/** Keep a creation-defined role with exactly some permissions, bound to one scope subject. */
 async function keepInherent(
     transaction: Transaction,
     scope: ObjectReference,

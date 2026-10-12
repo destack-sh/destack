@@ -17,7 +17,7 @@ export class AccessFixture {
         this.database = database;
     }
 
-    /** Record a scope object below the scopes containing it, in its parent's partition or its own, as a copy of its home's access keeps it. */
+    /** Record a scope object below its containing scopes, as a copy of its home's access does. */
     async copyScope(scope: ObjectReference, partition: "parent" | "own" = "parent"): Promise<void> {
         // read the ancestry and partition of the containing scope
         const [parent] =
@@ -45,7 +45,7 @@ export class AccessFixture {
         });
     }
 
-    /** Define a copied scope's owner role and bind it to an owner on the scope's object, returning the role. */
+    /** Define a copied scope's owner role and bind it to an owner on the scope, returning it. */
     async copyOwner(scope: ObjectReference, owner: Subject, now = Date.now()): Promise<string> {
         // write the role and its binding in one transaction
         const transaction = await Transaction.open(this.database);
@@ -55,7 +55,7 @@ export class AccessFixture {
         return role;
     }
 
-    /** Define a role in a copied scope and bind it to a subject on the scope's object, returning the role. */
+    /** Define a role in a copied scope and bind it to a subject on the scope, returning it. */
     async copyRole(
         scope: ObjectReference,
         role: RoleRequest,
@@ -70,7 +70,7 @@ export class AccessFixture {
         return id;
     }
 
-    /** Relate a subject to an object through a relation in the scope governing it, as a copy of the object's home access keeps it, returning the relationship. */
+    /** Relate a subject to an object in its governing scope, as a home access copy does. */
     async copyRelationship(
         governing: string,
         object: ObjectReference,
@@ -96,7 +96,7 @@ export class AccessFixture {
         return id;
     }
 
-    /** Mark a copied scope suspended, or active again, as its home's suspension arrives by replication. */
+    /** Mark a copied scope suspended or active again, as its home's suspension replicates. */
     async suspendCopy(scope: string, suspendedAt: number | null): Promise<void> {
         await this.database
             .update(Scope.table)

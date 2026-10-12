@@ -24,7 +24,7 @@ export const accessRole = defineTable(
         updatedAt: integer("updated_at").notNull(),
         /** The revision that conditional updates compare against. */
         revision: integer("revision").notNull().default(1),
-        /** The installation whose declaration manages the role, absent for roles defined at runtime. */
+        /** The installation whose declaration manages it, absent if defined at runtime. */
         managerInstallationId: identifier("manager_installation_id", "installation"),
         /** The package of the managing declaration. */
         managerPackageId: identifier("manager_package_id", "package"),
@@ -38,7 +38,7 @@ export const accessRole = defineTable(
         name: text("name").notNull(),
         /** The purpose shown when granting the role. */
         description: text("description").notNull(),
-        /** Whether the role grants every permission in its scope, as an owner does, except reserved ones. */
+        /** Whether the role grants all but reserved permissions in its scope, as owners do. */
         isUniversal: boolean("is_universal").notNull().default(false),
     },
     {
@@ -89,7 +89,7 @@ export const accessRolePermission = defineTable(
     },
 );
 
-/** Require a complete manager or none, a detachment only of a managed row, and one row per declaration. */
+/** Require a full manager or none, detachment only when managed, and one row per declaration. */
 export function managerChecks(
     name: string,
     columns: {

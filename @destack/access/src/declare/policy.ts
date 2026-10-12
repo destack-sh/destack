@@ -30,15 +30,15 @@ export interface PolicyDefinition {
     readonly grantedBy?: string;
     /** The permission whose holders see the objects' relationships, `read` by default. */
     readonly relationships?: { readonly read: string };
-    /** Permissions owners' roles leave out, granted only by their expressions and the roles naming them. */
+    /** Permissions owner roles leave out, granted only by their expressions and listing roles. */
     readonly reserved?: readonly string[];
-    /** Sensitive permissions that apply only after the authentication each names, whoever has them. */
+    /** Sensitive permissions that apply only after their required authentication. */
     readonly elevated?: Readonly<Record<string, Elevation>>;
-    /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
+    /** Permissions available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly string[];
     /** Whether the type's objects are scopes that contain other objects. */
     readonly scope?: true;
-    /** Whether each of the type's objects is a partition, whose contents' rows live and run apart from its parent's. */
+    /** Whether each object is a partition, whose contents live and run apart from its parent's. */
     readonly partition?: true;
     /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: true;
@@ -65,7 +65,7 @@ export class Policy<Name extends string = string> {
     /** The names of the request attributes conditions read. */
     readonly #context: ReadonlySet<string>;
 
-    /** The permission whose holders see the objects' relationships: the declared one, else `read` where the type has it. */
+    /** The permission to see relationships: the declared one, else `read` if the type has it. */
     get visibility(): string | undefined {
         const { relationships, permissions } = this.definition;
 
@@ -98,7 +98,7 @@ export class Policy<Name extends string = string> {
         this.#context = new Set(Object.keys(this.definition.context));
     }
 
-    /** Resolve a condition expression over the attributes it reads: the object's, or the request's. */
+    /** Resolve a condition expression over its read attributes: the object's or the request's. */
     resolve(expression: ConditionExpression): Predicate {
         const fields = expression.kind === "resource" ? this.#attributes : this.#context;
 
@@ -120,12 +120,12 @@ export class Policy<Name extends string = string> {
         });
     }
 
-    /** Reference one of this type's declared permissions, a Permission since the policy declares it. */
+    /** Reference a declared permission of this type, a Permission since the policy declares it. */
     permission(name: Name): Permission;
     /**
-     * Reference one of this type's declared permissions after checking the declaration.
+     * Reference a declared permission of this type after checking the declaration.
      *
-     * @construct the policy declares the permission, and Policy.permission is the one place a Permission brand is created.
+     * @construct the policy declares it, and Policy.permission alone creates a Permission brand.
      */
     permission(name: Name): PermissionReference {
         // require a declared permission
@@ -140,7 +140,7 @@ export class Policy<Name extends string = string> {
         };
     }
 
-    /** Determine whether a subject is one object of this type, rather than a set or another type's object. */
+    /** Determine whether a subject is one object of this type, not a set or another type's. */
     is(subject: Subject): boolean {
         return (
             subject.relation === undefined &&
@@ -189,7 +189,7 @@ export class Policy<Name extends string = string> {
     }
 }
 
-/** A subject type taken from a policy: the members of one of its relations, or all of its objects. */
+/** A subject type from a policy: the members of one of its relations, or all its objects. */
 export class PolicySubject {
     /** The policy whose objects are the subjects. */
     readonly policy: Policy;
@@ -244,22 +244,18 @@ declare const DECLARED: unique symbol;
 /** A permission of a policy, produced by `Policy.permission`. */
 export type Permission = PermissionReference & { readonly [DECLARED]: true };
 
-/**
- * A subject type accepted by a policy.
- *
- * It is a policy's objects or members, a qualified subject type, or a type of the declaring package written `type`, `type#relation` or `type:*`.
- */
+/** A subject type accepted by a policy. */
 export type SubjectTypeInput = string | Policy | PolicySubject | SubjectType;
 
 /** A relation as declared, with subject types not yet qualified by package. */
 export interface RelationInput {
     /** The subject types the relation accepts. */
     readonly subjects: readonly SubjectTypeInput[];
-    /** The permission to grant and revoke the relation: the policy's when absent, none when null. */
+    /** The permission to grant and revoke the relation: the policy's if absent, none if null. */
     readonly grantedBy?: string | null;
-    /** Whether other types contribute themselves as subject types, as the hosts of an attachment do. */
+    /** Whether other types add themselves as subject types, as an attachment's hosts do. */
     readonly open?: true;
-    /** Whether the relation is to the scope containing each object, which the scope chain decides rather than a row, of any scope type without subject types. */
+    /** Whether the relation is to each object's containing scope, decided by the scope chain. */
     readonly isScope?: true;
     /** Whether the relation's relationships show only to holders of the permission granting it. */
     readonly concealed?: true;
@@ -298,15 +294,15 @@ interface PolicyFields<Name extends string> {
     readonly grantedBy?: NoInfer<Name>;
     /** The permission whose holders see the objects' relationships, `read` by default. */
     readonly relationships?: { readonly read: NoInfer<Name> };
-    /** Permissions owners' roles leave out, granted only by their expressions and the roles naming them. */
+    /** Permissions owner roles leave out, granted only by their expressions and listing roles. */
     readonly reserved?: readonly NoInfer<Name>[];
-    /** Sensitive permissions that apply only after the authentication each names, whoever has them. */
+    /** Sensitive permissions that apply only after their required authentication. */
     readonly elevated?: Readonly<Partial<Record<NoInfer<Name>, Elevation>>>;
-    /** Permissions that stay available while the scope is suspended, such as reading and resuming it. */
+    /** Permissions available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly NoInfer<Name>[];
     /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: boolean;
-    /** The open relations of other types this type's objects may be subjects of, such as an attachment's parent. */
+    /** The open relations of other types this type's objects join, as an attachment's parent. */
     readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];
 }
 
@@ -336,7 +332,7 @@ function qualifyRelations<Name extends string>(
     );
 }
 
-/** Require every relation kept in rows to accept a subject type unless other types contribute them. */
+/** Require every row relation to accept a subject type unless other types add themselves. */
 function requireSubjectTypes(relations: Readonly<Record<string, RelationDefinition>>): void {
     for (const [name, relation] of Object.entries(relations)) {
         if (relation.subjects.length === 0 && relation.open !== true && relation.isScope !== true) {

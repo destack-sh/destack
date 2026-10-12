@@ -15,7 +15,7 @@ function describe(access: Access | undefined) {
             scopes: access.scopes,
             authorities: access.authorities,
             grants: [...access.grants],
-            readers: access.granting(node.permission("read")),
+            grantedRoles: access.grantedRoles,
             isSuspended: access.isSuspended,
             moved: access.moved,
             until: access.until,

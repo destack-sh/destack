@@ -52,12 +52,12 @@ type RelationshipFields = {
 
 /** The first relationships of a new object and the owners of a new scope. */
 export interface Creation {
-    /** The relations the object's first holders hold. */
+    /** The relationships the object starts with. */
     readonly relationships?: readonly {
         readonly relation: string;
         readonly subject: Subject;
     }[];
-    /** The subject a new scope's owner role binds to, absent when the owners of the scopes containing it own it. */
+    /** The subject of a new scope's owner role, absent if its containing scopes' owners suffice. */
     readonly owner?: Subject;
 }
 
@@ -73,12 +73,12 @@ export class Authorization {
     readonly #context: () => AccessContext;
     /** The caller's access resolved in each scope during this call, until renewed. */
     readonly #resolved = new Map<string, Promise<Access>>();
-    /** The caller's access in the scopes below each scope, absent for a scope it does not enclose, until renewed. */
+    /** The caller's access in the scopes below each scope until renewed, absent outside it. */
     readonly #below = new Map<string, Map<string, Access | undefined>>();
-    /** The declaration this authorization applies, whose rows it alone changes, null for a caller changing access itself. */
+    /** The applied declaration, whose rows only it changes, null for direct access changes. */
     #manager: Manager | null = null;
 
-    /** Authorize one caller, read when it acts, within a transaction, with its access already resolved in some scope. */
+    /** Authorize one caller, read when it acts, in a transaction, with access in some scope. */
     constructor(
         authorizer: Authorizer,
         transaction: Transaction,
@@ -107,7 +107,7 @@ export class Authorization {
         );
     }
 
-    /** Authorize the same caller applying a declaration: its writes are managed by it, and it changes the rows the declaration manages. */
+    /** Authorize the caller applying a declaration that manages its writes and changes its rows. */
     applying(manager: Manager): Authorization {
         const applying = new Authorization(this.authorizer, this.transaction, this.#context);
         applying.#manager = manager;
@@ -120,7 +120,7 @@ export class Authorization {
         return this.#context();
     }
 
-    /** Resolve the caller's access in a scope once per call: its subject sets, roles and scope chain. */
+    /** Resolve the caller's access in a scope once per call: subject sets, roles, scope chain. */
     in(scope: string): Promise<Access> {
         // resolve each scope once, until renewed
         const known = this.#resolved.get(scope);
@@ -161,7 +161,7 @@ export class Authorization {
         await this.authorizer.require(this.snapshot, [permission], target, access);
     }
 
-    /** Check a permission on current or past rows of a scope and return the rows permitted and until when. */
+    /** Check a permission on a scope's current or past rows. */
     async checkRows(
         permission: PermissionReference,
         scope: string,
@@ -183,7 +183,7 @@ export class Authorization {
         );
     }
 
-    /** Resolve the caller's access in the scopes a scope encloses, in reads shared by all of them. */
+    /** Resolve the caller's access in a scope's enclosed scopes, in reads shared by all. */
     async descend(scope: string, below: readonly string[]): Promise<Map<string, Access>> {
         // resolve the scopes not resolved before together
         const known = this.#below.get(scope) ?? new Map<string, Access | undefined>();
@@ -208,7 +208,7 @@ export class Authorization {
         return enclosing;
     }
 
-    /** Record a new object's access: a scope's containing scopes, its first relationships and a scope's owner role. */
+    /** Record a new object's access: containing scopes, first relationships, and owner role. */
     async create(object: ObjectReference, creation: Creation): Promise<void> {
         // read the containing scopes of a new scope, none below the universe
         const isScope = this.authorizer.policy(object).definition.scope === true;
@@ -221,7 +221,7 @@ export class Authorization {
         await this.receive(object, ancestors, creation);
     }
 
-    /** Record the access of an object created at its home, below the containing scopes its home lists. */
+    /** Record the access of an object created at its home, below its home's containing scopes. */
     async receive(
         object: ObjectReference,
         ancestors: readonly string[],
@@ -280,7 +280,7 @@ export class Authorization {
         this.renew();
     }
 
-    /** Read the row of a scope a new scope lives in, refusing a scope this database does not record. */
+    /** Read the row of a new scope's parent, refusing a scope this database lacks. */
     async #parent(scope: string): Promise<RowImage<typeof Scope.table>> {
         const [row] = await Scope.read(this.snapshot, [scope]);
         if (row === undefined) {
@@ -300,7 +300,7 @@ export class Authorization {
         await this.#suspension(object, null);
     }
 
-    /** Relate a subject to an object through a relation or a bound role, as the caller may grant. */
+    /** Relate a subject to an object by a relation or bound role, as the caller may grant. */
     async grant(request: RelationshipRequest): Promise<Relationship> {
         const relationship = await this.transaction.savepoint(async () => {
             await this.authorizeGrant(request);
@@ -352,7 +352,7 @@ export class Authorization {
         return { id: relationship.id, secret: linkSecret.secret };
     }
 
-    /** Invite a relationship that applies once accepted, asked for by its subject or offered by a grantor. */
+    /** Invite a relationship that applies once accepted, asked by its subject or offered. */
     async invite(request: InvitationRequest): Promise<Invitation> {
         return this.transaction.savepoint(async () => {
             // require an object this database keeps, invited by a principal or the system
@@ -449,7 +449,7 @@ export class Authorization {
         });
     }
 
-    /** Withdraw an invitation on an object: its inviting principal or addressee, or a grantor revoking it. */
+    /** Withdraw an invitation on an object as its inviter, addressee, or a revoking grantor. */
     async withdraw(object: ObjectReference, id: string): Promise<Invitation> {
         return this.transaction.savepoint(async () => {
             // let the inviting principal and the addressee withdraw without grant authority
@@ -474,7 +474,7 @@ export class Authorization {
         });
     }
 
-    /** Require an offer's inviting principal to still hold the grant, the system's offers standing as made. */
+    /** Require an offer's inviter to still have the grant, with system offers standing as made. */
     async #requireInviter(invitation: Invitation, now: number): Promise<void> {
         // let the system's offers stand as made
         if (invitation.inviter === null) {
@@ -508,7 +508,7 @@ export class Authorization {
         });
     }
 
-    /** List a page of the invitations pending on an object, ordered by identifier, as its grantors may. */
+    /** List a page of an object's pending invitations by identifier, as its grantors may. */
     async invitations(
         request: {
             readonly object: ObjectReference;
@@ -543,7 +543,7 @@ export class Authorization {
         return this.transaction.savepoint(() => this.#defineRole(scope, request));
     }
 
-    /** Change a role's name, purpose or permissions at a revision within the caller's permissions. */
+    /** Change a role's name, purpose or permissions at a revision, within the caller's rights. */
     async updateRole(
         scope: ObjectReference,
         id: string,
@@ -585,7 +585,7 @@ export class Authorization {
         });
     }
 
-    /** Delete an unbound role at a revision, editable or deleted through the declaration managing it. */
+    /** Delete an unbound role at a revision, managed roles only through their declaration. */
     async deleteRole(scope: ObjectReference, id: string, revision: number): Promise<Role> {
         return this.transaction.savepoint(async () => {
             // require an editable role at the revision and permission to delete roles
@@ -624,7 +624,7 @@ export class Authorization {
         });
     }
 
-    /** Keep a role by name in a scope with exactly the requested purpose and permissions, under the declaration applied if any, writing only a difference, and return it. */
+    /** Keep a role by name in a scope with exactly the requested purpose and permissions. */
     async keepRole(scope: ObjectReference, request: RoleRequest): Promise<Role> {
         return this.transaction.savepoint(async () => {
             // read the role holding the name, defining it when none does
@@ -689,7 +689,7 @@ export class Authorization {
         return Role.describe(record, request.permissions);
     }
 
-    /** Bind a role on an object to one subject alone as the caller may, revoking its other bindings and writing nothing when bound so already. */
+    /** Bind a role on an object to one subject alone as the caller may. */
     async assign(object: ObjectReference, role: string, subject: Subject): Promise<Relationship> {
         const relationship = await this.transaction.savepoint(async () => {
             // read the role's bindings
@@ -724,7 +724,7 @@ export class Authorization {
         return relationship;
     }
 
-    /** Keep exactly the wanted relationships among those a selection covers as the caller may, leaving the ones still wanted and granting new ones under the declaration applied if any. */
+    /** Keep exactly the wanted relationships among a selection's, as the caller may. */
     async keepRelationships(
         selection: RelationshipSelection,
         wanted: readonly RelationshipRequest[],
@@ -761,7 +761,7 @@ export class Authorization {
         this.renew();
     }
 
-    /** Keep one role by name in a scope granting exactly some permissions, bound to one subject on the scope or an object in it under the binding's conditions, as the declaration applied, dropping both when it grants none. */
+    /** Keep one role by name in a scope granting exactly some permissions, as the declaration. */
     async keepGrant(
         scope: ObjectReference,
         grant: Omit<RoleRequest, "permissions"> & {
@@ -771,7 +771,7 @@ export class Authorization {
             readonly subject: Subject;
             /** The object in the scope the role is bound on, the scope itself when absent. */
             readonly object?: ObjectReference;
-            /** What a request must satisfy for the binding to apply, such as the principal a delegate acts for. */
+            /** What a request must meet for the binding to apply, such as a delegator. */
             readonly conditions?: RelationshipCondition;
         },
     ): Promise<void> {
@@ -802,7 +802,7 @@ export class Authorization {
         ]);
     }
 
-    /** Require permissions to change roles in a scope this database keeps as the transaction shows the caller's access afresh, refusing a managed role outside its declaration. */
+    /** Require permissions to change roles in a kept scope, from fresh caller access. */
     protected async authorizeRole(
         scope: ObjectReference,
         permissions: readonly PermissionReference[],
@@ -819,7 +819,7 @@ export class Authorization {
         await this.authorizer.require(this.snapshot, permissions, scope, access);
     }
 
-    /** Require the grant permission and every permission a granted role grants, or only the lender for a delegation. */
+    /** Require grant and every granted role permission, or only the lender for a delegation. */
     protected async authorizeGrant(request: RelationshipFields): Promise<void> {
         // write only the access of an object this database keeps
         await this.authorizer.requireLocal(this.transaction, request.object);
@@ -868,7 +868,7 @@ export class Authorization {
         }
     }
 
-    /** Require an object this database keeps and the permission granting what a relationship grants, unless the caller lent it, refusing a managed relationship outside its declaration. */
+    /** Require a kept object and the permission granting a relationship's grant. */
     protected async authorizeRevoke(
         request: RelationshipFields,
         record?: Select<typeof accessRelationship>,
@@ -897,7 +897,7 @@ export class Authorization {
         );
     }
 
-    /** Insert a valid relationship under a new identifier and the declaration applied if any, and refuse a duplicate. */
+    /** Insert a valid relationship under a new identifier and declaration, refusing duplicates. */
     async #insert(request: RelationshipRequest): Promise<Relationship> {
         // build the relationship
         const scope = this.authorizer.governingScope(request.object);
@@ -978,7 +978,7 @@ export class Authorization {
     }
 }
 
-/** Refuse changing a row that a declaration manages until it is detached, unless the change applies that declaration's installation and package. */
+/** Refuse changing a declaration's managed row until detached. */
 function requireChangeable(
     record: {
         readonly managerInstallationId: string | null;
@@ -1028,7 +1028,7 @@ async function requireRemainingOwner(
     }
 }
 
-/** Report whether a relationship binds a role on an object to a subject, unconditionally and without expiry. */
+/** Report whether a relationship binds a role to a subject without condition or expiry. */
 function isBinding(
     relationship: Relationship,
     request: { readonly object: ObjectReference; readonly role: string; readonly subject: Subject },
@@ -1054,7 +1054,7 @@ function isManagedBy(record: Select<typeof accessRole>, manager: Manager | null)
     );
 }
 
-/** Name a relationship by what it grants: its object, relation or role, subject, expiry and conditions. */
+/** Identify a relationship by its grant: object, relation or role, subject, expiry, conditions. */
 function identityOf(relationship: RelationshipRequest | Relationship): string {
     return JSON.stringify([
         ObjectReference.key(relationship.object),

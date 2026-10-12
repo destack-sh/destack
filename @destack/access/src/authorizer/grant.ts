@@ -1,5 +1,5 @@
 import { AccessContext } from "../context/context.ts";
-import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
+import { ObjectReference, type ObjectTypeReference, Scope, Subject } from "@destack/sync";
 import { type Match, Predicate, type Row, type Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { found, schema } from "@destack/schema";
@@ -8,14 +8,14 @@ import { CONTAINED, type AccessExpression } from "../declare/expression.ts";
 import { type PermissionReference } from "../declare/policy.ts";
 import { accepts, type RelationDefinition } from "../declare/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import type { RelationshipRow } from "../relationship/table.ts";
+import type { RelationshipRow, RoleBinding } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
 import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { GrantCondition } from "./condition.ts";
 import { TableMapping } from "./mapping.ts";
 
-/** The most identifiers one bulk read names: well within the parameter budget, and a page of rows. */
+/** The most identifiers per bulk read: well within the parameter budget, and a page of rows. */
 const PREFETCH_CHUNK = 500;
 
 /** One way a row admits callers: its subject, the conditions it applies under and how it grants. */
@@ -24,13 +24,17 @@ export interface Grant {
     readonly subject: Subject;
     /** The relationship's conditions, absent for a subject in a row field. */
     readonly condition?: GrantCondition;
-    /** The bound role and the permission it must grant, absent for a role that must grant everything. */
-    readonly role?: { readonly id: string; readonly permission?: PermissionReference };
+    /** The bound role, its binding, and its required permission, null if it must grant all. */
+    readonly role?: {
+        readonly id: string;
+        readonly binding: string;
+        readonly permission: PermissionReference | null;
+    };
     /** The conditions of the arrows to the grant, which must pass without delegation. */
     readonly arrows: readonly GrantCondition[];
     /** The object the relationship, field or role binding sits on. */
     readonly object: ObjectReference;
-    /** How the permission reaches the grant: permissions, arrows and the final relation or role, in order. */
+    /** How the permission leads to the grant: permissions, arrows, then the relation or role. */
     readonly path: readonly string[];
 }
 
@@ -88,10 +92,7 @@ interface Trail {
     readonly path: readonly string[];
 }
 
-/** A relationship binding a role. */
-type RoleBinding = RelationshipRow & { readonly roleId: string };
-
-/** Collect, once for every caller, the grant trees a permission reaches on rows of one mapped type. */
+/** Collect the grant trees of a permission on rows of one mapped type, once for all callers. */
 export class GrantReader {
     /** The authorizer whose policies define the grants. */
     readonly #authorizer: Authorizer;
@@ -103,6 +104,8 @@ export class GrantReader {
     readonly #chains = new Map<string, readonly ObjectReference[]>();
     /** The relationships of each object read so far, by object key. */
     readonly #read = new Map<string, Promise<RelationshipRow[]>>();
+    /** The role bindings of each owner scope's chain read so far, by scope. */
+    readonly #chainBound = new Map<string, Promise<RoleBinding[]>>();
     /** The proper ancestors of each node read so far, by tree, scope and node. */
     readonly #ancestry = new Map<string, Promise<string[]>>();
     /** The rows read so far, absent where none exists, by type, scope and identifier. */
@@ -115,7 +118,7 @@ export class GrantReader {
         this.#scopes = scopes;
     }
 
-    /** Decide the rows of a scope the reader's scope encloses by that scope's own chain, nearest first. */
+    /** Decide an enclosed scope's rows by that scope's own chain, nearest first. */
     cover(scopes: readonly ObjectReference[]): void {
         const [nearest] = scopes;
         if (nearest !== undefined) {
@@ -139,10 +142,10 @@ export class GrantReader {
     async ownership(row: Row, mapping: TableMapping): Promise<GrantTree> {
         await this.#prefetch(mapping, [row]);
 
-        return any(await this.#bound(undefined, mapping, row, { arrows: [], path: ["ownership"] }));
+        return any(await this.#bound(null, mapping, row, { arrows: [], path: ["ownership"] }));
     }
 
-    /** Collect the grant tree of a permission on one row, by default of the permission's own type. */
+    /** Collect the grant tree of a permission on one row, of the permission's type by default. */
     async tree(
         permission: PermissionReference,
         row: Row,
@@ -156,11 +159,7 @@ export class GrantReader {
         return tree;
     }
 
-    /**
-     * Collect the grant tree of a permission on each row, by default of the permission's own type.
-     *
-     * On rows of another type, only the roles bound on or above them grant the permission.
-     */
+    /** Collect the grant tree of a permission on each row. */
     async trees(
         permission: PermissionReference,
         rows: readonly Row[],
@@ -182,7 +181,7 @@ export class GrantReader {
         );
     }
 
-    /** Read the relationships of some rows, of their tree ancestors and of their scope chains with one query per chunk. */
+    /** Read the relationships of rows, tree ancestors and scope chains, one query per chunk. */
     async #prefetch(mapping: TableMapping, rows: readonly Row[]): Promise<void> {
         // read the ancestry of each scope's rows in every tree of their type
         const definition = mapping.policy.definition;
@@ -233,7 +232,7 @@ export class GrantReader {
         }
     }
 
-    /** Collect a permission's tree: its expression's, or the roles bound on the row, above it, or on its scopes. */
+    /** Collect a permission's tree: its expression's, or its bound roles. */
     async #permission(
         permission: PermissionReference,
         mapping: TableMapping,
@@ -319,7 +318,7 @@ export class GrantReader {
         }
     }
 
-    /** Grant a row to the principals inside its scope, or inside the scope it is, of the named types when given. */
+    /** Grant a row to principals inside its scope or the scope it is, of some types when given. */
     #contained(
         expression: Extract<AccessExpression, { kind: "contained" }>,
         mapping: TableMapping,
@@ -377,7 +376,7 @@ export class GrantReader {
               };
     }
 
-    /** Collect the tree of the grant permission of the object a row references, where this database keeps it. */
+    /** Collect the grant permission tree of a row's referenced object, where kept here. */
     async #granters(
         reference: string,
         mapping: TableMapping,
@@ -410,7 +409,7 @@ export class GrantReader {
               });
     }
 
-    /** Collect the tree of whoever sees the relationships of the object a row references, a concealed relation's only through its grant permission. */
+    /** Collect the tree of who sees the relationships of a row's referenced object. */
     async #readers(
         expression: Extract<AccessExpression, { kind: "readers" }>,
         mapping: TableMapping,
@@ -502,7 +501,7 @@ export class GrantReader {
             }));
     }
 
-    /** Read the subject a row's field keeps: a subject key, an identifier of the relation's one type, or typed columns. */
+    /** Read a field's subject: a subject key, an identifier of the one type, or typed columns. */
     #fieldSubject(
         name: string,
         mapping: TableMapping,
@@ -543,7 +542,7 @@ export class GrantReader {
         }
     }
 
-    /** Collect the trees of a related object's permission, through a field, the ancestors, or relationships. */
+    /** Collect the trees of a related object's permission by field, ancestors or relationships. */
     async #through(
         expression: Extract<AccessExpression, { kind: "through" }>,
         mapping: TableMapping,
@@ -566,7 +565,7 @@ export class GrantReader {
         return this.#throughField(expression, mapping, field, row, scope, trail);
     }
 
-    /** Follow a row's relationships to plain objects in its scope and add each arrow's conditions. */
+    /** Follow a row's relationships to plain objects in its scope, adding arrow conditions. */
     async #throughRelationships(
         expression: Extract<AccessExpression, { kind: "through" }>,
         mapping: TableMapping,
@@ -594,7 +593,7 @@ export class GrantReader {
         return some(trees);
     }
 
-    /** Collect the trees of the object one relationship relates, none for a type the relation does not accept. */
+    /** Collect the trees of one relationship's object, none for a type the relation refuses. */
     async #throughRelationship(
         expression: Extract<AccessExpression, { kind: "through" }>,
         relation: RelationDefinition,
@@ -633,7 +632,7 @@ export class GrantReader {
         return trees;
     }
 
-    /** Follow the parent a field refers to, or its ancestors, in the row's scope or the scope the field gives. */
+    /** Follow a field's parent or its ancestors, in the row's scope or the field's scope. */
     async #throughField(
         expression: Extract<AccessExpression, { kind: "through" }>,
         mapping: TableMapping,
@@ -686,7 +685,7 @@ export class GrantReader {
         return some(trees);
     }
 
-    /** Collect the relationships and containment sets on the objects of a row's scope chain that grant the enclosing scope's permission. */
+    /** Collect the chain objects' relationships and containment sets granting the permission. */
     async #enclosing(
         expression: Extract<AccessExpression, { kind: "through" }>,
         mapping: TableMapping,
@@ -738,9 +737,9 @@ export class GrantReader {
         return some([any(grants.flat()), ...contained]);
     }
 
-    /** Collect the role bindings on the row, its ancestors, owners or scope chain that grant a permission. */
+    /** Collect the role bindings granting a permission on the row, ancestors, owners or chain. */
     async #bound(
-        permission: PermissionReference | undefined,
+        permission: PermissionReference | null,
         mapping: TableMapping,
         row: Row,
         trail: Trail,
@@ -753,18 +752,80 @@ export class GrantReader {
         return bindings.map((entry) => ({
             subject: subjectOf(entry),
             condition: new GrantCondition(entry),
-            role: { id: entry.roleId, ...(permission === undefined ? {} : { permission }) },
+            role: { id: entry.roleId, binding: entry.id, permission },
             object: relatedObject(entry),
             path: [...trail.path, `role ${entry.roleId} bound on ${entry.type} ${entry.objectId}`],
             arrows: trail.arrows,
         }));
     }
 
-    /** Read the role bindings on the row itself, its tree ancestors, or its owning parent's chain. */
+    /** Read role bindings on the row, its ancestors or owning parent's chain, and its owner. */
     async #covering(mapping: TableMapping, row: Row): Promise<RoleBinding[]> {
+        const [placed, owned] = await Promise.all([
+            this.#placed(mapping, row),
+            mapping.owner === undefined ? [] : this.#owned(mapping, mapping.owner, row),
+        ]);
+
+        return [...placed, ...owned];
+    }
+
+    /** Read the role bindings covering a row relation's owner, and on its enclosing scopes. */
+    async #owned(mapping: TableMapping, relation: string, row: Row): Promise<RoleBinding[]> {
+        // find the owner the relation's field refers to, none for an unset field
+        const subject = this.#authorizer.onlySubject(mapping.policy, relation);
+        const target = this.#authorizer.mapping(subject);
+        const field = TableMapping.field(mapping, relation);
+        const value = row[field.column];
+        if (value === null || value === undefined) {
+            return [];
+        }
+        const referred = schema.string().parse(value);
+
+        // read a scope owner's bindings and those of the scopes enclosing it by its chain alone
+        if (target.policy.definition.scope === true) {
+            return await this.#chainBindings(referred);
+        }
+
+        // read any other owner's coverage, and the bindings of its scope's chain
+        const owners = await this.#rows(target, field.scope ?? TableMapping.scope(mapping, row), [
+            referred,
+        ]);
+        const bindings = await Promise.all(
+            owners.map(async (owner) => [
+                ...(await this.#covering(target, owner)),
+                ...(await this.#chainBindings(TableMapping.scope(target, owner))),
+            ]),
+        );
+
+        return bindings.flat();
+    }
+
+    /** Read the role bindings on a scope's object and the scopes enclosing it, once per scope. */
+    #chainBindings(scope: string): Promise<RoleBinding[]> {
+        // reuse the bindings of a chain read before
+        const known = this.#chainBound.get(scope);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // read the chain's objects and their bindings
+        const read = Scope.chain(this.#snapshot, scope).then(async (links) => {
+            const bindings = await Promise.all(
+                links.map((link) => this.#relationships(link.object)),
+            );
+
+            return bindings.flat().filter(Relationship.isBinding);
+        });
+        this.#chainBound.set(scope, read);
+
+        return read;
+    }
+
+    /** Read the role bindings on the row, its tree ancestors, or its owning parent's chain. */
+    async #placed(mapping: TableMapping, row: Row): Promise<RoleBinding[]> {
         // read the bindings on the row
         const definition = mapping.policy.definition;
-        const direct = (await this.#relationshipsOf(mapping, row)).filter(isRoleBinding);
+        const direct = (await this.#relationshipsOf(mapping, row)).filter(Relationship.isBinding);
         const parent = mapping.parent;
         const tree = parent === undefined ? undefined : mapping.trees?.[parent];
 
@@ -783,7 +844,7 @@ export class GrantReader {
                 ),
             );
 
-            return [...direct, ...above.flat().filter(isRoleBinding)];
+            return [...direct, ...above.flat().filter(Relationship.isBinding)];
         }
         // read the bindings covering the owning parent
         else if (parent !== undefined) {
@@ -814,7 +875,7 @@ export class GrantReader {
             this.#chain(scope).map((object) => this.#relationships(object)),
         );
 
-        return bindings.flat().filter(isRoleBinding);
+        return bindings.flat().filter(Relationship.isBinding);
     }
 
     /** Read the chain deciding a scope's rows: its own when covered, the reader's otherwise. */
@@ -899,11 +960,6 @@ export class GrantReader {
     }
 }
 
-/** Determine whether a relationship binds a role. */
-function isRoleBinding(entry: RelationshipRow): entry is RoleBinding {
-    return entry.roleId !== null;
-}
-
 /** Reference the object a mapped row is. */
 function objectOf(mapping: TableMapping, row: Row): ObjectReference {
     const definition = mapping.policy.definition;
@@ -980,7 +1036,7 @@ export const GrantTree = {
         }
     },
 
-    /** Decide whether a tree admits one authority of a caller, as the compiled predicate does in SQL. */
+    /** Decide whether a tree admits one caller authority, as the compiled SQL predicate does. */
     permits(tree: GrantTree, authority: Authority, access: Access): boolean {
         switch (tree.kind) {
             case "any":

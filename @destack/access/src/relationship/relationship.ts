@@ -12,7 +12,12 @@ import {
 import { defineSchema, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import type { Manager } from "../manager/manager.ts";
-import { accessRelationship, type RelationshipColumnMap, type RelationshipRow } from "./table.ts";
+import {
+    accessRelationship,
+    type RelationshipColumnMap,
+    type RelationshipRow,
+    type RoleBinding,
+} from "./table.ts";
 
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
 export const RelationshipCondition = defineSchema(
@@ -30,7 +35,7 @@ export const RelationshipCondition = defineSchema(
         assurance: schema.number().int().min(1).max(3).exactOptional(),
         /** Apply only within this many milliseconds of the caller's authentication. */
         maxAge: schema.number().int().positive().exactOptional(),
-        /** Apply only to a delegate acting for this principal, lending the principal's authority: a delegation. */
+        /** Apply only to a delegate acting for this principal, with its lent authority. */
         onBehalfOf: Subject.exactOptional(),
     }),
 );
@@ -53,7 +58,7 @@ export const relationshipBase = schema.object({
     conditions: RelationshipCondition.exactOptional(),
 });
 
-/** The schema of a relationship: an object related to a subject through a declared relation, or a bound role. */
+/** The schema of a relationship: an object related to a subject by relation or role. */
 const relationshipSchema = defineSchema(
     schema.union([
         relationshipBase.extend({
@@ -81,7 +86,7 @@ export type RelationshipRequest = {
     readonly conditions?: RelationshipCondition;
 } & ({ readonly relation: string } | { readonly role: string });
 
-/** An object related to a subject through a declared relation or a bound role: its schema, and its rows. */
+/** An object related to a subject by a declared relation or bound role: schema and rows. */
 export const Relationship = {
     /** The schema of a relationship. */
     schema: relationshipSchema,
@@ -90,6 +95,7 @@ export const Relationship = {
     on,
     readByObject,
     readBySubject,
+    isBinding,
     heldBy,
     equal,
     objectColumns,
@@ -98,7 +104,7 @@ export const Relationship = {
     viaColumns,
 };
 
-/** The relationships of a scope a keep covers: one subject's through one relation on objects of some types, or, given the scope alone, those the declaration being applied manages. */
+/** The scope's relationships a keep covers. */
 export type RelationshipSelection = {
     /** The scope the relationships live in. */
     readonly scope: string;
@@ -203,7 +209,7 @@ async function readByObject(
     );
 }
 
-/** Read the relationships of some subjects as a snapshot shows them: plain subjects exactly and through wildcards, sets exactly. */
+/** Read some subjects' relationships in a snapshot: plain ones also by wildcard, sets exactly. */
 async function readBySubject(
     snapshot: Snapshot,
     subjects: readonly Subject[],
@@ -249,7 +255,7 @@ async function readBySubject(
     );
 }
 
-/** Match the relationships some subjects hold, with the wildcards plain subjects match, as a condition on relationship rows. */
+/** Match some subjects' relationships, with plain subjects' wildcards, as a row condition. */
 function heldBy(subjects: readonly Subject[]): OpenCondition {
     return {
         OR: subjects.map((subject) => {
@@ -279,7 +285,7 @@ function on(
     )`;
 }
 
-/** Match the rows relating the same tuple as an encoded relationship, as the unique relationship tuple compares them. */
+/** Match the rows with an encoded relationship's tuple, as the unique tuple compares them. */
 function equal(row: ReturnType<typeof encode>): Condition<RelationshipRow> {
     return {
         ...objectColumns({
@@ -304,7 +310,7 @@ function equal(row: ReturnType<typeof encode>): Condition<RelationshipRow> {
     };
 }
 
-/** Read the relationships a selection covers as a transaction sees them: a subject's through a relation on the selected types, or those the declaration being applied manages. */
+/** Read a selection's relationships as a transaction sees them. */
 export async function readSelected(
     transaction: Transaction,
     selection: RelationshipSelection,
@@ -368,7 +374,7 @@ function nullable<Value extends Comparable>(
     return value === null ? { isNull: true } : value;
 }
 
-/** Read whether a relationship row relates through a relation or a role, refusing a row with neither or both. */
+/** Read whether a relationship row uses a relation or role, refusing neither or both. */
 function viaOf(
     row: Pick<Select<typeof accessRelationship>, "id" | "relation" | "roleId">,
 ): { readonly relation: string } | { readonly role: string } {
@@ -395,4 +401,9 @@ function viaColumns(relationship: { readonly relation: string } | { readonly rol
     return "relation" in relationship
         ? { relation: relationship.relation, roleId: null }
         : { relation: null, roleId: schema.identifier("role").parse(relationship.role) };
+}
+
+/** Decide whether a relationship binds a role. */
+function isBinding(row: RelationshipRow): row is RoleBinding {
+    return row.roleId !== null;
 }
