@@ -6,7 +6,7 @@ const FINAL_STATUSES = new Set([400, 403, 404, 409, 412, 422]);
 
 /** Decide which outcomes a retry of a request replays instead of running the call again. */
 export const Replay = {
-    /** Describe a final failure as the outcome a retry replays, absent for one a retry runs again. */
+    /** Describe a final failure as the outcome a retry replays. */
     failure(error: unknown): { readonly kind: "failure"; readonly error: Failure } | undefined {
         const failure = ServiceError.of(error);
         const outcome =

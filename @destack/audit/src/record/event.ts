@@ -7,10 +7,10 @@ import { AUDIT_CATEGORIES, AUDIT_OUTCOMES } from "./execution.ts";
 /** How long an hour is, in milliseconds. */
 const HOUR = 60 * 60 * 1000;
 
-/** How long a scope keeps its calls unless its policy says otherwise: 400 days, as admin activity logs are kept. */
+/** How long a scope keeps its calls unless its policy says otherwise. */
 const RETENTION = 400 * 24 * HOUR;
 
-/** A call executed in a scope: who ran which method on what, and how it ended, copied to every scope enclosing it. */
+/** A call executed in a scope: who ran which method on what, and how it ended. */
 export const call = defineEventKind({
     name: "call",
     description: "A call executed in a scope: who ran which method on what, and how it ended.",

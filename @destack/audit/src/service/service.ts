@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { AuditBatch } from "./batch.ts";
 import type {} from "@destack/package/import-meta";
 
-/** A procedure the principals delivering journals call, each admitted for its scopes through the machine's intake. */
+/** A procedure the principals delivering journals call. */
 const procedure = defineProcedure({
     authentication: "identity",
     permission: {
@@ -13,9 +13,9 @@ const procedure = defineProcedure({
     audit: false,
 });
 
-/** The audit service: ended calls another machine's journal delivers to the scopes this history keeps. */
+/** The audit service: ended calls another machine's journal delivers to this history's scopes. */
 export const auditService = defineService("audit", {
-    /** Store a batch of ended calls another machine's journal delivers to the scopes this history keeps. */
+    /** Store a batch of ended calls that another machine's journal delivers to this history. */
     ingest: procedure
         .route({ method: "POST", path: "/audit/ingest" })
         .input(AuditBatch)

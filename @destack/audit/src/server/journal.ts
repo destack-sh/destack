@@ -32,7 +32,7 @@ import { journal } from "../stack/db.ts";
 
 /** The most calls one prune removes: about a millisecond of deletes. */
 const MAX_PRUNE_CALLS = 1000;
-/** The most calls one delivery carries by default: a history inserts a hundred in tens of milliseconds. */
+/** The most calls one delivery carries by default. */
 const DELIVERY_CALLS = 100;
 /** How long delivered calls stay by default: as long as a request identifier stays retryable. */
 const LIFETIME: Duration = { milliseconds: REQUEST_LIFETIME_MILLISECONDS };
@@ -60,7 +60,7 @@ export interface JournalOptions {
     readonly clock: Clock;
 }
 
-/** The calls of one service database: executed once per request, replayed on retries, and delivered to the audit history. */
+/** The calls of one service database. */
 export class Journal {
     /** The journal table. */
     readonly table = journal;
@@ -85,7 +85,7 @@ export class Journal {
         this.clock = options.clock;
     }
 
-    /** Fingerprint a redacted input and the sensitive values it left out, the latter under the key. */
+    /** Fingerprint a redacted input and the sensitive values it left out, those under the key. */
     async fingerprint(redacted: unknown, sensitive: readonly unknown[]): Promise<string> {
         // digest the sensitive values under the deployment's key, absent for none
         const keyed =
@@ -158,7 +158,7 @@ export class Journal {
         }
     }
 
-    /** Key a call for replay when a retry of its request should see its final outcome again, null otherwise. */
+    /** Key a call for replay when a retry of its request should see its final outcome again. */
     static #replayKey(
         execution: JournalEntry["execution"],
         caller: string | undefined,
@@ -222,7 +222,7 @@ export class Journal {
         }
     }
 
-    /** Answer a request a previous copy recorded with its results or its failure, absent before it ran. */
+    /** Answer a request a previous copy recorded, with its results or its failure. */
     async replay(
         request: RequestIdentity,
         fingerprint: string,
@@ -233,7 +233,7 @@ export class Journal {
         return recorded.length === 0 ? undefined : Journal.#replay(recorded, fingerprint);
     }
 
-    /** Read recorded calls oldest first: the audited ones unless asked for every call, the pending ones when asked. */
+    /** Read recorded calls oldest first. */
     async read(
         options: {
             readonly limit?: number;
@@ -299,7 +299,7 @@ export class Journal {
         return rows.length;
     }
 
-    /** Deliver the oldest ended audited calls waiting for delivery to a history as one batch, returning how many. */
+    /** Deliver the oldest ended audited calls waiting for delivery to a history as one batch. */
     async deliver(history: AuditDestination, signal?: AbortSignal): Promise<number> {
         // read the oldest pending batch
         const rows = await this.#pending(this.batch);
@@ -329,7 +329,7 @@ export class Journal {
         return rows.length;
     }
 
-    /** Deliver audited calls to a history as they commit, and remove calls past their lifetime once removable. */
+    /** Deliver audited calls to a history as they commit. */
     controller(history?: AuditDestination): Controller {
         return {
             name: "journal",
@@ -404,7 +404,7 @@ export class Journal {
         return rows.map((row) => row.call);
     }
 
-    /** Key a request by its caller, scope and identifier's key, a derived identifier's key the same at every time. */
+    /** Key a request by its caller, scope and identifier's key. */
     static #request(request: RequestIdentity): string {
         return canonicalize([request.caller, request.scope, RequestId.key(request.requestId)]);
     }

@@ -10,7 +10,7 @@ import {
 } from "@destack/db";
 import { JournalEntry } from "../record/call.ts";
 
-/** The calls a service database executed, kept for retries and delivered to the audit history once they end. */
+/** The calls a service database executed. */
 export const journal = defineTable(
     "journal",
     {
@@ -22,7 +22,7 @@ export const journal = defineTable(
         method: text("method").notNull(),
         /** The caller of the request the call belongs to, whose clients follow its outcome. */
         caller: text("caller"),
-        /** The caller, scope and request a retry replays the call under, absent for outcomes a retry runs again. */
+        /** The caller, scope and request a retry replays the call under. */
         request: text("request"),
         /** The call's place in its request. */
         position: integer("position").notNull(),

@@ -16,7 +16,7 @@ import { serviceInvoke } from "../record/action.ts";
 /** The machine-selected origin of calls. */
 export type AuditOrigin = Omit<AuditContext, "caller" | "deploymentId" | "traceId">;
 
-/** What a recorder records about the calls beside their caller: the request they answer, and the component of a principal's own code making them. */
+/** What a recorder records about the calls beside their caller. */
 export interface AuditCalled {
     /** The request the calls answer. */
     readonly requestId?: string;
@@ -83,7 +83,7 @@ export class AuditRecorder<Transaction = never> {
     /** The writer calls go to. */
     readonly #writer: AuditWriter<Transaction>;
 
-    /** Record a caller's calls: the represented subject and its delegates, or anyone for an anonymous caller, with the credential, deployment and Loan it presented. */
+    /** Record a caller's calls. */
     static from<Transaction>(
         caller: Caller,
         writer: AuditWriter<Transaction>,
@@ -129,7 +129,7 @@ export class AuditRecorder<Transaction = never> {
         );
     }
 
-    /** Open a recorder of a service's calls in a scope, for a caller, its request and the component of a principal running its own code. */
+    /** Open a recorder of a service's calls in a scope. */
     static service<Transaction>(
         writer: AuditWriter<Transaction>,
         origin: Omit<AuditOrigin, "scope">,
@@ -178,7 +178,7 @@ export class AuditRecorder<Transaction = never> {
         };
     }
 
-    /** Read the outcome a failed call ends with: a denial for rejected access, a failure otherwise. */
+    /** Read the outcome a failed call ends with: a denial for rejected access, else a failure. */
     static outcome(error: unknown): Exclude<Outcome, { kind: "success" }> {
         // read the service error a failure is or holds
         const known = ServiceError.of(error);
@@ -222,7 +222,7 @@ export class AuditRecorder<Transaction = never> {
         return this.#ended(transaction, action, values, category, true, request);
     }
 
-    /** Record an executed call only retries read, such as an ephemeral write no history receives. */
+    /** Record an executed call that only retries read, such as an ephemeral write. */
     async keep<Target extends schema.Schema<AuditTarget>, Details extends schema.Schema<JsonValue>>(
         transaction: Transaction | undefined,
         action: AuditAction<Target, Details>,

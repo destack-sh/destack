@@ -6,7 +6,7 @@ import {
 import type { AuditHistory } from "../history/history.ts";
 import { auditService } from "../service/index.ts";
 
-/** Implement the audit service: take the ended calls admitted machines' journals deliver into a history. */
+/** Implement the audit service. */
 export function implementAudit(options: AuditOptions): AuditImplementation {
     const implementation = implement(auditService.router).$context<ServiceContext>();
 
@@ -32,7 +32,7 @@ export function implementAudit(options: AuditOptions): AuditImplementation {
 export interface AuditOptions {
     /** The history the delivered calls are stored in. */
     readonly history: AuditHistory;
-    /** Admit a caller delivering the ended calls of some scopes, such as another machine's journal. */
+    /** Admit a caller delivering some scopes' ended calls, such as another machine's journal. */
     readonly intake: (context: ServiceContext, scopes: readonly string[]) => Promise<void>;
 }
 

@@ -5,13 +5,13 @@ import { AuditCaller } from "./actor.ts";
 /** The authority and origin of an executed call, as its machine supplied them. */
 export const AuditContext = defineSchema(
     schema.object({
-        /** The caller: a verified principal with its delegates, or anyone for an unauthenticated caller. */
+        /** The caller: a verified principal with its delegates, or anyone when unauthenticated. */
         caller: AuditCaller,
         /** The code that made the call on its principal's behalf, such as a controller's name. */
         component: schema.string().min(1).exactOptional(),
         /** The scope whose history receives the call. */
         scope: schema.string().min(1),
-        /** The Loan the caller's authority came with: its identifier and the home space that signed it. */
+        /** The Loan the caller's authority came with: its identifier and its signing home space. */
         loan: schema
             .object({
                 /** The Loan's identifier. */
@@ -24,7 +24,7 @@ export const AuditContext = defineSchema(
         package: Package,
         /** The service serving the call. */
         service: schema.string().min(1),
-        /** The installation executing the service, as the machine relaying its journal recorded it. */
+        /** The installation executing the service, as the relaying machine recorded it. */
         installationId: schema.identifier("installation").exactOptional(),
         /** The instance executing the service, as the machine relaying its journal recorded it. */
         instanceId: schema.identifier("instance").exactOptional(),

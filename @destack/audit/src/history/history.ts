@@ -7,7 +7,7 @@ import { AuditCall, type JournalEntry } from "../record/call.ts";
 import { call } from "../record/event.ts";
 import { AuditBatch } from "../service/batch.ts";
 
-/** The audited calls of each scope, kept as events of the call kind once each ends, which the event service reads. */
+/** The audited calls of each scope, kept as events of the call kind once each ends. */
 export class AuditHistory {
     /** The events the history keeps its calls in. */
     readonly store: EventStore;
@@ -31,7 +31,7 @@ export class AuditHistory {
         return batch.calls.length;
     }
 
-    /** Store a batch of an instance's journal its machine relays, recording the instance as each call's provenance. */
+    /** Store a batch of an instance's journal that its machine relays. */
     async relay(value: unknown, provenance: AuditProvenance): Promise<number> {
         // parse the batch, refusing one no journal writes
         const parsed = AuditBatch.safeParse(value);
@@ -70,7 +70,7 @@ export class AuditHistory {
         };
     }
 
-    /** Write an ended call as an event of its scope, keyed by its actor, method, package, category, outcome and target. */
+    /** Write an ended call as an event of its scope. */
     static #event(ended: AuditCall) {
         const { execution } = ended;
         const { target } = execution;
@@ -92,7 +92,7 @@ export class AuditHistory {
         };
     }
 
-    /** Require a relayed call to run in the instance's space and package, without a provenance, which only its machine records. */
+    /** Require a relayed call to run in the instance's space and package, without a provenance. */
     static #requireOrigin(relayed: AuditCall, provenance: AuditProvenance): void {
         // refuse a call of another space or package
         const { context } = relayed.execution;
@@ -114,7 +114,7 @@ export class AuditHistory {
     }
 }
 
-/** The instance whose journal a machine relays, as the machine verified it from the instance's secret. */
+/** The instance whose journal a machine relays, verified by the machine from its secret. */
 export interface AuditProvenance {
     /** The space the instance serves. */
     readonly scope: Identifier<"space">;
