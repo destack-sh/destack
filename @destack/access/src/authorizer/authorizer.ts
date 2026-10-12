@@ -117,6 +117,19 @@ export interface ChainStep {
     readonly contained?: { readonly principals?: readonly ObjectTypeReference[] };
 }
 
+/** The chain a scope's copies cover: a home's above it, or a follower's from itself. */
+export type ChainOptions =
+    | {
+          /** A home, copying the chain above it. */
+          readonly kind: "home";
+          /** The scope the home lives in, whose chain it copies before it is born. */
+          readonly parent: string;
+      }
+    | {
+          /** A follower, copying its chain from itself. */
+          readonly kind: "follower";
+      };
+
 /** Decide policies over their objects' tables, in SQL or in memory from grants. */
 export class Authorizer {
     /** The permission keys owner roles leave out, granted only by expressions and listing roles. */
@@ -734,21 +747,16 @@ export class Authorizer {
 
             return this.isLocal(transaction, scope);
         }
-        // keep the universe's access at its home, the database copying none of it
-        else if (
-            object.packageId === Scope.universe.packageId &&
-            object.type === Scope.universe.type
-        ) {
-            return !(await Replica.isCopied(
-                transaction.view(),
-                Scope.universe.id,
-                accessRelationship,
-            ));
+        // keep a scope's access where no copy brings it
+        else if (this.policy(object).definition.scope === true) {
+            return !(await Replica.isCopied(transaction.view(), object.id, accessRelationship));
         }
-
-        return this.local.some(
-            (type) => type.packageId === object.packageId && type.type === object.type,
-        );
+        // keep another type's access where its rows are local
+        else {
+            return this.local.some(
+                (type) => type.packageId === object.packageId && type.type === object.type,
+            );
+        }
     }
 
     /** Refuse writing the access rows of an object another database keeps. */
@@ -765,17 +773,22 @@ export class Authorizer {
     async chain(
         database: DatabaseConnection,
         scope: string,
-        options: { readonly isHome: boolean },
+        options: ChainOptions,
     ): Promise<Subscription[]> {
-        // read the ancestors the scope's copy lists, the scope alone until it arrives
+        // read the ancestors the scope's row lists
         const [copy] = await database
             .select({ ancestors: Scope.table.ancestors })
             .from(Scope.table)
             .where(eq(Scope.table.scope, scope));
-        const scopes = [
-            ...(options.isHome ? [] : [scope]),
-            ...(copy === undefined ? [] : [...copy.ancestors, Scope.universe.id]),
-        ];
+        const above = copy === undefined ? [] : [...copy.ancestors, Scope.universe.id];
+
+        // copy a home's chain above it, its parent's until it is born, and a follower's from itself
+        const scopes =
+            options.kind === "home"
+                ? copy === undefined
+                    ? [options.parent]
+                    : above
+                : [scope, ...above];
 
         // copy each scope's rows for the scope below
         return scopes.map((copied) =>

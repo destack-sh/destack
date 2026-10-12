@@ -31,9 +31,26 @@ export const principal = {
     }),
 };
 
+/** The principal kinds that sign in, whose wildcards stand for every signed-in caller. */
+const SIGNING = [
+    principal.user,
+    principal.machine,
+    principal.client,
+    principal.installation,
+    principal.space,
+];
+
+/** Every signed-in caller: the wildcard of each signing principal kind. */
+export const SIGNED_IN: readonly Subject[] = SIGNING.map((kind) => kind.reference("*", "*"));
+
 /** The universe, the root scope, whose roles and inherited rows apply in every scope. */
 export const universe = new Policy(SYNC_PACKAGE, {
     name: "universe",
+    relations: {
+        // every machine, and every signed-in caller, through their wildcards
+        machine: { subjects: [principal.machine.all()] },
+        "signed-in": { subjects: SIGNING.map((kind) => kind.all()) },
+    },
     permissions: { grant: none() },
     grantedBy: "grant",
     scope: true,

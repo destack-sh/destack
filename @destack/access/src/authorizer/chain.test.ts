@@ -64,7 +64,7 @@ test("copy a space's chain up to the universe from a relay, with the policies ea
 
     // relay the space's chain from the home database
     const feed = new Feed(home.database, [...accessTables, policyTable], { clock: Clock.system });
-    const requests = () => app.authorizer.chain(app.database, "personal", { isHome: false });
+    const requests = () => app.authorizer.chain(app.database, "personal", { kind: "follower" });
     const scopes = async () => (await requests()).map((request) => request.scope);
     const follow = async (scope: string) => {
         const request = (await requests()).find((entry) => entry.scope === scope);

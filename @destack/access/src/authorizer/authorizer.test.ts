@@ -784,6 +784,46 @@ databaseTest("update inherited permissions when notes move or disappear", async 
     await expectEditable(database, authorizer, node, bob, ["a", "b"]);
 });
 
+databaseTest(
+    "end a caller's access at the moment a relationship its listings read expires",
+    async ({ fixture }) => {
+        const { database, authorizer, alice, bob } = fixture;
+
+        // let bob view c until 1500
+        await Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.grant({
+                    object: node.reference("personal", "c"),
+                    relation: "viewer",
+                    subject: userSubject("bob"),
+                    expiresAt: 1500,
+                }),
+        );
+
+        // list b and c until the expiry, and only b from then on
+        const listed = async (now: number) => {
+            const access = await authorizer.resolve(Snapshot.live(database), "personal", {
+                ...bob,
+                now,
+            });
+            const read = await database
+                .select({ id: item.id })
+                .from(item)
+                .where(authorizer.where(node.permission("read"), access))
+                .orderBy(item.id);
+
+            return { until: access.until, read: read.map((row) => row.id) };
+        };
+        expect([await listed(1000), await listed(1500)]).toEqual([
+            { until: 1500, read: ["b", "c"] },
+            { until: undefined, read: ["b"] },
+        ]);
+    },
+);
+
 databaseTest("evaluate more rows than one query may bind", async ({ fixture }) => {
     const { database, authorizer, alice } = fixture;
 

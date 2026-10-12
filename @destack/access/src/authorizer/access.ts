@@ -45,7 +45,7 @@ export class Access {
     readonly moved: { readonly scope: string; readonly machine: string } | undefined;
     /** The partition of the scope's objects, absent for a scope this database lacks. */
     readonly partition: string | undefined;
-    /** The next moment time changes the caller's subject sets, roles or elevation. */
+    /** The next moment time changes the caller's relationships, sets, roles or elevation. */
     readonly until: number | undefined;
     /** The chain's and the caller's roles by permission, as one JSON list of `[permission. */
     readonly grantedRoles: string;
@@ -409,12 +409,18 @@ export class Access {
         const moments: (number | undefined)[] = [];
         let frontier = Access.#admit(subjects, expanded, authorizer, chain);
         while (frontier.length > 0) {
-            // read the sets relationships and fields make the frontier subjects members of, together
+            // read the frontier subjects' relationships and the sets their fields reach, together
             const level = frontier;
-            const [current, ...fielded] = await Promise.all([
-                currentOf(snapshot, level, context),
+            const [held, ...fielded] = await Promise.all([
+                Relationship.readBySubject(snapshot, level),
                 ...authorizer.fields.map((entry) => fieldSets(snapshot, entry, level)),
             ]);
+
+            // split the relationships the request's conditions admit into memberships and bindings
+            const current = held.filter(
+                (row) =>
+                    new GrantCondition(row).failure(context, undefined, undefined) === undefined,
+            );
             const related = current.filter((row) => isMembership(row, authorizer.memberships));
             const bound = current.filter(Relationship.isBinding);
 
@@ -423,10 +429,8 @@ export class Access {
                 bindings.set(binding.id, binding);
             }
 
-            // note when each relationship making a membership or binding a role next changes by time
-            moments.push(
-                ...[...related, ...bound].map((row) => GrantCondition.until(row, context)),
-            );
+            // note when each relationship of the frontier subjects next starts or stops applying
+            moments.push(...held.map((row) => GrantCondition.until(row, context)));
 
             // continue from each relationship's set and the permissions accepted as subject sets it decides
             const reached = [
@@ -743,19 +747,6 @@ async function readRoles(
         ),
         until: earliest(includes.map((include) => GrantCondition.until(include, context))),
     };
-}
-
-/** Read the relationships of some subjects that hold under a request's conditions. */
-async function currentOf(
-    snapshot: Snapshot,
-    subjects: readonly Subject[],
-    context: ConditionContext,
-): Promise<RelationshipRow[]> {
-    const rows = await Relationship.readBySubject(snapshot, subjects);
-
-    return rows.filter(
-        (row) => new GrantCondition(row).failure(context, undefined, undefined) === undefined,
-    );
 }
 
 /** Decide whether a relationship makes its subject a member of a set of some or all types. */
