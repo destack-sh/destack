@@ -1,6 +1,6 @@
 import type { JsonValue } from "@destack/schema";
 
-/** The HTTP status of each service error code (RFC 9110, 6585 and 8470), beside Destack's own codes. */
+/** The HTTP status of each service error code, from RFC 9110, 6585 and 8470 or from Destack. */
 export const SERVICE_ERROR_STATUSES = {
     BAD_REQUEST: 400,
     UNAUTHORIZED: 401,
