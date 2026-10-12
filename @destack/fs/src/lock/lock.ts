@@ -5,11 +5,7 @@ import { FileSystemError } from "../error/index.ts";
 /** Delay between nonblocking operating-system lock attempts. */
 const POLL_INTERVAL = 25;
 
-/**
- * An exclusive operating-system file lock.
- *
- * Its lock file belongs in a trusted directory that keeps the file's path intact while locks exist.
- */
+/** An exclusive operating-system file lock. */
 export class FileLock implements AsyncDisposable {
     /** The locked file's absolute path. */
     readonly path: string;
@@ -45,7 +41,7 @@ export class FileLock implements AsyncDisposable {
         }
     }
 
-    /** Open or create a file and lock it, absent on contention and throwing on a filesystem failure. */
+    /** Open or create a file and lock it, absent on contention, throwing on a filesystem error. */
     static async tryAcquire(path: string): Promise<FileLock | undefined> {
         // retain the file only after acquiring ownership
         const native = await open(path);

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FileSystemError } from "../error/index.ts";
 
-/** The permission bits of a runtime directory shared with the group or others, which a person's own directory lacks. */
+/** The permission bits that share a runtime directory with the group or others. */
 const SHARED_MODE = 0o077;
 
 /** Where a process finds the directory of the person's runtime files. */
@@ -17,13 +17,7 @@ export interface RuntimeDirectoryOptions {
     readonly user?: number;
 }
 
-/**
- * Find the directory of the person's runtime files, such as sockets and lock files.
- *
- * It is `XDG_RUNTIME_DIR` when set, or else a `destack-<uid>` directory under the temporary one, created with mode 0700.
- * A per-user directory that another user owns, that others may open, or that is a link is refused, as ssh-agent and tmux refuse theirs.
- * Systems without user identifiers keep runtime files in the temporary directory, which is the person's own there.
- */
+/** Find the directory of the person's runtime files, such as sockets and lock files. */
 export async function runtimeDirectory(options: RuntimeDirectoryOptions = {}): Promise<string> {
     // take the session's runtime directory
     const environment = options.environment ?? process.env;
@@ -51,7 +45,7 @@ export async function runtimeDirectory(options: RuntimeDirectoryOptions = {}): P
     return directory;
 }
 
-/** Create a directory with mode 0700 unless it exists, and read its status without following a link. */
+/** Create a directory with mode 0700 if missing, and read its status without following a link. */
 async function createPrivate(directory: string): Promise<Stats> {
     try {
         await mkdir(directory, { mode: 0o700, recursive: true });
