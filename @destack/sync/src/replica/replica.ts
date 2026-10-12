@@ -812,14 +812,16 @@ export class Replica {
         if (images.length > 0) {
             const run = new Run(await View.latest(database), EVERYONE, "collect");
             const filter = new Filter(node, new Trace(this.upstream(database, prediction)));
-            await filter.prepare(
-                images.map(({ image }) => image),
-                run,
+            const candidates = new Set(
+                await filter.prepare(
+                    images.map(({ image }) => image),
+                    run,
+                ),
             );
 
             // add the candidates to their groups
             for (const { image, sign } of images) {
-                if (filter.isCandidate(image, run)) {
+                if (candidates.has(image)) {
                     predict(node, groups, filter.resolve(image, run), sign);
                 }
             }

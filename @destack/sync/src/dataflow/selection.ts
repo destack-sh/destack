@@ -441,11 +441,11 @@ export class Selection extends Pipeline {
 
             return row;
         });
-        await this.filter.prepare(rows, run);
+        const candidates = new Set(await this.filter.prepare(rows, run));
 
         // require each to be a candidate
         return rows.map((row, index) => {
-            if (!this.filter.isCandidate(row, run)) {
+            if (!candidates.has(row)) {
                 throw new TypeError(
                     `arrangement of ${node.name} keeps non-candidate row ${keys[index]}`,
                 );

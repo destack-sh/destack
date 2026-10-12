@@ -103,8 +103,7 @@ export abstract class Pipeline {
         }
         run.decided += rows.size;
         const present = [...rows.values()].filter((row): row is Row => row !== null);
-        await this.filter.prepare(present, run);
-        const candidates = present.filter((row) => this.filter.isCandidate(row, run));
+        const candidates = await this.filter.prepare(present, run);
         const located = await this.input.locate(candidates, run);
         const partitions = new Map(zip(candidates, located));
 
@@ -158,13 +157,11 @@ export abstract class Pipeline {
     protected async matched(values: readonly ColumnValue[], run: Run): Promise<Row[][]> {
         // read and decide the partitions' rows
         const members = await this.input.members(values, run);
-        await this.filter.prepare(members.flat(), run);
+        const candidates = new Set(await this.filter.prepare(members.flat(), run));
 
         // keep the candidates with their computed values
         return members.map((rows) =>
-            rows
-                .filter((row) => this.filter.isCandidate(row, run))
-                .map((row) => this.filter.resolve(row, run)),
+            rows.filter((row) => candidates.has(row)).map((row) => this.filter.resolve(row, run)),
         );
     }
 

@@ -23,7 +23,7 @@ import { Stream } from "./stream.ts";
 import type { Upstream } from "../dataflow/upstream.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { Run, type RunCost } from "../dataflow/run.ts";
-import { Memo, View, type Cache } from "../dataflow/view.ts";
+import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
 
 /** The default count of recent changes a feed keeps in memory. */
 const FEED_CHANGES = 10_000;
@@ -83,6 +83,8 @@ export class Feed implements Cache {
     readonly #shares = new Map<Evaluation, { key: string; streams: number }>();
     /** The shared reads of rows by sequence and key. */
     readonly rows = new Memo<Promise<readonly Row[]>>(MEMO_SEQUENCES);
+    /** The shared ordered windows by sequence and key. */
+    readonly windows = new Memo<Promise<Window>>(MEMO_SEQUENCES);
     /** The shared reads of single rows by sequence and key. */
     readonly row = new Memo<Promise<Row | null>>(MEMO_SEQUENCES);
     /** The shared encodings by sequence and key. */
@@ -598,6 +600,7 @@ export class Feed implements Cache {
             this.#start = Number.POSITIVE_INFINITY;
             this.#sequence = -1;
             this.rows.clear();
+            this.windows.clear();
             this.row.clear();
             this.encodings.clear();
             this.#images.clear();

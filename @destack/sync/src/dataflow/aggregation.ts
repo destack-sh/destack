@@ -115,12 +115,14 @@ export class Aggregation extends Pipeline {
         const node = this.node;
         const changes = run.changes.filter((change) => change.table === node.table);
         const affected = [...(run.affected.get(node.table)?.values() ?? [])];
-        await this.filter.prepare(
-            [
-                ...changes.flatMap((change) => [Change.before(change), Change.after(change)]),
-                ...affected,
-            ].filter((image): image is Row => image !== null),
-            run,
+        const candidates = new Set(
+            await this.filter.prepare(
+                [
+                    ...changes.flatMap((change) => [Change.before(change), Change.after(change)]),
+                    ...affected,
+                ].filter((image): image is Row => image !== null),
+                run,
+            ),
         );
 
         // count each candidate image out or in
@@ -135,7 +137,7 @@ export class Aggregation extends Pipeline {
                     image === null ||
                     sequence === undefined ||
                     change.sequence <= sequence ||
-                    !this.filter.isCandidate(image, run)
+                    !candidates.has(image)
                 ) {
                     continue;
                 }
@@ -416,7 +418,7 @@ export class Aggregation extends Pipeline {
                 (image): image is Row => image !== null && Predicate.matches(match, image),
             ),
         );
-        await this.filter.prepare(images, run);
+        const candidates = new Set(await this.filter.prepare(images, run));
 
         // count each image back from the newest change
         const lost = new Set<string>();
@@ -426,11 +428,7 @@ export class Aggregation extends Pipeline {
                 [Change.before(change), 1],
             ] as const) {
                 // count each row back in or out
-                if (
-                    image === null ||
-                    !Predicate.matches(match, image) ||
-                    !this.filter.isCandidate(image, run)
-                ) {
+                if (image === null || !Predicate.matches(match, image) || !candidates.has(image)) {
                     continue;
                 }
                 const resolved = this.filter.resolve(image, run);
@@ -484,10 +482,8 @@ export class Aggregation extends Pipeline {
             const read = await run.view.matching(node.table, {
                 AND: [node.condition(), selected.within],
             });
-            await this.filter.prepare(read, run);
-            rows = read
-                .filter((row) => this.filter.isCandidate(row, run))
-                .map((row) => this.filter.resolve(row, run));
+            const candidates = await this.filter.prepare(read, run);
+            rows = candidates.map((row) => this.filter.resolve(row, run));
         }
 
         // tally them by group
@@ -616,8 +612,7 @@ export class Relation extends Aggregation {
         // decide the rows and locate their holders
         const node = this.node;
         const present = [...rows.values()].filter((row): row is Row => row !== null);
-        await this.filter.prepare(present, run);
-        const candidates = present.filter((row) => this.filter.isCandidate(row, run));
+        const candidates = await this.filter.prepare(present, run);
         const located = await this.input.locate(candidates, run);
         const values = new Map(zip(candidates, located));
 

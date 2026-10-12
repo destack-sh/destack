@@ -35,10 +35,14 @@ export class Filter {
         this.#match = Predicate.compile(node.resolve(node.condition()), node.table);
     }
 
-    /** Decide some rows' visibility and read their relations' measures. */
-    async prepare(rows: readonly Row[], run: Run): Promise<void> {
-        await run.decide(this.node.table, rows);
+    /** Decide some rows and return the candidates: visible rows meeting the condition. */
+    async prepare(rows: readonly Row[], run: Run): Promise<Row[]> {
+        // decide the visibility of the rows meeting the condition
         await this.measure(rows, run);
+        const meeting = rows.filter((row) => this.meets(row, run));
+        await run.decide(this.node.table, meeting);
+
+        return meeting.filter((row) => run.isVisible(row));
     }
 
     /** Read the relations' measures of some rows or positions, which their computed values need. */
@@ -46,11 +50,6 @@ export class Filter {
         if (this.node.relations.length > 0) {
             await this.#arrangement.prepare(this.node, rows, run);
         }
-    }
-
-    /** Decide whether a prepared row is a visible, matching candidate. */
-    isCandidate(row: Row, run: Run): boolean {
-        return run.isVisible(row) && this.meets(row, run);
     }
 
     /** Decide whether a prepared row is in the node's scopes and meets its condition. */

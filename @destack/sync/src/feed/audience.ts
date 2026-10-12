@@ -31,7 +31,7 @@ export interface Audience {
     readonly watches: readonly Watch[];
     /** Match the table rows the subscriber may have as SQL, or "memory" if `admits` decides. */
     where(table: Table): SQL | "memory";
-    /** The name of everything the audience decides. */
+    /** The name of what the audience decides by, alike for audiences deciding alike. */
     readonly key: string;
     /** Decide which rows of a table the subscriber may have, by index. */
     admits(table: Table, rows: readonly Row[], position: LogPosition): Promise<ReadonlySet<number>>;

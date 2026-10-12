@@ -1,4 +1,4 @@
-import { found, zip } from "@destack/schema";
+import { Clock, found, zip } from "@destack/schema";
 import {
     and,
     Key,
@@ -182,17 +182,17 @@ export class View {
             (segment) =>
                 segment.after === undefined &&
                 segment.value !== null &&
-                !this.#cache.rows.has(this.position.sequence, read(segment)),
+                !this.#cache.windows.has(this.position.sequence, read(segment)),
         );
         const path = node.path;
         if (path?.kind === "key" && fresh.length > 1) {
-            this.#shareWindows(node, path.column, fresh, options, read);
+            this.#shareWindows(node, path.column, fresh, options, audience, read);
         }
 
         // read each partition through the shared reads
         return Promise.all(
             segments.map((segment) =>
-                this.#cache.rows.share(this.position.sequence, read(segment), () =>
+                this.#readWindow(read(segment), audience, () =>
                     this.#snapshot.ordered(node.table, {
                         ...options,
                         where: node.condition(segment.value),
@@ -203,12 +203,37 @@ export class View {
         );
     }
 
+    /** Read a window through the shared reads, reading it again once its decisions expired. */
+    async #readWindow(
+        key: string,
+        audience: Audience,
+        read: () => Promise<readonly Row[]>,
+    ): Promise<readonly Row[]> {
+        // share the window with the moment its decisions expire
+        const sequence = this.position.sequence;
+        const share = () =>
+            this.#cache.windows.share(sequence, key, async () => ({
+                rows: await read(),
+                until: await audience.until(),
+            }));
+        const window = await share();
+
+        // read an expired window again
+        if (window.until === undefined || window.until > this.#cache.clock.now()) {
+            return window.rows;
+        }
+        this.#cache.windows.forget(sequence, key);
+
+        return (await share()).rows;
+    }
+
     /** Share ranked reads of fresh partitions of a key path in batches. */
     #shareWindows(
         node: Node,
         column: string,
         fresh: readonly Segment[],
         options: Omit<WindowRead, "where">,
+        audience: Audience,
         read: (segment: Segment) => string,
     ): void {
         for (let start = 0; start < fresh.length; start += BATCH_VALUES) {
@@ -222,13 +247,13 @@ export class View {
 
             // share each partition's window
             for (const [index, segment] of batch.entries()) {
-                void this.#cache.rows.share(this.position.sequence, read(segment), async () => {
+                void this.#cache.windows.share(this.position.sequence, read(segment), async () => {
                     const window = (await windows)[index];
                     if (window === undefined) {
                         throw new RangeError("a ranked read lacks one of its windows");
                     }
 
-                    return window;
+                    return { rows: window, until: await audience.until() };
                 });
             }
         }
@@ -430,6 +455,11 @@ export class Memo<Value> {
         return value;
     }
 
+    /** Forget the value of a sequence and key. */
+    forget(sequence: number, key: string): void {
+        this.#values.get(sequence)?.delete(key);
+    }
+
     /** Decide whether a value for a sequence and key is shared. */
     has(sequence: number, key: string): boolean {
         return this.#values.get(sequence)?.has(key) === true;
@@ -443,14 +473,26 @@ export class Memo<Value> {
 
 /** The shared reads and row images of views. */
 export interface Cache {
-    /** The shared reads of rows: lookups and ordered windows. */
+    /** The shared reads of rows by lookup. */
     readonly rows: Memo<Promise<readonly Row[]>>;
+    /** The shared ordered windows, with the moment their decisions expire. */
+    readonly windows: Memo<Promise<Window>>;
+    /** The clock deciding when windows expire. */
+    readonly clock: Clock;
     /** The shared reads of single rows by compound key. */
     readonly row: Memo<Promise<Row | null>>;
     /** The shared encodings of selected rows. */
     readonly encodings: Memo<RowChange>;
     /** Read a table's row images before their first change between two sequences, by key. */
     images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>>;
+}
+
+/** One partition's ordered rows as an audience decided them, until a moment. */
+export interface Window {
+    /** The rows. */
+    readonly rows: readonly Row[];
+    /** The moment the audience's decisions change by time alone, absent if never. */
+    readonly until: number | undefined;
 }
 
 /** One partition an ordered read reads. */
@@ -465,6 +507,10 @@ export interface Segment {
 class ViewCache implements Cache {
     /** The shared reads of rows. */
     readonly rows = new Memo<Promise<readonly Row[]>>(1);
+    /** The shared ordered windows. */
+    readonly windows = new Memo<Promise<Window>>(1);
+    /** The system clock deciding when windows expire. */
+    readonly clock = Clock.system;
     /** The shared reads of single rows. */
     readonly row = new Memo<Promise<Row | null>>(1);
     /** The shared encodings. */
