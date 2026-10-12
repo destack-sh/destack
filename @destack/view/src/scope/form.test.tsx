@@ -21,8 +21,7 @@ const note = defineObject({
     scope: Scope.universe.id,
     fields: { title: field.string(schema.string().min(1).max(20)) },
     permissions: { write: none() },
-    methods: (method) => ({ update: method.update("write") }),
-});
+}).methods((method) => ({ update: method.update("write") }));
 
 /** The input of a note's update the tests edit. */
 type Rename = CallInput<typeof note, "update">;

@@ -21,11 +21,10 @@ const card = defineObject({
         title: field.string(schema.string().min(1)),
     },
     permissions: { read: relation("owner"), edit: relation("owner") },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("edit"),
-    }),
-});
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("edit"),
+}));
 
 /** List the space's cards by title. */
 function Cards() {

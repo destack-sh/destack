@@ -12,11 +12,10 @@ export const notebook = defineObject({
         name: field.string(schema.string().min(1).max(200)),
     },
     shareable: {},
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("manage"),
-        update: method.update("manage"),
-        delete: method.delete("manage"),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("manage"),
+    update: method.update("manage"),
+    delete: method.delete("manage"),
+}));
