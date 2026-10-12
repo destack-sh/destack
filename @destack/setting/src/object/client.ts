@@ -1,4 +1,4 @@
-import { uniqueIndex, type Select } from "@destack/db";
+import { type Select } from "@destack/db";
 import { client, defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { schema, Version } from "@destack/schema";
@@ -21,14 +21,15 @@ export const clientSetting = defineObject({
         release: field.string(Version),
     },
     permissions: ["read", "write"],
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-        update: method.update("write", { fields: ["value", "release"] }),
-        delete: method.delete("write"),
-    }),
-    constraints: (value) => [uniqueIndex("client_setting_name").on(value.packageId, value.name)],
-});
+    constraints: {
+        name: { kind: "index", on: ["packageId", "name"], unique: true },
+    },
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+    update: method.update("write", { fields: ["value", "release"] }),
+    delete: method.delete("write"),
+}));
 
 /** A client's setting value as its row holds it. */
 export type ClientSettingValue = Select<typeof clientSetting.table>;

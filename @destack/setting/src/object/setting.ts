@@ -1,12 +1,4 @@
-import {
-    check,
-    type DatabaseConnection,
-    index,
-    Log,
-    Snapshot,
-    uniqueIndex,
-    type Select,
-} from "@destack/db";
+import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db";
 import { Scope } from "@destack/sync";
 import type { Setting, SettingReference } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
@@ -47,33 +39,36 @@ export const setting = defineObject({
     },
     permissions: ["read", "write"],
     adoptable: { by: "write" },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("write"),
-        update: method.update("write", { fields: ["mode", "value", "release"] }),
-        delete: method.delete("write"),
-    }),
-    constraints: (value) => [
-        uniqueIndex("setting_placement")
-            .on(
-                value.packageId,
-                value.name,
-                value.scope,
-                value.package,
-                value.space,
-                value.installation,
-            )
-            .nullsNotDistinct(),
-        index("setting_scope").on(value.scope, value.id),
-        check("setting_override", {
-            AND: [
-                { OR: [{ installation: { isNull: true } }, { space: { isNull: true } }] },
-                { OR: [{ mode: "set" }, { package: { isNull: true }, space: { isNull: true } }] },
-            ],
-        }),
-    ],
-});
+    constraints: {
+        placement: {
+            kind: "index",
+            on: ["packageId", "name", "scope", "package", "space", "installation"],
+            unique: true,
+            nullsNotDistinct: true,
+        },
+        scope: { kind: "index", on: ["scope", "id"] },
+        override: {
+            kind: "check",
+            condition: {
+                AND: [
+                    { OR: [{ installation: { isNull: true } }, { space: { isNull: true } }] },
+                    {
+                        OR: [
+                            { mode: "set" },
+                            { package: { isNull: true }, space: { isNull: true } },
+                        ],
+                    },
+                ],
+            },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("write"),
+    update: method.update("write", { fields: ["mode", "value", "release"] }),
+    delete: method.delete("write"),
+}));
 
 /** A setting value as its row holds it. */
 export type SettingValue = Select<typeof setting.table>;
