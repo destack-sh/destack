@@ -6,12 +6,13 @@ export {
     describe,
     expect,
     expectTypeOf,
+    inject,
     onTestFailed,
     onTestFinished,
     test,
     vi,
 } from "vitest";
-export type { TestAnnotation, TestArtifact, TestContext } from "vitest";
+export type { ProvidedContext, TestAnnotation, TestArtifact, TestContext } from "vitest";
 export { TestClock } from "./clock/index.ts";
 export { refusal } from "./refusal/index.ts";
 export { single } from "./single/index.ts";
