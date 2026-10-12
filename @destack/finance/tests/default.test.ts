@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -19,8 +20,8 @@ test.each(TEST_DIALECTS)(
         const offer = await finance.offer();
         const free = await finance.call("carol", product, "create", {
             accountId: ids.shop,
-            name: "Free",
-            description: "Community support.",
+            name: t`Free`,
+            description: t`Community support.`,
             isDefault: true,
         });
         await finance.call("carol", productFeature, "create", {

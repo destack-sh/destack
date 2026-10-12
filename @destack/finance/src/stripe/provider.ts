@@ -7,7 +7,7 @@ import type {
     PaymentProvider,
     ProviderEvent,
 } from "../provider/provider.ts";
-import type { Customer, Price, Product, ProviderSubscription } from "../object/index.ts";
+import { type Customer, type Price, Product, type ProviderSubscription } from "../object/index.ts";
 import type { Secret } from "@destack/vault";
 import { StripeClient, type StripeParameter } from "./client.ts";
 import {
@@ -141,8 +141,7 @@ export class StripeProvider implements PaymentProvider {
     /** Create a product once per key. */
     createProduct(product: Product, key: string): Promise<string> {
         return this.#create("/v1/products", key, {
-            name: product.name,
-            description: product.description,
+            ...Product.render(product),
             metadata: { product: product.id },
         });
     }

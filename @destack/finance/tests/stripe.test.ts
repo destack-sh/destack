@@ -1,3 +1,4 @@
+import { type Message, t } from "@destack/locale";
 import { asc, eq, Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { present } from "@destack/schema";
@@ -79,7 +80,7 @@ async function open(dialect: (typeof TEST_DIALECTS)[number]) {
 /** Offer a plan in Carol's shop at some prices granting unlimited calls, including some usage in its fee when given, returning the product. */
 async function offerPlan(
     finance: Finance,
-    name: string,
+    name: Message,
     prices: readonly Record<string, unknown>[],
     includedUsage = 0,
 ) {
@@ -87,7 +88,7 @@ async function offerPlan(
     const plan = await finance.call("carol", product, "create", {
         accountId: ids.shop,
         name,
-        description: `The ${name} plan.`,
+        description: t`A plan.`,
     });
     await finance.call("carol", productFeature, "create", {
         parentId: plan.id,
@@ -113,7 +114,7 @@ async function offerPlan(
 function offerGo(finance: Finance) {
     return offerPlan(
         finance,
-        "Go",
+        t`Go`,
         [
             {
                 currency: "EUR",
@@ -134,8 +135,8 @@ function offerGo(finance: Finance) {
 async function offerFree(finance: Finance) {
     const plan = await finance.call("carol", product, "create", {
         accountId: ids.shop,
-        name: "Free",
-        description: "The Free plan.",
+        name: t`Free`,
+        description: t`The Free plan.`,
         isDefault: true,
     });
     await finance.call("carol", productFeature, "create", {
@@ -278,7 +279,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         // subscribe Acme's buyer to Go and Dave's account to a plan billing requests past a fee of nothing, both through Checkout
         const { stripe, finance, deliver } = await open(dialect);
-        const metered = await offerPlan(finance, "Metered", [
+        const metered = await offerPlan(finance, t`Metered`, [
             {
                 currency: "EUR",
                 unitAmount: 0,

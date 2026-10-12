@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { allowance } from "@destack/account/object";
 import { asc, eq, Snapshot } from "@destack/db";
 import { announcement } from "@destack/notification";
@@ -23,9 +24,11 @@ import {
     disk,
     diskLimit,
     diskSku,
+    machineSku,
     requests,
     storage,
     stored,
+    uptime,
 } from "./fixture/storage.ts";
 import { CatalogReference } from "@destack/finance";
 import { Caller } from "@destack/access";
@@ -75,8 +78,8 @@ async function offerPlan(
     // create the product with its grants
     const plan = await finance.call("carol", product, "create", {
         accountId: ids.shop,
-        name: "Plan",
-        description: "A plan.",
+        name: t`Plan`,
+        description: t`A plan.`,
     });
     for (const [feature, value] of grants) {
         await finance.call("carol", productFeature, "create", {
@@ -478,6 +481,49 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
+    "charge each machine's awake hours up to the SKU's 10 hour cap per period, two machines apart, and start the next period fresh on %s",
+    async (dialect) => {
+        // keep machine a awake 8 then 6 hours and machine b 3 hours in October, then machine a 4 hours in November
+        const { finance } = await open(dialect);
+        for (const [id, source, hours, time] of [
+            ["1", "/machines/a", 8, START + DAY],
+            ["2", "/machines/a", 6, START + 2 * DAY],
+            ["3", "/machines/b", 3, START + DAY],
+            ["4", "/machines/a", 4, END + DAY],
+        ] as const) {
+            await append(finance, {
+                id,
+                source,
+                meter: uptime.name,
+                value: hours,
+                sku: machineSku.reference,
+                time,
+            });
+        }
+        const rows = await finance.test.database
+            .select()
+            .from(charge.table)
+            .where(eq(charge.table.accountId, ids.buyer))
+            .orderBy(asc(charge.table.chargePeriodStart), asc(charge.table.resourceId));
+
+        // keep each line's 14 consumed hours apart from the 10 it prices at 5 credit-cents
+        expect(
+            rows.map((row) => [
+                row.chargePeriodStart,
+                row.resourceId,
+                row.consumedQuantity,
+                row.pricingQuantity,
+                row.listCost,
+            ]),
+        ).toEqual([
+            [START, "/machines/a", 14, 10, "50"],
+            [START, "/machines/b", 3, 3, "15"],
+            [END, "/machines/a", 4, 4, "20"],
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
     "rate an account's usage once when two ratings of it overlap on %s",
     async (dialect) => {
         // receive 100 and 50 GB-months in two spaces, then rate twice at once
@@ -640,8 +686,8 @@ test.each(TEST_DIALECTS)(
         });
 
         expect({ within, blocked: await allowances(finance) }).toEqual({
-            within: [["data", CAPACITY, 0, "within"]],
-            blocked: [["data", CAPACITY, 1200, "blocked"]],
+            within: [["storage", CAPACITY, 0, "within"]],
+            blocked: [["storage", CAPACITY, 1200, "blocked"]],
         });
     },
 );

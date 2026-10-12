@@ -268,7 +268,7 @@ export class FinanceFixture {
                 {
                     id: schema.identifier("relationship").parse(`relationship-${v7()}`),
                     object: residency.reference(Scope.universe.id, RESIDENCY),
-                    relation: "server",
+                    relation: "installation",
                     subject: INSTALLATION,
                     createdAt: 0,
                     expiresAt: null,

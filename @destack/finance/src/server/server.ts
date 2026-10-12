@@ -51,7 +51,7 @@ const TERMS_DIGEST_LENGTH = 12;
 /** The account directory, registry, provider and events the finance extension serves with. */
 export interface FinanceOptions {
     /** The universe's account directory, which finds the seller of each handle. */
-    readonly accounts: Pick<ServiceClient<typeof accountService>, "directory">;
+    readonly accounts: Pick<ServiceClient<typeof accountService>, "residency">;
     /** The residency home finance serves, where its rows live. */
     readonly home: Identifier<"space">;
     /** The registry opening the releases of packages declaring features, meters and SKUs. */
@@ -71,10 +71,10 @@ const activities = serveActivities({ notifications: [usageLimit] });
 
 /** Extend a residency home's store with finance: its objects, webhooks and controllers. */
 export function implementFinance(options: FinanceOptions): ObjectExtension {
-    // find each handle's seller to the home's buyers through the account directory
+    // find each handle's seller to the home's buyers through the residencies
     const { home, provider } = options;
     const catalog = Catalog.tagged(options.registry, options.tag);
-    const publisher = (handle: string) => options.accounts.directory.publisher({ handle, home });
+    const publisher = (handle: string) => options.accounts.residency.publisher({ handle, home });
     const metering = new Metering(options.events, catalog, publisher, options.report);
     const path = provider === undefined ? undefined : `${WEBHOOK_PATH}/${provider.name}`;
 

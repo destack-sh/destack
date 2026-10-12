@@ -10,7 +10,7 @@ const QUANTITY_SCALE = 1_000_000;
 
 /** The rating engine: usage priced at its SKU's list price in the billing currency. */
 export const Rate = {
-    /** Price a quantity of a SKU's meter in the billing currency, rounded up. */
+    /** Price a line's quantity of a SKU's meter in the billing currency, capped and rounded up. */
     usage(
         sku: Sku,
         quantity: number,
@@ -20,15 +20,15 @@ export const Rate = {
         Charge,
         "pricingQuantity" | "skuPriceId" | "listUnitPrice" | "listCost" | "billedCost"
     > {
-        // price the quantity in pricing units at the list price in the billing currency
-        const { unitSize, observedAt } = sku.definition;
+        // price the quantity in pricing units, up to the SKU's cap, at the list price in the billing currency
+        const { unitSize, maximumQuantity, observedAt } = sku.definition;
         const unitAmount = Cost.of(
             ceilingDivide(
                 Cost.scaled(sku.definition.unitAmount) * Cost.scaled(conversion),
                 Cost.whole(1),
             ),
         );
-        const pricingQuantity = quantity / unitSize;
+        const pricingQuantity = Math.min(quantity / unitSize, maximumQuantity ?? Infinity);
         const scaledQuantity = BigInt(Math.round(pricingQuantity * QUANTITY_SCALE));
         const listCost = ceilingDivide(
             Cost.scaled(unitAmount) * scaledQuantity,

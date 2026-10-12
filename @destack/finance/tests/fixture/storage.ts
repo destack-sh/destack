@@ -54,6 +54,17 @@ export const disk = defineMeter(
     { package: storage },
 );
 
+/** The hours a storage account's machines stay awake. */
+export const uptime = defineMeter(
+    {
+        name: "machine.hours",
+        description: "Hours a machine stays awake.",
+        aggregation: "sum",
+        unit: "hour",
+    },
+    { package: storage },
+);
+
 /** Syncing across devices. */
 export const sync = defineFeature(
     { name: "sync", description: "Sync files across devices.", kind: "boolean" },
@@ -112,7 +123,7 @@ export const capacity = defineFeature(
         name: "capacity",
         description: "Bytes kept in storage and the archive together.",
         kind: "metered",
-        allowance: "data",
+        allowance: "storage",
         meters: [stored.reference, archived.reference],
         reset: "never",
     },
@@ -146,6 +157,27 @@ export const diskSku = defineSku(
         unitAmount: "2",
         source: "https://developers.cloudflare.com/r2/pricing/",
         observedAt: "2026-10-06",
+    },
+    { package: storage },
+);
+
+/** The machines Carol's shop resells, listed at 5 credit-cents an awake hour and capped at 10 hours a period. */
+export const machineSku = defineSku(
+    {
+        name: "destack.machine",
+        description: "Hours a machine stays awake.",
+        provider: "destack",
+        service: "Compute",
+        category: "Compute",
+        tenancy: "dedicated",
+        meter: uptime.reference,
+        pricingUnit: "hour",
+        unitSize: 1,
+        currency: CREDITS,
+        unitAmount: "5",
+        maximumQuantity: 10,
+        source: "https://destack.sh/pricing",
+        observedAt: "2026-10-12",
     },
     { package: storage },
 );

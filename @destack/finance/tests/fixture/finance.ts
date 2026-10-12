@@ -1,3 +1,4 @@
+import { type Message, t } from "@destack/locale";
 import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, organisation, Residency, user } from "@destack/account/object";
@@ -38,6 +39,7 @@ import {
     diskSku,
     domains,
     hosting,
+    machineSku,
     storageLimit,
     requests,
     seats,
@@ -45,6 +47,7 @@ import {
     stored,
     support,
     sync,
+    uptime,
 } from "./storage.ts";
 
 /** The people the scenarios act as. */
@@ -104,6 +107,8 @@ const RELEASES = [
             capacity,
             diskLimit,
             diskSku,
+            uptime,
+            machineSku,
         ],
     ],
     [hosting, [domains]],
@@ -177,7 +182,7 @@ export class Finance {
             country: "AT",
             creditPrices: { EUR: "1", USD: "1", CHF: "1" },
         });
-        const plan = await this.#product("Pro", [
+        const plan = await this.#product(t`Pro`, [
             [sync, null],
             [support, "priority"],
             [seats, SEATS],
@@ -200,14 +205,14 @@ export class Finance {
 
     /** Offer a product in Carol's shop granting features with their values, returning its identifier. */
     async #product(
-        name: string,
+        name: Message,
         grants: readonly (readonly [Feature, JsonValue])[],
     ): Promise<string> {
         // create the product
         const created = await this.call("carol", product, "create", {
             accountId: ids.shop,
             name,
-            description: `The ${name} offer.`,
+            description: t`An offer.`,
         });
 
         // grant each feature

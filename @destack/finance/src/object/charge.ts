@@ -15,7 +15,7 @@ import { Rate } from "../rate/rate.ts";
 import { SERVICE_CATEGORIES, type Sku } from "../sku/sku.ts";
 import { BILLING_PERMISSIONS } from "./customer.ts";
 import { price } from "./price.ts";
-import { product } from "./product.ts";
+import { Product, product } from "./product.ts";
 import { type Publisher, seller, Seller } from "./seller.ts";
 import { type PeriodClose, Subscription, SubscriptionItem } from "./subscription.ts";
 
@@ -686,5 +686,5 @@ async function readProductName(snapshot: Snapshot, priceId: string): Promise<str
     const sold =
         priced === null ? null : await snapshot.row(product.table, { id: priced.parentId });
 
-    return present(sold, `the product of price ${priceId}`).name;
+    return Product.render(present(sold, `the product of price ${priceId}`)).name;
 }

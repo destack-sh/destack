@@ -31,32 +31,29 @@ Rate.usage(storage, 500e9, true, "1.4");
 
 ## Products
 
-`ProductDefinition.publish` keeps a seller's product by name in the residency's home with its fixed prices, each with the usage its fee includes, and exactly its feature grants.
+A stack declares a seller's products by key, each with its name and description as messages, its recurring prices, each including as much usage as its fee, and its feature grants.
 
 ```ts
-import { createClient } from "@destack/service/client";
-import { ProductDefinition } from "@destack/finance/client";
-import { financeService } from "@destack/finance/service";
+import { t } from "@destack/locale";
 
-await ProductDefinition.publish(
-    createClient(financeService, { url, fetch }),
-    home,
-    sellerAccountId,
-    {
-        name: "Go",
-        description: "9 a month of usage at list prices, and more as you use it.",
-        prices: [
-            {
-                lookupKey: "go-eur",
-                currency: "EUR",
-                unitAmount: 900,
-                includedUsage: 900,
-                recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+export const shop = defineStack({
+    sellers: { platform: { provider: "stripe", country: "AT", creditPrices: { EUR: "1" } } },
+    products: {
+        go: {
+            name: t`Go`,
+            description: t`More room to build.`,
+            prices: {
+                eur: {
+                    currency: "EUR",
+                    unitAmount: 900,
+                    includedUsage: 900,
+                    recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+                },
             },
-        ],
-        features: [calls.grant(null), support.grant("priority")],
+            productFeatures: { calls: calls.grant(null), support: support.grant("priority") },
+        },
     },
-);
+});
 ```
 
 ## SKUs
@@ -70,13 +67,26 @@ export const storage = defineSku({
     provider: "cloudflare",
     service: "R2",
     category: "Storage",
-    meter: bucketStorage.reference,
+    meter: storageBytes.reference,
     pricingUnit: "GB-month",
     unitSize: 1_000_000_000,
     currency: "USD",
     unitAmount: "1.5", // cents
     source: "https://developers.cloudflare.com/r2/pricing/",
     observedAt: "2026-10-06",
+});
+```
+
+`maximumQuantity` caps the pricing units each resource pays for per billing period, as hourly machines capped at a monthly price bill.
+
+```ts
+// 5 credit-cents an awake hour, at most 500 hours a period for each machine
+defineSku({
+    name: "destack.machine.small",
+    pricingUnit: "hour",
+    unitAmount: "5",
+    maximumQuantity: 500,
+    ...price,
 });
 ```
 

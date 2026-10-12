@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -37,13 +38,13 @@ function monthly(unitAmount: number) {
 /** Declare the platform's seller and a Go plan at a fee, with or without its Pro sibling. */
 function catalog(fee: number, isPro: boolean) {
     const go = {
-        name: "Go",
-        description: "Go.",
+        name: t`Go`,
+        description: t`Go.`,
         isDefault: false,
         prices: { eur: monthly(fee) },
         productFeatures: { seats: { packageId: tiers.id, feature: seats.name, value: 5 } },
     };
-    const pro = { ...go, name: "Pro", prices: { eur: monthly(10_000) } };
+    const pro = { ...go, name: t`Pro`, prices: { eur: monthly(10_000) } };
 
     return {
         sellers: { platform: { provider: "stripe", country: "AT", creditPrices: { EUR: "1" } } },
@@ -65,7 +66,7 @@ test.each(TEST_DIALECTS)(
         const { database } = finance.test;
         const sellers = await database.select().from(seller.table);
         const products = await database.select().from(product.table);
-        const named = new Map(products.map((row) => [row.id, row.name]));
+        const named = new Map(products.map((row) => [row.id, row.name.source]));
         const prices = await database.select().from(price.table);
         const grants = await database.select().from(productFeature.table);
 
@@ -73,7 +74,7 @@ test.each(TEST_DIALECTS)(
             again: again.steps,
             changed: changed.steps.map((step) => [step.action, step.target.split("/")[0]]),
             sellers: sellers.map((row) => [row.status, row.providerId]),
-            products: products.map((row) => [row.name, row.active]).toSorted(),
+            products: products.map((row) => [row.name.source, row.active]).toSorted(),
             prices: prices
                 .map((row) => [named.get(row.parentId), row.unitAmount, row.active])
                 .toSorted(),

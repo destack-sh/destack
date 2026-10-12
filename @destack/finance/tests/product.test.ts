@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -19,8 +20,8 @@ test.each(TEST_DIALECTS)(
         });
         const plan = await finance.call("carol", product, "create", {
             accountId: ids.shop,
-            name: "Pro",
-            description: "Sync, priority support and API access.",
+            name: t`Pro`,
+            description: t`Sync, priority support and API access.`,
         });
         const monthly = await finance.call("carol", price, "create", {
             parentId: plan.id,
@@ -61,18 +62,18 @@ test.each(TEST_DIALECTS)(
         // let buyers outside the shop read its active products alone
         const draft = await finance.call("carol", product, "create", {
             accountId: ids.shop,
-            name: "Team",
-            description: "Not offered yet.",
+            name: t`Team`,
+            description: t`Not offered yet.`,
             active: false,
         });
         const listed = (shopper: "alice" | "carol") =>
             finance.call(shopper, product, "list", {
                 where: { accountId: ids.shop },
-                orderBy: { name: "asc" },
+                orderBy: { createdAt: "asc" },
             });
         expect([
-            (await listed("alice")).items.map((item) => item.name),
-            (await listed("carol")).items.map((item) => item.name),
+            (await listed("alice")).items.map((item) => item.name.source),
+            (await listed("carol")).items.map((item) => item.name.source),
             draft.active,
         ]).toEqual([["Pro"], ["Pro", "Team"], false]);
     },
@@ -90,8 +91,8 @@ test.each(TEST_DIALECTS)(
             await refusal(
                 finance.call("alice", product, "create", {
                     accountId: ids.shop,
-                    name: "Fake",
-                    description: "Not Carol's.",
+                    name: t`Fake`,
+                    description: t`Not Carol's.`,
                 }),
             ),
         ).toEqual(["FORBIDDEN", "permission denied: sell"]);
@@ -110,8 +111,8 @@ test.each(TEST_DIALECTS)(
         // let the destack account grant its own package's feature
         const hosted = await finance.call("dave", product, "create", {
             accountId: ids.destack,
-            name: "Hosting",
-            description: "Apps on custom domains.",
+            name: t`Hosting`,
+            description: t`Apps on custom domains.`,
         });
         const granted = await finance.call("dave", productFeature, "create", {
             ...grant,
@@ -167,8 +168,8 @@ test.each(TEST_DIALECTS)(
         });
         const plan = await finance.call("carol", product, "create", {
             accountId: ids.shop,
-            name: "Go",
-            description: "9 a month of usage.",
+            name: t`Go`,
+            description: t`9 a month of usage.`,
         });
         const monthly = {
             parentId: plan.id,
@@ -208,8 +209,8 @@ test.each(TEST_DIALECTS)(
         });
         const plan = await finance.call("carol", product, "create", {
             accountId: ids.shop,
-            name: "Go",
-            description: "9 a month of usage.",
+            name: t`Go`,
+            description: t`9 a month of usage.`,
         });
 
         // refuse a price in dollars

@@ -14,9 +14,10 @@ export type FeatureKind = schema.Infer<typeof FeatureKind>;
 
 /** The kind of feature allowing each resource. */
 export const ALLOWANCE_KINDS: Readonly<Record<AllowanceResource, FeatureKind>> = {
-    data: "metered",
-    files: "metered",
+    database: "metered",
+    storage: "metered",
     compute: "metered",
+    network: "metered",
     tenancy: "static",
     domain: "boolean",
 };

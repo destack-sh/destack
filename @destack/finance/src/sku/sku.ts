@@ -39,6 +39,8 @@ export const SkuMetadata = defineSchema(
         currency: Currency,
         /** The list price per pricing unit, in fractional minor units. */
         unitAmount: DecimalAmount,
+        /** The most pricing units one resource pays for per billing period, absent if uncapped. */
+        maximumQuantity: schema.number().positive().exactOptional(),
         /** The page publishing the price. */
         source: schema.url(),
         /** The day the price was read at its source, as YYYY-MM-DD. */
@@ -74,5 +76,12 @@ export class Sku {
     /** Serialise the SKU as its reference. */
     toJSON(): CatalogReference {
         return this.reference;
+    }
+
+    /** List the SKUs on a meter. */
+    static on(skus: readonly Sku[], meter: CatalogReference): readonly Sku[] {
+        const key = CatalogReference.key(meter);
+
+        return skus.filter((sku) => CatalogReference.key(sku.definition.meter) === key);
     }
 }
