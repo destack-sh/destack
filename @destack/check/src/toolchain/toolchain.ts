@@ -6,12 +6,12 @@ import { BunProcess } from "../bun/process.ts";
 /** The name of the toolchain directory beside a standalone executable. */
 const TOOLCHAIN = "toolchain";
 
-/** The tools on disk: the toolchain directory beside a standalone executable, or the packages a workspace installed. */
+/** The tools on disk. */
 export const Toolchain = {
-    /** The toolchain directory beside a standalone executable, absent when running from a workspace. */
+    /** The toolchain directory beside a standalone executable, absent in a workspace. */
     directory: BunProcess.isStandalone ? join(dirname(process.execPath), TOOLCHAIN) : undefined,
 
-    /** The suffix naming this platform's native addon packages, as napi-rs names them for glibc on Linux. */
+    /** The suffix of this platform's native addon packages. */
     platform: `${process.platform}-${process.arch}${process.platform === "linux" ? "-gnu" : ""}`,
 
     /** Name the toolchain directory beside an executable. */
@@ -19,7 +19,7 @@ export const Toolchain = {
         return join(dirname(executable), TOOLCHAIN);
     },
 
-    /** Find an installed package's directory among the toolchain's packages, else through a chain of packages from a package directory, each depending on the next. */
+    /** Find an installed package's directory among the toolchain's packages. */
     locate(chain: readonly string[], from: string): string {
         // find the last package among the toolchain's, else each package from the one before
         const names = Toolchain.directory === undefined ? chain : chain.slice(-1);

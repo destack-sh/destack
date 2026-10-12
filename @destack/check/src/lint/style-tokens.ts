@@ -4,10 +4,10 @@ import { eachCreatedProperty, isCreateCall } from "./style.ts";
 /** A literal color: hexadecimal, or a color function over numbers. */
 const COLOR = /#[\da-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\(\s*[\d.]/iu;
 
-/** The header that marks a module written by a generator, such as the theme's styles from its tokens. */
+/** The header that marks a generated module, such as the theme's styles from its tokens. */
 const GENERATED = "// generate with";
 
-/** Style from the theme's tokens, never raw custom properties or literal colors, outside generated modules. */
+/** Style from the theme's tokens outside generated modules. */
 export const styleTokens: Rule = {
     meta: {
         type: "problem",

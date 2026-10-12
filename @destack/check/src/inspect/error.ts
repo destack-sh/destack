@@ -151,7 +151,7 @@ async function callTargets(
     return new Map(located);
 }
 
-/** Locate a call's target declaration through aliases, absent for an unresolved or declaration-less callee. */
+/** Locate a call's target declaration through aliases. */
 async function callTarget(
     symbol: Symbol | undefined,
     inspector: ErrorInspector,

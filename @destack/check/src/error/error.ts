@@ -1,6 +1,6 @@
 import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
-/** The service error code of each check failure: a bad selection, an unsupported package, or the tool's. */
+/** The service error code of each check failure. */
 const SERVICE_CODES = {
     TOOL: "INTERNAL_SERVER_ERROR",
     CONFIGURATION: "BAD_REQUEST",

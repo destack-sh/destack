@@ -302,7 +302,7 @@ function checkReadme(lines: readonly SourceLine[]): Finding[] {
     return findings;
 }
 
-/** Classify a package README line as prose, a listing or a table, absent for blank lines and comments. */
+/** Classify a package README line as prose, a listing or a table. */
 function readmeBlock(line: SourceLine, previous: Block | undefined): Block | undefined {
     // read code blocks as listings and skip front matter, comments and blank lines
     if (line.region === "fence") {

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { schema } from "@destack/schema";
 
-/** The package.json fields checking reads: the dependencies selecting compiler settings and a workspace's members. */
+/** The package.json fields checking reads. */
 export const Manifest = schema.looseObject({
     /** The package name. */
     name: schema.string().exactOptional(),

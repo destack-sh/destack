@@ -5,7 +5,7 @@ import { Definition } from "@destack/package";
 /** Package roots found above source directories, cached by directory. */
 const roots = new Map<string, boolean>();
 
-/** Report whether a source file belongs to a Destack package, marked by a package's destack.json above it. */
+/** Report whether a source file belongs to a Destack package, marked by a destack.json above it. */
 export function isPackageFile(path: string): boolean {
     return isInPackage(dirname(path));
 }
@@ -28,7 +28,7 @@ function isInPackage(directory: string): boolean {
     return isPackage;
 }
 
-/** Report whether a directory's destack.json defines a package rather than only a workspace root. */
+/** Report whether a directory's destack.json defines a package, not only a workspace root. */
 function definesPackage(directory: string): boolean {
     const path = join(directory, "destack.json");
 

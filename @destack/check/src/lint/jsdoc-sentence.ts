@@ -1,5 +1,8 @@
 import type { Rule } from "@oxlint/plugins";
 
+/** The widest a documentation line may run, the formatter's line width. */
+const DOCUMENTATION_WIDTH = 100;
+
 /** Require documentation comments to be sentences placed directly above their subject. */
 export const jsdocSentence: Rule = {
     meta: {
@@ -12,6 +15,7 @@ export const jsdocSentence: Rule = {
             sentence: "start each sentence on its own line",
             header: "separate the header line from the paragraph with a blank line",
             detached: "place the documentation directly above the code it describes",
+            width: "fit the documentation on one line within 100 characters: keep its first sentence",
         },
     },
     create(context) {
@@ -58,6 +62,12 @@ export const jsdocSentence: Rule = {
                     }
                     if (second !== undefined && second.trim() !== "") {
                         context.report({ loc, messageId: "header" });
+                    }
+
+                    // require every line of the documentation to fit the line width
+                    const written = lines.slice(comment.loc.start.line - 1, comment.loc.end.line);
+                    if (written.some((line) => line.length > DOCUMENTATION_WIDTH)) {
+                        context.report({ loc, messageId: "width" });
                     }
 
                     // reject documentation separated from its subject by a blank line

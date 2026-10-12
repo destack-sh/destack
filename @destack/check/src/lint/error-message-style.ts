@@ -31,7 +31,7 @@ export const errorMessageStyle: Rule = {
         },
     },
     create(context) {
-        /** Report an interpolated message whose first text starts uppercase or whose last text ends with a period. */
+        /** Report an interpolated message with bad casing or punctuation. */
         function checkTemplate(message: ESTree.TemplateLiteral): void {
             // read the text before the first and after the last interpolation
             const [first] = message.quasis;

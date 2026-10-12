@@ -236,7 +236,7 @@ function runtimeTypes(names: ReadonlySet<string>): string[] {
     }
 }
 
-/** Select the JSX compiler options: the terminal renderer's, else the view library's for a package with views. */
+/** Select the JSX compiler options: the terminal renderer's, else the view library's. */
 function jsxOptions(
     names: ReadonlySet<string>,
     hasViews: boolean,
@@ -347,7 +347,7 @@ export async function checkConfiguration(
     }
 }
 
-/** Decide whether a directory keeps the lint and format settings: a workspace root, a template copied out as its own project, or a package in no workspace. */
+/** Decide whether a directory keeps the lint and format settings. */
 async function holdsToolSettings(directory: string): Promise<boolean> {
     // keep them at a workspace root and in a template
     if ((await readManifest(directory))?.workspaces !== undefined) {
@@ -372,7 +372,7 @@ async function holdsToolSettings(directory: string): Promise<boolean> {
     return true;
 }
 
-/** Find the directory holding the tool settings that cover a directory: itself or the nearest one above. */
+/** Find the directory whose tool settings cover a directory: itself or the nearest one above. */
 export async function settingsRoot(directory: string): Promise<string> {
     let current = resolve(directory);
     while (!(await holdsToolSettings(current)) && current !== dirname(current)) {
@@ -382,7 +382,7 @@ export async function settingsRoot(directory: string): Promise<string> {
     return current;
 }
 
-/** Read the package a directory's destack.json defines, absent without one or for a workspace root that is no package. */
+/** Read the package a directory's destack.json defines. */
 async function readDefinition(directory: string): Promise<PackageDefinition | undefined> {
     const path = resolve(directory, "destack.json");
 

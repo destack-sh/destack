@@ -58,6 +58,7 @@ tester.run("jsdoc-sentence", rules["jsdoc-sentence"], {
     valid: [
         "/** Send a message. */\nfunction send() {}",
         "/**\n * Send a message.\n *\n * Retry once on timeout.\n */\nfunction send() {}",
+        `/** Send a message to every member${" ".repeat(55)}at once. */\nfunction send() {}`,
     ],
     invalid: [
         { code: "/** send a message. */\nfunction send() {}", errors: [{ messageId: "capital" }] },
@@ -71,6 +72,10 @@ tester.run("jsdoc-sentence", rules["jsdoc-sentence"], {
             errors: [{ messageId: "header" }],
         },
         { code: "/** Notes. */\n\nimport x from 'x';", errors: [{ messageId: "detached" }] },
+        {
+            code: `/** Send a message to every member of the space ${"and each of its guests ".repeat(3)}at once. */\nfunction send() {}`,
+            errors: [{ messageId: "width" }],
+        },
     ],
 });
 

@@ -42,7 +42,7 @@ export function fixPackage(options: CheckOptions): Promise<CheckResult> {
     return lintPackage(options, true);
 }
 
-/** Check the selected Markdown and sources with the canonical rules, applying fixes when requested. */
+/** Check the selected Markdown and sources with the canonical rules, fixing when requested. */
 async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckResult> {
     // verify editor settings before preparing the managed invocation
     const directory = resolve(options.directory);
@@ -80,7 +80,7 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     });
 }
 
-/** Check selected Markdown files and those below selected directories, fixing them when requested. */
+/** Check selected Markdown files and those below selected directories, fixing when requested. */
 async function checkMarkdownFiles(
     directory: string,
     selection: readonly string[],
@@ -126,7 +126,7 @@ async function hasSources(path: string): Promise<boolean> {
     return (await listFiles(path)).some((file) => pattern.test(file));
 }
 
-/** List the files below a directory, skipping dependencies and hidden tool state, and leaving symbolic links unfollowed. */
+/** List the files below a directory. */
 async function listFiles(directory: string): Promise<string[]> {
     const files: string[] = [];
     for (const entry of await readdir(directory, { withFileTypes: true })) {

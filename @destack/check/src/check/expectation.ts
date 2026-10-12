@@ -5,7 +5,7 @@ import { Definition, type Expectation } from "@destack/package";
 import type { Diagnostic } from "../inspect/index.ts";
 import { readManifest } from "./manifest.ts";
 
-/** An expectation and the directory of the destack.json declaring it, which its files are relative to. */
+/** An expectation and the directory of the destack.json that declares it. */
 export interface DeclaredExpectation {
     /** The directory its files are relative to. */
     readonly directory: string;
@@ -13,7 +13,7 @@ export interface DeclaredExpectation {
     readonly expectation: Expectation;
 }
 
-/** Read the expectations of a package, and of every member when the directory is a workspace root. */
+/** Read a package's expectations, and every member's when the directory is a workspace root. */
 export async function readExpectations(directory: string): Promise<DeclaredExpectation[]> {
     // read the directory's own and its members' declarations
     const members = await workspaceMembers(directory);
@@ -22,7 +22,7 @@ export async function readExpectations(directory: string): Promise<DeclaredExpec
     return expectations.flat();
 }
 
-/** Write expectations as rule overrides for the files they name, relative to a configuration's directory. */
+/** Write expectations as rule overrides for their files, relative to a configuration directory. */
 export function expectationOverrides(
     expectations: readonly DeclaredExpectation[],
     directory: string,
@@ -33,7 +33,7 @@ export function expectationOverrides(
     }));
 }
 
-/** Drop the findings expectations accept, and report each expectation over checked files that nothing matched. */
+/** Drop the findings expectations accept. */
 export function applyExpectations(
     diagnostics: readonly Diagnostic[],
     expectations: readonly DeclaredExpectation[],
@@ -79,7 +79,7 @@ export function applyExpectations(
     ];
 }
 
-/** Read the expectations a destack.json declares for its package and workspace, absent without one. */
+/** Read the expectations a destack.json declares for its package and workspace. */
 async function packageExpectations(directory: string): Promise<DeclaredExpectation[]> {
     // read the package's and the workspace's declarations
     const path = resolve(directory, "destack.json");

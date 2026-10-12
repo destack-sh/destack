@@ -107,7 +107,7 @@ function isMissing(error: unknown): boolean {
     return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
-/** Drop the trailing commas Bun writes into lockfiles, matching strings whole to keep their commas. */
+/** Drop the trailing commas Bun writes into lockfiles, matching strings whole to keep theirs. */
 function dropTrailingCommas(text: string): string {
     return text.replaceAll(/("(?:[^"\\]|\\.)*")|,(?=\s*[}\]])/gu, "$1");
 }

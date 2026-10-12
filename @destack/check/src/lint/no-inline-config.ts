@@ -24,7 +24,7 @@ export const noInlineConfiguration: Rule = {
     },
 };
 
-/** Find the line of the first comment that configures oxlint or ESLint rules, absent without one. */
+/** Find the line of the first comment configuring oxlint or ESLint rules, absent without one. */
 export function directiveLine(
     comments: readonly {
         readonly value: string;

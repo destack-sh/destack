@@ -1,9 +1,9 @@
 import type { ESTree, Rule } from "@oxlint/plugins";
 
-/** The tag of an implementation building a value whose type its signatures map from the input, with the invariant that makes it hold. */
+/** The tag of an implementation building a value whose type its signatures map from the input. */
 const CONSTRUCT = /@construct\s+\S/u;
 
-/** A statement or class member as the rule reads it: its name, whether it has a body, and its return type. */
+/** A statement or class member as the rule reads it. */
 interface Declared {
     /** The node the rule reports. */
     readonly node: ESTree.Node;
@@ -15,7 +15,7 @@ interface Declared {
     readonly returns: string | undefined;
 }
 
-/** Reject an implementation under overload signatures, which callers see instead of what it returns, unless it states the construction it performs. */
+/** Reject an implementation under overload signatures, unless it states its construction. */
 export const noOverloadCast: Rule = {
     meta: {
         type: "problem",
@@ -70,7 +70,7 @@ export const noOverloadCast: Rule = {
             }
         }
 
-        /** Read a statement as a function declaration or signature of its name, or as any other statement. */
+        /** Read a statement as a function declaration or signature, or as any other statement. */
         function statementOf(
             statement: ESTree.Statement | ESTree.Directive | ESTree.ModuleDeclaration,
         ): Declared {

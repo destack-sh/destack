@@ -107,7 +107,7 @@ function isInHandler(node: Node): boolean {
     return false;
 }
 
-/** Decide whether a function is a method's handling or authorization in `.implement({ methods })`. */
+/** Decide whether a function handles or authorizes a method in `.implement({ methods })`. */
 function isHandler(function_: Node, property: Node): boolean {
     // read the object the function's property sits in
     if (property.type !== "Property" || !("value" in property) || property.value !== function_) {

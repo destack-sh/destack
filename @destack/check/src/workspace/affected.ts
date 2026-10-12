@@ -6,7 +6,7 @@ import { Workspace } from "./workspace.ts";
 /** Run a command and read its standard output. */
 const run = promisify(execFile);
 
-/** List the member directories the changes since a base commit affect, absent when a change affects every member. */
+/** List the member directories the changes since a base commit affect. */
 export async function listAffected(directory: string, base: string): Promise<string[] | undefined> {
     // read the workspace enclosing the directory
     const workspace = await Workspace.read(directory);

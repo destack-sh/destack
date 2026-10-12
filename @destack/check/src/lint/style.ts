@@ -16,7 +16,7 @@ export function isCreateCall(node: ESTree.CallExpression): boolean {
     );
 }
 
-/** Read a property's key as written, its text for an identifier or string and undefined for a computed key. */
+/** Read a property's key as written. */
 export function keyOf(property: ESTree.ObjectProperty): string | undefined {
     if (property.computed) {
         return undefined;
@@ -29,7 +29,7 @@ export function keyOf(property: ESTree.ObjectProperty): string | undefined {
         : undefined;
 }
 
-/** Visit every property of a StyleX style object, through nested conditions and the bodies of dynamic styles. */
+/** Visit every property of a StyleX style object. */
 export function eachStyleProperty(
     node: ESTree.Node,
     visit: (property: ESTree.ObjectProperty) => void,

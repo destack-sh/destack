@@ -1,7 +1,7 @@
 import type { Rule } from "@oxlint/plugins";
 import { eachCreatedProperty, isCreateCall, keyOf } from "./style.ts";
 
-/** Apply hover styles only on devices whose pointer hovers, so touch screens keep no sticky hover. */
+/** Apply hover styles only where the pointer hovers, so touch screens get no sticky hover. */
 export const styleHover: Rule = {
     meta: {
         type: "problem",

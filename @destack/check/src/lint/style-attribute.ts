@@ -1,7 +1,7 @@
 import type { ESTree, Rule } from "@oxlint/plugins";
 import { isCreateCall } from "./style.ts";
 
-/** Report whether an expression reads StyleX styles: a created style, a list of styles, or a choice between them. */
+/** Report whether an expression reads StyleX styles. */
 function isStyles(node: ESTree.Node, created: ReadonlySet<string>): boolean {
     // read lists and choices of styles
     if (node.type === "ArrayExpression") {
