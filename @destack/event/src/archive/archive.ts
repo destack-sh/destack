@@ -23,10 +23,10 @@ import { SegmentFile } from "./segment.ts";
 /** The events one pruning statement deletes, far below every dialect's bound on parameters. */
 const PRUNE_BATCH = 500;
 
-/** How long a segment file may go uncatalogued before a sweep deletes it as an orphan: an hour, far longer than writing a segment and committing its row takes. */
+/** How long a segment file may go uncatalogued before a sweep deletes it as an orphan. */
 const ORPHAN_MILLISECONDS = 60 * 60 * 1000;
 
-/** The share of a segment's rows below which an unlocked segment is compacted with its neighbours. */
+/** The share of rows below which an unlocked segment is compacted with its neighbours. */
 const SMALL_SHARE = 0.5;
 
 /** The failure to read a segment file a compaction deleted after a read chose it. */
@@ -222,7 +222,7 @@ export class EventArchive {
         return expired.length;
     }
 
-    /** Delete a scope's segment files of an unlocked kind that no catalog row names, an hour after their upload, returning how many. */
+    /** Delete a scope's uncatalogued segment files of an unlocked kind, returning how many. */
     async sweep(kind: EventKind, scope: string, now: number): Promise<number> {
         // leave locked kinds, whose files stay until their retention
         if (kind.isLocked) {
@@ -285,7 +285,7 @@ export class EventArchive {
         return segments.filter((segment) => SegmentFile.mayHold(kind, segment.keys, filter));
     }
 
-    /** Decode the events a read selects from chosen segments, absent once one was compacted away. */
+    /** Decode the selected events of chosen segments, absent once one was compacted away. */
     async decode(
         kind: EventKind,
         segments: readonly Select<typeof eventSegment>[],

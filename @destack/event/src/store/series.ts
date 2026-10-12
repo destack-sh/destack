@@ -12,7 +12,7 @@ export type SeriesField<Shape extends EventKeyShape> =
     | `${keyof Shape & string}.${string}`
     | "source";
 
-/** How a series folds a kind's events: the measured key, the fold, the grouping keys and the step. */
+/** How a series folds a kind's events: measured key, fold, grouping keys and step. */
 export interface SeriesRequest<Shape extends EventKeyShape> {
     /** The key folded, numeric for arithmetic folds, needed by every fold but count. */
     readonly measure?: SeriesField<Shape>;

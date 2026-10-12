@@ -9,11 +9,11 @@ import type { EventStore } from "../store/store.ts";
 /** The value readers see in place of a personal value. */
 const MASK = "****";
 
-/** A read that showed a kind's personal values unmasked: who read which kind of which object how. */
+/** A read that showed personal values unmasked: who read which kind of which object how. */
 export interface UnmaskedRead {
     /** The scope read. */
     readonly scope: string;
-    /** The object whose grants decided the read: the scope's own, or the one the read narrowed to. */
+    /** The object whose grants decided the read: the scope's, or the one the read narrowed to. */
     readonly object: ObjectReference;
     /** The kind read. */
     readonly kind: EventKind;

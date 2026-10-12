@@ -26,7 +26,7 @@ const SegmentRow = schema.looseObject({
 
 /** The events of one kind in one scope as a Parquet file in time order. */
 export const SegmentFile = {
-    /** Encode events as a Parquet file: one column per query key beside their identity, source, time and data. */
+    /** Encode events as Parquet: a column per query key beside identity, source, time and data. */
     async encode(kind: EventKind, events: readonly Event[]): Promise<Uint8Array<ArrayBuffer>> {
         // lay out the columns every event has, then one per query key
         const types = kind.keyTypes;
@@ -70,7 +70,7 @@ export const SegmentFile = {
         return new Uint8Array(writer.getBuffer());
     },
 
-    /** Decode the events of a segment file a filter's time range and key values select, in time order. */
+    /** Decode a segment file's events in a filter's time range and key values, in time order. */
     async decode(kind: EventKind, file: AsyncBuffer, filter: EventFilter): Promise<Event[]> {
         // read the rows in the range and with the values asked for, skipping row groups outside them
         const types = kind.keyTypes;
@@ -126,7 +126,7 @@ export const SegmentFile = {
         });
     },
 
-    /** Collect the distinct values of each query key, none for a key holding more than the catalog lists. */
+    /** Collect the distinct values of each query key, none for a key with too many to list. */
     keyIndex(kind: EventKind, events: readonly Event[]): KeyIndex {
         const types = kind.keyTypes;
 

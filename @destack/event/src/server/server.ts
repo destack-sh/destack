@@ -16,7 +16,7 @@ import { EventRead, type ShownEvent, type UnmaskedRead } from "./read.ts";
 /** The events one query page returns unless the request asks for another number. */
 const PAGE_EVENTS = 100;
 
-/** What a host serves its store's events with: who may route copies to it, and the record of unmasked reads. */
+/** How a host serves its events: who may route copies to it, and the record of unmasked reads. */
 export interface EventServiceOptions {
     /** The store whose events are read and received. */
     readonly store: EventStore;
@@ -129,7 +129,7 @@ export function serveEvents(options: EventServiceOptions) {
     };
 }
 
-/** Implement the event service on its own over a store, deciding reads by the policies a host's access holds. */
+/** Implement the event service alone over a store, deciding reads by the host access's policies. */
 export function implementEvents(
     options: EventServiceOptions & { readonly access: ServiceAccess },
 ): ServiceImplementation {
@@ -142,7 +142,7 @@ export function implementEvents(
     };
 }
 
-/** Read a selection's filter: its scope, its text, its time range, the read's condition and its own filter. */
+/** Read a selection's filter: scope, text, time range, the read's condition and its own filter. */
 function filterOf(
     selection: EventSelection & { readonly from?: number; readonly before?: number },
     condition: JsonCondition,
@@ -182,7 +182,7 @@ async function* revealed(
     }
 }
 
-/** Show each event an export yields as the caller may see it, stopping once the call is cancelled. */
+/** Show each exported event as the caller may see it, stopping once the call is cancelled. */
 async function* exported(
     stream: AsyncGenerator<Event>,
     reveal: (event: Event) => ShownEvent,

@@ -68,7 +68,7 @@ export interface EventStoreOptions {
     readonly prefix?: string;
     /** The keyring sealing personal values, needed by kinds with a subject. */
     readonly personal?: PersonalKeyring;
-    /** The forwarder of copies of the routed events the store appends, absent on a store only receiving them. */
+    /** The forwarder of routed event copies, absent on a store that only receives them. */
     readonly forwarder?: EventForwarder;
     /** Read a scope's policy for a kind, the kind's own when absent. */
     readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy | undefined>;
@@ -78,7 +78,7 @@ export interface EventStoreOptions {
     readonly report: (error: unknown) => void;
 }
 
-/** Forwards copies of a store's routed events to the hosts keeping the scopes each route names, after log forwarders. */
+/** Forwards copies of a store's routed events to the hosts of each route's scopes. */
 export interface EventForwarder {
     /** Name the scopes a route copies a scope's events to. */
     targets(route: Route, scope: string): Promise<readonly string[]>;
@@ -98,7 +98,7 @@ export class EventStore {
     readonly #archive: EventArchive;
     /** The keyring sealing personal values. */
     readonly #personal: PersonalKeyring | undefined;
-    /** The forwarder of routed copies with the outbox keeping them until delivered, on the database of the hot events. */
+    /** The forwarder of routed copies and their outbox, on the hot events' database. */
     readonly #forwarding:
         | { readonly forwarder: EventForwarder; readonly outbox: Outbox }
         | undefined;
@@ -346,7 +346,7 @@ export class EventStore {
         return { events, sequence: page.sequence };
     }
 
-    /** Open each event a page of log changes appends that a filter selects, with its log sequence. */
+    /** Open each selected event a page of log changes appends, with its log sequence. */
     async *#appended<Shape extends EventKeyShape, Data extends JsonValue>(
         kind: EventKind<Shape, Data>,
         filter: EventFilter,
@@ -439,7 +439,7 @@ export class EventStore {
         }
     }
 
-    /** Require events stored before to repeat their time, keys and data, personal values left out on both sides since each seal differs. */
+    /** Require stored events to repeat their time, keys and data. */
     async #requireRepeats(
         kind: EventKind,
         repeated: readonly Event[],
@@ -480,7 +480,7 @@ export class EventStore {
         }
     }
 
-    /** Copy events to the scopes their kind's route names for each of theirs, leaving out their own. */
+    /** Copy events to the scopes their kind's route lists for their scope, except their own. */
     async #copies(kind: EventKind, stored: readonly Event[]): Promise<Event[]> {
         // read each scope's targets once, refusing to append a routed kind on a store that only receives it
         const route = kind.route;
@@ -738,7 +738,7 @@ function sameSegments(
     );
 }
 
-/** Write an event's time, keys and data without its personal values, which every seal writes anew. */
+/** Write an event's time, keys and data without personal values, which each seal writes anew. */
 function contentsOf(kind: EventKind, event: Event): string {
     const data = kind.mapSensitive(event.data, (value, sensitivity) =>
         sensitivity === "personal" ? undefined : value,

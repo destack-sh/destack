@@ -26,7 +26,7 @@ export const EventCursor = Object.assign(
             return cursor === undefined || EventCursor.compare(event, cursor) > 0;
         },
 
-        /** Report whether an event comes past a cursor in a page's order: later ascending, earlier descending. */
+        /** Report whether an event is past a cursor: later ascending, earlier descending. */
         isPast(event: EventCursor, cursor: EventCursor | undefined, order: EventOrder): boolean {
             const compared = cursor === undefined ? 0 : EventCursor.compare(event, cursor);
 
@@ -56,7 +56,7 @@ export interface EventFilter {
     readonly before?: number;
 }
 
-/** The selection of events by a filter: the fields its condition may name, its equalities and its match. */
+/** The selection of events by a filter: its condition's fields, its equalities and its match. */
 export const EventFilter = {
     /** List the fields a filter's condition may name. */
     fields(kind: EventKind, filter: EventFilter): ReadonlySet<string> {
@@ -150,7 +150,7 @@ export const EventFilter = {
         );
     },
 
-    /** Build the match of a filter's time range and condition over a kind's stored events, text aside. */
+    /** Build the match of a filter's time range and condition over a kind's events, text aside. */
     match(
         kind: EventKind,
         filter: EventFilter,

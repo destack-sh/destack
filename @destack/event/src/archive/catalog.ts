@@ -1,10 +1,10 @@
 import { defineTable, index, integer, json, text } from "@destack/db";
 import { schema } from "@destack/schema";
 
-/** The most distinct values a segment lists for one query key before the catalog keeps no set for it. */
+/** The most distinct values a segment lists per query key before the catalog drops the set. */
 export const KEY_INDEX_LIMIT = 64;
 
-/** The distinct values of each query key in a segment, null for a key holding more than the catalog lists. */
+/** The distinct values of each query key in a segment, null for a key with too many to list. */
 export const KeyIndex = schema.record(
     schema.string(),
     schema.array(schema.union([schema.string(), schema.number()])).nullable(),
@@ -36,7 +36,7 @@ export const eventSegment = defineTable(
         file: text("file").notNull(),
         /** The SHA-256 digest of the file, in hexadecimal. */
         digest: text("digest").notNull(),
-        /** The digest of the scope's previous segment of the kind, which chains them, absent for the first. */
+        /** The chaining digest of the scope's previous segment of the kind, absent at first. */
         previous: text("previous"),
         /** When the segment was flushed, in Unix milliseconds. */
         flushedAt: integer("flushed_at").notNull(),

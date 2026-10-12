@@ -4,7 +4,7 @@ import type { DatabaseConnection } from "@destack/db";
 export class EventReader {
     /** The slot's name, unique per reader. */
     readonly name: string;
-    /** How long the log keeps the events after the reader's place once it advances, in milliseconds. */
+    /** How long the log keeps events past the reader's place once it advances, in milliseconds. */
     readonly hold: number;
 
     /** Read in commit order under a slot name, holding unread events for a while. */
@@ -13,19 +13,25 @@ export class EventReader {
         this.hold = hold;
     }
 
-    /** Read the log sequence the reader's next page starts after, the log's start for a reader never placed. */
+    /** Read the log sequence the next page starts after, the log's start for an unplaced reader. */
     async after(database: DatabaseConnection): Promise<number> {
         return (await database.log.slot(this.name)) ?? 0;
     }
 
     /** Place the reader at the log's position now, so it reads only what commits from here on. */
     async start(database: DatabaseConnection, now: number): Promise<void> {
-        await this.advance(database, (await database.log.position()).sequence, now);
+        const { sequence } = await database.log.position();
+        await database.log.advance(this.name, sequence, now + this.hold);
     }
 
-    /** Keep the reader's place after a sequence, in the transaction that read up to it. */
-    async advance(database: DatabaseConnection, sequence: number, now: number): Promise<void> {
-        await database.log.advance(this.name, sequence, now + this.hold);
+    /** Move the reader's place past a sequence, in the transaction that read up to it. */
+    async move(
+        database: DatabaseConnection,
+        from: number,
+        to: number,
+        now: number,
+    ): Promise<void> {
+        await database.log.move(this.name, from, to, now + this.hold);
     }
 
     /** Let the log go of the events after the reader's place. */

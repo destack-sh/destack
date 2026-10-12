@@ -32,7 +32,7 @@ export type EventKeyValue = string | number | EventKeyMap | null;
 /** The value of a map key's entry. */
 const EntryValue = schema.union([schema.string(), schema.number(), schema.boolean()]);
 
-/** One append-only event of a scope: its identity, the scope it came from, its time, query keys and data. */
+/** One append-only event of a scope: its identity, source scope, time, query keys and data. */
 export interface Event<
     Shape extends EventKeyShape = EventKeyShape,
     Data extends JsonValue = JsonValue,
@@ -96,18 +96,12 @@ export const Route = defineSchema(schema.enum(["enclosing", "payer"]));
 /** The scopes a kind's events are copied to beside their own. */
 export type Route = schema.Infer<typeof Route>;
 
-/**
- * How an event is kept: exactly once in the caller's transaction, or at most once outside it.
- *
- * Exactly once holds until the event's scope flushes it: an event appended again before then is kept once, or refused when its contents differ.
- * A flush moves the event into a segment and frees its identity, so the same identity appended after the flush is kept a second time.
- * The flush policy bounds that window: its age or its row count, whichever comes first.
- */
+/** How an event is kept: exactly once in the caller's transaction, or at most once outside it. */
 export const Delivery = defineSchema(schema.enum(["exactly-once", "at-most-once"]));
 /** Whether an event is kept exactly once or at most once. */
 export type Delivery = schema.Infer<typeof Delivery>;
 
-/** When a scope's hot events flush into a segment: once the oldest reaches an age, or once they reach a count. */
+/** When a scope's hot events flush into a segment: at an age of the oldest, or at a count. */
 export const FlushPolicy = defineSchema(
     schema.object({
         /** The longest an event stays hot, in milliseconds. */
@@ -142,7 +136,7 @@ export interface EventAccess {
     };
 }
 
-/** The column type a query key stores its values in: text, a whole number, a number, or a JSON map of entries. */
+/** The column type of a query key: text, a whole number, a number, or a JSON map of entries. */
 export type EventKeyType = "text" | "integer" | "real" | "json";
 
 /** The pattern of an event kind's name, which names its table. */
@@ -163,13 +157,13 @@ export interface EventKindDefinition<Shape extends EventKeyShape, Data extends J
     readonly data: schema.Schema<Data>;
     /** Whether every event is kept exactly once or at most once. */
     readonly delivery: Delivery;
-    /** When hot events flush and how long segments stay, unless a store's policy names others for a scope. */
+    /** When hot events flush and how long segments stay, unless a store sets others per scope. */
     readonly policy: EventPolicy;
     /** The scopes keeping a copy of each event beside its own. */
     readonly route?: Route;
     /** Whether segments are locked and chained for the retention, as audit trails are. */
     readonly isLocked?: boolean;
-    /** The text key naming the person whose key seals the data's personal values, such as an actor. */
+    /** The text key of the person whose key seals personal values, such as an actor. */
     readonly subject?: string;
     /** Who reads the events through the event service, nobody when absent. */
     readonly access?: EventAccess;
@@ -221,7 +215,7 @@ export class EventKind<
         return `${this.package.id}/${this.#definition.name}`;
     }
 
-    /** The key naming the person whose key seals the data's personal values, absent for a kind without. */
+    /** The key of the person whose key seals personal values, absent for a kind without one. */
     get subject(): string | undefined {
         return this.#definition.subject;
     }
@@ -234,7 +228,7 @@ export class EventKind<
         return schema.mapSensitive(this.#definition.data, data, map) ?? null;
     }
 
-    /** The scopes each event is copied to beside its own, absent for a kind kept only where it happens. */
+    /** The scopes each event is copied to beside its own, absent for a kind without copies. */
     get route(): Route | undefined {
         return this.#definition.route;
     }
@@ -305,7 +299,7 @@ export class EventKind<
         };
     }
 
-    /** Read the query keys' values from a record holding them, null where absent, a map key's entries parsed. */
+    /** Read the query keys' values from a record, null where absent, with map entries parsed. */
     keyValues(values: Readonly<Record<string, unknown>>): Readonly<Record<string, EventKeyValue>> {
         return Object.fromEntries(
             this.keys.map((name) => [name, keyValueOf(this.keyTypes[name], values[name])]),
@@ -389,7 +383,7 @@ function keyTypeOf(key: schema.Schema): EventKeyType {
     }
 }
 
-/** Read one query key's value as its column keeps it: null where absent, a map's entries parsed, text and numbers as they are. */
+/** Read one query key's value as its column keeps it: null if absent, map entries parsed. */
 function keyValueOf(type: EventKeyType | undefined, value: unknown): EventKeyValue {
     // an absent key
     if (value === null || value === undefined) {

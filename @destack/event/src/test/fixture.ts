@@ -9,7 +9,7 @@ import type { Event, EventKind, EventPolicy, Route } from "../kind/kind.ts";
 import { eventTables } from "../stack/db.ts";
 import { EventStore } from "../store/store.ts";
 
-/** What a test keeps events with beside its kinds: a scope's policy and the delivery of routed copies. */
+/** The test event options beside kinds: a scope's policy and the delivery of routed copies. */
 export interface EventFixtureOptions {
     /** Read a scope's policy for a kind, the kind's own when absent. */
     readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy | undefined>;
@@ -23,7 +23,7 @@ export interface EventFixtureOptions {
     ) => Promise<void>;
 }
 
-/** A host's events over a test database, a memory bucket and a keyring, on a clock the test sets, for tests. */
+/** A host's events over a test database, memory bucket and keyring, on a clock the test sets. */
 export class EventFixture implements AsyncDisposable {
     /** The store. */
     readonly store: EventStore;
@@ -41,7 +41,7 @@ export class EventFixture implements AsyncDisposable {
         this.store = open(this);
     }
 
-    /** Open events of some kinds over a fresh database of a dialect, a memory bucket and a generated keyring. */
+    /** Open events of some kinds over a fresh dialect database, memory bucket and new keyring. */
     static async open(
         dialect: Dialect,
         kinds: readonly EventKind[],

@@ -4,7 +4,7 @@ import type { EventKind } from "../kind/kind.ts";
 import type { EventArchive } from "./archive.ts";
 import { Clock } from "@destack/schema";
 
-/** How often a scope's segments are compacted and checked against their retention without new events: daily. */
+/** How often a quiet scope's segments are compacted and checked for retention: daily. */
 const UPKEEP_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 /** Flushes, compacts and expires each scope's segments as their policies come due. */

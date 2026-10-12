@@ -10,7 +10,7 @@ import type {} from "@destack/package/import-meta";
 /** The most events one page returns. */
 const PAGE_LIMIT = 1000;
 
-/** A filter's text, as the field query language writes it, map entries named by their dotted names. */
+/** A filter's text in the field query language, with map entries by their dotted names. */
 export const FilterText = Object.assign(schema.string().min(1).max(1000), {
     /** Read a filter's text as the condition it writes, every event when absent. */
     condition(text: string | undefined): JsonCondition | undefined {
@@ -77,7 +77,7 @@ export const EventSeries = defineSchema(
         fold: schema.enum(SERIES_FOLDS),
         /** The keys each value of gets a series of its own. */
         group: schema.array(schema.string().min(1)).max(4),
-        /** The step width, in milliseconds, at least a minute, one step over the range when absent. */
+        /** The step width in milliseconds, at least a minute, one step over the range if absent. */
         step: schema.number().int().min(60_000).exactOptional(),
         /** The earliest time, in Unix microseconds. */
         from: schema.number().int(),
@@ -129,7 +129,7 @@ export const EventDelivery = defineSchema(
 /** Copies of a kind's events another host routed here. */
 export type EventDelivery = schema.Infer<typeof EventDelivery>;
 
-/** A procedure reading events, each kind's declared read decided on the scope its events live in. */
+/** A procedure reading events, deciding each kind's declared read on the scope of its events. */
 const procedure = defineProcedure({ authentication: "identity", permission: "rows", audit: false });
 
 /** The event service: a scope's readable events, and routed copies received. */

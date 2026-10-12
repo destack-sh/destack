@@ -29,7 +29,7 @@ export const personalKey = defineTable("personal_key", {
     createdAt: integer("created_at").notNull(),
 });
 
-/** People's keys kept in a database, encrypted under the host's keyring, for the stores sharing that database. */
+/** People's keys in a database, encrypted under the host's keyring, for stores sharing it. */
 export class DatabasePersonalKeyring implements PersonalKeyring {
     /** The database keeping the keys. */
     readonly #database: DatabaseConnection;
