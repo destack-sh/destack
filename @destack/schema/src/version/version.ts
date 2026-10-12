@@ -1,15 +1,15 @@
 import { z } from "zod";
 import { defineSchema } from "../declare/schema.ts";
 
-/** The release channels building prereleases, in the order semantic versioning sorts their identifiers. */
+/** The prerelease channels, in the order semantic versioning sorts their identifiers. */
 const PRERELEASE_CHANNELS = ["dev", "nightly"] as const;
 
-/** A calendar version: year, month and release, with an optional prerelease's channel and sequence. */
+/** A calendar version: year, month, release, and an optional prerelease channel and sequence. */
 const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-(dev|nightly)\.(0|[1-9]\d*))?$/u;
 
-/** A package release version, such as 2026.9.0, the nightly build 2026.10.0-nightly.3 or the dev build 2026.9.0-dev.4. */
+/** A package release version, such as 2026.9.0, 2026.10.0-nightly.3 or 2026.9.0-dev.4. */
 export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
-    /** Order two versions by release, prereleases before their release, dev builds before nightly ones. */
+    /** Order versions by release, prereleases before their release, dev before nightly builds. */
     compare(left: string, right: string): number {
         // find the first differing component
         const first = components(left);
@@ -26,14 +26,14 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
         return Math.sign(differences.find((difference) => difference !== 0) ?? 0);
     },
 
-    /** Name the release after a version's release in its year and month, such as 2026.9.1 after 2026.9.0, which its prereleases lead to. */
+    /** Read the next release in a version's year and month. */
     next(version: string): string {
         const { year, month, release } = components(version);
 
         return `${year}.${month}.${release + 1}`;
     },
 
-    /** List the entries keyed by the releases after one release and up to another, in release order. */
+    /** List the entries keyed by releases after one release up to another, in release order. */
     between<Value>(
         keyed: Readonly<Record<string, Value>>,
         after: string,
@@ -47,7 +47,7 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
             .toSorted(([left], [right]) => Version.compare(left, right));
     },
 
-    /** Refuse keys that are no releases, or releases after the declaring one, such as a declaration's conversions. */
+    /** Refuse keys that are no releases or come after the declaring release, as for conversions. */
     requireUpTo<Value>(
         keyed: Readonly<Record<string, Value>>,
         release: string,
@@ -69,7 +69,7 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
 /** A package release version. */
 export type Version = z.infer<typeof Version>;
 
-/** Read the calendar numbers, the stage and the prerelease's channel and sequence of a version, in comparison order. */
+/** Read a version's numbers, stage, prerelease channel and sequence, in comparison order. */
 function components(version: string) {
     // read the calendar numbers and the prerelease
     const match = VERSION.exec(version);

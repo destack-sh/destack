@@ -30,7 +30,7 @@ export function identifier<const Prefix extends string>(
 /**
  * Define an identifier validator, whose signature above brands the prefix it reads.
  *
- * @construct the validator matches exactly this prefix, and its brand exists only in types, so the cached validator is the prefix's own.
+ * @construct the cached validator matches exactly this prefix, and its brand exists only in types.
  */
 export function identifier(prefix: string): z.core.$ZodBranded<z.ZodString, string> {
     // reuse the prefix's validator
@@ -74,11 +74,7 @@ export const Identifier = {
         return identifier(prefix).parse(`${prefix}-${v7()}`);
     },
 
-    /**
-     * Derive the identifier of a request's object: the request's time and bits as a UUIDv7, the same for every repeat.
-     *
-     * A position replaces bytes 11 to 13, so a request's objects follow one another, all ordered as the request.
-     */
+    /** Derive a request object's identifier: the request's time and bits as a UUIDv7. */
     derive<const Prefix extends string>(
         prefix: Prefix,
         requestId: string,

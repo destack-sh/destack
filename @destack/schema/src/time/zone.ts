@@ -51,7 +51,7 @@ export const TimeZone = Object.assign(timeZoneSchema, {
         return { year: part("year"), month: part("month"), day: part("day") };
     },
 
-    /** Read the instant a date's time of day occurs in a time zone, moving a time in a gap past it. */
+    /** Read the instant of a date's time of day in a time zone, moving a time in a gap past it. */
     instant(zone: TimeZone, date: PlainDate, time: PlainTime): number {
         // correct the wall time by its offset twice, across offset changes
         const wall = Date.UTC(date.year, date.month - 1, date.day, 0, PlainTime.minutes(time));

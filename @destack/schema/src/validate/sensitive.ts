@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { JsonValue, type JsonObject } from "../json/json.ts";
 
-/** How a value is sensitive: a secret nothing derived keeps, or personal data kept only sealed under its person's key and erasable. */
+/** How a value is sensitive: a secret, or personal data. */
 export type Sensitivity = "secret" | "personal";
 
 /** The schemas whose values are sensitive and how, as zod metadata. */
@@ -42,7 +42,7 @@ export function redact(
     });
 }
 
-/** Replace each value a schema marks sensitive by what `map` makes of it, leaving out a value it maps to nothing. */
+/** Replace each sensitive value by what `map` makes of it, leaving out values mapped to nothing. */
 export function mapSensitive(
     definition: z.core.$ZodType,
     value: JsonValue | undefined,
@@ -85,7 +85,7 @@ export function mapSensitive(
     return value;
 }
 
-/** Leave out the fields of an object that its schema marks sensitive, handing each dropped value to `found`. */
+/** Leave out an object's sensitive fields by its schema, handing each dropped value to `found`. */
 export function redactFields(
     definition: z.ZodObject,
     value: JsonObject,

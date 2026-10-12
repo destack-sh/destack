@@ -4,6 +4,9 @@ import { HASH_ALGORITHMS, HASH_ENCODINGS, requireDeclarable } from "../validate/
 import { canonicalize, type JsonObject } from "./json.ts";
 import { present } from "../presence/presence.ts";
 
+/** The descriptions of the schemas described so far, kept by schema. */
+const DESCRIBED = new WeakMap<z.ZodType, JsonSchema>();
+
 /** The JSON Schema Draft 2020-12 description for inspection and external tooling. */
 export type JsonSchema = z.core.JSONSchema.JSONSchema;
 
@@ -21,7 +24,7 @@ const HASHES = HASH_ALGORITHMS.flatMap((algorithm) =>
     ),
 );
 
-/** The string builders of each format JSON Schema names, told apart by the pattern each describes. */
+/** The string builders of each JSON Schema format, told apart by the pattern each describes. */
 const FORMAT_BUILDERS: Readonly<Record<string, readonly (() => z.ZodStringFormat)[]>> = {
     uri: [() => z.url()],
     email: [() => z.email()],
@@ -124,22 +127,35 @@ export function toJsonSchema(schema: z.ZodType): JsonSchema & JsonObject;
 /**
  * Describe a schema using JSON Schema Draft 2020-12.
  *
- * @construct Zod writes JSON Schema as plain JSON: objects, lists, strings, numbers, booleans and null.
+ * @construct Zod writes JSON Schema as plain JSON values: objects, lists, scalars and null.
  */
 export function toJsonSchema(schema: z.ZodType): JsonSchema {
+    // reuse the description of a schema described before, as schemas never change
+    const kept = DESCRIBED.get(schema);
+    if (kept !== undefined) {
+        return kept;
+    }
+
     // describe a declarable schema
     requireDeclarable(schema);
     const described = describe(schema);
 
-    // require the description to build a schema it describes again, as fromJsonSchema reads it
-    const again = JSON.stringify(describe(fromJsonSchema(described)));
-    if (again !== JSON.stringify(described)) {
-        throw new TypeError(
-            `json schema ${JSON.stringify(described)} does not build the schema it describes`,
-        );
-    }
+    // keep it frozen, so a reader changing it fails instead of changing every later reader's
+    DESCRIBED.set(schema, frozen(described));
 
     return described;
+}
+
+/** Freeze a JSON value and every value inside it. */
+function frozen<Value>(value: Value): Value {
+    if (typeof value === "object" && value !== null) {
+        for (const inner of Object.values(value)) {
+            frozen(inner);
+        }
+        Object.freeze(value);
+    }
+
+    return value;
 }
 
 /** Describe a schema as Draft 2020-12, refusing what JSON Schema cannot represent. */
@@ -276,10 +292,9 @@ function typed(type: string, node: JsonSchema, context: ImportContext): z.ZodTyp
 
 /** Build a value of several types: a constrained type or null, or any of several plain types. */
 function typeList(types: readonly string[], node: JsonSchema, context: ImportContext): z.ZodType {
-    // build a constrained type or null
-    const others = types.filter((each) => each !== "null");
-    const [only] = others;
-    if (only !== undefined && others.length === 1 && types.length === 2) {
+    // build a constrained type followed by null, as a nullable schema describes itself
+    const [only, last] = types;
+    if (types.length === 2 && only !== undefined && only !== "null" && last === "null") {
         return typed(only, node, context).nullable();
     }
 
@@ -316,16 +331,12 @@ function string(node: JsonSchema): z.ZodType {
     return built;
 }
 
-/**
- * A pattern matched in time linear in its input, as RE2 matches, whatever the pattern.
- *
- * Its source stays the JSON Schema pattern, which describing the schema again writes.
- */
+/** A pattern matched in time linear in its input, as RE2 matches, whatever the pattern. */
 class LinearPattern extends RegExp {
     /** The pattern compiled for RE2's linear-time matching. */
     readonly #linear: RE2JS;
 
-    /** Compile a pattern for RE2, refusing lookarounds and backreferences, which RE2 cannot match. */
+    /** Compile a pattern for RE2, refusing the lookarounds and backreferences RE2 lacks. */
     constructor(pattern: string) {
         super(pattern, "u");
         try {
@@ -372,7 +383,7 @@ function formatOf(format: string, patterns: readonly string[]): FormatBuilder {
     );
 }
 
-/** Build a number or an integer from its bounds, an integer bounded to the safe range by default. */
+/** Build a number or integer from its bounds, an integer within the safe range by default. */
 function number(type: "integer" | "number", node: JsonSchema): z.ZodType {
     // start from an integer's safe range or any number
     const { minimum, maximum, exclusiveMinimum, exclusiveMaximum } = node;
@@ -500,7 +511,7 @@ function recordKey(built: z.ZodType): z.core.$ZodRecordKey {
     throw new TypeError(`json schema property names of type ${built.type} are not declarable`);
 }
 
-/** Decide whether a schema validates strings as record keys do: text, a format, an enumeration, or a union of them. */
+/** Decide whether a schema is a record key: text, a format, an enumeration, or their union. */
 function isRecordKey(built: z.core.$ZodType): built is z.ZodType & z.core.$ZodRecordKey {
     return (
         built instanceof z.ZodString ||
@@ -513,10 +524,15 @@ function isRecordKey(built: z.core.$ZodType): built is z.ZodType & z.core.$ZodRe
 
 /** Build a union, a nullable value when it lists one schema and null. */
 function union(options: readonly JsonSchemaValue[], context: ImportContext): z.ZodType {
-    // build a nullable value from one schema and null
-    const others = options.filter((option) => !isNull(option));
-    const [only] = others;
-    if (options.length === 2 && others.length === 1 && only !== undefined) {
+    // build a nullable value from a schema followed by null, as a nullable schema describes itself
+    const [only, last] = options;
+    if (
+        only !== undefined &&
+        last !== undefined &&
+        options.length === 2 &&
+        !isNull(only) &&
+        isNull(last)
+    ) {
         return build(only, context).nullable();
     }
 

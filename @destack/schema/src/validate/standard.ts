@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-/** A validator of any library implementing the Standard Schema protocol, version 1, as standardschema.dev declares it. */
+/** A validator of any library implementing Standard Schema version 1, from standardschema.dev. */
 export interface StandardSchema<Input = unknown, Output = Input> {
     /** The protocol's properties. */
     readonly "~standard": StandardProperties<Input, Output>;
@@ -31,7 +31,7 @@ export interface StandardIssue {
     readonly path?: readonly (PropertyKey | { readonly key: PropertyKey })[] | undefined;
 }
 
-/** Validate a value as a Standard Schema validator: its protocol version, vendor and validate function. */
+/** Validate a Standard Schema validator: its protocol version, vendor and validate function. */
 export function standard(): z.ZodType<StandardSchema> {
     return z.custom<StandardSchema>((value) => {
         const properties =

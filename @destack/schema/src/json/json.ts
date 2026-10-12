@@ -20,6 +20,16 @@ export const JsonValue = {
         return Array.isArray(value);
     },
 
+    /** Read an unknown value as a JSON object, refusing any other value. */
+    object(value: unknown): JsonObject {
+        const parsed = json().parse(value);
+        if (!JsonValue.isObject(parsed)) {
+            throw new TypeError("value is not a JSON object");
+        }
+
+        return parsed;
+    },
+
     /** Read a value in its JSON form, as `JSON.stringify` writes it. */
     of(value: unknown): JsonValue {
         const text = JSON.stringify(value);
@@ -30,7 +40,7 @@ export const JsonValue = {
         return json().parse(JSON.parse(text));
     },
 
-    /** Parse JSON text, absent for text that is no JSON, such as an untrusted header a schema then refuses. */
+    /** Parse JSON text, absent for invalid JSON, such as an untrusted header a schema refuses. */
     parse(text: string): unknown {
         try {
             return JSON.parse(text);
@@ -43,7 +53,7 @@ export const JsonValue = {
     },
 };
 
-/** Serialize a JSON value with object keys sorted by UTF-16 code units, omitting undefined fields. */
+/** Serialize JSON with object keys sorted by UTF-16 code units, omitting undefined fields. */
 export function canonicalize(value: unknown): string {
     // write strings, booleans, null and finite numbers directly
     if (

@@ -70,7 +70,7 @@ export function compareJsonSchemas(before: JsonSchema, after: JsonSchema): Schem
 /** One schema node: a keyword object or a boolean schema. */
 type Node = boolean | JsonSchema;
 
-/** A proof that one schema accepts every value another accepts, answering no when it cannot prove it. */
+/** Whether one schema accepts every value another accepts, answering no when it cannot show it. */
 class Inclusion {
     /** The document the including schema's references resolve in. */
     readonly #outerRoot: JsonSchema;
@@ -496,14 +496,14 @@ function boundOf(bound: number | boolean | undefined): number | undefined {
     return bound;
 }
 
-/** Read an inner array's greatest length, bounded by its fixed positions when it forbids the rest. */
+/** Read an inner array's greatest length, its fixed positions when it forbids the rest. */
 function innerMaxItems(inner: JsonSchema): number {
     const fixed = inner.items === false ? (inner.prefixItems ?? []).length : Infinity;
 
     return Math.min(inner.maxItems ?? Infinity, fixed);
 }
 
-/** Report whether an outer bound admits everything an inner bound admits, on the side a direction points to. */
+/** Report whether an outer bound admits all an inner bound admits, on a direction's side. */
 function includesBound(
     outer: readonly [number, boolean],
     inner: readonly [number, boolean],
