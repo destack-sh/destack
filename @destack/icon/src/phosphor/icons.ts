@@ -1,4 +1,4 @@
-/** Every Phosphor icon in name order: its name, the categories it belongs to and the words that find it. */
+/** Every Phosphor icon in name order: its name, its categories and the words that find it. */
 export const ICONS = [
     {
         name: "acorn",

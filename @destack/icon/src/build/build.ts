@@ -5,7 +5,7 @@ import type { BuildExtension, Plugin } from "@destack/package/build";
 /** The package exporting the icon component and one module per icon under `phosphor/<name>`. */
 const ICON_PACKAGE = "@destack/icon";
 
-/** Pass each icon drawn by a literal name its bodies in builds of packages that depend on `@destack/icon`. */
+/** Pass each icon with a literal name its bodies in builds of packages that use `@destack/icon`. */
 export const iconExtension: BuildExtension = {
     transform: () => [iconPlugin()],
 };
@@ -81,7 +81,7 @@ interface IconImport {
     readonly namespaces: ReadonlySet<string>;
 }
 
-/** Find a module's imports of the icon component: by name, and through namespaces of the package. */
+/** Find a module's imports of the icon component, by name and through namespaces of the package. */
 function findIconImport(program: ESTree.Program): IconImport {
     // collect the component's import and the package's namespaces
     let named: IconImport["named"];
@@ -131,7 +131,7 @@ function drawsIcon(element: ESTree.JSXOpeningElement, imported: IconImport): boo
     }
 }
 
-/** Read the literal name of an icon element without bodies, refusing one whose bodies the build cannot pass at its position. */
+/** Read the literal name of an icon element without bodies. */
 function readIconName(
     element: ESTree.JSXOpeningElement,
     imported: IconImport,

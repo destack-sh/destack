@@ -39,7 +39,7 @@ function invoke(
     return Reflect.apply(hook.handler, undefined, parameters);
 }
 
-/** Build a module through the icon plugin, reading the refusal the bundler reports with its line and column. */
+/** Build a module through the icon plugin and read the bundler's refusal with line and column. */
 async function refusalOf(source: string, id: string): Promise<string> {
     // serve the module from memory and leave the icon package external
     const build = rolldown({
