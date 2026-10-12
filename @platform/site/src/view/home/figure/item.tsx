@@ -41,7 +41,6 @@ const accents: Readonly<Record<string, string>> = {
     Framer: "#d9318f",
     Superhuman: "#7c3aed",
     Granola: "#65a30d",
-    Clerk: "#6c47ff",
     WorkOS: "#0ea5e9",
     Doppler: "#ec4899",
     Supabase: "#3ecf8e",
@@ -51,7 +50,6 @@ const accents: Readonly<Record<string, string>> = {
     Temporal: "#14b8a6",
     PostHog: "#f54e00",
     Vercel: "#64748b",
-    Stripe: "#635bff",
     ChatGPT: "#10a37f",
 };
 
