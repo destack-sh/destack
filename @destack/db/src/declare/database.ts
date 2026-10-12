@@ -48,7 +48,7 @@ export interface DatabaseConnector {
 export class Database<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > extends ResourceDeclaration<DatabaseConnection<Models>, DatabaseDescription> {
-    /** The tables the database keeps, its own and its copies, referencing tables kept elsewhere without foreign keys. */
+    /** The tables of the database, its own and copies, without foreign keys to others. */
     readonly tables: readonly Table[];
     /** The relations of the tables, which relational reads name. */
     readonly relations: Relations<Models>;
@@ -110,7 +110,7 @@ export interface DatabaseDefinition<
     readonly name: string;
     /** The tables the database owns, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
-    /** The tables the database copies from their owning service, which its follows fill, none by default. */
+    /** The tables the database copies from their service, filled by follows, none by default. */
     readonly copies?: readonly Table[];
     /** The relations of the tables. */
     readonly relations?: Relations<Models>;

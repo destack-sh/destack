@@ -24,7 +24,7 @@ export const ChangeDescription = defineSchema(
         binary: schema.array(schema.string().min(1)),
         /** Every SQL column name, to skip updates that change nothing. */
         compared: schema.array(schema.string().min(1)),
-        /** The SQL column with each row's scope, absent when every row takes the database's scope. */
+        /** The SQL column of each row's scope, absent if all rows take the database's scope. */
         scope: schema.string().min(1).exactOptional(),
     }),
 );

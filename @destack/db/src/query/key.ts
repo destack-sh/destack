@@ -81,7 +81,7 @@ export const Key = {
         return `${name}]`;
     },
 
-    /** Read a row's key from any record of its columns, failing for a missing or non-scalar key value. */
+    /** Read a row's key from a record of its columns, failing for missing or non-scalar values. */
     of(table: Table, row: Row): Key {
         const key: Record<string, ColumnValue> = {};
         for (const property of table[TABLE].key) {

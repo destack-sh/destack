@@ -10,11 +10,7 @@ import {
 import type { DatabaseConnection } from "../database/connection.ts";
 import type { DriverValue } from "../table/column.ts";
 
-/**
- * A statement rendered once per dialect and namespace and run with named values.
- *
- * Its constant text lets SQLite reuse its prepared statement and PostgreSQL its plan.
- */
+/** A statement rendered once per dialect and namespace and run with named values. */
 export class Statement {
     /** Build the statement from named values. */
     readonly #build: (value: (name: string) => SQLWrapper) => SQL;
@@ -61,6 +57,14 @@ export class Statement {
 
         return rendered;
     }
+}
+
+/** Match a value against the strings of a JSON array. */
+export function listed(value: SQLWrapper, array: SQLWrapper): SQL {
+    return dialectSQL({
+        sqlite: sql`${value} IN (SELECT value FROM json_each(${array}))`,
+        postgresql: sql`${value} IN (SELECT jsonb_array_elements_text(${array}::jsonb))`,
+    });
 }
 
 /** Select a JSON array's elements as rows of one `value` column. */

@@ -7,13 +7,7 @@ import type { Extras, Namespace } from "./namespace.ts";
 import type { ColumnDefinition, Column } from "../table/column.ts";
 import type { Rollup } from "../expression/expression.ts";
 
-/**
- * How related rows join a row of a relation's table.
- *
- * A key path joins two columns.
- * A junction path joins through a join table.
- * A descendants or ancestors path follows a tree's parent column.
- */
+/** How related rows join a row of a relation's table. */
 export type Path =
     | {
           /** Join a column of the related row to one of the row. */
@@ -82,7 +76,7 @@ type RelationJoin = Relation & { readonly on: KeyPath | JunctionPath };
 /** The rows a relational read keeps of a table along a path, every row when absent. */
 export type Filter = (table: Table, path: Path) => SQL | undefined;
 
-/** The schema's relations, by table, as queries name them, with the tables relational reads name. */
+/** The schema's relations by table, as queries list them, with relational read tables. */
 export class Relations<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > {
@@ -102,7 +96,7 @@ export class Relations<
         this.tables = tables;
     }
 
-    /** List a table's relations by name, with `descendants` and `ancestors` for a table keeping a tree. */
+    /** List a table's relations by name, with `descendants` and `ancestors` for a tree table. */
     of(table: Table): Readonly<Record<string, Relation>> {
         return { ...treeRelations(table), ...this.#tables.get(table) };
     }
@@ -120,11 +114,7 @@ export class Relations<
         return relation;
     }
 
-    /**
-     * Name what a table's conditions and computed values read through its relations, as SQL subqueries.
-     *
-     * A condition on a relation tests for a related row, a lookup reads the related row's column, and a rollup measures the related rows.
-     */
+    /** List what a table's conditions and computed values read through relations, as subqueries. */
     namespace(table: Table, extras: Extras = {}, filter: Filter = () => undefined): Namespace {
         const subquery = new Subquery(this, table, filter);
 
@@ -176,7 +166,7 @@ class Subquery {
     /** The rows the read keeps of each table along a path. */
     readonly #filter: Filter;
 
-    /** Read a table's related rows through the schema's relations, keeping the rows a filter keeps. */
+    /** Read a table's related rows through the schema's relations, keeping the filter's rows. */
     constructor(relations: Relations, table: Table, filter: Filter) {
         this.#relations = relations;
         this.#table = table;
@@ -342,7 +332,7 @@ type RelationTo<
     readonly where?: Condition;
 }) => Relation<Target, Cardinality>;
 
-/** The builder `defineRelations` passes: `r.one.<table>`, `r.many.<table>` and `r.<table>.<column>`. */
+/** The builder of `defineRelations`: `r.one.<table>`, `r.many.<table>` and `r.<table>.<column>`. */
 export type RelationBuilder<Tables extends Readonly<Record<string, Table>>> = {
     /** Declare a relation to one row of a table. */
     readonly one: { readonly [Name in keyof Tables]: RelationTo<Tables[Name], "one"> };
@@ -425,7 +415,7 @@ function builderOf<const Tables extends Readonly<Record<string, Table>>>(
 /**
  * Build the relation builder of some tables.
  *
- * @construct the builder holds a relation declaration and a column reference for every key of the tables it is given.
+ * @construct the builder has a relation declaration and column reference for every table key.
  */
 function builderOf(
     tables: Readonly<Record<string, Table>>,

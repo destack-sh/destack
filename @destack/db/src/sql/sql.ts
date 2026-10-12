@@ -19,7 +19,7 @@ export type Chunk =
     | SQLWrapper
     | readonly Chunk[];
 
-/** Decode a selected driver value into its application value: as a column kind, or by a function. */
+/** Decode a selected driver value into its application value: by column kind or function. */
 export type Decoder<Value> = ColumnDefinition | ((value: unknown) => Value);
 
 /** A SQL fragment with the type of the value it computes. */
@@ -49,7 +49,7 @@ export class SQL<Value = unknown> implements SQLWrapper {
     /**
      * Decode the selected value.
      *
-     * @construct a column definition decodes its column's values and a function decodes to its return type.
+     * @construct a column definition decodes its column's values, a function to its return type.
      */
     mapWith(decoder: Decoder<unknown>): SQL {
         return new SQL(this.chunks, decoder);
@@ -111,11 +111,7 @@ export class Parameter {
     }
 }
 
-/**
- * A value filled by name when a statement or condition runs.
- *
- * Its one field is its JSON form.
- */
+/** A value filled by name when a statement or condition runs. */
 export class Placeholder<Name extends string = string> implements SQLWrapper {
     /** The value's name. */
     readonly placeholder: Name;
@@ -153,7 +149,7 @@ export class RelationName {
     }
 }
 
-/** A named query its statement defines once at its start, which every part of the statement reads by name, the name standing for one query. */
+/** A named query a statement defines once at its start, read by name everywhere in it. */
 export class CommonTable implements SQLWrapper {
     /** The name the statement reads it by. */
     readonly name: string;
@@ -252,7 +248,7 @@ export function dialectSQL<Value = unknown>(fragments: Readonly<Record<Dialect, 
 /** The text of each template, its runs of whitespace outside quotes collapsed to one space. */
 const COMPACTED = new WeakMap<TemplateStringsArray, readonly string[]>();
 
-/** Read a template's text with its whitespace collapsed outside quotes, once per template, leaving a part with an unclosed quote as it is. */
+/** Read a template's text with whitespace collapsed outside quotes, once per template. */
 function compacted(strings: TemplateStringsArray): readonly string[] {
     // reuse the template's compacted text
     const known = COMPACTED.get(strings);
@@ -286,7 +282,7 @@ export function isSQLWrapper(value: unknown): value is SQLWrapper {
     );
 }
 
-/** Read the chunk a template value renders as: fragments embedded, lists in parentheses, others bound. */
+/** Read a template value's chunk: fragments embedded, lists in parentheses, others bound. */
 function chunkOf(value: unknown): Chunk {
     // embed fragments, columns, tables and queries
     if (isSQLWrapper(value) || value instanceof Placeholder || value instanceof Parameter) {

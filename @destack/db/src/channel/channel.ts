@@ -5,7 +5,7 @@ import { DatabaseError } from "../error/error.ts";
 export interface Channel<Message> {
     /** Send a message to every other party. */
     notify(message: Message): void;
-    /** Receive the other parties' messages until stopped, resuming on each delivery start and failing once delivery ends. */
+    /** Receive other parties' messages until stopped, resuming per delivery start. */
     listen(
         receive: (message: Message) => void,
         resume?: () => void,
@@ -17,7 +17,7 @@ export interface Channel<Message> {
 export const Commit = schema.object({
     /** The message kind. */
     kind: schema.literal("commit"),
-    /** The SQL names of the tables the commit wrote, every declared table when the writer cannot know them. */
+    /** The SQL names of the written tables, every declared table when the writer cannot know. */
     tables: schema.array(schema.string()),
 });
 /** A commit announced on a database's channel. */
@@ -77,7 +77,7 @@ export function broadcastChannel(name: string): Channel<unknown> {
     };
 }
 
-/** Connect parties to an in-process hub, delivering each message after the current task, such as the instances one process runs. */
+/** Connect parties to an in-process hub, delivering each message after the current task. */
 export function channelHub<Payload>(): () => Channel<Payload> {
     const listeners = new Set<(message: Payload) => void>();
 

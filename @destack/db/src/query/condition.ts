@@ -6,11 +6,7 @@ import { Namespace } from "./namespace.ts";
 import { Placeholder, type SQL } from "../sql/index.ts";
 import type { Table } from "../table/table.ts";
 
-/**
- * The most terms one condition has.
- *
- * At about 40 bytes a term, a condition renders at most about 40 KB of SQL.
- */
+/** The most terms one condition has. */
 const CONDITION_TERMS = 1000;
 
 /** The comparison operators, in the order a field's comparisons resolve. */
@@ -66,7 +62,7 @@ export type FieldReference = schema.Infer<typeof FieldReference>;
 /** A placeholder read when the condition runs, or another field of the row. */
 const Operand = schema.union([PlaceholderValue, FieldReference]);
 
-/** A value a field compares with, a placeholder read when the condition runs, or another field of the row. */
+/** A field's comparand: a value, a placeholder read when the condition runs, or another field. */
 const Comparand = schema.union([Comparable, PlaceholderValue, FieldReference]);
 
 /** The comparisons of one field. */
@@ -207,7 +203,7 @@ type KnownCondition<Row, Relations> = {
 /** An entry of a condition in its JSON form. */
 type JsonEntry = Comparable | readonly Comparable[] | JsonCondition | readonly JsonCondition[];
 
-/** A condition in its JSON form, as declarations, rows and the wire keep it: placeholders as `{ placeholder }`. */
+/** A condition in JSON form, as declarations, rows and the wire keep it with `{ placeholder }`. */
 export type JsonCondition = { readonly [name: string]: JsonEntry };
 
 /** An entry of a condition whose row is unknown. */
@@ -218,15 +214,10 @@ type OpenEntry =
     | OpenCondition
     | readonly OpenCondition[];
 
-/** A condition on a row whose fields are unknown, its placeholders in memory or in their JSON form. */
+/** A condition on a row of unknown fields, its placeholders in memory or in JSON form. */
 export type OpenCondition = { readonly [name: string]: OpenEntry };
 
-/**
- * A predicate over a row.
- *
- * A field takes a value or its comparisons, a relation its related row's condition or `true`, and `AND`, `OR` and `NOT` combine conditions.
- * Relations map each relation name to the condition type of its related rows.
- */
+/** A predicate over a row. */
 export type Condition<
     Row = Readonly<Record<string, Scalar>>,
     Relations = Readonly<Record<never, never>>,

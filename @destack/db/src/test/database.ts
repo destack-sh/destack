@@ -28,42 +28,22 @@ export const TEST_DIALECTS: readonly Dialect[] = [
 /** The connections each test database pools: ten workers stay within a server's hundred. */
 const TEST_POOL_CONNECTIONS = 4;
 
-/**
- * The seconds a test pool keeps an idle connection.
- *
- * A process keeps the pools of every schema it claimed, and a server serves a hundred connections.
- * A local reconnect costs a few milliseconds, while a test's own queries keep its connections busy.
- */
+/** The seconds a test pool keeps an idle connection. */
 const TEST_IDLE_SECONDS = 1;
 
 /** The migrated SQLite templates, by declared state. */
 const templates = new Map<string, Promise<string>>();
 
-/**
- * How long an unclaimed test schema stays for reuse, in milliseconds.
- *
- * Every claim from the server restamps a schema, so only states no test used for an hour expire.
- * Test runs create 50 to 230 schemas of about 175 catalog relations an hour, so an hour keeps up to 40k relations.
- * Each connection's type read and each catalog scan grows with them: 186k relations cost 65 ms and 20 ms.
- */
+/** How long an unclaimed test schema stays for reuse, in milliseconds. */
 const SCHEMA_RETENTION_MILLISECONDS = 60 * 60 * 1000;
 
-/**
- * The most expired schemas one test process drops when it starts.
- *
- * A drop of about 100 relations measured 116 ms on a loaded machine, so two add at most about 250 ms to a first test.
- * The tens of processes of one suite run still drop about a hundred schemas, above the hourly creation rate.
- */
+/** The most expired schemas one test process drops when it starts. */
 const EXPIRED_SCHEMA_DROPS = 2;
 
 /** The PostgreSQL cluster of this process's tests, opened once. */
 let testCluster: Promise<TestCluster> | undefined;
 
-/**
- * An isolated database for one test: a SQLite memory or file database, or a PostgreSQL schema.
- *
- * Migrated PostgreSQL schemas stay on the server by declared state, claimed through advisory locks and reset per test.
- */
+/** An isolated database for one test: a SQLite memory or file database, or a PostgreSQL schema. */
 export class TestDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > {
@@ -122,7 +102,7 @@ export class TestDatabase<
         return TestDatabase.#sqliteFile(declared, tables, options);
     }
 
-    /** Claim a migrated PostgreSQL schema this process keeps across tests, or create an empty one. */
+    /** Claim a migrated PostgreSQL schema this process keeps across tests, or create one. */
     static async #postgres<Models extends Readonly<Record<string, Model>>>(
         declared: readonly Table[],
         tables: declaration.Database<Models> | readonly Table[],
@@ -161,7 +141,7 @@ export class TestDatabase<
         });
     }
 
-    /** Keep SQLite in a temporary file, copied from the migrated template when asked, its channels shared through one hub. */
+    /** Keep SQLite in a temporary file, copied from the migrated template, sharing one hub. */
     static async #sqliteFile<Models extends Readonly<Record<string, Model>>>(
         declared: readonly Table[],
         tables: declaration.Database<Models> | readonly Table[],
@@ -234,11 +214,7 @@ export interface TestDatabaseOptions {
     readonly isReplica?: boolean;
 }
 
-/**
- * The PostgreSQL cluster of one test process, keeping the migrated schemas it claimed until the process exits.
- *
- * The administration connection takes every claim's advisory lock, so the server releases them when the process ends.
- */
+/** The PostgreSQL cluster of one test process, keeping its claimed schemas until exit. */
 class TestCluster {
     /** The server address. */
     readonly address: string;
@@ -289,7 +265,7 @@ class TestCluster {
         });
     }
 
-    /** Claim a reset migrated schema: an idle one of this process, a free retained one, or a new one. */
+    /** Claim a reset migrated schema: an idle one of this process, a free one, or a new one. */
     async claim(
         state: readonly TableState[],
         tables: declaration.Database | readonly Table[],
@@ -346,7 +322,7 @@ class TestCluster {
         return this.#adopt(name, pools);
     }
 
-    /** Take a schema's advisory lock, registered before it is awaited, reporting whether it was free. */
+    /** Take a schema's advisory lock, registered before awaiting, reporting whether it was free. */
     async #lock(name: string): Promise<boolean> {
         // register the name so concurrent claims of this session skip it
         this.#locked.add(name);
@@ -363,7 +339,7 @@ class TestCluster {
         return isLocked;
     }
 
-    /** Take a listed schema's advisory lock, reporting whether it was free and the schema still exists. */
+    /** Take a listed schema's advisory lock, reporting whether it was free and still exists. */
     async #lockListed(name: string): Promise<boolean> {
         if (!(await this.#lock(name))) {
             return false;
@@ -384,11 +360,7 @@ class TestCluster {
         return isPresent;
     }
 
-    /**
-     * Adopt a newly locked schema that migrates to nothing, or drop it.
-     *
-     * A schema without state, without a log, with foreign tables or with a pending plan is dropped.
-     */
+    /** Adopt a newly locked schema that migrates to nothing, or drop it. */
     async #verify(
         name: string,
         state: readonly TableState[],
@@ -452,7 +424,7 @@ class TestCluster {
             UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;`);
     }
 
-    /** Read a schema's tables and sequences with its applied state, which the migration plan compares. */
+    /** Read a schema's tables, sequences and applied state for the migration plan to compare. */
     async #readShape(name: string): Promise<TestSchemaShape> {
         // read the relations and digest the applied state
         const relations = await this.#readRelations(name);

@@ -46,7 +46,7 @@ export interface WindowRead<Read = Row> {
     readonly relations?: RelationView;
 }
 
-/** The log's head as one statement saw it: its epoch, newest logged sequence and highest compacted one. */
+/** The log's head as one statement saw it: epoch, newest sequence and highest compacted one. */
 interface Head {
     /** The log's epoch. */
     readonly epoch: string;
@@ -71,7 +71,7 @@ export type Rewind = (
     upto: number,
 ) => Promise<ReadonlyMap<string, Row | null>>;
 
-/** Read the rows a layer puts over a table's rows, by key name: a row, or null for a removed one. */
+/** Read a layer's rows over a table's rows by key name: a row, or null for a removed one. */
 export type Overlay = (table: Table) => Promise<ReadonlyMap<string, Row | null>>;
 
 /** What an ordered read admits beyond a condition. */
@@ -102,7 +102,7 @@ export class Snapshot {
     readonly #rewind: Rewind;
     /** The rows a layer puts over the database's, such as a branch's, absent for none. */
     readonly #overlay: Overlay | undefined;
-    /** The record of what the snapshot read, which a mutation's commit checks, absent when nothing records. */
+    /** The record of the snapshot's reads, checked at a mutation's commit, if any. */
     readonly #reads: ReadSet | undefined;
     /** The rows changed related rows touched, read once per relations, table and sequence. */
     readonly #touched = new WeakMap<RelationView, Map<string, Promise<Map<string, Row | null>>>>();
@@ -123,7 +123,7 @@ export class Snapshot {
         this.#reads = reads;
     }
 
-    /** Whether reads go straight to the live database: no position, no overlay and nothing recording them. */
+    /** Whether reads go to the live database: no position, no overlay and no recording. */
     get isLive(): boolean {
         return (
             this.position === undefined && this.#overlay === undefined && this.#reads === undefined
@@ -240,7 +240,7 @@ export class Snapshot {
         return present;
     }
 
-    /** Read up to a count of admitted matching rows in an order after a row, with their computed values. */
+    /** Read up to a count of admitted matching rows ordered after a row, with computed values. */
     async ordered<Definition extends Table, Extra = {}>(
         table: Definition,
         query: WindowRead<RowImage<NoInfer<Definition>> & Extra> & { readonly after?: Row },
@@ -253,7 +253,7 @@ export class Snapshot {
         return logged(rows);
     }
 
-    /** Read up to a count of admitted matching rows of each partition some values of a column name, in an order, aligned with the values. */
+    /** Read up to a count of admitted rows per partition of a column's values, in order. */
     async windows<Definition extends Table, Extra = {}>(
         table: Definition,
         query: WindowRead<RowImage<NoInfer<Definition>> & Extra> & {
@@ -265,7 +265,7 @@ export class Snapshot {
         return windows.map((window) => logged(window));
     }
 
-    /** Read the first rows of one window, or of each partition's window in one ranked read per round. */
+    /** Read the first rows of one window, or of each partition's window in ranked rounds. */
     async #windows<Read>(
         table: Table,
         query: WindowRead<Read> & { readonly after?: Row },
@@ -376,7 +376,7 @@ export class Snapshot {
         return settling;
     }
 
-    /** Keep the admitted current rows no image replaces, and add the admitted images matching a read after its row. */
+    /** Keep admitted current rows without an image, and add admitted images after a read's row. */
     async #merge<Read>(
         table: Table,
         rows: Row[],
@@ -419,7 +419,7 @@ export class Snapshot {
         return kept;
     }
 
-    /** Read the rows changed related rows touched between the position and a sequence, once per relations, table and sequence. */
+    /** Read the rows related changes touched between the position and a sequence. */
     #settled(
         table: Table,
         relations: RelationView,
@@ -472,7 +472,7 @@ export class Snapshot {
         return found;
     }
 
-    /** Read a table's logged columns of the admitted rows with the log's head in one statement, the head's sequence absent when live or without rows. */
+    /** Read the logged columns of admitted rows with the log's head in one statement. */
     async #read(
         table: Table,
         selection: SQL,
@@ -491,7 +491,7 @@ export class Snapshot {
         return this.#take(await (limit === undefined ? ordered : ordered.limit(limit)));
     }
 
-    /** Read the first rows of each partition's window in one statement, ranked within the partition, with the log's head. */
+    /** Read the first rows of each partition's window in one ranked statement, with the head. */
     async #ranked(
         table: Table,
         selection: SQL | undefined,
@@ -615,7 +615,7 @@ function logged<Definition extends Table>(rows: Row[]): (RowImage<Definition> & 
 /**
  * Pass the rows on, whose decoders and log keep exactly the table's logged columns.
  *
- * @construct the snapshot decoded every row through the table's logged columns, which is how RowImage maps the table.
+ * @construct the snapshot decoded every row through the logged columns, as RowImage maps the table.
  */
 function logged(rows: Row[]): Row[] {
     return rows;

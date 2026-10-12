@@ -3,10 +3,10 @@ import { Digest } from "@destack/schema";
 import { DatabaseError } from "../error/error.ts";
 import type { DurableObjectStub } from "./host.ts";
 
-/** The path below which an object keeps content pages by digest for the operations it sends, as an OCI registry serves blobs. */
+/** The path of an object's content pages by digest for its operations, like OCI blobs. */
 export const CONTENT_PATH = "/.destack/content";
 
-/** The content pages another Durable Object keeps for one operation, read and written over its fetch with the operation's credential. */
+/** The content pages another Durable Object keeps for one operation. */
 export class DurableObjectContentStore implements Pick<ContentStore, "read" | "write"> {
     /** The object keeping the pages. */
     readonly #object: DurableObjectStub;
@@ -29,7 +29,7 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
         yield* response.body;
     }
 
-    /** Keep a page under its digest and return it, refusing bytes of another digest than the expected one. */
+    /** Keep a page under its digest and return it, refusing bytes of an unexpected digest. */
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
         // gather and hash the page
         const page = await gathered(body);

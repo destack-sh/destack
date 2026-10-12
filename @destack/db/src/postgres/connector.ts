@@ -8,7 +8,7 @@ import type { PostgresDatabase } from "./database.ts";
 /** The connection parameter that selects a database's schema. */
 const SCHEMA_PARAMETER = "search_path";
 
-/** Open the databases of one PostgreSQL cluster, each a schema a binding refers to, as their instance's sole writer. */
+/** Open the databases of one PostgreSQL cluster, each a binding's schema, as sole writer. */
 export class PostgresConnector implements DatabaseConnector {
     /** The provider code of PostgreSQL databases. */
     readonly code = "postgresql";

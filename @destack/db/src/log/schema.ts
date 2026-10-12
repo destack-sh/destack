@@ -6,7 +6,7 @@ import { literal, quote } from "../dialect/quote.ts";
 import { relation } from "../table/namespace.ts";
 
 // NOTE #Performance: PgQ positions over a ticker's snapshots would remove the one lock per log serialising commits
-/** The advisory lock class serialising a PostgreSQL log's commits, from optimistic validation to stamping, keyed by the log's schema. */
+/** The advisory lock class serialising a PostgreSQL log's commits, keyed by the log's schema. */
 export const COMMIT_LOCK = 471_026_381;
 
 /** The SQL name of the database's log. */
@@ -21,7 +21,7 @@ export const LOG_SLOT = "__destack_log_slot";
 /** The SQL name of the log's epoch. */
 export const LOG_EPOCH = "__destack_log_epoch";
 
-/** The SQL name of the marker of a transaction writing as a replica, with the origin whose writes it replicates. */
+/** The SQL name of the replica write marker, with the origin of the replicated writes. */
 export const LOG_REPLICA = "__destack_log_replica";
 
 /** The SQL name of the open SQLite transaction's identity. */
@@ -108,7 +108,7 @@ export function loggedKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log's first epoch once, with the scope of the rows in tables without a scope column, and keep existing state. */
+/** Create the log's first epoch once, with the row scope of unscoped tables, keeping state. */
 export function createEpoch(epoch: string, scope?: string, namespace?: string): readonly string[] {
     const name = (table: string) => quote(relation(table, namespace));
 
@@ -133,9 +133,9 @@ export function createEpoch(epoch: string, scope?: string, namespace?: string): 
     ];
 }
 
-/** The log of one dialect: its tables and change triggers, within the database's namespace in a SQLite store several databases share. */
+/** The log of one dialect: its tables and change triggers, within the database's namespace. */
 export interface LogDialect {
-    /** Create the log once per database at a first epoch, with the scope of the rows in tables without a scope column. */
+    /** Create the log once at a first epoch, with the row scope of unscoped tables. */
     create(epoch: string, scope?: string, namespace?: string): readonly string[];
     /** Generate the triggers on a table's relation recording its changes under its SQL name. */
     install(table: string, description: ChangeDescription, namespace?: string): string[];

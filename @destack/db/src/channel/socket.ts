@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { FileLock, runtimeDirectory } from "@destack/fs";
 import type { Channel } from "./channel.ts";
 
-/** The hexadecimal digits of a path's digest naming its socket, short enough for the 104 bytes of a macOS socket path. */
+/** The hex digits of a path digest in its socket name, fitting macOS's 104-byte socket paths. */
 const NAME_DIGITS = 16;
 
 /** The wait before joining again while another party starts serving, about one process start. */
@@ -21,7 +21,7 @@ interface Listener {
     readonly fail: ((error: unknown) => void) | undefined;
 }
 
-/** Reach every process on one machine sharing a path, such as a SQLite file's writers, through a Unix socket. */
+/** Connect every process on one machine sharing a path through a Unix socket. */
 export function socketChannel(path: string): Channel<unknown> {
     return new SocketChannel(path);
 }
@@ -39,7 +39,7 @@ export function channelFiles(
     };
 }
 
-/** A party of a socket channel: the one with its lock serves the socket, the others connect to it. */
+/** A party of a socket channel: the lock holder serves the socket, the others connect to it. */
 class SocketChannel implements Channel<unknown> {
     /** The path the parties share, such as a SQLite file. */
     readonly #path: string;

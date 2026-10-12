@@ -43,7 +43,7 @@ export interface QueryOptions {
     readonly orderBy?: OrderBy;
     /** The most rows selected, per selected row for an included relation. */
     readonly limit?: number;
-    /** The related rows each selected row includes, by relation name: every row, or a shaped selection. */
+    /** The related rows each selected row includes, by relation: every row, or a selection. */
     readonly with?: Readonly<Record<string, true | QueryOptions>>;
     /** The aggregates kept instead of rows. */
     readonly aggregate?: Aggregate;

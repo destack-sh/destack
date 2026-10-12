@@ -30,23 +30,18 @@ export interface FilterOptions {
     readonly values?: Readonly<Record<string, Comparable>>;
     /** Convert a field's literal, such as a date for a time field, keeping it when absent. */
     readonly convert?: (path: readonly string[], literal: Comparable) => Comparable;
-    /** Whether a dotted name walks relations, true by default, or names one field such as an attribute key. */
+    /** Whether a dotted name walks relations, by default, or is one field like an attribute. */
     readonly isRelational?: boolean;
 }
 
 /** Filters in AIP-160's syntax with SQL's precedence, read into conditions. */
 export const Filter = {
-    /**
-     * Read a filter into a condition.
-     *
-     * Restrictions compare a field with `=`, `!=`, `<`, `<=`, `>`, `>=` or `:` (contains, ignoring case).
-     * `AND` and adjacency bind tighter than `OR`, as in SQL, `NOT` or `-` negates, and keywords are uppercase.
-     */
+    /** Read a filter into a condition. */
     parse(filter: string, options: FilterOptions = {}): JsonCondition {
         return new FilterReader(tokenize(filter), filter, options).read();
     },
 
-    /** Read a filter over plain rows, such as attribute maps, into a match deciding as SQL decides. */
+    /** Read a filter over plain rows, such as attribute maps, into a match deciding like SQL. */
     compile(
         filter: string,
         options: Omit<FilterOptions, "isRelational"> = {},
@@ -178,7 +173,7 @@ class FilterReader {
         return nest(path, compare(comparator.text, value));
     }
 
-    /** Read a restriction's value as a quoted text, a named value, null, a boolean, a number or a word. */
+    /** Read a restriction's value: quoted text, a named value, null, boolean, number or word. */
     #value(path: readonly string[]): Comparable | null {
         // read the literal
         const token = this.#tokens[this.#position];

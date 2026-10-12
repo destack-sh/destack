@@ -69,7 +69,7 @@ test.skipIf(ADDRESS === undefined)(
 /** The test database whose default collation is ICU's English order, where `_` < `a` < `B`. */
 const ICU_DATABASE = "destack_test_icu";
 
-/** The keys of the listed files, in byte order: a capital, the underscore, small letters, an accented letter. */
+/** The keys of the listed files in byte order: capital, underscore, small, accented letter. */
 const KEYS = ["B", "_", "a", "b", "é"];
 
 /** Files listed by key, as a bucket's catalogue lists them. */
@@ -175,7 +175,7 @@ test.skipIf(ADDRESS === undefined)(
     },
 );
 
-/** List the node types of a statement's plan from the root down its first inputs, without sequential scans where an index serves. */
+/** List a statement's plan node types from the root down its first inputs. */
 async function explain(database: DatabaseConnection, statement: SQL): Promise<string[]> {
     // explain the statement with sequential scans disabled
     const [explained] = await database.transaction(async (transaction) => {

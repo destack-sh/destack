@@ -15,7 +15,7 @@ import { type Insert, type Select, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
 
-/** The values of an insert or update: application values, fragments or placeholders, undefined taking the default. */
+/** The values of an insert or update: values, fragments or placeholders, undefined as default. */
 export type InsertValue<Definition extends Table> = {
     [Property in keyof Insert<Definition>]:
         | Insert<Definition>[Property]
@@ -179,9 +179,9 @@ export class MutationQuery<
         fields: Fields,
     ): MutationQuery<Definition, SelectionResult<Fields>[], Operation>;
     /**
-     * Return fields of the changed records, whose signatures above type them by the fields.
+     * Return fields of the changed records, typed by the fields in the signatures above.
      *
-     * @construct the returned rows decode through the selected fields, or every column, which is how the signatures above map the result.
+     * @construct the returned rows decode through the selected fields or all columns, as typed.
      */
     returning(fields?: ReturningSelection): MutationQuery<Definition, unknown[], Operation> {
         return new MutationQuery({
@@ -193,9 +193,9 @@ export class MutationQuery<
     /** Run the mutation, returning the changed rows when asked. */
     async execute(): Promise<Result>;
     /**
-     * Run the mutation, whose signature above types its result by the returned fields.
+     * Run the mutation, typing its result by the returned fields in the signature above.
      *
-     * @construct the rows decode through the projection of the returned fields, from which the builder computed Result.
+     * @construct the rows decode through the returned fields' projection, which computed Result.
      */
     async execute(): Promise<unknown> {
         // render the mutation for the driver's dialect
@@ -345,7 +345,7 @@ function assignments(table: Table, changes: WriteRecord): SQL {
     return sql.join(set, sql.raw(", "));
 }
 
-/** Write a value: fragments and placeholders as they are, a missing one as the column's default, others bound through the column. */
+/** Write a value: fragments and placeholders as is, missing as default, others bound. */
 function valueOf(column: Column, value: unknown): SQLWrapper {
     // keep fragments and placeholders
     if (isSQLWrapper(value)) {

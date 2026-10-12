@@ -1,6 +1,6 @@
 import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
-/** The service error code of each database failure: a conflict, a bad request, a lost history, or the host's. */
+/** The service error code per database failure: conflict, bad request, lost history, host. */
 const SERVICE_CODES = {
     INVALID_MIGRATION: "INTERNAL_SERVER_ERROR",
     MIGRATION_FAILED: "INTERNAL_SERVER_ERROR",
@@ -31,7 +31,7 @@ export type DatabaseErrorCode = keyof typeof SERVICE_CODES;
 export class DatabaseError extends Error implements DomainError {
     /** The failure code. */
     readonly code: DatabaseErrorCode;
-    /** The table and key columns of the unique key a duplicate violates, by their SQL names, absent for other failures and drivers naming none. */
+    /** The table and SQL key columns of a violated unique key, if the driver reports them. */
     readonly key: { readonly table: string; readonly columns: readonly string[] } | undefined;
 
     /** Create a database failure. */
@@ -47,7 +47,7 @@ export class DatabaseError extends Error implements DomainError {
         this.key = options?.key;
     }
 
-    /** Read the key a driver's duplicate failure violates, as SQLite's message or PostgreSQL's table and detail list it, absent when neither does. */
+    /** Read the key a driver's duplicate failure violates, absent if the driver gives none. */
     static violated(error: Error): DatabaseError["key"] {
         // read SQLite's "UNIQUE constraint failed: table.column, …", a namespaced table as "namespace.table.column"
         const failed = /^UNIQUE constraint failed: (.+)$/u.exec(error.message)?.[1];

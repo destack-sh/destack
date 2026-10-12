@@ -15,7 +15,7 @@ export const COLUMN_KINDS = [
     "numeric",
 ] as const;
 
-/** What a foreign key does to referencing rows when their referenced row changes, refusals checked once a deferred commit ends. */
+/** What a foreign key does to referencing rows on a change, refusals checked at deferred commit. */
 export const REFERENCE_ACTIONS = ["cascade", "no action", "set null", "set default"] as const;
 
 /** The column kinds whose values are their own JSON form and driver parameter. */
@@ -133,7 +133,7 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         });
     }
 
-    /** Keep the value out of logs, audit details, sync and request fingerprints, its schemas marking it a secret. */
+    /** Keep the value out of logs, audits, sync and fingerprints, marked secret in schemas. */
     sensitive(): ColumnBuilder<Definition & { readonly classification: "sensitive" }> {
         return new ColumnBuilder({
             ...this.definition,
@@ -143,7 +143,7 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         });
     }
 
-    /** Mark the value as personal data, exported and erased with its subject, its schemas marking it personal. */
+    /** Mark the value as personal, exported and erased with its subject, marked so in schemas. */
     personal(): ColumnBuilder<Definition & { readonly classification: "personal" }> {
         return new ColumnBuilder({
             ...this.definition,
@@ -229,13 +229,13 @@ export interface ColumnDefinition<
     readonly reference?: ReferenceAction & {
         readonly column: () => Column<ColumnDefinition<Value>>;
     };
-    /** The protection: sensitive values stay in the row, personal values are exportable and erasable. */
+    /** The protection: sensitive values stay in the row, personal ones export and erase. */
     readonly classification?: "sensitive" | "personal";
     /** Encode an application value as a driver parameter. */
     encode(value: unknown, dialect: Dialect): DriverValue;
     /** Decode a driver value as an application value. */
     decode(value: unknown, dialect: Dialect): Value;
-    /** Write a value in JSON form: exact numbers as text, instants as epoch milliseconds, bytes as base64. */
+    /** Write a value as JSON: exact numbers as text, instants as epoch ms, bytes as base64. */
     toJson(value: Value): JsonValue;
     /** Read a value from its JSON form. */
     fromJson(value: unknown): Value;
@@ -502,7 +502,7 @@ function decimalText(value: unknown): unknown {
     return typeof value === "number" || typeof value === "bigint" ? value.toString() : value;
 }
 
-/** Define a column whose JSON form, parameter and driver value are its validated value, read from the driver first when given. */
+/** Define a column whose JSON form, parameter and driver value are its validated value. */
 function scalarColumn<Value extends string | number | boolean | null, Kind extends ColumnKind>(
     name: string,
     kind: Kind,

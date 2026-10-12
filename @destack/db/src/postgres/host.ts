@@ -22,7 +22,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         this.connector = new PostgresConnector(cluster);
     }
 
-    /** Create the database's schema, named by the resource, and start its log under the resource's scope unless an earlier provisioning did. */
+    /** Create the database's schema for the resource. */
     async provision(record: ResourceRecord<typeof DatabaseKind>): Promise<{ reference: string }> {
         // create the schema unless it exists
         await using connection = await this.#connect(record.id);
@@ -89,7 +89,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         return DatabaseHandle.apply(connect, states, digest, record.id);
     }
 
-    /** Open the tables the desired states describe, and a replica's local tables beside them once migrated. */
+    /** Open the tables of the desired states, and a replica's local tables once migrated. */
     open(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
@@ -108,12 +108,12 @@ export class PostgresDatabaseHost implements DatabaseHost {
         return connectPostgres(this.connector.url(namespace));
     }
 
-    /** Copy a database's rows into a store as content-addressed pages, answering the copy's digest. */
+    /** Copy a database's rows into a store as content-addressed pages, returning the digest. */
     snapshot(...copy: Parameters<DatabaseHost["snapshot"]>): Promise<Digest> {
         return DatabaseHandle.snapshotter(this).snapshot(...copy);
     }
 
-    /** Restore the rows a copy keeps into a database, onto the base copy it holds already when given. */
+    /** Restore a copy's rows into a database, onto a base copy it already has when given. */
     restore(...copy: Parameters<DatabaseHost["restore"]>): Promise<void> {
         return DatabaseHandle.snapshotter(this).restore(...copy);
     }

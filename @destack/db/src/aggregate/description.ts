@@ -24,7 +24,7 @@ const AGGREGATE_TARGET = {
     ),
 };
 
-/** A column with an aggregate of the rows referencing each row: a count, or a sum or extreme of a column. */
+/** A column aggregating the rows referencing each row: a count, or a column's sum or extreme. */
 export const AggregateDescription = defineSchema(
     schema.discriminatedUnion("function", [
         schema.object({

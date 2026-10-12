@@ -13,7 +13,7 @@ const commit = defineTable(
         id: text("id").primaryKey(),
         /** The commit hash, 40 or 64 lowercase hex digits. */
         hash: text("hash").notNull(),
-        /** The commit's label, lowercase letters, which may not be the reserved `xn` nor the empty text the column refuses. */
+        /** The commit's label in lowercase letters, refusing the reserved `xn` and empty text. */
         label: text("label")
             .validate(schema.string().regex(/^[a-z]+$/u))
             .notNull(),

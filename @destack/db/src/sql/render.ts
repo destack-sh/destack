@@ -19,11 +19,7 @@ import {
     type SQLWrapper,
 } from "./sql.ts";
 
-/**
- * The start of a statement that only reads: SELECT after any space.
- *
- * A statement starting with WITH counts as a write, since its common tables may write.
- */
+/** The start of a statement that only reads: SELECT after any space. */
 const READ = /^\s*SELECT\b/iu;
 
 /** A statement's text and positional parameters, some of them filled by name when it runs. */
@@ -32,7 +28,7 @@ export interface StatementTemplate {
     readonly text: string;
     /** The driver values and placeholders in marker order. */
     readonly parameters: readonly (DriverValue | Placeholder)[];
-    /** The SQL names of the tables the statement names through tables, columns and relations, outside a namespace. */
+    /** The SQL tables the statement reads through tables, columns and relations, unqualified. */
     readonly tables: readonly string[];
     /** Whether the statement only reads, as a statement starting with SELECT does. */
     readonly isRead: boolean;
@@ -44,13 +40,13 @@ export interface DriverStatement {
     readonly text: string;
     /** The driver values in marker order. */
     readonly parameters: readonly DriverValue[];
-    /** The SQL names of the tables the statement names through tables, columns and relations, outside a namespace. */
+    /** The SQL tables the statement reads through tables, columns and relations, unqualified. */
     readonly tables: readonly string[];
     /** Whether the statement only reads, as a statement starting with SELECT does. */
     readonly isRead: boolean;
 }
 
-/** Render a fragment for a dialect: identifiers quoted, relations within the database's namespace, values bound in order. */
+/** Render a fragment for a dialect: quoted identifiers, namespaced relations, bound values. */
 export function render(
     fragment: SQLWrapper,
     dialect: Dialect,
@@ -80,7 +76,7 @@ export function render(
     return { text: `WITH ${defined.join(", ")} ${text}`, parameters, tables, isRead };
 }
 
-/** Render a fragment or value as standalone SQL for declarations: values as literals, columns without their table. */
+/** Render a fragment or value as standalone SQL: literal values, unqualified columns. */
 export function inline(value: SQLWrapper | DriverValue, dialect: Dialect): string {
     return renderChunk(isSQLWrapper(value) ? value : new Parameter(value), {
         dialect,
@@ -127,11 +123,11 @@ export function fill(
 interface Target {
     /** The SQL dialect. */
     readonly dialect: Dialect;
-    /** The database's namespace in a store several databases share, absent for a database of its own. */
+    /** The database's namespace in a shared store, absent for a database of its own. */
     readonly namespace: string | undefined;
-    /** The common tables the statement reads by name, by name, absent for a declaration, which defines none. */
+    /** The common tables the statement reads, by name, absent for a declaration. */
     readonly commons: Map<string, string> | undefined;
-    /** The SQLite marker number of each value bound so far, by its key, which later occurrences reuse. */
+    /** The SQLite marker number of each bound value by key, for later occurrences. */
     readonly bound: Map<string, number>;
     /** The bound values so far, absent to write literals. */
     readonly parameters: (DriverValue | Placeholder)[] | undefined;

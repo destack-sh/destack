@@ -1,7 +1,7 @@
 import { Digest } from "@destack/schema";
 import type { ContentStore } from "@destack/resource";
 
-/** A snapshot store in memory, keeping each blob with the moment it was last used, as a cell's store sweeps them. */
+/** A snapshot store in memory, keeping each blob's last use, as a cell's store sweeps them. */
 export class MemoryContentStore implements ContentStore {
     /** The kept blobs, by digest. */
     readonly #blobs = new Map<Digest, { readonly bytes: Uint8Array; used: Date }>();
@@ -39,7 +39,7 @@ export class MemoryContentStore implements ContentStore {
         return digest;
     }
 
-    /** Keep the blobs the store lacks among some digests, read from another store, marking the kept ones used now. */
+    /** Keep the missing blobs of some digests from another store, marking the kept ones used. */
     async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
         for (const digest of new Set(digests)) {
             const blob = this.#blobs.get(digest);

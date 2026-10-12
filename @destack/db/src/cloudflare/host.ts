@@ -69,7 +69,7 @@ const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
         digest: Digest,
     }),
     schema.object({
-        /** Copy the database's rows into the content the sender keeps, answering the copy's digest. */
+        /** Copy the database's rows into the sender's content, returning the digest. */
         operation: schema.literal("snapshot"),
         /** The database resource. */
         record: DatabaseRecord,
@@ -77,7 +77,7 @@ const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
         desired: schema.array(DatabaseState),
     }),
     schema.object({
-        /** Restore a copy the sender keeps into the database, onto the base copy it holds already when given. */
+        /** Restore a sender's copy into the database, onto a base copy it has when given. */
         operation: schema.literal("restore"),
         /** The database resource. */
         record: DatabaseRecord,
@@ -89,14 +89,14 @@ const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
         base: Digest.exactOptional(),
     }),
     schema.object({
-        /** Count the bytes of every database the object keeps, and take the rows they read and wrote. */
+        /** Count the object's database bytes, and take the rows they read and wrote. */
         operation: schema.literal("measure"),
     }),
 ]);
 /** An operation on the databases an object keeps, as another object sends it. */
 export type DurableObjectDatabaseOperation = schema.Infer<typeof DurableObjectDatabaseOperation>;
 
-/** The bytes an object's databases keep, and the rows they read and wrote since it was last measured. */
+/** The bytes of an object's databases, and the rows they read and wrote since last measured. */
 export const DurableObjectMeasurement = defineSchema(
     schema.object({
         /** The bytes of the object's SQLite storage. */
@@ -107,12 +107,12 @@ export const DurableObjectMeasurement = defineSchema(
         rowsWritten: schema.number().int().nonnegative(),
     }),
 );
-/** The bytes an object's databases keep, and the rows they read and wrote since it was last measured. */
+/** The bytes of an object's databases, and the rows they read and wrote since last measured. */
 export type DurableObjectMeasurement = schema.Infer<typeof DurableObjectMeasurement>;
 
 /** The options of a database in a Durable Object's SQLite storage. */
 export interface DurableObjectConnectOptions extends SqliteConnectOptions {
-    /** The database's namespace in the storage several databases share, such as its identifier; absent for the storage's only database. */
+    /** The database's namespace in a shared storage, such as its identifier, if any. */
     readonly namespace?: string;
 }
 
@@ -139,13 +139,13 @@ export class StorageTransaction {
     }
 }
 
-/** Keep databases in one Durable Object's SQLite storage, each in a namespace named by its resource. */
+/** Keep databases in one Durable Object's SQLite storage, each in its resource's namespace. */
 export class DurableObjectDatabaseHost implements DatabaseHost {
     /** The provider code of databases in Durable Objects. */
     readonly provider = DURABLE_OBJECT_PROVIDER;
     /** The object's SQLite storage. */
     readonly storage: DurableObjectStorage;
-    /** The work queue the storage's one connection runs its databases' work in, one transaction at a time. */
+    /** The work queue of the storage's one connection, one transaction at a time. */
     readonly queue = new SqliteWorkQueue();
     /** The rows the databases read and wrote since the last measure. */
     #rows = { rowsRead: 0, rowsWritten: 0 };
@@ -155,7 +155,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         this.storage = storage;
     }
 
-    /** Open a database in the storage, the object being its sole writer, its work behind the storage's queue. */
+    /** Open a database in the storage, with the object as sole writer behind the queue. */
     connect<Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>>(
         tables: declaration.Database<Models> | readonly Table[] = [],
         options: DurableObjectConnectOptions = {},
@@ -163,7 +163,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         return this.#open(tables, options);
     }
 
-    /** Run work in a storage transaction behind the queue, the transaction closing once the work settles. */
+    /** Run work in a storage transaction behind the queue, closing it once the work settles. */
     transaction<Value>(work: (transaction: StorageTransaction) => Promise<Value>): Promise<Value> {
         return this.queue.run(async () => {
             const transaction = new StorageTransaction();
@@ -202,7 +202,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         return `${REFERENCE_PREFIX}${resource}`;
     }
 
-    /** Read the namespace of a database a reference names, refusing a reference of another provider. */
+    /** Read the namespace of a database reference, refusing other providers' references. */
     static namespace(reference: string): string {
         if (
             !reference.startsWith(REFERENCE_PREFIX) ||
@@ -232,7 +232,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         await this.drop(record.id);
     }
 
-    /** Drop every relation of a namespace, such as a database a runtime keeps only while an instance runs. */
+    /** Drop every relation of a namespace, such as a database kept only while an instance runs. */
     async drop(namespace: string): Promise<void> {
         // read and drop each relation behind the storage's queue
         await this.queue.run(async () => {
@@ -269,7 +269,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         return DatabaseHandle.apply(connect, states, digest, record.id);
     }
 
-    /** Open the tables the desired states describe, and a replica's local tables beside them once migrated. */
+    /** Open the tables of the desired states, and a replica's local tables once migrated. */
     open(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
@@ -283,22 +283,22 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         );
     }
 
-    /** Copy a database's rows into a store as content-addressed pages, answering the copy's digest. */
+    /** Copy a database's rows into a store as content-addressed pages, returning the digest. */
     snapshot(...copy: Parameters<DatabaseHost["snapshot"]>): Promise<Digest> {
         return DatabaseHandle.snapshotter(this).snapshot(...copy);
     }
 
-    /** Restore the rows a copy keeps into a database, onto the base copy it holds already when given. */
+    /** Restore a copy's rows into a database, onto a base copy it already has when given. */
     restore(...copy: Parameters<DatabaseHost["restore"]>): Promise<void> {
         return DatabaseHandle.snapshotter(this).restore(...copy);
     }
 
-    /** Count the bytes of every database the object keeps: its whole SQLite storage, as Cloudflare bills it. */
+    /** Count the object's database bytes: its whole SQLite storage, as Cloudflare bills it. */
     bytes(): number {
         return this.storage.sql.databaseSize;
     }
 
-    /** Count the bytes of every database the object keeps, and take the rows they read and wrote since the last measure. */
+    /** Count the object's database bytes, and take the rows read and written since last time. */
     measure(): DurableObjectMeasurement {
         const rows = this.#rows;
         this.#rows = { rowsRead: 0, rowsWritten: 0 };
@@ -306,7 +306,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         return { bytes: this.bytes(), ...rows };
     }
 
-    /** Answer an operation another object sends on the databases this object keeps, copying through the content the object keeping a resource's space keeps under the request's credential. */
+    /** Answer an operation another object sends on this object's databases. */
     async answer(
         request: Request,
         keeper: (scope: string) => DurableObjectStub,
@@ -387,7 +387,7 @@ export interface DurableObjectStub {
     fetch(request: Request): Promise<Response>;
 }
 
-/** Where a residency's objects and storage stay: a Cloudflare jurisdiction, the European Union or the United States, or local for workerd, which enforces none. */
+/** Where a residency's objects and storage stay. */
 export type Jurisdiction = "eu" | "us" | "local";
 
 /** The jurisdictions a namespace narrows to. */
@@ -408,7 +408,7 @@ export interface DurableObjectNamespace {
     jurisdiction(name: Exclude<Jurisdiction, "local">): DurableObjectNamespace;
 }
 
-/** The bindings a database's object reads: the partitions' objects keeping the content its copies read and write. */
+/** The bindings of a database's object: the partition objects keeping its copies' content. */
 export interface DurableObjectDatabaseEnvironment {
     /** The partitions' objects, a space's own named by its space. */
     readonly PARTITION: DurableObjectNamespace;
@@ -416,14 +416,14 @@ export interface DurableObjectDatabaseEnvironment {
     readonly DESTACK_JURISDICTION: Jurisdiction;
 }
 
-/** A Durable Object answering operations on the databases it keeps, such as an instance's object before its workload first starts, copying through its databases' partitions' objects. */
+/** A Durable Object answering operations on its databases. */
 export class DurableObjectDatabase {
     /** The databases the object keeps. */
     readonly host: DurableObjectDatabaseHost;
     /** The partitions' objects, in their jurisdiction. */
     readonly #partitions: DurableObjectNamespace;
 
-    /** Keep databases in the object's storage, reaching the partitions' objects through the Worker's bindings. */
+    /** Keep databases in the object's storage, with partition objects from Worker bindings. */
     constructor(
         state: { readonly storage: DurableObjectStorage },
         environment: DurableObjectDatabaseEnvironment,
@@ -435,7 +435,7 @@ export class DurableObjectDatabase {
         );
     }
 
-    /** Answer an operation on a database the object keeps, copying through the object of the database's partition. */
+    /** Answer an operation on a kept database, copying through its partition's object. */
     fetch(request: Request): Promise<Response> {
         return this.host.answer(request, (scope) =>
             this.#partitions.get(this.#partitions.idFromName(scope)),

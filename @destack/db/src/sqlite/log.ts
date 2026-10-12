@@ -28,7 +28,7 @@ export const sqliteLog: LogDialect = {
         ),
 };
 
-/** Create the SQLite log, its horizon and the transaction identity within the database's namespace. */
+/** Create the SQLite log, horizon and transaction identity within the database's namespace. */
 function createSQLiteLog(epoch: string, scope?: string, namespace?: string): readonly string[] {
     const name = (table: string) => quote(relation(table, namespace));
     const log = name(LOG);
@@ -63,7 +63,7 @@ function createSQLiteLog(epoch: string, scope?: string, namespace?: string): rea
     ];
 }
 
-/** Generate the SQLite triggers on a table's relation recording its changes under its SQL name, naming the log's relations. */
+/** Generate the SQLite triggers recording a table's changes under its SQL name. */
 function sqliteLogTriggers(
     target: string,
     description: ChangeDescription,

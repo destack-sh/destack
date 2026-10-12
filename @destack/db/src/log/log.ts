@@ -1,5 +1,5 @@
-import { dialectSQL, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
-import { Statement } from "../query/statement.ts";
+import { sql, type SQL } from "../sql/index.ts";
+import { listed, Statement } from "../query/statement.ts";
 import { v7 } from "uuid";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type RowImage, Table } from "../table/table.ts";
@@ -22,14 +22,10 @@ import type { ColumnValue } from "../table/column.ts";
 import { Key } from "../query/key.ts";
 import { Digest, schema, toJsonSchema, type JsonValue } from "@destack/schema";
 
-/**
- * The default page size of a log read, in changes.
- *
- * At 0.5 to 2 KB a change, a page is about 1 MB.
- */
+/** The default page size of a log read, in changes. */
 const PAGE_LIMIT = 1000;
 
-/** One write to a logged table: an insert with the row after, an update with both rows, or a delete with the row before. */
+/** One logged write: an insert with the row after, an update with both, a delete with before. */
 export type Write<Definition extends Table = Table> = {
     /** The writing transaction, absent for SQLite scripts outside a transaction. */
     readonly transaction: string | null;
@@ -68,13 +64,13 @@ export type Write<Definition extends Table = Table> = {
 export type Change<Definition extends Table = Table> = Write<Definition> & {
     /** The change's position in commit order. */
     readonly sequence: number;
-    /** The origin whose writes a replica's write replicated, absent for this database's own writes. */
+    /** The origin of the writes a replica write replicated, absent for this database's writes. */
     readonly origin?: string;
 };
 
 /** Read changes. */
 export const Change = {
-    /** Read a write's latest image of its row: the row after an insert or update, the row before a delete. */
+    /** Read a write's latest row image: the row after an insert or update, before a delete. */
     image<Definition extends Table>(change: Write<Definition>): RowImage<Definition> {
         return change.operation === "delete" ? change.before : change.after;
     },
@@ -175,7 +171,7 @@ const LogBounds = schema.looseObject({
 /** The latest sequence of some entries, null over none. */
 const SequenceRow = schema.looseObject({ sequence: LogInteger.nullable() });
 
-/** The hexadecimal digits of a layout digest: 128 bits, whose collisions are negligible among any database's tables. */
+/** The hex digits of a layout digest: 128 bits, with negligible collisions among tables. */
 const LAYOUT_LENGTH = 32;
 
 /** The logged columns of each table, described once. */
@@ -191,7 +187,7 @@ export class Log {
         this.database = database;
     }
 
-    /** Create the log once, with the scope of the rows in tables without a scope column, such as a resource's space. */
+    /** Create the log once, with the row scope of tables without a scope column. */
     async create(scope?: string): Promise<void> {
         await this.database.executeScript(
             createLog(this.database.dialect, v7(), scope, this.database.state.namespace).join(
@@ -200,7 +196,7 @@ export class Log {
         );
     }
 
-    /** Digest the layout tables' changes hold: each one's logged columns with their kinds and values. */
+    /** Digest the layout of tables' changes: logged columns with their kinds and values. */
     static async layout(tables: readonly Table[]): Promise<string> {
         // describe each table's logged columns once
         const described = tables.map((table) => {
@@ -221,7 +217,7 @@ export class Log {
         return (await Digest.json(described)).slice(0, LAYOUT_LENGTH);
     }
 
-    /** Read the images a table's rows had before their first change between two sequences, by key. */
+    /** Read a table's row images before their first change between two sequences, by key. */
     async images(table: Table, after: number, upto: number): Promise<Map<string, Row | null>> {
         return imagesOf(table, await this.range({ tables: [table], after }, upto));
     }
@@ -255,7 +251,7 @@ export class Log {
         };
     }
 
-    /** Forget the reads each change of some tables affects until the signal aborts, clearing them all at the start and after compaction. */
+    /** Forget the reads each change of some tables affects until the signal aborts. */
     async invalidate<Definition extends Table>(
         tables: readonly Definition[],
         reads: {
@@ -285,7 +281,7 @@ export class Log {
         }
     }
 
-    /** Read the changes after a sequence through another, page by page, refusing a range past the log's head. */
+    /** Read the changes after a sequence through another by page, refusing ranges past the head. */
     async range<Definition extends Table>(
         selection: Omit<ChangeSelection<Definition>, "limit">,
         through: number,
@@ -312,7 +308,7 @@ export class Log {
         return new Snapshot(this.database, position, rewind);
     }
 
-    /** Read the position of the latest commit, or of the latest change not replicating an origin's writes when given, as a follower of that origin reaches it. */
+    /** Read the position of the latest commit, as a follower of an origin sees it when given. */
     async position(origin?: string): Promise<LogPosition> {
         // read the head
         const [row] = await this.database.execute(selectHead(this.database.dialect));
@@ -331,11 +327,7 @@ export class Log {
         return { epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
     }
 
-    /**
-     * Read the position the open transaction's reads reach.
-     *
-     * SQLite numbers a transaction's entries on write, and PostgreSQL at commit.
-     */
+    /** Read the position the open transaction's reads reach. */
     async reached(): Promise<LogPosition> {
         // reach the latest commit
         const committed = await this.position();
@@ -379,7 +371,7 @@ export class Log {
         }
     }
 
-    /** Write as a replica: log the rows a source already derived, deriving nothing again, each change under the origin whose writes it replicates when given. */
+    /** Write as a replica: log the rows a source already derived, deriving nothing again. */
     async asReplica<Value>(run: () => Promise<Value>, origin?: string): Promise<Value> {
         // mark the open transaction with the origin
         if (!this.database.driver.transaction) {
@@ -395,7 +387,7 @@ export class Log {
         return result;
     }
 
-    /** Hold off the log's other commits until this transaction ends, as stamping commits does on PostgreSQL, where SQLite runs one write transaction at a time already. */
+    /** Block the log's other commits until this transaction ends. */
     async serialize(): Promise<void> {
         if (this.database.dialect === "postgresql") {
             await this.database.execute(
@@ -522,11 +514,7 @@ export class Log {
         return this.until(async () => (await this.position()).sequence >= sequence, signal);
     }
 
-    /**
-     * Wait until a check of the tables committed since the last check passes after a commit, returning false once the signal aborts.
-     *
-     * The first check gets every table.
-     */
+    /** Wait until a check of the tables committed since the last check passes after a commit. */
     until(
         check: (tables: ReadonlySet<string>) => Promise<boolean>,
         signal: AbortSignal,
@@ -552,7 +540,7 @@ export class Log {
         }
     }
 
-    /** Move a consumer's slot to a position, keeping the changes after it until a time, as a PostgreSQL replication slot keeps its WAL. */
+    /** Place a consumer's slot at a sequence, keeping later changes until a time. */
     async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
         const table = sql.relation(LOG_SLOT);
         await this.database.execute(sql`
@@ -560,6 +548,32 @@ export class Log {
             VALUES (${slot}, ${sequence}, ${expiresAt})
             ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at
         `);
+    }
+
+    /** Move a consumer's slot from the position it read to another. */
+    async move(slot: string, from: number, to: number, expiresAt: number): Promise<void> {
+        // move a slot at the read position, placing one never placed for a consumer reading from the start
+        const table = sql.relation(LOG_SLOT);
+        const moved = await this.database.execute(
+            from === 0
+                ? sql`
+                    INSERT INTO ${table} (name, sequence, expires_at)
+                    VALUES (${slot}, ${to}, ${expiresAt})
+                    ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at
+                    WHERE ${table}.sequence = ${from}
+                    RETURNING name
+                `
+                : sql`
+                    UPDATE ${table} SET sequence = ${to}, expires_at = ${expiresAt}
+                    WHERE name = ${slot} AND sequence = ${from}
+                    RETURNING name
+                `,
+        );
+
+        // refuse a slot another consumer moved since the read
+        if (moved.length === 0) {
+            throw new DatabaseError("CONCURRENT_UPDATE", `slot ${slot} moved past ${from}`);
+        }
     }
 
     /** Read the position of a consumer's slot, absent without one. */
@@ -735,14 +749,6 @@ function entryRead(isScoped: boolean, isRest: boolean): Statement {
     return statement;
 }
 
-/** Match a column against the values of a JSON array. */
-function listed(column: SQL, array: SQLWrapper): SQL {
-    return dialectSQL({
-        sqlite: sql`${column} IN (SELECT value FROM json_each(${array}))`,
-        postgresql: sql`${column} IN (SELECT jsonb_array_elements_text(${array}::jsonb))`,
-    });
-}
-
 /** Decode a log entry through its table's columns. */
 function decodeChange<Definition extends Table>(
     entry: Pick<
@@ -783,7 +789,7 @@ function decodeLogged<Definition extends Table>(
 /**
  * Decode a logged row's values by column name through its logged columns.
  *
- * @construct each logged column decodes its value into the column's type, which is how RowImage maps the table.
+ * @construct each logged column decodes into its type, which is how RowImage maps the table.
  */
 function decodeLogged(
     table: Table,
@@ -818,7 +824,7 @@ function decodeKey<Definition extends Table>(
 /**
  * Decode a logged key's values in key order through the key columns.
  *
- * @construct the key columns decode the values in key order into their types, which is how Key maps the table.
+ * @construct the key columns decode in key order into their types, as Key maps the table.
  */
 function decodeKey(
     table: Table,

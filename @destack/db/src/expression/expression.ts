@@ -27,7 +27,7 @@ const SCALAR_KINDS: Readonly<Partial<Record<ColumnKind, ScalarKind>>> = {
 /** A selected text value. */
 const SELECTED_TEXT = schema.string();
 
-/** A selected number, as drivers return it: a number, an exact integer or PostgreSQL's decimal text. */
+/** A selected number as drivers return it: a number, exact integer or PostgreSQL decimal text. */
 const SELECTED_NUMBER = schema
     .union([schema.number(), schema.bigint(), schema.string()])
     .transform((value) => Number(value))
@@ -41,11 +41,7 @@ export const ScalarKind = schema.enum(["integer", "real", "text"]);
 /** The kinds a JSON scalar reads as. */
 export type ScalarKind = schema.Infer<typeof ScalarKind>;
 
-/**
- * A value computed from one row, alike in SQL and memory.
- *
- * Arithmetic yields a missing value from a missing operand and from division by zero.
- */
+/** A value computed from one row, alike in SQL and memory. */
 export type Expression =
     | { readonly kind: "column"; readonly name: string }
     | { readonly kind: "literal"; readonly value: Scalar }
@@ -306,11 +302,7 @@ export const Expression = {
         return names;
     },
 
-    /**
-     * Upgrade a partial record of an earlier release through each later release's assignments, up to a release.
-     *
-     * An assignment computing nothing from absent fields leaves its field absent, so partial records stay partial.
-     */
+    /** Upgrade a partial record of an earlier release through later releases' assignments. */
     upgrade(
         convert: Readonly<Record<Version, Readonly<Record<string, Expression>>>>,
         record: Readonly<Record<string, JsonValue>>,
@@ -912,7 +904,7 @@ function float(value: SQL): SQL {
     });
 }
 
-/** Read a column value an expression computes over, which an expression's requirements keep to JSON. */
+/** Read a column value an expression computes over, kept to JSON by its requirements. */
 function jsonOf(value: ColumnValue | undefined, name: string): JsonValue {
     if (value instanceof Uint8Array || typeof value === "bigint") {
         throw new DatabaseError(

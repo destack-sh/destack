@@ -3,7 +3,7 @@ import type { Extras } from "./namespace.ts";
 import type { OrderBy } from "./order.ts";
 import type { Aggregate } from "./option.ts";
 
-/** What relational reads see of a table or object type: the row conditions compare, the value results hold, and its relations. */
+/** What relational reads see of a table or object type: compared rows, results and relations. */
 export interface Model {
     /** The fields conditions and orders compare. */
     readonly row: object;
@@ -125,7 +125,7 @@ type ExtrasOf<Options> = Options extends { readonly extras: infer Computed }
     ? { readonly [Name in keyof Computed]: Scalar }
     : {};
 
-/** The results each relation of the options' `with` adds: its one result or null, or its results. */
+/** The results each relation in `with` adds: its one result or null, or its results. */
 type WithOf<Entity extends Model, Options> = Options extends { readonly with: infer Included }
     ? {
           readonly [

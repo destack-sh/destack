@@ -68,7 +68,7 @@ export class DatabaseConnection<
         return this.#query;
     }
 
-    /** Open a channel of a name to the database's other connections, refusing a sole writer's; its reader types the messages. */
+    /** Open a named channel to the database's other connections, refusing a sole writer's. */
     channel(name: string): Channel<unknown> {
         const open = this.state.openChannel;
         if (open === undefined) {
@@ -81,7 +81,7 @@ export class DatabaseConnection<
         return open(name);
     }
 
-    /** Decide whether the database keeps a table's rows as copies from their owning service, as its declaration lists them. */
+    /** Decide whether the database keeps a table's rows as copies, as its declaration lists. */
     copies(table: Table): boolean {
         return this.state.copies.has(table[TABLE].sqlName);
     }
@@ -137,7 +137,7 @@ export class DatabaseConnection<
         return MutationQuery.of(this.driver, table, "delete");
     }
 
-    /** Upsert rows as they are, writing only the columns each row has, a batch of alike rows per statement, keeping the stored rows of an append-only table. */
+    /** Upsert rows as they are, writing only the columns each row has. */
     async upsert<Definition extends Table>(
         table: Definition,
         rows: readonly Insert<Definition>[],
@@ -196,7 +196,7 @@ export class DatabaseConnection<
         }
     }
 
-    /** Execute a SQL script in one round trip, as a write of every declared table, since a script's text hides the tables it writes. */
+    /** Execute a SQL script in one round trip as a write of every declared table. */
     async executeScript(script: string): Promise<void> {
         const every = new Set(this.state.cascades.keys());
         await this.driver.commit(() => this.driver.session.exec(script), every);
@@ -209,7 +209,7 @@ export class DatabaseConnection<
     /**
      * Run SQL and read its rows.
      *
-     * @construct each row is parsed by the schema when one is given, and is the driver's record by column name otherwise.
+     * @construct a given schema parses each row, else each row is the driver's record by column.
      */
     async execute(statement: SQLWrapper, row?: schema.Schema): Promise<unknown[]> {
         const rows = await this.driver.all(
@@ -241,7 +241,7 @@ export class DatabaseConnection<
         return this.driver.execute(fill(render(statement, this.dialect, this.state.namespace)));
     }
 
-    /** Plan and apply tables at once, beside the tables of declared states, such as a database resource's desired ones. */
+    /** Plan and apply tables at once, beside declared states, such as a resource's desired ones. */
     async migrate(
         tables: readonly Table[],
         options: DeclareOptions & { readonly states?: readonly (readonly TableState[])[] } = {},
@@ -257,7 +257,7 @@ export class DatabaseConnection<
         return plan;
     }
 
-    /** List the tables with an unapplied declaration, by their names within the database's namespace. */
+    /** List the tables with an unapplied declaration, by name in the database's namespace. */
     async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
         const { namespace } = this.state;
         const declared = declareState(tables, this.dialect, {
@@ -271,7 +271,7 @@ export class DatabaseConnection<
         );
     }
 
-    /** Plan the migration from the applied tables to declared ones, named within the database's namespace. */
+    /** Plan the migration from applied to declared tables, within the database's namespace. */
     async plan(state: Pick<Merge, "declared"> & Partial<Merge>): Promise<TablePlan> {
         const { namespace } = this.state;
 
@@ -293,11 +293,7 @@ export class DatabaseConnection<
         return applyPlan(this, plan);
     }
 
-    /**
-     * Commit a callback, or roll back on failure or once the callback rolls back, then resolving undefined.
-     *
-     * The outermost callback runs again after losing a serialization race, so it does database work alone and leaves external effects to work prepared before it.
-     */
+    /** Commit a callback, or roll back on failure or its own rollback, then resolve undefined. */
     async transaction<Value>(
         operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         options: TransactionOptions = {},
@@ -384,7 +380,7 @@ export class DatabaseConnection<
 /** Where a connection's database runs: in the process, or across a network. */
 export type Locality = "embedded" | "networked";
 
-/** How a physical connection runs: where, over which channels, who announces its commits, and the tables it declares and copies. */
+/** How a physical connection runs: where, over which channels, and who announces commits. */
 export interface ConnectionOptions {
     /** Where the connection runs. */
     readonly locality: Locality;
@@ -408,13 +404,13 @@ export class ConnectionState {
     readonly locality: Locality;
     /** The SQL names of the tables the database copies, empty for a connection over bare tables. */
     readonly copies: ReadonlySet<string>;
-    /** The SQL names of the tables a write to each declared table changes, itself first, through triggers and referential actions. */
+    /** The SQL tables a write to each declared table changes, itself first, through cascades. */
     readonly cascades: ReadonlyMap<string, readonly string[]>;
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
     readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
-    /** The database's namespace in a SQLite store several databases share, absent for a database of its own. */
+    /** The database's namespace in a shared SQLite store, absent for a database of its own. */
     readonly namespace: string | undefined;
     /** Whether the database keeps a log. */
     isLogged = false;
@@ -481,7 +477,7 @@ export class ConnectionState {
     }
 }
 
-/** List the tables a write to each table changes, itself first, through triggers and referential actions. */
+/** List the tables a write to each table changes, itself first, through triggers and actions. */
 function listCascades(tables: readonly Table[], dialect: Dialect): Map<string, readonly string[]> {
     // start each table with no changed table
     const direct = new Map<string, Set<string>>();
@@ -515,7 +511,7 @@ function listCascades(tables: readonly Table[], dialect: Dialect): Map<string, r
     return cascades;
 }
 
-/** List the links a table declares from a written table to a table the write changes: aggregates, cascading dependents and writing references. */
+/** List a table's links from a written table to a table the write changes. */
 function cascadeLinks(table: Table, dialect: Dialect): (readonly [string, string])[] {
     // link an aggregate's source to its holder
     const definition = table[TABLE];

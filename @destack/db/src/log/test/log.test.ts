@@ -1,11 +1,11 @@
 import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
 import { Change, defineTable, eq, TABLE, text } from "../../index.ts";
 import { changeTables, lease, note, reading, revision } from "./fixture.ts";
 
-/** The concurrent writers of the PostgreSQL numbering test: four per pool, filling both test pools. */
+/** The concurrent writers of the PostgreSQL numbering test: four per pool, filling both pools. */
 const WRITERS = 8;
 
 /** The commits each writer makes. */
@@ -440,6 +440,30 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
             Change.of(change, note) ? [Change.after(change)?.editedAt] : [],
         );
         expect(counts).toEqual(Array.from({ length: WRITERS * COMMITS + 1 }, (_, index) => index));
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "move a consumer's slot only from the position it read, refusing a consumer whose read another one moved past, on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+        const expiresAt = Date.now() + 60_000;
+
+        // place a slot from the start, then move it from where it stands
+        await database.log.move("rating", 0, 3, expiresAt);
+        await database.log.move("rating", 3, 5, expiresAt);
+
+        // refuse a second consumer that read the start, and one that read the slot before the last move
+        const refused = await Promise.all(
+            [0, 3].map((from) => refusal(database.log.move("rating", from, 4, expiresAt))),
+        );
+        expect({ refused, slot: await database.log.slot("rating") }).toEqual({
+            refused: [
+                ["CONCURRENT_UPDATE", "slot rating moved past 0"],
+                ["CONCURRENT_UPDATE", "slot rating moved past 3"],
+            ],
+            slot: 5,
+        });
     },
 );
 

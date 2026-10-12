@@ -31,7 +31,7 @@ const LIKE_SPECIAL: ReadonlySet<string> = new Set(["%", "_", "\\"]);
 /** The characters a regular expression reads as special, which a translated pattern escapes. */
 const REGEXP_SPECIAL = /[\\^$.*+?()[\]{}|/]/gu;
 
-/** A character class a `characters` match takes: letters, digits, ranges of either, and `._+/=:@*-`. */
+/** A `characters` match's character class: letters, digits, their ranges, and `._+/=:@*-`. */
 const CHARACTER_SET = /^(?:[a-z]-[a-z]|[A-Z]-[A-Z]|[0-9]-[0-9]|[A-Za-z0-9._+/=:@*-])+$/u;
 
 /** One piece of a character set: a range of letters or digits, or one character. */
@@ -47,7 +47,7 @@ const OPERATORS = {
     gte: ">=",
 } as const satisfies Record<Operator, string>;
 
-/** How a predicate's names resolve: fields to values, placeholders to scalars, relations to decisions. */
+/** How a predicate resolves: fields to values, placeholders to scalars, relations to decisions. */
 export interface Binding<Value, Decision = Value> {
     /** Resolve a field. */
     field(name: string): Value;
@@ -382,7 +382,7 @@ function render(predicate: Predicate, binding: Binding<SQLWrapper>): SQL {
     }
 }
 
-/** Render a pattern match, alike on every dialect: case-sensitive, ASCII-insensitive for ilike, `\\` escaping the next character. */
+/** Render a pattern match alike on every dialect. */
 function renderLike(
     predicate: Extract<Predicate, { readonly kind: "like" }>,
     field: SQLWrapper,
@@ -404,7 +404,7 @@ function renderLike(
 /** One token of a LIKE pattern: any run, any one character, or a literal character. */
 type LikeToken = "%" | "_" | { readonly literal: string };
 
-/** Read a LIKE pattern's tokens: `%` any run, `_` any one character, `\\` making the next character literal. */
+/** Read a LIKE pattern's tokens: `%` any run, `_` any one character, `\\` escaping the next. */
 function likeTokens(pattern: string): LikeToken[] {
     // walk the pattern's code units, which keep each wildcard and escape whole
     const tokens: LikeToken[] = [];
@@ -451,7 +451,7 @@ function escapedToken(token: LikeToken): string {
     }
 }
 
-/** Translate a LIKE pattern into a glob: `%` any run, `_` any one character, other characters literal. */
+/** Translate a LIKE pattern into a glob: `%` any run, `_` one character, others literal. */
 function globOf(pattern: string): string {
     return likeTokens(pattern).map(globToken).join("");
 }
@@ -477,7 +477,7 @@ function lowerAscii(text: string): string {
     return text.replaceAll(/[A-Z]/gu, (capital) => capital.toLowerCase());
 }
 
-/** Build the expression matching a LIKE pattern: `%` any run, `_` any one character, other characters literal. */
+/** Build a LIKE pattern's expression: `%` any run, `_` one character, others literal. */
 function likeExpression(pattern: string): RegExp {
     const source = likeTokens(pattern).map(expressionToken).join("");
 
@@ -519,7 +519,7 @@ function renderValue(
         : sql`${scalar}`;
 }
 
-/** Compile a predicate, decoding its values as the table's columns keep them, or as scalars without one. */
+/** Compile a predicate, decoding values as the table's columns keep them, or as scalars. */
 function compile(predicate: Predicate, table?: Table): Match {
     switch (predicate.kind) {
         case "compare":
@@ -735,7 +735,7 @@ function matches(match: Match, row: Row): boolean {
     );
 }
 
-/** Decode a scalar as its column keeps it, or keep it for a plain kind, a computed value or a row without a table. */
+/** Decode a scalar by its column, or keep it for a plain kind, computed value or missing table. */
 function decode(table: Table | undefined, name: string, scalar: Scalar): unknown {
     const column = table?.[TABLE].columns[name];
 

@@ -17,10 +17,10 @@ const JSON_TYPES = [114, 3802] as const;
 /** The encoder measuring characters' UTF-8 widths. */
 const UTF8 = new TextEncoder();
 
-/** The bytes one notification payload carries: below PostgreSQL's limit of 8000, leaving room for the fragment header. */
+/** The bytes of one notification payload: below PostgreSQL's 8000, with room for the header. */
 const PAYLOAD_BYTES = 7_800;
 
-/** How long a message's fragments wait for the rest before they are dropped: a minute, far beyond one sender's burst. */
+/** How long a message's fragments wait for the rest before dropping: a minute, past a burst. */
 const FRAGMENT_MILLISECONDS = 60_000;
 
 /** The client codes of a connection that closed, which leaves nothing to unlisten. */
@@ -29,7 +29,7 @@ const CLOSED_CODES: ReadonlySet<string> = new Set(["CONNECTION_DESTROYED", "CONN
 /** The prefix of a payload carrying one fragment of a message, which no JSON text starts with. */
 const FRAGMENT = "#";
 
-/** Who writes a PostgreSQL database: pools announcing their commits to each other through LISTEN and NOTIFY, or one pool alone. */
+/** Who writes a PostgreSQL database: pools announcing commits via LISTEN and NOTIFY, or one. */
 export type PostgresWriteMode = "shared" | "sole";
 
 /** A PostgreSQL database with its own pool. */
@@ -39,7 +39,7 @@ export class PostgresDatabase<
     /** The PostgreSQL connection pool. */
     readonly $client: postgres.Sql;
 
-    /** Bind tables to a connection pool, listening to the other writers' commits unless it writes alone. */
+    /** Bind tables to a connection pool, listening to other writers' commits unless alone. */
     constructor(
         client: postgres.Sql,
         tables: declaration.Database<Models> | readonly Table[],
@@ -88,7 +88,7 @@ function passJsonText(client: postgres.Sql): void {
     }
 }
 
-/** Reach every party of a PostgreSQL notification channel, carrying messages as JSON text, fragmented above one payload's limit. */
+/** Connect every party of a PostgreSQL notification channel with JSON messages. */
 export function postgresChannel(client: postgres.Sql, name: string): Channel<unknown> {
     // collect the failures of notifications for the listeners
     const failures = new Set<(error: unknown) => void>();

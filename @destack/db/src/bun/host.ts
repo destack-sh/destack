@@ -37,7 +37,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         return { reference: file.href };
     }
 
-    /** Count the bytes a database keeps: its file with its write-ahead log, which a checkpoint may have removed. */
+    /** Count a database's bytes: its file and write-ahead log, if a checkpoint left one. */
     async bytes(reference: string): Promise<number> {
         // read the file's size, and its log's
         const path = fileURLToPath(reference);
@@ -87,7 +87,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         return DatabaseHandle.apply(connect, states, digest, record.id);
     }
 
-    /** Open the tables the desired states describe, and a replica's local tables beside them once migrated. */
+    /** Open the tables of the desired states, and a replica's local tables once migrated. */
     open(
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
@@ -100,12 +100,12 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         );
     }
 
-    /** Copy a database's rows into a store as content-addressed pages, answering the copy's digest. */
+    /** Copy a database's rows into a store as content-addressed pages, returning the digest. */
     snapshot(...copy: Parameters<DatabaseHost["snapshot"]>): Promise<Digest> {
         return DatabaseHandle.snapshotter(this).snapshot(...copy);
     }
 
-    /** Restore the rows a copy keeps into a database, onto the base copy it holds already when given. */
+    /** Restore a copy's rows into a database, onto a base copy it already has when given. */
     restore(...copy: Parameters<DatabaseHost["restore"]>): Promise<void> {
         return DatabaseHandle.snapshotter(this).restore(...copy);
     }

@@ -28,10 +28,10 @@ export interface DurableObjectStorage {
     transaction<Value>(closure: () => Promise<Value>): Promise<Value>;
 }
 
-/** The most parameters a Durable Object's SQLite storage binds to one statement, as Cloudflare limits it. */
+/** The most parameters Durable Object SQLite storage binds to a statement, as Cloudflare limits. */
 const MAX_PARAMETERS = 100;
 
-/** How a client's statements run: behind the storage's queue, or within one open storage transaction. */
+/** How a client's statements run: behind the storage's queue, or in one open transaction. */
 export type DurableObjectMode =
     | { readonly kind: "queued" }
     | { readonly kind: "joined"; readonly transaction: StorageTransaction };
@@ -43,7 +43,7 @@ export class DurableObjectQuery implements SqliteQueryClient {
     /** How the statements run. */
     readonly mode: DurableObjectMode;
 
-    /** Create the client over the object's host, behind its queue or within its open transaction. */
+    /** Create the client over the object's host, behind its queue or in its open transaction. */
     constructor(host: DurableObjectDatabaseHost, mode: DurableObjectMode) {
         this.host = host;
         this.mode = mode;
@@ -92,7 +92,7 @@ export class DurableObjectQuery implements SqliteQueryClient {
         return this.storage.transaction(() => operation(this));
     }
 
-    /** Execute a statement, writing its values into its text when it binds more than the storage takes. */
+    /** Execute a statement, inlining its values when it binds more than the storage takes. */
     #exec(sql: string, parameters: readonly DriverValue[]): DurableObjectCursor {
         return parameters.length <= MAX_PARAMETERS
             ? this.storage.sql.exec(sql, ...parameters)
@@ -107,7 +107,7 @@ export class DurableObjectQuery implements SqliteQueryClient {
         return rows;
     }
 
-    /** Run work behind the queue, or at once within the open transaction a joined client requires. */
+    /** Run work behind the queue, or at once in the open transaction of a joined client. */
     #schedule<Value>(work: () => Promise<Value>): Promise<Value> {
         // queue the work of a queued client
         if (this.mode.kind === "queued") {
@@ -120,7 +120,7 @@ export class DurableObjectQuery implements SqliteQueryClient {
     }
 }
 
-/** A connection client over a Durable Object's SQLite storage, one transaction at a time across its databases. */
+/** A connection client over Durable Object SQLite storage, one transaction at a time. */
 export class DurableObjectClient extends DurableObjectQuery implements SqliteConnectionClient {
     /** Wait for a queued client's work, leaving the storage to its Durable Object. */
     async close(): Promise<void> {
@@ -130,7 +130,7 @@ export class DurableObjectClient extends DurableObjectQuery implements SqliteCon
         }
     }
 
-    /** Run a callback in a storage transaction, whatever its requested locking mode, nested in the open one a joined client runs in. */
+    /** Run a callback in a storage transaction, ignoring its requested locking mode. */
     transactionAsync<Value>(operation: (client: SqliteQueryClient) => Promise<Value>) {
         const { mode } = this;
         const begin = () =>
@@ -144,7 +144,7 @@ export class DurableObjectClient extends DurableObjectQuery implements SqliteCon
     }
 }
 
-/** Write a statement's values into its text in place of its numbered parameter markers, skipping quoted text and names. */
+/** Inline a statement's values in place of its numbered markers, skipping quotes and names. */
 function inlined(sql: string, parameters: readonly DriverValue[]): string {
     // copy the text, replacing each numbered marker outside quotes with its value
     let text = "";

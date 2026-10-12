@@ -143,7 +143,7 @@ export class SelectQuery<
     /**
      * Read every row, decoded by the query's selection.
      *
-     * @construct the rows decode through the projection of this query's fields and joins, from which the builder computed Result.
+     * @construct the rows decode through the field and join projection, which computed Result.
      */
     async execute(): Promise<unknown[]> {
         // run the query and decode its rows, nullable joined groups missing as null
@@ -188,7 +188,7 @@ export class SelectQuery<
         return { ...this.state, fields, joins: [...this.state.joins, { kind, table, on }] };
     }
 
-    /** Flatten the selected fields, the source's columns for an automatic selection without joins. */
+    /** Flatten the selected fields, the source's columns for an automatic selection. */
     #projection(): Projection {
         const isBare = this.state.isAutomatic && this.state.joins.length === 0;
 

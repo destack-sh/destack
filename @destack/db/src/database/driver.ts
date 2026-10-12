@@ -61,12 +61,7 @@ export class DatabaseDriver {
         return this.transaction ? this.transaction.run(reported) : this.state.run(reported);
     }
 
-    /**
-     * Submit a write of the tables it names, and notify readers and writers after it commits outside a transaction.
-     *
-     * A write naming no table writes every declared table, since its text hides the tables it writes.
-     * On SQLite, a write outside a transaction runs as one identified transaction.
-     */
+    /** Submit a write of the listed tables. */
     write<Value>(
         operation: (session: Session) => Promise<Value>,
         tables: readonly string[],
@@ -77,12 +72,7 @@ export class DatabaseDriver {
         return this.commit(() => this.#identified(operation), written);
     }
 
-    /**
-     * Submit work that commits on its own and writes some tables, such as a transaction.
-     *
-     * Inside a transaction, the tables join its written tables.
-     * Outside one, readers and writers learn of the commit.
-     */
+    /** Submit work that commits on its own and writes some tables, such as a transaction. */
     async commit<Value>(
         operation: () => Promise<Value>,
         tables: ReadonlySet<string>,
@@ -123,7 +113,7 @@ export class DatabaseDriver {
         );
     }
 
-    /** Run a bound write statement of the tables it names, identified on SQLite outside a transaction. */
+    /** Run a bound write of the listed tables, identified on SQLite outside a transaction. */
     async execute(statement: DriverStatement): Promise<void> {
         this.transaction?.assertActive();
         await this.write(
@@ -144,7 +134,7 @@ export class DatabaseDriver {
             : this.write((session) => failing(statement, query(session)), statement.tables);
     }
 
-    /** List the tables writes naming some tables change, through triggers and referential actions. */
+    /** List the tables writes to some tables change, through triggers and referential actions. */
     #cascade(tables: readonly string[]): Set<string> {
         const written = new Set<string>();
         for (const table of tables) {

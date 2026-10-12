@@ -434,3 +434,37 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
         await write("c", { x: 2, y: 1 }),
     ]).toEqual(["written", ["DUPLICATE", "a record with the same unique key exists"], "written"]);
 });
+
+test.each(TEST_DIALECTS)(
+    "refuse a unique key a commit after the transaction's base took as a lost race, which a run repeats to see the key taken, on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [label], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const { database } = storage;
+
+        // start a transaction, then let another commit take the label's name
+        const late = await Transaction.open(database);
+        await Transaction.run(database, async (transaction) => {
+            await transaction.write({
+                table: label,
+                before: null,
+                after: { id: "a", scope: "board", folder: null, name: "urgent", archivedAt: null },
+            });
+        });
+
+        // refuse the late transaction's same name as a lost race, and refuse it plainly once a run starts after the commit
+        const write = (transaction: Transaction) =>
+            transaction.write({
+                table: label,
+                before: null,
+                after: { id: "b", scope: "board", folder: null, name: "urgent", archivedAt: null },
+            });
+        expect([
+            await refusal(write(late)),
+            await refusal(Transaction.run(database, (transaction) => write(transaction))),
+        ]).toEqual([
+            ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
+            ["DUPLICATE", "a record with the same unique key exists"],
+        ]);
+    },
+);

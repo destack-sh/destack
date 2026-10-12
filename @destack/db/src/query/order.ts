@@ -8,7 +8,7 @@ import { Expression } from "../expression/expression.ts";
 import type { Namespace } from "./namespace.ts";
 import { DatabaseError } from "../error/error.ts";
 
-/** The column kinds that order alike in SQLite, PostgreSQL and memory, by the values they order as. */
+/** The column kinds ordering alike in SQLite, PostgreSQL and memory, by their order type. */
 const ORDERED_KINDS: ReadonlyMap<ColumnKind, "text" | "number" | "boolean"> = new Map([
     ["text", "text"],
     ["integer", "number"],
@@ -25,12 +25,7 @@ export const Direction = defineSchema(schema.enum(["asc", "desc"]));
 /** The direction a field sorts in, missing values lowest either way. */
 export type Direction = schema.Infer<typeof Direction>;
 
-/**
- * How rows sort: each field's direction, in priority order.
- *
- * Reads complete it by the primary key.
- * A resolved `Order` lists its keys.
- */
+/** How rows sort: each field's direction, in priority order. */
 export type OrderBy<Read = Row> = string extends keyof Read
     ? { readonly [field: string]: Direction }
     : { readonly [Name in keyof Read]?: Direction };

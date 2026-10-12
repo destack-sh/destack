@@ -22,7 +22,7 @@ export class SqliteDatabase<
     /** The SQLite connection client. */
     readonly $client: Client;
 
-    /** Bind tables to a SQLite connection, within a namespace of a store several databases share when given. */
+    /** Bind tables to a SQLite connection, within a shared store's namespace when given. */
     constructor(
         client: Client,
         tables: declaration.Database<Models> | readonly Table[],

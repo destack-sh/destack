@@ -3,7 +3,7 @@ import type { Package } from "@destack/package";
 /** The longest identifier PostgreSQL stores without truncation, NAMEDATALEN minus one. */
 const MAX_IDENTIFIER_LENGTH = 63;
 
-/** The hexadecimal digits of the hash suffix: 32 bits, so two shortened names collide once in four billion. */
+/** The hex digits of the hash suffix: 32 bits, so two short names collide once in four billion. */
 const HASH_LENGTH = 8;
 
 /** The 32-bit FNV-1a offset basis. */
@@ -38,7 +38,7 @@ export function qualify(owner: Package, name: string): string {
     return qualified;
 }
 
-/** Name a relation within its database's namespace in a SQLite store several databases share, the name itself outside one. */
+/** Qualify a relation name with a shared SQLite store's namespace, if any. */
 export function relation(name: string, namespace: string | undefined): string {
     return namespace === undefined ? name : `${namespace}.${name}`;
 }

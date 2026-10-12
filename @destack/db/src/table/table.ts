@@ -66,11 +66,7 @@ export class Table<
         this[TABLE] = new TableDefinition(this, identity, columns, declaration, options);
     }
 
-    /**
-     * Build the table a state describes, such as a database another host declared, marking its unlogged columns sensitive.
-     *
-     * Each column takes the property its declaring code names it by, its SQL name by default.
-     */
+    /** Build the table a state describes, such as another host's. */
     static describe(state: TableState, properties: Readonly<Record<string, string>> = {}): Table {
         // read the logged columns
         const description = state.table;
@@ -223,7 +219,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return this.#key;
     }
 
-    /** The sets of columns no two rows share values of, among the rows meeting each set's condition: the primary key, unique columns and constraints, and unique indexes. */
+    /** The column sets no two rows share values of, among rows meeting each set's condition. */
     get uniqueKeys(): readonly UniqueKey[] {
         this.#uniqueKeys ??= this.#gatherUniqueKeys();
 
@@ -310,7 +306,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return column;
     }
 
-    /** Collect the constraints for a dialect: the declared ones, SQLite's key checks and column references. */
+    /** Collect a dialect's constraints: declared ones, SQLite key checks and column references. */
     constraints(dialect: Dialect): readonly TableConstraint[] {
         const constraints = [...this.#declared()];
         for (const [property, column] of Object.entries(this.columns)) {
@@ -348,12 +344,12 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return encodeRow(this.entries, row, concealed);
     }
 
-    /** Write the logged columns a row has in JSON form, leaving out concealed ones, as readers of the log see it. */
+    /** Write a row's logged columns as JSON without concealed ones, as log readers see it. */
     encodeLogged(row: Row, concealed: readonly string[]): Record<string, JsonValue> {
         return encodeRow(Object.entries(this.logged), row, concealed);
     }
 
-    /** Fill a row's omitted columns in memory: each one's default, else null in a nullable column, leaving out required columns without either and values only the database computes. */
+    /** Fill a row's omitted columns in memory: each default, else null in a nullable column. */
     defaults(row: Row): Row {
         const filled: [string, ColumnValue][] = [];
         for (const [property, { definition }] of this.entries) {
@@ -378,7 +374,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return { ...row, ...Object.fromEntries(filled) };
     }
 
-    /** Complete a row an insert writes in memory with its defaults, refusing a required column without a value and a value only the database computes. */
+    /** Complete an inserted row in memory with its defaults. */
     complete(row: Row): Select<Table<Name, Columns>> & Row;
     /**
      * Complete a row with its defaults.
@@ -403,12 +399,12 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         );
     }
 
-    /** Take a row of this table's column values, as code choosing columns at runtime builds it, failing for other properties. */
+    /** Take a row of this table's column values, built at runtime, failing for other properties. */
     values(row: Row): Partial<Select<Table<Name, Columns>>> & Row;
     /**
-     * Return the row once each of its properties is one of the table's columns, holding a value of the column's type.
+     * Return the row once each property is a table column with a value of the column's type.
      *
-     * @construct every property names a column and its value parses by that column's schema, or is null in a nullable column.
+     * @construct each property is a column whose schema parses its value, or null if nullable.
      */
     values(row: Row): Row {
         // require every property to be a column holding a value of its type
@@ -432,7 +428,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /**
      * Decode each column the row has by its column definition.
      *
-     * @construct each property the row has is a column, decoded by that column's definition into its type.
+     * @construct each row property is a column, decoded into its type by the column's definition.
      */
     decode(row: JsonObject): Row {
         const decoded: Record<string, ColumnValue> = {};
@@ -452,9 +448,9 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Validate a selected record in application form. */
     selectSchema(form?: "application"): schema.Object<Shape<Select<Table<Name, Columns>>>>;
     /**
-     * Validate a selected record, whose signatures above type it by the table.
+     * Validate a selected record, typed by the table in the signatures above.
      *
-     * @construct the record schema has one entry per column, each the column's schema in the form, and a JSON schema reads JsonOf the column value.
+     * @construct the schema has each column's schema in the form, and JSON schemas read JsonOf.
      */
     selectSchema(
         form: "application" | "json" = "application",
@@ -467,9 +463,9 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Validate an inserted record in application form. */
     insertSchema(form?: "application"): schema.Object<Shape<Insert<Table<Name, Columns>>>>;
     /**
-     * Validate an inserted record, whose signatures above type it by the table.
+     * Validate an inserted record, typed by the table in the signatures above.
      *
-     * @construct the record schema has one entry per column, each the column's insert schema in the form, and a JSON schema reads JsonOf the column value.
+     * @construct the schema has each column's insert schema in the form, JSON ones read JsonOf.
      */
     insertSchema(
         form: "application" | "json" = "application",
@@ -593,11 +589,11 @@ export interface Dependent {
 export interface TableOptions<Columns> {
     /** The constraints and indexes. */
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];
-    /** Log committed changes under the scope column, or the database's scope for a table without one. */
+    /** Log committed changes under the scope column, or the database's scope without one. */
     readonly log?: {
         /** How long the log keeps the changes, the window by default. */
         readonly retention?: Exclude<ChangeRetention, "none">;
-        /** Whether rows are only ever inserted, as events are: updates are refused and the deletes pruning old rows are not logged. */
+        /** Whether rows are only inserted, as events are. */
         readonly appendOnly?: boolean;
     };
     /** The properties of a single-parent tree per scope. */

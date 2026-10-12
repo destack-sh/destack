@@ -13,11 +13,7 @@ import {
 import { LOG_TOPIC } from "../log/schema.ts";
 import type { Model } from "../query/model.ts";
 
-/**
- * The idle timeout of a party's transaction at the owner, in milliseconds.
- *
- * A transaction keeps the owner's only connection, and this bounds how long a frozen tab blocks the others.
- */
+/** The idle timeout of a party's transaction at the owner, in milliseconds. */
 const IDLE_TRANSACTION_MILLISECONDS = 30_000;
 
 /** One statement or transaction step. */
@@ -373,7 +369,7 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
         super(new Party(channel, name));
     }
 
-    /** Open the log channel the parties announce commits on, delivering its commits alone, refusing every other name. */
+    /** Open the log channel of commit announcements, refusing other channel names. */
     static channel(channel: Channel<unknown>, name: string): Channel<unknown> {
         if (name !== LOG_TOPIC) {
             throw new DatabaseError(
@@ -469,11 +465,7 @@ export class Party {
         channel.notify({ kind: "join" });
     }
 
-    /**
-     * Send one step to the owner and wait for its answer.
-     *
-     * A transaction step goes only to its owner and fails once another owner serves.
-     */
+    /** Send one step to the owner and wait for its answer. */
     async request(step: Step, owner?: string): Promise<unknown> {
         return (await this.#ask(step, owner)).value;
     }

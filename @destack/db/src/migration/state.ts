@@ -55,7 +55,7 @@ export const TableState = defineSchema(
                 }),
             )
             .exactOptional(),
-        /** The SQL assignments by column converting rows of earlier releases, by the release introducing them. */
+        /** The SQL assignments converting earlier rows by column, keyed by introducing release. */
         conversions: schema
             .record(Version, schema.record(schema.string(), schema.string()))
             .exactOptional(),
@@ -83,7 +83,7 @@ export type DatabaseState = schema.Infer<typeof DatabaseState>;
 export interface DeclareOptions {
     /** Whether the database keeps a partial copy, without foreign keys and tree indexes. */
     readonly isReplica?: boolean;
-    /** The SQL names of the tables the database copies, which keep no unique constraints or foreign keys. */
+    /** The SQL names of copied tables, which keep no unique constraints or foreign keys. */
     readonly copies?: ReadonlySet<string>;
 }
 
@@ -197,7 +197,7 @@ export function declareState(
     });
 }
 
-/** Name a state's relations within a database's namespace, keeping the SQL name its log records changes under. */
+/** Qualify a state's relations with a namespace, keeping the SQL name its log records. */
 export function namespaceState(state: TableState, namespace: string | undefined): TableState {
     // keep a database of its own as it is
     if (namespace === undefined) {
@@ -262,7 +262,7 @@ export function createState(namespace?: string): string {
     )`;
 }
 
-/** Read the table names of a connected database, those within its namespace in a shared SQLite store. */
+/** Read a connected database's table names, within its namespace in a shared SQLite store. */
 export async function readTables(database: DatabaseConnection): Promise<string[]> {
     // list the tables whose names start with the namespace's prefix, every one outside a namespace
     const { namespace } = database.state;
@@ -474,7 +474,7 @@ function replicated(table: Table, described: TableDescription): TableDescription
     };
 }
 
-/** Keep only a table's foreign keys to tables within the database that it owns, leaving references to copies logical. */
+/** Keep a table's foreign keys to the database's own tables, leaving copy references logical. */
 function withinDatabase(
     table: TableDescription,
     local: ReadonlySet<string>,
@@ -490,7 +490,7 @@ function withinDatabase(
     };
 }
 
-/** Describe a copied table as its copy keeps it: its unique keys as plain indexes, without foreign keys. */
+/** Describe a copied table as its copy keeps it: unique keys as plain indexes, no foreign keys. */
 function copied(table: TableDescription): TableDescription {
     // turn unique constraints into plain indexes over the same columns
     const unique = table.constraints.flatMap((constraint) =>

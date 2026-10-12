@@ -37,7 +37,7 @@ function outcome(connecting: Promise<DatabaseConnection & AsyncDisposable>): Pro
     );
 }
 
-/** Keep databases in the test server, dropping the schemas of some records once the test finishes. */
+/** Keep databases in the test server, dropping some records' schemas after the test. */
 function openHost(address: string | undefined, ids: readonly ResourceId[]): PostgresDatabaseHost {
     // require the test server
     if (address === undefined) {

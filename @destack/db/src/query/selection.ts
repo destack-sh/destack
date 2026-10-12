@@ -73,7 +73,7 @@ export class Projection<Selected extends Selection = Selection> {
         this.fields = fields;
     }
 
-    /** Render the selected fields, separated by commas, a named fragment under its name so grouping and ordering can name it. */
+    /** Render the selected fields with commas, aliasing named fragments for grouping and order. */
     sql(): SQL {
         return sql.join(
             this.fields.map((field) =>
@@ -85,7 +85,7 @@ export class Projection<Selected extends Selection = Selection> {
         );
     }
 
-    /** Decode driver rows into records of the selection, a nullable group of only missing values as null. */
+    /** Decode driver rows into selection records, a nullable group of missing values as null. */
     decode(
         rows: readonly (readonly unknown[])[],
         dialect: Dialect,
@@ -94,7 +94,7 @@ export class Projection<Selected extends Selection = Selection> {
     /**
      * Decode driver rows into records shaped as the selection.
      *
-     * @construct each record nests the selection's groups and decodes each field by its column or SQL decoder, which is how SelectionResult maps the selection.
+     * @construct each record nests groups and decodes fields by column or decoder, as typed.
      */
     decode(
         rows: readonly (readonly unknown[])[],
@@ -137,7 +137,7 @@ function decodeGroup(
     );
 }
 
-/** Decode one entry of a group: a field's value, or a nested group's record, null when it is missing. */
+/** Decode one group entry: a field's value, or a nested group's record, null when missing. */
 function decodeEntry(
     entry: Leaf | Group,
     values: readonly unknown[],

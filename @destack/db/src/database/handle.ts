@@ -20,10 +20,10 @@ import { TABLE, Table } from "../table/table.ts";
 /** The rows one read of a snapshot takes: 1000 rows of about 500 B keep a read near 500 kB. */
 const SNAPSHOT_READ_ROWS = 1000;
 
-/** The shift leaving the high 10 bits of a row hash, which end a page when zero, about 1024 rows apart; FNV-1a mixes its high bits best. */
+/** The shift keeping a row hash's high 10 bits, which end a page when zero. */
 const PAGE_BOUNDARY_SHIFT = 22;
 
-/** The most rows one page keeps when no row ends it sooner: 8192 rows, missed by content alone once in e^8 pages. */
+/** The most rows of a page that no row ends sooner: 8192, missed once in e^8 pages. */
 const PAGE_MAX_ROWS = 8192;
 
 /** The FNV-1a 32-bit offset basis. */
@@ -48,7 +48,7 @@ type RowRewrite = (table: Table, row: Row) => Promise<Row>;
 export interface DatabaseHandle {
     /** The connection. */
     readonly database: DatabaseConnection;
-    /** Migrate the database to its own tables and some tables beside them, dropping earlier ones beside. */
+    /** Migrate the database to its tables and some beside them, dropping earlier ones beside. */
     migrate(beside: readonly Table[]): Promise<void>;
     /** Release the database. */
     close(): Promise<void>;
@@ -61,7 +61,7 @@ type Connect = (
     | (DatabaseConnection & AsyncDisposable & { close(): Promise<void> })
     | Promise<DatabaseConnection & AsyncDisposable & { close(): Promise<void> }>;
 
-/** Plan, apply and open a host's databases, and snapshot an opened database's rows into a content-addressed store and restore them. */
+/** Plan, apply and open a host's databases. */
 export const DatabaseHandle = {
     /** Diff a database's applied state against the desired table states. */
     async plan(connect: Connect, desired: readonly (readonly TableState[])[]): Promise<Plan> {
@@ -86,7 +86,7 @@ export const DatabaseHandle = {
         await database.apply(plan);
     },
 
-    /** Open the tables the desired states describe, reopening them with tables beside once migrated. */
+    /** Open the tables of the desired states, reopening them with tables beside once migrated. */
     async open(
         connect: Connect,
         desired: readonly (readonly TableState[])[],
@@ -109,7 +109,7 @@ export const DatabaseHandle = {
         return handle;
     },
 
-    /** Copy every row of the database's tables into a store as content-addressed pages, rewriting rows on the way, and answer the digest naming the copy. */
+    /** Copy every row of the database into a store as content-addressed pages. */
     async snapshot(
         handle: Pick<DatabaseHandle, "database">,
         store: Pick<ContentStore, "write">,
@@ -139,11 +139,7 @@ export const DatabaseHandle = {
         return write(store, canonicalize({ tables }));
     },
 
-    /**
-     * Restore the rows a snapshot keeps into a database of the same tables, rewriting rows on the way.
-     *
-     * A database holding a base snapshot's rows already receives only the pages that changed since, as rsync sends only changed blocks.
-     */
+    /** Restore a snapshot's rows into a database of the same tables, rewriting rows on the way. */
     async restore(
         handle: Pick<DatabaseHandle, "database">,
         digest: Digest,
@@ -186,7 +182,7 @@ export const DatabaseHandle = {
         );
     },
 
-    /** Snapshot and restore the databases an opener opens, each opened for the copy and closed after it. */
+    /** Snapshot and restore an opener's databases, each opened for the copy and closed after. */
     snapshotter<Kind extends ResourceKind>(
         opener: Opener<Kind, DatabaseHandle>,
     ): Snapshotter<Kind> {
@@ -215,7 +211,7 @@ async function openFor<Kind extends ResourceKind>(
     return { handle, [Symbol.asyncDispose]: () => handle.close() };
 }
 
-/** Read a table's rows in key order in pages ending at rows whose content hashes to a boundary, so an edit changes only its own page. */
+/** Read a table's rows in key order, in pages ending at rows whose content hashes to a break. */
 async function* pagesOf(database: DatabaseConnection, table: Table): AsyncGenerator<Row[]> {
     // seek in key order and gather rows into the current page
     const order = Order.complete([], table);

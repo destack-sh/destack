@@ -78,7 +78,7 @@ export class Notes {
         return await this.notes();
     }
 
-    /** Write within a transaction, then refuse its client kept past the transaction while another runs. */
+    /** Write in a transaction, then refuse its client kept past it while another runs. */
     async leaked(): Promise<Response> {
         // keep the client of a committed transaction
         const database = this.databases.connect([note]);
@@ -132,7 +132,7 @@ export class Notes {
         return Response.json({ isEqual: JSON.stringify(rows) === JSON.stringify(notes) });
     }
 
-    /** Provision, plan through a sent operation, apply, open, write, measure and destroy a workload's database. */
+    /** Provision, plan, apply, open, write, measure and destroy a workload database. */
     async host(): Promise<Response> {
         // provision the database and plan its tables as another object asks
         const placed = await this.databases.provision(RECORD);
@@ -195,7 +195,7 @@ export class Notes {
         });
     }
 
-    /** Count the rows the storage's statements write and read, each in the one measure following them. */
+    /** Count the rows the storage's statements write and read, each in the next measure. */
     async rows(): Promise<Response> {
         // migrate the notes, leaving the migration's rows to a first measure
         const database = this.databases.connect([note]);
@@ -213,7 +213,7 @@ export class Notes {
         return Response.json({ counts, notes: rows.length });
     }
 
-    /** Keep two databases of one declaration in the storage, each in its own namespace with its own log. */
+    /** Keep two databases of one declaration in the storage, each with namespace and log. */
     async namespaces(): Promise<Response> {
         // migrate the same table in two namespaces, each logged in its own scope
         const databases = [

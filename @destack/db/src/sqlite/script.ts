@@ -1,9 +1,4 @@
-/**
- * The transitions of SQLite's statement completion state machine, as `sqlite3_complete` defines them.
- *
- * States: invalid, start, normal, explain, create, trigger, semicolon within a trigger, end of a trigger.
- * Tokens: semicolon, whitespace, other, EXPLAIN, CREATE, TEMP, TRIGGER, END.
- */
+/** The transitions of SQLite's statement completion state machine. */
 const TRANSITIONS: readonly (readonly number[])[] = [
     [1, 0, 2, 3, 4, 2, 2, 2],
     [1, 1, 2, 3, 4, 2, 2, 2],

@@ -26,7 +26,7 @@ export const SQLStatement = defineSchema(
 /** One SQL statement with its positional parameters. */
 export type SQLStatement = schema.Infer<typeof SQLStatement>;
 
-/** The rows a statement returned, in column order with duplicate names kept, and the rows it changed. */
+/** A statement's returned rows in column order with duplicate names, and its changed rows. */
 export const SQLResult = defineSchema(
     schema.object({
         /** The column names in result order. */

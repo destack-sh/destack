@@ -9,7 +9,7 @@ import type { Model } from "../query/model.ts";
 /** The database log records. */
 const { log } = telemetry.scope(import.meta.destack.package);
 
-/** The connections one pool opens: five, within the six a Worker keeps open at once as Hyperdrive's guide sets it, so a development universe holds 24 of a server's default 100. */
+/** The connections of one pool: five, within the six a Worker keeps open per Hyperdrive. */
 const POOL_CONNECTIONS = 5;
 
 /** Connect to a PostgreSQL pool or URL, as one of several writers or the sole one. */

@@ -30,7 +30,7 @@ export const bunSqliteConnector: DatabaseConnector = {
     },
 };
 
-/** Open a provisioned database file, announcing commits to the file's other writers on its channel. */
+/** Open a provisioned database file, announcing commits to its other writers on its channel. */
 export function openBunSqlite<Models extends Readonly<Record<string, Model>>>(
     resource: Pick<ResourceRecord | ResourceBinding, "reference">,
     tables: Database<Models> | readonly Table[],
@@ -42,7 +42,7 @@ export function openBunSqlite<Models extends Readonly<Record<string, Model>>>(
     });
 }
 
-/** List the channels a database file's connections share with its other writers: its log's commits. */
+/** List the channels a database file shares with its other writers: its log's commits. */
 export function bunSqliteChannels(path: string): readonly string[] {
     return [channelOf(path, LOG_TOPIC)];
 }

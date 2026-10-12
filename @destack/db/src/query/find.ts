@@ -88,9 +88,9 @@ export class RelationalQueryBuilder<Entity extends Model = Model> {
         relations: Relations<Models>,
     ): Queries<Models>;
     /**
-     * Read each table the relations name through a connection.
+     * Read each table of the relations through a connection.
      *
-     * @construct the relations name each table under its model's key, which is how Queries maps the models.
+     * @construct the relations list each table under its model's key, as Queries maps the models.
      */
     static of(
         connection: DatabaseConnection,
@@ -111,7 +111,7 @@ export class RelationalQueryBuilder<Entity extends Model = Model> {
     /**
      * Read the rows meeting the options, each with its included relations.
      *
-     * @construct each result holds its table's selected columns, the extras and each included relation's results, which is how FindResult maps the options.
+     * @construct each result has selected columns, extras and included results, as in FindResult.
      */
     findMany(options: ReadOptions = {}): Promise<unknown[]> {
         return this.#find(options);
@@ -272,7 +272,7 @@ class Level {
     }
 }
 
-/** How a level's rows join their parents: the joined table, and the table and column naming each row's parent. */
+/** How a level's rows join their parents: the joined table, and each row's parent column. */
 class Join {
     /** The joined table and its join condition, absent for a key path. */
     readonly from: SQL | undefined;
@@ -376,7 +376,7 @@ async function read(
     }));
 }
 
-/** Set a relation's rows on each read row: a one relation's row or null, or a many relation's rows. */
+/** Set a relation's rows on each read row: a one relation's row or null, or many rows. */
 async function include(
     connection: DatabaseConnection,
     relations: Relations,

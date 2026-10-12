@@ -9,7 +9,7 @@ import {
 } from "../sqlite/client.ts";
 import { SqliteScript } from "../sqlite/script.ts";
 
-/** The most prepared statement texts per connection: a service runs 400 to 600, at 2 to 10 KB each. */
+/** The most prepared statement texts per connection: a service runs 400 to 600 of 2 to 10 KB. */
 const PREPARED_TEXTS = 512;
 
 /** The work queue of each database file, shared by the process's connections to it. */
@@ -65,7 +65,7 @@ export class BunQuery implements SqliteQueryClient {
         await this.#schedule(async () => this.statements.take(sql).run(...parameters));
     }
 
-    /** Run a script statement by statement, since Bun reports only the last failure of a whole script. */
+    /** Run a script statement by statement, since Bun reports only a script's last failure. */
     exec(script: string): Promise<void> {
         return this.#schedule(async () => {
             for (const statement of SqliteScript.statements(script)) {
@@ -151,11 +151,7 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
     }
 }
 
-/**
- * The prepared statements of one connection by text, least recently used first.
- *
- * Statements run synchronously, and one statement serves each text.
- */
+/** The prepared statements of one connection by text, least recently used first. */
 export class BunStatementCache {
     /** The database preparing the statements. */
     readonly #database: bun.Database;

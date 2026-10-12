@@ -73,7 +73,7 @@ export class SqliteSession implements Session {
         await this.client.exec(script);
     }
 
-    /** Commit work in a transaction, written immediately unless it only reads, or nest it in a savepoint. */
+    /** Commit work in a transaction, immediate unless read-only, or nest it in a savepoint. */
     transaction<Value>(
         operation: (session: Session) => Promise<Value>,
         options: SessionTransaction,
@@ -189,7 +189,7 @@ function isRecord(row: unknown): row is Record<string, unknown> {
     return typeof row === "object" && row !== null && !Array.isArray(row);
 }
 
-/** Pass a driver value to PostgreSQL, a 64-bit integer as its decimal text, which int8 columns read exactly. */
+/** Pass a value to PostgreSQL, a 64-bit integer as decimal text for exact int8 columns. */
 function postgresParameter(value: DriverValue): postgres.ParameterOrJSON<never> {
     return typeof value === "bigint" ? value.toString() : value;
 }

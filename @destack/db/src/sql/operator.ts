@@ -8,11 +8,7 @@ import {
 } from "../table/column.ts";
 import { type Alias, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from "./sql.ts";
 
-/**
- * The most predicates one flat chain joins.
- *
- * 90 levels keep compound keys far below SQLite's expression depth limit of 1000.
- */
+/** The most predicates one flat chain joins. */
 export const CHAIN_TERMS = 90;
 
 /** A typed operand: a column reading the value, a fragment or a named fragment. */
@@ -202,7 +198,7 @@ export function max(value: SQLWrapper): SQL;
 /**
  * Return the maximum value.
  *
- * @construct the maximum decodes as its operand does: a column by its definition, an expression by its decoder.
+ * @construct the maximum decodes as its operand: a column by definition, an expression by decoder.
  */
 export function max(value: SQLWrapper): SQL {
     return extreme("max", value);
@@ -219,7 +215,7 @@ export function min(value: SQLWrapper): SQL;
 /**
  * Return the minimum value.
  *
- * @construct the minimum decodes as its operand does: a column by its definition, an expression by its decoder.
+ * @construct the minimum decodes as its operand: a column by definition, an expression by decoder.
  */
 export function min(value: SQLWrapper): SQL {
     return extreme("min", value);

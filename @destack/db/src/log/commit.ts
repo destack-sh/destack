@@ -13,7 +13,7 @@ import type { Change } from "./log.ts";
 import type { LogPosition } from "./position.ts";
 import { type Overlay, Snapshot } from "./snapshot.ts";
 
-/** One row a change set writes: its image before the first write and after the last, null where absent. */
+/** One row a change set writes: its image before the first and after the last write, or null. */
 export interface RowChange {
     /** The written table. */
     readonly table: Table;
@@ -23,7 +23,7 @@ export interface RowChange {
     readonly after: Row | null;
 }
 
-/** What a transaction read, by table: the rows it read by key and the conditions its scans met, whole rows or their logged images, which its commit checks the log against. */
+/** What a transaction read, by table, which its commit checks the log against. */
 export class ReadSet {
     /** The tables read, by SQL name. */
     readonly #tables = new Map<string, Table>();
@@ -79,7 +79,7 @@ export class ReadSet {
         return [...this.#tables.values()];
     }
 
-    /** Report whether a committed change touches a row the transaction read or a row one of its scans would select, before or after the change. */
+    /** Report whether a committed change touches a read row, or a row a scan would select. */
     touches(change: Change): boolean {
         // let an update of unlogged columns alone pass reads of logged images
         const name = change.table[TABLE].sqlName;
@@ -114,12 +114,12 @@ export class ReadSet {
     }
 }
 
-/** What a transaction writes, by table and key: each row's image before its first write and after its last. */
+/** What a transaction writes by table and key: each row before its first and after its last. */
 export class ChangeSet {
     /** The written rows, by table and key name. */
     readonly #rows = new Map<string, RowChange>();
 
-    /** Record a write of one row: the row before it, null for a creation, and after it, null for a removal. */
+    /** Record a write of one row: before, null for a creation, and after, null for a removal. */
     write({ table, before, after }: RowChange): void {
         // key the row by its present image, refusing a table without a key
         if (table[TABLE].key.length === 0) {
@@ -143,7 +143,7 @@ export class ChangeSet {
         return [...this.#rows.values()].filter(isChanged);
     }
 
-    /** Read the written rows as an overlay of the database's, by table and key, as they stand at each read. */
+    /** Read the written rows as an overlay of the database's, by table and key, at each read. */
     overlay(): Overlay {
         return async (table) => {
             // index the table's latest images by key name
@@ -186,12 +186,12 @@ export class ChangeSet {
         }
     }
 
-    /** Read the row the set writes for a key: its latest image, null once removed, absent when unwritten. */
+    /** Read the set's row for a key: its latest image, null once removed, absent if unwritten. */
     written(table: Table, key: Row): Row | null | undefined {
         return this.#rows.get(Key.name(table, key))?.after;
     }
 
-    /** Read the rows the set writes to a table, by key name: each latest image, null once removed. */
+    /** Read the set's rows of a table by key name: each latest image, null once removed. */
     writtenRows(table: Table): Map<string, Row | null> {
         // keep the latest image of each row of the table
         const name = table[TABLE].sqlName;
@@ -205,7 +205,7 @@ export class ChangeSet {
         return rows;
     }
 
-    /** Apply the records written once and then the changes in one transaction, when no change committed after the base touched what the transaction read, else refuse with `CONCURRENT_UPDATE`. */
+    /** Apply the records once and then the changes in one transaction. */
     async commit(
         database: DatabaseConnection,
         base: LogPosition,
@@ -217,7 +217,7 @@ export class ChangeSet {
             async (transaction) => {
                 // hold off other commits, and refuse once a commit after the base touched a read
                 await transaction.log.serialize();
-                await ChangeSet.#check(transaction, base, reads);
+                await ChangeSet.requireCurrent(transaction, base, reads);
 
                 // write the records kept once, before the changes they may enable
                 await records(transaction);
@@ -250,8 +250,8 @@ export class ChangeSet {
         );
     }
 
-    /** Refuse a commit once another commit after the base touched what the transaction read. */
-    static async #check(
+    /** Refuse with `CONCURRENT_UPDATE` once a later commit touched a transaction's reads. */
+    static async requireCurrent(
         transaction: DatabaseConnection,
         base: LogPosition,
         reads: ReadSet,
@@ -302,17 +302,17 @@ export interface RowsOptions<Read> {
     readonly limit?: number;
 }
 
-/** A transaction in progress over a database: the position it started at, what it read and what it writes, committed at once as a branch held in memory merges. */
+/** A transaction in progress over a database: its start position, reads and writes. */
 export class Transaction {
     /** The database the transaction reads and commits to. */
     readonly database: DatabaseConnection;
-    /** The log position the transaction started at, which its commit checks the log after, null for a transaction that only reads. */
+    /** The transaction's start position, checked against the log at commit, null if read-only. */
     readonly #base: LogPosition | null;
     /** What the transaction read. */
     readonly reads = new ReadSet();
     /** What the transaction writes. */
     readonly changes = new ChangeSet();
-    /** The records the transaction writes once at its commit, such as its journal entry, which nothing reads back before it commits. */
+    /** The records the transaction writes once at commit, such as its journal entry. */
     readonly #records: ((transaction: DatabaseConnection) => Promise<void>)[] = [];
     /** The identifiers the transaction derived so far, counted from zero in every attempt. */
     #derived = 0;
@@ -328,7 +328,7 @@ export class Transaction {
         return new Transaction(database, await database.log.position());
     }
 
-    /** Run a transaction to its commit, running it again from a fresh start while another commit wins a race on what it read. */
+    /** Run a transaction to commit, restarting while another commit wins a race on its reads. */
     static async run<Value>(
         database: DatabaseConnection,
         attempt: (transaction: Transaction) => Promise<Value>,
@@ -363,7 +363,7 @@ export class Transaction {
         return this.#base;
     }
 
-    /** Show the database as the transaction sees it, its own writes over the live rows, recording each read. */
+    /** Show the database as the transaction sees it, its writes over live rows, recording reads. */
     view(): Snapshot {
         return Snapshot.live(this.database).recording(this.reads).layer(this.changes.overlay());
     }
@@ -397,7 +397,7 @@ export class Transaction {
         return row;
     }
 
-    /** Read the rows meeting a condition with the transaction's own writes, ordered and bounded as asked. */
+    /** Read the rows meeting a condition with the transaction's writes, ordered and bounded. */
     async rows<Definition extends Table>(
         table: Definition,
         where: Condition<RowImage<NoInfer<Definition>>> = {},
@@ -446,7 +446,7 @@ export class Transaction {
         );
     }
 
-    /** Read one row's logged columns by its key with the transaction's own writes, null when absent. */
+    /** Read one row's logged columns by key with the transaction's writes, null if absent. */
     async image<Definition extends Table>(
         table: Definition,
         key: Key<Definition>,
@@ -457,7 +457,7 @@ export class Transaction {
         return row === null ? null : aligned(images<Definition>([row]), 0);
     }
 
-    /** Read the logged columns of the rows meeting a condition with the transaction's own writes, ordered and bounded as asked. */
+    /** Read matching rows' logged columns with the transaction's writes, ordered and bounded. */
     async images<Definition extends Table>(
         table: Definition,
         where: Condition<RowImage<NoInfer<Definition>>> = {},
@@ -556,6 +556,10 @@ export class Transaction {
                 (row) => row !== after && covers(row) && sameKey(table, key, row, after),
             );
             if (isShared) {
+                // refuse a key a commit after the base took as a lost race, which runs again to see it
+                if (this.#base !== null) {
+                    await ChangeSet.requireCurrent(this.database, this.#base, this.reads);
+                }
                 throw new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
                     key: {
                         table: definition.sqlName,
@@ -568,7 +572,7 @@ export class Transaction {
         }
     }
 
-    /** Run a step whose writes and records the transaction drops when it fails, as a savepoint does, and rethrow its failure. */
+    /** Run a step whose writes and records drop on failure, as a savepoint does, and rethrow. */
     async savepoint<Value>(run: () => Promise<Value>): Promise<Value> {
         const restore = this.#mark();
         try {
@@ -579,7 +583,7 @@ export class Transaction {
         }
     }
 
-    /** Run a rehearsal over the transaction's rows, answering its value and the rows it changed, then drop its writes and records. */
+    /** Run a rehearsal over the transaction's rows, returning its value and changed rows. */
     async rehearse<Value>(
         run: () => Promise<Value>,
     ): Promise<{ readonly value: Value; readonly changes: readonly RowChange[] }> {
@@ -613,12 +617,12 @@ export class Transaction {
         return position;
     }
 
-    /** Write a record once at the commit, in its transaction before the changes, such as a journal entry nothing reads back before then. */
+    /** Write a record once at commit, before the changes, such as a journal entry. */
     record(write: (transaction: DatabaseConnection) => Promise<void>): void {
         this.#records.push(write);
     }
 
-    /** Commit the records and the changes when nothing the transaction read changed since its base, else refuse with `CONCURRENT_UPDATE`. */
+    /** Commit the records and changes if no read changed since the base. */
     commit(): Promise<void> {
         return this.changes.commit(this.database, this.base, this.reads, async (transaction) => {
             for (const write of this.#records) {
@@ -628,12 +632,12 @@ export class Transaction {
     }
 }
 
-/** Type rows a transaction read through a table's columns, or wrote as that table's rows, as that table's records. */
+/** Type rows read through a table's columns, or written as its rows, as the table's records. */
 function selected<Definition extends Table>(rows: readonly Row[]): (Select<Definition> & Row)[];
 /**
- * Pass the rows on, which the database selected through the table's columns or the transaction wrote as complete rows of the table.
+ * Pass the rows on, selected through the table's columns or written as its complete rows.
  *
- * @construct every row came from a select of the table or a complete write of it, which is how Select maps the table.
+ * @construct every row came from a select or a complete write of the table, as Select maps it.
  */
 function selected(rows: readonly Row[]): Row[] {
     return [...rows];
@@ -644,7 +648,7 @@ function images<Definition extends Table>(rows: readonly Row[]): (RowImage<Defin
 /**
  * Pass the rows on, whose columns include every logged column of their table.
  *
- * @construct every row is a whole row of the table, and RowImage maps the table's logged columns, a subset of them.
+ * @construct every row is a whole row, and RowImage maps the table's logged columns, a subset.
  */
 function images(rows: readonly Row[]): Row[] {
     return [...rows];
@@ -653,7 +657,7 @@ function images(rows: readonly Row[]): Row[] {
 /** What a read took: a whole row, or the logged image change readers see. */
 type ReadKind = "row" | "image";
 
-/** Decide whether a unique key covers a row: every row without a condition, else the rows meeting it. */
+/** Decide whether a unique key covers a row: every row without a condition, else matches. */
 function covering(table: Table, key: UniqueKey): (row: Row) => boolean {
     if (key.where === undefined) {
         return () => true;
@@ -666,7 +670,7 @@ function covering(table: Table, key: UniqueKey): (row: Row) => boolean {
     return (row) => Predicate.matches(predicate, row);
 }
 
-/** Decide whether a row change differs from the row before it: a creation, a removal, or a changed column. */
+/** Decide whether a row change differs from the row before: a creation, removal or change. */
 function isChanged(change: RowChange): boolean {
     return (
         changedColumns(change).length > 0 || (change.before === null) !== (change.after === null)
@@ -685,7 +689,7 @@ function changedColumns({ table, before, after }: RowChange): string[] {
     );
 }
 
-/** Decide whether two rows hold the same values of a unique key's columns, comparing their JSON forms. */
+/** Decide whether two rows have equal unique key values, comparing their JSON forms. */
 function sameKey(table: Table, key: UniqueKey, left: Row, right: Row): boolean {
     const encoded = (row: Row) =>
         JSON.stringify(

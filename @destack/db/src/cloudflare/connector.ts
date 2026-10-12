@@ -2,7 +2,7 @@ import type { DatabaseConnector } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
 import { DURABLE_OBJECT_PROVIDER, DurableObjectDatabaseHost } from "./host.ts";
 
-/** Open the databases a Durable Object keeps inside the workload it runs, refusing one lacking its declaration's tables. */
+/** Open a Durable Object's databases in its workload, refusing ones lacking declared tables. */
 export function durableObjectConnector(host: DurableObjectDatabaseHost): DatabaseConnector {
     return {
         code: DURABLE_OBJECT_PROVIDER,

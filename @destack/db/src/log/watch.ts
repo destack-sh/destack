@@ -1,13 +1,13 @@
 import type { Channel, Commit } from "../channel/channel.ts";
 
-/** Who announces a connection's commits on its channel: the connection once committed, or the database inside the commit. */
+/** Who announces a connection's commits: the connection after commit, or the database inside it. */
 export type Announcer = "connection" | "database";
 
 /** The commits one physical connection's readers wait for. */
 export class CommitWatch {
     /** The channel other writers announce their commits on, absent for a sole writer. */
     readonly #channel: Channel<Commit> | undefined;
-    /** The SQL names of the tables whose commits the database announces itself, inside the commit. */
+    /** The SQL names of the tables whose commits the database announces inside the commit. */
     readonly #announced: ReadonlySet<string>;
     /** The SQL names of every declared table, which a commit of unknown tables lists. */
     readonly #tables: readonly string[];
@@ -37,7 +37,7 @@ export class CommitWatch {
         return this.#waiting.size > 0;
     }
 
-    /** Wake this connection's readers and announce the commit of the tables the database leaves unannounced to the other writers. */
+    /** Wake this connection's readers and announce other tables' commits to the other writers. */
     notify(tables: readonly string[]): void {
         this.#wake(tables);
         const unannounced = tables.filter((table) => !this.#announced.has(table));
@@ -57,11 +57,7 @@ export class CommitWatch {
         }
     }
 
-    /**
-     * Wait until a check of the tables committed since the last check passes after a commit, returning false once the signal aborts.
-     *
-     * The first check gets every table.
-     */
+    /** Wait until a check of the tables committed since the last check passes after a commit. */
     async until(
         check: (tables: ReadonlySet<string>) => Promise<boolean>,
         signal: AbortSignal,
@@ -154,7 +150,7 @@ export class CommitWatch {
         });
     }
 
-    /** Wake the readers on each commit the channel announces, and on each resumed delivery as a commit of every table. */
+    /** Wake the readers on each announced commit, and on each resumed delivery for all tables. */
     #listen(): () => Promise<void> {
         const stop = this.#channel?.listen(
             (message) => this.#wake(message.tables),

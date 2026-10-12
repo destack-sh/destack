@@ -2,7 +2,7 @@ import type { Opener, Provider, Provisioner, Reconciler, Snapshotter } from "@de
 import { DatabaseKind } from "../declare/database.ts";
 import type { DatabaseHandle } from "../database/handle.ts";
 
-/** Where a backend keeps databases: creating, migrating, opening, copying and destroying each one. */
+/** Where a backend keeps databases: creating, migrating, opening, copying and destroying them. */
 export interface DatabaseHost
     extends
         Provisioner<typeof DatabaseKind>,
@@ -21,7 +21,7 @@ export type DatabaseProvider<Object> = Provider<typeof DatabaseKind, Object, Dat
     readonly snapshot: Snapshotter<typeof DatabaseKind>;
 };
 
-/** Provide a host's databases under its provider code, serving them as an object and copying them where the host keeps them. */
+/** Provide a host's databases under its provider code, as an object, copied where kept. */
 export function databaseProvider<Object>(
     host: DatabaseHost,
     object: Object,

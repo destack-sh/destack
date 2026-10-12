@@ -3,10 +3,10 @@ import { classifyError, DatabaseError } from "../error/error.ts";
 /** How often a transaction runs at most before a lost serialization race answers as unavailable. */
 const TRANSACTION_ATTEMPTS = 5;
 
-/** The backoff before the second attempt, in milliseconds, doubled for each later one and jittered. */
+/** The backoff before the second attempt in milliseconds, doubled per later one and jittered. */
 const BACKOFF_MILLISECONDS = 10;
 
-/** Run a transaction again while it loses a serialization race to a concurrent one, with jittered exponential backoff, answering unavailable once the attempts run out. */
+/** Run a transaction again while it loses serialization races, with jittered backoff. */
 export async function retried<Value>(
     run: () => Promise<Value>,
     signal: AbortSignal | undefined,
@@ -31,7 +31,7 @@ export async function retried<Value>(
     }
 }
 
-/** Report whether a failure is a lost serialization race: a serialization failure, a deadlock or a busy database. */
+/** Report whether a failure lost a race: a serialization failure, deadlock or busy database. */
 function isLostRace(error: unknown): boolean {
     return error instanceof DatabaseError && error.code === "CONCURRENT_UPDATE";
 }

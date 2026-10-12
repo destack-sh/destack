@@ -14,7 +14,7 @@ import {
 /** The transaction-local setting naming the already stamped transaction. */
 const STAMPED_SETTING = "destack.stamped";
 
-/** The bytes of table names one commit notification carries: below PostgreSQL's payload limit of 8000, leaving room for the message around them. */
+/** The bytes of table names in one commit notification. */
 const NOTIFICATION_BYTES = 7_800;
 
 /** The PostgreSQL log: its tables, functions and triggers. */
@@ -65,7 +65,7 @@ function createLogTables(): string[] {
     ];
 }
 
-/** Create the function and deferred trigger numbering a transaction's entries at commit in commit order, and announcing their tables. */
+/** Create the deferred stamp trigger, numbering entries in commit order and announcing tables. */
 function createStamp(): string[] {
     const log = quote(LOG);
 

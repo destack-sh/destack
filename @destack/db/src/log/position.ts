@@ -3,7 +3,7 @@ import { defineSchema, schema } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TRANSACTION } from "./schema.ts";
 
-/** A log sequence or time as drivers return it, read as a safe integer: PostgreSQL returns its bigints as text. */
+/** A log sequence or time as a safe integer, since PostgreSQL returns bigints as text. */
 export const LogInteger = schema
     .union([schema.number(), schema.string(), schema.bigint()])
     .transform((value) => Number(value))
@@ -31,7 +31,7 @@ export const LogPosition = Object.assign(logPositionSchema, {
     },
 });
 
-/** The log's head as selection fields: its epoch, latest logged sequence and horizon, each read once per statement. */
+/** The log's head as selection fields: epoch, latest sequence and horizon, read once each. */
 export function headFields(dialect: Dialect): {
     readonly epoch: SQL<string>;
     readonly logged: SQL<number | null>;
@@ -58,11 +58,7 @@ export function headFields(dialect: Dialect): {
     };
 }
 
-/**
- * Select the log's head in one row: its epoch, latest sequence and horizon.
- *
- * Inside a transaction the head leaves out the transaction's own entries.
- */
+/** Select the log's head in one row: its epoch, latest sequence and horizon. */
 export function selectHead(dialect: Dialect): SQL {
     const head = headFields(dialect);
 

@@ -62,7 +62,7 @@ export interface PlanInput {
     readonly conflicts?: Merge["conflicts"];
     /** The database's dialect. */
     readonly dialect: Dialect;
-    /** The database's namespace in a SQLite store several databases share, whose names the states already carry. */
+    /** The database's namespace in a shared SQLite store, already part of the states' names. */
     readonly namespace?: string;
 }
 
@@ -405,7 +405,7 @@ function droppedTables(
         .map((previous) => previous.table.name);
 }
 
-/** Remove every applied generated trigger before changed steps and install the declared ones after, within the database's namespace. */
+/** Remove the applied generated triggers before changed steps and install declared ones after. */
 function reinstallTriggers(
     applied: readonly TableState[],
     declared: readonly TableState[],
@@ -690,7 +690,7 @@ function changeIndexes(previous: TableDescription, next: TableDescription): Tabl
     ];
 }
 
-/** Split named parts into the applied ones to drop and the declared ones to create, compared by name and definition. */
+/** Split named items into applied ones to drop and declared ones to create, by definition. */
 function differing<Part extends { readonly name: string }>(
     applied: readonly Part[],
     declared: readonly Part[],

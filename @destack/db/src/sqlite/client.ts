@@ -1,7 +1,7 @@
 import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
 
-/** How long work waits behind earlier work before it fails, as HikariCP's default acquisition timeout: 30 s. */
+/** How long work waits behind earlier work before failing: 30 s, HikariCP's default. */
 const TURN_WAIT_MILLISECONDS = 30_000;
 
 /** The statements of a SQLite connection or one of its transactions. */
