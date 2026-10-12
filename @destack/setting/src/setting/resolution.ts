@@ -29,7 +29,7 @@ const ClientSource = schema.object({
     revision: schema.number().int().min(1),
 });
 
-/** The declaration default, a placed or client value, or a value the declaration no longer accepts. */
+/** The declaration default, a placed or client value, or a value the declaration now rejects. */
 export const SettingSource = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -61,13 +61,13 @@ export const SettingResolution = Object.assign(
             selection: SettingSelection,
             /** The effective value. */
             value: schema.json(),
-            /** The agreeing requirements or the winning sources, followed by the skipped invalid values. */
+            /** The agreeing requirements or winning sources, then the skipped invalid values. */
             sources: schema.array(SettingSource).min(1),
             /** The other applicable sources in ascending precedence. */
             overridden: schema.array(SettingSource),
             /** Whether a requirement fixes the value, or some key of a merged value. */
             enforcement: schema.enum(["ordinary", "required"]),
-            /** How each key of a merged value resolved, absent for a setting merging whole values. */
+            /** How each record key resolved, absent for a setting merging whole values. */
             keys: schema
                 .record(
                     schema.string(),
@@ -84,7 +84,7 @@ export const SettingResolution = Object.assign(
         }),
     ),
     {
-        /** Read the value a resolution shows at an exact placement or on the client, valid or not, or null for none. */
+        /** Read the value a resolution shows at an exact placement or on the client. */
         observed(
             resolution: SettingResolution<unknown>,
             at: SettingPlacement | "client",

@@ -4,11 +4,7 @@ import { PackageId } from "@destack/package";
 import { schema, Version } from "@destack/schema";
 import { SettingName } from "../setting/setting.ts";
 
-/**
- * A setting value one client keeps for everyone using it, above every value placed in a scope.
- *
- * A browser may evict the client's database, after which resolutions fall back to the placed values and defaults.
- */
+/** A setting value one client keeps for everyone using it, above every value placed in a scope. */
 export const clientSetting = defineObject({
     name: "client-setting",
     plural: "clientSettings",

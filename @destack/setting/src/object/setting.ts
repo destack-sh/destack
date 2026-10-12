@@ -96,7 +96,7 @@ export const SettingValue = {
         return declared.resolve(selection, values, chain).value;
     },
 
-    /** Read the values a scope and the scopes above it place for some settings, with the chain nearest first. */
+    /** Read the values a scope and the scopes above it place for some settings, nearest first. */
     async along(
         database: DatabaseConnection,
         settings: readonly SettingReference[],
@@ -123,7 +123,7 @@ export const SettingValue = {
         return { chain, values };
     },
 
-    /** Yield the values along a scope's chain for some settings now and after each change to them, until the signal aborts. */
+    /** Yield the values along a scope's chain for some settings, now and after each change. */
     async *follow(
         database: DatabaseConnection,
         settings: readonly SettingReference[],

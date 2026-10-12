@@ -10,7 +10,7 @@ import { BuildCache } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import type { ObjectType } from "@destack/object";
 
-/** Serve declared values, checking each written value against the catalog `declared` reads for it, and each value a stack declares against the build installing its package, applied after some object types such as installations. */
+/** Serve declared values. */
 export function serveSettings(
     declared: (
         written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,

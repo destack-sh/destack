@@ -16,7 +16,7 @@ const description = SettingMetadata.extend({
     schema: schema.record(schema.string(), schema.json()),
     /** The default value. */
     default: schema.json(),
-    /** The value each release computes from a value of an earlier release, by the release introducing it. */
+    /** The conversions of earlier values, by the release introducing each. */
     convert: schema.record(Version, Expression.schema).exactOptional(),
 });
 
@@ -31,7 +31,7 @@ export const SettingDescription = defineSchema(
 /** A setting declaration as manifests describe it. */
 export type SettingDescription = schema.Infer<typeof SettingDescription>;
 
-/** Describe a setting with its conversions, so every reader of the build converts earlier values. */
+/** Describe a setting and its conversions, so every build reader converts earlier values. */
 export function describeSetting(setting: Setting): SettingDescription {
     const { schema: valueSchema, ...definition } = setting.definition;
 
@@ -69,7 +69,7 @@ export class SettingCatalog {
         return SettingCatalog.of(descriptions.map((entry) => entry.description));
     }
 
-    /** Hold the settings some descriptions declare, such as a space's installations' declarations. */
+    /** Collect the settings some descriptions declare, such as those of a space's installations. */
     static of(descriptions: readonly SettingDescription[]): SettingCatalog {
         return new SettingCatalog(
             descriptions.map(
@@ -79,7 +79,7 @@ export class SettingCatalog {
         );
     }
 
-    /** Read each written value's catalog from the build `open` opens for it, reading each build's settings once. */
+    /** Read each written value's catalog from the build `open` opens for it. */
     static cached(
         open: (
             written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,

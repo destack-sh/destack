@@ -19,9 +19,9 @@ const SET_TIER = 2;
 /** Values the client keeps follow every value set in the selected scope. */
 const CLIENT_TIER = 3;
 
-/** An enclosing recommendation one scope nearer follows a farther one, whatever its installation. */
+/** An enclosing recommendation one scope nearer follows a farther one, for any installation. */
 const DEPTH_WEIGHT = 2;
-/** A recommendation for the selected installation follows one for every installation of its scope. */
+/** A recommendation for the selected installation follows a broader one. */
 const ENCLOSING_INSTALLATION_WEIGHT = 1;
 
 /** A set value for the consuming package follows one applying to every package. */
@@ -99,7 +99,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return this.definition.name;
     }
 
-    /** Read the setting's value among an installation's resolved settings, refusing one its machine did not resolve. */
+    /** Read the setting's value among an installation's resolved settings. */
     read(settings: Readonly<Record<string, JsonValue>>): schema.Infer<Value> {
         // require the value its machine resolved
         const key = SettingReference.key(this.reference);
@@ -115,7 +115,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return this.reference;
     }
 
-    /** Match the values a resolution reads: those set in the selected scope, and the recommendations and requirements above it. */
+    /** Match the values a resolution reads. */
     condition(selection: SettingSelection): Condition {
         const policy = { mode: { ne: "set" } };
 
@@ -128,12 +128,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         };
     }
 
-    /**
-     * Resolve the effective value for a selection from the values placed along a scope chain, nearest scope first, and the client's values.
-     *
-     * A stored value the declaration no longer accepts is skipped and listed as an invalid source.
-     * A server resolves without client values, which only the client's own database keeps.
-     */
+    /** Resolve the effective value for a selection. */
     resolve(
         selection: SettingSelection,
         values: readonly SettingValue[],
@@ -143,7 +138,8 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     /**
      * Resolve the winning candidate's value.
      *
-     * @construct every value that wins has parsed by this setting's schema, since invalid stored values are skipped as invalid sources.
+     * @construct every value that wins has parsed by this setting's schema.
+     * Invalid stored values are skipped as invalid sources.
      */
     resolve(
         selection: SettingSelection,
@@ -175,7 +171,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         }
     }
 
-    /** Rank the default and each applicable placed and client value, in an order independent of arrival, invalid ones apart. */
+    /** Rank the default and each applicable placed and client value, invalid ones apart. */
     #candidates(
         values: readonly SettingValue[],
         selection: SettingSelection,
@@ -220,7 +216,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return { ordinary, required, invalid };
     }
 
-    /** Decide one value: agreeing requirements, or else the highest-ranked candidates, refusing ties of different values. */
+    /** Decide one value: agreeing requirements, or else the highest-ranked candidates. */
     #decide(
         selection: SettingSelection,
         ordinary: readonly Candidate[],
@@ -273,7 +269,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         };
     }
 
-    /** Resolve each key of a record value from the highest-ranked candidate setting it, requirements fixing theirs. */
+    /** Resolve each key of a record value from the highest-ranked candidate that sets it. */
     #mergeKeys(
         selection: SettingSelection,
         ordinary: readonly Candidate[],
@@ -321,7 +317,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return parsed.data;
     }
 
-    /** Require a value written in a scope to convert to a valid value of this release, at a permitted placement. */
+    /** Require a value written in a scope to convert to a valid value of this release. */
     requireWrite(write: SettingWrite, scope: string): void {
         // require a release up to this one and a value it converts to
         const converted = this.#convert(write.value, write.release);
@@ -417,7 +413,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return this.#converted(value, rank, source, value.mode);
     }
 
-    /** Rank a client's value of this setting above every placed one, or none for another setting's value. */
+    /** Rank a client's value of this setting above every placed one. */
     #clientCandidate(value: ClientSettingValue): Candidate | undefined {
         // skip the values of other settings, and refuse one the setting keeps off clients
         if (value.packageId !== this.reference.packageId || value.name !== this.reference.name) {
@@ -435,14 +431,14 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return this.#converted(value, [CLIENT_TIER, 0], source, "set");
     }
 
-    /** Report whether clients keep values of this setting: every value of a client setting, and a client's override of a user setting permitting one. */
+    /** Report whether clients keep values of this setting. */
     #isClientKept(): boolean {
         const { scope, overrides } = this.definition;
 
         return scope === "client" || overrides.some((override) => override === "client");
     }
 
-    /** Convert a stored value to this release as a candidate, or as an invalid one when the declaration rejects it. */
+    /** Convert a stored value to this release as a candidate. */
     #converted(
         value: Pick<SettingValue, "value" | "release">,
         rank: Rank,
@@ -459,7 +455,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             : { rank, source: { kind: "invalid", source }, value: value.value, mode };
     }
 
-    /** Rank a value of this setting for a selection: set in its scope by matching overrides, or enclosing by depth and installation. */
+    /** Rank a value of this setting for a selection. */
     #rank(
         value: SettingValue,
         placement: SettingPlacement,
@@ -556,7 +552,7 @@ function setWeight(placement: SettingPlacement, selection: SettingSelection): nu
         : undefined;
 }
 
-/** The candidates setting one key of a merged setting: ordinary ones in ascending rank, and the requirements. */
+/** The candidates setting one key of a merged setting. */
 interface KeyCandidates {
     /** The ordinary candidates, in ascending rank. */
     readonly ordinary: Candidate[];
@@ -586,7 +582,7 @@ function keyCandidates(
     return setting;
 }
 
-/** Decide one key: an agreeing requirement, or else the highest-ranked ordinary candidate, refusing a tie of different values. */
+/** Decide one key: an agreeing requirement, or else the highest-ranked ordinary candidate. */
 function decideKey(
     key: string,
     candidates: KeyCandidates,

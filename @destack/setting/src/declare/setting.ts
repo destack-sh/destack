@@ -44,7 +44,7 @@ export const SettingMetadata = defineSchema(
         apply: schema.enum(["immediate", "restart"]),
         /** The migration guidance of a deprecated setting. */
         deprecated: schema.string().min(1).exactOptional(),
-        /** How placed values combine: the nearest whole value, or each key of a record from its nearest placement. */
+        /** How placed values combine. */
         merge: schema.enum(["value", "key"]).exactOptional(),
     }),
 );
@@ -58,7 +58,7 @@ export type SettingDefinition<Value extends schema.Schema = schema.Schema> = sch
         readonly schema: Value;
         /** The value when no placed value applies. */
         readonly default: schema.Infer<Value>;
-        /** The value each release computes from a value of an earlier release, read as the column `value`, by the release introducing it. */
+        /** The conversions of earlier values, by the release introducing each. */
         readonly convert?: Readonly<Record<Version, Expression>>;
     };
 

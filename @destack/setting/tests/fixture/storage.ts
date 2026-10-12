@@ -84,7 +84,7 @@ export class Storage {
 
         return object.method(name).mutates
             ? this.objects
-                  .mutate(caller, { id: RequestId.create(), calls: [call] })
+                  .mutate(caller, { id: RequestId.create(Date.now()), calls: [call] })
                   .then(([result]) => result)
             : this.objects.query(caller, call);
     }
@@ -103,7 +103,7 @@ export class Storage {
         // read through a query, or write through a one-call mutation
         return object.method(name).mutates
             ? this.objects
-                  .mutate(caller, { id: RequestId.create(), calls: [call] })
+                  .mutate(caller, { id: RequestId.create(Date.now()), calls: [call] })
                   .then(([result]) => result)
             : this.objects.query(caller, call);
     }

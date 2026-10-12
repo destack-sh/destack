@@ -3,7 +3,7 @@ import { Address, Plan, type Comparator } from "@destack/resource";
 import { SettingDescription } from "../setting/catalog.ts";
 import type { Setting } from "../setting/setting.ts";
 
-/** Plan a setting's value change between two releases: newer readers read earlier values, converted by a conversion of a release between them. */
+/** Plan a setting's value change between two releases. */
 export const compareSetting: Comparator = (before, after) => {
     // read both releases' settings and the releases declaring them
     const earlier = SettingDescription.parse(before.description);
