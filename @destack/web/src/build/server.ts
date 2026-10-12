@@ -17,10 +17,10 @@ import { entryPlugin } from "./entry.ts";
 import { writeMetadata } from "./metadata/index.ts";
 import { requireSite, type WebOptions } from "./output.ts";
 
-/** The browsers development serves syntax for, the ones Vite's `baseline-widely-available` build target names. */
+/** The browsers development serves syntax for. */
 const BROWSER_TARGETS = ["chrome111", "edge111", "firefox114", "safari16.4"];
 
-/** A local application server with Vite's watcher and module graph, restarted when a package definition it reads changes. */
+/** A local application server with Vite's watcher and module graph. */
 export class DevelopmentServer implements AsyncDisposable {
     /** The running Vite server, replaced on each restart. */
     #vite: ViteDevServer;
@@ -81,7 +81,7 @@ export class DevelopmentServer implements AsyncDisposable {
         }
     }
 
-    /** Replace the Vite server with one of fresh plugins on the same port, as Vite restarts on a configuration change. */
+    /** Replace the Vite server with one of fresh plugins on the same port. */
     restart(): Promise<void> {
         // restart after any pending restart, keeping the chain going past a failed one
         const restarted = this.#restarting.then(() => this.#replace());
@@ -114,7 +114,7 @@ export class DevelopmentServer implements AsyncDisposable {
         await this.close();
     }
 
-    /** Close the running Vite server and listen with a fresh one on its port, unless the server closed. */
+    /** Close the running Vite server and listen with a fresh one on its port, unless closed. */
     async #replace(): Promise<void> {
         // keep the port the browser connects to
         if (this.#isClosed) {
@@ -137,7 +137,7 @@ export class DevelopmentServer implements AsyncDisposable {
         this.#vite = await serve(this.#options, this.#source, settings, () => this.#follow());
     }
 
-    /** Restart once a package definition changes, reporting a failed restart in the server's log. */
+    /** Restart when a package definition changes, reporting failures in the server's log. */
     #follow(): void {
         const logger = this.#vite.config.logger;
         logger.info("package definition changed, restarting the server");
@@ -153,7 +153,7 @@ export class DevelopmentServer implements AsyncDisposable {
 export interface DevelopmentServerOptions {
     /** The source package directory. */
     directory: string;
-    /** The dependency releases to resolve in place of the ones the package's lockfile selects, such as a test's. */
+    /** The dependency releases to resolve in place of the ones the package's lockfile selects. */
     dependencies?: Readonly<Record<string, DependencyResolution>>;
     /** The application's browser and server settings. */
     application: WebOptions;
@@ -173,7 +173,7 @@ async function open(options: DevelopmentServerOptions): Promise<PackageSource> {
     });
 }
 
-/** Create and listen with a Vite server of fresh plugins for an application, calling back when a dependency's definition changes. */
+/** Create a Vite server of fresh plugins for an application and listen with it. */
 async function serve(
     options: DevelopmentServerOptions,
     source: PackageSource,
@@ -223,7 +223,7 @@ async function serve(
     return vite;
 }
 
-/** Watch the application's definition and each one of a package whose modules the server loads, calling back once one changes or goes away. */
+/** Watch the definitions of the application and of each package whose modules the server loads. */
 function definitionPlugin(directory: string, onChange: () => void): Plugin {
     // find packages afresh for this server and remember the definitions watched
     const packages = new PackageLocator();
@@ -262,7 +262,7 @@ function definitionPlugin(directory: string, onChange: () => void): Plugin {
     };
 }
 
-/** Serve the site files an application publishes, written afresh for each request as builds write them. */
+/** Serve the site files an application publishes, written per request as builds write them. */
 function metadataPlugin(application: WebOptions): Plugin {
     return {
         name: "@destack/web/metadata",

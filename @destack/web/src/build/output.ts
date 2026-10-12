@@ -18,7 +18,7 @@ import { MetadataOptions, writeMetadata } from "./metadata/index.ts";
 import { prerender, PrerenderOptions } from "./prerender/index.ts";
 import { sourcePlugin } from "./source.ts";
 
-/** A Solid application compiled into a browser output and, with server rendering, a server output. */
+/** A Solid application compiled into a browser output. */
 export const WebOptions = SolidApplication.extend({
     /** Compile a browser application and its server handler. */
     kind: schema.literal("web"),
@@ -38,7 +38,7 @@ export const WebOptions = SolidApplication.extend({
     minify: schema.boolean().exactOptional(),
     /** Package-relative public asset directory, public by default. */
     publicDirectory: schema.union([schema.string(), schema.literal(false)]).exactOptional(),
-    /** The site's public origin, such as `https://example.com`, which prerendered pages and site files address. */
+    /** The site's public origin, such as `https://example.com`. */
     site: schema
         .string()
         .refine((site) => isHttpOrigin(site), "expected an HTTP origin")
@@ -48,7 +48,7 @@ export const WebOptions = SolidApplication.extend({
     /** Publish these files beside the pages, such as sitemap.xml and robots.txt. */
     metadata: MetadataOptions.exactOptional(),
 });
-/** A Solid application compiled into a browser output and, with server rendering, a server output. */
+/** A Solid application compiled into a browser output. */
 export type WebOptions = schema.Infer<typeof WebOptions>;
 
 /** The asset manifest Vite writes for a build, by module key. */
@@ -161,7 +161,7 @@ export const webOutput: OutputKind = {
     },
 };
 
-/** One application build: its request, the pass compiling it and the directories Start builds in. */
+/** One application build: its request, the pass compiling it, and Start's build directories. */
 interface WebBuild {
     /** The requested output's name. */
     readonly name: string;
@@ -256,7 +256,7 @@ function builderConfiguration(build: WebBuild): InlineConfig {
     };
 }
 
-/** Write Start's client and server builds into the temporary directory, each resolving for its runtime. */
+/** Write Start's client and server builds into the temporary directory, each for its runtime. */
 function environmentPlugins(temporary: string, minify: boolean, runtime: Runtime): Plugin[] {
     // resolve the host modules of the browser and of the server runtime
     const isWorkerd = runtime === "workerd";
@@ -359,7 +359,7 @@ function describeSide(build: WebBuild, side: "client" | "server", output: string
     };
 }
 
-/** Export a server's handler when distributed, and a browser page when nothing renders it on a server. */
+/** Export a server's handler when distributed. */
 function sideExports(
     application: WebOptions,
     side: "client" | "server",

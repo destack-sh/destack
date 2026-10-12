@@ -64,7 +64,7 @@ export function sourcePlugin(directory: string): Plugin {
     };
 }
 
-/** Collect a module's literal specifiers by offset, and in the runtime manifest its virtual entry names. */
+/** Collect a module's literal specifiers by offset. */
 function collectSpecifiers(
     program: ESTree.Program,
     isManifest: boolean,
@@ -98,7 +98,7 @@ function collectSpecifiers(
     return specifiers;
 }
 
-/** Rewrite virtual entry names and absolute imports within the directory, absent when none applies. */
+/** Rewrite virtual entry names and absolute imports in the directory, absent when none applies. */
 function rewriteSpecifiers(
     code: string,
     specifiers: ReadonlyMap<number, ESTree.StringLiteral>,
@@ -120,7 +120,7 @@ function rewriteSpecifiers(
     return rewritten;
 }
 
-/** Name a specifier stably: a virtual entry by its name, an absolute import within the directory below the prefix. */
+/** Make a specifier stable. */
 function replaceSpecifier(
     value: string,
     directory: string,

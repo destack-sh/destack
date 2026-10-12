@@ -175,7 +175,7 @@ async function runProgram(program: string, timeout: number, count: number): Prom
     await supervise(child, timeout, count);
 }
 
-/** Wait for a renderer to report every response, killing it past a response's deadline or the diagnostics bound. */
+/** Wait for a renderer to report every response. */
 function supervise(
     child: ChildProcessByStdio<null, Readable, Readable>,
     timeout: number,
@@ -232,7 +232,7 @@ function supervise(
     });
 }
 
-/** Read the failure of a renderer that exited uncleanly or before every response, absent otherwise. */
+/** Read the failure of a renderer that exited uncleanly or early, absent otherwise. */
 function exitFailure(
     code: number | null,
     completed: number,

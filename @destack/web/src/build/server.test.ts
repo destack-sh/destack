@@ -13,7 +13,7 @@ const INSTALLED = fileURLToPath(new URL("../../../../node_modules", import.meta.
 /** The installed view package, which the authored application renders with. */
 const VIEW = fileURLToPath(new URL("../../node_modules/@destack/view", import.meta.url));
 
-/** This package's directory, whose lockfile selects the releases the authored application resolves. */
+/** This package's directory. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** The identifier of the dependency's package. */
@@ -84,7 +84,7 @@ const AUTHORED_MODULES: Readonly<Record<string, string>> = {
     ].join("\n"),
 };
 
-/** The definition of a package for the browser and Bun, with the functions whose module it stamps. */
+/** The definition of a package for the browser and Bun. */
 function definition(id: string, stamps: Readonly<Record<string, { module: number }>>): string {
     const schema = "https://destack.app/schemas/2026.9.0/destack.json";
 
@@ -97,7 +97,7 @@ function definition(id: string, stamps: Readonly<Record<string, { module: number
     });
 }
 
-/** Write an application calling a local dependency into a fresh directory, returning the directories. */
+/** Write an application that calls a local dependency into a fresh directory. */
 async function writeApplication(): Promise<{
     root: string;
     application: string;
@@ -155,7 +155,7 @@ async function writeApplication(): Promise<{
     return { root, application, dependency };
 }
 
-/** Write an application rendering with view and web through authored entries into a fresh directory, returning the directories. */
+/** Write an application rendering with view and web through authored entries. */
 async function writeAuthoredApplication(): Promise<{ root: string; application: string }> {
     // link view, web and their Solid into the application's installation
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-web-entry-")));
@@ -191,7 +191,7 @@ async function writeAuthoredApplication(): Promise<{ root: string; application: 
     return { root, application };
 }
 
-/** Load one of the application's modules through the server's current Vite server, reading its label. */
+/** Load one application module through the server's current Vite server, reading its label. */
 async function load(server: DevelopmentServer, path = "/src/app.ts"): Promise<unknown> {
     const module = await server.vite.ssrLoadModule(path);
 
