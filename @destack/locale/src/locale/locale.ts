@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** The parents CLDR gives locales whose parent is not their language alone, such as en-AT reading as en-001. */
+/** The parents CLDR gives locales whose parent is not their language alone. */
 const PARENTS: Readonly<Record<string, string>> = {
     "en-150": "en-001",
     "en-AT": "en-150",
@@ -39,7 +39,7 @@ const RIGHT_TO_LEFT_SCRIPTS = new Set([
     "Yezi",
 ]);
 
-/** A BCP 47 language tag, such as de-AT, in its canonical casing: language, script, region or UN M.49 area, variants. */
+/** A BCP 47 language tag, such as de-AT, in its canonical casing. */
 export const LocaleTag = defineSchema(
     schema
         .string()
@@ -76,7 +76,7 @@ export const Locale = {
         return canonical;
     },
 
-    /** List the tags to read a message in, nearest first: the tag, its parents and the source language. */
+    /** List the tags to read a message in, nearest first. */
     fallback(tag: LocaleTag, source: LocaleTag): LocaleTag[] {
         // walk up the parents, CLDR's own first, else dropping the last subtag
         const chain: LocaleTag[] = [];
@@ -92,7 +92,7 @@ export const Locale = {
         return chain.includes(source) ? chain : [...chain, source];
     },
 
-    /** Read the tags an Accept-Language header asks for, the most preferred first, leaving out the wildcard and malformed tags (RFC 9110 12.5.4). */
+    /** Read the tags an Accept-Language header asks for, most preferred first (RFC 9110 12.5.4). */
     accepted(header: string): LocaleTag[] {
         // read each range's tag and weight, one by default
         const ranges = header.split(",").flatMap((range, index) => {
@@ -111,7 +111,7 @@ export const Locale = {
             .map((range) => range.canonical);
     },
 
-    /** Pick the available tag that serves a person's preferred tags best, absent when none shares a language (RFC 4647 lookup). */
+    /** Pick the available tag that best serves a person's preferred tags (RFC 4647 lookup). */
     negotiate(
         preferred: readonly LocaleTag[],
         available: readonly LocaleTag[],
@@ -142,7 +142,7 @@ function canonicalize(tag: string): string | undefined {
     }
 }
 
-/** Read a tag's parent: the one CLDR names, else the tag without its last subtag, absent for a language alone. */
+/** Read a tag's parent: the CLDR parent, else the tag without its last subtag. */
 function parentOf(tag: string): string | undefined {
     // take the parent CLDR names
     const named = PARENTS[tag];

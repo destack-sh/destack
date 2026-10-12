@@ -20,23 +20,23 @@ const UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] = [
 /** The compiled formatters, by locale and source, compiled once each. */
 const COMPILED = new Map<string, MessageFormat>();
 
-/** A person's locale bound to the packages' catalogs, rendering messages and formatting values in it. */
+/** A person's locale bound to the packages' catalogs, rendering messages and formatting values. */
 export interface Localization {
     /** The language and region the person reads. */
     readonly tag: LocaleTag;
     /** The direction text and controls run in, the locale's own unless a host sets another. */
     readonly direction: Direction;
 
-    /** Render a message in the nearest locale its package's catalogs translate it into, else in its source language. */
+    /** Render a message in the nearest locale its package's catalogs translate it into. */
     render(message: Message): string;
 
     /** Write a number. */
     number(value: number, options?: Intl.NumberFormatOptions): string;
-    /** Write an amount in its currency's minor unit, such as 1200 EUR cents as €12.00, a custom x- currency by its code. */
+    /** Write an amount in its currency's minor unit, such as 1200 EUR cents as €12.00. */
     money(amount: number, currency: string): string;
     /** Write an instant given in UTC epoch milliseconds. */
     date(time: number, options?: Intl.DateTimeFormatOptions): string;
-    /** Write the span between two instants given in UTC epoch milliseconds, sharing the parts they have in common. */
+    /** Write the span between two UTC epoch millisecond instants, sharing their common parts. */
     dateRange(start: number, end: number, options?: Intl.DateTimeFormatOptions): string;
     /** Write a list joined as the locale joins one, such as a, b and c. */
     list(items: readonly string[], options?: Intl.ListFormatOptions): string;
@@ -57,7 +57,7 @@ export const SOURCE_LOCALE: LocaleTag = "en";
 
 /** The localizations people read in. */
 export const Localization = {
-    /** Bind a locale to the catalogs of the packages whose messages it renders, messages written in the source language. */
+    /** Bind a locale to the catalogs of the packages whose messages it renders. */
     of(
         tag: LocaleTag,
         catalogs: readonly Catalog[],
@@ -95,7 +95,7 @@ export const Localization = {
     },
 };
 
-/** Render a message in the nearest translation of its package along a fallback chain, else in its source text. */
+/** Render a message in the nearest translation of its package along a fallback chain. */
 function render(
     message: Message,
     chain: readonly LocaleTag[],

@@ -3,10 +3,10 @@ import type { BuildReader } from "@destack/package/manifest";
 import { defineSchema, schema } from "@destack/schema";
 import { LocaleTag } from "../locale/locale.ts";
 
-/** The path of a catalog in a build, capturing a dependency's package and the tag: `locale/<tag>.json` for the build's own package, `locale/<package>/<tag>.json` for a dependency's. */
+/** The path of a catalog in a build, capturing a dependency's package and the tag. */
 const CATALOG_PATH = /^locale\/(?:([^/]+)\/)?([^/]+)\.json$/u;
 
-/** The translations of one package's messages into one locale, as MessageFormat 2 sources by message identifier. */
+/** The translations of one package's messages into one locale. */
 const catalogSchema = defineSchema(
     schema.object({
         /** The package whose messages the catalog translates. */
@@ -20,21 +20,21 @@ const catalogSchema = defineSchema(
     }),
 );
 
-/** The translations of one package's messages into one locale, kept at `locale/<tag>.json` in the package. */
+/** The translations of one package's messages into one locale. */
 export const Catalog = Object.assign(catalogSchema, {
     /** Report whether a build path holds a catalog: the build's own, or a dependency's. */
     isPath(path: string): boolean {
         return CATALOG_PATH.test(path);
     },
 
-    /** Write the build path of a catalog: `locale/<tag>.json` for the build's own package, `locale/<package>/<tag>.json` for a dependency's. */
+    /** Write the build path of a catalog. */
     path(catalog: Pick<Catalog, "package" | "locale">, owner: PackageId): string {
         return catalog.package === owner
             ? `locale/${catalog.locale}.json`
             : `locale/${catalog.package}/${catalog.locale}.json`;
     },
 
-    /** Read a catalog file of a build, refusing one of a package or a locale its path does not name. */
+    /** Read a catalog file of a build. */
     of(path: string, value: unknown, owner: PackageId): Catalog {
         // require a catalog path and a catalog
         const [, dependency, tag] = CATALOG_PATH.exec(path) ?? [];
@@ -54,7 +54,7 @@ export const Catalog = Object.assign(catalogSchema, {
         return catalog;
     },
 
-    /** Read the catalogs a build ships, its own and those of its unpublished dependencies, verifying each file. */
+    /** Read the catalogs a build ships: its own and those of its unpublished dependencies. */
     async read(reader: BuildReader): Promise<Catalog[]> {
         const owner = reader.manifest.package.id;
         const files = (await reader.files()).filter((file) => Catalog.isPath(file.path));

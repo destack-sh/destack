@@ -13,7 +13,7 @@ type SelectCases = Readonly<Record<string, string>> & {
     readonly other: string;
 };
 
-/** A localizable message: its identifier, its MessageFormat 2 source and the JSON values it formats. */
+/** A localizable message: its identifier, MessageFormat 2 source and the JSON values it formats. */
 export type Message = schema.Infer<typeof messageSchema>;
 
 /** A part of a message whose text varies with a value: a plural count or a selected case. */
@@ -36,7 +36,7 @@ export function select(value: string, cases: SelectCases): Variant {
     return { kind: "select", value, forms: cases };
 }
 
-/** Write a localizable message from a template, its interpolations becoming placeholders or variants. */
+/** Write a localizable message from a template, with interpolations as placeholders or variants. */
 export function t(strings: TemplateStringsArray, ...parts: readonly unknown[]): Message;
 /** Build the template tag writing a module's messages, as the module transform calls it. */
 export function t(
@@ -45,7 +45,8 @@ export function t(
 /**
  * Build the writing module's template tag, refusing a template written without it.
  *
- * @construct the module transform rewrites each t`…` into t(module)`…`, so a template reaches t only untransformed.
+ * @construct the module transform rewrites each t`…` into t(module)`…`.
+ * A template reaches t only untransformed.
  */
 export function t(
     first: TemplateStringsArray | ModuleMetadata,
@@ -61,7 +62,7 @@ export function verbatim(strings: TemplateStringsArray, ...parts: readonly unkno
     return String.raw({ raw: strings }, ...parts);
 }
 
-/** A localizable message: its identifier, its MessageFormat 2 source and the JSON values it formats, rendered where it is read. */
+/** A localizable message: its identifier, MessageFormat 2 source and the JSON values it formats. */
 const messageSchema = defineSchema(
     schema.object({
         /** The package that wrote it, whose catalogs translate it. */
@@ -75,9 +76,9 @@ const messageSchema = defineSchema(
     }),
 );
 
-/** The messages a package writes, rendered where they are read, such as a notification in each recipient's locale. */
+/** The messages a package writes, rendered where they are read. */
 export const Message = Object.assign(messageSchema, {
-    /** Build a message of a module's package from a template's text and interpolations under a disambiguating context. */
+    /** Build a message of a module's package from a template's text and interpolations. */
     of(
         strings: readonly string[],
         parts: readonly unknown[],
@@ -107,7 +108,7 @@ export const Message = Object.assign(messageSchema, {
         return { package: module.package.id, id: identify(source, context), source, values };
     },
 
-    /** Build a template tag writing a module's messages under a context, the module passed by the module transform. */
+    /** Build a template tag that writes a module's messages under a context. */
     context(
         context: string,
         module?: ModuleMetadata,
