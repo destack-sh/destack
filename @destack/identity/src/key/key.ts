@@ -41,7 +41,7 @@ const published = {
     kid: schema.string().min(1),
 };
 
-/** A public key as a JSON Web Key, verifying what its private half signs: identities', machines', clients' and installations' keys. */
+/** A public key as a JSON Web Key, verifying what its private half signs. */
 export const PublicKey = Object.assign(defineSchema(publicKey), {
     /** Export a key pair's public half. */
     async of(key: CryptoKey): Promise<PublicKey> {
@@ -50,7 +50,7 @@ export const PublicKey = Object.assign(defineSchema(publicKey), {
         return PublicKey.parse(kty === "OKP" ? { kty, crv, x } : { kty, crv, x, y });
     },
 
-    /** List the JWS algorithms a key verifies: ES256 for P-256, EdDSA and Ed25519 (RFC 9864) for Ed25519. */
+    /** List the JWS algorithms a key verifies. */
     algorithms(key: PublicKey): [string, ...string[]] {
         return key.kty === "OKP" ? ["Ed25519", "EdDSA"] : ["ES256"];
     },
@@ -66,7 +66,7 @@ export const PublicKey = Object.assign(defineSchema(publicKey), {
         }
     },
 
-    /** Compute a key's RFC 7638 thumbprint: the SHA-256 of its required members in lexicographic order. */
+    /** Compute a key's RFC 7638 thumbprint. */
     async thumbprint(key: PublicKey): Promise<string> {
         // order the key type's required members by name
         const members = key.kty === "OKP" ? { crv: key.crv, kty: key.kty, x: key.x } : key;
@@ -83,7 +83,7 @@ export const PublicKey = Object.assign(defineSchema(publicKey), {
         return new Uint8Array(digest).toBase64({ alphabet: "base64url", omitPadding: true });
     },
 
-    /** Publish signing keys as a JSON Web Key Set (RFC 7517 5), each named by its thumbprint with the algorithm it verifies. */
+    /** Publish signing keys as a JSON Web Key Set (RFC 7517 5). */
     async keySet(keys: readonly PublicKey[]): Promise<KeySet> {
         return {
             keys: await Promise.all(
@@ -101,7 +101,7 @@ export const PublicKey = Object.assign(defineSchema(publicKey), {
 /** A public key as a JSON Web Key. */
 export type PublicKey = schema.Infer<typeof publicKey>;
 
-/** Published signing keys as a JSON Web Key Set (RFC 7517 5): each key with its algorithm, use and thumbprint. */
+/** Published signing keys as a JSON Web Key Set (RFC 7517 5). */
 export const KeySet = defineSchema(
     schema.object({
         /** The keys, newest first. */

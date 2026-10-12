@@ -4,12 +4,7 @@ import type { Deriver } from "../derivation/derivation.ts";
 /** The curve of recipient keys and the ephemeral keys sealing to them. */
 const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
 
-/**
- * A holder of an ECDH P-256 key that others seal bytes to: fresh for a move's target, or derived for an identity's messages.
- *
- * A sender holds only the public half and seals, and the recipient holds both halves and opens.
- * Secrets such as data keys and message content travel sealed, so their plaintext never leaves the sender.
- */
+/** A holder of an ECDH P-256 key that others seal bytes to. */
 export class Recipient {
     /** The public key sources seal to, as base64 of its uncompressed P-256 point (SEC 1). */
     readonly key: string;
@@ -30,7 +25,7 @@ export class Recipient {
         return new Recipient(key.toBase64(), pair.privateKey);
     }
 
-    /** Derive the recipient of an identity's root secret under a label, the same until the root changes. */
+    /** Derive the recipient of an identity's root secret under a label. */
     static async derive(
         deriver: Pick<Deriver, "derivePrivateKey">,
         label: string,
@@ -52,7 +47,7 @@ export class Recipient {
         return new Recipient(key, undefined);
     }
 
-    /** Seal bytes to the recipient, their content key wrapped under a key agreed with a fresh ephemeral key, binding a context both sides name. */
+    /** Seal bytes to the recipient, binding a context both sides give. */
     async seal(
         plaintext: Uint8Array<ArrayBuffer>,
         context: Uint8Array<ArrayBuffer>,
@@ -68,7 +63,7 @@ export class Recipient {
         return Ciphertext.encrypt(plaintext, key, { alg: "ECDH-ES+A256KW" }, context);
     }
 
-    /** Open bytes sealed to the recipient, refusing another context and a recipient named only by its public key. */
+    /** Open bytes sealed to the recipient. */
     async open(
         ciphertext: Ciphertext,
         context: Uint8Array<ArrayBuffer>,

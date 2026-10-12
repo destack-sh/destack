@@ -21,7 +21,7 @@ const Keyset = schema.object({
 /** The root keys a keychain keeps under one name. */
 type Keyset = schema.Infer<typeof Keyset>;
 
-/** One root key version: the key it encrypts under and the HKDF key its secrets derive from, both non-extractable. */
+/** One root key version: the key it encrypts under and the HKDF key its secrets derive from. */
 interface RootKey {
     /** The key encrypting under the version. */
     readonly encryption: CryptoKey;
@@ -29,7 +29,7 @@ interface RootKey {
     readonly root: CryptoKey;
 }
 
-/** A process's one root of custody: versioned root keys that encrypt its keys at rest and derive its other secrets. */
+/** A process's one root of custody. */
 export interface Keyring extends Deriver {
     /** Encrypt bytes under the active root key, binding an encryption context. */
     encrypt(
@@ -41,7 +41,7 @@ export interface Keyring extends Deriver {
         ciphertext: Ciphertext,
         context: Uint8Array<ArrayBuffer>,
     ): Promise<Uint8Array<ArrayBuffer>>;
-    /** Derive a secret under a label from every root key version, newest first, so what an earlier version's secret protects still opens. */
+    /** Derive a secret under a label from every root key version, newest first. */
     deriveEach(
         label: string,
     ): Promise<readonly { readonly version: number; readonly secret: Uint8Array<ArrayBuffer> }[]>;
@@ -70,7 +70,7 @@ export class LocalKeyring implements Keyring {
         return LocalKeyring.#from(LocalKeyring.#parse(text));
     }
 
-    /** Open the root keys a keychain keeps under a name, generating the first one when none is kept. */
+    /** Open the root keys a keychain keeps under a name. */
     static open(keychain: Keychain, name: string): Promise<LocalKeyring> {
         return LocalKeyring.#change(keychain, name, (keys) => keys ?? LocalKeyring.#generate());
     }
@@ -150,7 +150,7 @@ export class LocalKeyring implements Keyring {
         );
     }
 
-    /** Derive a 256-bit secret under a label from the active root key, the same until the root key rotates. */
+    /** Derive a 256-bit secret under a label from the active root key. */
     async derive(label: string): Promise<Uint8Array<ArrayBuffer>> {
         return this.#derive(this.active, label);
     }
@@ -167,7 +167,7 @@ export class LocalKeyring implements Keyring {
         );
     }
 
-    /** Derive a P-256 private key under a label from the active root key, the same until the root key rotates. */
+    /** Derive a P-256 private key under a label from the active root key. */
     async derivePrivateKey(label: string): Promise<JWK> {
         return Derivation.privateKey(this.#get(this.active).root, label);
     }
@@ -226,7 +226,7 @@ export class LocalKeyring implements Keyring {
         );
     }
 
-    /** Add a fresh active root key at the next version to a keyset, or start one with it at version 1. */
+    /** Add a fresh active root key at the next version to a keyset. */
     static #generate(keys?: Keyset): Keyset {
         const version = Math.max(0, ...Object.keys(keys?.keys ?? {}).map(Number)) + 1;
         const value = crypto.getRandomValues(new Uint8Array(ROOT_KEY_BYTES));

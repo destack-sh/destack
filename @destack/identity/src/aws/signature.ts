@@ -1,4 +1,4 @@
-/** The algorithm name Signature Version 4 writes into its string to sign, its header and its query. */
+/** The algorithm name Signature Version 4 writes into its string to sign, header and query. */
 export const AWS_ALGORITHM = "AWS4-HMAC-SHA256";
 
 /** The payload hash of a request whose body the signature leaves out. */
@@ -10,10 +10,10 @@ export const EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca4959
 /** The last element of every credential scope. */
 const TERMINATOR = "aws4_request";
 
-/** The signing keys a signer keeps, one per day it signed on recently, as a day's key signs every request of that day. */
+/** The signing keys a signer keeps, one per day it signed on recently. */
 const CACHED_DAYS = 2;
 
-/** An AWS identity's credentials: an access key, its secret, and a session token for temporary ones. */
+/** An AWS identity's credentials: an access key, its secret, and a session token if temporary. */
 export interface AwsCredentials {
     /** The access key id. */
     readonly accessKeyId: string;
@@ -53,7 +53,7 @@ export interface AwsSignature {
     readonly signature: string;
 }
 
-/** AWS Signature Version 4 of one service in one region over WebCrypto, keeping the signing key of each recent day. */
+/** AWS Signature Version 4 of one service in one region over WebCrypto. */
 export class AwsSigner {
     /** The region, such as eu-central-1. */
     readonly region: string;
@@ -75,7 +75,7 @@ export class AwsSigner {
         this.credentials = options.credentials;
     }
 
-    /** Write a URL's path as SigV4 canonicalizes it: each segment encoded again, or as S3 reads it, decoded and encoded once. */
+    /** Write a URL's path as SigV4 canonicalizes it. */
     static path(pathname: string, encoding: "double" | "single"): string {
         // encode each segment of the once-encoded path again
         if (encoding === "double") {
@@ -165,7 +165,7 @@ export class AwsSigner {
         return { ...headers, authorization };
     }
 
-    /** Presign a request for a lifetime in seconds, answering the query parameters that authenticate it, the signature last. */
+    /** Presign a request for a lifetime in seconds. */
     async presign(
         request: SignableRequest,
         date: Date,

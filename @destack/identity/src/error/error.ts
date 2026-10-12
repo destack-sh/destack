@@ -1,6 +1,6 @@
 import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
-/** The service error code of each identity failure: a caller's malformed key, proof or operation, or the host's keys. */
+/** The service error code of each identity failure. */
 const SERVICE_CODES = {
     INVALID_PUBLIC_KEY: "BAD_REQUEST",
     INVALID_PROOF: "BAD_REQUEST",

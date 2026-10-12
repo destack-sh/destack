@@ -9,13 +9,13 @@ const OPERATION_TYPE = "identity-operation+jws";
 /** The most rotation keys an identity lists. */
 const MAX_ROTATION_KEYS = 5;
 
-/** The most signing keys an identity publishes: the next one, the active one, and the one before it. */
+/** The most signing keys an identity publishes: the next, the active and the previous one. */
 export const MAX_SIGNING_KEYS = 3;
 
-/** A space's or the universe's identity: the keys verifying what it signs, the keys that may change it, and the operation it comes from. */
+/** A space's or the universe's identity. */
 export const Identity = defineSchema(
     schema.object({
-        /** The keys verifying what the identity signs, newest first: a next key published ahead of signing, the active one, and earlier ones kept while tokens they signed live. */
+        /** The keys that verify what the identity signs, newest first. */
         signingKeys: schema.array(PublicKey).min(1).max(MAX_SIGNING_KEYS),
         /** The keys that may sign the identity's next operation, highest priority first. */
         rotationKeys: schema.array(PublicKey).min(1).max(MAX_ROTATION_KEYS),
@@ -34,9 +34,9 @@ const identityOperation = Identity.omit({ digest: true }).extend({
     previous: Digest.nullable(),
 });
 
-/** A change of an identity, signed by a rotation key of the identity before it, as a directory applies it. */
+/** A change of an identity, as a directory applies it. */
 export const IdentityOperation = Object.assign(defineSchema(identityOperation), {
-    /** Sign an operation with a rotation key's private half, as a compact JWS in the key's algorithm. */
+    /** Sign an operation with a rotation key's private half. */
     async sign(operation: IdentityOperation, rotationKey: CryptoKey): Promise<string> {
         const alg = rotationKey.algorithm.name === "Ed25519" ? "Ed25519" : "ES256";
 
@@ -55,7 +55,7 @@ export const IdentityOperation = Object.assign(defineSchema(identityOperation), 
         return claims.data;
     },
 
-    /** Verify a signed operation against rotation keys, answering the priority of the key that signed it, absent when none did. */
+    /** Verify a signed operation against rotation keys. */
     async verify(signed: string, rotationKeys: readonly PublicKey[]): Promise<number | undefined> {
         for (const [priority, key] of rotationKeys.entries()) {
             // try the next key when this one refuses the signature

@@ -9,7 +9,7 @@ const PROOF_TYPE = "key-proof+jwt";
 /** How far a proof's issue time may lie from now, a round trip plus skew in seconds. */
 const PROOF_SKEW_SECONDS = 60;
 
-/** The longest proof a client or machine presents, far above the few hundred bytes of an ES256 compact JWS. */
+/** The longest proof a client or machine presents. */
 const PROOF_LENGTH = 4096;
 
 /** A key proof in its compact serialization, as clients and machines present it. */
@@ -50,7 +50,7 @@ export interface ProofRequest {
     readonly url: string;
 }
 
-/** A client's or machine's proof that it holds a key's private half, as a compact ES256 JWS, after RFC 9449. */
+/** A client's or machine's proof that it has a key's private half, after RFC 9449. */
 export class Proof {
     /** The RFC 7638 thumbprint of the signing key. */
     readonly thumbprint: string;

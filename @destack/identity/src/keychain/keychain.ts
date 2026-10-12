@@ -10,7 +10,7 @@ export interface Keychain {
     remove(name: string): Promise<void>;
     /** Forget a secret if the kept one equals the expected one, and report whether it did. */
     removeIf(name: string, expected: string): Promise<boolean>;
-    /** Hold a name exclusively until disposed, as work replacing its secret outside the keychain does. */
+    /** Lock a name exclusively until disposed. */
     lock(name: string): Promise<AsyncDisposable>;
 }
 
@@ -19,7 +19,7 @@ export const Keychain = {
     update,
 };
 
-/** Change the secret kept under a name, retrying over a racing writer's secret, and return the secret kept. */
+/** Change the secret kept under a name, retrying over a racing writer's secret. */
 async function update(
     keychain: Keychain,
     name: string,

@@ -8,12 +8,12 @@ const COMPACT_JWE = /^[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+$/u;
 /** The content encryption of every ciphertext. */
 const ENCRYPTION = "A256GCM";
 
-/** How a ciphertext's content key reaches its holder: wrapped under a symmetric key, or wrapped under a key agreed with a recipient's public key (RFC 7518 4.6, 4.7). */
+/** How a ciphertext's content key reaches its holder (RFC 7518 4.6, 4.7). */
 export type KeyManagement = "A256GCMKW" | "ECDH-ES+A256KW";
 
-/** Bytes encrypted as a compact JWE (RFC 7516), naming the key that decrypts them and binding the context they were encrypted under, as a KMS ciphertext does. */
+/** Bytes encrypted as a compact JWE (RFC 7516), like a KMS ciphertext. */
 export const Ciphertext = Object.assign(defineSchema(schema.string().regex(COMPACT_JWE)), {
-    /** Encrypt bytes under a fresh content key that a key wraps or a recipient's key agrees, binding a context. */
+    /** Encrypt bytes under a fresh content key, binding a context. */
     async encrypt(
         plaintext: Uint8Array<ArrayBuffer>,
         key: CryptoKey,
@@ -57,7 +57,7 @@ export const Ciphertext = Object.assign(defineSchema(schema.string().regex(COMPA
 /** Bytes encrypted as a compact JWE. */
 export type Ciphertext = string;
 
-/** Digest an encryption context for a ciphertext's protected header, which authenticates it without revealing it. */
+/** Digest an encryption context for a ciphertext's protected header. */
 async function digest(context: Uint8Array<ArrayBuffer>): Promise<string> {
     const hash = await crypto.subtle.digest("SHA-256", context);
 
