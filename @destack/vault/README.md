@@ -1,16 +1,36 @@
 # @destack/vault
 
-Declare, store and read versioned secrets, each encrypted under its vault's key.
+`@destack/vault` keeps secrets as HashiCorp Vault's KV v2 engine does, encrypted under versioned vault keys as its Transit engine keeps them.
+
+```ts
+export const githubToken = defineSecret({ name: "github-token" }); // a KV v2 path the package reads
+await Secret.text(githubToken.get(context.resources)); // vault kv get
+await credentials.get(context.resources).read("github", { version: 2 }); // vault kv get -version=2
+await client.version.create({ scope, parentId: secret.id, value, requestId }); // vault kv put
+await client.version.create({ scope, parentId: secret.id, value, stage: "pending", requestId }); // AWSPENDING
+await client.vaultKey.rotate({ scope, parentId: vault.id, requestId }); // vault write -f transit/keys/x/rotate
+```
+
+## Keys
+
+A vault starts with its first key version, each rotation adds the next, and the key material never leaves the vault service.
+
+```ts
+const keys = await client.vaultKey.list({ scope, where: { parentId: vault.id } }); // numbers, never material
+```
 
 ## Declarations
 
-`defineVault` declares a vault, and `defineSecret` declares a secret the package reads.
+`defineVault` declares a vault and `defineSecret` a secret the package reads, and a secret declaring `generated` gets its first version generated in the package's vault.
 
 ```ts
-import { defineSecret, defineVault } from "@destack/vault";
+import { defineSecret, defineVault } from "@destack/vault/declare";
 
-export const credentials = defineVault({ name: "credentials", spec: {} });
-export const githubToken = defineSecret({ name: "github-token" });
+export const pushVault = defineVault({ name: "push", spec: {} });
+export const pushKey = defineSecret({
+    name: "push-key",
+    generated: { vault: pushVault.name, algorithm: "ES256" },
+});
 ```
 
 ## Bindings
@@ -18,133 +38,72 @@ export const githubToken = defineSecret({ name: "github-token" });
 A stack lists its secrets by vault and name, and an installation binds a declaration to one at a fixed version or the current one.
 
 ```ts
-export const personal = defineSpace({
+export const personal = defineStack({
     resources: {
         credentials: { declaration: credentials, retention: { within: { days: 30 } }, tags: {} },
     },
     secrets: { github: { vault: "credentials", name: "github" } },
-    installations: {
-        notes: install(notes, { "github-token": { secret: "github", version: 2 } }), // { secret: "github" } for the current version
-    },
+    installations: { site: install(site, { "github-token": { secret: "github", version: 2 } }) },
 });
-```
-
-## Generated secrets
-
-A secret declaring `generated` is provisioned in the package's vault when its space installs the package, its first version generated there.
-
-```ts
-export const pushVault = defineVault({ name: "push", spec: {} });
-export const pushKey = defineSecret({
-    name: "push-key",
-    generated: { vault: pushVault.name, algorithm: "ES256" }, // an ECDSA P-256 private key as a JWK
-});
-```
-
-## Runtime
-
-A workload reads the version its deployment captured through its space's vault service as its installation.
-
-```ts
-const { value, version } = await githubToken.get(context.resources).read();
-const secrets = credentials.get(context.resources); // a SecretClient of the vault service
-```
-
-## Objects
-
-`secret.create` creates a secret in a vault, and `version.create` writes a version that becomes current unless `promote` is false.
-
-```ts
-const secret = await client.secret.create({
-    spaceId,
-    parentId: vaultId,
-    name: "github",
-    requestId: RequestId.create(),
-});
-await client.version.create({
-    spaceId,
-    parentId: secret.id,
-    value: { encoding: "text", value: credential },
-    requestId: RequestId.create(),
-});
-const { value, version } = await client.secret.read({ spaceId, id: secret.id });
 ```
 
 ## Service
 
-`implementVault` serves a cell's vaults, keeping each vault's key encrypted under the cell's keyring and each version's value encrypted under its vault's key.
+`implementVault` serves a space's vaults, secrets and versions, and `VaultKeystore.reencrypt` moves the vault keys under the keyring's active root key.
 
 ```ts
 import { implementVault } from "@destack/vault/server";
 
 const vault = implementVault({
     database,
-    callKey,
-    directory,
     keyring: await LocalKeyring.read(rootKey),
-    location: cellId, // which each vault key's encryption context names
-    machine: null,
-    cell: cellId,
-    spaces, // the space service's uplink
+    machine: machineId,
+});
+await new VaultKeystore(database, rotated, machineId).reencrypt(previous.active);
+```
+
+## Consumers
+
+A machine service puts its own credentials into a space's vault with `vault.put`, one live version each, bound to it as their consumer, and reads them back as itself with `secret.read`.
+
+```ts
+await store.mutate(caller, {
+    id,
+    calls: [
+        vault.call("put", {
+            ...vault.target(reference),
+            secret: secretId,
+            value,
+            consumer: machine,
+        }),
+    ],
+});
+await store.query(
+    Caller.of(machine, now),
+    secret.call("read", { ...secret.target(reference), version }),
+);
+await store.mutate(caller, {
+    id,
+    calls: [
+        vault.call("remove", { ...vault.target(reference), secret: secretId, consumer: machine }),
+    ],
 });
 ```
 
-## Moves
+## Operators
 
-A vault's key moves with its space's rows, sealed to the target's recipient and encrypted under the target's keyring there.
-
-```ts
-const sealed = await source.rewrap.seal(row, recipient); // source and target are KeyringVaultHosts
-const opened = await target.rewrap.open(sealed, recipient);
-```
-
-## Destruction
-
-Destroying a vault deletes its key, which shreds every value it encrypted, and is refused while a secret still holds a value.
+`Secret.of` reads a value an operator sets, such as an environment variable, as a secret with one version.
 
 ```ts
-await host.destroy(record);
-```
-
-## Root key rotation
-
-`KeyringVaultHost.reencrypt` moves the vault keys under the keyring's active root key, after which the earlier version can be retired.
-
-```ts
-const rotated = await LocalKeyring.rotate(keychain, machineId);
-await new KeyringVaultHost(database, rotated, location).reencrypt(previous.active); // how many keys moved
-await LocalKeyring.retire(keychain, machineId, previous.active);
-```
-
-## Account connections
-
-`RemoteVault` keeps the account service's connection credentials as secrets in space vaults, named by their object references.
-
-```ts
-import { RemoteVault } from "@destack/vault/account";
-
-const vault = new RemoteVault(async (spaceId, caller) => secretClient(spaceId, caller));
-const reference = await vault.write({ vault: vaultReference, id, name: "github", value }, caller);
-const credential = await vault.read(reference, caller);
+const stripe = new StripeClient(Secret.of(stripeKey), fetch);
 ```
 
 ## Tables
 
-`vaultDatabase` keeps the vaults, their keys, secrets and versions, with copies of the spaces' rows their checks read.
+`vaultTables` lists the tables a space database includes.
 
 ```ts
-import { vaultDatabase, vaultKey } from "@destack/vault/stack";
+import { vaultTables } from "@destack/vault/stack";
 
-const [kept] = await database.select().from(vaultKey).where(eq(vaultKey.vaultId, vaultId)); // { id, ciphertext, … }
-```
-
-## Tests
-
-`VaultFixture` provisions a space with a vault and serves its objects.
-
-```ts
-import { VaultFixture } from "@destack/vault/test";
-
-await using fixture = await VaultFixture.open("sqlite");
-const { first } = await fixture.createSecret();
+const space = defineDatabase({ name: "space", tables: [...vaultTables, journal] });
 ```

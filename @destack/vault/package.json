@@ -6,16 +6,15 @@
     "sideEffects": false,
     "description": "Declare vault resources and manage encrypted, versioned secrets.",
     "exports": {
-        "./declare": "./src/declare/index.ts",
         ".": "./src/index.ts",
+        "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./object": "./src/object/index.ts",
-        "./stack": "./src/stack/index.ts",
         "./key": "./src/key/index.ts",
+        "./object": "./src/object/index.ts",
         "./provider": "./src/provider/index.ts",
         "./server": "./src/server/index.ts",
         "./service": "./src/service/index.ts",
-        "./account": "./src/account/index.ts",
+        "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
@@ -29,9 +28,8 @@
         "@destack/db": "workspace:*",
         "@destack/audit": "workspace:*",
         "uuid": "14.0.2",
-        "@destack/space": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/directory": "workspace:*",
         "@destack/sync": "workspace:*"
     },
     "scripts": {
@@ -39,7 +37,8 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*",
-        "jose": "6.2.12"
+        "@destack/build": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/test": "workspace:*"
     }
 }

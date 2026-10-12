@@ -3,9 +3,9 @@ import { Ciphertext, IdentityError } from "@destack/identity";
 /** The bytes of a vault key, an AES-256 key. */
 export const VAULT_KEY_BYTES = 32;
 
-/** The key of one vault, decrypted for its secrets' values, which a value names by its identifier. */
+/** One vault key version, decrypted to encrypt and decrypt secret values. */
 export class VaultKey {
-    /** The key's identifier, which each value it encrypts names. */
+    /** The key version's identifier, carried in each value it encrypts. */
     readonly id: string;
     /** The imported, non-extractable key. */
     readonly #key: CryptoKey;

@@ -1,23 +1,23 @@
+import type { Select } from "@destack/db";
 import type { Provider, Provisioner, Rewrapper } from "@destack/resource";
 import { VaultKind } from "../declare/kind.ts";
-import type { KeyringVaultHost } from "../key/index.ts";
-import { vault } from "../server/secret.ts";
-import { vaultKey } from "../stack/db.ts";
+import type { VaultKeystore } from "../key/index.ts";
+import { vault, vaultKey } from "../object/index.ts";
 
-/** A vault provider: provisioning one host's vaults and sealing their keys to the host a space moves to. */
+/** The provider of one machine's vaults. */
 export type VaultProvider = Provider<
     typeof VaultKind,
     typeof vault,
     never,
-    typeof vaultKey,
-    typeof vaultKey.$inferSelect
+    typeof vaultKey.table,
+    Select<typeof vaultKey.table>
 > & {
     readonly provision: Provisioner<typeof VaultKind>;
-    readonly rewrap: Rewrapper<typeof vaultKey, typeof vaultKey.$inferSelect>;
+    readonly rewrap: Rewrapper<typeof vaultKey.table, Select<typeof vaultKey.table>>;
 };
 
-/** Provide a host's vaults through their keystore under its provider code, their secrets served by the vault service. */
-export function vaultProvider(keystore: KeyringVaultHost): VaultProvider {
+/** Provide a machine's vaults through their keystore under its provider code. */
+export function vaultProvider(keystore: VaultKeystore): VaultProvider {
     return {
         kind: VaultKind,
         code: keystore.provider,

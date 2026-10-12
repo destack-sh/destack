@@ -7,16 +7,10 @@
         "./stack": {
             "runtimes": ["bun", "workerd"]
         },
-        "./encryption": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./provider": {
             "runtimes": ["bun", "workerd"]
         },
         "./server": {
-            "runtimes": ["bun", "workerd"]
-        },
-        "./account": {
             "runtimes": ["bun", "workerd"]
         },
         "./test": {

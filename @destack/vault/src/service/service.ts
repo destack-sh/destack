@@ -1,7 +1,7 @@
 import { defineService } from "@destack/service";
-import { secret, secretVersion, vault } from "../object/index.ts";
+import { secret, secretVersion, vault, vaultKey } from "../object/index.ts";
 
-/** The vaults of the spaces a cell serves, with their secrets and versions, served as objects. */
+/** The vaults of the spaces a machine serves, with their key versions, secrets and versions. */
 export const vaultService = defineService("vault", {
-    objects: { vault, secret, version: secretVersion },
+    objects: { vault, vaultKey, secret, version: secretVersion },
 });

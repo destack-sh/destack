@@ -1,21 +1,24 @@
+import { Caller } from "@destack/access";
+import { space } from "@destack/account/object";
+import { type DatabaseConnection, type Table, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { type DatabaseConnection, type Table } from "@destack/db";
-import { SystemCall } from "@destack/object";
+import { LocalKeyring, Recipient } from "@destack/identity";
+import { present } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
-import { Recipient } from "@destack/identity";
-import { space } from "@destack/space/object";
 import { expect, onTestFinished, single, test } from "@destack/test";
-import { LocalKeyring } from "@destack/identity";
-import { secret, secretVersion, vault, SecretVersion } from "../object/index.ts";
-import { LOCATION, VaultFixture } from "../test/index.ts";
-import { vaultKey, vaultDatabase } from "../stack/index.ts";
-import { KeyringVaultHost } from "../key/index.ts";
+import { VaultKeystore } from "../key/index.ts";
+import { secret, SecretVersion, secretVersion, vault, vaultKey } from "../object/index.ts";
+import { OTHER_MACHINE, VaultFixture, vaultDatabase } from "../test/index.ts";
 import { vaultProvider } from "./provider.ts";
 
-/** Copy the rows of the zone tables a target lacks, as a transfer's zone copy does. */
-async function copyZone(from: DatabaseConnection, to: DatabaseConnection): Promise<void> {
-    for (const table of [space.table, vault.table, secret.table, secretVersion.table]) {
+/** Copy the rows of some space tables a target lacks, parents first. */
+async function copySpace(
+    from: DatabaseConnection,
+    to: DatabaseConnection,
+    tables: readonly Table[],
+): Promise<void> {
+    for (const table of tables) {
         const rows = await from.select().from(table);
         const written = rows.map((row) =>
             table === secret.table ? { ...row, currentVersion: null } : row,
@@ -27,47 +30,45 @@ async function copyZone(from: DatabaseConnection, to: DatabaseConnection): Promi
 }
 
 test.each(TEST_DIALECTS)(
-    "carry a vault's key to a host with other root keys, sealed to its recipient, and open the secret's value there on %s",
+    "move a vault's key to a machine with other root keys, sealed to its recipient, and open the secret's value there on %s",
     async (dialect) => {
-        // copy a secret value's zone rows from the source to the target
+        // copy a secret value's space rows from the source to the target
         await using fixture = await VaultFixture.open(dialect);
         const { first } = await fixture.createSecret();
         const target = await TestDatabase.create(dialect, vaultDatabase, { isMigrated: true });
         onTestFinished(() => target.close());
-        await copyZone(fixture.database, target.database);
+        await copySpace(fixture.database, target.database, [space.table, vault.table]);
 
         // keep the source's and the target's keys under different root keys and locations
         const targetKeyring = await LocalKeyring.import(
             2,
             new Map([[2, crypto.getRandomValues(new Uint8Array(32))]]),
         );
-        const source = vaultProvider(
-            new KeyringVaultHost(fixture.database, await fixture.keyring(), LOCATION),
-        );
+        const source = vaultProvider(fixture.keystore());
         const destination = vaultProvider(
-            new KeyringVaultHost(target.database, targetKeyring, "us"),
+            new VaultKeystore(target.database, targetKeyring, OTHER_MACHINE),
         );
 
         // seal the key to the target's recipient
         const recipient = await Recipient.generate();
-        const kept = single(await fixture.database.select().from(vaultKey));
-        const sealed = await source.rewrap.seal(kept, recipient);
+        const started = single(await fixture.database.select().from(vaultKey.table));
+        const sealed = await source.rewrap.seal(started, recipient);
         const received = await destination.rewrap.open(sealed, recipient);
-        await target.database.insert(vaultKey).values(received);
+        await target.database.insert(vaultKey.table).values(received);
+        await copySpace(fixture.database, target.database, [secret.table, secretVersion.table]);
 
-        // open the secret's value on the target with the key it now keeps
-        const key = await new KeyringVaultHost(target.database, targetKeyring, "us").key(
-            target.database,
-            fixture.vaultId,
-        );
+        // open the secret's value on the target with the key version it now has
         const owner = single(await target.database.select().from(secret.table));
-        const version = await SecretVersion.find(target.database, first.id, 1);
-        if (version === undefined) {
-            throw new TypeError("the target lacks the secret's first version");
-        }
+        const version = present(
+            await SecretVersion.find(Transaction.reading(target.database), first.id, 1),
+            "the target's first version",
+        );
+        const { keyId, ciphertext } = SecretVersion.requireReadable(version, Date.now());
+        const keystore = new VaultKeystore(target.database, targetKeyring, OTHER_MACHINE);
+        const key = await keystore.open(Transaction.reading(target.database), keyId);
         expect([
-            await SecretVersion.decrypt(key, owner, version),
-            [sealed.ciphertext === kept.ciphertext, LocalKeyring.version(received.ciphertext)],
+            await SecretVersion.open(key, owner, version.id, ciphertext),
+            [sealed.ciphertext === started.ciphertext, LocalKeyring.version(received.ciphertext)],
         ]).toEqual([{ encoding: "text", value: "credential" }, [false, 2]]);
     },
 );
@@ -79,8 +80,7 @@ test.each(TEST_DIALECTS)(
         await using fixture = await VaultFixture.open(dialect);
         const { client, database } = fixture;
         const { key } = await fixture.createSecret();
-        const keyring = await fixture.keyring();
-        const provider = vaultProvider(new KeyringVaultHost(database, keyring, LOCATION));
+        const provider = vaultProvider(fixture.keystore());
         const record = {
             id: fixture.vaultId,
             scope: fixture.spaceId,
@@ -100,17 +100,23 @@ test.each(TEST_DIALECTS)(
         await client.secret.delete({
             ...key,
             revision: row.revision,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
-        await client.secret.purge({ ...key, requestId: RequestId.create() });
-        const cell = await fixture.cell(keyring);
+        await client.secret.purge({ ...key, requestId: RequestId.create(Date.now()) });
+        const machine = fixture.objects();
         const stored = single(await database.select().from(vault.table));
-        await cell.executeAsSystem(vault, "delete", [SystemCall.of(stored)], Date.now());
+        await machine.mutate(Caller.of(machine.principal, Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [vault.call("delete", vault.target(stored))],
+        });
         await provider.provision.destroy(record);
         const requested = single(await database.select().from(vault.table));
-        await cell.executeAsSystem(vault, "finalize", [SystemCall.of(requested)], Date.now());
+        await machine.mutate(Caller.of(machine.principal, Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [vault.call("finalize", vault.target(requested))],
+        });
         const remaining = await Promise.all(
-            [vault.table, secret.table, secretVersion.table, vaultKey].map((table: Table) =>
+            [vault.table, secret.table, secretVersion.table, vaultKey.table].map((table: Table) =>
                 database.select().from(table),
             ),
         );

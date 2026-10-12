@@ -1,4 +1,4 @@
 export * from "./kind.ts";
-export * from "./vault.ts";
 export * from "./secret.ts";
-export * from "./space.ts";
+export * from "./stack.ts";
+export * from "./vault.ts";

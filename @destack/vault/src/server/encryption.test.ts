@@ -1,29 +1,31 @@
-import { TEST_DIALECTS } from "@destack/db/test";
-import { secretVersion } from "../object/index.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq, isNotNull } from "@destack/db";
-import { MemoryKeychain } from "@destack/identity";
+import { TEST_DIALECTS } from "@destack/db/test";
+import { LocalKeyring, MemoryKeychain } from "@destack/identity";
+import { present } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { RequestId } from "@destack/service/request";
 import { expect, single, test } from "@destack/test";
-import { LocalKeyring } from "@destack/identity";
-import { vaultKey } from "../stack/index.ts";
-import { KeyringVaultHost } from "../key/index.ts";
-import { LOCATION, VaultFixture } from "../test/index.ts";
+import { secretVersion, vaultKey } from "../object/index.ts";
+import { VaultFixture } from "../test/index.ts";
 
 test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async (dialect) => {
     await using fixture = await VaultFixture.open(dialect);
     const { client, database, spaceId, vaultId } = fixture;
     const { first, request } = await fixture.createSecret();
     const second = await client.secret.create({
-        spaceId,
+        scope: spaceId,
         parentId: vaultId,
         name: "second",
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
     });
-    await client.version.create({ ...request, parentId: second.id, requestId: RequestId.create() });
+    await client.version.create({
+        ...request,
+        parentId: second.id,
+        requestId: RequestId.create(Date.now()),
+    });
 
     // fail authenticated decryption of a ciphertext copied to another secret
     const rows = await database
@@ -39,7 +41,7 @@ test.each(TEST_DIALECTS)("refuse ciphertext copied between secrets on %s", async
         .update(secretVersion.table)
         .set({ ciphertext: original.ciphertext })
         .where(eq(secretVersion.table.parentId, second.id));
-    await expect(client.secret.read({ spaceId, id: second.id })).rejects.toEqual(
+    await expect(client.secret.read({ scope: spaceId, id: second.id })).rejects.toEqual(
         new ServiceError("INTERNAL_SERVER_ERROR", { message: "internal server error" }),
     );
 });
@@ -50,16 +52,15 @@ test.each(TEST_DIALECTS)(
         await using fixture = await VaultFixture.open(dialect);
         const { database } = fixture;
         const keychain = new MemoryKeychain();
-        const name = "vault/host-1";
+        const name = "vault/machine-1";
 
         // keep the vault's key and a value under the keychain's first root key
         const first = await LocalKeyring.open(keychain, name);
-        await database.delete(vaultKey);
-        await new KeyringVaultHost(database, first, LOCATION).provision({
-            id: fixture.vaultId,
-            scope: fixture.spaceId,
-        });
-        fixture.client = fixture.connect(await fixture.host(first));
+        const [started] = await database.select().from(vaultKey.table);
+        const keyId = present(started, "the vault's first key").id;
+        const ciphertext = await fixture.keystore(first).generate(fixture.vaultId, keyId);
+        await database.update(vaultKey.table).set({ ciphertext });
+        fixture.client = fixture.connect(fixture.serve(first));
         const { key, request } = await fixture.createSecret();
         const stored = await database
             .select({
@@ -72,16 +73,14 @@ test.each(TEST_DIALECTS)(
 
         // reencrypt the vault key under a new root key before retiring the old one
         const rotated = await LocalKeyring.rotate(keychain, name);
-        const reencrypted = await new KeyringVaultHost(database, rotated, LOCATION).reencrypt(
-            first.active,
-        );
+        const reencrypted = await fixture.keystore(rotated).reencrypt(first.active);
         const retired = await LocalKeyring.retire(keychain, name, first.active);
 
         // read the untouched value under the remaining root key
-        const current = fixture.connect(await fixture.host(retired));
+        const current = fixture.connect(fixture.serve(retired));
         expect([
             reencrypted,
-            (await database.select().from(vaultKey)).map((row) =>
+            (await database.select().from(vaultKey.table)).map((row) =>
                 LocalKeyring.version(row.ciphertext),
             ),
             await database
@@ -120,7 +119,7 @@ test("read persisted values after reopening the database, and refuse without the
         // refuse reading without the root key protecting the value
         const replacement = crypto.getRandomValues(new Uint8Array(32));
         const missing = reopened.connect(
-            await reopened.host(await reopened.keyring(2, new Map([[2, replacement]]))),
+            reopened.serve(await LocalKeyring.import(2, new Map([[2, replacement]]))),
         );
         await expect(missing.secret.read(saved.key)).rejects.toEqual(
             new ServiceError("INTERNAL_SERVER_ERROR", { message: "internal server error" }),
