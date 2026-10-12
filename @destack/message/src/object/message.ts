@@ -1,4 +1,4 @@
-import { check, index, type Select } from "@destack/db";
+import { type Select } from "@destack/db";
 import { Conditions, defineObject, field } from "@destack/object";
 import * as identity from "@destack/identity";
 import { defineSchema, schema } from "@destack/schema";
@@ -105,29 +105,39 @@ export const message = defineObject({
         /** When its sealed content was erased, as the change log shows when it leaves it out. */
         erasedAt: field.time().optional(),
     },
-    constraints: (entry) => [
-        index("message_source").on(entry.source, entry.createdAt),
-        check("message_pending", {
-            OR: [
-                { status: { ne: "pending" } },
-                { settledAt: { isNull: true }, ciphertext: { isNotNull: true } },
-            ],
-        }),
-        check("message_settled", {
-            OR: [
-                { status: "pending" },
-                { settledAt: { isNotNull: true }, retryAt: { isNull: true } },
-            ],
-        }),
-        check("message_erased", {
-            OR: [
-                { ciphertext: { isNull: true }, erasedAt: { isNotNull: true } },
-                { ciphertext: { isNotNull: true }, erasedAt: { isNull: true } },
-            ],
-        }),
-    ],
     permissions: ["read", "send", "erase"],
-    methods: (method) => ({
+    constraints: {
+        source: { kind: "index", on: ["source", "createdAt"] },
+        pending: {
+            kind: "check",
+            condition: {
+                OR: [
+                    { status: { ne: "pending" } },
+                    { settledAt: { isNull: true }, ciphertext: { isNotNull: true } },
+                ],
+            },
+        },
+        settled: {
+            kind: "check",
+            condition: {
+                OR: [
+                    { status: "pending" },
+                    { settledAt: { isNotNull: true }, retryAt: { isNull: true } },
+                ],
+            },
+        },
+        erased: {
+            kind: "check",
+            condition: {
+                OR: [
+                    { ciphertext: { isNull: true }, erasedAt: { isNotNull: true } },
+                    { ciphertext: { isNotNull: true }, erasedAt: { isNull: true } },
+                ],
+            },
+        },
+    },
+})
+    .methods((method) => ({
         get: method.get("read"),
         list: method.list("read"),
         /** Send a pending message with its sealed content. */
@@ -138,10 +148,10 @@ export const message = defineObject({
         }),
         /** Erase a settled message's sealed content after its retention, as the controller does. */
         erase: method.mutation({ permission: "erase", isInternal: true }),
-    }),
-}).implement({
-    methods: { erase: (call) => call.updateStatus({ ciphertext: null, erasedAt: call.now }) },
-});
+    }))
+    .implement({
+        methods: { erase: (call) => call.updateStatus({ ciphertext: null, erasedAt: call.now }) },
+    });
 /** A message as its table stores it. */
 export type Message = Select<typeof message.table>;
 

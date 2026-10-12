@@ -15,12 +15,11 @@ export const messageAttempt = defineObject({
         outcome: field.json(Outcome),
     },
     permissions: { read: through("parent", "read"), record: none() },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        /** Record a provider's try, as the message controller does. */
-        create: method.create("record", { isInternal: true }),
-    }),
-});
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    /** Record a provider's try, as the message controller does. */
+    create: method.create("record", { isInternal: true }),
+}));
 /** A message attempt as its table stores it. */
 export type MessageAttempt = Select<typeof messageAttempt.table>;

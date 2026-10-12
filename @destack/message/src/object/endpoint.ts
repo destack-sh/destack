@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { AuditActionName } from "@destack/audit";
-import { index, type Select } from "@destack/db";
+import { type Select } from "@destack/db";
 import { Conditions, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
@@ -36,19 +36,20 @@ export const endpoint = defineObject({
         user: field.reference(principal.user).caller(),
     },
     permissions: ["read", "manage"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("manage", {
-            fields: ["url", "events", "format", "authentication", "secret", "status"],
-        }),
-        update: method.update("manage", {
-            fields: ["url", "events", "format", "authentication", "secret", "status"],
-        }),
-        delete: method.delete("manage"),
+    constraints: {
+        scope: { kind: "index", on: ["scope", "status"] },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("manage", {
+        fields: ["url", "events", "format", "authentication", "secret", "status"],
     }),
-    constraints: (entry) => [index("endpoint_scope").on(entry.scope, entry.status)],
-});
+    update: method.update("manage", {
+        fields: ["url", "events", "format", "authentication", "secret", "status"],
+    }),
+    delete: method.delete("manage"),
+}));
 /** A persisted endpoint. */
 export type Endpoint = Select<typeof endpoint.table>;
 
