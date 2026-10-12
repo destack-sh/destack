@@ -13,7 +13,7 @@ afterEach(async () => {
     await Promise.all(servers.splice(0).map((server) => server.close()));
 });
 
-/** Serve modules by their name: an entry, a lazy page with a stylesheet, and StyleX styles of one color each. */
+/** Serve modules by name: an entry, a lazy page with a stylesheet, and one-color StyleX styles. */
 function fixtures(): Plugin {
     return {
         name: "fixtures",

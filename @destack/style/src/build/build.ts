@@ -12,14 +12,18 @@ const RESOLVED_SHEET_ID = `\0${SHEET_ID}`;
 /** The packages whose imports StyleX compiles. */
 const IMPORT_SOURCES = ["@stylexjs/stylex", "@destack/style"];
 
-/** The code naming an import source, which the bundler matches natively before StyleX's own check of each module. */
+/**
+ * The pattern of code that imports from StyleX or `@destack/style`.
+ *
+ * The bundler matches it natively before StyleX checks each module.
+ */
 const IMPORT_SOURCE_PATTERN = /@stylexjs\/stylex|@destack\/style/u;
 
 /** The StyleX plugin with the rule collection it attaches without a type. */
 interface StylexPlugin extends Plugin {
     /** Write every rule collected so far as one stylesheet. */
     readonly __stylexCollectCss: () => string;
-    /** Read the rule store the plugin keeps on `globalThis` for the whole process, whose version grows with each transform that changes rules. */
+    /** Read the rule store the plugin keeps on `globalThis` for the whole process. */
     readonly __stylexGetSharedStore: () => {
         readonly version: number;
         readonly rulesById: Map<string, unknown>;
@@ -57,11 +61,11 @@ export const styleExtension = {
 
 /** The stylesheet a build appends the StyleX rules to, set before StyleX writes them. */
 interface SheetTarget {
-    /** The stylesheet of the chunk importing the sheet module, absent before the bundle is written. */
+    /** The stylesheet of the chunk that imports the sheet module. */
     file: string | undefined;
 }
 
-/** Serve the collected StyleX rules as a stylesheet module in development, and append them to that module's stylesheet in builds. */
+/** Serve the collected StyleX rules as a stylesheet module in development. */
 function sheetPlugin(stylex: StylexPlugin, sheet: SheetTarget): Plugin {
     // hold the development server, the rule version the sheet last carried and a queued reload
     let server: ViteDevServer | undefined;

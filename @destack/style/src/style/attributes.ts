@@ -1,11 +1,11 @@
 import { props, type CompiledStyles, type InlineStyles, type StyleXArray } from "@stylexjs/stylex";
 
-/** The styles an element takes, as StyleX merges them: compiled styles, markers, conditions and dynamic styles, nested in arrays. */
+/** The styles an element takes, as StyleX merges them. */
 export type Styles = StyleXArray<
     null | undefined | boolean | CompiledStyles | Readonly<[CompiledStyles, InlineStyles]>
 >;
 
-/** The class and inline style an element takes from StyleX styles and a caller's own inline style. */
+/** The class and inline style an element takes from StyleX styles and a caller's inline style. */
 export interface StyleAttributes {
     /** The atomic class names. */
     readonly class?: string;
@@ -13,7 +13,7 @@ export interface StyleAttributes {
     readonly style?: string;
 }
 
-/** An inline style: CSS text, or an object of properties by their CSS names, as JSX `style` takes it. */
+/** An inline style as JSX `style` takes it: CSS text, or an object of properties by CSS name. */
 export type InlineStyle = string | object;
 
 /** Read the class names and dynamic values some StyleX styles give an element. */
@@ -21,7 +21,7 @@ export function attrs(...styles: Styles[]): StyleAttributes {
     return attributes(styles);
 }
 
-/** Read the attributes some StyleX styles give an element, with a caller's inline style applied after them. */
+/** Read the attributes StyleX styles give an element, then apply a caller's inline style. */
 export function attributes(styles: Styles, inline?: InlineStyle | false | null): StyleAttributes {
     // read StyleX's class names and the custom properties its dynamic values set
     const compiled = props(styles);
