@@ -203,7 +203,7 @@ test("roll an installation back through installation.rollBack when a rule watchi
     const current = await recordNotesRevision(fixture, now);
     await database
         .update(installation.table)
-        .set({ revisionId: current, appliedRevisionId: current })
+        .set({ revisionId: current, appliedRevisionId: current, previousRevisionId: previous })
         .where(eq(installation.table.id, ids.notes));
     const alice = client(server, "alice");
 

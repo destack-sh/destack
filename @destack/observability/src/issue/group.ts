@@ -1,20 +1,10 @@
 import { EventTime } from "@destack/event";
-import {
-    and,
-    count,
-    dialectSQL,
-    eq,
-    inArray,
-    Snapshot,
-    sql,
-    type DatabaseConnection,
-} from "@destack/db";
+import { and, count, dialectSQL, eq, inArray, sql, type DatabaseConnection } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { BuildCache } from "@destack/package/manifest";
 import type { Digest, Identifier } from "@destack/schema";
 import { installation, installationRevision } from "@destack/stack/object";
-import { BuildBucket } from "@destack/stack/server";
-import type { BucketHost } from "@destack/bucket/s3";
+import type { BuildStore } from "@destack/stack/server";
 import { ISSUE_LEVELS, issue, type Issue } from "../object/index.ts";
 import { issuePerson } from "../stack/db.ts";
 import { Exception } from "./exception.ts";
@@ -67,18 +57,18 @@ interface Revision {
 export class Grouper {
     /** The object store of the issues, beside copies of the installations and their revisions. */
     readonly #objects: Pick<ObjectStore, "database" | "principal" | "mutate">;
-    /** Open an installation revision's build. */
-    readonly #buckets: BucketHost;
+    /** The machine's store of every build. */
+    readonly #builds: BuildStore;
     /** The symbolicators of the builds read recently. */
     readonly #symbolicators = new BuildCache(async (reader) => new Symbolicator(reader));
 
     /** Group exceptions into the issues an object store keeps. */
     constructor(
         objects: Pick<ObjectStore, "database" | "principal" | "mutate">,
-        buckets: BucketHost,
+        builds: BuildStore,
     ) {
         this.#objects = objects;
-        this.#buckets = buckets;
+        this.#builds = builds;
     }
 
     /** Group a space's unexpected exceptions into its issues. */
@@ -235,13 +225,7 @@ export class Grouper {
         return (
             found && {
                 revision: { id: found.id, createdAt: found.createdAt },
-                open: () =>
-                    BuildBucket.read(
-                        this.#buckets,
-                        Snapshot.live(this.#objects.database),
-                        scope,
-                        found.build.manifest,
-                    ),
+                open: () => this.#builds.packages.contents(found.build.manifest),
             }
         );
     }

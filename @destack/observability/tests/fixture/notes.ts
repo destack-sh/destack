@@ -1,5 +1,5 @@
 import { ids, notes } from "./observability.ts";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db";
 import { alertRule, type AlertRuleDefinition } from "../../src/object/index.ts";
 import { graph } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
@@ -8,7 +8,6 @@ import { Digest, present, schema } from "@destack/schema";
 import type { OtlpEmitter, OtlpReceiver } from "@destack/telemetry/otlp";
 import { installationRevision } from "@destack/stack/object";
 import type { StackFixture } from "@destack/stack/test";
-import { BuildBucket } from "@destack/stack/server";
 
 /** The note module's source: a class whose rename method fails, and the module's path. */
 export const NOTE_SOURCE = [
@@ -146,11 +145,9 @@ export async function recordNotesRevision(
     now = Date.now(),
     build?: BuildReader,
 ) {
-    // keep the release in the space's build bucket
+    // keep the release in the build store
     const reader = build ?? (await openNotesBuild());
-    const snapshot = Snapshot.live(fixture.database);
-    const store = await BuildBucket.store(await fixture.buckets(), snapshot, ids.space);
-    const manifest = await store.put(reader);
+    const manifest = await (await fixture.builds()).packages.put(reader);
 
     // record the revision of it
     const id = schema.identifier("installation-revision").parse(installationRevision.generateId());

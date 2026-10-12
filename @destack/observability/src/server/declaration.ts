@@ -1,9 +1,8 @@
-import { and, Change, eq, isNotNull, isNull, Snapshot } from "@destack/db";
+import { and, Change, eq, isNotNull, isNull } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { Controller } from "@destack/service/control";
 import { installation, installationRevision } from "@destack/stack/object";
-import { BuildBucket } from "@destack/stack/server";
-import type { BucketHost } from "@destack/bucket/s3";
+import type { BuildStore } from "@destack/stack/server";
 import { type Identifier, schema } from "@destack/schema";
 import { AlertRuleDefinition, alertRule } from "../object/index.ts";
 import { Caller } from "@destack/access";
@@ -17,13 +16,13 @@ export class DeclarationController implements Controller {
     readonly watches = [installation.table, installationRevision.table];
     /** The object store of the rules, beside copies of the installations and their revisions. */
     readonly #store: ObjectStore;
-    /** Open an installation revision's build. */
-    readonly #buckets: BucketHost;
+    /** The machine's store of every build. */
+    readonly #builds: BuildStore;
 
     /** Apply the rules the builds of an object store's copied installations declare. */
-    constructor(store: ObjectStore, buckets: BucketHost) {
+    constructor(store: ObjectStore, builds: BuildStore) {
         this.#store = store;
-        this.#buckets = buckets;
+        this.#builds = builds;
     }
 
     /** Name the installation a changed installation or revision belongs to. */
@@ -134,9 +133,8 @@ export class DeclarationController implements Controller {
         }
 
         // read the alert rules its build declares
-        const snapshot = Snapshot.live(this.#store.database);
-        const { scope, build } = applied;
-        const reader = await BuildBucket.read(this.#buckets, snapshot, scope, build.manifest);
+        const { build } = applied;
+        const reader = await this.#builds.packages.contents(build.manifest);
         const rules = await reader.declared(
             alertRule.package.id,
             "alert-rule",

@@ -142,7 +142,7 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     const implementation = implementObservability({
         events,
         spaces: {
-            buckets: await fixture.buckets(),
+            builds: await fixture.builds(),
             measure: options.measure ?? (async () => []),
             ...(options.skus === undefined ? {} : { skus: options.skus }),
         },
