@@ -1,6 +1,6 @@
 {
     "name": "@destack/workspace",
-    "version": "2026.9.0",
+    "version": "2026.9.2",
     "license": "MIT",
     "type": "module",
     "workspaces": [
@@ -9,8 +9,8 @@
         "@platform/*",
         "@template/*",
         "@destack/build/tests/fixture/*/source",
-        "@destack/daemon/tests/fixture/*",
-        "@destack/space/tests/fixture/notebook",
+        "@destack/machine/tests/fixture/*",
+        "@destack/stack/tests/fixture/notebook",
         "@destack/view/tests/fixture/notebook"
     ],
     "devDependencies": {

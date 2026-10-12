@@ -65,6 +65,7 @@
         "destack/boolean-prefix": "error",
         "destack/branch-comment-position": "error",
         "destack/comment-style": "error",
+        "destack/deterministic-handler": "error",
         "destack/error-message-style": "error",
         "destack/exact-optional": "error",
         "destack/jsdoc-sentence": "error",
@@ -116,7 +117,7 @@
             "rules": { "eslint/no-console": "off", "typescript/no-unsafe-call": "off" }
         },
         {
-            "files": ["@destack/space/src/cloudflare/instance.ts"],
+            "files": ["@destack/machine/src/cloudflare/runtime/instance.ts"],
             "rules": { "destack/prevent-abbreviations": "off" }
         },
         {

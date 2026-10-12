@@ -17,7 +17,7 @@ Work proactively and concretely:
 
 Model the real problem for the real targets:
 - **PS10** Designs MUST model and solve a real world problem in a way the machine can execute efficiently.
-- **PS11** Designs SHOULD settle the main nouns and verbs first: data structures, fields, methods, and the call flows between them.
+- **PS11** Designs SHOULD settle the main nouns and verbs first: packages, modules, data structures, fields, methods, and the call / service / data flows between them.
 - **PS12** Designs SHOULD state who owns which state, and who reads and writes it where and in what order.
 - **PS13** Designs for code that runs often SHOULD reason through the minimal mechanical steps the target hardware performs, for compute, memory and bandwidth, using data oriented design.
 

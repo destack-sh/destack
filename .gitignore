@@ -44,6 +44,9 @@ target/
 Cargo.lock
 *.trace
 
+# Tauri generated schemas
+@destack/desktop/native/gen/
+
 # JavaScript/TypeScript/Node
 node_modules/
 *.node
@@ -120,7 +123,7 @@ destack-infra/.*
 @platform/site/public/docs/
 @platform/site/public/_content/
 @platform/site/public/search.json
-@destack/daemon/.generated/
+@platform/site/.generated/
 .DS_Store
 
 *.destack

@@ -3,6 +3,9 @@ set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 set dotenv-load := true
 set dotenv-filename := ".env.local"
 
+# run every database test on SQLite and the test PostgreSQL
+export DESTACK_TEST_POSTGRES := "postgres://postgres@127.0.0.1:55432/postgres"
+
 _default:
     @just --list --unsorted
 
@@ -49,7 +52,7 @@ format-check:
 check: typecheck lint format-check
 
 # test
-test:
+test: (postgres "up")
     just @destack/test
     just @app/test
     just @platform/test
@@ -64,7 +67,7 @@ format:
 alias fmt := format
 
 # test the packages the changes since a base commit affect, with their dependents
-test-affected base="origin/main":
+test-affected base="origin/main": (postgres "up")
     #!/usr/bin/env bash
     set -euo pipefail
     directories="$(bun run destack-check affected "{{base}}")"
@@ -83,20 +86,24 @@ test-affected base="origin/main":
     fi
     bun run --bun --sequential --no-exit-on-error "${filters[@]}" --if-present test
 
-# start, stop or report the test PostgreSQL on port 55432 (DESTACK_TEST_POSTGRES=postgres://postgres@127.0.0.1:55432/postgres)
+# start, stop or report the test PostgreSQL on port 55432, or start it unless it runs (up)
 postgres action:
     #!/usr/bin/env bash
     set -euo pipefail
     bin="$(brew --prefix postgresql@18)/bin"
     data=target/postgres
+    if [ "{{action}}" = up ]; then
+        "$bin/pg_ctl" --pgdata "$data" status >/dev/null 2>&1 || just postgres start
+        exit 0
+    fi
     if [ "{{action}}" = start ] && [ ! -d "$data" ]; then
         "$bin/initdb" --pgdata "$data" --username postgres --auth trust --encoding UTF8 >/dev/null
     fi
     "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "-p 55432 -k /tmp" --wait "{{action}}"
 
-# serve the dev universe on local PostgreSQL
-universe:
-    just @platform/stack/universe
+# serve the local universe, a cloud machine per residency and the dev channel's machine (dev reset drops their state)
+dev *arguments: (postgres "up")
+    just @platform/stack/dev {{arguments}}
 
 # version
 version:
