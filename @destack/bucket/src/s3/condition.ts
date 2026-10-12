@@ -25,7 +25,7 @@ export interface S3Condition {
     uploadedAfter?: Date;
 }
 
-/** A bucket condition that keeps the request's conditions atomic, or the file they already fail against. */
+/** A bucket condition that keeps the request's conditions atomic. */
 export type S3Resolution = { onlyIf?: BucketCondition } | { failed: BucketFile | null };
 
 /** The conditional headers of an S3 request, with entity tags as HTTP lists. */
@@ -77,7 +77,7 @@ function matches(file: BucketFile | null, condition?: S3Condition): boolean {
     return isMatching && isDifferent && isAfter && isBefore;
 }
 
-/** Translate conditions for the bucket, or pin a tag list the bucket cannot compare to the checked file. */
+/** Translate conditions for the bucket. */
 async function resolve(
     condition: S3Condition | undefined,
     head: () => Promise<BucketFile | null>,
@@ -117,7 +117,7 @@ async function resolve(
     };
 }
 
-/** Whether a tag list is absent, an asterisk, or one tag the bucket compares as the request does. */
+/** Whether a tag list is absent, an asterisk, or one tag. */
 function isDirect(tags: EntityTag[] | "*" | undefined, isWeakComparison: boolean): boolean {
     return (
         tags === undefined ||
@@ -143,7 +143,7 @@ function seconds(time: Date): number {
     return Math.floor(Duration.seconds({ milliseconds: time.getTime() }));
 }
 
-/** Read the file a refused precondition met, null where none exists, rethrowing any other failure. */
+/** Read the file a refused precondition met, null where none exists. */
 function failed(error: unknown): BucketFile | null {
     if (error instanceof BucketPreconditionError) {
         return error.current;

@@ -1,7 +1,7 @@
 import type { ContentStore } from "@destack/resource";
 import type { Digest } from "@destack/schema";
 
-/** The content-addressed store of a bucket's blobs, which the catalogue's segments and parts reference by digest. */
+/** The content-addressed store of a bucket's blobs. */
 export interface BlobStore extends ContentStore {
     /** List the digests the store lacks, in the given order. */
     missing(digests: readonly Digest[]): Promise<readonly Digest[]>;

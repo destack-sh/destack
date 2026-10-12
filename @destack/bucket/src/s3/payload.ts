@@ -13,11 +13,7 @@ const UNSIGNED_CHUNKS_WITH_TRAILER = "STREAMING-UNSIGNED-PAYLOAD-TRAILER";
 const SIGNED_CHUNKS_WITH_TRAILER = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER";
 /** The algorithm line of a chunk's string to sign. */
 const CHUNK_ALGORITHM = "AWS4-HMAC-SHA256-PAYLOAD";
-/**
- * The longest aws-chunked header or trailer line in bytes.
- *
- * A chunk header is at most 16 hexadecimal digits, `;chunk-signature=` and 64 digits, about 100 bytes.
- */
+/** The longest aws-chunked header or trailer line in bytes. */
 const MAX_LINE_BYTES = 1024;
 /** The checksum headers S3 defines, with the digests verifying them and their lengths in bytes. */
 const CHECKSUMS = new Map<string, Checksum | undefined>([
@@ -49,7 +45,7 @@ interface Check {
 /** The position of an aws-chunked decoder. */
 type ChunkState = "header" | "data" | "data-end" | "final" | "trailer" | "done";
 
-/** A request body as the bytes the client sent, decoded from aws-chunked, with its hashes verified while streaming. */
+/** A request body as the bytes the client sent, decoded from aws-chunked. */
 export class Payload implements Transformer<Uint8Array, Uint8Array> {
     /** The request signature signed chunks chain to, and the last signature in the chain. */
     readonly #signing?: { readonly chain: S3ChunkChain; previous: string };
@@ -133,7 +129,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         }
     }
 
-    /** Stream a request body through its decoding and verification, as an empty body when absent. */
+    /** Stream a request body through its decoding and verification. */
     static open(
         request: Request,
         headers: Headers,

@@ -36,7 +36,7 @@ function digest(text: string): string {
     return createHash("sha256").update(text).digest("hex");
 }
 
-/** Catalogues as test databases of one dialect, one per bucket, as a cell keeps one schema per bucket in its database. */
+/** Catalogues as test databases of one dialect, one per bucket. */
 class TestCatalogueStore implements CatalogueStore, AsyncDisposable {
     /** The dialect of the databases. */
     readonly #dialect: Dialect;

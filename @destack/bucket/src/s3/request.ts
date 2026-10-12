@@ -9,11 +9,7 @@ import { PRESIGN_PARAMETERS, type S3Authorization } from "./signature.ts";
 import { decodeUri, readQuery } from "./uri.ts";
 import { XmlNode } from "./xml.ts";
 
-/**
- * The largest request document in bytes.
- *
- * A DeleteObjects document lists 1000 keys of up to 1024 bytes, about 6 MiB when every byte is escaped.
- */
+/** The largest request document in bytes. */
 const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
 
 /** An authenticated S3 request, addressed path-style to a bucket and optionally a key. */
@@ -114,7 +110,7 @@ export class S3Request {
         return partNumber;
     }
 
-    /** Read the conditional headers of the request, or of its copy source, with their entity-tag lists. */
+    /** Read the conditional headers of the request or its copy source, with entity-tag lists. */
     condition(prefix: "" | "x-amz-copy-source-" = ""): S3Condition | undefined {
         // read the entity tag and date conditions
         const matches = this.headers.get(`${prefix}if-match`);
@@ -138,7 +134,7 @@ export class S3Request {
         };
     }
 
-    /** Read one byte range of the Range header, ignoring malformed and multiple ranges as S3 does. */
+    /** Read one byte range of the Range header. */
     range(): BucketRange | undefined {
         // match one span with at least one end, whose last byte does not precede its first
         const match = /^bytes=(\d*)-(\d*)$/u.exec(this.headers.get("range")?.trim() ?? "");

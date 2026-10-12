@@ -4,7 +4,7 @@ export const DIGEST_ALGORITHMS = ["md5", "sha1", "sha256"] as const;
 /** A digest algorithm a file's content digest carries. */
 export type DigestAlgorithm = (typeof DIGEST_ALGORITHMS)[number];
 
-/** A file's content digests under each algorithm stored, as an HTTP Content-Digest field carries them (RFC 9530). */
+/** A file's content digests under each stored algorithm (RFC 9530). */
 export class ContentDigest {
     /** The stored hexadecimal digests. */
     readonly #digests: Partial<Record<DigestAlgorithm, string>>;

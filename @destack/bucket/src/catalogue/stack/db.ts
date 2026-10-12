@@ -40,9 +40,9 @@ export const file = defineTable(
         ).notNull(),
         /** The storage class. */
         storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
-        /** The base64 MD5 digest of the customer key encrypting the content, absent for plain content. */
+        /** The base64 MD5 digest of the customer key that encrypts the content. */
         ssecKeyMd5: text("ssec_key_md5"),
-        /** The time before which the file can be neither replaced nor deleted, in Unix milliseconds, absent for an unlocked file. */
+        /** The time before which the file can be neither replaced nor deleted. */
         retainUntil: integer("retain_until"),
     },
     { log: {} },
@@ -83,7 +83,7 @@ export const upload = defineTable(
         expires: integer("expires").notNull(),
         /** The storage class of the completed file. */
         storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
-        /** The base64 MD5 digest of the customer key encrypting the parts, absent for plain content. */
+        /** The base64 MD5 digest of the customer key that encrypts the parts. */
         ssecKeyMd5: text("ssec_key_md5"),
         /** HTTP and application metadata, with expiration encoded as an ISO date. */
         options: json(

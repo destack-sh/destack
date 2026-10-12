@@ -15,7 +15,7 @@ import { R2BlobStore } from "./store.ts";
 /** The file below a bucket's prefix marking it fenced while a transfer copies it. */
 const FENCE_FILE = "fence";
 
-/** Where a cell keeps its buckets: their blobs in the residency's R2 bucket, their catalogues in its own database, served over S3 at one endpoint. */
+/** Where a cell keeps its buckets. */
 export interface R2BucketHostOptions {
     /** The residency's R2 bucket, keeping each bucket's blobs below the bucket's identifier. */
     readonly files: Bucket;
@@ -31,7 +31,7 @@ export interface R2BucketHostOptions {
     readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
 }
 
-/** A cell keeping buckets: each one a prefix of the residency's R2 bucket with its catalogue in the cell's database, opened once, and served over S3 at one endpoint. */
+/** A cell that keeps buckets, each opened once and served over S3 at one endpoint. */
 export class R2BucketHost extends CatalogueBucketHost {
     /** The provider code of R2 buckets. */
     readonly provider: string;
@@ -67,7 +67,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         return this.open({ bucketId: bucketId.data });
     }
 
-    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished, and report whether this call set the fence. */
+    /** Fence a bucket while a transfer copies it, across restarts until lifted. */
     override async fence(bucket: Pick<BucketReference, "bucketId">): Promise<boolean> {
         // mark the bucket fenced below its prefix, then refuse its writes
         const opened = await this.open(bucket);
@@ -143,7 +143,7 @@ export class R2BucketHost extends CatalogueBucketHost {
     }
 }
 
-/** The catalogues of a cell's buckets in its Durable Object's storage, each in its bucket's namespace. */
+/** The catalogues of a cell's buckets in its Durable Object's storage. */
 export class DurableObjectCatalogueStore implements CatalogueStore {
     /** The object's databases. */
     readonly #databases: DurableObjectDatabaseHost;

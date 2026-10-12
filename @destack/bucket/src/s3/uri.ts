@@ -1,6 +1,6 @@
 import { S3Error } from "./error.ts";
 
-/** Encode a value as SigV4 does: every byte except letters, digits and `-._~`, and slashes in paths. */
+/** Encode a value as SigV4 does. */
 export function encodeUri(value: string, isPath: boolean): string {
     // escape the reserved characters encodeURIComponent leaves unescaped
     const encoded = encodeURIComponent(value).replace(

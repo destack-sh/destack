@@ -137,7 +137,7 @@ function checksums(file: BucketFile): Record<string, string> {
     return written;
 }
 
-/** Read a file's digests: its entity tag as MD5 for a single-part file, and the checksum headers. */
+/** Read a file's digests. */
 function digest(etag: string, headers: Headers): ContentDigest {
     // take a single-part entity tag as the MD5 digest
     const digests: Partial<Record<DigestAlgorithm, string>> = MD5_ETAG.test(etag)
@@ -209,7 +209,7 @@ function customMetadata(headers: Headers): Record<string, string> {
     return metadata;
 }
 
-/** Read the retain-until date of a compliance-mode object lock, or undefined for an unlocked file. */
+/** Read the retain-until date of a compliance-mode object lock, else undefined. */
 function retainUntil(headers: Headers): Date | undefined {
     // read the optional headers, accepting the compliance mode alone
     const value = headers.get("x-amz-object-lock-retain-until-date");

@@ -33,7 +33,7 @@ import { CatalogueFile } from "./file.ts";
 import { CustomerKey } from "./encryption.ts";
 import type { CatalogueHandle } from "./snapshot.ts";
 
-/** Persistent file storage: a catalogue of files in its host's database over a store of their blobs. */
+/** Persistent file storage: a catalogue of files in its host's database over their blob store. */
 export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     /** The host's open storage. */
     readonly #storage: CatalogueStorage;
@@ -48,7 +48,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         return new CatalogueBucket(new CatalogueStorage(catalogue));
     }
 
-    /** Share the catalogue and the bucket's blobs for copying the bucket between hosts, collecting the blobs its copies retire. */
+    /** Share the catalogue and the bucket's blobs for copying the bucket between hosts. */
     database(): CatalogueHandle {
         const storage = this.#storage;
 
@@ -124,7 +124,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         });
     }
 
-    /** Read a range of an entry's bytes, retaining its segments while another caller replaces or deletes the key. */
+    /** Read a range of an entry's bytes. */
     async #reader(
         entry: CatalogueFile,
         range: { readonly offset: number; readonly length: number } | undefined,
@@ -149,7 +149,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         );
     }
 
-    /** Write immutable contents, then atomically publish their catalogue entry, refusing a failed precondition. */
+    /** Write immutable contents, then atomically publish their catalogue entry. */
     async put(
         key: string,
         body: BucketBody | null,
@@ -170,7 +170,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         return this.#write(key, body, options, { etag, version, uploaded });
     }
 
-    /** Fetch a file from a URL with the identity another bucket gave it, unless the bucket has it at that version. */
+    /** Fetch a file from a URL with the identity another bucket gave it. */
     async fetch(
         url: string,
         source: Pick<BucketFile, "key" | "etag" | "version" | "uploaded"> &
@@ -191,7 +191,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         await this.restore(key, response.body, identity);
     }
 
-    /** List the keys in a range: after one key, up to and including another, by UTF-8 bytes as listings sort them. */
+    /** List the keys in a range, by UTF-8 bytes as listings sort them. */
     async keys(range: { readonly after?: string; readonly last?: string }): Promise<string[]> {
         // list pages after the first key until one passes the last
         const { after, last } = range;
@@ -212,7 +212,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         return last === undefined ? keys : keys.filter((key) => !isAfter(key, last));
     }
 
-    /** Write immutable contents, then publish their catalogue entry under its own or a restored identity, refusing a failed precondition. */
+    /** Write immutable contents, then publish their catalogue entry. */
     async #write(
         key: string,
         body: BucketBody | null,
@@ -289,7 +289,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         };
     }
 
-    /** Publish a new version of the destination that shares the source's immutable content, refusing a failed source precondition. */
+    /** Publish a new version of the destination that shares the source's immutable content. */
     async copy(
         source: string,
         destination: string,
@@ -403,7 +403,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         return this.#storage.sweep();
     }
 
-    /** Refuse new writes while a transfer copies the bucket, returning once the writes in flight finished, and report whether this call set the fence. */
+    /** Refuse new writes while a transfer copies the bucket. */
     fence(): Promise<boolean> {
         return this.#storage.fence();
     }

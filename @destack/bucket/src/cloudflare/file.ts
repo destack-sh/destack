@@ -8,7 +8,7 @@ import {
     StorageClass,
 } from "../bucket/index.ts";
 
-/** The storage class of files stored without one, which R2 reports and its local simulator leaves empty. */
+/** The storage class of files stored without one. */
 const DEFAULT_STORAGE_CLASS = "Standard";
 
 /** File metadata an R2 binding returns. */

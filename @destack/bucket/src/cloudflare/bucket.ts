@@ -32,7 +32,7 @@ export interface R2OperationCount {
     classB: number;
 }
 
-/** File storage backed by a Cloudflare R2 binding, counting the operations it sends for the meters. */
+/** File storage backed by a Cloudflare R2 binding. */
 export class R2Bucket implements Bucket {
     /** The host-authorised bucket binding. */
     readonly #bucket: Cloudflare.R2Bucket;
@@ -64,7 +64,7 @@ export class R2Bucket implements Bucket {
         return entry ? R2File.describe(entry) : null;
     }
 
-    /** Read a file with R2's atomic precondition and range handling, refusing a failed precondition. */
+    /** Read a file with R2's atomic precondition and range handling. */
     async get(key: string, options: BucketGetOptions = {}): Promise<BucketFileBody | null> {
         // validate the key and range
         BucketKey.check(key);
@@ -201,7 +201,7 @@ export class R2Bucket implements Bucket {
     }
 }
 
-/** Report R2's unsatisfiable range as the storage failure of the same meaning, and any other failure as itself. */
+/** Report R2's unsatisfiable range as the storage failure of the same meaning. */
 function readError(error: unknown): unknown {
     if (
         typeof error === "object" &&

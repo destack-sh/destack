@@ -5,11 +5,11 @@ import { BucketError } from "../error/index.ts";
 import type { BucketEndpoint, BucketHost, BucketReference, S3Credentials } from "../s3/index.ts";
 import type { CatalogueBucket } from "./bucket.ts";
 
-/** The databases a host keeps its buckets' catalogues in, one each, such as one schema each in a cell's database. */
+/** The databases a host keeps its buckets' catalogues in, one each. */
 export interface CatalogueStore {
     /** Report whether a bucket has a catalogue. */
     has(bucketId: Identifier<"bucket">): Promise<boolean>;
-    /** Connect to a bucket's catalogue declaring some tables, creating an empty database for it when missing. */
+    /** Connect to a bucket's catalogue declaring some tables. */
     connect(
         bucketId: Identifier<"bucket">,
         tables: readonly Table[],
@@ -18,7 +18,7 @@ export interface CatalogueStore {
     destroy(bucketId: Identifier<"bucket">): Promise<void>;
 }
 
-/** A host keeping buckets over catalogues, each opened once at a time, and serving them over S3 at one endpoint. */
+/** A host that keeps buckets over catalogues, each opened once at a time. */
 export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = CatalogueBucket>
     implements BucketHost, AsyncDisposable
 {
@@ -39,7 +39,7 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
         readonly endpoint: URL;
         /** The region requests are signed for. */
         readonly region: string;
-        /** Read the S3 credentials of a space, absent for a space the host keeps no credentials of. */
+        /** Read the S3 credentials of a space. */
         readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
     }) {
         // keep the endpoint, the region and the credentials
@@ -54,7 +54,7 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
     /** Open the bucket an S3 request addresses by its resource, absent when the host has none. */
     abstract named(name: string): Promise<Opened | undefined>;
 
-    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished, and report whether this call set the fence. */
+    /** Fence a bucket while a transfer copies it, across restarts until lifted. */
     abstract fence(bucket: Pick<BucketReference, "bucketId">): Promise<boolean>;
 
     /** Lift a bucket's fence, accepting its writes again. */
@@ -91,7 +91,7 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
         return opening;
     }
 
-    /** Locate a bucket at the host's S3 endpoint, with its space's credentials presigning a transfer, refusing a write into a fenced bucket. */
+    /** Locate a bucket at the host's S3 endpoint. */
     async locate(bucket: BucketReference, mode: LeaseMode): Promise<BucketEndpoint> {
         // refuse a write into a fenced bucket
         if (mode === "write") {

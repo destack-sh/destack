@@ -9,7 +9,7 @@ import { BucketError } from "../error/index.ts";
 /** The bytes one read of a blob file takes: 64 KiB, as a bucket's readers stream them. */
 const READ_BYTES = 64 * 1024;
 
-/** A bucket's blobs as files in a directory, each keyed by its digest, beside the temporary files of unfinished writes. */
+/** A bucket's blobs as files in a directory, each keyed by its digest. */
 export class LocalBlobStore implements BlobStore {
     /** The directory of blob files. */
     readonly directory: string;
@@ -63,7 +63,7 @@ export class LocalBlobStore implements BlobStore {
         }
     }
 
-    /** Write bytes to a temporary file, then keep it under its digest, marking a blob kept already used now. */
+    /** Write bytes to a temporary file, then keep it under its digest. */
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
         const temporary = join(this.directory, `.${crypto.randomUUID()}`);
         try {
@@ -89,7 +89,7 @@ export class LocalBlobStore implements BlobStore {
         }
     }
 
-    /** Keep the blobs the directory lacks among some digests, read from another store, and mark the kept ones used now. */
+    /** Keep the blobs the directory lacks among some digests, read from another store. */
     async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
         for (const digest of new Set(digests)) {
             // copy a missing blob
@@ -175,7 +175,7 @@ async function written(path: string, body: AsyncIterable<Uint8Array>): Promise<D
     return hash.digest("hex");
 }
 
-/** Remove an unfinished write's temporary file after a failure, reporting both when the removal fails. */
+/** Remove an unfinished write's temporary file after a failure. */
 async function removed(path: string, error: unknown): Promise<void> {
     await unlink(path).catch((cleanup: NodeJS.ErrnoException) => {
         if (cleanup.code !== "ENOENT") {

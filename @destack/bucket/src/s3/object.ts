@@ -393,7 +393,7 @@ function writeConditionFailure(call: S3Request, current: BucketFile | null): nev
     );
 }
 
-/** Describe a stored file in a write response: its entity tag, version, upload time and checksums. */
+/** Describe a stored file in a write response. */
 export function writeHeaders(call: S3Request, file: BucketFile): Headers {
     // answer the stored version, and echo the digest of a customer key
     const headers = new Headers({

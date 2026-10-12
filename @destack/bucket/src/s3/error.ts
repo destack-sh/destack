@@ -71,7 +71,7 @@ const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
     FENCED: "ServiceUnavailable",
 };
 
-/** The storage failure each S3 error code answers, for codes exactly one storage failure answers with. */
+/** The storage failure each S3 error code answers. */
 const STORAGE_FAILURES: ReadonlyMap<S3ErrorCode, BucketErrorCode> = new Map(
     Object.entries(STORAGE_ERROR_CODE).flatMap(([failure, code]) => {
         const answering = Object.values(STORAGE_ERROR_CODE).filter((each) => each === code);
@@ -126,7 +126,7 @@ export class S3Error extends Error implements DomainError {
         return new S3Error(code, message);
     }
 
-    /** Read the S3 error a status answers without a document, refusing a status S3 does not answer. */
+    /** Read the S3 error a status answers without a document. */
     static answered(status: number, message: string): S3Error {
         const code = STATUS_ERROR_CODES[status];
         if (code === undefined) {
@@ -136,7 +136,7 @@ export class S3Error extends Error implements DomainError {
         return new S3Error(code, message);
     }
 
-    /** Read the storage failure the error answers, absent for a code several or no storage failures answer with. */
+    /** Read the storage failure the error answers. */
     toBucketError(): BucketError | undefined {
         const failure = STORAGE_FAILURES.get(this.code);
 

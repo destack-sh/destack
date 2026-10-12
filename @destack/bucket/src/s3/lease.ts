@@ -3,7 +3,7 @@ import type { BucketHost, BucketReference } from "./host.ts";
 import { S3Location } from "./location.ts";
 import { S3Signature } from "./signature.ts";
 
-/** How long a presigned lease stays valid in seconds: fifteen minutes, long enough to start a transfer. */
+/** How long a presigned lease stays valid in seconds: fifteen minutes. */
 export const LEASE_LIFETIME_SECONDS = 15 * 60;
 
 /** The HTTP method a lease of each mode signs: GET reads a body, PUT writes one. */

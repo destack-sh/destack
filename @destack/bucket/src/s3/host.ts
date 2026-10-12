@@ -15,6 +15,6 @@ export interface BucketReference {
 export interface BucketHost {
     /** Open a bucket the host keeps. */
     open(bucket: BucketReference): Promise<Bucket>;
-    /** Locate the S3 endpoint serving a bucket and the credentials presigning a transfer, refusing a write into a fenced bucket. */
+    /** Locate the S3 endpoint serving a bucket and the credentials presigning a transfer. */
     locate(bucket: BucketReference, mode: LeaseMode): Promise<BucketEndpoint>;
 }

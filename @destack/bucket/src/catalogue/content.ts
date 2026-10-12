@@ -14,7 +14,7 @@ import { CustomerKey } from "./encryption.ts";
 interface ContentHash {
     /** The MD5 hash of the stored bytes. */
     readonly md5: Hash;
-    /** The hash of the given bytes under the supplied checksum's algorithm, absent when the MD5 hash serves. */
+    /** The hash of the given bytes under the supplied checksum's algorithm. */
     readonly checksum: Hash | undefined;
     /** The supplied checksum, as lowercase hexadecimal. */
     readonly expected: string | undefined;
@@ -107,7 +107,7 @@ export class Content {
     }
 }
 
-/** Encrypt a body's chunks for storage while hashing them, refusing a mismatched checksum at its end. */
+/** Encrypt a body's chunks for storage while hashing them. */
 async function* encode(
     body: BucketBody | null,
     cipher: ReturnType<CustomerKey["cipher"]> | undefined,

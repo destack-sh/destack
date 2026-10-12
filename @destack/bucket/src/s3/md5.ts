@@ -10,12 +10,12 @@ const SHIFTS = [
     6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
 ];
 
-/** The additive constant of each of MD5's 64 operations: the integer part of 2^32 times |sin(i + 1)| (RFC 1321 3.4). */
+/** The additive constant of each of MD5's 64 operations (RFC 1321 3.4). */
 const CONSTANTS = Array.from({ length: 64 }, (_, index) =>
     Math.floor(Math.abs(Math.sin(index + 1)) * 2 ** 32),
 );
 
-/** The MD5 digest of some bytes (RFC 1321), for the checksums S3 still requires where Web Crypto offers no MD5, such as an SSE-C key's. */
+/** The MD5 digest of some bytes (RFC 1321). */
 export function md5(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
     // pad to whole blocks: a one bit, zeros, and the bit length in little-endian
     const blocks = Math.ceil((bytes.length + 9) / BLOCK_BYTES);

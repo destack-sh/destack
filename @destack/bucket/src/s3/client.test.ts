@@ -45,7 +45,7 @@ async function read(bucket: Bucket, key: string, options: Parameters<Bucket["get
         : { file: describe(file), range: file.range, text: await file.text() };
 }
 
-/** Run an operation, describing its refusal: a precondition with the file it met, else the failure's code. */
+/** Run an operation and describe its refusal. */
 async function refusal(operation: Promise<unknown>) {
     try {
         await operation;

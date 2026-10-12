@@ -4,7 +4,7 @@ import { canonicalize, Digest, schema } from "@destack/schema";
 import { part, segment } from "./stack/index.ts";
 import type { BlobStore } from "./store.ts";
 
-/** A snapshot of a bucket: its catalogue's rows and the blobs their segments and parts reference, each by its digest. */
+/** A snapshot of a bucket. */
 const SnapshotManifest = schema.object({
     /** The digest of the catalogue's row snapshot. */
     catalogue: Digest,
@@ -15,19 +15,19 @@ const SnapshotManifest = schema.object({
 /** A snapshot's manifest. */
 type SnapshotManifest = schema.Infer<typeof SnapshotManifest>;
 
-/** A bucket opened for copying: its catalogue, the store of its blobs, and its hold on their collection. */
+/** A bucket opened for copying. */
 export interface CatalogueHandle extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
     readonly blobs: BlobStore;
-    /** Keep every blob from collection until the hold is released, while a copy writes blobs before their rows. */
+    /** Keep every blob from collection until the hold is released. */
     hold(): Promise<AsyncDisposable>;
     /** Collect the blobs deleted rows referenced, deleting those no row references any longer. */
     retire(digests: readonly Digest[]): Promise<void>;
 }
 
-/** Copy a bucket's catalogue and blobs into a snapshot store, and restore such a copy into another bucket. */
+/** Copy a bucket's catalogue and blobs into a snapshot store. */
 export const BucketSnapshot = {
-    /** Copy the catalogue's rows and the blobs they reference into a store, answering the copy's digest. */
+    /** Copy the catalogue's rows and the blobs they reference into a store. */
     async take(bucket: CatalogueHandle, store: ContentStore): Promise<Digest> {
         // copy the rows in one read, noting the blobs their segments and parts reference
         await using _held = await bucket.hold();
@@ -47,7 +47,7 @@ export const BucketSnapshot = {
         return write(store, { catalogue, blobs: referenced });
     },
 
-    /** Restore a copy into a bucket: its blobs before the rows referencing them, onto a base copy the bucket holds when given. */
+    /** Restore a copy into a bucket, its blobs before the rows that reference them. */
     async restore(
         bucket: CatalogueHandle,
         digest: Digest,

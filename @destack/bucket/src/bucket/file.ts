@@ -34,7 +34,7 @@ export class BucketFile {
     readonly storageClass: StorageClass;
     /** The MD5 digest of the customer key encrypting the file, as base64. */
     readonly ssecKeyMd5: string | undefined;
-    /** The time before which the file can be neither replaced nor deleted, absent for an unlocked file. */
+    /** The time before which the file can be neither replaced nor deleted. */
     readonly retainUntil: Date | undefined;
 
     /** Retain the uploaded file's metadata. */

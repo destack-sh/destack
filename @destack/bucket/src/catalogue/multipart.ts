@@ -201,7 +201,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         }
     }
 
-    /** Replace one part of the active upload, retiring the contents it replaces, while having the catalogue lock. */
+    /** Replace one part of the active upload under the catalogue lock. */
     async #replacePart(entry: typeof part.$inferSelect): Promise<void> {
         // read the part being replaced
         await this.#upload();
@@ -226,7 +226,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         }
     }
 
-    /** Stream a file or a range of it into one upload part, refusing a failed source precondition. */
+    /** Stream a file or a range of it into one upload part. */
     async uploadPartCopy(
         partNumber: number,
         source: string,
@@ -329,7 +329,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         };
     }
 
-    /** Publish a completed file and close its upload in one transaction, returning the blobs it detaches. */
+    /** Publish a completed file and close its upload in one transaction. */
     async #publish(
         published: CatalogueFile,
         ordered: readonly (typeof part.$inferSelect)[],

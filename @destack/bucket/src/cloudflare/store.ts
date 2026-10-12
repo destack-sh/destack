@@ -5,17 +5,13 @@ import { type Bucket, type UploadedPart, MAX_BATCH_FILES } from "../bucket/index
 import type { BlobStore } from "../catalogue/index.ts";
 import { BucketError } from "../error/index.ts";
 
-/** The bytes of each part of a blob written in parts: 8 MiB, above R2's 5 MiB minimum, since R2 takes parts of one size. */
+/** The bytes of each part of a blob written in parts: 8 MiB. */
 const PART_BYTES = 8 * 1024 * 1024;
 
-/** The directory below a bucket's prefix keeping the bodies of writes whose digest is not known yet. */
+/** The directory below a bucket's prefix for staged bodies. */
 const STAGING = "staging/";
 
-/**
- * A bucket's blobs as files of a residency's R2 bucket below the bucket's prefix, each keyed by its digest.
- *
- * A body longer than one part is staged under a random name, since R2 renames no file, and written under its digest once hashed.
- */
+/** A bucket's blobs as files of a residency's R2 bucket below the bucket's prefix. */
 export class R2BlobStore implements BlobStore {
     /** The residency's bucket. */
     readonly #files: Bucket;
@@ -49,7 +45,7 @@ export class R2BlobStore implements BlobStore {
         yield* present(file, digest).body;
     }
 
-    /** Keep bytes under their digest and return it, refusing bytes whose digest differs from the expected one. */
+    /** Keep bytes under their digest and return it. */
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
         // read up to two parts to tell a body of one part from a longer one
         const hash = createHash("sha256");
@@ -88,7 +84,7 @@ export class R2BlobStore implements BlobStore {
         }
     }
 
-    /** Keep the blobs the store lacks among some digests, read from another store, and mark the kept ones used now. */
+    /** Keep the blobs the store lacks among some digests, read from another store. */
     async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
         const unique = [...new Set(digests)];
         const missing = new Set(await this.missing(unique));
@@ -149,7 +145,7 @@ export class R2BlobStore implements BlobStore {
         }
     }
 
-    /** Mark a kept blob used now by writing it onto itself, since R2 keeps a file's upload time as its only time. */
+    /** Mark a kept blob used now by writing it onto itself. */
     async #touch(digest: Digest): Promise<void> {
         const key = this.#key(digest);
         const file = present(await this.#files.get(key), digest);
@@ -180,7 +176,7 @@ export class R2BlobStore implements BlobStore {
         }
     }
 
-    /** List the keys below a prefix a page at a time, without those below the delimiter when given. */
+    /** List the keys below a prefix a page at a time. */
     async *#pages(prefix: string, delimiter?: string): AsyncIterable<string[]> {
         let cursor: string | undefined;
         do {

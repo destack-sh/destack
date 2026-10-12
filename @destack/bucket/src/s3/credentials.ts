@@ -14,7 +14,7 @@ const s3Credentials = schema.object({
 
 /** An S3 access key and its secret. */
 export const S3Credentials = Object.assign(s3Credentials, {
-    /** Derive a space's credentials from its root secret: the space as the access key, a derived secret as the secret key. */
+    /** Derive a space's credentials from its root secret. */
     async derive(root: Pick<Deriver, "derive">, space: string): Promise<S3Credentials> {
         return { accessKeyId: space, secretAccessKey: (await root.derive(LABEL)).toHex() };
     },

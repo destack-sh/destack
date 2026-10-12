@@ -1,7 +1,7 @@
 import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 import type { BucketFile } from "../bucket/file.ts";
 
-/** The service error code of each storage failure: the request's own, a missing file, a fence a caller may retry after, or the host's. */
+/** The service error code of each storage failure. */
 const SERVICE_CODES = {
     INVALID_KEY: "BAD_REQUEST",
     INVALID_RANGE: "BAD_REQUEST",
@@ -55,7 +55,7 @@ export class BucketError extends Error implements DomainError {
     }
 }
 
-/** A read or write refused by its precondition, with the file it met, as S3 answers 412 Precondition Failed. */
+/** A read or write refused by its precondition, with the file it met. */
 export class BucketPreconditionError extends BucketError {
     /** The file the precondition met, null where none exists. */
     readonly current: BucketFile | null;

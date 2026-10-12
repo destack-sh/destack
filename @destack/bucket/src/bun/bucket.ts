@@ -10,9 +10,9 @@ import { catalogueDatabase } from "../catalogue/stack/index.ts";
 import { syncDirectory } from "./directory.ts";
 import { LocalBlobStore } from "./store.ts";
 
-/** A bucket kept in a local directory: a SQLite catalogue of files beside the files of their blobs. */
+/** A bucket in a local directory: a SQLite catalogue of files beside their blob files. */
 export class LocalBucket extends CatalogueBucket {
-    /** Open a bucket in a directory, or create it in the scope it belongs to: a SQLite catalogue beside its blob files, locked to this host. */
+    /** Open a bucket in a directory, or create it in the scope it belongs to. */
     static async open(directory: string, scope?: string): Promise<LocalBucket> {
         // refuse creating a bucket without the scope it belongs to
         directory = resolve(directory);
@@ -69,7 +69,7 @@ async function createDurably(directory: string): Promise<void> {
     }
 }
 
-/** Prepare a bucket's private catalogue through the shared database lifecycle, creating its log in a new bucket's scope. */
+/** Prepare a bucket's private catalogue through the shared database lifecycle. */
 async function prepare(
     directory: string,
     catalogue: string,
@@ -94,7 +94,7 @@ async function prepare(
     }
 }
 
-/** Close a catalogue and its lock after a failed preparation, rethrowing the failure with any closure failures. */
+/** Close a catalogue and its lock after a failed preparation. */
 async function closeFailed(
     error: unknown,
     database: SqliteDatabase | undefined,
@@ -122,7 +122,7 @@ async function closeFailed(
     throw error;
 }
 
-/** Serve a catalogue and its blobs, reopening the catalogue over the tables beside it and releasing the lock after it. */
+/** Serve a catalogue and its blobs. */
 function openedStorage(
     catalogue: string,
     database: SqliteDatabase,

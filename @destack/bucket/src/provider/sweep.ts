@@ -1,10 +1,10 @@
 import type { Controller } from "@destack/service/control";
 import type { CatalogueBucketHost } from "../catalogue/index.ts";
 
-/** How often a host sweeps its open buckets: daily, since only interrupted writes leave blobs behind. */
+/** How often a host sweeps its open buckets: daily. */
 const SWEEP_INTERVAL_MILLISECONDS = 24 * 60 * 60_000;
 
-/** How soon a host sweeps again after writers kept a sweep from finishing: a minute, about one large upload. */
+/** How soon a host sweeps again after writers kept a sweep from finishing: a minute. */
 const BUSY_INTERVAL_MILLISECONDS = 60_000;
 
 /** The one key the sweep controller reconciles: the host's open buckets. */
@@ -27,7 +27,7 @@ export class SweepController implements Controller {
         return [BUCKETS];
     }
 
-    /** Sweep the open buckets, then look again after the interval, or sooner when writers kept a sweep from finishing. */
+    /** Sweep the open buckets, then look again after the interval. */
     async reconcile(): Promise<number> {
         return (await this.#host.sweep())
             ? SWEEP_INTERVAL_MILLISECONDS

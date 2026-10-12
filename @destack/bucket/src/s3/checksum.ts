@@ -1,7 +1,7 @@
 import { crc32 } from "node:zlib";
 import type { Hasher } from "./hasher.ts";
 
-/** The byte table of the reversed CRC-32C (Castagnoli) polynomial, which node:zlib does not offer. */
+/** The byte table of the reversed CRC-32C (Castagnoli) polynomial. */
 const CRC32C_TABLE = createTable(0x82f63b78);
 
 /** An incremental CRC-32 (ISO-HDLC) from node:zlib, digested big-endian as S3 encodes it. */

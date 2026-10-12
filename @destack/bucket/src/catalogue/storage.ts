@@ -41,17 +41,13 @@ const REFERENCE_BATCH_SIZE = 500;
 /** A catalogue transaction. */
 export type CatalogueTransaction = Parameters<Parameters<DatabaseConnection["transaction"]>[0]>[0];
 
-/** A bucket's catalogue database, which its host opened for it alone, and the store of its blobs. */
+/** A bucket's catalogue database, opened by its host for it alone, and its blob store. */
 export interface Catalogue extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
     readonly blobs: BlobStore;
 }
 
-/**
- * A bucket's catalogue and the blobs its files keep.
- *
- * Blobs are deleted only under the catalogue lock while no writer holds blobs it has not yet published.
- */
+/** A bucket's catalogue and the blobs its files keep. */
 export class CatalogueStorage implements AsyncDisposable {
     /** The catalogue, reopened by its host when it gains tables. */
     readonly #catalogue: Catalogue;
@@ -101,7 +97,7 @@ export class CatalogueStorage implements AsyncDisposable {
         return this.#catalogue.blobs;
     }
 
-    /** Migrate the catalogue to its tables and some tables beside them, reopening it over all of them. */
+    /** Migrate the catalogue to its tables and some tables beside them. */
     async migrate(beside: readonly Table[]): Promise<void> {
         await this.exclusive(() => this.#catalogue.migrate(beside));
     }
@@ -167,7 +163,7 @@ export class CatalogueStorage implements AsyncDisposable {
         await this.#collectFiles();
     }
 
-    /** Delete the retired blobs no reader, segment or part keeps, once no writer holds unpublished blobs. */
+    /** Delete the retired blobs no reader, segment or part keeps. */
     async #collectFiles(): Promise<void> {
         // keep every blob while a writer may share one it has not yet published
         if (this.#holders > 0) {
@@ -205,7 +201,7 @@ export class CatalogueStorage implements AsyncDisposable {
         }
     }
 
-    /** Admit a writer into an unfenced bucket, keeping blobs from closure and deletion while it writes. */
+    /** Admit a writer into an unfenced bucket. */
     async beginWrite(): Promise<void> {
         await this.exclusive(async () => {
             this.checkWritable();
@@ -239,7 +235,7 @@ export class CatalogueStorage implements AsyncDisposable {
         };
     }
 
-    /** Refuse new writes while a transfer copies the bucket, returning once the writers and holds in flight finished, and report whether this call set the fence. */
+    /** Refuse new writes while a transfer copies the bucket. */
     async fence(): Promise<boolean> {
         // refuse writes after the catalogue changes queued before the fence
         const isSet = await this.exclusive(async () => {
@@ -275,11 +271,7 @@ export class CatalogueStorage implements AsyncDisposable {
         });
     }
 
-    /**
-     * Delete what interrupted writes left: unfinished blob writes and blobs no segment or part references.
-     *
-     * The sweep stops and answers false while a writer holds unpublished blobs, so its host sweeps again later.
-     */
+    /** Delete what interrupted writes left. */
     async sweep(): Promise<boolean> {
         // clean the catalogue and the store while no writer runs
         const isIdle = await this.exclusive(async () => {
@@ -313,7 +305,7 @@ export class CatalogueStorage implements AsyncDisposable {
         return batch.length === 0 || (await this.#sweep(batch));
     }
 
-    /** Delete the blobs of a batch no segment, part or reader keeps, answering false while a writer holds unpublished blobs. */
+    /** Delete the blobs of a batch no segment, part or reader keeps. */
     async #sweep(digests: string[]): Promise<boolean> {
         return await this.exclusive(async () => {
             // keep every blob while a writer may share one it has not yet published
@@ -352,7 +344,7 @@ export class CatalogueStorage implements AsyncDisposable {
             .orderBy(asc(segment.position));
     }
 
-    /** Publish a file version and its segments, returning the blobs the replaced version detaches. */
+    /** Publish a file version and its segments. */
     async publish(
         entry: CatalogueFile,
         segments: Segment[],
@@ -501,7 +493,7 @@ interface ListingPage {
 /** A listed catalogue row. */
 type ListingEntry = Pick<CatalogueFile, keyof typeof LISTING_COLUMNS>;
 
-/** Bound the next listing read after the last key or group, absent once no key can follow the last group. */
+/** Bound the next listing read after the last key or group. */
 function lowerBound(prefix: string, delimiter: string, after: string | undefined): SQL | undefined {
     // start at the prefix
     if (after === undefined) {
@@ -536,7 +528,7 @@ function truncated(page: ListingPage, selection: string, after: string | undefin
     };
 }
 
-/** Add listed entries to a page until it fills or a group starts, returning the last key or group added. */
+/** Add listed entries to a page until it fills or a group starts. */
 function addEntries(
     page: ListingPage,
     entries: readonly ListingEntry[],

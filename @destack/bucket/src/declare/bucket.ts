@@ -7,7 +7,7 @@ import { S3Client } from "../s3/client.ts";
 /** A file namespace bound to managed storage, and who writes its files. */
 export const BucketSpec = defineSchema(
     schema.object({
-        /** The service alone writes the bucket's files, as its own principal, absent for every caller with the write permission. */
+        /** The service alone writes the bucket's files, as its own principal. */
         write: schema.literal("service").exactOptional(),
     }),
 );

@@ -10,7 +10,7 @@ const BLOCK_BYTES = 16;
 /** The bytes of a write's counter nonce, the counter block's first half. */
 const NONCE_BYTES = 8;
 
-/** A customer key encrypting file content with AES-256 in counter mode, so reads start at any byte. */
+/** A customer key that encrypts file content with AES-256 in counter mode. */
 export class CustomerKey {
     /** The base64 MD5 digest of the key, which files record. */
     readonly md5: string;

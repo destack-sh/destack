@@ -14,7 +14,7 @@ import type {
 
 /** A bucket that backs the S3 protocol directly, with every S3 operation in scope. */
 export interface S3Bucket extends Bucket {
-    /** Copy a file, optionally under preconditions on the source, refusing a failed one with `PRECONDITION_FAILED`. */
+    /** Copy a file, optionally under preconditions on the source. */
     copy(source: string, destination: string, options?: BucketCopyOptions): Promise<BucketFile>;
     /** List incomplete multipart uploads in key order. */
     listUploads(options?: UploadListOptions): Promise<UploadListing>;
@@ -28,7 +28,7 @@ export interface S3Bucket extends Bucket {
 export interface S3MultipartUpload extends MultipartUpload {
     /** Store or replace one numbered part, describing it as S3 lists it. */
     uploadPart(partNumber: number, body: BucketBody, options?: UploadPartOptions): Promise<Part>;
-    /** Store a numbered part copied from a file, refusing a failed source precondition with `PRECONDITION_FAILED`. */
+    /** Store a numbered part copied from a file. */
     uploadPartCopy(partNumber: number, source: string, options?: PartCopyOptions): Promise<Part>;
     /** List a page of the stored parts. */
     listParts(options?: PartListOptions): Promise<PartListing>;

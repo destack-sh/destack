@@ -40,7 +40,7 @@ export const S3_PROVIDER = "s3";
 /** The headers a write answers with, which describe the stored file beside what the client sent. */
 const ANSWERED_HEADERS = ["etag", "x-amz-version-id", "last-modified"] as const;
 
-/** A refusal a host answers instead of an S3 error document, such as its egress refusing an unbound bucket. */
+/** A refusal a host answers instead of an S3 error document. */
 const Refusal = schema
     .object({ code: schema.string(), status: schema.number().int(), message: schema.string() })
     .strip();
@@ -66,7 +66,7 @@ interface S3Call {
 
 /** A bucket reached over the path-style S3 API at its URL, as S3Server serves it. */
 export class S3Client implements Bucket {
-    /** The connector of buckets a host serves over S3 at its egress, called with the instance's credential. */
+    /** The connector of buckets a host serves over S3 at its egress. */
     static readonly connector: Connector<Bucket> = {
         code: S3_PROVIDER,
         connect: async (binding) => {
@@ -120,7 +120,7 @@ export class S3Client implements Bucket {
         return S3Headers.read(key, sizeOf(answer.headers), answer.headers);
     }
 
-    /** Read a file, null when the key does not exist, refusing a failed precondition with `PRECONDITION_FAILED`. */
+    /** Read a file, null when the key does not exist. */
     async get(key: string, options: BucketGetOptions = {}): Promise<BucketFileBody | null> {
         // ask for the range, under the conditions and customer key, with the file's checksums
         BucketKey.check(key);
@@ -151,7 +151,7 @@ export class S3Client implements Bucket {
         return new BucketFileBody(file, body, rangeOf(answer.headers));
     }
 
-    /** Store a complete file, atomically replacing any previous one, refusing a failed precondition with `PRECONDITION_FAILED`. */
+    /** Store a complete file, atomically replacing any previous one. */
     async put(
         key: string,
         body: BucketBody | null,
@@ -322,7 +322,7 @@ export class S3Client implements Bucket {
         return { partNumber, etag: etag.replace(/^"(.*)"$/u, "$1") };
     }
 
-    /** Assemble the selected parts of an upload into one file, read as the version the bucket assembled. */
+    /** Assemble the selected parts of an upload into one file. */
     async #complete(key: string, uploadId: string, uploaded: UploadedPart[]): Promise<BucketFile> {
         // assemble the selected parts
         const document = writeXml("CompleteMultipartUpload", {
@@ -376,7 +376,7 @@ export class S3Client implements Bucket {
     }
 }
 
-/** Read the refusal an answer carries: a storage failure or S3 error from its error document, else the host's service error. */
+/** Read the refusal an answer carries. */
 async function refusal(answer: Response): Promise<Error> {
     // read an S3 error document
     const text = await answer.text();
@@ -519,7 +519,7 @@ function writeCustomerKey(headers: Headers, key: ArrayBuffer | string | undefine
     }
 }
 
-/** Describe a written file from what the client sent and the version, time and checksums the bucket answered. */
+/** Describe a written file from what the client sent. */
 function written(key: string, size: number, sent: Headers, answered: Headers): BucketFile {
     // keep the sent metadata without the customer key and the expected digests
     const headers = new Headers(sent);

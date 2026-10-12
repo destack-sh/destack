@@ -7,7 +7,7 @@ import type { BlobStore } from "./store.ts";
 /** One blob of a stored file, its nonce and its length. */
 export type Segment = Pick<typeof segment.$inferSelect, "blob" | "nonce" | "size">;
 
-/** A ranged stream across a file's content segments that closes them before reporting completion. */
+/** A ranged stream across a file's content segments. */
 export class ContentReader {
     /** The selected content stream. */
     readonly stream: ReadableStream<Uint8Array>;

@@ -21,7 +21,7 @@ function check(key: string): void {
     }
 }
 
-/** Find the smallest UTF-8 string above every key with this prefix, or undefined when none exists. */
+/** Find the smallest UTF-8 string above every key with this prefix, else undefined. */
 function prefixEnd(prefix: string): string | undefined {
     // find the last code point that can grow, carrying past the highest ones
     const characters = Array.from(prefix);

@@ -29,7 +29,7 @@ interface MemoryFile {
     readonly bytes: Uint8Array<ArrayBuffer>;
 }
 
-/** File storage in memory, as tests bind it: conditions, ranges, object locks and listings as hosts keep them, multipart uploads refused. */
+/** File storage in memory, as tests bind it. */
 export class MemoryBucket implements Bucket {
     /** The files by key. */
     readonly #files = new Map<string, MemoryFile>();

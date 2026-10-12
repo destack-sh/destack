@@ -22,7 +22,7 @@ export interface LocalBucketHostOptions {
     readonly credentials: (space: Identifier<"space">) => Promise<S3Credentials | undefined>;
 }
 
-/** A device host keeping buckets: one directory each, opened once, and served over S3 at one endpoint. */
+/** A device host that keeps buckets, one directory each, opened once. */
 export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
     /** The provider code of local buckets. */
     readonly provider: string;
@@ -58,7 +58,7 @@ export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
         return isPresent ? this.open({ bucketId: bucketId.data }) : undefined;
     }
 
-    /** Fence a bucket while a transfer copies it, across restarts until lifted, returning once its writes in flight finished, and report whether this call set the fence. */
+    /** Fence a bucket while a transfer copies it, across restarts until lifted. */
     override async fence(bucket: Pick<BucketReference, "bucketId">): Promise<boolean> {
         // mark the bucket fenced in its directory, then refuse its writes
         const opened = await this.open(bucket);

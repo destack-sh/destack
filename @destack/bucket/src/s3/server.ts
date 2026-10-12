@@ -220,7 +220,7 @@ export class S3Server {
         return bucket;
     }
 
-    /** Open the bucket of a copy source and resolve its conditions, reusing the addressed bucket when they match. */
+    /** Open the bucket of a copy source and resolve its conditions. */
     async #source(call: S3Request, bucket: S3Bucket): Promise<CopySource> {
         // open the source bucket
         const source = call.copySource();

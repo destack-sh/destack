@@ -17,7 +17,7 @@ import type { BucketReference } from "../s3/index.ts";
 import { BucketKind } from "../declare/index.ts";
 import { SweepController } from "./sweep.ts";
 
-/** A bucket provider: provisioning, opening, fencing and snapshotting one host's buckets, serving their files through an object's handlers and sweeping them. */
+/** A bucket provider for one host's buckets. */
 export type BucketProvider<Object> = Provider<
     typeof BucketKind,
     Object,
@@ -33,7 +33,7 @@ export type BucketProvider<Object> = Provider<
     readonly controllers: readonly Controller[];
 };
 
-/** Provide a host's buckets under its provider code, one per resource, served through an object's handlers and swept by the host. */
+/** Provide a host's buckets under its provider code, one per resource. */
 export function bucketProvider<Object>(
     buckets: CatalogueBucketHost,
     object: Object,

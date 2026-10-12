@@ -54,19 +54,19 @@ export const PRESIGN_PARAMETERS = [
     "X-Amz-Security-Token",
 ] as const;
 
-/** An authorized request: its access key, its payload hash, and the signature its streamed chunks chain to. */
+/** An authorized request: its access key, payload hash, and the signature its chunks chain to. */
 export interface S3Authorization {
     /** The authorized access key. */
     readonly accessKeyId: string;
     /** The payload hash the request declares. */
     readonly payloadHash: string;
-    /** The signature signed chunks chain to, absent for a request its host authorized without SigV4. */
+    /** The signature signed chunks chain to. */
     readonly chain?: S3ChunkChain;
 }
 
 /** A verified request signature, which signed chunks chain their signatures to. */
 export interface S3ChunkChain {
-    /** Sign a string with the key of the request's day, region and service, as streamed chunks are signed. */
+    /** Sign a string with the key of the request's day, region and service. */
     readonly sign: (value: string) => Promise<string>;
     /** The request time as SigV4 writes it. */
     readonly date: string;
@@ -102,7 +102,7 @@ interface Presigned {
     readonly signature: string;
 }
 
-/** AWS Signature Version 4 as S3 applies it in one region: signing, presigning and verifying requests, keeping a signer per access key. */
+/** AWS Signature Version 4 as S3 applies it in one region. */
 export class S3Signature {
     /** The signed region. */
     readonly region: string;
@@ -114,7 +114,7 @@ export class S3Signature {
         this.region = options.region;
     }
 
-    /** Sign a request with an Authorization header, leaving a body without a declared hash unsigned. */
+    /** Sign a request with an Authorization header. */
     async sign(request: Request, credentials: S3Credentials, now: number): Promise<Request> {
         // stamp the payload hash the signature covers
         const headers = new Headers(request.headers);
@@ -143,7 +143,7 @@ export class S3Signature {
         return copyRequest(request, { headers });
     }
 
-    /** Presign a request, hoisting its x-amz headers into the query and keeping the headers it sends. */
+    /** Presign a request, hoisting its x-amz headers into the query. */
     async presign(
         request: Request,
         credentials: S3Credentials,
@@ -375,7 +375,7 @@ export class S3Signature {
         return accessKeyId;
     }
 
-    /** Accept a client's signature once it equals, in constant time, the one signed again over the same headers. */
+    /** Accept a client's signature once it equals the one signed again over the same headers. */
     #match(
         parts: SignedPart,
         credentials: S3Credentials,
@@ -412,7 +412,7 @@ export class S3Signature {
     }
 }
 
-/** Describe a request as S3 signs it: its path decoded and encoded once, its query, its headers and its payload hash. */
+/** Describe a request as S3 signs it. */
 function signableOf(
     method: string,
     url: URL,

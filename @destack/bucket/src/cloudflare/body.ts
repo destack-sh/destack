@@ -4,7 +4,7 @@ import type { BucketBody } from "../bucket/index.ts";
 /** The bytes an R2 binding takes, with the stream and blob classes the Workers types declare. */
 type R2Value = Cloudflare.ReadableStream | ArrayBuffer | ArrayBufferView | string | Cloudflare.Blob;
 
-/** File bytes passed between Destack and an R2 binding, whose runtime shares the web stream and blob classes. */
+/** File bytes passed between Destack and an R2 binding. */
 export const R2Body = { read, write };
 
 /** Read the stream of a file R2 returns as the web stream it is at runtime. */
@@ -33,7 +33,7 @@ function write(body: BucketBody): R2Value {
     }
 }
 
-/** Check that a value is a web stream or blob, which the Workers runtime declares as its own classes. */
+/** Check that a value is a web stream or blob. */
 function isWorkersValue(value: unknown): value is Cloudflare.ReadableStream | Cloudflare.Blob {
     return value instanceof ReadableStream || value instanceof Blob;
 }

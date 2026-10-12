@@ -9,9 +9,9 @@ import type { BucketListing } from "./list.ts";
 export interface Bucket {
     /** Read metadata; return null when the key does not exist. */
     head(key: string): Promise<BucketFile | null>;
-    /** Read a file, null when the key does not exist, refusing a failed precondition with `PRECONDITION_FAILED`. */
+    /** Read a file, null when the key does not exist. */
     get(key: string, options?: BucketGetOptions): Promise<BucketFileBody | null>;
-    /** Store a complete file, atomically replacing any previous one, refusing a failed precondition with `PRECONDITION_FAILED`. */
+    /** Store a complete file, atomically replacing any previous one. */
     put(key: string, body: BucketBody | null, options?: BucketPutOptions): Promise<BucketFile>;
     /** Delete up to 1000 files; absent keys remain absent. */
     delete(key: string | string[]): Promise<void>;
@@ -35,7 +35,7 @@ export interface BucketGetOptions {
 
 /** Write options. */
 export interface BucketPutOptions {
-    /** The time before which the file can be neither replaced nor deleted, as S3 Object Lock's retain-until date. */
+    /** The time before which the file can be neither replaced nor deleted. */
     retainUntil?: Date;
     /** The preconditions the current file, or its absence, must meet to be replaced. */
     onlyIf?: BucketCondition;
