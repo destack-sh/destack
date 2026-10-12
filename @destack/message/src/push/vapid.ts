@@ -11,7 +11,7 @@ const ALGORITHM = { name: "ECDSA", namedCurve: "P-256" } as const;
 /** The label of a scope's VAPID key, distinct from every other key its root secret derives. */
 const LABEL = "@destack/message/vapid";
 
-/** A VAPID private key as a JWK keeps it, its public point beside the private scalar it keeps loose (RFC 7518 6.2). */
+/** A VAPID private key as a JWK, its public point loose beside the scalar (RFC 7518 6.2). */
 const PrivateKey = schema.looseObject({
     /** The key type. */
     kty: schema.literal("EC"),

@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 
-/** How a webhook message encodes its body: a Standard Webhooks event, or a batch of records as one JSON array or one JSON object per line. */
+/** How a webhook message encodes its body. */
 export const WEBHOOK_FORMATS = ["event", "json", "ndjson"] as const;
 
 /** The HTTPS webhook endpoint a message goes to, and how it authenticates the message. */
@@ -9,14 +9,14 @@ export const WebhookDestination = schema.object({
     channel: schema.literal("webhook"),
     /** The endpoint URL. */
     url: schema.url({ protocol: /^https$/u }),
-    /** How the endpoint authenticates the message with its secret: a Standard Webhooks signature, or the secret's value in a header. */
+    /** How the endpoint authenticates the message: a Standard Webhooks signature, or a header. */
     authentication: schema.discriminatedUnion("kind", [
         schema.object({
             kind: schema.literal("signature"),
         }),
         schema.object({
             kind: schema.literal("header"),
-            /** The header holding the secret's value, such as an intake's API key header, a field name token (RFC 9110 5.1). */
+            /** The header with the secret's value, such as an API key header (RFC 9110 5.1). */
             name: schema.string().regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u),
         }),
     ]),
@@ -29,7 +29,7 @@ export const WebhookDestination = schema.object({
 /** A webhook's event, or a batch of records. */
 export const WebhookContent = schema.object({
     channel: schema.literal("webhook"),
-    /** The event type, such as `issue.regressed`, or the kind of a batch's records, such as `audit.call`. */
+    /** The event type, such as `issue.regressed`, or a batch's record kind, like `audit.call`. */
     type: schema.string().min(1),
     /** How the body encodes the data. */
     format: schema.enum(WEBHOOK_FORMATS),
@@ -37,7 +37,7 @@ export const WebhookContent = schema.object({
     data: schema.json(),
 });
 
-/** Encode a webhook message's body: an event's envelope, or a batch's records as one JSON array or one JSON object per line. */
+/** Encode a webhook body: an event's envelope, or a batch as a JSON array or JSON lines. */
 export function encodeBody(
     id: string,
     createdAt: number,

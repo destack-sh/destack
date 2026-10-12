@@ -1,6 +1,6 @@
 import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 
-/** The service error code of each SES failure: a refused message, a throttle, SES's, or the machine's. */
+/** The service error code per SES failure: a refused message, a throttle, SES or the machine. */
 const SERVICE_CODES = {
     INVALID_OPTIONS: "INTERNAL_SERVER_ERROR",
     CONNECTION: "BAD_GATEWAY",

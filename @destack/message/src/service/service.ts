@@ -4,7 +4,7 @@ import { endpoint, message } from "../object/index.ts";
 
 /** The pushes of a scope: the key its browsers subscribe with. */
 export const push = {
-    /** Read the application server key browsers subscribe to a scope's pushes with, its VAPID public key (RFC 8292 3.2), public as every public key is. */
+    /** Read the VAPID public key browsers subscribe to a scope's pushes with (RFC 8292 3.2). */
     applicationServerKey: defineProcedure({
         authentication: "public",
         permission: "anyone",
@@ -22,7 +22,7 @@ export const push = {
 
 /** The key the messages of a scope are sealed to. */
 export const key = {
-    /** Read the public key the messages of a scope are sealed to, its identity's message key, public as every public key is. */
+    /** Read the public key a scope's messages are sealed to, its identity's message key. */
     read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
         .route({ method: "GET", path: "/keys/{scope}" })
         .input(schema.object({ /** The scope. */ scope: schema.string().min(1) }))
@@ -34,7 +34,7 @@ export const key = {
         ),
 };
 
-/** The messages sent through each channel's provider, the endpoints subscribing scopes' audit histories, the key messages are sealed to, and the key browsers subscribe to pushes with. */
+/** The message service: messages, endpoints and keys. */
 export const messageService = defineService("message", {
     objects: { message, endpoint },
     push,

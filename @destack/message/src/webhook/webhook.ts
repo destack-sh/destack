@@ -8,7 +8,7 @@ import type { ObjectStore } from "@destack/object/server";
 /** The prefix of a Standard Webhooks signing secret. */
 const SECRET_PREFIX = "whsec_";
 
-/** How long a webhook endpoint takes to answer before the send is retried: Standard Webhooks' 15 seconds. */
+/** How long a webhook endpoint may take before the send retries: Standard Webhooks' 15 seconds. */
 const TIMEOUT_MILLISECONDS = 15_000;
 
 /** The media type of each webhook body format. */
@@ -18,7 +18,7 @@ const MEDIA_TYPES = {
     ndjson: "application/x-ndjson",
 } as const;
 
-/** Send webhook messages as HTTPS posts authenticated with the vault secret of each: signed after the Standard Webhooks specification, or with the secret's value in a header. */
+/** Send webhook messages as HTTPS posts authenticated with each message's vault secret. */
 export function webhookProvider(
     readSecret: (
         store: Pick<ObjectStore, "query" | "clock">,
@@ -77,7 +77,7 @@ export function webhookProvider(
 
 /** The signatures of webhook messages, after Standard Webhooks. */
 export const WebhookSignature = {
-    /** Sign a message's identifier, time and body with an endpoint's secret, for the `webhook-signature` header. */
+    /** Sign a message's identifier, time and body with a secret, for `webhook-signature`. */
     async sign(secret: string, id: string, timestamp: string, body: string): Promise<string> {
         // key HMAC-SHA256 with the secret's bytes
         const key = await crypto.subtle.importKey(
@@ -96,7 +96,7 @@ export const WebhookSignature = {
     },
 };
 
-/** Build the header authenticating a webhook post: its signature, or the secret's value in the endpoint's header. */
+/** Build the header authenticating a webhook post: a signature, or the secret in a header. */
 async function authenticate(
     to: Pick<schema.Infer<typeof WebhookDestination>, "authentication">,
     secret: string,
@@ -113,7 +113,7 @@ async function authenticate(
     return { "webhook-signature": signature };
 }
 
-/** Decide whether a fetch failed on the network, as the Fetch Standard's TypeError, or ran out of time, as an AbortSignal's TimeoutError. */
+/** Decide whether a fetch failed on the network or ran out of time. */
 function isUnreachable(error: unknown): error is TypeError | DOMException {
     return (
         error instanceof TypeError ||

@@ -52,7 +52,7 @@ test("sign as the Standard Webhooks specification's example does", async () => {
     ).toBe("v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=");
 });
 
-/** Post webhooks to an endpoint answering with each status in turn, keeping the requests and the secrets read. */
+/** Post webhooks to an endpoint answering each status in turn, keeping requests and secrets. */
 function postTo(statuses: readonly number[]) {
     const requests: { url: string; headers: Headers; body: string }[] = [];
     const read: [ObjectReference, Subject][] = [];

@@ -66,7 +66,7 @@ export const PushEncryption = {
         return concat(header, sealed);
     },
 
-    /** Derive a message's content key and nonce from the agreed secret, as sender and browser alike do (RFC 8291 3.4). */
+    /** Derive a message's content key and nonce from the agreed secret, as RFC 8291 3.4 does. */
     async deriveKeys(agreed: {
         /** The browser's authentication secret. */
         readonly auth: Uint8Array<ArrayBuffer>;

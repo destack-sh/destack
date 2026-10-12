@@ -5,11 +5,11 @@ import type { Vapid } from "./vapid.ts";
 
 /** A provider of push messages, which also answers the key a scope's browsers subscribe with. */
 export interface PushProvider extends MessageProvider {
-    /** Read the application server key browsers subscribe to a scope's pushes with, its VAPID public key (RFC 8292 3.2). */
+    /** Read the VAPID public key browsers subscribe to a scope's pushes with (RFC 8292 3.2). */
     applicationServerKey(scope: string): Promise<string>;
 }
 
-/** Send push messages to browsers through their push services, encrypted for each browser and signed with the VAPID keys of the message's scope. */
+/** Send push messages to browsers through their push services. */
 export function pushProvider(
     vapid: (scope: string) => Promise<Vapid>,
     fetch: Fetch = globalThis.fetch,

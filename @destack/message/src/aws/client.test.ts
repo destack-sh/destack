@@ -35,7 +35,7 @@ interface Received {
     readonly initialize: RequestInit;
 }
 
-/** The refusals SES answers with: each case's answer, failure code, AWS code and whether a retry may pass. */
+/** The refusals of SES: each case's answer, failure code, AWS code and whether a retry may pass. */
 const REFUSALS: [string, () => Response, SesErrorCode, string | undefined, boolean][] = [
     [
         "throttling",

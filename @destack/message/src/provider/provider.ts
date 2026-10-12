@@ -8,10 +8,10 @@ export const GONE = "gone";
 /** The statuses of a recipient that forgot the endpoint, 404 and 410 (RFC 8030 7.3). */
 const GONE_STATUSES: ReadonlySet<number> = new Set([404, 410]);
 
-/** The statuses of a recipient asking for a later try: a timeout, a request too early and throttling (RFC 9110 15.5.9, RFC 8470 5.2, RFC 6585 4). */
+/** The statuses asking for a later try: a timeout, a request too early and throttling. */
 const RETRIED_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
 
-/** What a provider made of one message: sent, refused for a while and retried after a wait it may give in milliseconds, or refused for good. */
+/** What a provider made of one message: sent, retried, or refused for good. */
 const outcome = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({ kind: schema.literal("sent") }),
@@ -34,7 +34,7 @@ export type Outcome = schema.Infer<typeof outcome>;
 
 /** What a provider made of one message, and how an HTTP answer reads as one. */
 export const Outcome = Object.assign(outcome, {
-    /** Read an HTTP answer as sent, forgotten, retried after its Retry-After counted from a time, or failed. */
+    /** Read an HTTP answer as sent, forgotten, retried after its Retry-After, or failed. */
     read(response: Response, now: number): Outcome {
         // send on success and fail for good at a forgotten endpoint
         const error = { code: String(response.status), message: response.statusText };
@@ -54,9 +54,9 @@ export const Outcome = Object.assign(outcome, {
     },
 });
 
-/** A provider sending the messages of one channel, such as a mail transport for email or Standard Webhooks for webhooks. */
+/** A provider sending one channel's messages, such as a mail transport or Standard Webhooks. */
 export interface MessageProvider {
-    /** Send one message with its opened content, keyed by its identifier so a repeated send delivers it once, reading what it needs through the space's store. */
+    /** Send one message with its opened content, keyed by its identifier to deliver it once. */
     send(
         message: Pick<Message, "id" | "scope" | "createdAt" | "to"> & {
             /** What it says. */
@@ -66,7 +66,7 @@ export interface MessageProvider {
     ): Promise<Outcome>;
 }
 
-/** Read a Retry-After header as milliseconds from now, in seconds or as an HTTP date (RFC 9110 10.2.3), absent without one. */
+/** Read a Retry-After header as milliseconds from now, absent without one. */
 function retryAfter(header: string | null, now: number): number | undefined {
     // read the header as seconds or as a date
     const seconds = Number(header ?? Number.NaN);

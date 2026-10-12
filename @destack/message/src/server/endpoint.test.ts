@@ -28,14 +28,14 @@ import { EndpointReader, serveEndpoints } from "./endpoint.ts";
 import { serveMessages } from "./server.ts";
 import { RequestId } from "@destack/service/request";
 
-/** The scope type the endpoints and their messages live in, as an organisation is in the universe. */
+/** The scope type of the endpoints and their messages, as an organisation is in the universe. */
 const place = new Policy(import.meta.destack.package, {
     name: "place",
     permissions: {},
     scope: true,
 });
 
-/** A database keeping endpoints, their messages and the audit history they deliver, as a machine keeps them. */
+/** A database with endpoints, their messages and their audit history, as a machine keeps them. */
 const endpointDatabase = defineDatabase({
     name: "endpoint",
     tables: [...messageTables, journal, ...eventTables([audit.call]), outbox],
@@ -160,7 +160,7 @@ function finished(
     );
 }
 
-/** Serve endpoints over an audit history and the messages they send, posting to a URL answering each post with the next status in turn. */
+/** Serve endpoints over an audit history and their messages. */
 async function serveHistory(statuses: readonly number[]) {
     // post through the webhook provider and keep the posts and the secrets read
     const posts: { headers: Headers; body: string }[] = [];
@@ -226,7 +226,7 @@ async function serveHistory(statuses: readonly number[]) {
     };
 }
 
-/** Open the events keeping the audit history, routing each call to the scopes enclosing its scope. */
+/** Open the events keeping the audit history, routing each call to its enclosing scopes. */
 function openEvents(database: DatabaseConnection): EventStore {
     const store = new EventStore({
         clock: Clock.system,
@@ -269,7 +269,7 @@ async function readDelivery(database: DatabaseConnection, id: Identifier<"endpoi
     };
 }
 
-/** Keep an enabled endpoint of the scope delivering from before every call, as its creator wrote it. */
+/** Keep an enabled endpoint delivering from before every call, as its creator wrote it. */
 async function subscribe(
     database: DatabaseConnection,
     fields: Pick<Endpoint, "events" | "format" | "authentication">,
@@ -301,7 +301,7 @@ async function readEndpoint(
     return present(row, "the endpoint");
 }
 
-/** Read posted events in the order of their data: their data, their types, and whether the secret signed each. */
+/** Read posted events in data order: data, type, and whether the secret signed each. */
 async function readEvents(posts: readonly { readonly headers: Headers; readonly body: string }[]) {
     // order the envelopes by their data
     const bodies = posts
@@ -461,7 +461,7 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
         served.objects.mutate(
             Caller.of(HOST, Date.now()),
             {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [
                     endpoint.call("update", {
                         ...endpoint.target(await readEndpoint(served.database, id)),

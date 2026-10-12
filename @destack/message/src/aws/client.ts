@@ -47,7 +47,7 @@ const Refusal = schema.looseObject({
 export interface SesOptions {
     /** The AWS region requests are signed for, such as eu-central-1. */
     readonly region: string;
-    /** The origin of the SESv2 API: the region's (`SesClient.endpoint`), or a local SES-compatible inbox in development. */
+    /** The SESv2 origin: the region's (`SesClient.endpoint`), or a local inbox in development. */
     readonly endpoint: string;
     /** The signing credentials, asked once per send so temporary ones refresh. */
     readonly credentials: () => Promise<AwsCredentials>;
@@ -65,7 +65,7 @@ export class SesClient {
     readonly endpoint: string;
     /** The options. */
     readonly #options: SesOptions;
-    /** The signer of SES requests in the region with the last credentials, absent before the first send. */
+    /** The signer of SES requests with the last credentials, absent before the first send. */
     #signer: AwsSigner | undefined;
     /** The fetch function. */
     readonly #fetch: Fetch;
@@ -89,7 +89,7 @@ export class SesClient {
         this.#fetch = options.fetch ?? fetch;
     }
 
-    /** Keep a signer of the current credentials, which reuses its daily signing keys until they change. */
+    /** Keep a signer of the current credentials, reusing its daily keys until they change. */
     async #upsertSigner(credentials: AwsCredentials): Promise<AwsSigner> {
         // reuse the signer of unchanged credentials
         const kept = this.#signer;

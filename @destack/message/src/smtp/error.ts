@@ -1,7 +1,7 @@
 import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
 import type { Reply } from "./reply.ts";
 
-/** The service error code of each SMTP failure: a bad envelope, a refused message, the relay's, or the machine's. */
+/** The service error code per SMTP failure: an envelope, a message, the relay or the machine. */
 const SERVICE_CODES = {
     INVALID_OPTIONS: "INTERNAL_SERVER_ERROR",
     INSECURE: "INTERNAL_SERVER_ERROR",

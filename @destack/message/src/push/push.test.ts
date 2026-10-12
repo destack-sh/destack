@@ -93,7 +93,7 @@ test("sign VAPID tokens for the push service's origin, verifiable with the appli
     );
 });
 
-/** Push to one browser through a push service answering each post with the next response, signing with one scope's keys. */
+/** Push to a browser through a push service answering with the next response, signed per scope. */
 async function pushTo(responses: Response[]) {
     // sign with one key pair, keeping the scopes it is derived for
     const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
@@ -225,7 +225,7 @@ function answerInTurn(responses: Response[]) {
     return { fetch, posted };
 }
 
-/** Read a VAPID Authorization header: whether its key verifies its token, the token's header and claims, and the key. */
+/** Read a VAPID Authorization header: whether its key verifies its token, the token and key. */
 async function readVapid(authorization: string) {
     // split the token and the key, and the token into its header, claims and signature
     const match = /^vapid t=([^,]+), k=(.+)$/u.exec(authorization);

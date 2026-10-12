@@ -4,7 +4,7 @@ import tls from "node:tls";
 import type { BearerCredentials, PlainCredentials, Security } from "../smtp/index.ts";
 import type { TestCertificate } from "./certificate.ts";
 
-/** The XOAUTH2 error challenge, base64 of the JSON status a mail provider sends before its final 535. */
+/** The XOAUTH2 error challenge: base64 of the JSON status a mail provider sends before 535. */
 const XOAUTH2_CHALLENGE = btoa('{"status":"401","schemes":"bearer"}');
 
 /** How a test server's sessions protect their bytes, with the certificate TLS presents. */

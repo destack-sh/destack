@@ -74,7 +74,7 @@ function run(database: DatabaseConnection, controllers: readonly Controller[]): 
     });
 }
 
-/** Serve a scope's messages, sending them through an email provider answering in turn, and keeping their content for a retention. */
+/** Serve a scope's messages through an email provider answering in turn, with a retention. */
 async function serveMessages(answers: readonly Outcome[], retention: Duration = { minutes: 1 }) {
     // keep the messages, sending each email through a provider answering in turn
     const { provider, sent, texts } = answerInTurn(answers);
@@ -111,7 +111,7 @@ async function serveMessages(answers: readonly Outcome[], retention: Duration = 
     await fixture.copyOwner(scope, SPACE);
     const id = schema.identifier("message").parse(message.generateId());
     await messages.mutate(Caller.of(SPACE, Date.now()), {
-        id: RequestId.create(),
+        id: RequestId.create(Date.now()),
         calls: [
             message.call("create", {
                 ...message.target({ scope: scope.id, id }),
@@ -206,7 +206,7 @@ async function listCallers(database: DatabaseConnection) {
     ]);
 }
 
-/** List the tables whose stored rows hold the content's text, or its ciphertext as a compact JWE. */
+/** List the tables whose rows have the content's text, or its ciphertext as a compact JWE. */
 async function listLeaks(database: DatabaseConnection): Promise<string[]> {
     const leaking: string[] = [];
     for (const table of messageTables) {

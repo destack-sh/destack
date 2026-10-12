@@ -17,25 +17,25 @@ import {
     MessageKey,
 } from "../object/index.ts";
 
-/** The calls on one page of an endpoint's history: a hundred calls of about a kilobyte post about 100 KB as one batch. */
+/** The calls on one page of an endpoint's history: a hundred 1 KB calls post one 100 KB batch. */
 const PAGE_CALLS = 100;
 
-/** How long the history keeps the calls an endpoint has not read: seven days, past the longest retry of a failing endpoint. */
+/** How long the history keeps unread calls: seven days, past a failing endpoint's longest retry. */
 const HOLD_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
 /** The record type of a batch of calls. */
 const RECORD_TYPE = "audit.call";
 
-/** The object types of this package whose controllers' calls deliver the endpoints' messages, which no endpoint receives. */
+/** The object types whose controller calls deliver messages, which no endpoint receives. */
 const DELIVERY_TYPES: ReadonlySet<string> = new Set([
     message.name,
     messageAttempt.name,
     endpoint.name,
 ]);
 
-/** What endpoints deliver from: the calls their scopes' events keep, and the key their messages are sealed to. */
+/** What endpoints deliver from: their scopes' calls and the key their messages are sealed to. */
 export interface EndpointOptions {
-    /** The events keeping the calls of the endpoints' scopes and the scopes inside them, read in commit order. */
+    /** The calls of the endpoints' scopes and the scopes inside them, read in commit order. */
     readonly events: EventStore;
     /** Read the public key the messages of a scope are sealed to, its message home's. */
     readonly key: (scope: string) => Promise<string>;
@@ -49,7 +49,7 @@ export const EndpointReader = {
     },
 };
 
-/** Serve endpoints: deliver each enabled endpoint's calls page by page as webhook messages from its creation on, and mark it delivered or failing by its last settled message. */
+/** Serve endpoints: deliver each enabled endpoint's calls page by page as webhook messages. */
 export function serveEndpoints(options: EndpointOptions) {
     return endpoint.implement({
         methods: {
@@ -103,7 +103,7 @@ export function serveEndpoints(options: EndpointOptions) {
     });
 }
 
-/** Deliver an endpoint's next page of calls as messages, then advance its cursor and its Delivered condition, looking again at once after a full page. */
+/** Deliver an endpoint's next page of calls as messages, then advance its cursor and condition. */
 async function deliver(
     reconciliation: ObjectReconciliation<typeof endpoint>,
     row: Endpoint,
@@ -145,7 +145,7 @@ async function deliver(
 
     // keep the endpoint's place past the page, holding the calls after it
     if (page.sequence > after) {
-        await reader.advance(reconciliation.database, page.sequence, reconciliation.now);
+        await reader.move(reconciliation.database, after, page.sequence, reconciliation.now);
     }
 
     // mark the endpoint by its last settled message
@@ -180,12 +180,12 @@ async function mark(
     ]);
 }
 
-/** Report whether an endpoint receives a call: one of its events, and never a delivery of its messages. */
+/** Report whether an endpoint receives a call: one of its events, and no message delivery. */
 function isSubscribed(row: Endpoint, call: audit.AuditCall): boolean {
     return !isDelivery(call) && (row.events === "all" || row.events.includes(call.method));
 }
 
-/** Report whether a call is this package's own delivery of endpoints' messages, made by one of its controllers, which no endpoint receives. */
+/** Report whether a call is one of this package's controllers delivering endpoint messages. */
 function isDelivery(call: audit.AuditCall): boolean {
     const { component, package: served } = call.execution.context;
     const type = call.method.slice(0, call.method.lastIndexOf("."));
@@ -193,11 +193,7 @@ function isDelivery(call: audit.AuditCall): boolean {
     return component !== undefined && served.id === message.package.id && DELIVERY_TYPES.has(type);
 }
 
-/**
- * Describe the messages holding a page's calls to an endpoint: one event per call, or one batch of them all.
- *
- * Each request derives from the endpoint's generation and the page's position, at a time no older than the endpoint's last change, so a repeat creates nothing twice.
- */
+/** Describe the messages with a page's calls to an endpoint: an event per call, or one batch. */
 async function describeMessages(
     row: Endpoint,
     calls: readonly audit.AuditCall[],
@@ -245,7 +241,7 @@ async function describeMessages(
     ];
 }
 
-/** Describe one message to an endpoint, its content sealed to its home's key and authenticated with its secret read as its user. */
+/** Describe one message to an endpoint, sealed to its home's key and signed by its secret. */
 async function describeMessage(
     row: Endpoint,
     key: string,

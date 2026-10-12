@@ -133,7 +133,7 @@ export class SmtpConnection {
         await this.#wait(secure, "secureConnect");
     }
 
-    /** Send QUIT and wait for the server to end the connection, closing it at the deadline at the latest. */
+    /** Send QUIT and wait for the server to end the connection, closing it at the deadline. */
     async close(): Promise<void> {
         // ask the server to end the session, sending nothing more
         const closed = new Promise<void>((resolve) => {

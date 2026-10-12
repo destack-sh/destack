@@ -62,7 +62,7 @@ function readSubmission(submission: Submission): Outcome {
     return reply.class === 2 ? { kind: "sent" } : readReply(reply);
 }
 
-/** Read a session's failure: a lost connection or a timeout retried, a rejection by its reply, anything else failed. */
+/** Read a session's failure: retry lost connections and timeouts, read rejections, fail others. */
 function readFailure(error: SmtpError): Outcome {
     const refusal = { code: error.code, message: error.message };
 

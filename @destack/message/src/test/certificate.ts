@@ -78,7 +78,7 @@ export class TestCertificate {
     }
 }
 
-/** Encode a certificate's signed body: issuer and subject 127.0.0.1, its validity, key and address. */
+/** Encode a certificate's signed body: issuer and subject 127.0.0.1, validity, key and address. */
 function certificateBody(
     algorithm: Uint8Array<ArrayBuffer>,
     publicKey: Uint8Array,

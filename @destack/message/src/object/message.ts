@@ -16,25 +16,21 @@ export const CHANNELS = ["email", "push", "webhook"] as const;
 /** A channel a message goes out on. */
 export type Channel = (typeof CHANNELS)[number];
 
-/** Where a message goes: an email address, a browser's Web Push endpoint, or an HTTPS webhook endpoint. */
+/** Where a message goes: an email address, a Web Push endpoint, or an HTTPS webhook endpoint. */
 export const Destination = defineSchema(
     schema.discriminatedUnion("channel", [EmailDestination, PushDestination, WebhookDestination]),
 );
 /** Where a message goes. */
 export type Destination = schema.Infer<typeof Destination>;
 
-/** What a message says on its channel: an email's subject and bodies, a push's payload, or a webhook's event. */
+/** What a message says: an email's subject and bodies, a push payload, or a webhook event. */
 export const Content = defineSchema(
     schema.discriminatedUnion("channel", [EmailContent, PushContent, WebhookContent]),
 );
 /** What a message says on its channel. */
 export type Content = schema.Infer<typeof Content>;
 
-/**
- * A home's message key: producers seal a message's content to its public half, and the home's machine opens it to send.
- *
- * Sealing binds the message's scope, so no other scope's message opens the content.
- */
+/** A home's message key, whose public half producers seal message content to. */
 export class MessageKey {
     /** The key pair, its private half held only by the home's machine. */
     readonly #recipient: identity.Recipient;
@@ -44,7 +40,7 @@ export class MessageKey {
         this.#recipient = recipient;
     }
 
-    /** Derive a home's message key from its identity's root secret, the same until the root changes. */
+    /** Derive a home's message key from its identity's root secret, stable until it changes. */
     static async derive(root: Pick<identity.Deriver, "derivePrivateKey">): Promise<MessageKey> {
         return new MessageKey(await identity.Recipient.derive(root, MESSAGE_LABEL));
     }
@@ -94,7 +90,7 @@ export const message = defineObject({
     fields: {
         /** Where it goes. */
         to: field.json(Destination),
-        /** What it says, sealed by its producer to its home's message key, and erased once its retention after settling passes. */
+        /** The content sealed by its producer to the home's message key. */
         ciphertext: field.string(identity.Ciphertext).sensitive().optional(),
         /** The object the message delivers for: an endpoint, or a notification's delivery. */
         source: field.json(ObjectReference),
@@ -106,7 +102,7 @@ export const message = defineObject({
         settledAt: field.time().optional(),
         /** When the next attempt is due after a temporary refusal, absent once settled. */
         retryAt: field.time().optional(),
-        /** When its sealed content was erased, which the change log shows where it leaves the content out. */
+        /** When its sealed content was erased, as the change log shows when it leaves it out. */
         erasedAt: field.time().optional(),
     },
     constraints: (entry) => [
@@ -134,13 +130,13 @@ export const message = defineObject({
     methods: (method) => ({
         get: method.get("read"),
         list: method.list("read"),
-        /** Send a pending message with its sealed content, whose identifier the requester may choose as its idempotency key. */
+        /** Send a pending message with its sealed content. */
         create: method.create("send", {
             fields: ["to", "source"],
             variants: { status: { pending: ["ciphertext"] } },
             isPredicted: false,
         }),
-        /** Erase a settled message's sealed content once its retention passes, as the message controller does. */
+        /** Erase a settled message's sealed content after its retention, as the controller does. */
         erase: method.mutation({ permission: "erase", isInternal: true }),
     }),
 }).implement({
@@ -149,7 +145,7 @@ export const message = defineObject({
 /** A message as its table stores it. */
 export type Message = Select<typeof message.table>;
 
-/** The conditions the message controller reports: Sent, once its provider settles a message or while it retries. */
+/** The conditions the message controller reports: Sent, once settled or while retrying. */
 export const messageConditions = new Conditions(["Sent"]);
 
 /** Bind sealed content to the scope of its message, so no other scope's message opens it. */

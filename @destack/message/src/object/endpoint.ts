@@ -9,7 +9,7 @@ import { WEBHOOK_FORMATS, WebhookDestination } from "../webhook/message.ts";
 /** The most event types one endpoint subscribes to, a screen of event names. */
 const MAX_ENDPOINT_EVENTS = 100;
 
-/** A scope's subscription to its audit history and the history of the scopes inside it, delivered as webhook messages to an HTTPS URL. */
+/** A scope's webhook subscription to its audit history and the histories of scopes inside it. */
 export const endpoint = defineObject({
     name: "endpoint",
     plural: "endpoints",
@@ -24,7 +24,7 @@ export const endpoint = defineObject({
                 schema.array(AuditActionName).min(1).max(MAX_ENDPOINT_EVENTS),
             ]),
         ),
-        /** How each message encodes the calls: one event per call, or a page of calls as JSON or NDJSON. */
+        /** How each message encodes the calls: one event per call, or a JSON or NDJSON page. */
         format: field.enum(WEBHOOK_FORMATS).default("event"),
         /** How the endpoint authenticates each message with the secret. */
         authentication: field.json(WebhookDestination.shape.authentication),
@@ -52,5 +52,5 @@ export const endpoint = defineObject({
 /** A persisted endpoint. */
 export type Endpoint = Select<typeof endpoint.table>;
 
-/** The conditions the endpoint controller reports: Delivered, by an endpoint's last settled message. */
+/** The conditions the endpoint controller reports: Delivered, by the last settled message. */
 export const endpointConditions = new Conditions(["Delivered"]);

@@ -15,7 +15,7 @@ export interface Browser {
     readonly pair: CryptoKeyPair;
 }
 
-/** Subscribe a browser to push: a fresh key pair and authentication secret, as PushManager.subscribe makes them. */
+/** Subscribe a browser to push with a fresh key pair and secret, as PushManager.subscribe does. */
 export async function subscribeBrowser(): Promise<Browser> {
     // draw the key pair and the authentication secret
     const pair = await crypto.subtle.generateKey(CURVE, true, ["deriveBits"]);
