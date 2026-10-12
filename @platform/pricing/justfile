@@ -10,11 +10,11 @@ typecheck:
 
 # lint
 lint:
-    bun run destack-check check src tests vitest.config.ts README.md
+    bun run destack-check check src tests scripts vitest.config.ts README.md
 
 # check formatting
 format-check:
-    bun run destack-check format-check src tests vitest.config.ts package.json destack.json
+    bun run destack-check format-check src tests scripts vitest.config.ts package.json destack.json
 
 # typecheck, lint and check formatting
 check: typecheck lint format-check
@@ -23,6 +23,14 @@ check: typecheck lint format-check
 test:
     bun run test
 
+# read every vendor's list prices from its catalog and rewrite the vendor modules
+refresh *vendors:
+    bun run refresh {{vendors}}
+
+# print each unit's price beside its cost and the hyperscalers' prices on its meter
+compare:
+    bun run compare
+
 # format
 format *args:
-    bun run destack-check format {{args}} src tests vitest.config.ts package.json destack.json
+    bun run destack-check format {{args}} src tests scripts vitest.config.ts package.json destack.json

@@ -1,15 +1,25 @@
-import { CapacityClass } from "@destack/account/object";
+import { Tenancy } from "@destack/account/object";
 import { defineFeature } from "@destack/finance/declare";
 import * as meters from "@destack/observability/meter";
 import { schema } from "@destack/schema";
 
-/** The bytes an account keeps in its databases and buckets together, capped at the bytes kept now. */
+/** The bytes an account keeps in its databases, capped at the bytes kept now. */
+export const database = defineFeature({
+    name: "database",
+    description: "Bytes kept in databases.",
+    kind: "metered",
+    allowance: "database",
+    meters: [meters.databaseBytes.reference],
+    reset: "never",
+});
+
+/** The bytes an account keeps in its buckets, capped at the bytes kept now. */
 export const storage = defineFeature({
     name: "storage",
-    description: "Bytes kept in databases and buckets.",
+    description: "Bytes kept in buckets.",
     kind: "metered",
     allowance: "storage",
-    meters: [meters.databaseStorage.reference, meters.bucketStorage.reference],
+    meters: [meters.storageBytes.reference],
     reset: "never",
 });
 
@@ -19,17 +29,27 @@ export const compute = defineFeature({
     description: "GB-seconds run per billing period.",
     kind: "metered",
     allowance: "compute",
-    meters: [meters.compute.reference],
+    meters: [meters.memory.reference],
     reset: "period",
 });
 
-/** The capacity classes an account's spaces may run in. */
-export const capacityClasses = defineFeature({
-    name: "capacityClasses",
-    description: "Capacity classes the account's spaces may run in.",
+/** The bytes an account's spaces send out per billing period. */
+export const network = defineFeature({
+    name: "network",
+    description: "Bytes sent out per billing period.",
+    kind: "metered",
+    allowance: "network",
+    meters: [meters.egress.reference],
+    reset: "period",
+});
+
+/** Where an account's spaces may run. */
+export const tenancy = defineFeature({
+    name: "tenancy",
+    description: "Where the account's spaces may run.",
     kind: "static",
-    allowance: "capacity",
-    value: schema.array(CapacityClass),
+    allowance: "tenancy",
+    value: schema.array(Tenancy),
 });
 
 /** The help people give an account. */
@@ -46,13 +66,4 @@ export const customDomains = defineFeature({
     description: "Serving spaces under the account's own domains.",
     kind: "boolean",
     allowance: "domain",
-});
-
-/** The most members an organisation account holds, unlimited when null; members are never billed per seat. */
-export const members = defineFeature({
-    name: "members",
-    description: "The most members an organisation holds; members are never billed per seat.",
-    kind: "static",
-    allowance: "membership",
-    value: schema.int().positive().nullable(),
 });

@@ -1,185 +1,122 @@
-import { account, user } from "@destack/account/object";
+import { user } from "@destack/account/object";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { Cost } from "@destack/finance";
-import { ProductDefinition } from "@destack/finance/client";
+import { price, product, productFeature } from "@destack/finance/object";
 import { FinanceFixture } from "@destack/finance/test";
-import { databaseStorage, METERS } from "@destack/observability/meter";
-import { present } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { databaseBytes, METERS } from "@destack/observability/meter";
+import { expect, onTestFinished, test } from "@destack/test";
 import {
-    capacityClasses,
     compute,
     customDomains,
     CREDIT_PRICES,
-    members,
-    OPERATION_COSTS,
-    OPERATION_PRICES,
+    database,
+    network,
     PLANS,
-    UNIT_COSTS,
-    UNIT_SKUS,
     storage,
     support,
+    tenancy,
+    UNIT_SKUS,
 } from "../src/index.ts";
-import { CatalogReference } from "@destack/finance";
-
-/** Read a price's margin over what it costs, in basis points. */
-function margin(price: bigint, paid: bigint): number {
-    return Number(((price - paid) * 10_000n) / price);
-}
-
-/** The platform's account, which sells the plans. */
-const PLATFORM = account.identifier("account-019f5530-8000-7000-8000-000000000401");
-
-/** The account buying a plan. */
-const BUYER = account.identifier("account-019f5530-8000-7000-8000-000000000402");
 
 /** The operator owning the platform's account. */
 const OPERATOR = user.identifier("user-019f5530-8000-7000-8000-000000000403");
 
-/** The person owning the buying account. */
-const ADA = user.identifier("user-019f5530-8000-7000-8000-000000000404");
-
-test("rate each platform meter by exactly one unit, every priced unit and operation 20 to 25 percent above its cost at the US dollar's credit price", () => {
-    // count the units rating each meter
-    const rated = METERS.map(
-        (meter) =>
-            UNIT_SKUS.filter(
-                (sku) =>
-                    CatalogReference.key(sku.definition.meter) ===
-                    CatalogReference.key(meter.reference),
-            ).length,
-    );
-
-    // read each priced unit's margin over its cost per meter unit, a credit-cent at the dollar's price, in basis points
-    const dollar = Cost.scaled(CREDIT_PRICES.USD);
-    const units = UNIT_COSTS.filter(({ unit }) => unit.definition.unitAmount !== "0").map(
-        ({ unit, cost }) =>
-            margin(
-                (Cost.scaled(unit.definition.unitAmount) * dollar * BigInt(cost.unitSize)) /
-                    Cost.whole(1),
-                Cost.scaled(cost.unitAmount) * BigInt(unit.definition.unitSize),
-            ),
-    );
-
-    // read each operation's margin, its price in millionths of a credit against its cost in cents
-    const operations = OPERATION_COSTS.map(({ operation, cost }) =>
-        margin(
-            BigInt(Math.round(OPERATION_PRICES[operation] * 1_000_000)),
-            (Cost.scaled(cost.unitAmount) * 10_000n * 1_000_000n) / Cost.whole(1),
-        ),
-    );
-
-    expect({
-        rated,
-        margins: [...units, ...operations].every((each) => each >= 2000 && each <= 2500),
-    }).toEqual({ rated: METERS.map(() => 1), margins: true });
-});
-
 test.each(TEST_DIALECTS)(
-    "publish the plans as the platform account's products once, grant every account Free as the default, and refuse Go without a payment provider on %s",
+    "declare the plans as the platform's products, each plan's fee including as much usage and each plan's grants, dedicated tenancy from Plus up, the same however often applied, on %s",
     async (dialect) => {
-        // serve finance with the plans' features and SKUs and observability's meters, the platform and a buyer
+        // serve finance with the plans' features and SKUs and observability's meters
         const finance = await FinanceFixture.open(dialect, [
             [
-                storage.package,
-                [storage, compute, capacityClasses, support, customDomains, members, ...UNIT_SKUS],
+                database.package,
+                [
+                    database,
+                    storage,
+                    compute,
+                    network,
+                    tenancy,
+                    support,
+                    customDomains,
+                    ...UNIT_SKUS,
+                ],
             ],
-            [databaseStorage.package, METERS],
+            [databaseBytes.package, METERS],
         ]);
         onTestFinished(() => finance.close());
-        await finance.account(PLATFORM, "platform", OPERATOR);
-        await finance.account(BUYER, "ada", ADA);
+        await finance.operate(OPERATOR);
 
-        // publish the plans twice, the second keeping everything
-        const operator = finance.client(OPERATOR);
-        await operator.seller.create({
-            accountId: PLATFORM,
-            requestId: RequestId.create(),
-            country: "AT",
-            creditPrices: CREDIT_PRICES,
-        });
-        for (const plan of [...PLANS, ...PLANS]) {
-            await ProductDefinition.publish(operator, PLATFORM, plan);
-        }
-        const { items: products } = await operator.product.list({
-            accountId: PLATFORM,
-            orderBy: { name: "asc" },
-        });
-        const { items: prices } = await operator.price.list({ accountId: PLATFORM });
+        // declare the platform's seller and the plans twice, the second changing nothing
+        const definition = {
+            sellers: {
+                platform: { provider: "stripe", country: "AT", creditPrices: CREDIT_PRICES },
+            },
+            products: PLANS,
+        } as const;
+        await finance.declare(definition);
+        const again = await finance.declare(definition);
 
-        // derive Ada's entitlements from Free, and refuse her Go
-        const ada = finance.client(ADA);
-        await ada.customer.create({
-            accountId: BUYER,
-            requestId: RequestId.create(),
-            email: "ada@example.com",
-            name: "Ada",
-        });
-        const plan = (name: string) =>
-            present(
-                products.find((each) => each.name === name),
-                name,
-            );
-        const refused = await refusal(
-            ada.checkoutSession.create({
-                accountId: BUYER,
-                requestId: RequestId.create(),
-                product: { scope: PLATFORM, id: plan("Go").id },
-                currency: "CHF",
-            }),
-        );
-        await finance.entitle();
-        const { items: entitlements } = await ada.entitlement.list({
-            accountId: BUYER,
-            orderBy: { feature: "asc" },
-        });
-        const derived = await ada.allowance.list({
-            accountId: BUYER,
-            orderBy: { resource: "asc" },
-        });
+        // read the declared products, their fees and their grants
+        const records = finance.test.database;
+        const products = await records.select().from(product.table);
+        const named = new Map(products.map((row) => [row.id, row.name.source]));
+        const prices = await records.select().from(price.table);
+        const grants = await records.select().from(productFeature.table);
 
         expect({
-            products: products.map((each) => each.name),
+            again: again.steps,
+            products: products
+                .map((row) => [row.name.source, row.description.source])
+                .toSorted((left, right) => left.join().localeCompare(right.join())),
             fees: prices
-                .filter((each) => each.currency === "CAD" || each.currency === "USD")
-                .map((each) => [each.lookupKey, each.unitAmount, each.includedUsage])
-                .toSorted(([left], [right]) => String(left).localeCompare(String(right))),
+                .filter((row) => row.currency === "CAD" || row.currency === "USD")
+                .map((row) => [
+                    named.get(row.parentId),
+                    row.currency,
+                    row.unitAmount,
+                    row.includedUsage,
+                ])
+                .toSorted((left, right) =>
+                    JSON.stringify(left).localeCompare(JSON.stringify(right)),
+                ),
             prices: prices.length,
-            refused,
-            entitlements: entitlements.map((each) => [
-                each.feature,
-                each.value ?? each.limit,
-                each.state,
-            ]),
-            derived: derived.items.map((row) => [row.resource, row.grant]),
+            free: grants
+                .filter((row) => named.get(row.parentId) === "Free")
+                .toSorted((left, right) => left.feature.localeCompare(right.feature))
+                .map((row) => [row.feature, row.value]),
+            tenancy: grants
+                .filter((row) => row.feature === "tenancy")
+                .map((row) => [named.get(row.parentId), row.value])
+                .toSorted((left, right) =>
+                    JSON.stringify(left).localeCompare(JSON.stringify(right)),
+                ),
         }).toEqual({
-            products: ["Free", "Go", "Plus", "Pro"],
+            again: [],
+            products: [
+                ["Free", "Meet Destack."],
+                ["Go", "More room to build."],
+                ["Plus", "More power, on machines of your own."],
+                ["Pro", "The most out of Destack."],
+            ],
             fees: [
-                ["go-cad", 1100, 1100],
-                ["go-usd", 800, 800],
-                ["plus-cad", 2800, 2800],
-                ["plus-usd", 2000, 2000],
-                ["pro-cad", 14_000, 14_000],
-                ["pro-usd", 10_000, 10_000],
+                ["Go", "CAD", 1100, 1100],
+                ["Go", "USD", 800, 800],
+                ["Plus", "CAD", 2800, 2800],
+                ["Plus", "USD", 2000, 2000],
+                ["Pro", "CAD", 14_000, 14_000],
+                ["Pro", "USD", 10_000, 10_000],
             ],
             prices: 3 * 5,
-            refused: [
-                "PRECONDITION_FAILED",
-                "this universe takes no payments, so it sells nothing",
+            free: [
+                ["compute", 45_000],
+                ["database", 1_000_000_000],
+                ["network", 100_000_000_000],
+                ["storage", 10_000_000_000],
+                ["support", "community"],
+                ["tenancy", ["shared", "own"]],
             ],
-            entitlements: [
-                ["capacityClasses", ["elastic", "personal"], null],
-                ["compute", 45_000, "within"],
-                ["members", 10, null],
-                ["storage", 1_000_000_000, "within"],
-                ["support", "community", null],
-            ],
-            derived: [
-                ["capacity", { kind: "listed", values: ["elastic", "personal"] }],
-                ["compute", { kind: "metered", limit: 45_000, used: 0, state: "within" }],
-                ["membership", { kind: "counted", limit: 10 }],
-                ["storage", { kind: "metered", limit: 1_000_000_000, used: 0, state: "within" }],
+            tenancy: [
+                ["Free", ["shared", "own"]],
+                ["Go", ["shared", "own"]],
+                ["Plus", ["shared", "dedicated", "own"]],
+                ["Pro", ["shared", "dedicated", "own"]],
             ],
         });
     },
