@@ -81,8 +81,8 @@ export const ServiceDescription = defineSchema(
         protocol: schema.literal("http"),
         /** The service's procedures. */
         api: RouterDescription,
-        /** The route names of the object types the service serves. */
-        objects: schema.array(schema.string().min(1)),
+        /** The names of the object types the service serves, by route name. */
+        objects: schema.record(schema.string().min(1), schema.string().min(1)),
         /** The service's own route names beside its objects. */
         routes: schema.array(schema.string().min(1)),
     }),

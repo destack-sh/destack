@@ -381,3 +381,44 @@ test("start a workload journaling only in its own database without an audit hist
     );
     expect(received).toBeUndefined();
 });
+
+test("serve the next start once a reload starts it, then release the previous start's resources", async () => {
+    // start a workload serving the first service, then the second after a reload
+    const events: string[] = [];
+    let starts = 0;
+    const instance = await WorkloadInstance.start(
+        defineWorkload({
+            name: "fixture",
+            start: (context) => {
+                const start = ++starts;
+                context.defer(() => {
+                    events.push(`release ${start}`);
+                });
+
+                return { services: [{ service: start === 1 ? first : second, router: {} }] };
+            },
+        }),
+        {
+            clock: Clock.system,
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
+            resources: hosting.resources,
+            history,
+            installation,
+            runs,
+            service: () => ({ ...hosting, drainTimeout: 100 }),
+        },
+    );
+    expect(instance.services).toEqual([first]);
+
+    // switch to the next start and release only the previous one
+    await instance.reload();
+    expect(instance.services).toEqual([second]);
+    expect(events).toEqual(["release 1"]);
+
+    // release the next start at close
+    await instance.close();
+    expect(events).toEqual(["release 1", "release 2"]);
+});

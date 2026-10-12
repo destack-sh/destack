@@ -10,6 +10,9 @@ import {
 import type { Service } from "../declare/service.ts";
 import { graph } from "@destack/package";
 
+/** The kind of the declarations `defineService` makes, as manifests list them. */
+export const SERVICE_DECLARATION = "service";
+
 /** The releases a procedure converts earlier callers' inputs at. */
 const CONVERSIONS = schema.record(schema.string(), schema.json());
 
@@ -28,7 +31,9 @@ export function describeService(service: Service): ServiceDescription {
         ...(service.since === undefined ? {} : { since: service.since }),
         protocol: service.protocol,
         api: describeRouter(service.name, service.router),
-        objects: Object.keys(service.objects),
+        objects: Object.fromEntries(
+            Object.entries(service.objects).map(([route, type]) => [route, type.name]),
+        ),
         routes: Object.keys(service.router).filter((route) => !derived.has(route)),
     });
 }

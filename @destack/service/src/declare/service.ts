@@ -65,9 +65,24 @@ export function defineService<const Input extends ServiceInput>(
  * It routes each object's procedures under its key, which is how ServiceRoutes maps the input.
  */
 export function defineService(name: string, input: ServiceInput, module?: ModuleMetadata): unknown {
-    // stamp the declaring package
-    const owner = Package.parse(ModuleMetadata.require(module, "defineService").package);
+    return Service.of(
+        Package.parse(ModuleMetadata.require(module, "defineService").package),
+        name,
+        input,
+    );
+}
 
+/** The services packages declare and installed packages describe. */
+export const Service = { of: serviceOf };
+
+/** Build a package's service from its name, objects and procedures. */
+function serviceOf(owner: Package, name: string, input: ServiceInput): Service;
+/**
+ * Build a package's service from its name, objects and procedures.
+ *
+ * @construct routeObjects routes each declaration as `Service` reads the router.
+ */
+function serviceOf(owner: Package, name: string, input: ServiceInput): unknown {
     // route each declaration under its name and the shared procedures once
     const { objects = {}, since, ...router } = input;
     const derived = routeObjects(name, router, objects);

@@ -78,6 +78,8 @@ export interface WorkloadContext {
     readonly signal: AbortSignal;
     /** Request shutdown. */
     shutdown(): void;
+    /** Start the workload again, serving the new start once it runs and draining this one. */
+    reload(): Promise<void>;
     /** Report a failure of the workload's background work to its host. */
     report(error: unknown): void;
     /** Register cleanup, run in reverse order after draining. */
