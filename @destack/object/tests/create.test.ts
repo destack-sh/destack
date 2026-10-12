@@ -70,7 +70,7 @@ test.each(TEST_DIALECTS)(
 
             return store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [handle.call("create", { spaceId: scope, ...input })],
                 })
                 .then(([written]) => written);
@@ -158,7 +158,7 @@ test("create an object the caller has the permission on only as the creator its 
     // create a team as its owner and read it as that owner
     const created = await store
         .mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [team.call("create", { spaceId, name: "Core" })],
         })
         .then(([written]) => written);
@@ -192,7 +192,7 @@ test("run only the one method a Loan lends its caller, refusing every other", as
         });
     const created = await store
         .mutate(loaned("create").caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [team.call("create", { spaceId, name: "Core" })],
         })
         .then(([written]) => written);
@@ -268,7 +268,7 @@ test("create each variant of a sum type from its own fields beside the shared on
     const create = (input: CallInput<typeof contact, "create">) =>
         store
             .mutate(userContext("alice", spaceId).caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [contact.call("create", { spaceId, ...input })],
             })
             .then(([written]) => written);
@@ -286,7 +286,7 @@ test("create each variant of a sum type from its own fields beside the shared on
     const mixed = await refusal(
         store
             .mutate(userContext("alice", spaceId).caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [
                     {
                         method: "contact.create",

@@ -4,13 +4,13 @@ import type { Procedure } from "../method/procedure.ts";
 import { traitPermissions, type Gated, type Trait } from "./trait.ts";
 
 import { bind, type ConsumerMethod, consumerMethod } from "../method/bindable.ts";
-/** The relation of the consumers of an object: the installations whose live deployments captured it, and the machine services reading it on their behalf, such as connections reading their credentials. */
+/** The relation of an object's consumers. */
 export const CONSUMER = "consumer";
 
 /** The permission binding consumers to the objects. */
 const BIND = "bind";
 
-/** The methods bindable objects take: binding them to installations where their rows live, and one consumer at a time by a permission's holders. */
+/** The methods of bindable objects: binding them where their rows live, and one at a time. */
 export type BindableMethodMap<Bindable> = [Bindable] extends [undefined]
     ? {}
     : [Bindable] extends [Gated<infer Permission>]
@@ -29,7 +29,7 @@ export type BindableProcedures = {
     >;
 };
 
-/** Objects installations and machine services bind to: resources, secrets, connections and the like, used by their consumers. */
+/** Objects that installations and machine services bind to and consume, such as secrets. */
 export const bindable: Trait<true | Gated> = {
     key: "bindable",
     isDurable: true,

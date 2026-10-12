@@ -72,7 +72,7 @@ test.each(TEST_DIALECTS)(
         ) => {
             const created = await store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [alert.call("create", { spaceId, title })],
                 })
                 .then(([written]) => written);

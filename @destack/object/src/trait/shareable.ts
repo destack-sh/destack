@@ -56,7 +56,7 @@ export const SubjectShape = {
     conditions: RelationshipCondition.exactOptional(),
 };
 
-/** The fields relating a subject to an object through exactly one relation or role, as callers send them. */
+/** The fields relating a subject to an object through one relation or role, as sent. */
 export const GrantShape = {
     /** The declared relation to grant. */
     relation: AccessName.exactOptional(),
@@ -65,7 +65,7 @@ export const GrantShape = {
     ...SubjectShape,
 };
 
-/** A relationship an object's sharing methods grant: through exactly one declared relation or role. */
+/** A relationship sharing methods grant: through exactly one declared relation or role. */
 export const GrantInput = schema.union([
     schema.object({ ...SubjectShape, relation: AccessName }),
     schema.object({ ...SubjectShape, role: schema.string().min(1) }),
@@ -81,7 +81,7 @@ export const InviteShape = {
     expiresAt: Instant.exactOptional(),
 };
 
-/** A relationship an object's sharing methods invite: through exactly one declared relation or role. */
+/** A relationship sharing methods invite: through exactly one declared relation or role. */
 export const InviteInput = schema.object({ ...InviteShape, relationship: GrantInput });
 
 /** The field selecting one relationship. */
@@ -127,11 +127,11 @@ export type RolePermission = (typeof ROLE_PERMISSIONS)[number];
 
 /** Sharing through the roles: owners, editors, commenters and viewers, shared by `manage`. */
 export interface RolesDefinition {
-    /** Whether anyone may read through the public relation, such as for publishing through a link, without being a member. */
+    /** Whether anyone may read through the public relation without membership, as for links. */
     readonly isPublic?: true;
 }
 
-/** How callers share objects: through the roles, or through the type's own relations by a permission, and who sees the sharing. */
+/** How callers share objects: through roles, or own relations by permission, and who sees. */
 export type ShareableDefinition<Permission extends string = string> = (
     | Gated<Permission>
     | RolesDefinition
@@ -140,7 +140,7 @@ export type ShareableDefinition<Permission extends string = string> = (
     readonly read?: Permission;
 };
 
-/** The permissions a type shares through: the one granting relationships, and the one seeing them. */
+/** The permissions of sharing: the one granting relationships, and the one seeing them. */
 export interface SharingGate {
     /** The permission whose holders grant and revoke relationships. */
     readonly grant: string;
@@ -148,7 +148,7 @@ export interface SharingGate {
     readonly read: string;
 }
 
-/** The permission whose holders share the objects: the definition's own, `manage` through the roles, undefined without sharing. */
+/** The sharing permission: the definition's own, `manage` through roles, or undefined. */
 export type SharingGateOf<Sharing> = [Sharing] extends [Gated<infer Permission>]
     ? Permission
     : [Sharing] extends [RolesDefinition]
@@ -169,16 +169,16 @@ export type RoleFieldsOf<Sharing, IsScope> = [RolePermissionsOf<Sharing>] extend
       ? {}
       : { readonly owner: ReturnType<ReturnType<typeof field.subject>["caller"]> };
 
-/** The roles of objects: owners, editors, commenters and viewers, each with the permissions of the roles below it. */
+/** The object roles: owners, editors, commenters and viewers, each with lower roles' rights. */
 export const Roles = {
-    /** Read the roles a definition shares through, absent when it shares otherwise or not at all. */
+    /** Read a definition's sharing roles, absent if it shares otherwise or not at all. */
     of(definition: Pick<ObjectDefinition, "shareable">): RolesDefinition | undefined {
         const sharing = definition.shareable;
 
         return sharing === undefined || "by" in sharing ? undefined : sharing;
     },
 
-    /** Read the permission whose holders share a definition's objects: its own, or `manage` through the roles. */
+    /** Read a definition's sharing permission: its own, or `manage` through the roles. */
     gate(definition: Pick<ObjectDefinition, "shareable">): string | undefined {
         // share nothing without sharing
         const sharing = definition.shareable;
@@ -189,7 +189,7 @@ export const Roles = {
         return "by" in sharing ? sharing.by : "manage";
     },
 
-    /** Add the owner, the roles' relations and their permissions to a definition shared through the roles. */
+    /** Add the owner, the roles' relations and permissions to a role-shared definition. */
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, "fields" | "relations" | "permissions"> {
@@ -249,7 +249,7 @@ export const Roles = {
         };
     },
 
-    /** Derive each permission: the roles granting it on the object, the same permission of its parent or enclosing scopes, or what the definition adds. */
+    /** Derive each permission: granting roles on the object, the parent's or scopes' same one. */
     permissions(
         definition: ObjectDefinition,
         declared: Readonly<Record<string, AccessExpression>>,

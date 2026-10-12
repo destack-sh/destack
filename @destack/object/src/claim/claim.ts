@@ -18,26 +18,26 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import { type ObjectReference, Scope } from "@destack/sync";
+import { Scope } from "@destack/sync";
 import { ServiceError } from "@destack/service/error";
 import { ObjectKey, ObjectType, type IdentityOf, type ObjectIndex } from "../object/object.ts";
 import type { ClaimStore } from "./store.ts";
 
-/** How long a reservation waits for its write to commit, in milliseconds: a minute, above any write. */
+/** How long a reservation waits for its write to commit: a minute, above any write. */
 export const RESERVATION_MILLISECONDS = 60_000;
 
-/** The state an object's committed names take: active, or trashed while the object sits in the trash. */
+/** The state of an object's committed names: active, or trashed while the object is trashed. */
 export const ClaimState = defineSchema(schema.enum(["active", "trashed"]));
 /** The state an object's committed names take. */
 export type ClaimState = schema.Infer<typeof ClaimState>;
 
-/** The states of a claim: pending while its write may still fail, else its object's committed state. */
+/** The states of a claim: pending while its write may fail, else its object's state. */
 const CLAIM_STATES = ["pending", ...ClaimState.options] as const;
 
 /** A name an object claims in a unique index across databases. */
 const claim = defineSchema(
     schema.object({
-        /** The index: the object type's package, type and index name, or a namespace types share. */
+        /** The index: the type's package, type and index name, or a shared namespace. */
         index: schema.string().min(1),
         /** The indexed values, with the scope they are unique within, as canonical JSON. */
         key: schema.string(),
@@ -45,13 +45,13 @@ const claim = defineSchema(
         packageId: schema.string().min(1),
         /** The object claiming the name. */
         objectId: schema.string().min(1),
-        /** The scope the object lives in. */
+        /** The scope owning the name: the object's own, or its owner's for an owned object. */
         scope: schema.string().min(1),
     }),
 );
-/** A name an object claims in a unique index across databases, with the verbs keying an object type's names. */
+/** A name an object claims in a unique index across databases, with the keying verbs. */
 export const Claim = Object.assign(claim, {
-    /** Read the index one of a type's unique indexes claims in: its shared namespace, or the type's own. */
+    /** Read the index of a type's unique index: its shared namespace, or the type's own. */
     index(type: ObjectType, name: string): string {
         return (
             type.indexes[name]?.namespace ??
@@ -81,8 +81,12 @@ export const Claim = Object.assign(claim, {
 
     /** List the names a row claims in its type's indexes, with enclosing scopes from a snapshot. */
     async list(type: ObjectType, row: Row, snapshot: Snapshot): Promise<Claim[]> {
-        // key each index the row has every value of
+        // record the names under the row's owner, or under its scope
         const { scope, id } = ObjectKey.parse(row);
+        const column = type.ownerColumn;
+        const owning = column === undefined ? scope : schema.string().parse(row[column]);
+
+        // key each index the row has every value of
         const claims: Claim[] = [];
         for (const [name, declared] of Object.entries(type.indexes)) {
             // skip rows missing a value
@@ -98,31 +102,28 @@ export const Claim = Object.assign(claim, {
                 key: canonicalize([within, ...values]),
                 packageId: type.policy.definition.packageId,
                 objectId: id,
-                scope,
+                scope: owning,
             });
         }
 
         return claims;
     },
 
-    /** Look up the object of a type owning values in one of its indexes. */
+    /** Look up a type's object claiming values in an index, with the scope of the name. */
     async lookup<Type extends ObjectType>(
         type: Type,
         claims: Pick<ClaimStore, "owner">,
         name: string,
         values: readonly unknown[],
         scope?: string,
-    ): Promise<(ObjectReference & { readonly id: Identifier<IdentityOf<Type>> }) | undefined> {
+    ): Promise<{ readonly scope: string; readonly id: Identifier<IdentityOf<Type>> } | undefined> {
         // find the owner of the keyed values
         const keyed = Claim.key(type, name, values, scope);
         const owner = await claims.owner(keyed.index, keyed.key);
 
         return owner === undefined
             ? undefined
-            : {
-                  ...type.reference(owner.scope, owner.objectId),
-                  id: type.identifier(owner.objectId),
-              };
+            : { scope: owner.scope, id: type.identifier(owner.objectId) };
     },
 });
 /** A name an object claims in a unique index across databases. */
@@ -141,9 +142,9 @@ const claimant = defineSchema(
         state: ClaimState,
     }),
 );
-/** An object and the names it claims in its type's indexes after a write, with the verbs reading them. */
+/** An object and its claimed names after a write, with the verbs reading them. */
 export const Claimant = Object.assign(claimant, {
-    /** Read the names an object claims after a write: active, trashed while it sits in the trash, none once purged. */
+    /** Read an object's claimed names after a write: active, trashed, or none once purged. */
     async of(
         type: ObjectType,
         objectId: string,
@@ -205,13 +206,13 @@ export const Expiry = defineSchema(
 /** The expired reservations of some indexes and the next deadline. */
 export type Expiry = schema.Infer<typeof Expiry>;
 
-/** Every claimed name: pending during its write, trashed while its object sits in the trash, active otherwise. */
+/** Every claimed name: pending during its write, trashed with its object, else active. */
 export const claimTable = defineTable(
     "claim",
     {
         /** The claim's identifier. */
         id: text("id").notNull(),
-        /** The index: the object type's package, type and index name, or a namespace types share. */
+        /** The index: the type's package, type and index name, or a shared namespace. */
         index: text("index").primaryKey(),
         /** The indexed values, with the scope they are unique within, as canonical JSON. */
         key: text("key").primaryKey(),
@@ -225,7 +226,7 @@ export const claimTable = defineTable(
         state: text("state", { enum: CLAIM_STATES }).notNull(),
         /** The request whose write reserved the name, null once the write committed. */
         requestId: text("request_id"),
-        /** The deadline of a pending claim's write, in UTC epoch milliseconds, null once the write committed. */
+        /** The pending write's deadline in UTC epoch milliseconds, null once committed. */
         expiresAt: integer("expires_at"),
     },
     {

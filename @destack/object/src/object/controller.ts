@@ -30,7 +30,7 @@ function identifierOf(row: Row): string {
 /** The fields grouping objects a controller reconciles together, in JSON form. */
 export type KeyFields = Readonly<Record<string, JsonValue>>;
 
-/** A controller declared on an object type: the objects with work waiting, and how to reconcile them. */
+/** A controller declared on an object type: objects with pending work, and their reconciling. */
 export interface ObjectController<Object extends ObjectType = ObjectType> {
     /** The objects with work waiting. */
     readonly pending: Condition;
@@ -68,7 +68,7 @@ export const ObjectWatch = {
     },
 };
 
-/** One key's reconciliation: its pending objects, and the methods reconciling them as the store's principal. */
+/** One key's reconciliation: pending objects, and methods reconciling them as the store. */
 export interface ObjectReconciliation<
     Object extends ObjectType = ObjectType,
 > extends Reconciliation {
@@ -82,12 +82,12 @@ export interface ObjectReconciliation<
     readonly store: ObjectStore;
     /** The caller the reconciliation acts as: the store's own principal. */
     readonly caller: Caller;
-    /** Run calls in one transaction as the store's principal, under the controller's name, each result in order. */
+    /** Run calls in one transaction as the store under the controller's name, results in order. */
     mutate<const Calls extends readonly ObjectCall[]>(
         calls: Calls,
         options?: Pick<MutateOptions, "transaction" | "scope">,
     ): Promise<ResultsOf<Calls>>;
-    /** Record an object's conditions and observed fields at its current generation through its observe method, unless it has them already. */
+    /** Record an object's conditions and observed fields at its generation via observe, once. */
     observe(
         object: ObjectType,
         row: ObservedRecord & Readonly<Record<string, unknown>>,
@@ -97,7 +97,7 @@ export interface ObjectReconciliation<
 
 /** Build the controllers object types declare. */
 export const ObjectController = {
-    /** Build the controller a type declares, reconciling or following its pending objects by key. */
+    /** Build a type's declared controller, reconciling or following pending objects by key. */
     control(store: ObjectStore, object: ObjectType, declared: ObjectController): Controller {
         // key each pending object by its declared fields
         const table = object.table;

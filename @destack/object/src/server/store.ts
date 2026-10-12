@@ -100,7 +100,7 @@ const PROCEDURE_INPUT = schema.record(schema.string(), schema.unknown());
 /** The identifier of a row a method returns. */
 const IDENTIFIER = schema.string();
 
-/** The page a list method returns: its rows and what each includes, by include name and row identifier. */
+/** The page of a list method: its rows and their includes, by include name and row id. */
 const LISTED_PAGE = schema.looseObject({
     items: schema.array(Row),
     included: schema
@@ -117,10 +117,10 @@ const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
     "invitations",
 ]);
 
-/** How long a request waits for its caller's watermarks, in milliseconds: 5 s, above sub-second copy lag. */
+/** How long a request waits for its caller's watermarks: 5 s, above sub-second copy lag. */
 const BOOKMARK_TIMEOUT_MILLISECONDS = 5000;
 
-/** A copy a database keeps: the subscription following it, and the publisher streaming its pages. */
+/** A database's copy: the subscription following it, and the publisher streaming its pages. */
 export interface SubscriberEntry {
     /** The subscription following the copy. */
     readonly subscription: sync.Subscription;
@@ -128,11 +128,11 @@ export interface SubscriberEntry {
     readonly publisher: sync.Publisher;
 }
 
-/** The subscriptions a database follows to keep its copies, each streamed from its own publisher. */
+/** The subscriptions a database follows for its copies, each from its own publisher. */
 export interface Subscriber {
-    /** The tables whose changes list the subscriptions again, beside the scopes and the residents' homes and addresses. */
+    /** The tables whose changes relist subscriptions, beside scopes and residents' homes. */
     readonly watches?: readonly Table[];
-    /** The link to the store the copies follow, which receives the changes this store sends to their rows, absent where it sends none. */
+    /** The link to the copies' store, receiving this store's changes to them, if it sends any. */
     readonly uplink?: sync.Uplink;
     /** List the subscriptions of the copies the database keeps now, each with its publisher. */
     subscriptions(): Promise<readonly SubscriberEntry[]>;
@@ -140,7 +140,7 @@ export interface Subscriber {
 
 /** Build the subscriber of a database's copies. */
 export const Subscriber = {
-    /** Keep the copies some subscriptions list, each streamed over one uplink receiving the changes sent to them. */
+    /** Keep some subscriptions' copies, each over one uplink receiving their changes. */
     of(
         uplink: sync.Uplink,
         subscriptions: () => Promise<readonly sync.Subscription[]>,
@@ -156,7 +156,7 @@ export const Subscriber = {
     },
 };
 
-/** A call's prepared external work: the keyed call, its parsed value and its settlement, absent without any. */
+/** A call's prepared external work: the keyed call, parsed value and settlement, if any. */
 type Prepared =
     | { readonly call: Call; readonly value: unknown; readonly settlement: string | undefined }
     | undefined;
@@ -177,7 +177,7 @@ type MutationRun = {
     readonly scope: string;
     /** The caller the mutation runs as. */
     readonly caller: Caller;
-    /** The code making the calls for a principal running its own code, such as a controller's name. */
+    /** The code making the calls for a principal's own code, such as a controller's name. */
     readonly component?: string;
     /** The expanded calls, in order. */
     readonly calls: readonly Expansion[];
@@ -191,7 +191,7 @@ type MutationRun = {
     readonly redacted: readonly JsonObject[];
 };
 
-/** How an authorization binds its caller beyond its scope: the request a mutation's grants bind to, the scope chain read in the same snapshot, and the scopes the caller lives inside. */
+/** How an authorization binds its caller beyond its scope. */
 export interface AuthorizeOptions {
     /** The request grants bound to one request match. */
     readonly request?: string;
@@ -203,19 +203,19 @@ export interface AuthorizeOptions {
     readonly now?: number;
 }
 
-/** How a mutation runs beyond its caller: the client instance writing ephemeral objects, the component of a principal's own code, or the open transaction it joins. */
+/** How a mutation runs beyond its caller. */
 export interface MutateOptions {
-    /** The running mutation the calls join, without external work, its owner committing once; the store's own when absent. */
+    /** The running mutation to join without external work, which its owner commits, if any. */
     readonly transaction?: Transaction;
     /** The client instance writing ephemeral objects. */
     readonly writerId?: string;
-    /** The code making the calls for a principal running its own code, such as a controller's name. */
+    /** The code making the calls for a principal's own code, such as a controller's name. */
     readonly component?: string;
     /** The scope the calls carrying none run in. */
     readonly scope?: string;
 }
 
-/** How far the journal got through a mutation: the running call and the reservation of its claims. */
+/** The journal's progress through a mutation: the running call and its claim reservation. */
 type MutationProgress = {
     /** The position of the call running now, absent before and after the calls. */
     running: number | undefined;
@@ -239,11 +239,11 @@ type CallOptions = {
     readonly expansion?: readonly BranchCall[];
     /** The request the call belongs to. */
     readonly request?: CallRequest;
-    /** The code making the call for a principal running its own code, such as a controller's name. */
+    /** The code making the call for a principal's own code, such as a controller's name. */
     readonly component?: string;
 };
 
-/** The options of an object store: the objects it serves over one database, and the stores, machines and providers beside them. */
+/** The options of an object store: its objects over one database, and adjacent services. */
 export interface ObjectStoreOptions {
     /** The object types served, by name. */
     readonly objects: Readonly<Record<string, ObjectType>>;
@@ -251,19 +251,19 @@ export interface ObjectStoreOptions {
     readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
-    /** The principal the store's own work runs as: its controllers, settlements and the changes it receives in process. */
+    /** The principal of the store's own work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
     /** The one partition the store serves, every partition of its database when absent. */
     readonly partition?: string;
-    /** The key sensitive call inputs are fingerprinted under in the journal, given exactly when object types serve methods. */
+    /** The journal's key for fingerprinting sensitive call inputs, set when types serve methods. */
     readonly callKey?: CallKey;
     /** The package and service recording the calls. */
     readonly origin: Omit<AuditOrigin, "scope">;
-    /** The audit history the journal delivers calls to, absent where another store delivers them. */
+    /** The audit history the journal delivers calls to, absent if another store delivers them. */
     readonly history?: AuditDestination;
     /** The claims of unique indexes, kept by the account service. */
     readonly claims?: ClaimStore;
-    /** The installation serving the objects, which sends and receives projected rows, absent for a machine. */
+    /** The installation serving the objects and their projections, absent for a machine. */
     readonly installation?: InstallationContext;
     /** The memory store with the served ephemeral objects. */
     readonly ephemeral?: EphemeralStorage;
@@ -271,11 +271,11 @@ export interface ObjectStoreOptions {
     readonly external?: readonly ExternalStorage[];
     /** The subscriptions the database follows to keep its copies. */
     readonly subscriber?: Subscriber;
-    /** The shapes the store serves and follows beside its objects' and its policies' own, such as a package's own copies. */
+    /** The shapes served and followed beside the objects' and policies', such as package copies. */
     readonly shapes?: readonly sync.Shape[];
-    /** The machine recording the objects' runs: the calls methods send, and the calls of their change triggers. */
+    /** The machine recording runs: the calls methods send and their change triggers' calls. */
     readonly runs?: RunClient;
-    /** The triggers of the served objects' package, whose change triggers need a machine recording their runs. */
+    /** The served package's triggers, whose change triggers need a machine recording runs. */
     readonly triggers?: readonly Trigger[];
     /** Report failed settlements, thrown when absent. */
     readonly report?: (error: unknown) => void;
@@ -285,7 +285,7 @@ export interface ObjectStoreOptions {
     readonly clock: Clock;
     /** The scope's branch types, among the objects, whose branches reads can see. */
     readonly branch?: BranchType;
-    /** The providers reconciling the served kinds' resources, absent for a store reconciling none. */
+    /** The providers reconciling the served kinds' resources, if the store reconciles any. */
     readonly provisioned?: ProvisionedOptions;
 }
 
@@ -300,7 +300,7 @@ export class ObjectStore {
     readonly objects: readonly ObjectType[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
-    /** The principal the store's own work runs as: its controllers, settlements and the changes it receives in process. */
+    /** The principal of the store's own work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
     /** The one partition the store serves, every partition of its database when absent. */
     readonly #partition: string | undefined;
@@ -320,33 +320,33 @@ export class ObjectStore {
     readonly external: readonly ExternalStorage[];
     /** The subscriptions the database follows to keep its copies. */
     readonly subscriber: Subscriber | undefined;
-    /** The durable object types the store serves or decides, home or copied, whose rows stand for their principals here. */
+    /** The durable types the store serves or decides, whose rows stand for their principals. */
     readonly decided: readonly ObjectType[];
     /** The shapes the store serves and follows beside its objects' and its policies' own. */
     readonly shapes: readonly sync.Shape[];
-    /** The installation serving the objects, which sends and receives projected rows, absent for a machine. */
+    /** The installation serving the objects and their projections, absent for a machine. */
     readonly installation: InstallationContext | undefined;
-    /** The copied types identifying the residents whose rows the served types project, absent where nothing projects. */
+    /** The copied types of the residents whose rows the served types project, if any. */
     readonly residence: Residence | undefined;
-    /** The durable object types, served or authorized, whose rows the database keeps as copies from their home. */
+    /** The served or authorized durable types whose rows the database copies from home. */
     readonly copied: readonly ObjectType[];
-    /** The machine recording the objects' runs: the calls methods send, and the calls of their change triggers. */
+    /** The machine recording runs: the calls methods send and their change triggers' calls. */
     readonly runs: RunClient | undefined;
-    /** Stream the copies of the served rows to a store following them in this process, and run the changes it sends to them as its principal. */
+    /** Stream served row copies to an in-process follower, running its changes as principal. */
     readonly uplink: sync.Uplink;
     /** The change triggers of the served objects, each change they admit recorded as a run. */
     readonly triggers: readonly ChangeTrigger[];
-    /** The audit history the journal delivers calls to, absent where another store delivers them. */
+    /** The audit history the journal delivers calls to, absent if another store delivers them. */
     readonly #history: AuditDestination | undefined;
-    /** The outbox delivering the calls methods send and the changes of copied rows, absent where nothing receives them. */
+    /** The outbox of sent calls and copied row changes, absent if nothing receives them. */
     readonly #sends?: Outbox;
-    /** Open an audit recorder for a scope and a caller, with the request and component its calls answer. */
+    /** Open an audit recorder for a scope and caller, with its calls' request and component. */
     readonly audit: (
         scope: string,
         caller: Caller,
         called?: AuditCalled,
     ) => AuditRecorder<DatabaseConnection>;
-    /** Record a read of a scope's events that showed their personal values, as the event service and its readers report one. */
+    /** Record a read that showed a scope's personal event values, as the event service reports. */
     readonly unmasked = async (context: ServiceContext, read: UnmaskedRead): Promise<void> => {
         const { scope, object, kind, operation } = read;
         await this.audit(scope, ObjectStore.#requestCaller(context), {
@@ -382,7 +382,7 @@ export class ObjectStore {
     readonly #inside = new WeakMap<Caller, Map<DatabaseConnection, Promise<readonly Subject[]>>>();
     /** The object types routed by name, without the chunk types serving them. */
     readonly routed: readonly ObjectType[];
-    /** The wait until the copies gating readiness synced, shared by every service the store implements. */
+    /** The wait for the copies gating readiness, shared by every implemented service. */
     #readiness: Promise<boolean> | undefined;
 
     /** Serve object types over one database. */
@@ -436,7 +436,7 @@ export class ObjectStore {
         }
     }
 
-    /** Follow the durable objects' tables and the decision tables in one feed, with an outbox where calls or changes of copied rows leave. */
+    /** Follow durable tables and decision tables in one feed, with an outbox for leaving calls. */
     static #follow(
         objects: readonly ObjectType[],
         options: Pick<
@@ -470,7 +470,7 @@ export class ObjectStore {
             : { decided, copied, feed };
     }
 
-    /** Stream the copies of the served rows to stores following them in this process, and run the changes they send. */
+    /** Stream served row copies to in-process followers, and run the changes they send. */
     #uplink(): sync.Uplink {
         return {
             stream: (subscription, signal) => this.source.publish(subscription, signal),
@@ -486,7 +486,7 @@ export class ObjectStore {
         };
     }
 
-    /** Control each served kind's resources with the loop their trait builds, none without providers. */
+    /** Control each served kind's resources with its trait's loop, if it has providers. */
     static #control(
         objects: readonly ObjectType[],
         provisioned: ProvisionedOptions | undefined,
@@ -512,7 +512,7 @@ export class ObjectStore {
         );
     }
 
-    /** Keep the change triggers of the served package, which need a machine recording their runs. */
+    /** Keep the served package's change triggers, which need a machine recording runs. */
     static #changeTriggers(
         options: Pick<ObjectStoreOptions, "runs" | "triggers">,
     ): ChangeTrigger[] {
@@ -526,7 +526,7 @@ export class ObjectStore {
         return triggers;
     }
 
-    /** Build the authorizer over the objects, every scope type enclosing them, the residence and the other policies. */
+    /** Build the authorizer over the objects, their scope types, residence and other policies. */
     static #authorizer(
         objects: readonly ObjectType[],
         residence: Residence | undefined,
@@ -544,7 +544,7 @@ export class ObjectStore {
         );
     }
 
-    /** Keep the journal of a store serving methods, which needs the call key, and refuse a call key without methods. */
+    /** Keep a method store's journal with its call key, refusing a call key without methods. */
     static #journalOf(
         routed: readonly ObjectType[],
         options: Pick<ObjectStoreOptions, "database" | "callKey" | "clock">,
@@ -588,7 +588,7 @@ export class ObjectStore {
         }
     }
 
-    /** Refuse local types, and require claims for indexed types, a memory store for ephemeral types and files for external types. */
+    /** Refuse local types, and require claims, memory stores and files for their types. */
     static #requireStores(
         objects: readonly ObjectType[],
         options: Pick<ObjectStoreOptions, "database" | "claims" | "ephemeral" | "external">,
@@ -649,12 +649,12 @@ export class ObjectStore {
         return first;
     }
 
-    /** Read the name of the object type a call's method belongs to, as `<object>.<method>` writes it. */
+    /** Read the object type of a call's method, as `<object>.<method>` writes it. */
     static #typeOf(call: Pick<ObjectCall, "method">): string {
         return call.method.slice(0, call.method.lastIndexOf("."));
     }
 
-    /** Implement a service routing some of the served objects beside its own procedures, with the store's access, audit and readiness and some controllers. */
+    /** Implement a service routing some served objects beside its own procedures. */
     implement(
         service: Service,
         routed: readonly ObjectType[],
@@ -682,7 +682,7 @@ export class ObjectStore {
         };
     }
 
-    /** Wait until the copies gating the store's readiness synced, checking them once for every service it implements, or until the service stops. */
+    /** Wait for the copies gating readiness, checked once for all services, or until stopped. */
     async #awaitReady(subscriber: Subscriber, signal: AbortSignal): Promise<void> {
         // share one check of the copies, checking again after the checking service stopped first
         const stopped = new Promise<boolean>((resolve) => {
@@ -699,7 +699,7 @@ export class ObjectStore {
         }
     }
 
-    /** Wait until every copy gating this store's readiness holds a complete snapshot, reporting whether they synced before the signal. */
+    /** Wait until every readiness copy is a complete snapshot, reporting sync before the signal. */
     async #ready(subscriber: Subscriber, signal: AbortSignal): Promise<boolean> {
         // wait on commits until every gating copy synced
         const { database } = this;
@@ -711,9 +711,7 @@ export class ObjectStore {
                 this.source.isReadinessGate(subscription),
             );
             const synced = await Promise.all(
-                gates.map(({ subscription }) =>
-                    sync.Replica.isSynced(database, subscription.name, subscription.scope),
-                ),
+                gates.map(({ subscription }) => sync.Replica.isCurrent(database, subscription)),
             );
 
             return synced.every(Boolean);
@@ -801,7 +799,7 @@ export class ObjectStore {
         return context.authenticationError === undefined ? context.caller() : { subjects: [] };
     }
 
-    /** Answer one routed procedure as its request's caller: enter its pinned scope, run the method, report the watermark of a write and answer the procedure's output. */
+    /** Answer one routed procedure as its request's caller. */
     async #answer(
         object: ObjectType,
         name: string,
@@ -848,12 +846,12 @@ export class ObjectStore {
         return validated.value;
     }
 
-    /** Read through a method as a caller, in a read-only transaction, recording the reads its method or the store audits. */
+    /** Read through a method as a caller in a read-only transaction, recording audited reads. */
     async query<Result>(caller: Caller, call: ObjectCall<Result>): Promise<Result>;
     /**
      * Read through a method as a caller.
      *
-     * @construct the result is the result the call's method answers, which ObjectCall carries from type.call.
+     * @construct the result is the call method's answer, which ObjectCall keeps from type.call.
      */
     async query(caller: Caller, call: ObjectCall): Promise<unknown> {
         // resolve the call, reading only the one method a Loan lends
@@ -925,7 +923,7 @@ export class ObjectStore {
         }
     }
 
-    /** Run a mutation's calls as a caller in one transaction, answering it once per caller and id, each submitted call's result in order. */
+    /** Run a mutation's calls as a caller in one transaction, once per caller and identifier. */
     async mutate<const Calls extends readonly ObjectCall[]>(
         caller: Caller,
         transaction: { readonly id: string; readonly calls: Calls },
@@ -934,7 +932,7 @@ export class ObjectStore {
     /**
      * Run a mutation's calls as a caller in one transaction.
      *
-     * @construct each result is the result its call's method answers, which ObjectCall carries from type.call.
+     * @construct each result is its method's answer, which ObjectCall keeps from type.call.
      */
     async mutate(
         caller: Caller,
@@ -1004,7 +1002,7 @@ export class ObjectStore {
         return results.filter((_result, index) => aligned(calls, index).as === undefined);
     }
 
-    /** Place a call in a scope when it carries none, by the route field of its served or copied type. */
+    /** Place a call without a scope in one, by its served or copied type's route field. */
     #place(entry: ObjectCall, scope: string): ObjectCall {
         // find the route field of the call's served or copied type
         const typeName = ObjectStore.#typeOf(entry);
@@ -1016,7 +1014,7 @@ export class ObjectStore {
             : { ...entry, input: { ...entry.input, [field]: scope } };
     }
 
-    /** Run calls inside a running mutation without external work: a change of copied rows goes toward their home once it commits, the rest run here. */
+    /** Run calls inside a running mutation without external work. */
     async #mutateInside(
         transaction: Transaction,
         mutation: { readonly id: string; readonly calls: readonly ObjectCall[] },
@@ -1038,7 +1036,7 @@ export class ObjectStore {
         return results;
     }
 
-    /** Run one call of the platform's own code inside a running mutation: a change of copied rows goes toward their home once it commits, the rest runs here as the caller, under the calling method's authorization or admitted in the call's scope. */
+    /** Run one platform call inside a running mutation. */
     async #runInside(
         transaction: Transaction,
         entry: ObjectCall,
@@ -1114,7 +1112,7 @@ export class ObjectStore {
         return scope;
     }
 
-    /** Identify a durable mutation by caller, scope and request identifier, with its redacted calls. */
+    /** Identify a durable mutation by caller, scope and request id, with its redacted calls. */
     async #identify(
         mutation: { readonly id: string; readonly calls: readonly ObjectCall[] },
         originals: readonly ReturnType<typeof Call.resolve>[],
@@ -1145,7 +1143,7 @@ export class ObjectStore {
         };
     }
 
-    /** Execute a planned mutation once: answer a recorded outcome, else run its calls over a mutation and commit it, undoing its prepared work and keys once it fails. */
+    /** Execute a planned mutation once: return a recorded outcome, else run and commit it. */
     async #executeDurable(planned: MutationRun, progress: MutationProgress): Promise<unknown[]> {
         // reject a key expired or in the future, and answer an outcome a previous copy recorded
         RequestId.expiry(planned.request.requestId, this.clock.now());
@@ -1187,7 +1185,7 @@ export class ObjectStore {
         }
     }
 
-    /** Admit a mutation's caller in its scope chain, refusing an installation's writes to a space whose storage is capped. */
+    /** Admit a mutation's caller in its chain, refusing installation writes to capped spaces. */
     async #authorizeRun(transaction: Transaction, planned: MutationRun): Promise<Authorization> {
         // admit the caller in the scope chain the mutation reads
         const chain = await Scope.chain(transaction.view(), planned.scope);
@@ -1223,7 +1221,7 @@ export class ObjectStore {
         return this.journal.fingerprint({ id: mutation.id, calls }, sensitive);
     }
 
-    /** Execute a mutation's calls in order over the mutation, recording each for retries once it commits. */
+    /** Execute a mutation's calls in order, recording each for retries after commit. */
     async #run(
         transaction: Transaction,
         authorization: Authorization,
@@ -1279,7 +1277,7 @@ export class ObjectStore {
         return executed;
     }
 
-    /** Record a mutation's failed call for audit and retries, leaving denials to the procedure layer. */
+    /** Record a mutation's failed call for audit and retries, leaving denials to procedures. */
     async #recordFailure(run: MutationRun, position: number, error: unknown): Promise<void> {
         // skip a denial
         const outcome = AuditRecorder.outcome(error);
@@ -1360,7 +1358,7 @@ export class ObjectStore {
         return expanded;
     }
 
-    /** Run a client's pushed mutations in order as its request's caller, stopping at a transient failure, and answer the scope's watermark. */
+    /** Run a client's pushed mutations in order as its caller, returning the scope's watermark. */
     async #push(
         scope: string,
         mutations: readonly sync.Mutation[],
@@ -1416,7 +1414,7 @@ export class ObjectStore {
     /**
      * Find the served copy of an object type.
      *
-     * @construct the served copy is the declared type with this store's handlers, matched by package and name.
+     * @construct it is the declared type with this store's handlers, matched by package and name.
      */
     served(object: ObjectType): ObjectType {
         const found = this.objects.find((served) => served.same(object));
@@ -1427,7 +1425,7 @@ export class ObjectStore {
         return found;
     }
 
-    /** Send a call to run once a transaction on this store's database commits, at the store keeping its rows or through the machine recording runs. */
+    /** Send a call to run after this database's transaction commits. */
     async send(
         call: sync.Call,
         transaction: Transaction,
@@ -1439,7 +1437,7 @@ export class ObjectStore {
         }
 
         // record the send once the mutation commits
-        const requestId = RequestId.create();
+        const requestId = RequestId.create(this.clock.now());
         const sends = this.#sends;
         transaction.record(async (committing) => {
             await sends.append(
@@ -1451,10 +1449,10 @@ export class ObjectStore {
         });
     }
 
-    /** Run a call another store in this process sent to change the served rows as its principal, or pass a change of copied rows toward their home, once however often it is delivered. */
+    /** Run a call another in-process store sent to the served rows, as its principal. */
     async receive(call: sync.Call, as: Subject): Promise<void> {
         // pass a change of copied rows to the store keeping them
-        if (await this.#forward(call, RequestId.create())) {
+        if (await this.#forward(call, RequestId.create(this.clock.now()))) {
             return;
         }
 
@@ -1491,7 +1489,7 @@ export class ObjectStore {
         await this.mutate(Caller.of(as, now), { id: RequestId.create(now), calls: [call] });
     }
 
-    /** Run a mutation a follower sent to the served rows as the caller, or pass one of copied rows from an installation of this space toward their home, signed as it. */
+    /** Run a follower's mutation of the served rows as the caller. */
     async receiveFrom(transaction: sync.Mutation, context: ServiceContext): Promise<void> {
         // pass an installation's change of copied rows toward their home, which the space's key signs only for its own
         const caller = context.caller();
@@ -1521,7 +1519,7 @@ export class ObjectStore {
         return object !== undefined && !this.objects.some((served) => served.same(object));
     }
 
-    /** Find the one publisher receiving every call of a mutation of copied rows, refusing a mutation spanning several homes. */
+    /** Find the one publisher receiving a copied rows mutation, refusing one spanning homes. */
     async #homeOfAll(transaction: sync.Mutation): Promise<sync.Uplink> {
         // require one home for every call
         const homes = await Promise.all(transaction.calls.map((call) => this.#homeOf(call)));
@@ -1550,7 +1548,7 @@ export class ObjectStore {
         });
     }
 
-    /** Find the publisher receiving a change of copied rows: the one the copy keeping the rows' table in the call's scope follows, else the subscriber's uplink. */
+    /** Find the publisher receiving a change of copied rows. */
     async #homeOf(call: sync.Call): Promise<sync.Uplink | undefined> {
         // find the copy of the call's table in its scope whose publisher receives changes
         const type = ObjectStore.#typeOf(call);
@@ -1574,7 +1572,7 @@ export class ObjectStore {
         return publisher !== undefined && isUplink(publisher) ? publisher : this.subscriber?.uplink;
     }
 
-    /** Pass a change of copied rows toward the store keeping them over the uplink the copies follow, answering whether it passed. */
+    /** Pass a copied rows change toward their store over the copies' uplink, returning success. */
     async #forward(call: sync.Call, requestId: string): Promise<boolean> {
         // leave a change of rows the database keeps itself
         const type = ObjectStore.#typeOf(call);
@@ -1598,7 +1596,7 @@ export class ObjectStore {
         return true;
     }
 
-    /** Deliver a sent call to the store keeping the rows it changes, or to the machine recording runs. */
+    /** Deliver a sent call to the store keeping its rows, or to the machine recording runs. */
     async #deliver(sent: OutboxCall, signal: AbortSignal): Promise<void> {
         // deliver a change of copied rows toward their home
         const { call } = sent.request;
@@ -1691,7 +1689,7 @@ export class ObjectStore {
         return reader;
     }
 
-    /** Resolve a caller's access in a scope at the store's time, inside the scopes its principal lives in, bound to a request for mutations. */
+    /** Resolve a caller's access in a scope at the store's time, inside its principal's scopes. */
     async authorize(
         transaction: Transaction,
         scope: string,
@@ -1734,7 +1732,7 @@ export class ObjectStore {
         return new Authorization(this.authorizer, transaction, bind, access, caller.delegation);
     }
 
-    /** Admit a caller in a scope: resolve its access and require an unmoved scope, which a remote caller must also see. */
+    /** Admit a caller in a scope, requiring an unmoved scope that a remote caller also sees. */
     async admit(
         transaction: Transaction,
         scope: string,
@@ -1884,7 +1882,7 @@ export class ObjectStore {
         return Call.resolve(this.objects, entry, mutates, Caller.isRemote(caller));
     }
 
-    /** Read the scope a procedure call acts in: an object method's own scope, else the decided target's or the context's. */
+    /** Read a procedure call's scope: a method's own, else the decided target's or context's. */
     #procedureScope(call: ProcedureCall<ServiceContext>): string | undefined {
         // read the routed object's scope field from the input
         const object = this.routed.find((each) => each.key === call.path[0]);
@@ -1983,7 +1981,7 @@ export class ObjectStore {
         };
     }
 
-    /** Parse a call's input by its method's input schema, splitting off the fields routing it and the view a read asks for. */
+    /** Parse a call's input by schema, splitting off routing fields and the requested view. */
     static #fields(
         object: ObjectType,
         name: string,
@@ -2014,7 +2012,7 @@ export class ObjectStore {
         return isViewed ? { fields, id, revision, at, branch } : { fields, id, revision };
     }
 
-    /** Load a call's permitted target through the view a read asks for, absent for a call without one. */
+    /** Load a call's permitted target through its requested view, absent without a target. */
     static async #target(
         call: Call,
         targetId: string | undefined,
@@ -2035,7 +2033,7 @@ export class ObjectStore {
         }
     }
 
-    /** Build the view a read asks for: the database at a position, under a branch's rows, or none for the live main line. */
+    /** Build a read's view: the database at a position, a branch, or none for the main line. */
     async #view(
         database: DatabaseConnection,
         authorization: Authorization,
@@ -2082,7 +2080,7 @@ export class ObjectStore {
         return method;
     }
 
-    /** Prepare each call's external work of a request outside the transaction, a mutation's journaled request skipped once executed. */
+    /** Prepare a request's external work outside the transaction, skipping executed mutations. */
     async #prepare(
         calls: readonly { object: ObjectType; name: string; input: JsonObject }[],
         scope: string,
@@ -2133,7 +2131,7 @@ export class ObjectStore {
         );
     }
 
-    /** Prepare a request's built calls in order, reserving each settlement before its work starts and rolling back on failure. */
+    /** Prepare a request's calls in order, reserving settlements first, rolling back on failure. */
     async #prepareEach(
         requestId: string,
         builds: readonly ((() => Promise<Call>) | undefined)[],
@@ -2163,7 +2161,7 @@ export class ObjectStore {
         return prepared;
     }
 
-    /** Key a call's external work, the same on every retry of its request, and reserve its settlement when its method settles. */
+    /** Key a call's external work, stable across retries, and reserve a settlement if needed. */
     async #reserve(
         call: Call,
         key: string,
@@ -2178,7 +2176,7 @@ export class ObjectStore {
         };
     }
 
-    /** Run a reserved call's prepare phase, parsing its value by the declared schema and recording it for its settlement. */
+    /** Run a reserved call's prepare phase, parsing its value and recording it for settlement. */
     async #prepareOne(call: Call, settlement: string | undefined): Promise<Prepared> {
         // run the prepare phase the method declares
         const { method } = call;
@@ -2207,7 +2205,7 @@ export class ObjectStore {
         }
     }
 
-    /** Settle each reserved settlement as its row records the call's outcome, skipping one claimed elsewhere. */
+    /** Settle each reserved settlement as recorded, skipping ones claimed elsewhere. */
     async #settle(settlements: readonly (string | undefined)[]): Promise<void> {
         for (const id of settlements) {
             if (id === undefined) {
@@ -2307,7 +2305,7 @@ export class ObjectStore {
         return presented;
     }
 
-    /** Run the calls a method makes in its transaction and scope, under its authorization for its own caller, recorded under its request. */
+    /** Run a method's calls in its transaction and scope, authorized for its caller and request. */
     #invoker(transaction: Transaction, parent: Call, options: CallOptions): Run {
         const { from, writerId, requestId, component } = options;
         const recorded: CallOptions = {
@@ -2321,7 +2319,7 @@ export class ObjectStore {
             this.#runInside(transaction, entry, caller, mutates, parent, recorded);
     }
 
-    /** Redact and encode what a call returns: its value, its page of objects, or its object with their texts. */
+    /** Redact and encode a call's result: its value, its object page, or its object with texts. */
     async #present(
         transaction: Transaction,
         authorization: Authorization,
@@ -2466,7 +2464,7 @@ function resumed(
     return after;
 }
 
-/** Give a prepared creation without an identifier a fresh one, as its prepared work refers to it. */
+/** Give a prepared creation without an identifier a fresh one, for its prepared work. */
 function identified(call: Expansion): Expansion {
     const method = call.object.method(call.name);
     const isUnnamed =

@@ -48,7 +48,7 @@ export interface ObjectSchema {
     readonly callers: schema.JsonObject["shape"];
     /** Read the columns a write takes. */
     written(names: readonly string[] | undefined, isPartial: boolean): schema.JsonObject["shape"];
-    /** Read the columns a write gives a value, refusing null, as one variant of a sum type writes them. */
+    /** Read the columns a write must set to non-null, as one sum type variant writes them. */
     required(names: readonly string[]): schema.JsonObject["shape"];
 }
 
@@ -91,7 +91,7 @@ export function objectProcedures<Object extends ObjectType>(
 /**
  * Derive one procedure per method of an object type.
  *
- * @construct each method gets the procedure of its own kind, input and output, which is how ObjectProcedures maps the methods.
+ * @construct each method gets its kind's procedure, input and output, as ObjectProcedures maps it.
  */
 export function objectProcedures(object: ObjectType): Readonly<Record<string, unknown>> {
     return callableProcedures(object);
@@ -349,7 +349,7 @@ type ProcedureOf<
     readonly "~orpc": { readonly inputSchema: schema.Schema; readonly outputSchema: schema.Schema };
 };
 
-/** The input a call of a method takes without its scope and the request's identifiers, each variant's for a sum type. */
+/** A method call's input without scope and request identifiers, per variant for a sum type. */
 export type CallInput<Object extends ObjectType, Name extends MethodName<Object>> =
     string extends MethodName<Object>
         ? Readonly<Record<string, unknown>>
@@ -360,7 +360,7 @@ export type CallInput<Object extends ObjectType, Name extends MethodName<Object>
               | ScopeField<Object>
           >;
 
-/** The input of an object call: the method's input with the scope it runs in, the running call's when absent. */
+/** An object call's input: the method's input with its scope, the running call's if absent. */
 export type ObjectCallInput<Object extends ObjectType, Name extends MethodName<Object>> =
     string extends MethodName<Object>
         ? Readonly<Record<string, unknown>>
@@ -417,7 +417,7 @@ export type IdSchema<Object extends ObjectType> = schema.Schema<
     string
 >;
 
-/** The value a field's validator accepts: an identifier's plain string, any other value as it is. */
+/** The value a field's validator accepts: an identifier's plain string, else the value. */
 type Accepted<Value> = Value extends Identifier<string> ? string : Value;
 
 /** The input field holding the parent. */
@@ -492,7 +492,7 @@ export type WrittenShape<
     IsPartial extends boolean,
 > = ColumnShape<Object, WrittenName<Object, Declared>, IsPartial>;
 
-/** One object per variant a creation declares, each the shared fields with its own columns and the literal of its variant. */
+/** One object per creation variant: the shared fields, its own columns and its literal. */
 export type VariantSchema<
     Object extends ObjectType,
     Declared extends Method,
@@ -555,7 +555,7 @@ export type FieldShape<Declared extends Method> = [NonNullable<Declared["input"]
       ? Shape
       : {};
 
-/** The schema a custom method takes: routing fields joined to its own input, to each variant's for a sum type. */
+/** A custom method's schema: routing fields joined to its input, per variant for sum types. */
 export type CustomSchema<Shape extends Readonly<Record<string, schema.Schema>>, Input> = [
     NonNullable<Input>,
 ] extends [never]

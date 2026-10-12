@@ -90,7 +90,7 @@ test.each(TEST_DIALECTS)(
         const create = async (topic: string, dueAt: number) =>
             store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [reminder.call("create", { spaceId, topic, dueAt })],
                 })
                 .then(([written]) => written);
@@ -169,7 +169,7 @@ test("select a changed pending object's own key beside the keys a watch of its o
     await openSpace(storage.database, spaceId);
     const created = await store
         .mutate(userContext("user-1", spaceId).caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: 1 })],
         })
         .then(([written]) => written);
@@ -213,7 +213,7 @@ test("run a controller's calls as the space, audited as the space with the contr
     // send a due reminder of user-1 through the controller
     const due = await store
         .mutate(userContext("user-1", spaceId).caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: Date.now() - 1000 })],
         })
         .then(([written]) => written);
@@ -227,7 +227,7 @@ test("run a controller's calls as the space, audited as the space with the contr
     const send = (as: string) =>
         refusal(
             store.mutate(Caller.of(principal.user.reference(Scope.universe.id, as), Date.now()), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [reminder.call("send", reminder.target(present(row, "the reminder")))],
             }),
         );

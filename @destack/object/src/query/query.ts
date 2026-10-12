@@ -39,7 +39,7 @@ export function compileQueries(
     );
 }
 
-/** Query every listed object type of a scope level by its name, a recoverable type's trash included. */
+/** Query every listed object type of a scope level by name, including recoverable trash. */
 function defaultQueries(
     objects: readonly ObjectType[],
     isGlobal: boolean,
@@ -171,7 +171,7 @@ export function related(
     return { object: target, relation };
 }
 
-/** Derive the relations of served object types: references, parents, children, attachments and join types. */
+/** Derive served types' relations: references, parents, children, attachments, join types. */
 export function relationsOf(objects: readonly ObjectType[]): Relations {
     // derive once per served list
     const known = SCHEMAS.get(objects);
@@ -202,7 +202,7 @@ export function relationsOf(objects: readonly ObjectType[]): Relations {
     return relations;
 }
 
-/** Relate through a to-many relation's join type to each type it references, keyed by the reference name. */
+/** Relate through a to-many join type to each referenced type, keyed by reference name. */
 function junctions(
     first: Relation,
     tables: ReadonlyMap<ObjectType["table"], Readonly<Record<string, Relation>>>,
@@ -231,7 +231,7 @@ function junctions(
     });
 }
 
-/** Relate a type to the types it references, its parent, and its children, attachments and referrers. */
+/** Relate a type to its referenced types, parent, children, attachments and referrers. */
 function directRelations(
     object: ObjectType,
     listed: readonly ObjectType[],
@@ -269,7 +269,7 @@ function directRelations(
     return named;
 }
 
-/** Find the column relating children to a type: the parent column, or their only reference to it. */
+/** Find the column relating children to a type: the parent column, or their one reference. */
 function childColumn(
     children: ObjectType,
     object: ObjectType,

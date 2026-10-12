@@ -64,13 +64,13 @@ test.each(TEST_DIALECTS)(
         // let the owner create a project and a budgeted task assigned to another user
         const launch = await alice.project.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "Launch",
         });
         expect(launch.ownerId).toBe("alice");
         const announce = await alice.task.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: launch.id,
             title: "Write the announcement",
             assigneeId: "bob",
@@ -88,12 +88,12 @@ test.each(TEST_DIALECTS)(
         // let the assignee read and work the task without planning it or seeing its budget
         const assigned = await bob.task.get({ spaceId, id: announce.id });
         expect([assigned.title, "budget" in assigned]).toEqual(["Write the announcement", false]);
-        await bob.task.start({ spaceId, id: announce.id, requestId: RequestId.create() });
+        await bob.task.start({ spaceId, id: announce.id, requestId: RequestId.create(Date.now()) });
         await expect(
             bob.task.update({
                 spaceId,
                 id: announce.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: 2,
                 title: "Rename",
             }),
@@ -107,7 +107,7 @@ test.each(TEST_DIALECTS)(
         const asked = await carol.project.invite({
             spaceId,
             id: launch.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relationship: { relation: "member", subject: person("carol") },
             purpose: "help with the launch",
         });
@@ -119,7 +119,7 @@ test.each(TEST_DIALECTS)(
         await alice.project.accept({
             spaceId,
             id: launch.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             invitationId: asked.id,
         });
         const listed = await carol.task.list({
@@ -131,7 +131,7 @@ test.each(TEST_DIALECTS)(
         ]);
         await carol.task.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: launch.id,
             title: "Book the venue",
         });
@@ -139,7 +139,7 @@ test.each(TEST_DIALECTS)(
             carol.task.update({
                 spaceId,
                 id: announce.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: 2,
                 budget: 900,
             }),
@@ -148,7 +148,7 @@ test.each(TEST_DIALECTS)(
         // let everyone reading a task comment on it
         await bob.comment.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: announce.id,
             text: "Draft is ready",
         });
@@ -157,7 +157,7 @@ test.each(TEST_DIALECTS)(
                 (item) => [item.authorId, item.text],
             ),
         ).toEqual([["bob", "Draft is ready"]]);
-        await bob.task.complete({ spaceId, id: announce.id, requestId: RequestId.create() });
+        await bob.task.complete({ spaceId, id: announce.id, requestId: RequestId.create(Date.now()) });
 
         // follow up a task of another space by its qualified reference
         const origin = {
@@ -166,7 +166,7 @@ test.each(TEST_DIALECTS)(
         };
         const followUp = await alice.task.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: launch.id,
             title: "Reuse last year's checklist",
             origin,
@@ -229,7 +229,7 @@ test("serve a handled type in place of the service's own", async () => {
         fetch: (request: Request) => server.fetch(request),
     });
     await expect(
-        alice.project.create({ spaceId, requestId: RequestId.create(), name: "Launch" }),
+        alice.project.create({ spaceId, requestId: RequestId.create(Date.now()), name: "Launch" }),
     ).rejects.toEqual(
         new ServiceError("CONFLICT", { defined: true, message: "projects are frozen" }),
     );

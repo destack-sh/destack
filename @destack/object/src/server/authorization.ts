@@ -34,7 +34,7 @@ const FREEING_KINDS: ReadonlySet<MethodKind> = new Set(["delete", "purge"]);
 export class Authorization extends access.Authorization {
     /** The caller's resolved access in the call's scope. */
     readonly access: Access;
-    /** The token lending the caller's authority to the installation serving the call, for the calls it sends. */
+    /** The token lending the caller's authority to the serving installation, for its calls. */
     readonly delegation?: string;
 
     /** Authorize a caller in one transaction. */
@@ -70,12 +70,7 @@ export class Authorization extends access.Authorization {
             : or(isCopy, permitted);
     }
 
-    /**
-     * Decide which rows the caller may list.
-     *
-     * The copies an enclosing scope hands down and the copies kept for the scope are admitted.
-     * The scope's own rows are decided by the caller's access in it, and the rows of a scope it encloses by the caller's access there.
-     */
+    /** Decide which rows the caller may list. */
     async admitRows(
         object: ObjectType,
         permission: Permission,
@@ -144,7 +139,7 @@ export class Authorization extends access.Authorization {
         return [...new Set([this.access.scope, ...this.access.scopes.map((entry) => entry.id)])];
     }
 
-    /** Read a call's target as a snapshot shows it, where the caller has a permission now and, at a position, then. */
+    /** Read a call's target in a snapshot, permitted for the caller now and at a position. */
     async readIn(
         call: Call,
         id: string,
@@ -231,7 +226,7 @@ export class Authorization extends access.Authorization {
         return this.#decide(call, id, permission, evaluated);
     }
 
-    /** Refuse a target a lent delegate lacks the grant for, which the delegation before it reads. */
+    /** Refuse a target a lent delegate lacks the grant for, read by the delegation before it. */
     async #requireLentGrant(
         call: Call,
         id: string,
@@ -359,7 +354,7 @@ export class Authorization extends access.Authorization {
             : own?.id === this.access.scope && object.livesIn(own);
     }
 
-    /** Decide whether the admitted scope holds every row of an object type its copies read: the universe a type living there alone, another scope a type living in its type. */
+    /** Decide whether the admitted scope has every row of a type its copies read. */
     isHomeOf(object: ObjectType): boolean {
         return this.access.scope === Scope.universe.id
             ? object.scope === Scope.universe.id
@@ -386,7 +381,7 @@ export class Authorization extends access.Authorization {
         }
     }
 
-    /** Refuse a call in a scope another partition serves than the one the store serves, a store serving every partition of its database taking any. */
+    /** Refuse a call in another partition than the store's, unless it serves every partition. */
     requirePartition(served: string | undefined): void {
         const { scope, partition } = this.access;
         if (served !== undefined && partition !== undefined && partition !== served) {
@@ -397,7 +392,7 @@ export class Authorization extends access.Authorization {
         }
     }
 
-    /** Refuse calls writing to a scope whose storage is capped: every mutating call but a delete or a purge. */
+    /** Refuse writes to a scope with capped storage: every mutating call but delete or purge. */
     requireUncapped(
         calls: readonly { readonly object: ObjectType; readonly name: string }[],
     ): void {

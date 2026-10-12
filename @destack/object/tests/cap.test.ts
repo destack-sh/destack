@@ -15,7 +15,7 @@ import { openSpace, spacePrincipal } from "./fixture/space.ts";
 
 /** Build a call's space and a new request. */
 function request() {
-    return { spaceId, requestId: RequestId.create() };
+    return { spaceId, requestId: RequestId.create(Date.now()) };
 }
 
 /** The refusal of a method in the capped space, stating the way out of the cap. */

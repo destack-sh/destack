@@ -3,7 +3,7 @@ import { present, schema } from "@destack/schema";
 import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
-/** How objects project the rows of another object type people receive, one object in each recipient's home, as a read model of them. */
+/** How objects project another type's rows people receive into each recipient's home. */
 export interface ProjectedDefinition {
     /** The object type whose rows the objects project. */
     readonly from: ObjectType | (() => ObjectType);
@@ -11,19 +11,19 @@ export interface ProjectedDefinition {
     readonly to: string;
     /** The qualified reference field holding each object's source row, unique in its scope. */
     readonly source: string;
-    /** The fields kept equal to the source row's, each mapped to its source field, such as the source's scope. */
+    /** The fields kept equal to the source row's, mapped to source fields, such as its scope. */
     readonly fields?: Readonly<Record<string, string>>;
     /** The object's own fields a change of the kept fields clears, such as its read state. */
     readonly clears?: readonly string[];
-    /** The copied types identifying the residents of each home and the installations keeping rows for them. */
+    /** The copied types of each home's residents and the installations keeping their rows. */
     readonly residence: Residence;
 }
 
-/** The copied types telling a home whose rows it projects: the personal accounts whose homes they are, and the residences in their users' scopes. */
+/** The copied types telling a home whose rows it projects. */
 export interface Residence {
-    /** The accounts, each personal one in its user's scope, whose home space is the home below the account in the scope chain. */
+    /** The accounts, each personal one in its user's scope, with a home below it in the chain. */
     readonly account: ObjectType;
-    /** The residences in users' scopes, each with the `source` scope, the `installation` keeping rows for the user and its package's `service`. */
+    /** The residences in users' scopes, each with `source`, `installation` and `service`. */
     readonly residence: ObjectType;
 }
 
@@ -33,7 +33,7 @@ export const SourceReference = schema.object({
     id: schema.string().min(1),
 });
 
-/** Objects projected from another type's rows: each its own object with its own state, created with its source and retracted when the source leaves. */
+/** Objects projected from another type's rows, each with its own state. */
 export const projected: Trait<ProjectedDefinition> & {
     /** Read the source type a projection refers to. */
     sourceOf(options: ProjectedDefinition): ObjectType;

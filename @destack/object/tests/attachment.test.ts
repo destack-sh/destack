@@ -309,7 +309,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
                 store,
                 object,
                 name,
-                { spaceId, requestId: RequestId.create(), ...input },
+                { spaceId, requestId: RequestId.create(Date.now()), ...input },
                 context,
             ),
         host: (object: ObjectType, id: string) => ({

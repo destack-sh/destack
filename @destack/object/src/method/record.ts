@@ -115,7 +115,7 @@ export function list<const Permission extends string, Definition extends Table =
     });
 }
 
-/** The column sets of a sum type, by the field telling them apart and then by its value, such as `{ kind: { personal: ["platform"], cloud: ["location"] } }`. */
+/** The column sets of a sum type, by discriminating field and then value. */
 export type Variants<Fields extends string = string> = Readonly<
     Record<string, Readonly<Record<string, readonly Fields[]>>>
 >;
@@ -128,11 +128,11 @@ export interface CreateOptions<
     Internal extends boolean,
     Sum extends Variants = Variants,
 > {
-    /** Whether the creation stays out of the routes people call, setting the caller fields itself. */
+    /** Whether the creation stays off public routes, setting the caller fields itself. */
     readonly isInternal?: Internal;
     /** The fields the caller writes, every written field when absent. */
     readonly fields?: readonly Fields[];
-    /** The column sets of a type whose rows are a sum type, of which the caller writes one beside the fields. */
+    /** The column sets of a sum-typed row, of which the caller writes one beside the fields. */
     readonly variants?: Sum;
     /** The caller-supplied values beyond fields. */
     readonly input?: Input;
@@ -142,7 +142,7 @@ export interface CreateOptions<
     readonly creator?: string;
     /** Whether clients predict the creation. */
     readonly isPredicted?: false;
-    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
 }
 
@@ -162,7 +162,7 @@ export interface UpdateOptions<
     readonly prepared?: Prepared;
     /** Whether clients predict the update. */
     readonly isPredicted?: false;
-    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
 }
 
@@ -172,7 +172,7 @@ export interface UpdateManyOptions<Fields extends string, Match extends string> 
     readonly fields: readonly Fields[];
     /** The fields the call matches objects by. */
     readonly match: readonly Match[];
-    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
 }
 
@@ -422,7 +422,7 @@ export function remove<
     });
 }
 
-/** What a custom method acts on: its target loaded where the caller holds the permission, its target unloaded for a verb its own access decides, or no target in its scope. */
+/** What a custom method acts on. */
 export type CustomTarget = true | false | "none";
 
 /** A custom method's permission, input, output and inverse. */
@@ -436,7 +436,7 @@ export interface CustomDefinition<
 > {
     /** The permission the caller needs on the target. */
     readonly permission: Permission;
-    /** Whether the method stays out of the routes people call, run only by the principals' own code. */
+    /** Whether the method stays off public routes, run only by the principals' own code. */
     readonly isInternal?: Internal;
     /** The caller-supplied fields. */
     readonly input?: Input;
@@ -448,11 +448,11 @@ export interface CustomDefinition<
     readonly audited?: true;
     /** The fields of the result an audited read's event records. */
     readonly audit?: { readonly details: schema.Object<Record<string, schema.Schema>> };
-    /** What the method acts on: its target loaded where the caller holds the permission by default, false for an invitation verb whose invitation access decides, "none" for its scope alone. */
+    /** What the method acts on: by default its target, loaded under the caller's permission. */
     readonly target?: Target;
     /** The inverse method name, or a function deriving inverse calls. */
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
-    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
 }
 
@@ -593,7 +593,7 @@ function fields(input: schema.JsonObject | undefined): schema.JsonObject["shape"
     return input?.shape ?? {};
 }
 
-/** Derive a creation's procedure at the collection, or below it by name for another creation: the scope, the chosen identifier, the parent and the written fields, joined by one variant's of a sum type. */
+/** Derive a creation's procedure at the collection, or by name below it for another creation. */
 function createProcedure(
     name: string,
     shapes: ObjectSchema,
@@ -622,7 +622,7 @@ function createProcedure(
     };
 }
 
-/** Join each variant's columns to a creation's shared fields under its value of the field telling them apart. */
+/** Join each variant's columns to a creation's shared fields under its discriminating value. */
 function variantInput(
     name: string,
     shapes: ObjectSchema,
@@ -693,7 +693,7 @@ function restoreUpdated(step: Step): readonly sync.Call[] | undefined {
     ];
 }
 
-/** Refuse tracked, declarable and versioned objects and guarded fields, whose changes many updates at once skip. */
+/** Refuse tracked, declarable, versioned objects and guarded fields, which bulk updates skip. */
 function requireUnrecorded(object: ObjectType, written: readonly string[]): void {
     // refuse objects keeping a record of each change
     if (
@@ -910,20 +910,25 @@ function isScopedTarget<Target extends CustomTarget>(
 /**
  * Read whether a target is none.
  *
- * @construct the result is true exactly when the target is "none", as the signature's conditional reads.
+ * @construct the result is true exactly when the target is "none", as the signature reads.
  */
 function isScopedTarget(target: CustomTarget | undefined): boolean {
     return target === "none";
 }
 
-/** Require a scoped method's permission on its object type in the call's scope, as on a new object there. */
+/** Require a scoped method's permission in the call's scope, as on a new object there. */
 async function authorizeScoped(call: Call<ObjectTable>): Promise<void> {
+    // read the owner the input names for an owned type
+    const column = call.object.ownerColumn;
+    const owned = column === undefined ? {} : { [column]: call.input[column] };
+
+    // check the permission on a new object of that owner
     const definition = call.object.table[TABLE];
-    const row = definition.defaults({ id: call.object.generateId(), scope: call.scope });
+    const row = definition.defaults({ id: call.object.generateId(), scope: call.scope, ...owned });
     await requirePermitted(call, row, await call.requireAuthorization().reader(call.scope));
 }
 
-/** Require the call's permission on a row of its object type, challenging for step-up authentication, refusing a caller without it: a reader openly, others with the object hidden unless the call names none. */
+/** Require the call's permission on a row, challenging for step-up authentication. */
 async function requirePermitted(
     call: Call<ObjectTable>,
     row: Row,
@@ -990,14 +995,14 @@ async function deleteObject(call: Call<ObjectTable>): Promise<Record<string, nev
     return {};
 }
 
-/** Read a call by the deletion columns its object's table keeps, absent for an object deleting at once. */
+/** Read a call by its table's deletion columns, absent for an object deleting at once. */
 function deletingCall(
     call: Call<ObjectTable>,
 ): Call<TraitTable<{ readonly recoverable: RecoverableDefinition }>> | undefined;
 /**
- * Read a call by its table's deletion columns, for objects a trash or a controller finishes deleting.
+ * Read a call by its table's deletion columns, for objects a trash or controller deletes.
  *
- * @construct defineObject derives the deletion columns into the table of every object whose definition sets `recoverable` or `controlled`.
+ * @construct defineObject derives deletion columns for every `recoverable` or `controlled` object.
  */
 function deletingCall(call: Call<ObjectTable>): Call | undefined {
     return call.object.lifecycle.recoverable === undefined && !call.object.isControlled
@@ -1005,7 +1010,7 @@ function deletingCall(call: Call<ObjectTable>): Call | undefined {
         : call;
 }
 
-/** Accept a caller's unused identifier for a created object, or generate one: at random in a prediction, from the request on a server. */
+/** Accept a caller's unused identifier, or generate one: random in a prediction, else derived. */
 async function createdId(call: Call<ObjectTable>): Promise<string> {
     // generate a missing identifier
     const { object, id: chosen } = call;
@@ -1214,7 +1219,7 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
     >;
 };
 
-/** The fields every creation takes: its scope, chosen identifier, parent, replay, written fields and own input. */
+/** The fields of every creation: scope, chosen identifier, parent, replay, fields and input. */
 type CreateShape<Object extends ObjectType, Declared extends Method> = ScopeShape<Object> &
     CreationShape<Object> &
     ParentShape<Object> &
@@ -1237,7 +1242,7 @@ type CreationShape<Object extends ObjectType> = {
     id: schema.ExactOptional<IdSchema<Object>>;
 };
 
-/** Read how a call creates its object's first relationships: as declared, else relating the creator as owner of a scope shared through the roles. */
+/** Read how a call creates its object's first relationships. */
 function creationOf(
     call: Call,
 ): ((call: Call, object: ObjectReference) => Creation | Promise<Creation>) | undefined {
@@ -1247,7 +1252,7 @@ function creationOf(
     return call.method.creation ?? (isOwnedScope ? relateCreator("owner") : undefined);
 }
 
-/** Relate the calling principal to a new object, and a new scope's owner role to the relation's holders. */
+/** Relate the calling principal to a new object, and a new scope's owner role to its holders. */
 function relateCreator(relation: string): (call: Call, object: ObjectReference) => Creation {
     return (call, object) => {
         // require a creator
@@ -1261,7 +1266,7 @@ function relateCreator(relation: string): (call: Call, object: ObjectReference) 
     };
 }
 
-/** Declare methods with `method.query(...)`, `method.mutation(...)`, `method.get(...)` and their siblings. */
+/** Declare methods with `method.query(...)`, `method.mutation(...)`, `method.get(...)` and more. */
 export const method: MethodBuilder = {
     query,
     mutation,

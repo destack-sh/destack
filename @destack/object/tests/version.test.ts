@@ -53,7 +53,7 @@ test.each(TEST_DIALECTS)(
                 store,
                 taskVersion,
                 name,
-                { spaceId, requestId: RequestId.create(), ...input },
+                { spaceId, requestId: RequestId.create(Date.now()), ...input },
                 context,
             );
         const first = await execute("create", { parentId: taskId, title: "Plan" });
@@ -64,7 +64,7 @@ test.each(TEST_DIALECTS)(
         const point = async (id: string, revision: number) =>
             store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [task.call("update", { spaceId, id: taskId, revision, currentId: id })],
                 })
                 .then(([written]) => written);

@@ -29,7 +29,7 @@ export class EphemeralStorage implements AsyncDisposable {
     readonly #leaving = new Map<string, ReturnType<typeof setTimeout>>();
     /** Stop watching which owners any instance tracks. */
     readonly #unwatch: () => void;
-    /** The memory database this store opened and closes with itself, absent for one its caller keeps. */
+    /** The memory database this store opened and closes, absent if its caller keeps one. */
     #owned: { close(): Promise<void> } | undefined;
 
     /** Keep ephemeral object types in memory, replicated over a channel. */
@@ -71,7 +71,7 @@ export class EphemeralStorage implements AsyncDisposable {
         );
     }
 
-    /** Keep the ephemeral types among some objects in a migrated memory database, replicated over a channel. */
+    /** Keep ephemeral types in a migrated memory database, replicated over a channel. */
     static async open(
         objects: readonly ObjectType[],
         channel: Channel<unknown>,
@@ -98,7 +98,7 @@ export class EphemeralStorage implements AsyncDisposable {
         return storage;
     }
 
-    /** Open the channel replicating ephemeral objects between the connections of a durable database. */
+    /** Open the channel replicating ephemeral objects across a durable database's connections. */
     static channel(durable: DatabaseConnection): Channel<unknown> {
         return durable.channel(EPHEMERAL_CHANNEL);
     }

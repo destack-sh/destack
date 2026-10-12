@@ -58,13 +58,13 @@ export class ObjectAudience implements Audience {
     readonly #storage: ObjectStorage;
     /** The durable log position access was decided at, for ephemeral and external objects. */
     #decided: LogPosition | undefined;
-    /** Whether the subscriber keeps every row by containing the scope, with only guarded fields decided. */
+    /** Whether the subscriber keeps every row by containing the scope, deciding guarded fields. */
     readonly #isContained: boolean;
     /** The scopes below the followed one whose access decided rows. */
     readonly #below = new Set<string>();
-    /** The scopes a follower outside the chains copies them via, with the rows deciding whether it may replicate each. */
+    /** The scopes an outside follower copies via, with the rows deciding its replication. */
     readonly #via: readonly Relay[];
-    /** The access rows of the scope chain and of the scopes below deciding rows, none for ephemeral and external objects. */
+    /** The deciding access rows of the chain and lower scopes, none for ephemeral or external. */
     watches: readonly Watch[];
 
     /** Serve a caller of a scope with resolved access. */
@@ -92,7 +92,7 @@ export class ObjectAudience implements Audience {
         this.watches = this.#watched();
     }
 
-    /** Resolve a reader's access to a scope's objects: an admitted remote caller, or a principal the kept copies are decided for. */
+    /** Resolve a reader's access to a scope's objects: a remote caller or a copy's principal. */
     static async of(
         store: ObjectStore,
         scope: string,
@@ -143,7 +143,7 @@ export class ObjectAudience implements Audience {
         );
     }
 
-    /** Read the rows deciding whether a follower may replicate the scopes it copies chains via: each scope's own row and the access rows of its chain. */
+    /** Read the rows deciding whether a follower may replicate its via scopes. */
     static async #relays(
         store: ObjectStore,
         via: readonly string[],
@@ -436,12 +436,12 @@ export class ObjectAudience implements Audience {
         this.watches = this.#watched();
     }
 
-    /** List the rows whose changes decide again: the access rows deciding what the caller lists, and those deciding whether it may copy via its scopes. */
+    /** List the rows whose changes decide again: listing access, and via copying access. */
     #watched(): Watch[] {
         return [...this.#deciding(), ...this.#via.flatMap((relay) => relay.watches)];
     }
 
-    /** List the access rows deciding what the caller lists: those of the chain and of the scopes below deciding rows, and the relationships of the caller's subjects in every scope. */
+    /** List the access rows deciding what the caller lists. */
     #deciding(): Watch[] {
         return this.#storage === "durable"
             ? this.#store.authorizer.watch(
@@ -485,7 +485,7 @@ export class ObjectAudience implements Audience {
     }
 }
 
-/** A scope a follower outside its chain copies the chain via, which the follower must replicate at every decision. */
+/** A scope an outside follower copies its chain via, replicated at every decision. */
 interface Relay {
     /** The scope. */
     readonly scope: string;
@@ -500,7 +500,7 @@ function identifier(value: unknown): string {
     return schema.string().parse(value);
 }
 
-/** The access of each recipient of a type's rows, deciding every row for the recipient its field refers to, as a projection's source decides them. */
+/** The access of each recipient of a type's rows, as a projection's source decides them. */
 export class RecipientAudience implements Audience {
     /** The recipient field of the rows. */
     readonly #field: string;

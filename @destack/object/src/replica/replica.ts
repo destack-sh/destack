@@ -14,7 +14,7 @@ import { Watermark } from "@destack/service/bookmark";
 import { defineProcedure } from "@destack/service/procedure";
 import { Call, Failure, Mutation, ObjectReference, Page, Subscription } from "@destack/sync";
 
-/** A relational query of rows of a type known at runtime, the open form of `QueryOptions` callers send. */
+/** A relational query of a runtime type's rows, the open form of `QueryOptions` callers send. */
 export type OpenQueryOptions = {
     /** The fields each result keeps: only those set true, or all but those set false. */
     readonly columns?: Readonly<Record<string, boolean>>;
@@ -45,7 +45,7 @@ export const ViewShape = {
     branch: schema.string().min(1).exactOptional(),
 };
 
-/** The fields of a query of a relation's rows as servers follow it, without the columns clients select. */
+/** The fields of a relation query as servers follow it, without client-selected columns. */
 const RelationShape = {
     /** Values computed from each row's fields and relations, read like fields. */
     extras: schema.record(schema.string().min(1), Expression.schema).exactOptional(),
@@ -130,7 +130,7 @@ export const ACCESS_SHAPE = "access";
 /** The shape of the rows of a type a home's residents receive, which the home projects. */
 export const PROJECTION_SHAPE = "projection";
 
-/** The parameters of a projection shape: the installation keeping the rows and its service, the type, its recipient field, and the residents by subject key. */
+/** The parameters of a projection shape. */
 export const ProjectionParameters = defineSchema(
     schema.object({
         /** The installation in the scope keeping the rows. */
@@ -150,14 +150,14 @@ export const ProjectionParameters = defineSchema(
 /** The parameters of a projection shape. */
 export type ProjectionParameters = schema.Infer<typeof ProjectionParameters>;
 
-/** The parameters of the shape of a scope's durable objects: the queries by name, every listed type of the scope's level when absent. */
+/** The parameters of a scope's durable objects shape: named queries, else all listed types. */
 export const QueriesParameters = defineSchema(
     schema.object({ queries: schema.record(schema.string(), ObjectQuery).exactOptional() }),
 );
 /** The parameters of the shape of a scope's durable objects. */
 export type QueriesParameters = schema.Infer<typeof QueriesParameters>;
 
-/** The parameters of the shape of a scope's ephemeral objects: the queries, and the writer owning the rows it writes. */
+/** The parameters of a scope's ephemeral objects shape: queries, and the rows' writer. */
 export const EphemeralParameters = defineSchema(
     schema.object({
         queries: schema.record(schema.string(), ObjectQuery).exactOptional(),

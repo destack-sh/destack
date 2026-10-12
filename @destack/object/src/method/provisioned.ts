@@ -7,7 +7,7 @@ import type { ProvisionedTable } from "../trait/provisioned.ts";
 /** The method declarations of provisioned resources. */
 export const provisionedMethod: MethodBuilder<ProvisionedTable<unknown>> = method;
 
-/** Make an installation the owner of a retained resource it declares again, or release it, cancelling a deletion. */
+/** Make an installation the owner of a retained resource it declares again, or release it. */
 export const adopt = provisionedMethod
     .mutation({
         permission: "declare",
@@ -19,7 +19,7 @@ export const adopt = provisionedMethod
     })
     .handle((call) => call.update({ owner: call.input.owner, deletionRequestedAt: null }));
 
-/** Write the desired states and approval threshold the resource's owner of intent sets, beside its declared specification. */
+/** Write the desired states and approval threshold of the owner of intent, beside the spec. */
 export const specify = provisionedMethod
     .mutation({
         permission: "declare",

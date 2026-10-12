@@ -2,7 +2,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { ServiceError } from "@destack/service/error";
 import type { ObjectType } from "../object/object.ts";
 
-/** The files external objects' rows live in, each scope's opened as a read-only database built from them. */
+/** The files of external objects' rows, each scope's opened as a read-only database. */
 export interface ExternalStorage {
     /** The external object types kept. */
     readonly objects: readonly ObjectType[];
@@ -12,7 +12,7 @@ export interface ExternalStorage {
 
 /** Find the files keeping external objects. */
 export const ExternalStorage = {
-    /** Find the one storage keeping every external type given by name or key, the only one for none, refusing types kept apart or nowhere. */
+    /** Find the one storage keeping every given external type, refusing split or missing types. */
     of(storages: readonly ExternalStorage[], names: readonly string[]): ExternalStorage {
         // find the stores keeping every given type
         const found = storages.filter((storage) =>

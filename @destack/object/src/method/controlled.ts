@@ -15,7 +15,7 @@ export const approvalMethod: MethodBuilder<
     TraitTable<{ readonly controlled: { readonly approval: true } }>
 > = method;
 
-/** Record a controller's observation of its target at its generation, as the status a controller elsewhere reports to the rows' home. */
+/** Record a controller's observation of its target at its generation. */
 export const observe = controlledMethod
     .mutation({ permission: "control", input: Observation })
     .handle(async (call) => {

@@ -52,13 +52,13 @@ function resourceFields(kind: ResourceKind) {
         spec: field.json(kind.spec),
         /** The desired states the active consumers need, which the provider applies. */
         states: field.json(desiredStates(kind)).default([]),
-        /** The desired states only draining consumers still need, which a recreation drops after stopping them. */
+        /** The desired states only draining consumers need, dropped after they stop. */
         drainingStates: field.json(desiredStates(kind)).default([]),
         /** The digest of the desired states the provider applied, absent before the first apply. */
         appliedState: field.string(Digest).optional(),
-        /** Whether a host's provider provisions the resource, its stack declares its reference, or a connection lends its credential. */
+        /** Whether a provider provisions it, a stack declares it, or a connection lends it. */
         origin: field.enum(["provisioned", "declared", "connection"]).default("provisioned"),
-        /** The connection in the space whose credential the host lends to every call, absent where each call carries one lent to its installation. */
+        /** The space connection whose credential the host lends to every call, if any. */
         connection: field.string(schema.identifier("connection")).optional(),
         /** The requested placement, absent for automatic selection. */
         placement: field.json(ResourcePlacement).optional(),
@@ -70,14 +70,14 @@ function resourceFields(kind: ResourceKind) {
         location: field.string().optional(),
         /** The machine keeping the resource, absent before provisioning. */
         machineId: field.string(schema.identifier("machine")).optional(),
-        /** What deletion does to the stored content: destroy it, keep it for a window, or keep it. */
+        /** What deletion does to stored content: destroy it, keep it a while, or keep it. */
         retention: field.json(ResourceRetention).default("forever"),
-        /** The application installation owning the resource, absent for stack resources and after release. */
+        /** The application installation owning it, absent for stack resources and after release. */
         owner: field.subject(principal.installation).optional(),
     };
 }
 
-/** Read the schema of a kind's desired states: values of its state, none for a kind without a state. */
+/** Read a kind's desired state schema: its state's values, none for a stateless kind. */
 function desiredStates(kind: ResourceKind): schema.Schema<ResourceState[]>;
 /**
  * Read the schema of a kind's desired states by its state schema.
@@ -107,7 +107,7 @@ export type ProvisionedFieldsOf<Provisioning> = Provisioning extends {
       }
     : {};
 
-/** A desired state of a kind's resources: its state's value, or any state where code is generic over kinds. */
+/** A kind's desired state: its state's value, or any state in kind-generic code. */
 type DesiredStateOf<Kind extends ResourceKind> = string extends Kind["name"]
     ? ResourceState
     : KindState<Kind> & ResourceState;
@@ -226,7 +226,7 @@ export const Provisioned = {
         };
     },
 
-    /** Constrain a kind's resource table, its constraints named after the kind, its scope checked by each call against the scope chain this database keeps. */
+    /** Constrain a kind's resource table, with constraints named after the kind. */
     constraints(kind: string, columns: Record<string, Column>) {
         return [
             unique(`${kind}_scope_name`).on(
@@ -255,7 +255,7 @@ export const Provisioned = {
         ];
     },
 
-    /** Declare how a stack's resources of a kind become their records, provisioned or declared at a reference. */
+    /** Declare how a stack's resources become records, provisioned or declared by reference. */
     declaration(
         kind: ResourceKind,
     ): DeclarationHandler<ObjectType, ResourceDefinition, ResourceDefinition> {

@@ -18,7 +18,7 @@ export const StatusCondition = defineSchema(
 /** A controller's observation of a record. */
 export type StatusCondition = schema.Infer<typeof StatusCondition>;
 
-/** A condition a controller decides: whether it holds, and why, before its record stamps the generation and transition time. */
+/** A controller's condition: whether it applies and why, before generation and time stamps. */
 export const Condition = defineSchema(
     StatusCondition.omit({ observedGeneration: true, lastTransitionAt: true }),
 );
@@ -28,7 +28,7 @@ export type Condition = schema.Infer<typeof Condition>;
 /** Status conditions keyed by their unique domain-specific names. */
 export const ConditionMap = defineSchema(schema.record(schema.string().min(1), StatusCondition));
 
-/** A record a controller observes: its desired and observed generations and its conditions by name. */
+/** A record a controller observes: desired and observed generations and named conditions. */
 export interface ObservedRecord {
     /** The scope the record lives in. */
     readonly scope: string;
@@ -42,7 +42,7 @@ export interface ObservedRecord {
     readonly conditions: Readonly<Record<string, StatusCondition>>;
 }
 
-/** A controller's report on one record: the generation it evaluated, its conditions and observed fields. */
+/** A controller's report on one record: the evaluated generation, conditions and fields. */
 export const Observation = Object.assign(
     defineSchema(
         schema.object({
@@ -55,7 +55,7 @@ export const Observation = Object.assign(
         }),
     ),
     {
-        /** Report whether a record has an observation already: its current generation observed, and the conditions and fields as observed. */
+        /** Report whether a record already has an observation. */
         isRecorded(
             record: ObservedRecord & Readonly<Record<string, unknown>>,
             observation: ObservationReport,
@@ -83,7 +83,7 @@ export const Observation = Object.assign(
 /** A controller's report on one record. */
 export type Observation = schema.Infer<typeof Observation>;
 
-/** A controller's report on one record before it is recorded: its conditions and the fields it observed. */
+/** A controller's unrecorded report on one record: its conditions and observed fields. */
 export interface ObservationReport {
     /** The conditions by name. */
     readonly conditions: Observation["conditions"];
@@ -110,7 +110,7 @@ export class Conditions<const Name extends string> {
     }
 }
 
-/** Record a controller's observation of a condition, keeping its last transition time while the status stays. */
+/** Record a controller's observed condition, keeping its last transition time while stable. */
 export function observeCondition(
     previous: StatusCondition | undefined,
     observation: Omit<StatusCondition, "lastTransitionAt">,

@@ -7,7 +7,7 @@ import { Call } from "../method/index.ts";
 import type { ObjectController } from "../object/controller.ts";
 import { ObjectKey, type ObjectType } from "../object/index.ts";
 
-/** The columns every branch type's rows keep: the identifier, the state and the tables the branch's rows live in. */
+/** The columns of every branch type's rows: identifier, state and the branch's row tables. */
 const BRANCH_RECORD = schema.looseObject({
     id: schema.string(),
     state: schema.string(),
@@ -20,7 +20,7 @@ type BranchRecord = schema.Infer<typeof BRANCH_RECORD>;
 /** The type of a branch's calls, which branches append by creating them. */
 type BranchCallType = ObjectType & { readonly methods: { readonly create: Method } };
 
-/** The type of the changes a branch makes over the main line, which branches create, update and delete. */
+/** The type of a branch's changes over the main line, which branches create, update, delete. */
 type BranchChangeType = ObjectType & {
     readonly methods: { readonly create: Method; readonly update: Method; readonly delete: Method };
 };
@@ -45,7 +45,7 @@ export class BranchType {
         this.change = types.change;
     }
 
-    /** Read a branch row's identifier, state and the tables its rows live in, as every branch type keeps them. */
+    /** Read a branch row's identifier, state and row tables, as every branch type keeps them. */
     static record(row: Row): BranchRecord {
         return BRANCH_RECORD.parse(row);
     }
@@ -87,7 +87,7 @@ export class BranchType {
         return resolved;
     }
 
-    /** Report whether an object type keeps branches themselves, whose calls stay on the main line. */
+    /** Report whether an object type keeps branches, whose calls stay on the main line. */
     keeps(object: ObjectType): boolean {
         return [this.object, this.call, this.change].some((type) => type.same(object));
     }

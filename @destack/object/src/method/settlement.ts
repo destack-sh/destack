@@ -31,7 +31,7 @@ export const settlement = defineTable(
     { log: {} },
 );
 
-/** A call whose prepared work settles, built from its settlement alike in process and in recovery. */
+/** A call whose prepared work settles, built alike in process and in recovery. */
 export class SettlementCall {
     /** The object type. */
     readonly object: ObjectType;
@@ -87,7 +87,7 @@ export class SettlementCall {
     }
 }
 
-/** How prepared work settles: committed with its value, or rolled back with the value recorded, absent when never recorded. */
+/** How prepared work settles: committed, or rolled back with its recorded value, if recorded. */
 export type Settled<Prepared = unknown> =
     | { readonly status: "committed"; readonly prepared: Prepared }
     | { readonly status: "rolledBack"; readonly prepared: Prepared | undefined };

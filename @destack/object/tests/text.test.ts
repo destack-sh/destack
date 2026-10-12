@@ -153,7 +153,7 @@ test.for(TEST_DIALECTS)(
         const bob = connectAs("bob");
         const created = await alice.document.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Plan",
         });
         expect(created.body).toBe("");
@@ -171,7 +171,7 @@ test.for(TEST_DIALECTS)(
             return alice.document.edit({
                 spaceId,
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 field: "body",
                 edits,
             });
@@ -217,7 +217,7 @@ test.for(TEST_DIALECTS)(
         const undone = await alice.document.edit({
             spaceId,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             field: "body",
             edits: deleted.inverse,
         });
@@ -229,7 +229,7 @@ test.for(TEST_DIALECTS)(
         await alice.document.edit({
             spaceId,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             field: "body",
             edits: undone.inverse,
         });
@@ -239,7 +239,7 @@ test.for(TEST_DIALECTS)(
         const replaced = {
             spaceId,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             body: "replaced",
         };
         const plain = await refusal(alice.document.update(replaced));
@@ -248,7 +248,7 @@ test.for(TEST_DIALECTS)(
             alice.document.edit({
                 spaceId,
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 field: "body",
                 edits: [{ insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } }],
             }),
@@ -262,7 +262,7 @@ test.for(TEST_DIALECTS)(
             alice.document.edit({
                 spaceId,
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 field: "body",
                 edits: [{ insert: "x", run: "alice.1" }],
             }),
@@ -291,7 +291,7 @@ test.for(TEST_DIALECTS)(
         await alice.document.grant({
             spaceId,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "editor",
             subject: principal.user.reference("universe", "bob"),
         });

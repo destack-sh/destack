@@ -107,7 +107,7 @@ test.for(TEST_DIALECTS)(
         // keep a new role at once and its binding to a member
         const reviewer = await store
             .mutate(context.caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [
                     role.call("create", {
                         spaceId: SPACE_ID,

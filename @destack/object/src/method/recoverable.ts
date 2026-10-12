@@ -122,7 +122,7 @@ async function purge(
     return {};
 }
 
-/** Remove a purged record the type keeps, at the loaded revision, by the holders of the purge permission. */
+/** Remove a purged record at the loaded revision, by holders of the purge permission. */
 export function discard<const Permission extends string>(permission: Permission) {
     return keptMethod
         .mutation({ permission, isInternal: true, output: Empty })

@@ -64,7 +64,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
     });
     const created = await store
         .mutate(userContext("user-1", spaceId).caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 board.call("create", {
                     spaceId,

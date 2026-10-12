@@ -46,7 +46,7 @@ export const FIELD_TYPES = [
 /** The meaning of a field beyond its stored value. */
 export type FieldType = (typeof FIELD_TYPES)[number];
 
-/** The meaning of the fields each builder makes: an aggregate's value type, else the builder's own. */
+/** The field type of each builder: an aggregate's value type, else the builder's own. */
 const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     string: "string",
     integer: "integer",
@@ -97,7 +97,7 @@ export interface StateMachine {
     >;
 }
 
-/** The builder call a field came from: the builder's name and its arguments as written, which its description records and decoding replays. */
+/** The builder call of a field: the builder's name and its arguments as written. */
 export type FieldSource =
     | { readonly builder: "string"; readonly arguments: readonly [schema.Schema<string>] }
     | {
@@ -123,7 +123,7 @@ export type FieldSource =
     | { readonly builder: "state"; readonly arguments: readonly [StateMachine] }
     | { readonly builder: "reference"; readonly arguments: ReferenceArguments };
 
-/** The modifiers a field's description records after its builder call, in the order decoding applies them. */
+/** The modifiers a field's description records after its builder call, in decoding order. */
 export const FIELD_MODIFIERS = [
     "optional",
     "default",
@@ -156,7 +156,7 @@ export type TextField = FieldOf<{ value: string; default: true; written: false }
 /** The aggregate function keeping a field current. */
 export type AggregateFunction = "count" | "sum" | "min" | "max";
 
-/** The column definition a field declares: not null when required, with a default when it has one, sensitive when classified so. */
+/** A field's column: not null if required, with any default, sensitive if classified so. */
 export type FieldColumn<
     Value extends ColumnValue,
     Required extends boolean,
@@ -183,7 +183,7 @@ export interface FieldConfiguration {
     readonly sensitive: boolean;
     /** Whether creation fills the value with the calling principal, outside internal creations. */
     readonly caller: boolean;
-    /** Whether the value is another object's or a principal's identifier, which the object keeps under `<relation>Id`. */
+    /** Whether the value is an object or principal identifier, kept under `<relation>Id`. */
     readonly reference: boolean;
     /** The relation a reference declares, never for other fields. */
     readonly relation: string;
@@ -218,7 +218,7 @@ const WRITTEN = {
     isReference: false,
 } as const;
 
-/** The signature of a required, written, unguarded field a declaration describes, each absent flag at its default. */
+/** The signature of a required, written, unguarded field, each absent flag at its default. */
 type FieldConfigurationOf<
     Declared extends Partial<FieldConfiguration> & { readonly value: ColumnValue },
 > = {
@@ -261,7 +261,7 @@ type FlagConfiguration<Configuration extends FieldConfiguration, Flags extends F
     readonly reference: Flags["isReference"];
 };
 
-/** The fields as an object keeps them, each identifier reference under `<relation>Id` declaring its relation. */
+/** The fields as an object keeps them, each identifier reference under `<relation>Id`. */
 export type ObjectFields<Fields> = {
     readonly [
         Key in keyof Fields & string as Fields[Key] extends Field<infer Configuration>
@@ -422,7 +422,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     /**
      * Create the column storing the field, built from the field's flags.
      *
-     * @construct the column has the nullability, default and sensitivity the field's flags set, which is how FieldColumn maps the signature.
+     * @construct the flags set nullability, default and sensitivity, as FieldColumn maps them.
      */
     column(name: string, owner: string, storage: ObjectStorage): ColumnBuilder {
         // build the nullable column
@@ -491,11 +491,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         });
     }
 
-    /**
-     * Require a permission to read the value, and optionally another to write it.
-     *
-     * A field guarded to read stays required to write, while its column is nullable: readers without the permission and copies in other databases keep it concealed.
-     */
+    /** Require a permission to read the value, and optionally another to write it. */
     guard(access: {
         readonly read: string;
         readonly write?: string;
@@ -520,7 +516,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     /**
      * Replay a field's builder call.
      *
-     * @construct each source records a builder of `field` with the arguments it took, so replaying it builds a field.
+     * @construct each source records a `field` builder and arguments, so replay builds a field.
      */
     static #replay(source: FieldSource): unknown {
         const built: unknown = Reflect.apply(field[source.builder], field, source.arguments);
@@ -528,7 +524,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return built;
     }
 
-    /** Describe the field as the builder calls making it: its builder's, then each modifier's that changes what the builder made. */
+    /** Describe the field as builder calls: its builder's, then each effective modifier's. */
     describe(): readonly [FieldSource, ...BuilderCall[]] {
         // compare with the field the builder call alone makes
         const plain = Field.#replay(this.source);
@@ -565,7 +561,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return [this.source, ...modifiers, ...guarded, ...related];
     }
 
-    /** Read the relation the field keeps under a property: a reference's declared relation, any other field's property. */
+    /** Read the relation under a property: a reference's declared one, else the property. */
     relationAt(property: string): string {
         return this.relation ?? property;
     }
@@ -705,7 +701,7 @@ type QualifiedOptions = ReferenceOptions & { readonly qualified: true };
 /** The identifier of an object type's objects. */
 export type IdentifierOf<Target extends ObjectType> = Identifier<IdentityOf<Target>>;
 
-/** The value identifying one of an object type's objects: its natural key, or its generated identifier. */
+/** The value identifying an object of a type: its natural key or generated identifier. */
 type ReferenceOf<Target extends ObjectType> =
     Select<Target["table"]> extends { readonly id: infer Id extends string }
         ? Id
@@ -732,7 +728,7 @@ function reference(target: Policy): FieldOf<{ value: string; reference: true }>;
 /**
  * Reference another object, or a principal of a kind.
  *
- * @construct each form returns the field of the builder its signature refers to, typed by the values it keeps.
+ * @construct each form returns its signature's builder field, typed by the values it keeps.
  */
 function reference(
     ...written: ReferenceArguments
@@ -755,14 +751,14 @@ function reference(
     }
 }
 
-/** The arguments of `field.reference` as written: the target, then options or a later type, then options. */
+/** The arguments of `field.reference`: the target, then options or a later type, then options. */
 type ReferenceArguments = readonly [
     target: ObjectType | Policy | (() => ObjectType) | string,
     second?: ReferenceOptions | (() => ObjectType),
     third?: UnqualifiedOptions,
 ];
 
-/** What a reference refers to: a global principal kind, an object type now or declared later, or objects in any scope. */
+/** A reference target: a global principal kind, an object type now or later, or any scope. */
 type ReferenceTarget =
     | { readonly kind: "principal"; readonly target: Policy }
     | { readonly kind: "object"; readonly target: ObjectType; readonly options: ReferenceOptions }
@@ -823,7 +819,7 @@ const ReferenceTarget = {
         return { kind: "object", target, options };
     },
 
-    /** Resolve the object type a reference refers to, absent for a principal kind or the field's own type. */
+    /** Resolve a reference's object type, absent for a principal kind or the field's own type. */
     resolver(referenced: ReferenceTarget): (() => ObjectType) | undefined {
         switch (referenced.kind) {
             case "principal":
@@ -948,12 +944,12 @@ function referenceQualified(
     });
 }
 
-/** Read the identifier column of an object type's table, which holds the values its references hold. */
+/** Read the identifier column of an object type's table, matching its references' values. */
 export function idColumn<Value extends ColumnValue>(table: Table): Column<ColumnDefinition<Value>>;
 /**
  * Read the identifier column of an object type's table.
  *
- * @construct every object type keys its rows by its identifiers in an `id` column, and a reference resolves only to a type of the identity its values carry.
+ * @construct object types key rows by an `id` column, and references resolve to a matching type.
  */
 export function idColumn(table: Table): Column {
     return table[TABLE].column("id");
@@ -988,7 +984,7 @@ function string<Validator extends schema.Schema<string> = schema.Schema<string>>
 /**
  * Declare text a string schema validates.
  *
- * @construct a string field omits its schema only when its validator type admits any string, which the signature's rest tuple requires.
+ * @construct a string field omits its schema only if it admits any string, per the rest tuple.
  */
 function string(validator: schema.Schema<string> = schema.string()): FieldOf<{ value: string }> {
     return required({ builder: "string", arguments: [validator] }, (name) =>

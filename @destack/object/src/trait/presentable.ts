@@ -49,7 +49,7 @@ export const Icon = defineSchema(
 /** An object's icon. */
 export type Icon = schema.Infer<typeof Icon>;
 
-/** An object's cover: an image kept in the bucket its type sets, and the vertical point the banner centres on. */
+/** An object's cover: an image in its type's bucket, and the banner's vertical centre. */
 export const Cover = defineSchema(
     schema.object({
         /** The image. */
@@ -67,7 +67,7 @@ export interface PresentableOptions {
     readonly title?: string;
     /** The field shown under the title. */
     readonly subtitle?: string;
-    /** Each object's chosen icon, with images kept in a bucket, one fixed icon set name for every object, or none, chosen when absent. */
+    /** Each object's icon: chosen images in a bucket, one fixed icon set name, or none. */
     readonly icon?: boolean | string | FileBucket;
     /** Whether each object takes one of the theme's accents, true when absent. */
     readonly color?: boolean;
@@ -107,7 +107,7 @@ const PresentationSchema = defineSchema(
         title: schema.string().min(1),
         /** The field shown under the title. */
         subtitle: schema.string().min(1).exactOptional(),
-        /** The field keeping each object's icon and the bucket of uploaded ones, or the icon every object shows. */
+        /** The icon field and uploaded icon bucket, or the icon of every object. */
         icon: schema
             .union([
                 schema.object({
@@ -130,7 +130,7 @@ export type Presentation = schema.Infer<typeof PresentationSchema>;
 
 /** The presentation of an object type, and how an object's row reads through it. */
 export const Presentation = Object.assign(PresentationSchema, {
-    /** Read an object's title from its row, its identifier for a type presenting none or an untitled object. */
+    /** Read an object's title from its row, else its identifier. */
     title(
         presentation: Presentation | undefined,
         row: Readonly<Record<string, JsonValue | undefined>>,
@@ -141,9 +141,9 @@ export const Presentation = Object.assign(PresentationSchema, {
     },
 });
 
-/** Objects presented by a title, a subtitle, an icon, an accent and a cover, as pickers, mentions and titles show them. */
+/** Objects shown by title, subtitle, icon, accent and cover in pickers, mentions and titles. */
 export const Presentable = {
-    /** Add the icon, accent and cover fields a presented definition keeps, refusing a field it declares itself. */
+    /** Add a presented definition's icon, accent and cover fields, refusing its own copies. */
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, "fields"> {
@@ -174,7 +174,7 @@ export const Presentable = {
         return { ...definition, fields: { ...declared, ...added } };
     },
 
-    /** Resolve a definition's presentation to the fields keeping each piece, absent for one presenting nothing. */
+    /** Resolve a definition's presentation to its fields, absent if it presents nothing. */
     of(
         definition: Pick<ObjectDefinition, "name" | "presentable" | "fields">,
     ): Presentation | undefined {

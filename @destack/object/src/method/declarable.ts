@@ -88,7 +88,7 @@ export function adopt<const Permission extends string>(
     });
 }
 
-/** Require a direct record, or one detached from the adopting declaration, and a declaration declaring no other record of the type in the scope. */
+/** Require a direct record, or one detached from the adopting declaration. */
 async function requireAdoptable(call: Call): Promise<void> {
     // read the adopting declaration and the target's manager
     const { manager } = AdoptInput.parse(call.input);
@@ -123,7 +123,7 @@ function isSameManager(left: Manager, right: Manager): boolean {
     );
 }
 
-/** The input applying a declared record: its manager and the declared values in their JSON form, null once no longer declared. */
+/** The input applying a declared record: manager and JSON values, null once undeclared. */
 const ApplyInput = schema.object({
     /** The declaration managing the record. */
     manager: Manager.schema,
@@ -131,7 +131,7 @@ const ApplyInput = schema.object({
     values: schema.record(schema.string(), schema.json()).nullable(),
 });
 
-/** Apply the record a stack declares where its rows live: create it under the chosen identifier, write it as its next revision, or retire it once no longer declared. */
+/** Apply a stack's declared record where its rows live. */
 export const apply: Method<{
     kind: "apply";
     permission: "declare";
@@ -224,7 +224,7 @@ function created(
     );
 }
 
-/** Write declared values over a record as its next revision, advancing its generation and lifting a deletion request. */
+/** Write declared values as a record's next revision, advancing generation, lifting deletion. */
 function rewritten(object: ObjectType, row: Row, values: Row, now: number): Row {
     const table = object.table[TABLE];
 
@@ -242,7 +242,7 @@ function rewritten(object: ObjectType, row: Row, values: Row, now: number): Row 
     });
 }
 
-/** Retire a record no longer declared: request its deletion where a trash or controller finishes it, or delete it. */
+/** Retire an undeclared record: request deletion where a trash or controller ends it, or delete. */
 async function retire(
     transaction: Transaction,
     object: ObjectType,

@@ -36,7 +36,7 @@ const HANDLER_PHASES: ReadonlySet<string> = new Set([
     "settle",
 ]);
 
-/** A method's signature: its kind, permission, schemas and table, which type its calls and handlers. */
+/** A method's signature: kind, permission, schemas and table, typing its calls and handlers. */
 export interface MethodConfiguration {
     /** The method's kind. */
     readonly kind: MethodKind;
@@ -52,11 +52,11 @@ export interface MethodConfiguration {
     readonly mutates: boolean;
     /** The columns a creation or update writes. */
     readonly fields: string;
-    /** The column sets of a sum type a creation writes, by the field telling them apart and its value. */
+    /** The column sets of a sum type creation, by discriminating field and value. */
     readonly variants: object;
     /** The table of the method's object type. */
     readonly table: Table;
-    /** Whether the method stays out of the routes people call, run only by the principals' own code. */
+    /** Whether the method stays off public routes, run only by the principals' own code. */
     readonly internal: boolean;
     /** Whether the method acts in its scope with no target object. */
     readonly scoped: boolean;
@@ -69,7 +69,7 @@ export type OptionOf<
     Absent,
 > = Configuration extends { readonly [Name in Key]: infer Value } ? Value : Absent;
 
-/** The builder call a declared method came from: the builder's name and its arguments as written, which its description records and decoding replays. */
+/** The builder call of a declared method: the builder's name and its arguments as written. */
 export type MethodSource =
     | { readonly builder: "get" | "list"; readonly arguments: readonly [permission: string] }
     | {
@@ -111,7 +111,7 @@ export type MethodSource =
           ];
       };
 
-/** A named operation on an object type, typed by the input, output and prepared work it declares. */
+/** A named operation on an object type, typed by its input, output and prepared work. */
 export interface Method<Configuration extends Partial<MethodConfiguration> = MethodConfiguration> {
     /** The brand marking a declared method. */
     readonly [METHOD]: true;
@@ -129,7 +129,7 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     readonly variants?: OptionOf<Configuration, "variants", never>;
     /** The caller-supplied values beyond columns. */
     readonly input?: OptionOf<Configuration, "input", never>;
-    /** The input fields each release computes from an earlier call's input, by the release introducing them. */
+    /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     /** The result of a custom method. */
     readonly output?: OptionOf<Configuration, "output", never>;
@@ -159,7 +159,7 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     authorize?(call: Call): Promise<void>;
     /** Derive a created object's first relationships and a new scope's owner, for creations. */
     readonly creation?: (call: Call, object: sync.ObjectReference) => Creation | Promise<Creation>;
-    /** List the calls a mutation runs before this one, each as its caller, read before the transaction. */
+    /** List the calls a mutation runs before this one as their callers, before the transaction. */
     expand?(call: Call): Promise<readonly BranchCall[]>;
     /** Do external work before the transaction, on the server only. */
     prepare?(call: Call): Promise<unknown>;
@@ -167,7 +167,7 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     readonly source?: MethodSource;
     /** Settle the prepared work once the transaction committed or failed, at least once. */
     settle?(call: SettlementCall, settled: Settled): Promise<void>;
-    /** Whether the method stays out of the routes people call, run only by the principals' own code. */
+    /** Whether the method stays off public routes, run only by the principals' own code. */
     readonly isInternal?: OptionOf<Configuration, "internal", boolean>;
     /** Whether the method acts in its scope with no target object. */
     readonly isScoped?: OptionOf<Configuration, "scoped", boolean>;
@@ -175,7 +175,7 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     validate?(object: ObjectType): void;
     /** Derive the calls undoing a step. */
     inverse?(step: Step): readonly sync.Call[] | undefined;
-    /** Wrap the method in an object's own handler or phases, which leaves it no builder call as its source. */
+    /** Wrap the method in an object's own handler or phases, leaving it no builder call source. */
     handle(handler: Handler<Configuration>): Method<Configuration>;
 }
 

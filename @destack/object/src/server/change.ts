@@ -25,13 +25,13 @@ import { ObjectType } from "../object/object.ts";
 /** The rows one snapshot page reads: a few hundred kilobytes. */
 const SNAPSHOT_PAGE_ROWS = 500;
 
-/** The runs recorded at once: 32 requests of a few milliseconds keep a page of 500 changes under a tenth of a second. */
+/** The runs recorded at once: 32 requests of a few ms keep 500 changes under 0.1 seconds. */
 const SEND_CONCURRENCY = 32;
 
-/** How often a change trigger looks again within its lag, advancing its slot however quiet its table: three times. */
+/** How often a change trigger looks again in its lag, advancing its slot: three times. */
 const SLOT_ADVANCES = 3;
 
-/** Follow the change triggers of served objects, recording the call of each change they admit as a run in the space's machine. */
+/** Follow served change triggers, recording each admitted change's call as a machine run. */
 export class ChangeController implements Controller {
     /** The controller's name in reports. */
     readonly name = "change";
@@ -94,7 +94,7 @@ export class ChangeController implements Controller {
         return [...this.#followed.keys()];
     }
 
-    /** Record the runs of a trigger's admitted changes since its slot, advance the slot past them, and look again before the slot lapses. */
+    /** Record a trigger's admitted runs since its slot, advancing it before it lapses. */
     async reconcile(key: string): Promise<number> {
         // continue after the trigger's slot, or start it
         const trigger = found(this.#followed, key);
@@ -148,7 +148,7 @@ export class ChangeController implements Controller {
         return Math.floor(change.maxLag / SLOT_ADVANCES);
     }
 
-    /** Start a trigger at the log's head, recording its snapshot's rows first when it starts with them. */
+    /** Start a trigger at the log's head, first recording any snapshot rows it starts with. */
     async #start(trigger: ChangeTrigger, slot: string, epoch: string): Promise<number> {
         // start the slot at the head, or resume the snapshot begun at an earlier head
         const change = trigger.on.change;
@@ -198,7 +198,7 @@ export class ChangeController implements Controller {
         return sequence;
     }
 
-    /** Record the runs of some changes' calls once per change and snapshot row, under requests derived from each change and its time, reporting a change whose call fails to build. */
+    /** Record the runs of changes' calls once per change and snapshot row. */
     async #record(
         trigger: ChangeTrigger,
         changes: readonly { readonly change: ObjectChange; readonly at: number }[],

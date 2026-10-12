@@ -124,7 +124,7 @@ test.each(TEST_DIALECTS)(
         const create = (title: string, parentId?: string) =>
             alice.page.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 title,
                 ...(parentId === undefined
                     ? {}
@@ -140,7 +140,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             bob.page.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 parentId: week.id,
                 title: "Spam",
             }),
@@ -150,14 +150,14 @@ test.each(TEST_DIALECTS)(
         await alice.page.grant({
             spaceId,
             id: handbook.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "editor",
             subject: principal.user.reference("universe", "bob"),
         });
         expect((await bob.page.get({ spaceId, id: week.id })).title).toBe("First week");
         const tools = await bob.page.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: onboarding.id,
             title: "Tools",
         });
@@ -166,7 +166,7 @@ test.each(TEST_DIALECTS)(
             bob.page.move({
                 spaceId,
                 id: week.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: week.revision,
                 parentId: null,
             }),
@@ -176,7 +176,7 @@ test.each(TEST_DIALECTS)(
         await alice.page.move({
             spaceId,
             id: week.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: week.revision,
             parentId: null,
         });
@@ -188,7 +188,7 @@ test.each(TEST_DIALECTS)(
             alice.page.move({
                 spaceId,
                 id: handbook.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: handbook.revision,
                 parentId: onboarding.id,
             }),
@@ -202,7 +202,7 @@ test.each(TEST_DIALECTS)(
         await alice.page.grant({
             spaceId,
             id: handbook.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "public",
             subject: anyone.reference("*", "*"),
             conditions: { linkSecret: link.digest },
@@ -220,7 +220,7 @@ test.each(TEST_DIALECTS)(
             visitor.page.update({
                 spaceId,
                 id: tools.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: tools.revision,
                 title: "Defaced",
             }),
@@ -267,7 +267,7 @@ test.each(TEST_DIALECTS)(
         const request = await carol.page.invite({
             spaceId,
             id: handbook.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relationship: {
                 relation: "editor",
                 subject: principal.user.reference("universe", "carol"),
@@ -276,13 +276,13 @@ test.each(TEST_DIALECTS)(
         await alice.page.accept({
             spaceId,
             id: handbook.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             invitationId: request.id,
         });
         const renamed = await carol.page.update({
             spaceId,
             id: onboarding.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: onboarding.revision,
             title: "Welcome",
         });
@@ -368,7 +368,7 @@ test.each(TEST_DIALECTS)(
         const create = (title: string, parentId?: string) =>
             alice.page.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 title,
                 ...(parentId === undefined
                     ? {}
@@ -381,7 +381,7 @@ test.each(TEST_DIALECTS)(
         await alice.page.grant({
             spaceId,
             id: handbook.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "viewer",
             subject: principal.user.reference("universe", "bob"),
         });
@@ -401,14 +401,14 @@ test.each(TEST_DIALECTS)(
         await alice.page.move({
             spaceId,
             id: week.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: null,
         });
         await expect.poll(titles).toEqual(["Handbook", "Onboarding"]);
         await alice.page.move({
             spaceId,
             id: week.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: onboarding.id,
         });
         await expect.poll(titles).toEqual(["Day one", "First week", "Handbook", "Onboarding"]);
@@ -424,7 +424,7 @@ test.for(TEST_DIALECTS)("list the pages below and above each page on %s", async 
     const create = async (title: string, parentId?: string) =>
         alice.page.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title,
             ...(parentId === undefined
                 ? {}
@@ -463,7 +463,7 @@ test.for(TEST_DIALECTS)(
         );
         const handbook = await alice.page.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Handbook",
         });
 

@@ -47,14 +47,14 @@ test.each(TEST_DIALECTS)(
         // let one space claim a handle, and refuse it to another space
         const ada = await east.alice.profile.create({
             spaceId: east.spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             handle: "ada",
         });
         expect(await handle("ada")).toBe(ada.id);
         await expect(
             west.bob.profile.create({
                 spaceId: west.spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 handle: "ada",
             }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "handle is taken" });
@@ -63,19 +63,19 @@ test.each(TEST_DIALECTS)(
         await east.alice.profile.update({
             spaceId: east.spaceId,
             id: ada.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: ada.revision,
             handle: "lovelace",
         });
         const bob = await west.bob.profile.create({
             spaceId: west.spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             handle: "ada",
         });
         await east.alice.profile.delete({
             spaceId: east.spaceId,
             id: ada.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: ada.revision + 1,
         });
         expect([await handle("ada"), await handle("lovelace")]).toEqual([bob.id, undefined]);
@@ -84,7 +84,7 @@ test.each(TEST_DIALECTS)(
         await west.bob.profile.update({
             spaceId: west.spaceId,
             id: bob.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: bob.revision,
             handle: null,
         });

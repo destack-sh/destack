@@ -35,9 +35,9 @@ import {
     type ObjectScope,
 } from "./object.ts";
 
-/** The access a type's objects take: the policy deciding it, the mapping of their rows, and the authorizer over several types. */
+/** The access of a type's objects: deciding policy, row mapping, and multi-type authorizer. */
 export const ObjectAccess = {
-    /** Build a type's policy of its declared permissions and relations with its traits' policies. */
+    /** Build a type's policy of declared permissions and relations with its traits' policies. */
     policy(
         type: ObjectType,
         definition: ObjectDefinition,
@@ -108,12 +108,13 @@ export const ObjectAccess = {
                 ]),
             ),
             relations,
+            ...(type.owner === undefined ? {} : { owner: type.owner }),
             ...inherited,
             ...placed,
         };
     },
 
-    /** Build the authorizer of object types, of every scope type enclosing them, of the types they relate to, and of other policies and mappings. */
+    /** Build the authorizer of object types, their enclosing scope types, and related types. */
     authorizer(
         objects: readonly ObjectType[],
         others: readonly (Policy | ObjectType | TableMapping)[],
@@ -268,7 +269,7 @@ function mappingOf(table: Table): TableMapping {
     );
 }
 
-/** Resolve the relations a definition declares, those its permissions read from fields, and its enclosing scopes. */
+/** Resolve a definition's declared relations, its permissions' field relations, and scopes. */
 function declaredRelations(
     type: ObjectType,
     definition: ObjectDefinition,
@@ -315,7 +316,7 @@ function declaredRelations(
     return relations;
 }
 
-/** Resolve a declared relation subject: an object type's policy, a subject type of the package by name, or a subject as is. */
+/** Resolve a declared relation subject: a type's policy, a package subject type, or as is. */
 function subjectOf(
     subject: ObjectRelationInput["subjects"][number],
     owner: Package,
@@ -436,12 +437,18 @@ function fieldRelations(type: ObjectType): Record<string, TableMapping["relation
         else if (isRelation && field.type === "reference" && field.principals !== undefined) {
             relations[name] = { column: property, scope: Scope.universe.id };
         }
-        // map a plain reference by identifier
+        // map a plain reference by identifier: in the universe, in the object's scope, or across scopes
         else if (isRelation && field.type === "reference" && field.target && !field.qualified) {
+            const target = field.target();
+            const isBeside = type.scopes.every((scope) =>
+                target.scopes.some((other) => other.same(scope)),
+            );
             relations[name] =
-                field.target().scope === Scope.universe.id
+                target.scope === Scope.universe.id
                     ? { column: property, scope: Scope.universe.id }
-                    : { column: property };
+                    : isBeside
+                      ? { column: property }
+                      : { column: property, scope: access.ANY_SCOPE };
         }
     }
 

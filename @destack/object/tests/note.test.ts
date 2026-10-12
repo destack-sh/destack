@@ -26,18 +26,18 @@ test.each(TEST_DIALECTS)(
         // keep a notebook's notes and a loose note private to their owner
         const research = await alice.notebook.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "Research",
         });
         const filed = await alice.note.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: research.id,
             title: "Sources",
         });
         const loose = await alice.note.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Ideas",
         });
         expect((await bob.note.list({ spaceId })).items).toEqual([]);
@@ -46,7 +46,7 @@ test.each(TEST_DIALECTS)(
         await alice.notebook.grant({
             spaceId,
             id: research.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "editor",
             subject: principal.user.reference("universe", "bob"),
         });
@@ -56,20 +56,20 @@ test.each(TEST_DIALECTS)(
         const edited = await bob.note.update({
             spaceId,
             id: filed.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: filed.revision,
             text: "Three papers",
         });
         expect(edited.text).toBe("Three papers");
         await expect(
-            bob.note.delete({ spaceId, id: filed.id, requestId: RequestId.create(), revision: 2 }),
+            bob.note.delete({ spaceId, id: filed.id, requestId: RequestId.create(Date.now()), revision: 2 }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
 
         // move a note only as its manager into an editable notebook
         await alice.note.move({
             spaceId,
             id: loose.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: loose.revision,
             parentId: research.id,
         });
@@ -78,7 +78,7 @@ test.each(TEST_DIALECTS)(
             bob.note.move({
                 spaceId,
                 id: loose.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: 2,
                 parentId: null,
             }),
@@ -88,7 +88,7 @@ test.each(TEST_DIALECTS)(
         await alice.note.delete({
             spaceId,
             id: loose.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: 2,
         });
         expect(await titles()).toEqual(["Sources"]);
@@ -99,7 +99,7 @@ test.each(TEST_DIALECTS)(
             alice.note.update({
                 spaceId,
                 id: loose.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 text: "Late",
             }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "note is in the trash" });
@@ -107,7 +107,7 @@ test.each(TEST_DIALECTS)(
             alice.note.grant({
                 spaceId,
                 id: loose.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 relation: "viewer",
                 subject: principal.user.reference("universe", "bob"),
             }),
@@ -121,7 +121,7 @@ test.each(TEST_DIALECTS)(
             { items: [], cursor: null },
             { items: [], cursor: null },
         ]);
-        await alice.note.restore({ spaceId, id: loose.id, requestId: RequestId.create() });
+        await alice.note.restore({ spaceId, id: loose.id, requestId: RequestId.create(Date.now()) });
         expect(await titles()).toEqual(["Ideas", "Sources"]);
 
         // follow the notes on bob's device and write into the shared notebook, predicted at once
@@ -212,7 +212,7 @@ test.each(TEST_DIALECTS)(
         await alice.note.update({
             spaceId,
             id: packing.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             text: "passport, charger",
         });
         device.follow();
@@ -236,7 +236,7 @@ test.each(TEST_DIALECTS)(
         await alice.notebook.grant({
             spaceId,
             id: book.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "viewer",
             subject: principal.user.reference("universe", "bob"),
         });
@@ -289,11 +289,11 @@ test.each(TEST_DIALECTS)(
 
         // file notes into two notebooks
         const notebookNamed = (name: string) =>
-            alice.notebook.create({ spaceId, requestId: RequestId.create(), name });
+            alice.notebook.create({ spaceId, requestId: RequestId.create(Date.now()), name });
         const noteIn = (parentId: string, title: string) =>
             alice.note.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 parentId: schema.identifier("notebook").parse(parentId),
                 title,
             });
@@ -323,14 +323,14 @@ test.each(TEST_DIALECTS)(
         await alice.note.move({
             spaceId,
             id: plan.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: travel.id,
         });
         await expect.poll(() => device.titles()).toEqual(["Packing", "Plan"]);
         await alice.note.move({
             spaceId,
             id: plan.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: work.id,
         });
         await expect.poll(() => device.titles()).toEqual(["Packing"]);
@@ -363,7 +363,7 @@ test.each(TEST_DIALECTS)(
         const alice = connect("alice");
         const travel = await alice.notebook.create({
             spaceId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "Travel",
         });
         expect(travel.noteCount).toBe(0);
@@ -399,7 +399,7 @@ test.each(TEST_DIALECTS)(
             await count(),
             (await alice.notebook.get({ spaceId, id: travel.id })).noteCount,
         ]).toEqual([1, 1]);
-        await alice.note.delete({ spaceId, id, requestId: RequestId.create() });
+        await alice.note.delete({ spaceId, id, requestId: RequestId.create(Date.now()) });
         expect((await alice.notebook.get({ spaceId, id: travel.id })).noteCount).toBe(0);
         await expect.poll(count).toBe(0);
         expect(device.errors).toEqual([]);
@@ -510,7 +510,7 @@ test("decide checks on a device from its copy of the caller's access rows, and f
     // keep a notebook alice owns, which bob's device cannot read yet
     const research = await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         name: "Research",
     });
     const device = await Device.open("bob", endpoint("bob"));
@@ -526,7 +526,7 @@ test("decide checks on a device from its copy of the caller's access rows, and f
     const granted = await alice.notebook.grant({
         spaceId,
         id: research.id,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         relation: "editor",
         subject: principal.user.reference("universe", "bob"),
     });
@@ -536,7 +536,7 @@ test("decide checks on a device from its copy of the caller's access rows, and f
     await alice.notebook.revoke({
         spaceId,
         id: research.id,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         relationshipId: granted.id,
     });
     await expect.poll(checks).toEqual([false, false, false]);
@@ -553,7 +553,7 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
     // share alice's notebook with bob as editor and carol as viewer
     const research = await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         name: "Research",
     });
     for (const [user, relation] of [
@@ -563,7 +563,7 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
         await alice.notebook.grant({
             spaceId,
             id: research.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation,
             subject: principal.user.reference("universe", user),
         });

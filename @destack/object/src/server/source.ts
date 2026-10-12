@@ -66,7 +66,7 @@ const BROADCAST_BYTES = 16 * 1024;
 /** An event an object sends, with the object it is about. */
 const SENT_EVENT = ObjectReference.extend({ event: schema.json() });
 
-/** The copies a store's objects stream: client feeds of a scope's queries, and replicas of scopes for databases below. */
+/** The copies a store streams: client feeds of scope queries, and replicas for databases below. */
 export class ObjectSource {
     /** The store whose objects the copies keep. */
     readonly store: ObjectStore;
@@ -78,7 +78,7 @@ export class ObjectSource {
         this.store = store;
     }
 
-    /** Report whether a copy streams now for a scope or principal below, such as a platform installation following this store. */
+    /** Report whether a copy streams now for a scope or principal below, like an installation. */
     follows(below: string): boolean {
         return this.#streaming.has(below);
     }
@@ -139,7 +139,7 @@ export class ObjectSource {
         }
     }
 
-    /** Admit a caller to a shape's copy for the scope below by the shape's audience, answering who the copy is for. */
+    /** Admit a caller to a shape's copy for the scope below, returning who the copy is for. */
     async #admit(
         shape: sync.Shape,
         subscription: sync.Subscription,
@@ -178,7 +178,7 @@ export class ObjectSource {
         }
     }
 
-    /** Decide who a relayed copy is for: the principal a served object stands for, or the caller. */
+    /** Decide who a relayed copy is for: a served object's principal, or the caller. */
     async #follower(
         request: Omit<sync.Subscription, "after">,
         context: ServiceContext,
@@ -222,7 +222,7 @@ export class ObjectSource {
         return { context };
     }
 
-    /** Require the `replicate` permission on a caller's own object, or else on a scope: the one below, or the copied one for a scope another database keeps, such as a space. */
+    /** Require `replicate` on a caller's own object, or else on a scope. */
     async #requireReplicate(
         below: string,
         kept: readonly Subject[],
@@ -261,7 +261,7 @@ export class ObjectSource {
         await authorization.require(first.permission, first.target);
     }
 
-    /** List the scopes above the row standing for a principal, or for an installation's space, none for anyone and when no row stands for it. */
+    /** List the scopes above a principal's row, or an installation's space, else none. */
     async within(
         subject: Subject | undefined,
         database: DatabaseConnection,
@@ -284,7 +284,7 @@ export class ObjectSource {
         }));
     }
 
-    /** Find the object standing for a scope as a principal among the types the store serves or decides, home or copied, with the scope containing it. */
+    /** Find a scope's principal object among served or decided types, with its containing scope. */
     async #standing(
         below: string,
         database: DatabaseConnection = this.store.database,
@@ -331,7 +331,7 @@ export class ObjectSource {
         return undefined;
     }
 
-    /** The shape of a scope's durable objects a caller follows: its named queries, or every listed type of the scope's level. */
+    /** The shape of a scope's durable objects: named queries, or every listed type of its level. */
     readonly queriesShape = sync.defineShape({
         name: QUERIES_SHAPE,
         parameters: QueriesParameters,
@@ -345,7 +345,7 @@ export class ObjectSource {
             }),
     });
 
-    /** The shape of a scope's ephemeral objects a client follows, owning the rows it writes while it follows them. */
+    /** The shape of a scope's ephemeral objects a client follows, writing its own rows. */
     readonly ephemeralShape = sync.defineShape({
         name: EPHEMERAL_SHAPE,
         parameters: EphemeralParameters,
@@ -359,7 +359,7 @@ export class ObjectSource {
             }),
     });
 
-    /** The shape of a scope's external objects the caller reads, from the database their files open: its named queries. */
+    /** The shape of a scope's external objects from their files' database: named queries. */
     readonly externalShape = sync.defineShape({
         name: EXTERNAL_SHAPE,
         parameters: QueriesParameters,
@@ -375,7 +375,7 @@ export class ObjectSource {
             }),
     });
 
-    /** The shape of the access rows the caller's own checks read in a scope's chain: the scopes, their roles, and the relationships the caller's subjects hold. */
+    /** The shape of the access rows of the caller's own checks in a scope's chain. */
     readonly accessShape = sync.defineShape({
         name: ACCESS_SHAPE,
         parameters: schema.object({}),
@@ -384,7 +384,7 @@ export class ObjectSource {
         replica: ({ name, scope }) => new sync.Replica({ name, scope, tables: decisionTables }),
     });
 
-    /** The shape of the rows a home's residents receive, each decided for its recipient, which the home copies and projects. */
+    /** The shape of rows a home's residents receive per recipient, copied and projected. */
     readonly projectionShape = sync.defineShape({
         name: PROJECTION_SHAPE,
         parameters: ProjectionParameters,
@@ -420,7 +420,7 @@ export class ObjectSource {
         },
     });
 
-    /** Stream the rows of a type a home's residents receive from a position, each decided for its recipient. */
+    /** Stream a type's rows for a home's residents from a position, decided per recipient. */
     async *project(
         subscription: sync.Subscription,
         signal: AbortSignal,
@@ -487,7 +487,7 @@ export class ObjectSource {
         return source;
     }
 
-    /** List the subscriptions a home follows: one per projected type and source installation its residents' residences refer to. */
+    /** List a home's subscriptions: one per projected type and source installation of residents. */
     async projectionSubscriptions(home: string): Promise<sync.Subscription[]> {
         // project nowhere without a projected type
         const projecting = this.store.objects.flatMap((object) =>
@@ -560,7 +560,7 @@ export class ObjectSource {
         });
     }
 
-    /** Build the controller recording in each recipient's user scope the installation keeping rows of a projected type for them, absent without one. */
+    /** Build the controller recording in each recipient's user scope its projected rows' keeper. */
     addresses(): Controller | undefined {
         // find the served types some type projects, with their recipient fields
         const { installation } = this.store;
@@ -768,7 +768,7 @@ export class ObjectSource {
         });
     }
 
-    /** Follow pages decided for the caller, from a snapshot again whenever the caller's access along the scope chain changes. */
+    /** Follow pages decided for the caller, restarting from a snapshot on chain access changes. */
     async *#decided(
         scope: string,
         context: ServiceContext,
@@ -890,12 +890,12 @@ export class ObjectSource {
         return shape;
     }
 
-    /** Build the key of the copy a subscription keeps from its name and scope, which every subscription of the copy shares. */
+    /** Build a subscription's copy key from its name and scope, shared per copy. */
     static #copy(subscription: Pick<sync.Subscription, "name" | "scope">): string {
         return `${subscription.name} ${subscription.scope}`;
     }
 
-    /** Build the controller following each requested copy and dropping each kept copy no request asks for. */
+    /** Build the controller following requested copies and dropping unrequested kept copies. */
     controller(subscriber: Subscriber): Controller {
         // list the requested copies and revise the listed ones
         const listed = new Map<string, CopyEntry>();
@@ -937,7 +937,7 @@ export class ObjectSource {
         ];
     }
 
-    /** Follow each requested copy from its publisher, and drop each kept copy no request asks for, by copy key. */
+    /** Follow requested copies from publishers, dropping unrequested kept copies, by copy key. */
     async #copies(subscriber: Subscriber): Promise<Map<string, CopyIntent & { digest: string }>> {
         // drop the kept copies no request asks for and follow the requested ones
         const entries = await subscriber.subscriptions();
@@ -1002,7 +1002,7 @@ export class ObjectSource {
         return undefined;
     }
 
-    /** Follow a requested copy from its publisher, failing once its source refuses it unless its request changed. */
+    /** Follow a requested copy, failing on its source's refusal unless the request changed. */
     async #followCopy(
         key: string,
         copy: CopyEntry & { readonly action: "follow" },
@@ -1027,7 +1027,7 @@ export class ObjectSource {
         }
     }
 
-    /** List the rows of the universe a scope reads: each copied type's rows, nested types within their scopes. */
+    /** List the universe rows a scope reads: copied types' rows, nested types in their scopes. */
     universeRows(): UniverseParameters["rows"] {
         // leave inherited rows to the chains
         const copied = this.store.copied.filter((object) => object.inherited === undefined);
@@ -1065,14 +1065,17 @@ export class ObjectSource {
         return rows;
     }
 
-    /** List the subscriptions of the scopes a database serves rows in, kept below a space: the universe's rows and one copy of the scopes' chains, leaving out the copied types another publisher copies. */
+    /** List the subscriptions of a database's served scopes, kept below its space. */
     async servedSubscriptions(
         below: string,
         elsewhere: readonly ObjectType[] = [],
     ): Promise<sync.Subscription[]> {
-        // read the copied scopes the served objects live in while the universe's copy includes them
+        // read the copied scopes the served objects live in or relate to
+        const served = this.store.objects.filter((object) => object.storage === "durable");
         const living = this.store.copied.filter((scope) =>
-            this.store.durable.some((object) => object.scopes.some((type) => type.same(scope))),
+            served.some((object) =>
+                [...object.scopes, ...object.related].some((type) => type.same(scope)),
+            ),
         );
         const scopes = await Promise.all(
             living.map(async (scope) => {
@@ -1090,12 +1093,21 @@ export class ObjectSource {
             }),
         );
 
+        // add the database's own space where served objects live in a scope type it neither serves nor copies
+        const known = [...this.store.objects, ...this.store.copied];
+        const isKept = served.some((object) =>
+            object.scopes.some((scope) => !known.some((type) => type.same(scope))),
+        );
+
+        // leave its enclosing scope to its scope row, which the chain copy brings
+        const own = isKept ? [{ id: below, scope: null }] : [];
+
         // copy the scopes' chains in one copy, after the rows of the universe
         const universe = this.universeSubscription(below);
         const chains = await this.store.authorizer.chainVia(
             this.store.database,
             below,
-            scopes.flat(),
+            [...scopes.flat(), ...own],
             this.store.authorizer.scoped,
             elsewhere.map((type) => type.typeReference),
         );
@@ -1106,7 +1118,7 @@ export class ObjectSource {
         ];
     }
 
-    /** List the subscriptions of the copies a database keeps for a scope: its chain, and the rows of the universe it reads. */
+    /** List a database's copy subscriptions for a scope: its chain and its universe rows. */
     async subscriptions(
         below: string,
         options: { readonly isHome: boolean },
@@ -1118,7 +1130,7 @@ export class ObjectSource {
         return universe === undefined ? chain : [...chain, universe];
     }
 
-    /** Build the subscription of the copy of the universe's rows a scope or machine reads, absent when the store copies no type living there. */
+    /** Build the universe rows subscription of a scope or machine, if any type lives there. */
     universeSubscription(below: string): sync.Subscription | undefined {
         // request nothing where no global object type is served
         const rows = this.universeRows();
@@ -1135,7 +1147,7 @@ export class ObjectSource {
         });
     }
 
-    /** Stream a copy's pages to a database in this process, never back to the source of its rows. */
+    /** Stream a copy's pages to a database in this process, never back to their source. */
     async *publish(
         subscription: sync.Subscription,
         signal: AbortSignal,
@@ -1194,7 +1206,7 @@ export class ObjectSource {
         });
     }
 
-    /** Require a chain copy's scope to contain the follower's scope, through its parent when kept elsewhere. */
+    /** Require a chain copy's scope to contain the follower's, via its parent if kept elsewhere. */
     async #requireContaining(request: sync.Subscription, follower: ReplicaFollower): Promise<void> {
         // require a follower outside the chains, such as a platform installation, to copy them via scopes inside them
         const { via, between } = ChainParameters.parse(request.parameters);
@@ -1221,7 +1233,7 @@ export class ObjectSource {
         }
     }
 
-    /** Require the chains of the scopes a follower copies via to hold the copied scope and each scope between, reading them at once. */
+    /** Require the via scopes' chains to have the copied scope and those between, read at once. */
     async #requireVia(
         scope: string,
         via: readonly string[],
@@ -1251,7 +1263,7 @@ export class ObjectSource {
         }
     }
 
-    /** Require a reader, a principal or a caller, to hold the `replicate` permission on the scope it copies a chain via. */
+    /** Require a reader to have `replicate` on the scope it copies a chain via. */
     async requireReplicateVia(via: string, reader: Caller): Promise<void> {
         // require a scope type keeping copies of its chain
         const { database } = this.store;
@@ -1333,7 +1345,7 @@ export class ObjectSource {
         }
     }
 
-    /** List the scopes a principal lives inside: a scope and the scopes enclosing it below the universe. */
+    /** List a principal's scopes: a scope and its enclosing scopes below the universe. */
     async #within(
         scope: string,
         database: DatabaseConnection = this.store.database,
@@ -1448,7 +1460,7 @@ export class ObjectSource {
     }
 }
 
-/** What the replica controller does with a copy: follow it for its request from its publisher, or drop it once no request asks for it. */
+/** What the replica controller does with a copy: follow it from its publisher, or drop it. */
 type CopyIntent =
     | {
           /** A request follows the copy. */
@@ -1504,7 +1516,7 @@ function revise(
     }
 }
 
-/** Build the feed options of a copy followed for a caller, ending at a completed page once it lapses. */
+/** Build a caller's copy feed options, ending at a completed page once it lapses. */
 function followOptions(
     audience: sync.Audience,
     context: ServiceContext,
@@ -1525,7 +1537,7 @@ function followOptions(
     };
 }
 
-/** List the tables a query reads: its rows', its includes' and those its conditions and computed values follow. */
+/** List the tables a query reads: its rows', its includes' and its followed relations'. */
 function tablesOf(query: sync.Query): Table[] {
     return new sync.Node("", query, query.scopes).nodes().map((node) => node.table);
 }
@@ -1540,7 +1552,7 @@ async function* marking(
     }
 }
 
-/** Mark a completed page with its position as its event identifier, which a resumed stream continues after. */
+/** Mark a completed page with its position as event identifier, for resumed streams. */
 function marked(page: sync.Page): sync.Page {
     return page.complete
         ? withEventMeta(page, { id: `${page.position.epoch}/${page.position.sequence}` })

@@ -107,7 +107,7 @@ export class BrowserTab<
     }): Promise<BrowserTab<Objects>> {
         // connect to the shared database
         const host = options.host ?? BrowserTab.host(options.name);
-        const origin = RequestId.create();
+        const origin = RequestId.create(options.clock.now());
         const { objects } = options;
         const database = connectShared(host.channel, origin, ObjectClient.tables(objects));
         const client = await ObjectClient.open({ ...options, database, origin, isMigrated: true });
@@ -127,11 +127,7 @@ export class BrowserTab<
         });
     }
 
-    /**
-     * Bind the page's Web Locks, broadcast channel and database worker.
-     *
-     * Starting the worker asks the browser to keep the origin's storage, since it evicts best-effort storage under pressure.
-     */
+    /** Bind the page's Web Locks, broadcast channel and database worker. */
     static host(name: string): BrowserHost {
         return {
             channel: broadcastChannel(`destack:${name}`),

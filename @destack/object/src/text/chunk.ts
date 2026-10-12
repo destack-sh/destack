@@ -12,16 +12,16 @@ import { INTRINSIC } from "../object/intrinsic.ts";
 import { Run, Sequence, SequenceEdit, type Element } from "../sequence/index.ts";
 import { chunk, chunkRun } from "./table.ts";
 
-/** The most characters one chunk has: a keystroke rewrites and syncs one ~1 KiB row, 1 MB is ~2,000 rows. */
+/** The most characters per chunk: a keystroke syncs one ~1 KiB row, 1 MB is ~2,000 rows. */
 export const CHUNK_CHARACTERS = 512;
 
-/** The characters a split leaves in each chunk: three quarters full, with room to type into one row. */
+/** The characters left in each chunk after a split: three quarters, with room to type. */
 const FILL_CHARACTERS = (CHUNK_CHARACTERS * 3) / 4;
 
 /** The rows presented before, by the read row, which a dataflow keeps while it is unchanged. */
 const PRESENTED_ROWS = new WeakMap<object, Item>();
 
-/** The lists presented before, by the read list, which a dataflow keeps while every row is unchanged. */
+/** The lists presented before, by read list, which a dataflow keeps while rows are unchanged. */
 const PRESENTED_LISTS = new WeakMap<object, readonly Item[]>();
 
 /** The owner permission whose holders read its text. */
@@ -192,7 +192,7 @@ export const Chunk = {
         );
     },
 
-    /** Replace each row's chunks by its texts, through a query's includes, presenting an unchanged row or list as before. */
+    /** Replace each row's chunks by its texts, reusing presented rows and lists if unchanged. */
     present(rows: readonly Item[], query: Query, objects: readonly ObjectType[]): readonly Item[] {
         // take a list presented before
         const known = PRESENTED_LISTS.get(rows);
@@ -292,7 +292,7 @@ async function touched(
     return from === undefined || to === undefined ? [] : read(call, parent, { from, to });
 }
 
-/** Collect the elements some edits refer to, skipping the runs they insert, and whether one inserts at the start. */
+/** Collect the elements some edits refer to, without inserted runs, and any start insertion. */
 function editedElements(edits: readonly SequenceEdit[]): {
     readonly named: Element[];
     readonly inserted: Set<string>;
@@ -677,7 +677,7 @@ function start(row: Chunk): Element {
     return { run: first.run, offset: first.start };
 }
 
-/** List the elements an edit refers to: an insertion's anchor, or a deletion's or restoration's ends. */
+/** List the elements an edit refers to: an insertion's anchor, or a deletion's ends. */
 function namedElements(edit: SequenceEdit): Element[] {
     // take an insertion's anchor
     if ("insert" in edit) {

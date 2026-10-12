@@ -135,7 +135,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // create once per request identifier, replaying the original result
-        const creation = { requestId: RequestId.create(), title: "Write the plan" };
+        const creation = { requestId: RequestId.create(Date.now()), title: "Write the plan" };
         const created = await execute("create", creation);
         expect(observed().watermarks.at(-1)).toEqual({
             scope: spaceId,
@@ -146,15 +146,15 @@ test.each(TEST_DIALECTS)(
 
         // take a chosen identifier and refuse a taken one
         const chosen = schema.identifier("task").parse(`task-${v7()}`);
-        const drafted = { requestId: RequestId.create(), id: chosen, title: "Draft" };
+        const drafted = { requestId: RequestId.create(Date.now()), id: chosen, title: "Draft" };
         expect((await execute("create", drafted)).id).toBe(chosen);
         await expect(
-            execute("create", { requestId: RequestId.create(), id: chosen, title: "Again" }),
+            execute("create", { requestId: RequestId.create(Date.now()), id: chosen, title: "Again" }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "task identifier is taken" });
         const ahead = schema
             .identifier("task")
             .parse(`task-${v7({ msecs: Date.now() + 3_600_000 })}`);
-        const later = { requestId: RequestId.create(), id: ahead, title: "Later" };
+        const later = { requestId: RequestId.create(Date.now()), id: ahead, title: "Later" };
         expect((await execute("create", later)).id).toBe(ahead);
         await database.delete(task.table).where(eq(task.table.id, chosen));
         await database.delete(task.table).where(eq(task.table.id, ahead));
@@ -177,7 +177,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const { database, execute, events, act } = await serveTasks(dialect);
         const created = await execute("create", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Write the plan",
         });
 
@@ -191,7 +191,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             execute("update", {
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: created.revision,
                 title: "Taken",
             }),
@@ -201,7 +201,7 @@ test.each(TEST_DIALECTS)(
         // update at the observed revision and reject a stale one
         const updated = await execute("update", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: created.revision,
             title: "Ship the plan",
             estimate: 3,
@@ -211,7 +211,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             execute("update", {
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: created.revision,
                 title: "Stale",
             }),
@@ -238,7 +238,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const { execute, events, act, step, delegate } = await serveTasks(dialect);
         const created = await execute("create", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Ship the plan",
         });
 
@@ -246,7 +246,7 @@ test.each(TEST_DIALECTS)(
         const viewer = principal.user.reference("universe", "user-2");
         const shared = await execute("grant", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "viewer",
             subject: viewer,
         });
@@ -273,7 +273,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             execute("grant", {
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 relation: "viewer",
                 subject: { ...viewer, id: "user-3" },
             }),
@@ -281,7 +281,7 @@ test.each(TEST_DIALECTS)(
         act("user-1");
         await execute("revoke", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relationshipId: shared.id,
         });
         act("user-2");
@@ -294,7 +294,7 @@ test.each(TEST_DIALECTS)(
         // challenge a viewer for step-up authentication and admit them after
         await execute("grant", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "viewer",
             subject: { ...viewer, id: "user-3" },
             conditions: { assurance: 2 },
@@ -313,7 +313,7 @@ test.each(TEST_DIALECTS)(
         act("user-4");
         const asked = await execute("invite", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relationship: { relation: "viewer", subject: { ...viewer, id: "user-4" } },
             purpose: "follow the plan",
         });
@@ -324,7 +324,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             execute("accept", {
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 invitationId: asked.id,
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: write" });
@@ -355,7 +355,7 @@ test.each(TEST_DIALECTS)(
         });
         await execute("accept", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             invitationId: asked.id,
         });
         act("user-4");
@@ -373,7 +373,7 @@ test.each(TEST_DIALECTS)(
         const owner = principal.user.reference("universe", "user-1");
         const lending = await execute("invite", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relationship: {
                 relation: "viewer",
                 subject: principal.installation.reference(spaceId, "assistant"),
@@ -385,7 +385,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             execute("accept", {
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 invitationId: lending.id,
             }),
         ).rejects.toMatchObject({
@@ -395,7 +395,7 @@ test.each(TEST_DIALECTS)(
         delegate(undefined);
         await execute("accept", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             invitationId: lending.id,
         });
         delegate(agent);
@@ -403,7 +403,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             execute("update", {
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: 1,
                 title: "Taken",
             }),
@@ -432,12 +432,12 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const { execute, events, act } = await serveTasks(dialect);
         const created = await execute("create", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Write the plan",
         });
         await execute("update", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: created.revision,
             title: "Ship the plan",
             estimate: 3,
@@ -445,7 +445,7 @@ test.each(TEST_DIALECTS)(
         const viewer = principal.user.reference("universe", "user-4");
         await execute("grant", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "viewer",
             subject: viewer,
         });
@@ -460,14 +460,14 @@ test.each(TEST_DIALECTS)(
         act("user-1");
         await execute("grant", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "editor",
             subject: { ...viewer, id: "user-5" },
         });
         act("user-5");
         const edited = await execute("update", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: 2,
             title: "Ship the plan",
         });
@@ -475,7 +475,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             execute("update", {
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: 3,
                 title: "Ship the plan",
                 estimate: 8,
@@ -486,16 +486,16 @@ test.each(TEST_DIALECTS)(
         // complete the task once and refuse a second and a guarded completion
         const completed = await execute("complete", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
         expect(completed.status).toBe("done");
         await expect(
-            execute("complete", { id: created.id, requestId: RequestId.create() }),
+            execute("complete", { id: created.id, requestId: RequestId.create(Date.now()) }),
         ).rejects.toMatchObject({
             code: "CONFLICT",
             message: "task cannot complete while status is done",
         });
-        await execute("reopen", { id: created.id, requestId: RequestId.create() });
+        await execute("reopen", { id: created.id, requestId: RequestId.create(Date.now()) });
 
         // audit each change once
         expect(await events()).toEqual([
@@ -516,14 +516,14 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const { store, database, execute, events, purges } = await serveTasks(dialect);
         const created = await execute("create", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Ship the plan",
         });
 
         // refuse standard changes to a managed task
         const archived = await execute("archive", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
         expect(archived.archived).toBe(true);
         await database
@@ -541,7 +541,7 @@ test.each(TEST_DIALECTS)(
         await expect(
             execute("delete", {
                 id: created.id,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 revision: archived.revision,
             }),
         ).rejects.toMatchObject({
@@ -556,23 +556,23 @@ test.each(TEST_DIALECTS)(
             .where(eq(task.table.id, created.id));
         await execute("delete", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: archived.revision,
         });
         const titles = async (deleted: "exclude" | "only") =>
             (await execute("list", { deleted })).items.map((item) => item.title);
         expect([await titles("exclude"), await titles("only")]).toEqual([[], ["Ship the plan"]]);
-        await execute("restore", { id: created.id, requestId: RequestId.create() });
+        await execute("restore", { id: created.id, requestId: RequestId.create(Date.now()) });
         expect(await titles("exclude")).toEqual(["Ship the plan"]);
         const restored = await execute("get", {
             id: created.id,
         });
         await execute("delete", {
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: restored.revision,
         });
-        await execute("purge", { id: created.id, requestId: RequestId.create() });
+        await execute("purge", { id: created.id, requestId: RequestId.create(Date.now()) });
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
             message: `no task ${created.id}`,
@@ -580,12 +580,12 @@ test.each(TEST_DIALECTS)(
 
         // purge the trash once the recovery window passes
         const stale = await execute("create", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             title: "Old",
         });
         await execute("delete", {
             id: stale.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: stale.revision,
         });
         expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(1);
@@ -676,13 +676,13 @@ test("prepare external work after the access check, settle it after commit, comp
         name: Name,
         input: Record<string, unknown>,
     ) => request(store, handled, name, { spaceId, ...input }, context);
-    const created = await execute("create", { requestId: RequestId.create(), title: "Plan" });
+    const created = await execute("create", { requestId: RequestId.create(Date.now()), title: "Plan" });
     const reservation = `reservation-${created.id}`;
 
     // refuse a caller without the permission before any external work
     context = userContext("user-2", spaceId);
     await expect(
-        execute("export", { requestId: RequestId.create(), id: created.id }),
+        execute("export", { requestId: RequestId.create(Date.now()), id: created.id }),
     ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
     expect(external).toEqual([]);
 
@@ -690,14 +690,14 @@ test("prepare external work after the access check, settle it after commit, comp
     context = userContext("user-1", spaceId);
     isFailing = true;
     await expect(
-        execute("export", { requestId: RequestId.create(), id: created.id }),
+        execute("export", { requestId: RequestId.create(Date.now()), id: created.id }),
     ).rejects.toThrow(new Error("archive failed"));
     expect(external).toEqual(["reserve Plan", `release ${reservation}`]);
 
     // confirm after commit and replay without repeating the work
     isFailing = false;
     external.length = 0;
-    const exported = { requestId: RequestId.create(), id: created.id };
+    const exported = { requestId: RequestId.create(Date.now()), id: created.id };
     const archived = await execute("export", exported);
     const author = Subject.key(principal.user.reference("universe", "user-1"));
     expect(archived).toEqual({
@@ -727,15 +727,15 @@ test("prepare external work after the access check, settle it after commit, comp
     expect(external).toEqual(["reserve Plan", `confirm ${reservation}`]);
 
     // release the work prepared for earlier calls and the failed preparation's own once a later call's preparation fails
-    const other = await execute("create", { requestId: RequestId.create(), title: "Other" });
+    const other = await execute("create", { requestId: RequestId.create(Date.now()), title: "Other" });
     const broken = await execute("create", {
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         title: "Broken",
     });
     external.length = 0;
     await expect(
         store.mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 Call.record(handled, "export", { spaceId, id: other.id }),
                 Call.record(handled, "export", { spaceId, id: broken.id }),
@@ -753,7 +753,7 @@ test("prepare external work after the access check, settle it after commit, comp
     const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
     await expect(
         store.mutate(userContext("user-1", undefined).caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 Call.record(handled, "export", { spaceId, id: other.id }),
                 Call.record(handled, "export", { spaceId: elsewhere, id: other.id }),
@@ -819,7 +819,7 @@ test("authorize a creation before its external work, and settle committed work t
     let context = userContext("user-1", spaceId);
     const created = await store
         .mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
@@ -830,7 +830,7 @@ test("authorize a creation before its external work, and settle committed work t
     await expect(
         store
             .mutate(context.caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [copies.call("create", { ...version })],
             })
             .then(([written]) => written),
@@ -841,7 +841,7 @@ test("authorize a creation before its external work, and settle committed work t
     context = userContext("user-1", spaceId);
     const drafted = await store
         .mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [copies.call("create", { ...version })],
         })
         .then(([written]) => written);
@@ -896,12 +896,12 @@ test("name a system creation's prepared work by the fresh identifier it creates 
     });
     const created = await store
         .mutate(userContext("user-1", spaceId).caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
     const [drafted] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-        id: RequestId.create(),
+        id: RequestId.create(Date.now()),
         calls: [
             copies.call("create", {
                 ...copies.in(spaceId),
@@ -963,7 +963,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     const context = userContext("user-1", spaceId);
     const created = await store
         .mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
@@ -985,7 +985,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     await expect(
         store
             .mutate(context.caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [copies.call("create", version)],
             })
             .then(([written]) => written),
@@ -1007,18 +1007,18 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         // create two tasks as their owner and archive one
         const { store, execute } = await serveTasks(dialect);
-        const first = await execute("create", { requestId: RequestId.create(), title: "First" });
-        await execute("create", { requestId: RequestId.create(), title: "Second" });
-        await execute("archive", { requestId: RequestId.create(), id: first.id });
+        const first = await execute("create", { requestId: RequestId.create(Date.now()), title: "First" });
+        await execute("create", { requestId: RequestId.create(Date.now()), title: "Second" });
+        await execute("archive", { requestId: RequestId.create(Date.now()), id: first.id });
 
         // refuse the owner of the tasks, who does not own the space
-        const refused = await execute("archiveAll", { requestId: RequestId.create() }).catch(
+        const refused = await execute("archiveAll", { requestId: RequestId.create(Date.now()) }).catch(
             (error: unknown) => error,
         );
 
         // archive the rest as the space, which owns it
         const [archived] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [task.call("archiveAll", task.in(spaceId))],
         });
         const left = await execute("list", { where: { archived: false } });
@@ -1032,7 +1032,7 @@ test.each(TEST_DIALECTS)(
 
 test("create the same identifiers and draw the same numbers from the same request on every server, apart for each draw", async () => {
     // create two tasks under one request and draw under another, on each of two servers
-    const [creation, drawing] = [RequestId.create(), RequestId.create()];
+    const [creation, drawing] = [RequestId.create(Date.now()), RequestId.create(Date.now())];
     const run = async () => {
         const { store } = await serveTasks("sqlite");
         const caller = Caller.of(principal.user.reference("universe", "user-1"), Date.now());
@@ -1217,7 +1217,7 @@ test("carry a key of the call's place in its request, the same for every retry o
     const context = userContext("user-1", spaceId);
     const created = await store
         .mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
@@ -1228,7 +1228,7 @@ test("carry a key of the call's place in its request, the same for every retry o
         parentId: created.id,
         title: "Draft",
     };
-    const requestId = RequestId.create();
+    const requestId = RequestId.create(Date.now());
     await expect(
         store
             .mutate(context.caller(), {
@@ -1285,14 +1285,14 @@ test("settle each call's prepared work once under its own key in its request", a
     const context = userContext("user-1", spaceId);
     const created = await store
         .mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
 
     // create two copies of one title in one mutation, confirming each under its own key and keeping no settlement
     const copy = { spaceId, parentId: created.id, title: "Draft" };
-    const requestId = RequestId.create();
+    const requestId = RequestId.create(Date.now());
     await store.mutate(context.caller(), {
         id: requestId,
         calls: [Call.record(copies, "create", copy), Call.record(copies, "create", copy)],

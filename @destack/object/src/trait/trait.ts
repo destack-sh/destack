@@ -61,7 +61,7 @@ export interface Gated<Permission extends string = string> {
 export type GateOf<Definition> =
     Definition extends Gated<infer Permission> ? Permission : undefined;
 
-/** A definition whose trait rewrote some of its members, each typed as any definition's after the rewrite. */
+/** A definition with trait-rewritten members, each typed as any definition's after it. */
 export type Erasure<Definition, Keys extends keyof ObjectDefinition> = Omit<Definition, Keys> &
     Pick<ObjectDefinition, Keys>;
 
@@ -95,7 +95,7 @@ export interface Trait<Options> {
     validate?(options: Options, object: ObjectType, definition: ObjectDefinition): void;
 }
 
-/** Derive the permissions a trait's methods require that the type leaves undeclared, which only roles grant. */
+/** Derive the undeclared permissions a trait's methods require, granted only by roles. */
 export function traitPermissions(
     declared: readonly string[],
     derived: readonly string[],

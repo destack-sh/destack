@@ -325,7 +325,7 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-/** Follow a server's copies until they reach the home database's position, stopping once the test finishes. */
+/** Follow a server's copies until they are at the home database's position, until test end. */
 async function follow(
     copying: ObjectStore,
     home: DatabaseConnection,

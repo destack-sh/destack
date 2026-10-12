@@ -172,7 +172,7 @@ test.each(TEST_DIALECTS)(
                 store,
                 object,
                 name,
-                { spaceId, requestId: RequestId.create(), ...input },
+                { spaceId, requestId: RequestId.create(Date.now()), ...input },
                 context,
             );
 
@@ -248,7 +248,7 @@ test.each(TEST_DIALECTS)(
                 store,
                 object,
                 name,
-                { spaceId, requestId: RequestId.create(), ...input },
+                { spaceId, requestId: RequestId.create(Date.now()), ...input },
                 context,
             );
 
@@ -266,7 +266,7 @@ test.each(TEST_DIALECTS)(
             .from(slip.table);
 
         // refuse a client pushing a method left out of its routes
-        const mutationId = RequestId.create();
+        const mutationId = RequestId.create(Date.now());
         const pushed = createRouterClient(store.router(), { context: context }).replica.push({
             scope: spaceId,
             mutations: [
@@ -320,7 +320,7 @@ test.each(TEST_DIALECTS)(
         const context = userContext("user-1", spaceId);
         const home = await store
             .mutate(context.caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [shelf.call("create", { spaceId, name: "home" })],
             })
             .then(([written]) => written);
@@ -331,7 +331,7 @@ test.each(TEST_DIALECTS)(
             await reported(
                 store
                     .mutate(context.caller(), {
-                        id: RequestId.create(),
+                        id: RequestId.create(Date.now()),
                         calls: [shelf.call("misfile", { spaceId, id: home.id })],
                     })
                     .then(([written]) => written),

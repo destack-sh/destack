@@ -57,7 +57,7 @@ const OutboxMessage = schema.object({
 /** The sent calls one delivery sends: 100 small calls at once. */
 const SEND_BATCH = 100;
 
-/** The calls methods send through the outbox, delivered to the store keeping the rows they change or to the machine recording their runs. */
+/** The calls methods send through the outbox. */
 export const OutboxCall = {
     name: "sends",
     message: OutboxMessage,
@@ -123,7 +123,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     readonly caller: Caller;
     /** The time of the call in UTC epoch milliseconds. */
     readonly now: number;
-    /** Where the call runs: predicted on a client over its replica, or served by a store under its authorization. */
+    /** Where the call runs: predicted on a client replica, or served by an authorized store. */
     readonly location: CallLocation;
     /** The object types served together. */
     readonly objects: readonly ObjectType[];
@@ -184,7 +184,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
     }
 
-    /** Resolve a recorded call against the served types, its input converted to the served release; internal methods answer the platform's own code alone, never a remote caller. */
+    /** Resolve a recorded call against the served types, converting input to the served release. */
     static resolve(
         objects: readonly ObjectType[],
         entry: ObjectCall,
@@ -240,14 +240,14 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         });
     }
 
-    /** Encode a call as it travels, its input as JSON, such as a typed call a mutation sends to another store. */
+    /** Encode a call for travel with JSON input, such as a typed call sent to another store. */
     static wire(call: ObjectCall): sync.Call {
         const input = schema.record(schema.string(), schema.json()).parse(call.input);
 
         return { method: call.method, input, release: call.release };
     }
 
-    /** Convert a recorded call's input to the object's release, dropping fields it no longer declares. */
+    /** Convert a recorded call's input to the object's release, dropping undeclared fields. */
     static upgrade(
         object: ObjectType,
         name: string,
@@ -288,7 +288,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return parsed.success ? parsed.data.id : undefined;
     }
 
-    /** Run calls in this call's transaction as a caller, each result in order; a change of copied rows goes toward their home once the transaction commits. */
+    /** Run calls in this call's transaction as a caller, returning each result in order. */
     async mutate<const Calls extends readonly ObjectCall[]>(
         caller: Caller,
         calls: Calls,
@@ -301,12 +301,12 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return Call.#results(calls, results);
     }
 
-    /** Generate a new object's identifier from the call's request, the same in every attempt that generates in the same order. */
+    /** Generate a new identifier from the call's request, stable across attempts in order. */
     generateId(object: ObjectType): Identifier<string> {
         return object.deriveId(this.#requireRequestId(), this.requireTransaction().takePosition());
     }
 
-    /** Draw a number in [0, 1) from the call's request, the same in every attempt that draws in the same order. */
+    /** Draw a number in [0, 1) from the call's request, stable across attempts in order. */
     async random(): Promise<number> {
         // read 53 bits of the digest of the request and the transaction's next position
         const key = `${this.#requireRequestId()}/${this.requireTransaction().takePosition()}`;
@@ -321,7 +321,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return present(this.requestId, `the request of ${this.object.name}.${this.name}`);
     }
 
-    /** Record an object's conditions and observed fields at its current generation as the service, unless it has them already. */
+    /** Record an object's conditions and observed fields at its generation as the service, once. */
     async observe(
         object: ObjectType,
         row: ObservedRecord & Readonly<Record<string, unknown>>,
@@ -361,7 +361,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return result;
     }
 
-    /** Run one call of the platform's own code in this call's transaction and scope, refusing a call with nothing to run it. */
+    /** Run one platform call in this call's transaction and scope, refusing it without a runner. */
     async #run(caller: Caller, entry: ObjectCall, mutates: boolean): Promise<unknown> {
         if (this.run === undefined) {
             throw new TypeError(`${this.object.name}.${this.name} runs no nested calls`);
@@ -378,7 +378,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     /**
      * Type the results of calls.
      *
-     * @construct each result is the result its call's method answers, which ObjectCall carries from type.call.
+     * @construct each result is its method's answer, which ObjectCall keeps from type.call.
      */
     static #results(_calls: readonly ObjectCall[], results: unknown[]): unknown[] {
         return results;
@@ -396,7 +396,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return new Call({ ...this.#fields, ...changes });
     }
 
-    /** The database the call reads raw: the client's copy for a prediction and the live database for a server query, refused inside a mutation, which reads and writes through its transaction. */
+    /** The database the call reads raw: the client copy in a prediction, else the live database. */
     get database(): DatabaseConnection {
         const location = this.location;
         if (location.kind === "server" && !location.transaction.isReading) {
@@ -413,12 +413,12 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return this.location.kind === "client";
     }
 
-    /** The view the call reads, as of a position or over a branch, the live database for a prediction or when absent. */
+    /** The call's view at a position or over a branch, the live database if absent. */
     get snapshot(): Snapshot | undefined {
         return this.location.kind === "server" ? this.location.snapshot : undefined;
     }
 
-    /** Read a table's rows, or an object type's, in the call's view: the view it asks for, else its transaction on a server, else the client's copy with its writes. */
+    /** Read a table's or object type's rows in the call's view. */
     read<Read extends Table>(source: Read | { readonly table: Read }): ObjectReader<Read> {
         // read through the transaction on a server without a view of its own
         const table = TABLE in source ? source : source.table;
@@ -430,7 +430,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return new ObjectReader(table, this.view());
     }
 
-    /** Read the call's view as a snapshot: the view it asks for, else its transaction's on a server, else the client's copy. */
+    /** Read the call's view: as requested, else the server transaction's, else the client copy. */
     view(): Snapshot {
         const location = this.location;
         if (location.kind === "server") {
@@ -440,7 +440,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return Snapshot.live(this.database);
     }
 
-    /** Write rows of any tables through the call: into its transaction on a server, into the client's copy for a prediction; a row before is null for a creation, a row after null for a removal. */
+    /** Write rows of any tables through the call: its server transaction, or the client copy. */
     async write(...changes: readonly RowChange[]): Promise<void> {
         // write through the transaction on a server
         if (this.location.kind === "server") {
@@ -625,7 +625,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         });
     }
 
-    /** Update the target's desired state at the loaded revision, advancing a controlled target's generation. */
+    /** Update the target's desired state at its revision, advancing a controlled generation. */
     async update<Recorded extends Definition & ObjectTable>(
         this: Call<Recorded>,
         changes: Readonly<Partial<Select<Recorded>>>,
@@ -633,7 +633,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     /**
      * Update the record the call targets.
      *
-     * @construct the target is a record of this call's object, whose table the signature above reads.
+     * @construct the target is a record of this call's object, whose table the signature reads.
      */
     async update(
         this: Call<ObjectTable>,
@@ -656,7 +656,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     /**
      * Update the observed state of the record the call targets.
      *
-     * @construct the target is a controlled record of this call's object, whose table the signature above reads.
+     * @construct the target is a controlled record of this object, whose table the signature reads.
      */
     async updateStatus(
         this: Call<ObjectTable>,
@@ -693,7 +693,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
     }
 
-    /** Read the target's row as the transaction has it after the call's own writes, refusing a target removed since. */
+    /** Read the target's row after the call's writes, refusing a target removed since. */
     async #current(this: Call<ObjectTable>, transaction: Transaction): Promise<Row> {
         // refuse a target the transaction removed
         const id = this.requireTarget().id;
@@ -755,19 +755,19 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return row;
     }
 
-    /** The caller of the service running the call acting as itself, such as its space or installation, refusing a call no store runs. */
+    /** The service's caller acting as itself, such as its space or installation, in a store. */
     get service(): Caller {
         return Caller.of(this.requireStore().principal, this.now);
     }
 
-    /** Admit a caller in a scope inside the call's mutation, as code the caller's principal owns acts there. */
+    /** Admit a caller in a scope inside the mutation, as its principal's code acts there. */
     admit(caller: Caller, scope: string): Promise<Authorization> {
         return this.requireStore().admit(this.requireTransaction(), scope, caller, {
             now: this.now,
         });
     }
 
-    /** Read the installation the store serves as, refusing a prediction and a store outside a space. */
+    /** Read the store's installation, refusing a prediction and a store outside a space. */
     requireInstallation(): InstallationContext {
         if (this.location.kind === "client" || this.location.installation === undefined) {
             throw new TypeError(`${this.object.name}.${this.name} runs in no installation`);
@@ -833,17 +833,17 @@ export type CallLocation =
           readonly kind: "server";
           /** The server's authorization of the call's caller. */
           readonly authorization: Authorization;
-          /** The store running the call, which runs further calls as a principal in transactions of their own. */
+          /** The store running the call, which runs further calls in their own transactions. */
           readonly store: ObjectStore;
           /** The installation the store serves as, absent outside a space. */
           readonly installation?: InstallationContext;
-          /** The transaction the call reads and writes through, committed by the store once its calls ran. */
+          /** The transaction of the call's reads and writes, committed after its calls ran. */
           readonly transaction: Transaction;
-          /** The view the call reads, as of a position or over a branch, the mutation's when absent. */
+          /** The call's view at a position or over a branch, the mutation's if absent. */
           readonly snapshot?: Snapshot;
       };
 
-/** A call of one method of an object type as a value: the method, its input and release, and the result it answers. */
+/** A call of one object type method as a value: method, input, release and result. */
 export interface ObjectCall<Result = unknown> {
     /** The object type and method, such as page.create. */
     readonly method: string;
@@ -862,7 +862,7 @@ export type ResultsOf<Calls extends readonly ObjectCall[]> = {
         : never;
 };
 
-/** Run a call in a calling method's transaction and scope as a caller, reading or changing objects. */
+/** Run a call in a calling method's transaction and scope as a caller. */
 export type Run = (entry: ObjectCall, caller: Caller, mutates: boolean) => Promise<unknown>;
 
 /** The input a call reads: the output of its method's input schema, a JSON object without one. */
@@ -872,7 +872,7 @@ export type InputOf<Input extends schema.Schema> = [Input] extends [never]
       ? JsonObject
       : schema.Output<Input> & JsonObject;
 
-/** A call as a handler of one method sees it: its input typed with the fields it writes, and its target loaded for targeted kinds. */
+/** A call as a method handler sees it: typed input, and the target loaded when targeted. */
 type MethodCall<Configuration extends Partial<MethodConfiguration>> = Call<
     TableOf<Configuration>,
     OptionOf<Configuration, "input", never>
@@ -898,7 +898,7 @@ type MethodCall<Configuration extends Partial<MethodConfiguration>> = Call<
             : { readonly target: Select<TableOf<Configuration>> }
         : {});
 
-/** A call inside its transaction, with the external work it prepared when its method declares some. */
+/** A call in its transaction, with any external work its method prepared. */
 type PreparedCall<Configuration extends Partial<MethodConfiguration>> = MethodCall<Configuration> &
     ([OptionOf<Configuration, "prepared", never>] extends [never]
         ? {}
@@ -918,7 +918,7 @@ type PreparedOf<Configuration extends Partial<MethodConfiguration>> = schema.Out
     OptionOf<Configuration, "prepared", never>
 >;
 
-/** What a method returns in process: its declared output, a page for a listing, else the changed object's stored row. */
+/** What a method returns in process: its output, a listing's page, else the changed row. */
 type MethodResult<Configuration extends Partial<MethodConfiguration>> = [
     OptionOf<Configuration, "output", never>,
 ] extends [never]
@@ -927,7 +927,7 @@ type MethodResult<Configuration extends Partial<MethodConfiguration>> = [
         : Select<TableOf<Configuration>>
     : schema.Output<OptionOf<Configuration, "output", never>>;
 
-/** The parent a creation refers to: a reference to a parent of several types, else its identifier, absent for an orphan. */
+/** A creation's parent: a reference for several types, else an identifier, if any. */
 type ParentInput<Definition extends Table> =
     Select<Definition> extends { readonly parentId: infer Parent }
         ? Select<Definition> extends { readonly parentType: unknown }
@@ -939,7 +939,7 @@ type ParentInput<Definition extends Table> =
               : { readonly parentId: Parent }
         : {};
 
-/** The written fields a creation or update passes in their columns' JSON form, each optional to an update. */
+/** The written fields of a creation or update in JSON column form, optional for updates. */
 type WrittenInput<
     Definition extends Table,
     Fields extends string,
@@ -949,7 +949,7 @@ type WrittenInput<
     ? { readonly [Name in keyof Written]?: JsonOf<Exclude<Written[Name], undefined>> }
     : { readonly [Name in keyof Written]: JsonOf<Written[Name]> };
 
-/** The input of a creation writing a sum type: one variant's columns under its value of the field telling them apart. */
+/** A creation of a sum type: one variant's columns under its discriminating field's value. */
 type VariantCall<Definition extends Table, Sum> =
     IsSum<Sum> extends true
         ? {
@@ -1005,18 +1005,18 @@ export type NextOf<Type extends MethodOwner, Name extends keyof Type["methods"]>
     call?: Call,
 ) => Promise<ResultOf<Type, Name>>;
 
-/** The call of one named method of an object type, as its handlers see it before its transaction. */
+/** The call of one named object type method, as its handlers see it before the transaction. */
 export type CallOf<Type extends MethodOwner, Name extends keyof Type["methods"]> = MethodCall<
     TypesOf<Type["methods"][Name], Type["table"]>
 >;
 
-/** The call of one named method of an object type inside its transaction, with its prepared work. */
+/** The call of one named object type method in its transaction, with its prepared work. */
 export type PreparedCallOf<
     Type extends MethodOwner,
     Name extends keyof Type["methods"],
 > = PreparedCall<TypesOf<Type["methods"][Name], Type["table"]>>;
 
-/** A method's code: its handling function, or its phases, with a prepare phase when the method declares prepared work. */
+/** A method's code: its handler, or its phases, with a prepare phase for prepared work. */
 export type Handler<Configuration extends Partial<MethodConfiguration> = MethodConfiguration> = [
     OptionOf<Configuration, "prepared", never>,
 ] extends [never]
@@ -1025,7 +1025,7 @@ export type Handler<Configuration extends Partial<MethodConfiguration> = MethodC
       ? HandleFunction<Configuration> | PhasedHandler<Configuration>
       : PhasedHandler<Configuration>;
 
-/** A method's handling phase: change rows inside the transaction, wrapping next, taking any call of the method as a method would. */
+/** A method's handling phase: change rows in the transaction, wrapping next. */
 export type HandleFunction<
     Configuration extends Partial<MethodConfiguration> = MethodConfiguration,
 > = Bivariant<
@@ -1045,7 +1045,7 @@ export type PhasedHandler<
     readonly creation?: Bivariant<
         (call: MethodCall<Configuration>, object: ObjectReference) => Creation | Promise<Creation>
     >;
-    /** List the calls a mutation runs before this one, each as its caller, read before the transaction. */
+    /** List the calls a mutation runs first as their callers, read before the transaction. */
     readonly expand?: Bivariant<
         (call: MethodCall<Configuration>) => Promise<readonly BranchCall[]>
     >;
@@ -1055,13 +1055,13 @@ export type PhasedHandler<
     ? {}
     : schema.Schema extends OptionOf<Configuration, "prepared", never>
       ? {
-            /** Do external work before the transaction, returning `call.prepared`, as two-phase commit prepares a participant. */
+            /** Do external work before the transaction, returning `call.prepared`. */
             readonly prepare?: Bivariant<(call: MethodCall<Configuration>) => Promise<unknown>>;
             /** Settle the prepared work once the transaction committed or failed, at least once. */
             readonly settle?: Bivariant<(call: SettlementCall, settled: Settled) => Promise<void>>;
         }
       : {
-            /** Do external work before the transaction, returning `call.prepared`, as two-phase commit prepares a participant. */
+            /** Do external work before the transaction, returning `call.prepared`. */
             readonly prepare: Bivariant<
                 (call: MethodCall<Configuration>) => Promise<PreparedOf<Configuration>>
             >;
@@ -1071,17 +1071,13 @@ export type PhasedHandler<
             >;
         });
 
-/**
- * A callback taking any call of its method as a method would, typed by the call it declares.
- *
- * The server calls a method's callbacks only with calls of that method, and settles prepared work only with the value its `prepared` schema parsed.
- */
+/** A callback taking any call of its method as a method would, typed by its declared call. */
 export type Bivariant<Callback extends (...parameters: never[]) => unknown> = {
     /** Run the callback. */
     run(...parameters: Parameters<Callback>): ReturnType<Callback>;
 }["run"];
 
-/** Report whether a failure is the machine's final refusal: a client error, not a timeout or throttle. */
+/** Report whether a failure is the machine's final refusal: a client error, apart from timeouts. */
 function isRefusal(error: Error): boolean {
     return (
         isServiceError(error) &&

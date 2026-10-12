@@ -87,10 +87,10 @@ test.for(TEST_DIALECTS)(
 
         // let the owner share a board and be present on it
         const plans = await east.call("alice", board, "create", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
         const shared = await east.call("alice", board, "grant", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             id: plans.id,
             relation: "viewer",
             subject: principal.user.reference("universe", "bob"),
@@ -185,7 +185,7 @@ test.for(TEST_DIALECTS)(
                 .from(presence.table),
         ).toEqual([{ id: viewing.id }]);
         await east.call("alice", board, "revoke", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             id: plans.id,
             relationshipId: shared.id,
         });
@@ -199,9 +199,9 @@ test.for(TEST_DIALECTS)(
         const { east } = await serveBoards(dialect);
 
         // let the owner share a board, both users editing on it
-        const plans = await east.call("alice", board, "create", { requestId: RequestId.create() });
+        const plans = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
         await east.call("alice", board, "grant", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             id: plans.id,
             relation: "viewer",
             subject: principal.user.reference("universe", "bob"),
@@ -249,9 +249,9 @@ test.for(TEST_DIALECTS)(
     "write and follow presence through object clients of both instances on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", { requestId: RequestId.create() });
+        const plans = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
         await east.call("alice", board, "grant", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             id: plans.id,
             relation: "viewer",
             subject: principal.user.reference("universe", "bob"),
@@ -290,7 +290,7 @@ test.for(TEST_DIALECTS)(
     "deliver an object's events to a reader granted it while already following on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", { requestId: RequestId.create() });
+        const plans = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
 
         // listen for the board's events as bob before he may read it
         const alice = await clientOf(east, "alice");
@@ -302,7 +302,7 @@ test.for(TEST_DIALECTS)(
 
         // grant him the board and deliver her reaction once his copy has it
         await east.call("alice", board, "grant", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             id: plans.id,
             relation: "viewer",
             subject: principal.user.reference("universe", "bob"),
@@ -317,18 +317,18 @@ test.for(TEST_DIALECTS)(
     "include live presence with durable profiles, and count live viewers per board, across storages on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", { requestId: RequestId.create() });
-        const notes = await east.call("alice", board, "create", { requestId: RequestId.create() });
+        const plans = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
+        const notes = await east.call("alice", board, "create", { requestId: RequestId.create(Date.now()) });
         for (const shared of [plans, notes]) {
             await east.call("alice", board, "grant", {
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 id: shared.id,
                 relation: "viewer",
                 subject: principal.user.reference("universe", "bob"),
             });
         }
         const card = await east.call("alice", profile, "create", {
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             parentId: plans.id,
             name: "Alice",
         });

@@ -115,7 +115,7 @@ test.each(TEST_DIALECTS)(
         const viewer = principal.user.reference("universe", "user-2");
         const shared = await execute("user-1", task, "grant", {
             id: first,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "viewer",
             subject: viewer,
         });
@@ -124,13 +124,13 @@ test.each(TEST_DIALECTS)(
         // send changes of visible tasks, never of invisible ones
         await execute("user-1", task, "update", {
             id: second,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: 1,
             title: "Hidden",
         });
         await execute("user-1", task, "update", {
             id: first,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: 1,
             title: "Renamed",
         });
@@ -151,7 +151,7 @@ test.each(TEST_DIALECTS)(
         // leave the task once the grant is revoked
         await execute("user-1", task, "revoke", {
             id: first,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relationshipId: shared.id,
         });
         expect(await next()).toEqual([[false, "delete", undefined, undefined]]);
@@ -174,7 +174,7 @@ test.each(TEST_DIALECTS)(
         });
         await execute("user-1", task, "grant", {
             id: first,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "viewer",
             subject: { ...team.reference(spaceId, teamId), relation: "member" },
         });
@@ -182,7 +182,7 @@ test.each(TEST_DIALECTS)(
         // select the task once the caller joins the team, a relationship on the team alone
         await execute("user-1", team, "grant", {
             id: teamId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "member",
             subject: principal.user.reference("universe", "user-2"),
         });
@@ -198,7 +198,7 @@ test.each(TEST_DIALECTS)(
         // select a task through a grant that expires shortly
         await execute("user-1", task, "grant", {
             id: first,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             relation: "viewer",
             subject: principal.user.reference("universe", "user-2"),
             expiresAt: Date.now() + GRANT_MILLISECONDS,

@@ -148,7 +148,7 @@ export const recoverable: Trait<RecoverableDefinition> & {
     },
 };
 
-/** Read a call as its object's kept table types it, absent for an object purging its whole record. */
+/** Read a call as its object's kept table types it, absent if purging the whole record. */
 export function keptCall(
     call: Call<TraitTable<{ readonly recoverable: RecoverableDefinition }>>,
 ):
@@ -159,7 +159,7 @@ export function keptCall(
 /**
  * Read a call as its object's kept table types it, by the trait's option.
  *
- * @construct defineObject derives the purge column into the table of every object whose recovery keeps the record.
+ * @construct defineObject derives the purge column for every object whose recovery keeps it.
  */
 export function keptCall(
     call: Call<TraitTable<{ readonly recoverable: RecoverableDefinition }>>,
@@ -174,7 +174,7 @@ export function recoverableType(
 /**
  * Read an object type as its recoverable table types it, by the trait's option.
  *
- * @construct defineObject derives the trait's deletion columns into the table of every object whose definition sets `recoverable`.
+ * @construct defineObject derives deletion columns for every `recoverable` object's table.
  */
 export function recoverableType(object: ObjectType): ObjectType | undefined {
     return object.lifecycle.recoverable === undefined ? undefined : object;

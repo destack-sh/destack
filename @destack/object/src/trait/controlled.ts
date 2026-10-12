@@ -9,7 +9,7 @@ import { ConditionMap } from "../object/condition.ts";
 export type ControlledDefinition =
     | true
     | {
-          /** Whether plans reaching the space's approval risk wait for an approver to accept them. */
+          /** Whether plans at the space's approval risk wait for an approver. */
           readonly approval: true;
       };
 
@@ -36,14 +36,14 @@ export function controlledColumns() {
     };
 }
 
-/** Declare the approval threshold, the plan waiting for approval and the digest an approver accepted. */
+/** Declare the approval threshold, the waiting plan and the accepted plan digest. */
 export function approvalColumns() {
     return {
-        /** The least risk of a plan that waits for approval, absent until the record's owner sets it. */
+        /** The least plan risk that waits for approval, absent until the owner sets it. */
         approval: text("approval", { enum: RISKS }),
         /** The plan waiting for approval, absent once applied. */
         plan: json("plan", Plan),
-        /** The digest of the plan an approver accepted, applied once the controller plans it again. */
+        /** The digest of the accepted plan, applied once the controller plans it again. */
         approvedPlan: text("approved_plan"),
     };
 }

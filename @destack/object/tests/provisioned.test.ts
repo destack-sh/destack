@@ -192,7 +192,7 @@ async function serve(boxes: Boxes) {
     ) => {
         const row = present(await read(id), `box ${id}`);
         await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 box.call("specify", {
                     ...box.target(row),
@@ -481,7 +481,7 @@ test("name a resource after another kind's resource in its space, refusing a sec
     const { scope, approval: _approval, ...written } = declared;
     const create = (kind: typeof box | typeof link) =>
         store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [kind.call("create", { ...kind.in(scope), ...written, name: "main" })],
         });
 

@@ -10,10 +10,12 @@ import {
     principal,
     relation,
     Relationship,
+    through,
+    union,
 } from "@destack/access";
 import { journal } from "@destack/audit/stack";
 import { AccessFixture } from "@destack/access/test";
-import { asc, defineDatabase, eq, TABLE } from "@destack/db";
+import { asc, type DatabaseConnection, defineDatabase, eq, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema, Clock } from "@destack/schema";
 
@@ -54,15 +56,19 @@ const otherAccountId = schema
     .identifier("account")
     .parse("account-01996ab0-0000-7000-8000-000000000006");
 
-/** Accounts with members that roles bind to. */
+/** Accounts with members that roles bind to, and installations reading them. */
 const account = defineObject({
     name: "account",
     plural: "accounts",
     scope: "universe",
     isScope: true,
     fields: {},
-    relations: { member: { subjects: [principal.user] } },
-    permissions: { read: relation("member") },
+    relations: {
+        member: { subjects: [principal.user] },
+        reader: { subjects: [principal.installation], grantedBy: null },
+    },
+    permissions: { read: union(relation("member"), relation("reader")) },
+    methods: (method) => ({ list: method.list("read") }),
 });
 
 /** Spaces within accounts, which installations read and replicate as granted. */
@@ -87,6 +93,15 @@ const comment = defineObject({
     scope: space,
     fields: { body: field.string() },
     permissions: { read: none() },
+});
+
+/** Annotations an installation keeps in its own space, each on an account its readers read it through. */
+const annotation = defineObject({
+    name: "annotation",
+    plural: "annotations",
+    scope: space,
+    fields: { account: field.reference(account).relate("account"), body: field.string() },
+    permissions: { read: through("account", "read") },
 });
 
 /** Documents that only roles grant. */
@@ -220,7 +235,7 @@ test.each(TEST_DIALECTS)(
 
             const created = store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [document.call("create", { spaceId, title })],
                 })
                 .then(([written]) => written);
@@ -508,24 +523,7 @@ test("copy the chains of an installation's two served spaces in one copy via bot
         callKey: testCallKey,
         origin: { package: document.package, service: "test" },
     });
-    const replica = present(
-        copying.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
-
-    // follow the universe's copy until it reaches the home's head
-    const controller = new AbortController();
-    const [key] = await replica.list();
-    const following = replica.reconcile(
-        present(key, "the universe's key"),
-        reconciliation(controller.signal),
-    );
-    onTestFinished(async () => {
-        controller.abort();
-        await Promise.allSettled([following]);
-    });
-    const head = await home.database.log.position();
-    await Replica.wait(installed.database, Scope.universe.id, head, controller.signal);
+    const controller = await followUniverse(copying, home.database);
 
     // request the universe's rows and one copy of both spaces' chains via them
     const requests = await copying.source.servedSubscriptions(followingSpaceId);
@@ -737,4 +735,111 @@ function failing(_controller: unknown, key: string, error: unknown): never {
 /** Read the scope a replica controller's key follows. */
 function scopeOf(key: string): string | undefined {
     return key.split(" ")[1];
+}
+
+test("copy the chains of the accounts an installation's rows relate to, beside its own space where those rows live", async () => {
+    // keep two accounts at home, the first readable by the installation
+    const home = await TestDatabase.create("sqlite", [...account.tables, journal], {
+        isMigrated: true,
+    });
+    const declared = defineDatabase({
+        name: "installed",
+        tables: [...annotation.tables, journal],
+        copies: [account.table],
+    });
+    const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
+    onTestFinished(async () => {
+        await Promise.all([home.close(), installed.close()]);
+    });
+    const accessCopies = new AccessFixture(home.database);
+    for (const id of [accountId, otherAccountId]) {
+        await accessCopies.copyScope(account.reference(Scope.universe.id, id));
+        await home.database
+            .insert(account.table)
+            .values({ id, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
+    }
+    const subject = principal.installation.reference(followingSpaceId, followingId);
+    await accessCopies.copyRelationship(
+        accountId,
+        account.reference(Scope.universe.id, accountId),
+        "reader",
+        subject,
+        1,
+    );
+
+    // copy the universe's accounts to the installation, decided at home for it
+    const source = new ObjectStore({
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: { account },
+        database: home.database,
+        callKey: testCallKey,
+        origin: { package: account.package, service: "test" },
+    });
+    const follower = { subject, parent: Scope.universe.id };
+    const copying: ObjectStore = new ObjectStore({
+        clock: Clock.system,
+        principal: spacePrincipal(followingSpaceId),
+        objects: { annotation },
+        policies: [account],
+        database: installed.database,
+        subscriber: Subscriber.of(
+            {
+                receive: refuseChanges,
+                stream: (asked, signal) =>
+                    source.source.replicate(asked, asked.after, follower, signal),
+            },
+            async () => [
+                present(
+                    copying.source.universeSubscription(followingSpaceId),
+                    "the universe request",
+                ),
+            ],
+        ),
+        callKey: testCallKey,
+        origin: { package: annotation.package, service: "test" },
+    });
+    await followUniverse(copying, home.database);
+
+    // request one copy of the readable account's chain and the installation's own space
+    const requests = await copying.source.servedSubscriptions(followingSpaceId);
+    const chains = present(requests[1], "the chains' request");
+    expect({
+        requests: requests.map((request) => [request.name, request.scope, request.below]),
+        via: chains.parameters["via"],
+    }).toEqual({
+        requests: [
+            [followingSpaceId, Scope.universe.id, followingSpaceId],
+            [Authorizer.chainCopy(followingSpaceId), Scope.universe.id, followingSpaceId],
+        ],
+        via: [accountId, followingSpaceId],
+    });
+});
+
+/** Follow a store's copy of the universe until it reaches the home's head, stopping when the test finishes. */
+async function followUniverse(
+    copying: ObjectStore,
+    home: DatabaseConnection,
+): Promise<AbortController> {
+    // follow the store's one copy of the universe
+    const replica = present(
+        copying.controllers().find((each) => each.name === "replica"),
+        "the replica controller",
+    );
+    const controller = new AbortController();
+    const [key] = await replica.list();
+    const following = replica.reconcile(
+        present(key, "the universe's key"),
+        reconciliation(controller.signal),
+    );
+    onTestFinished(async () => {
+        controller.abort();
+        await Promise.allSettled([following]);
+    });
+
+    // wait for it to reach the home's head
+    const head = await home.log.position();
+    await Replica.wait(copying.database, Scope.universe.id, head, controller.signal);
+
+    return controller;
 }

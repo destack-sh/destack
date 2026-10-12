@@ -297,7 +297,7 @@ test.each(TEST_DIALECTS)(
         const create = (title: string) =>
             store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [card.call("create", { spaceId, title })],
                 })
                 .then(([written]) => written);
@@ -310,7 +310,7 @@ test.each(TEST_DIALECTS)(
                 {
                     spaceId,
                     id,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     ...(name === "adopt" ? { manager: declaration } : {}),
                 },
                 context,

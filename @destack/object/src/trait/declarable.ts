@@ -48,11 +48,16 @@ export interface ManagedColumnMap {
     readonly detachedAt: Column;
 }
 
-/** The options of declarable records. */
-export interface DeclarableDefinition<Declared = unknown> {
-    /** The schema of one declaration in a stack. */
-    readonly schema: schema.Schema<Declared>;
-}
+/** The options of declarable records: their own declaration schema, or their create input. */
+export type DeclarableDefinition<Declared = unknown> =
+    | {
+          /** The schema of one declaration in a stack. */
+          readonly schema: schema.Schema<Declared>;
+      }
+    | {
+          /** Declare the records as their create method takes them. */
+          readonly from: "create";
+      };
 
 /** The methods declared records take: applying them where their rows live. */
 export type DeclarableMethodMap<Declarable> = [Declarable] extends [undefined]
@@ -84,7 +89,7 @@ export const declarable: Trait<DeclarableDefinition> = {
     methods: () => ({ apply }),
 };
 
-/** Declared records callers detach from their declaration for direct editing, and direct records a declaration adopts. */
+/** Declared records detached for direct editing, and direct records a declaration adopts. */
 export const adoptable: Trait<Gated> & {
     /** Declare the method detaching a record from its declaration. */
     detach: typeof detach;

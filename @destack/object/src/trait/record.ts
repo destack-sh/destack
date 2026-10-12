@@ -21,11 +21,11 @@ export function recordColumns<const Prefix extends string>(prefix: Prefix) {
         id: identifier("id", prefix).primaryKey(),
         /** Creation time in UTC epoch milliseconds. */
         createdAt: integer("created_at").notNull(),
-        /** The subject whose call created the record, by subject key, absent for the platform's own writes. */
+        /** The creating call's subject key, absent for the platform's own writes. */
         createdBy: text("created_by"),
         /** Last modification time in UTC epoch milliseconds. */
         updatedAt: integer("updated_at").notNull(),
-        /** The subject whose call last modified the record, by subject key, absent for the platform's own writes. */
+        /** The last modifying call's subject key, absent for the platform's own writes. */
         updatedBy: text("updated_by"),
         /** The revision used by conditional updates. */
         revision: integer("revision").notNull().default(1),

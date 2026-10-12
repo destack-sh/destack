@@ -59,7 +59,7 @@ test.for(TEST_DIALECTS)(
 
         // create and rename a card through calls of the release before the rename
         const [result] = await store.mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 {
                     method: "card.create",
@@ -70,7 +70,7 @@ test.for(TEST_DIALECTS)(
         });
         const created = schema.looseObject({ id: schema.string() }).parse(result);
         await store.mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 {
                     method: "card.update",
@@ -82,7 +82,7 @@ test.for(TEST_DIALECTS)(
 
         // refuse a call made against a release the server does not serve yet
         const later = store.mutate(context.caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 {
                     method: "card.update",

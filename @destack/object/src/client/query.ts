@@ -54,7 +54,7 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
     /**
      * Query the rows with their relations, typed by the signature above.
      *
-     * @construct the rows come from the query the options shape over this builder's object, which is how FindResult maps the options.
+     * @construct the rows come from the options' query over this object, as FindResult maps them.
      */
     findMany(options: OpenQueryOptions = {}): RelationalQuery<readonly NestedItem[]> {
         const select = RelationalQuery.selecting(options);
@@ -76,7 +76,7 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
     /**
      * Query the first row with its relations, typed by the signature above.
      *
-     * @construct the first row comes from the query the options shape, which is how FindResult maps the options.
+     * @construct the first row comes from the options' query, as FindResult maps the options.
      */
     findFirst(options: OpenQueryOptions = {}): RelationalQuery<NestedItem | undefined> {
         const select = RelationalQuery.selecting(options);
@@ -98,7 +98,7 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
     /**
      * Measure the rows per group, typed by the signature above.
      *
-     * @construct each group holds the measures the options request over this builder's object, which is how Group maps the options.
+     * @construct each group has the requested measures over this object, as Group maps them.
      */
     aggregate(
         options: AggregateOptions<ObjectType, ObjectType>,
@@ -121,7 +121,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
     /** Keep the query live over the client's copy, its reads shaped into the query's value. */
     readonly #follow: (options: SubscribeOptions) => LiveQuery<Value>;
 
-    /** Describe a query of one object type, followed live with its value shaped from what it reads. */
+    /** Describe a query of one object type, followed live with its value shaped from its reads. */
     constructor(
         object: ObjectType,
         options: OpenQueryOptions,
@@ -132,7 +132,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         this.#follow = follow;
     }
 
-    /** Select items for a query, keeping the selected object of each unchanged item across reads. */
+    /** Select a query's items, keeping each unchanged item's object across reads. */
     static selecting(options: RelationOptions): (item: sync.Item, query: sync.Query) => NestedItem {
         const selected = new WeakMap<sync.Item, NestedItem>();
 
@@ -151,7 +151,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         };
     }
 
-    /** Keep the fields a query's columns select and nest each relation's selected items, as the compiled query relates them. */
+    /** Keep the selected fields and nest each relation's selected items, as the query relates. */
     static select(item: sync.Item, options: RelationOptions, query: sync.Query): NestedItem {
         // keep the selected columns and every extra
         const columns = options.columns ?? {};

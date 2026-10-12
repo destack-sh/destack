@@ -17,7 +17,7 @@ export interface ReadOptions<Read> {
     readonly limit?: number;
 }
 
-/** A handler's reads of one table's logged columns in its call's view: the transaction it runs in on a server, or a snapshot such as a client's copy or a view at a position. */
+/** A handler's reads of one table's logged columns in its call's view. */
 export class ObjectReader<Definition extends Table> {
     /** The table read. */
     readonly table: Definition;

@@ -14,9 +14,9 @@ const SETTLE_GRACE_MILLISECONDS = 60_000;
 /** One recorded settlement. */
 type Settlement = typeof settlement.$inferSelect;
 
-/** Settle calls' prepared work once: commit it or roll it back, as the settlement records the call's outcome. */
+/** Settle calls' prepared work once, committing or rolling back by the recorded outcome. */
 export const Settlement = {
-    /** Reserve a settlement for a call's external work under its idempotency key, returning the settlement's identifier. */
+    /** Reserve a settlement for a call's external work by idempotency key, returning its id. */
     async reserve(database: DatabaseConnection, call: Call, key: string): Promise<string> {
         const id = v7();
         await database.insert(settlement).values({
@@ -51,7 +51,7 @@ export const Settlement = {
         }
     },
 
-    /** Mark a settlement's call committed inside its transaction, refusing one a settler claimed meanwhile. */
+    /** Mark a settlement's call committed in its transaction, refusing a claimed settlement. */
     async commit(
         transaction: DatabaseConnection,
         id: string,
@@ -100,7 +100,7 @@ export const Settlement = {
         await database.delete(settlement).where(eq(settlement.id, id));
     },
 
-    /** Settle one claimed settlement as its row records, committing a committed call's work and rolling back any other before forgetting it. */
+    /** Settle one claimed settlement as recorded, committing or rolling back, then forget it. */
     async settle(store: ObjectStore, row: Settlement, now: number): Promise<void> {
         // find the method
         const object = store.objects.find((served) => served.name === row.object);

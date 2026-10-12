@@ -26,7 +26,7 @@ import {
     ExplainShape,
     InvitationShape,
 } from "../trait/shareable.ts";
-/** Declare the sharing methods of an object: its relationships, grants, invitations and explanations. */
+/** Declare an object's sharing methods: relationships, grants, invitations and explanations. */
 export function sharingMethods({ grant, read }: SharingGate) {
     return {
         relationships: sharingMethod(
@@ -192,7 +192,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
     };
 }
 
-/** Declare a sharing method: a listing loads its target by its permission, a change leaves the decision to the relation it grants. */
+/** Declare a sharing method: a listing loads its target, a change defers to its relation. */
 function sharingMethod(
     kind: MethodKind,
     access: { readonly permission: string; readonly mutates: boolean },

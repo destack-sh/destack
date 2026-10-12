@@ -61,7 +61,7 @@ test("build a call of an object's method, leaving the scope to the one it is pus
     const { id } = await alice.notebook.create({
         spaceId,
         name: "Travel",
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
     });
 
     // run a call that leaves out its space in the space it is pushed to
@@ -87,9 +87,9 @@ test.each(TEST_DIALECTS)(
         const first = await alice.note.create({
             spaceId,
             title: "Packing",
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
-        await alice.note.create({ spaceId, title: "", requestId: RequestId.create() });
+        await alice.note.create({ spaceId, title: "", requestId: RequestId.create(Date.now()) });
 
         // record the snapshot's titled note, failing one send to retry it
         const recorded: Fired[] = [];
@@ -113,7 +113,7 @@ test.each(TEST_DIALECTS)(
         const second = await alice.note.create({
             spaceId,
             title: "Tickets",
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
         await expect(controller.reconcile(keyOf(titled))).rejects.toThrow(
             "the machine is unreachable",
@@ -189,13 +189,13 @@ test.each(TEST_DIALECTS)(
         const { id, revision } = await alice.note.create({
             spaceId,
             title: "Packing",
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
         const update = (title: string, at: number) =>
-            alice.note.update({ spaceId, id, title, revision: at, requestId: RequestId.create() });
+            alice.note.update({ spaceId, id, title, revision: at, requestId: RequestId.create(Date.now()) });
         await update("Tickets", revision);
         await update("", revision + 1);
-        await alice.note.create({ spaceId, title: "", requestId: RequestId.create() });
+        await alice.note.create({ spaceId, title: "", requestId: RequestId.create(Date.now()) });
         await controller.reconcile(keyOf(trigger));
 
         expect(seen).toEqual([
@@ -242,7 +242,7 @@ test.each(TEST_DIALECTS)(
             clock,
         );
         const create = async (title: string) =>
-            (await alice.note.create({ spaceId, title, requestId: RequestId.create() })).id;
+            (await alice.note.create({ spaceId, title, requestId: RequestId.create(Date.now()) })).id;
 
         // advance the slot of a quiet trigger before it lapses, so compaction keeps the changes after it
         const delay = await controller.reconcile(keyOf(lagging));

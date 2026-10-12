@@ -84,7 +84,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     const create = (key: string) =>
         store
             .mutate(userContext("alice", spaceId).caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [holder.call("create", { spaceId, label: "deploy", key, token })],
             })
             .then(([written]) => written);
@@ -95,7 +95,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     );
     const refusedSystem = await store
         .mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [
                 holder.call("provision", {
                     ...holder.in(spaceId),

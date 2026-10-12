@@ -10,7 +10,7 @@ import {
 import { found, present, schema, type JsonObject } from "@destack/schema";
 import type { ObjectType } from "../object/index.ts";
 
-/** The columns a stored branch row keeps: its identifier, table, key, and both sides, absent or null when missing. */
+/** The columns of a stored branch row: identifier, table, key and both sides, or null. */
 const STORED_CHANGE = schema.looseObject({
     id: schema.string(),
     table: schema.string(),
@@ -47,7 +47,7 @@ export interface BranchChange {
     readonly fields: readonly string[];
 }
 
-/** The writes branches make: captured from calls, written over a database, and read as overlays and changes. */
+/** The writes of branches: captured from calls, written over a database, read as overlays. */
 export const BranchWrite = {
     /** Read a stored branch row with its identifier, a missing side as null. */
     read(stored: Row): BranchWrite & { readonly id: string } {
@@ -105,7 +105,7 @@ export const BranchWrite = {
         return async (table) => byTable.get(table[TABLE].sqlName) ?? new Map();
     },
 
-    /** Decode a branch row as the change it makes to its object, absent when no written field differs. */
+    /** Decode a branch row as its object change, absent when no written field differs. */
     change(entry: BranchWrite, object: ObjectType): BranchChange | undefined {
         // decode both sides
         const table = object.table;

@@ -80,7 +80,7 @@ test.for(TEST_DIALECTS)(
         const create = (name: string, parentId?: string) =>
             store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [
                         item.call("create", {
                             spaceId,
@@ -104,7 +104,7 @@ test.for(TEST_DIALECTS)(
         const [alpha, beta, gamma] = children;
         await store
             .mutate(context.caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [
                     item.call("update", {
                         spaceId,
@@ -137,7 +137,7 @@ test.for(TEST_DIALECTS)(
         const create = (name: string, status: "todo" | "done") =>
             store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [card.call("create", { spaceId, name, status })],
                 })
                 .then(([written]) => written);

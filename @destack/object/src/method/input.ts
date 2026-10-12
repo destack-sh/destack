@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 
-/** A method's complete input: an object of fields, or one object per variant of a sum type, told apart by one field. */
+/** A method's complete input: an object of fields, or one per sum type variant by one field. */
 export type InputSchema =
     | schema.JsonObject
     | schema.DiscriminatedUnion<readonly schema.JsonObject[]>;

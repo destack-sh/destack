@@ -126,7 +126,7 @@ test.each(TEST_DIALECTS)(
                 outcome(
                     store
                         .mutate(context.caller(), {
-                            id: RequestId.create(),
+                            id: RequestId.create(Date.now()),
                             calls: [
                                 document.call("update", { spaceId, id: shared, title: "Draft" }),
                             ],

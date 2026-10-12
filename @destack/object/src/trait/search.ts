@@ -3,7 +3,7 @@ import { defineSchema, present, schema } from "@destack/schema";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
-/** How callers find an object type's objects: the fields full-text search ranks by, the fields lists filter and facet by, and the orders lists offer, each list ordered. */
+/** How callers find a type's objects. */
 const ObjectSearchSchema = defineSchema(
     schema.object({
         /** The fields the space's full-text index covers, the most significant first. */
@@ -50,7 +50,7 @@ const INDEXED_TYPES: ReadonlySet<string> = new Set([
     "state",
 ]);
 
-/** Objects found by their query roles, each filterable or sortable field kept in an index within the objects' scope. */
+/** Objects found by query roles, each filter or sort field indexed in the objects' scope. */
 export const search: Trait<ObjectSearch> = {
     key: "search",
     isDurable: true,

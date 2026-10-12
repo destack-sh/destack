@@ -118,7 +118,7 @@ test.each(TEST_DIALECTS)(
         const signUp = (name: string) =>
             store
                 .mutate(context.caller(), {
-                    id: RequestId.create(),
+                    id: RequestId.create(Date.now()),
                     calls: [member.call("create", { spaceId, name })],
                 })
                 .then(([written]) => written);
@@ -175,7 +175,7 @@ test.each(TEST_DIALECTS)(
         });
         const written = await home
             .mutate(userContext("ada", spaceId).caller(), {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [note.call("create", { spaceId, title: "Ada's" })],
             })
             .then(([created]) => created);
@@ -212,7 +212,7 @@ test.each(TEST_DIALECTS)(
         await follower.mutate(
             Caller.of(spacePrincipal(spaceId), Date.now()),
             {
-                id: RequestId.create(),
+                id: RequestId.create(Date.now()),
                 calls: [
                     note.call("create", { spaceId, title: "Bob's" }),
                     note.call("rename", { spaceId, id: written.id, title: "Bob's now" }),
@@ -279,8 +279,8 @@ test("refuse a pushed mutation of copied rows, alone or beside kept rows, which 
     }).replica.push({
         scope: spaceId,
         mutations: [
-            { id: RequestId.create(), calls: [create] },
-            { id: RequestId.create(), calls: [join, create] },
+            { id: RequestId.create(Date.now()), calls: [create] },
+            { id: RequestId.create(Date.now()), calls: [join, create] },
         ],
     });
     const notes = await storage.database

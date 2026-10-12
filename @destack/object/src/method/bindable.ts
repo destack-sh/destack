@@ -6,7 +6,7 @@ import { method } from "./record.ts";
 import { Call } from "./call.ts";
 
 import { CONSUMER } from "../trait/bindable.ts";
-/** The input binding an installation: the installation and every object of the type bound to it in the scope. */
+/** The input binding an installation: the installation and all objects bound to it in scope. */
 const BindInput = schema.object({
     /** The bound installation. */
     consumer: Subject,
@@ -14,7 +14,7 @@ const BindInput = schema.object({
     ids: schema.array(schema.string().min(1)),
 });
 
-/** Bind exactly some objects of a type in a scope to an installation or a machine as its consumer, where their rows live. */
+/** Bind exactly some objects of a type in a scope to an installation or machine as consumer. */
 export const bind: Method<{
     kind: "bind";
     permission: "bind";
@@ -75,7 +75,7 @@ export type ConsumerMethod<Permission extends string> = Method<{
     mutates: true;
 }>;
 
-/** Declare the method binding one consumer to an object or releasing it, keeping the consumer's other objects of the type. */
+/** Declare the method binding or releasing one consumer's object, keeping its other objects. */
 export function consumerMethod<const Permission extends string>(
     permission: Permission,
     action: "bind" | "release",

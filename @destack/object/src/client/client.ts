@@ -98,7 +98,7 @@ const RETRY = RetryPolicy.of({ maximumInterval: 60_000 });
 /** The hexadecimal digest digits identifying a query: 64 bits, safe among a client's queries. */
 const QUERY_NAME_LENGTH = 16;
 
-/** The storages kept apart from the durable copy: ephemeral and external copies, and local objects. */
+/** The storages apart from the durable copy: ephemeral and external copies, and local objects. */
 const SEPARATE_STORAGES = ["ephemeral", "external", "local"] as const;
 
 /** The default local log window, in milliseconds: a minute, far above live queries' lag. */
@@ -128,7 +128,7 @@ export interface Submission<Value> {
 export interface LiveQuery<Value = readonly Item[]> {
     /** Settles once the copy has the query, or once the query closes. */
     readonly ready: Promise<void>;
-    /** Read the query's value: its items with what they include, or its groups when it aggregates. */
+    /** Read the query's value: its items with their includes, or its groups when aggregating. */
     read(): Promise<Value>;
     /** Read the query again after every local commit until the signal aborts. */
     watch(signal: AbortSignal): AsyncGenerator<Value>;
@@ -177,7 +177,7 @@ export interface Mutation {
 
 /** A mutation that also calls methods by name, as recorded calls refer to them. */
 interface ReplayMutation extends Mutation {
-    /** Call an object type's mutating method by name within the mutation, returning its prediction. */
+    /** Call an object type's mutating method by name in the mutation, returning its prediction. */
     invoke(object: ObjectType, name: string, input: JsonObject): Promise<unknown>;
 }
 
@@ -277,7 +277,7 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
     readonly client?: Subject;
     /** Where and how to reach the service serving the objects. */
     readonly endpoint: ClientOptions;
-    /** The clock the client reads time at: its log compaction, its queries' keep and its access decisions. */
+    /** The client's clock for log compaction, query keep and access decisions. */
     readonly clock: Clock;
     /** Where and how to reach the machine serving a moved scope now. */
     readonly reconnect: (machine: Identifier<"machine">) => ClientOptions;
@@ -314,7 +314,7 @@ export class ObjectClient<
     readonly scope: string;
     /** The calling principal. */
     readonly caller: Subject;
-    /** The principals whose partitions of the client's database keep local objects: the caller, and the client once known. */
+    /** The principals whose partitions keep the client's local objects: caller and client. */
     readonly #owners: readonly Subject[];
     /** The copy of the scope's durable objects. */
     readonly replica: sync.Replica;
@@ -357,7 +357,7 @@ export class ObjectClient<
     /** How transient failures retry. */
     readonly #retry: RetryPolicy;
     /** The clock the client reads time at. */
-    readonly #clock: Clock;
+    readonly clock: Clock;
     /** Aborts outcome waits and lookups on close. */
     readonly #closing = new AbortController();
     /** The object rows the copy kept at a log sequence, absent before the first count. */
@@ -393,9 +393,9 @@ export class ObjectClient<
                 ? LOCAL_LOG_MILLISECONDS
                 : Duration.milliseconds(options.log.keep);
         this.#retry = { ...RETRY, ...options.retry };
-        this.#clock = options.clock;
+        this.clock = options.clock;
         this.origin = options.origin;
-        this.writerId = RequestId.create();
+        this.writerId = RequestId.create(options.clock.now());
         this.#undoStack = new UndoStack(this);
 
         // keep the objects of the scope for the caller, and the principals keeping local objects
@@ -433,7 +433,7 @@ export class ObjectClient<
         const others = SEPARATE_STORAGES.flatMap((storage) => this.#stored(storage));
         this.#local = new sync.Feed(options.database, [...tables, ...others, sync.replicaResult], {
             upstream: this.#upstream(this.objects),
-            clock: this.#clock,
+            clock: this.clock,
         });
     }
 
@@ -518,7 +518,7 @@ export class ObjectClient<
 
         return new ObjectClient({
             ...options,
-            origin: options.origin ?? RequestId.create(),
+            origin: options.origin ?? RequestId.create(options.clock.now()),
         });
     }
 
@@ -530,7 +530,7 @@ export class ObjectClient<
     /**
      * Build the relational queries of object types, by key.
      *
-     * @construct each key gets the builder of its own object type, which is how ObjectQueries maps the objects.
+     * @construct each key gets its object type's builder, which is how ObjectQueries maps them.
      */
     static #queries(
         client: ObjectClient,
@@ -552,7 +552,7 @@ export class ObjectClient<
     /**
      * Build the mutators of object types, by key.
      *
-     * @construct each key gets the mutator of its own object type, which is how ObjectMutators maps the objects.
+     * @construct each key gets its object type's mutator, which is how ObjectMutators maps them.
      */
     static #mutators(
         client: ObjectClient,
@@ -614,11 +614,7 @@ export class ObjectClient<
         ];
     }
 
-    /**
-     * Create or migrate the tables a client's local database keeps for some object types.
-     *
-     * Copies migrate as replicas, and local objects' own tables in full, through their package's conversions.
-     */
+    /** Create or migrate a client's local tables for some object types. */
     static async migrate(
         database: DatabaseConnection,
         objects: Readonly<Record<string, ObjectType>>,
@@ -656,7 +652,7 @@ export class ObjectClient<
         };
     }
 
-    /** Read and change some of the client's object types by key, refusing types the client does not keep. */
+    /** Read and change some of the client's object types by key, refusing types it lacks. */
     of<const Selected extends Readonly<Record<string, ObjectType>>>(
         objects: Selected,
     ): ObjectAccess<Selected> {
@@ -678,7 +674,7 @@ export class ObjectClient<
         return this.#methods<Object>(object, true, (name, input) => this.call(object, name, input));
     }
 
-    /** Call an object type's mutating method by name as one mutation, as recorded calls refer to it. */
+    /** Call an object type's mutating method by name as one mutation, as recorded calls do. */
     call(object: ObjectType, name: string, input: JsonObject): Submission<unknown> {
         // send an ephemeral call at once, and write a local one at once in the client's database
         if (object.storage === "ephemeral" || object.storage === "local") {
@@ -708,13 +704,13 @@ export class ObjectClient<
         return this.#mutation(run, false);
     }
 
-    /** Predict several calls together, on the main line when asked, and add them as one mutation. */
+    /** Predict several calls together, on the main line when asked, as one mutation. */
     #mutation<Value>(
         run: (mutation: ReplayMutation) => Promise<Value>,
         isMainLine: boolean,
     ): Submission<Value> {
         // predict every call
-        const id = RequestId.create();
+        const id = RequestId.create(this.clock.now());
         const predicted = this.prediction.add(
             this.database,
             id,
@@ -779,7 +775,7 @@ export class ObjectClient<
         }, false);
     }
 
-    /** Call an object type's reading methods on the server, refusing local objects no server keeps. */
+    /** Call an object type's reading methods on the server, refusing local-only objects. */
     read<Object extends ObjectType>(object: Object): Reader<Object> {
         if (object.storage === "local") {
             throw new TypeError(`local object ${object.name} is read through its queries`);
@@ -792,7 +788,7 @@ export class ObjectClient<
         );
     }
 
-    /** Check out a branch by its identifier, following its rows, or the main line when undefined. */
+    /** Check out a branch by identifier, following its rows, or the main line if undefined. */
     async checkout(branch: string | undefined): Promise<void> {
         // follow the branch's rows into the copy
         const types = this.branch;
@@ -972,7 +968,7 @@ export class ObjectClient<
         await Promise.all(this.#copies().map((copy) => this.#follow(copy, signal, report)));
     }
 
-    /** List the copies the client follows: its durable objects with their prediction, its ephemeral and external objects, and the caller's access rows. */
+    /** List the client's followed copies. */
     #copies(): ClientCopy[] {
         return [
             {
@@ -1016,7 +1012,7 @@ export class ObjectClient<
     ): Promise<void> {
         // register the copy, and read its parameters as they are now
         const parameters = async () => PARAMETERS.parse(await copy.parameters());
-        await copy.replica.register(this.database, { clock: this.#clock });
+        await copy.replica.register(this.database, { clock: this.clock });
         let failures = 0;
         const resetFailures = () => {
             failures = 0;
@@ -1069,7 +1065,7 @@ export class ObjectClient<
     async #dropExpired(): Promise<void> {
         await this.database
             .delete(subscription)
-            .where(lte(sql`${subscription.releasedAt} + ${subscription.keep}`, this.#clock.now()));
+            .where(lte(sql`${subscription.releasedAt} + ${subscription.keep}`, this.clock.now()));
     }
 
     /** Abort a follow once its parameters change, reporting a failed watch. */
@@ -1114,13 +1110,13 @@ export class ObjectClient<
         let isGrown = false;
         for await (const page of replica.apply(this.database, pages, {
             subscription: followed,
-            clock: this.#clock,
+            clock: this.clock,
             ...(prediction === undefined ? {} : { prediction }),
         })) {
             // deliver broadcasts and compact the local log
             onPage();
             this.#broadcast(page);
-            const now = this.#clock.now();
+            const now = this.clock.now();
             await this.database.log.compact(now - this.#logMilliseconds, now);
 
             // evict once the predicted copy grew
@@ -1141,7 +1137,7 @@ export class ObjectClient<
         }
     }
 
-    /** Decide whether the caller holds a permission on an object of the client's scope, as the client's copy of its access rows decides it. */
+    /** Decide whether the caller has a permission on an object of the client's scope. */
     async can<Object extends ObjectType>(
         object: Object,
         id: string,
@@ -1152,7 +1148,7 @@ export class ObjectClient<
             Transaction.reading(this.database),
             () => ({
                 subjects: [this.caller],
-                now: this.#clock.now(),
+                now: this.clock.now(),
                 attributes: {},
             }),
         );
@@ -1176,7 +1172,7 @@ export class ObjectClient<
         return new RelationalQueryBuilder(this.#subscriber, object);
     }
 
-    /** Keep a query's items in its open form live over the local copy with predictions until closed. */
+    /** Keep a query's items live over the local copy with predictions until closed. */
     #live(
         object: ObjectType,
         query: OpenQueryOptions = {},
@@ -1195,7 +1191,7 @@ export class ObjectClient<
         };
     }
 
-    /** Keep an aggregate query's groups in its open form live over the local copy with predictions until closed. */
+    /** Keep an aggregate query's groups live over the local copy with predictions until closed. */
     #measured(
         object: ObjectType,
         query: OpenQueryOptions,
@@ -1258,7 +1254,7 @@ export class ObjectClient<
                     await this.database
                         .update(subscription)
                         .set({
-                            releasedAt: this.#clock.now(),
+                            releasedAt: this.clock.now(),
                             keep:
                                 options.keep === "always"
                                     ? null
@@ -1368,7 +1364,7 @@ export class ObjectClient<
         return { id: entry.id, calls: [push] };
     }
 
-    /** Record pushed mutations' outcomes and revert rejected predictions, leaving a branch edit's steps unsettled. */
+    /** Record pushed outcomes and revert rejected predictions, leaving branch edits unsettled. */
     async #record(
         outcomes: readonly PushOutcome[],
         watermark: LogPosition,
@@ -1584,7 +1580,7 @@ export class ObjectClient<
                 or(
                     isNull(subscription.releasedAt),
                     isNull(subscription.keep),
-                    gt(sql`${subscription.releasedAt} + ${subscription.keep}`, this.#clock.now()),
+                    gt(sql`${subscription.releasedAt} + ${subscription.keep}`, this.clock.now()),
                 ),
             )
             .orderBy(asc(subscription.id));
@@ -1603,7 +1599,7 @@ export class ObjectClient<
         );
     }
 
-    /** Keep a live union of several queries in one order and limit, each entry carrying its member. */
+    /** Keep a live union of several queries in one order and limit, with each entry's member. */
     union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
         members: Members,
         options: UnionOptions<MemberItem<Members>>,
@@ -1611,7 +1607,7 @@ export class ObjectClient<
     /**
      * Keep a live union of several queries, each entry pairing its member's name with a row.
      *
-     * @construct each entry pairs a member's name with a row its member's query selects, which is how UnionEntry maps the members.
+     * @construct each entry pairs a member with a row its query selects, as UnionEntry maps it.
      */
     union(
         members: Readonly<Record<string, RelationalQuery<readonly object[]>>>,
@@ -1725,7 +1721,7 @@ export class ObjectClient<
         return dataflow;
     }
 
-    /** Split a query by storage: the query its own storage follows, and lookups of the other storage's rows by key. */
+    /** Split a query by storage: its own storage's query, and key lookups of the other's rows. */
     #split(object: ObjectType, options: OpenQueryOptions): StorageQuery {
         // require conditions relating one storage
         const { with: included, extras, columns: _columns, ...own } = options;
@@ -1816,7 +1812,7 @@ export class ObjectClient<
     /** Follow a storage query and the lookups its rows key. */
     #subscribe(split: StorageQuery, root: string | undefined, signal: AbortSignal): Subscription {
         // key a local query, or subscribe a copied one
-        const id = RequestId.create();
+        const id = RequestId.create(this.clock.now());
         const isLocal = split.object.storage === "local";
         const named = isLocal ? queryName(split.query) : this.#insertSubscription(split, id, root);
 
@@ -1920,7 +1916,7 @@ export class ObjectClient<
         }
     }
 
-    /** Replace a lookup whose keys changed: stop the current subscription and subscribe the new keys. */
+    /** Replace a lookup with changed keys: stop the subscription and subscribe the new keys. */
     async #replaceLookup(
         lookup: Lookup,
         keys: readonly Exclude<Scalar, null>[],
@@ -2066,7 +2062,7 @@ export class ObjectClient<
                 this.caller === undefined
                     ? { subjects: [] }
                     : { subject: this.caller, subjects: [this.caller] },
-            now: this.#clock.now(),
+            now: this.clock.now(),
             location: { kind: "client" },
             objects: this.objects,
             run: (entry, _caller, mutates) => {
@@ -2095,7 +2091,7 @@ export class ObjectClient<
         return method.execute(target === undefined ? call : call.with({ target: target }));
     }
 
-    /** Call the replica procedures, forwarding a call once to the machine serving a moved scope now. */
+    /** Call the replica procedures, forwarding once to the machine now serving a moved scope. */
     async #call<Value>(
         send: (service: Client<ReplicaProcedures>) => Promise<Value>,
     ): Promise<Value> {
@@ -2112,7 +2108,7 @@ export class ObjectClient<
         }
     }
 
-    /** Reconnect to the machine serving a moved scope now, returning whether the failure was a move. */
+    /** Reconnect to the machine serving a moved scope, returning whether it was a move. */
     #redirect(error: unknown, service: Client<ReplicaProcedures>): boolean {
         // ignore other failures
         const moved = ServiceError.data(error, "MISDIRECTED_REQUEST");
@@ -2136,7 +2132,7 @@ export class ObjectClient<
         const { outcomes } = await this.#call((service) =>
             service.push({
                 scope: this.scope,
-                mutations: [{ id: RequestId.create(), calls: [call] }],
+                mutations: [{ id: RequestId.create(this.clock.now()), calls: [call] }],
                 writerId: this.writerId,
             }),
         );
@@ -2158,7 +2154,7 @@ export class ObjectClient<
         );
     }
 
-    /** Read the scope an object type's objects live in here: the client's scope, or a local type's partition. */
+    /** Read an object type's scope here: the client's scope, or a local type's partition. */
     #scopeOf(object: ObjectType): string {
         // keep copied objects in the client's scope
         if (object.storage !== "local") {
@@ -2225,7 +2221,7 @@ export class ObjectClient<
         return { object, name, method: object.method(name) };
     }
 
-    /** Pick the copy of a storage's objects, refusing a storage the client keeps none of, and local objects no copy keeps. */
+    /** Pick a storage's copy, refusing storages the client lacks and local objects. */
     #replicaOf(storage: ObjectStorage): sync.Replica {
         // pick the storage's copy
         const replicas = {
@@ -2258,7 +2254,7 @@ export class ObjectClient<
         mutates: true,
         call: (name: string, input: JsonObject) => Submission<unknown>,
     ): Mutator<Object>;
-    /** Expose an object type's mutating methods within a mutation, each returning its prediction. */
+    /** Expose an object type's mutating methods in a mutation, each returning its prediction. */
     #methods<Object extends ObjectType>(
         object: Object,
         mutates: true,
@@ -2273,7 +2269,7 @@ export class ObjectClient<
     /**
      * Expose an object type's mutating or reading methods through one call function.
      *
-     * @construct each key is one of the object's routed methods of the chosen mutability, calling through the function.
+     * @construct each key is a routed method of the chosen mutability, calling the function.
      */
     #methods(
         object: ObjectType,
@@ -2317,17 +2313,17 @@ const subscription = defineTable("subscription", {
     root: text("root"),
     /** The time the query closed, in UTC epoch milliseconds, absent while open. */
     releasedAt: integer("released_at"),
-    /** How long the closed query stays followed, in milliseconds, absent when kept until released. */
+    /** How long the closed query stays followed in milliseconds, absent until released. */
     keep: integer("keep"),
 });
 
-/** A copy the client follows: its replica, the shape and parameters it subscribes with, and the prediction it rebases. */
+/** A copy the client follows: replica, shape and parameters, and the prediction it rebases. */
 interface ClientCopy {
     /** The local copy. */
     readonly replica: sync.Replica;
     /** The followed shape. */
     readonly shape: string;
-    /** Read the parameters to subscribe with now: the followed queries, and the writer of ephemeral objects. */
+    /** Read the current subscription parameters: followed queries and the ephemeral writer. */
     parameters(): Promise<{
         readonly queries?: Readonly<Record<string, ObjectQuery>>;
         readonly writerId?: string;

@@ -21,26 +21,26 @@ export type AggregateOptions<
     Objects extends ObjectType,
 > = db.AggregateOptions<ModelOf<Object, Objects>>;
 
-/** The condition an object type's rows meet, over their logged fields, a read's extras and their relations. */
+/** The condition of an object type's rows, over logged fields, a read's extras and relations. */
 export type ConditionOf<
     Object extends ObjectType,
     Objects extends ObjectType,
     Computed extends Extras = {},
 > = db.ConditionOf<ModelOf<Object, Objects>, Computed>;
 
-/** One result of a relational read of an object type: the selected fields, the extras and each relation's results. */
+/** One relational read result of an object type: selected fields, extras and relation results. */
 export type FindResult<
     Object extends ObjectType,
     Objects extends ObjectType,
     Options,
 > = db.FindResult<ModelOf<Object, Objects>, Options>;
 
-/** An item as callers read it: its row with each relation's one item or null, or its items, by name. */
+/** An item as callers read it: its row with each relation's one item or null, or its items. */
 export type NestedItem = {
     readonly [property: string]: ColumnValue | NestedItem | readonly NestedItem[];
 };
 
-/** Nest an item's includes beside its row, each as its relation reads, leaving out aggregate includes. */
+/** Nest an item's includes beside its row as its relations read, without aggregate includes. */
 export function nest(item: Item, query: Query): NestedItem {
     return {
         ...item.row,

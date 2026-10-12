@@ -16,7 +16,7 @@ export type SequenceEdit =
           readonly delete: { readonly from: Element; readonly to: Element };
       }
     | {
-          /** Restore the deleted elements from one element through another with their characters. */
+          /** Restore the deleted elements between two elements with their characters. */
           readonly restore: {
               readonly from: Element;
               readonly to: Element;
@@ -56,7 +56,7 @@ export interface TextChange {
 
 /** Replacements of visible text. */
 export const TextChange = {
-    /** Find the one replacement that turns a text into another outside their common start and end. */
+    /** Find the one replacement turning a text into another outside their common ends. */
     between(before: string, after: string): TextChange {
         // keep the common start
         let start = 0;

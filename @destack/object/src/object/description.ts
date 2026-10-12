@@ -73,14 +73,14 @@ const ConstraintDescription = schema.discriminatedUnion("kind", [
 /** A declared constraint as data. */
 type ConstraintDescription = schema.Infer<typeof ConstraintDescription>;
 
-/** The definition keys whose values may be lazy references, `*` for any key and `[]` for a list's entries. */
+/** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
     ["projections"],
     ["indexes", "*", "across"],
     ["projected", "from"],
 ];
 
-/** The builders whose function arguments are lazy references, such as `field.reference("note", () => note)`. */
+/** The builders taking lazy function references, such as `field.reference("note", () => note)`. */
 const LAZY_BUILDERS: ReadonlySet<string> = new Set(["reference"]);
 
 /** Where a value sits in a definition being described. */
@@ -95,13 +95,13 @@ interface Position {
 
 /** A builder call as written: the builder's name and its arguments. */
 export interface BuilderCall {
-    /** The builder, a function of `field` or `method`, or a modifier of what an earlier call built. */
+    /** The builder: a `field` or `method` function, or a modifier of an earlier result. */
     readonly builder: string;
     /** The arguments, in order. */
     readonly arguments: readonly unknown[];
 }
 
-/** A declaration a description may refer to: an object type, a policy, a resource kind or a bucket. */
+/** A declaration a description may refer to: an object type, policy, resource kind or bucket. */
 export type KnownDeclaration = ObjectType | Policy | ResourceKind | FileBucket;
 
 /** An object type as data: its package and its definition as written, its special values tagged. */
@@ -265,7 +265,7 @@ function definitionOf(decoded: unknown): ObjectDefinition;
 /**
  * Read a decoded definition as the definition it encodes.
  *
- * @construct a description's definition encodes a definition as written, which decoding rebuilds value for value.
+ * @construct a description encodes a definition as written, which decoding rebuilds exactly.
  */
 function definitionOf(decoded: unknown): unknown {
     schema.looseObject({ name: schema.string(), plural: schema.string() }).parse(decoded);
@@ -292,7 +292,7 @@ function encodeObject(value: object, position: Position): JsonObject {
     );
 }
 
-/** Tag a value's types, fields, methods, schemas, kinds and buckets as data, refusing other code. */
+/** Tag a value's types, fields, methods, schemas, kinds and buckets, refusing other code. */
 function encode(value: unknown, position: Position): JsonValue {
     // keep plain data
     if (
@@ -373,7 +373,7 @@ function methodSourceOf(declared: Method, position: Position): BuilderCall {
     return declared.source;
 }
 
-/** Tag a lazy reference by the types or policies it returns, refusing one returning anything else. */
+/** Tag a lazy reference by its returned types or policies, refusing other returns. */
 function lazyOf(value: Function, position: Position): JsonValue {
     // resolve the reference, refusing one returning anything but types or policies
     const resolved: unknown = Reflect.apply(value, undefined, []);
@@ -388,7 +388,7 @@ function lazyOf(value: Function, position: Position): JsonValue {
     return { $lazy: encode(resolved, { ...position, isLazy: false }) };
 }
 
-/** Read the position of an entry of a value: its path, its definition keys and whether it takes a lazy reference. */
+/** Read an entry's position: its path, definition keys and whether it takes a lazy reference. */
 function entryOf(position: Position, key: string, path: string): Position {
     const keys = position.keys === undefined ? undefined : [...position.keys, key];
     const isLazy =
@@ -468,7 +468,7 @@ const BuilderCalls = schema
     )
     .min(1);
 
-/** Replay a chain of builder calls: a builder of the given ones, then modifiers of what it built. */
+/** Replay a chain of builder calls: one of the given builders, then modifiers of its result. */
 function replayed(
     builders: object,
     modifiers: readonly string[],

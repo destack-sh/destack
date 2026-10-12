@@ -118,10 +118,10 @@ export type ObjectBuilderMap<
     ManagedBuilderMap<TraitOf<Traits, "declarable">> &
     FieldBuilderMap<Fields>;
 
-/** The table of any object with some traits, as code generic over a trait reads the columns the trait adds. */
+/** The table of any object with some traits, for code generic over a trait's columns. */
 export type TraitTable<Traits> = ObjectTable<string, unknown, {}, Traits>;
 
-/** The table derived from an object's name, scope, fields and traits, any object's table without arguments. */
+/** The table of an object's name, scope, fields and traits, any object's without arguments. */
 export type ObjectTable<
     Name extends string = string,
     Scope = unknown,
@@ -276,7 +276,7 @@ function holderOf(definition: ObjectDefinition, aggregate: ObjectAggregate, own:
     return holder?.table ?? own;
 }
 
-/** Declare the scope column of objects: any scope, the universe, or one scope type's identifiers. */
+/** Declare the objects' scope column: any scope, the universe, or one scope type's ids. */
 function scopeColumn(declared: ObjectScope | readonly ObjectScope[]) {
     // take any scope of several types
     if (ObjectScope.isList(declared)) {

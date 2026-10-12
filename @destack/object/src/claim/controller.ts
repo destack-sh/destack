@@ -62,7 +62,9 @@ export class ClaimController implements Controller {
         const now = this.#clock.now();
         const byIndex = new Map(
             this.#objects.flatMap((object) =>
-                Object.keys(object.indexes).map((name) => [Claim.index(object, name), object] as const),
+                Object.keys(object.indexes).map(
+                    (name) => [Claim.index(object, name), object] as const,
+                ),
             ),
         );
         const expiry = await this.#claims.expired([...byIndex.keys()]);

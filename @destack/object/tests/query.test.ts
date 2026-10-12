@@ -126,13 +126,13 @@ test.for(TEST_DIALECTS)(
         const book = async (name: string, titles: readonly string[]) => {
             const created = await alice.notebook.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name,
             });
             for (const title of titles) {
                 await alice.note.create({
                     spaceId,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     parentId: created.id,
                     title,
                 });
@@ -194,13 +194,13 @@ test.for(TEST_DIALECTS)(
         const book = async (name: string, notes: number) => {
             const created = await alice.notebook.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name,
             });
             for (let index = 0; index < notes; index += 1) {
                 await alice.note.create({
                     spaceId,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     parentId: created.id,
                 });
             }
@@ -272,12 +272,12 @@ test.for(TEST_DIALECTS)(
         const book = async (name: string, pinned: boolean) => {
             const created = await alice.notebook.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name,
             });
             const filed = await alice.note.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 parentId: created.id,
                 pinned,
             });
@@ -287,7 +287,7 @@ test.for(TEST_DIALECTS)(
         await book("Home", true);
         const trashed = await book("Travel", true);
         await book("Work", false);
-        await alice.note.delete({ spaceId, id: trashed.note, requestId: RequestId.create() });
+        await alice.note.delete({ spaceId, id: trashed.note, requestId: RequestId.create(Date.now()) });
 
         // list them on the server, and read them from a device's copy
         const query = {
@@ -365,13 +365,13 @@ test.for(TEST_DIALECTS)(
         const book = async (name: string, titles: readonly string[]) => {
             const created = await alice.notebook.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name,
             });
             for (const title of titles) {
                 await alice.note.create({
                     spaceId,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     parentId: created.id,
                     title,
                 });
@@ -418,14 +418,14 @@ test.for(TEST_DIALECTS)(
         const book = async (name: string, pinned: number) => {
             const created = await alice.notebook.create({
                 spaceId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name,
             });
             const notes: string[] = [];
             for (let index = 0; index < pinned; index += 1) {
                 const filed = await alice.note.create({
                     spaceId,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     parentId: created.id,
                     pinned: true,
                 });
@@ -440,7 +440,7 @@ test.for(TEST_DIALECTS)(
         await alice.note.delete({
             spaceId,
             id: present(work[0], "the first work note"),
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
 
         // order them by their pinned notes and by name, on the server and in a device's copy
@@ -487,7 +487,7 @@ test.for(TEST_DIALECTS)(
         await kept.close();
 
         // receive a notebook the server creates after the close into the local copy
-        await alice.notebook.create({ spaceId, requestId: RequestId.create(), name: "Later" });
+        await alice.notebook.create({ spaceId, requestId: RequestId.create(Date.now()), name: "Later" });
         const database = device.client.database;
         const isReceived = await database.log.until(
             async () =>
@@ -504,7 +504,7 @@ test.for(TEST_DIALECTS)(
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
         for (const name of ["Home", "Work", "Travel"]) {
-            await alice.notebook.create({ spaceId, requestId: RequestId.create(), name });
+            await alice.notebook.create({ spaceId, requestId: RequestId.create(Date.now()), name });
         }
         const device = await Device.open("alice", endpoint("alice"), [], { storage: { rows: 2 } });
         device.online();
@@ -543,7 +543,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
-        await alice.notebook.create({ spaceId, requestId: RequestId.create(), name: "Home" });
+        await alice.notebook.create({ spaceId, requestId: RequestId.create(Date.now()), name: "Home" });
         const device = await Device.open("alice", endpoint("alice"), [], { storage: { rows: 10 } });
         device.online();
 

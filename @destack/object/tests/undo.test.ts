@@ -196,7 +196,7 @@ test.each(TEST_DIALECTS)(
         };
 
         // undo the update, restoring only the untouched title
-        await alice.note.update({ spaceId, id, requestId: RequestId.create(), text: "second" });
+        await alice.note.update({ spaceId, id, requestId: RequestId.create(Date.now()), text: "second" });
         await expect.poll(() => read(device.client)).toMatchObject({ text: "second" });
         await device.client.undo().confirmed;
         expect(await read(device.client)).toEqual({

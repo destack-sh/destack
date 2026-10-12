@@ -100,7 +100,7 @@ export class Branch {
         });
     }
 
-    /** Append calls after the branch's last one as an invoking call's caller's, returning them authored. */
+    /** Append calls after the branch's last one as the invoking caller's, returning them. */
     async append(call: Call, calls: readonly sync.Call[]): Promise<BranchCall[]> {
         // number the calls after the last one
         const last = (await this.calls()).length;
@@ -178,7 +178,7 @@ export class Branch {
         }
     }
 
-    /** Report whether the main line changed a table the branch reaches since its rows were built. */
+    /** Report whether the main line changed a branch table since the branch's rows were built. */
     async isStale(objects: readonly ObjectType[], state: BranchState): Promise<boolean> {
         // read the reached tables, and require the same log epoch
         const tables = [...this.types.tables(objects).values()].filter((table) =>
@@ -272,7 +272,7 @@ export class Branch {
         };
     }
 
-    /** Run a replayed call in its own savepoint, skipping a refusal the store would answer for good. */
+    /** Run a replayed call in its own savepoint, skipping a refusal the store makes for good. */
     static async #attempt(transaction: Transaction, run: () => Promise<unknown>): Promise<void> {
         try {
             await transaction.savepoint(run);

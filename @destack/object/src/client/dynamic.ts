@@ -16,7 +16,7 @@ import {
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 
-/** The hexadecimal digest digits identifying a watched query: 64 bits, safe among a client's watches. */
+/** The hex digest digits of a watched query's identity: 64 bits, safe among watches. */
 const QUERY_NAME_LENGTH = 16;
 
 /** The local log window of a watch, in milliseconds: a minute, far above a watch's lag. */
@@ -49,7 +49,7 @@ export interface DynamicObjectClientOptions {
     readonly clock: Clock;
 }
 
-/** An installation's objects called by name, their types declared from its manifest's descriptions. */
+/** An installation's objects called by name, with types from its manifest's descriptions. */
 export class DynamicObjectClient {
     /** The installation the client reaches, and its local database. */
     readonly options: DynamicObjectClientOptions;
@@ -67,7 +67,7 @@ export class DynamicObjectClient {
         ).replica;
     }
 
-    /** Report whether an installation serves a type: whether one of its databases declares the type's table, which a type its package declares for other packages' databases lacks. */
+    /** Report whether an installation serves a type: one of its databases declares its table. */
     static serves(type: ObjectType, states: readonly TableState[]): boolean {
         return states.some((entry) => entry.table.name === type.table[TABLE].sqlName);
     }
@@ -82,7 +82,7 @@ export class DynamicObjectClient {
         return found;
     }
 
-    /** Call a method by name with its input validated against the method's JSON Schema, in the client's scope. */
+    /** Call a method by name with input validated by its JSON Schema, in the client's scope. */
     async call(type: string, method: string, input: JsonObject): Promise<JsonValue> {
         // find the method, refusing one the type does not declare or keeps internal
         const object = this.object(type);
@@ -96,7 +96,9 @@ export class DynamicObjectClient {
         const field = object.route.field;
         const scoped = {
             ...(field === undefined ? {} : { [field]: this.options.scope }),
-            ...(declared.mutates ? { [REQUEST_FIELD]: RequestId.create() } : {}),
+            ...(declared.mutates
+                ? { [REQUEST_FIELD]: RequestId.create(this.options.clock.now()) }
+                : {}),
             ...input,
         };
         const validated = present(procedure.inputSchema, `the input of ${method}`).safeParse(
@@ -161,7 +163,7 @@ export class DynamicObjectClient {
         return Listed.parse(listed).items;
     }
 
-    /** Follow a type's rows a query selects into the local database, yielding them as JSON after every change, until the signal aborts. */
+    /** Follow a query's rows into the local database, yielding JSON after each change. */
     async *watch(
         type: string,
         query: Pick<OpenQueryOptions, "where" | "orderBy" | "limit">,
@@ -220,7 +222,7 @@ export class DynamicObjectClient {
         return this.#migrated;
     }
 
-    /** Apply the service's pages of a subscription until the signal aborts, keeping the local log to its window. */
+    /** Apply a subscription's pages until aborted, keeping the local log to its window. */
     async #follow(
         replica: sync.Replica,
         subscription: sync.Subscription,

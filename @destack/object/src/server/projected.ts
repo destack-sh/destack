@@ -115,7 +115,7 @@ export class ScopeProjector implements Projector {
         }
     }
 
-    /** Project a kept row, keeping its fields current and clearing own state as a new revision when they change. */
+    /** Project a kept row, keeping its fields current and clearing local state on change. */
     async #project(
         transaction: DatabaseConnection,
         scope: string,

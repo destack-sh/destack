@@ -6,12 +6,12 @@ import type { ObjectDefinition, ObjectType } from "../object/object.ts";
 import type { Call } from "../method/call.ts";
 import type { Erasure, Trait } from "./trait.ts";
 
-/** How an object type orders its objects: among the siblings under one parent, or among those holding one value of a field. */
+/** How a type orders its objects: among siblings of one parent, or of one field value. */
 export type OrderableDefinition = true | { readonly within: string };
 
 /** The ordering of an object type: the columns identifying each object's siblings. */
 export interface Ordering {
-    /** The properties siblings share beside their scope: the parent's for a nested type, the given field's, or none. */
+    /** The properties siblings share beside scope: the parent's, a given field's, or none. */
     readonly within: readonly string[];
 }
 
@@ -45,7 +45,7 @@ export const Orderable = {
         return { ...definition, fields: { ...declared, position: positionField() } };
     },
 
-    /** Resolve a definition's ordering to the properties identifying siblings, absent for one ordering nothing. */
+    /** Resolve a definition's ordering to the sibling properties, absent if unordered. */
     of(
         definition: Pick<ObjectDefinition, "name" | "orderable" | "nested" | "fields">,
     ): Ordering | undefined {
@@ -103,7 +103,7 @@ export const Orderable = {
     },
 };
 
-/** Ordered objects, each sibling group kept in an index of the scope, the parent or the field, and the position. */
+/** Ordered objects, each sibling group in an index of scope, parent or field, and position. */
 export const orderable: Trait<Ordering> = {
     key: "orderable",
     options: (definition) => Orderable.of(definition),

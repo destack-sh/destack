@@ -23,7 +23,7 @@ import { CONSUMER } from "../trait/bindable.ts";
 import { type ProvisionedObject, type ProvisionedRecord } from "../trait/provisioned.ts";
 import { Call } from "../method/call.ts";
 
-/** The condition a resource reports while it waits for its draining consumers to stop before a recreation. */
+/** The condition of a resource waiting for draining consumers to stop before recreation. */
 export const DRAINING = "draining";
 
 /** What a process reconciling the resources it serves supplies: its providers and its machine. */
@@ -37,7 +37,7 @@ export interface ProvisionedOptions {
     readonly machine: Identifier<"machine">;
 }
 
-/** The control loop of one kind's provisioned objects: it provisions, observes, plans, applies with approval and retires them through the providers a process holds. */
+/** The control loop of one kind's provisioned objects through a process's providers. */
 export class ProvisionedController implements ObjectController<ProvisionedObject<"space">> {
     /** The rows the loop takes: every resource of the kind. */
     readonly pending = {};
@@ -48,7 +48,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     /** The process's providers of the kind and its machine. */
     readonly #options: ProvisionedOptions;
 
-    /** Reconcile one kind's provisioned objects through the providers of its kind, refusing an object with a controller of its own. */
+    /** Reconcile a kind's provisioned objects via its providers, refusing self-controlled ones. */
     constructor(object: ProvisionedObject<"space">, options: ProvisionedOptions) {
         // refuse resources another controller reconciles
         if (object.controller !== undefined) {
@@ -109,7 +109,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     }
 }
 
-/** Reconcile one resource: provision, retire, and apply its desired states, returning when to look again. */
+/** Reconcile one resource: provision, retire, apply desired states, return when to look again. */
 async function reconcile(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
@@ -187,7 +187,7 @@ async function isHeld(database: DatabaseConnection, scope: string): Promise<bool
     );
 }
 
-/** Provision a resource through its provider, recording the outcome and returning the provisioned row. */
+/** Provision a resource through its provider, recording the outcome and returning the row. */
 async function provision(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
@@ -246,7 +246,7 @@ async function provision(
     }
 }
 
-/** Plan a provisioned resource toward its desired states and apply what its approval threshold or an approval allows. */
+/** Plan a resource toward its desired states, applying what its approvals allow. */
 async function apply(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
@@ -313,7 +313,7 @@ async function apply(
     }
 }
 
-/** Plan a resource's desired states, or a recreation without the states only draining consumers need, absent when blocked. */
+/** Plan a resource's desired states, or a recreation without draining-only states, if possible. */
 async function planRecreation(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
@@ -481,7 +481,7 @@ async function retire(
     return undefined;
 }
 
-/** Read one consumer of a resource from its consumer relationships, absent while nothing consumes it. */
+/** Read one consumer of a resource from its consumer relationships, if any. */
 async function consumerOf(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
@@ -504,7 +504,7 @@ async function consumerOf(
     return related?.subjectId;
 }
 
-/** Observe provider fields and conditions for the current generation and return the observed row. */
+/** Observe provider fields and conditions for the current generation, returning the row. */
 async function observe(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,

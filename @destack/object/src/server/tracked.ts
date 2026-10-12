@@ -7,7 +7,7 @@ import { Step } from "../method/step.ts";
 import type { ObjectType } from "../object/object.ts";
 
 import type { TrackedDefinition } from "../trait/tracked.ts";
-/** The history of tracked objects: the reads it requires and the activities a served change records. */
+/** The history of tracked objects: its required reads and the activities changes record. */
 export const TrackedHistory = {
     /** Require the objects a tracked object's read permission reads through to keep history. */
     require(objects: readonly ObjectType[], authorizer: Authorizer): void {

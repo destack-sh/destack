@@ -3,7 +3,7 @@ import type { RowImage } from "@destack/db";
 import type { Field, IdentifierOf } from "../field/field.ts";
 import type { IdentityOf, InstanceOf, ObjectConfiguration, ObjectType } from "../object/object.ts";
 
-/** What relational reads see of an object type among the served types: its logged row, its instance and its relations. */
+/** What relational reads see of a served object type: its logged row, instance and relations. */
 export type ModelOf<Object extends ObjectType, Objects extends ObjectType> = {
     /** The logged fields conditions and orders compare. */
     readonly row: Object extends ObjectType<infer Configuration>
@@ -40,13 +40,7 @@ interface Many<Target extends ObjectType = ObjectType> {
     readonly kind: "many";
 }
 
-/**
- * The relations of an object type among the served object types, by name, as the query layer joins them.
- *
- * A reference relates one object by its declared relation, a nested type its `parent`, a tree its `descendants` and `ancestors`.
- * Each served type nested in the object, attached to it, or referencing it through one field relates many by its plural.
- * A relation `<children>.<target>` joins through the children to what each of them relates one of.
- */
+/** The relations of an object type among the served types, by name, as queries join them. */
 type RelationsOf<Object extends ObjectType, Objects extends ObjectType> =
     Object extends ObjectType<infer Configuration>
         ? string extends Configuration["name"]

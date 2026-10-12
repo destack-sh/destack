@@ -67,7 +67,7 @@ test("read external objects named by their key from the database their files ope
     });
     const travel = await store
         .mutate(context("alice").caller(), {
-            id: RequestId.create(),
+            id: RequestId.create(Date.now()),
             calls: [notebook.call("create", { spaceId, name: "Travel" })],
         })
         .then(([written]) => written);

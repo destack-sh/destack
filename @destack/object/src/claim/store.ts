@@ -28,7 +28,7 @@ import {
 /** The most claim owners a store keeps: about 3 MiB at 200 bytes an entry. */
 const CAPACITY = 16_384;
 
-/** The names indexed objects claim across databases, reserved while a write runs and settled once it commits. */
+/** The names indexed objects claim across databases, reserved during a write, settled after. */
 export interface ClaimStore {
     /** Reserve the names an open transaction's objects claim until the write commits. */
     reserve(
@@ -40,7 +40,7 @@ export interface ClaimStore {
     /** Release the reservations of a request with a failed write. */
     release(requestId: string): Promise<void>;
 
-    /** Replace an object's names after a write without reservations, returning the names other objects own. */
+    /** Replace an object's names after an unreserved write, returning names others have. */
     replace(claimant: Claimant): Promise<readonly Claim[]>;
 
     /** Find the object an active name resolves to, none for a reserved name. */
@@ -50,7 +50,7 @@ export interface ClaimStore {
     expired(indexes: readonly string[]): Promise<Expiry>;
 }
 
-/** The names a write reserved: those other objects own, and the confirmation once the write committed. */
+/** The names a write reserved: those other objects have, and the commit confirmation. */
 export interface Reservation {
     /** The names other objects own. */
     readonly refused: readonly Claim[];
@@ -67,7 +67,7 @@ export const Reservation = {
     /** The reservation with nothing to confirm. */
     none: NONE,
 
-    /** Reserve the names written objects claim in the committing transaction, refusing names other objects own. */
+    /** Reserve written objects' names in the committing transaction, refusing taken names. */
     async reserve(
         claims: ClaimStore,
         committing: DatabaseConnection,
@@ -142,7 +142,7 @@ export class DatabaseClaimStore implements ClaimStore {
         }
     }
 
-    /** Claim the names in a transaction on this database, else reserve them until the write commits. */
+    /** Claim the names in a local transaction, else reserve them until the write commits. */
     async reserve(
         transaction: DatabaseConnection,
         claimants: readonly Claimant[],
@@ -169,7 +169,7 @@ export class DatabaseClaimStore implements ClaimStore {
         }
     }
 
-    /** Reserve a request's claims in chunks until its write commits, returning the names other objects own. */
+    /** Reserve a request's claims in chunks until its write commits, returning taken names. */
     async claim(claims: readonly Claim[], requestId: string): Promise<readonly Claim[]> {
         // reserve each chunk for a minute
         const expiresAt = this.clock.now() + RESERVATION_MILLISECONDS;
@@ -197,7 +197,7 @@ export class DatabaseClaimStore implements ClaimStore {
             .where(and(eq(claimTable.requestId, requestId), eq(claimTable.state, "pending")));
     }
 
-    /** Replace an object's names after a write that reserved none, returning the names other objects own. */
+    /** Replace an object's names after an unreserved write, returning names others have. */
     async replace(claimant: Claimant): Promise<readonly Claim[]> {
         // refuse the names other objects own before writing any
         const owners = await this.#owners(claimant.claims);

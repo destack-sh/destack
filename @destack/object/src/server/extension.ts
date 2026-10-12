@@ -11,7 +11,7 @@ import type { ExternalStorage } from "./external.ts";
 import type { ProvisionedOptions } from "./provisioned.ts";
 import { ObjectStore, type ObjectStoreOptions, type SubscriberEntry } from "./store.ts";
 
-/** What an extension adds once the space's one store exists: its service's own procedures beside its objects, its controllers, access, response headers and fetch handler. */
+/** What an extension adds once the space's store exists. */
 export interface ObjectExtensionImplementation extends Pick<
     ServiceImplementation,
     "access" | "responseHeaders" | "fetch" | "controllers"
@@ -20,13 +20,13 @@ export interface ObjectExtensionImplementation extends Pick<
     readonly procedures?: Readonly<Record<string, Router<ServiceRouter, ServiceContext>>>;
 }
 
-/** One package's contribution to a space's one store: its service, the handled types it serves, what it adds to the store, and what it serves once the store exists. */
+/** One package's contribution to a space's store. */
 export interface ObjectExtension {
     /** The service, whose router reaches its objects on the space's store. */
     readonly service: Service;
     /** The handled types the extension serves, keyed by their names in camel case. */
     readonly objects: Readonly<Record<string, ObjectType>>;
-    /** The policies of further types the objects authorize through, such as the copied scopes they live in. */
+    /** The policies of further types the objects authorize through, such as copied scopes. */
     readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
     /** The providers reconciling the extension's provisioned resources. */
     readonly providers?: ProvisionedOptions["providers"];
@@ -42,16 +42,16 @@ export interface ObjectExtension {
     serve?(store: ObjectStore): ObjectExtensionImplementation;
 }
 
-/** What a store of composed extensions runs with beside their objects: its database, journal key and origin, the principal or installation its own work runs as, the uplink its copies' changes leave through, and the machine keeping provisioned resources. */
+/** What a store of composed extensions runs with beside their objects. */
 export type CompositionOptions = Omit<
     ObjectStoreOptions,
     "objects" | "provisioned" | "subscriber" | "external" | "principal" | "installation"
 > & {
-    /** The link to the service the copies follow, which receives the changes sent to copied rows, the installation's publisher for an installation. */
+    /** The link to the followed service, receiving copied rows' changes, else the publisher. */
     readonly uplink?: Uplink;
-    /** The machine keeping the resources the extensions' providers provision, required by any provider. */
+    /** The machine keeping the extensions' provisioned resources, required by any provider. */
     readonly machine?: Identifier<"machine">;
-    /** List the copies the store keeps beside the extensions', such as its own scope's chain, each with its publisher. */
+    /** List the store's extra copies, such as its scope's chain, each with its publisher. */
     readonly subscriptions?: (store: ObjectStore) => Promise<readonly SubscriberEntry[]>;
 } & (
         | {
@@ -61,7 +61,7 @@ export type CompositionOptions = Omit<
               readonly installation?: never;
           }
         | {
-              /** The installation serving the objects, which the store's own work runs as and whose copies it keeps. */
+              /** The installation serving the objects, running the store's work and copies. */
               readonly installation: InstallationContext;
               /** No principal: the store runs as the installation. */
               readonly principal?: never;
@@ -72,7 +72,7 @@ export type CompositionOptions = Omit<
 export const ObjectExtension = {
     /** Serve extensions over one store, each routing its own objects under its service. */
     compose,
-    /** Take a service as an extension, its objects replaced by the handled types of the same tables, refusing a handled type it lacks. */
+    /** Take a service as an extension with its objects' handled types, refusing missing ones. */
     of(
         service: Service<ServiceRouter, Readonly<Record<string, ObjectType>>>,
         handled: readonly ObjectType[],
@@ -96,7 +96,7 @@ export const ObjectExtension = {
     },
 };
 
-/** Send the changes of an installation's copied rows over its publisher, which signs as the installation. */
+/** Send an installation's copied row changes over its publisher, signed as the installation. */
 function publisherUplink(installation: InstallationContext): Uplink {
     const { publisher } = installation;
 
@@ -106,7 +106,7 @@ function publisherUplink(installation: InstallationContext): Uplink {
     };
 }
 
-/** List an installation's copies: its space's chain and universe rows from its machine, and the projections its residents receive from the installations keeping them. */
+/** List an installation's copies. */
 async function installationSubscriptions(
     installation: InstallationContext,
     store: ObjectStore,
@@ -131,7 +131,7 @@ async function installationSubscriptions(
     ];
 }
 
-/** Follow the chain of a partition below an installation's root from that root, through the object API of the installation's own package. */
+/** Follow a partition's chain below an installation's root through its package's object API. */
 async function partitionSubscriptions(
     installation: InstallationContext,
     partition: string,
@@ -159,7 +159,7 @@ function compose<const Extensions extends readonly ObjectExtension[]>(
 /**
  * Serve extensions over one store, each routing its own objects under its service.
  *
- * @construct each extension gets the implementation of its own service in order, which is how the result maps the extensions.
+ * @construct each extension gets its own service's implementation in order, as the result maps it.
  */
 function compose(
     extensions: readonly ObjectExtension[],
