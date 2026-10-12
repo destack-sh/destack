@@ -9,7 +9,7 @@ test.for(TEST_DIALECTS)(
     "replace a keyed notification as unread and collapse a thread's burst into one with a count, on %s",
     async (dialect) => {
         const fixture = await serveSpace(dialect);
-        await fixture.reach("alice", { email: "alice@example.com" });
+        await fixture.contact("alice", { email: "alice@example.com" });
         const plan = await fixture.call(document, "create", { title: "Launch plan" });
         await fixture.call(document, "grant", {
             id: plan.id,
@@ -38,13 +38,13 @@ test.for(TEST_DIALECTS)(
                 aligned(await fixture.activities(), 0).payload,
                 replaced.count,
                 replaced.readAt,
-                replaced.occurredAt === fixture.now(),
+                replaced.occurredAt === fixture.clock.now(),
             ],
             (await fixture.deliveries(replaced.id)).map((row) => [
                 row.channel,
                 row.state,
                 row.reason,
-                row.dueAt === fixture.now(),
+                row.dueAt === fixture.clock.now(),
             ]),
         ]).toEqual([
             true,

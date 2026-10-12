@@ -1,20 +1,20 @@
 import { principal } from "@destack/access";
-import { asc, and, gt, Snapshot } from "@destack/db";
-import { type Call, type CallOf, type ResultOf } from "@destack/object";
+import { Key, TABLE } from "@destack/db";
+import { type Call, type CallOf, type NextOf, type ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Replica, Scope, type ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, replicaRow, Scope, Subject } from "@destack/sync";
 import { user } from "@destack/account/object";
 import type { NotificationType } from "../notification/notification.ts";
 import { activity, type Activity } from "../object/activity.ts";
 import { announcement } from "../object/announcement.ts";
-import { type Reason, Subscription } from "../object/subscription.ts";
+import { type Reason, subscription } from "../object/subscription.ts";
 
-/** The recipients of one announcement batch by default, as many as one notify call names. */
+/** The recipients of one announcement batch by default, as many as one notify call lists. */
 const BATCH = 100;
 
 /** One recipient of an announcement's batch, with the reason it is notified. */
 interface Recipient {
-    /** The position of the recipient in its audience, which the cursor names. */
+    /** The position of the recipient in its audience, which the cursor keeps. */
     readonly id: string;
     /** The recipient. */
     readonly owner: Subject;
@@ -30,23 +30,44 @@ export interface NotificationOptions {
     readonly batch?: number;
 }
 
-/** Serve an app's activities and announcements, answering the activities' actions and expanding the announcements under their controller. */
-export function serveNotifications(options: NotificationOptions) {
+/** Serve an app's activities, announcements and subscriptions. */
+export function serveActivities(options: NotificationOptions) {
     return {
-        activity: activity.handle({ act: (call) => act(call, options) }),
-        announcement: announcement.handle({ expand: (call) => expand(call, options) }).control({
-            pending: { expandedAt: { isNull: true } },
-            reconcile: async (reconciliation) => {
-                // expand the announcement's next batch
-                await reconciliation.execute("expand", reconciliation.rows);
+        activity: activity.implement({
+            methods: {
+                act: (call) => act(call, options),
+                notify: (call) => declarationOf(call.input, options).notify(call),
+            },
+        }),
+        announcement: announcement.implement({
+            methods: {
+                announce: (call) => declarationOf(call.input, options).announce(call),
+                expand: (call) => expand(call, options),
+            },
+            controller: {
+                pending: { expandedAt: { isNull: true } },
+                reconcile: async (reconciliation) => {
+                    // expand the announcement's next batch
+                    await reconciliation.mutate(
+                        reconciliation.rows.map((row) =>
+                            announcement.call("expand", announcement.target(row)),
+                        ),
+                    );
 
-                return undefined;
+                    return undefined;
+                },
+            },
+        }),
+        subscription: subscription.implement({
+            methods: {
+                add: (call, next) => add(call, next),
+                subscribers: (call) => subscribers(call),
             },
         }),
     };
 }
 
-/** Find the served declaration of an activity or announcement row. */
+/** Find the served declaration of an activity, an announcement or a notice. */
 function declarationOf(
     row: Pick<Activity, "packageId" | "name">,
     options: NotificationOptions,
@@ -74,14 +95,9 @@ async function expand(
     call: CallOf<typeof announcement, "expand">,
     options: NotificationOptions,
 ): Promise<ResultOf<typeof announcement, "expand">> {
-    // name the source and the page after the cursor
+    // read the source and the page after the cursor
     const row = call.requireTarget();
-    const source: ObjectReference = {
-        packageId: row.parentPackageId,
-        type: row.parentType,
-        scope: row.scope,
-        id: row.parentId,
-    };
+    const source = ObjectReference.parent(row);
     const limit = options.batch ?? BATCH;
     const page = { ...(row.cursor === null ? {} : { after: row.cursor }), limit };
 
@@ -90,18 +106,23 @@ async function expand(
     const skipped = new Set([...(row.author === null ? [] : [row.author]), ...row.excluded]);
     const recipients = audience.filter((entry) => !skipped.has(Subject.key(entry.owner)));
 
-    // notify each reason's recipients together
-    const reasons = Map.groupBy(recipients, (entry) => entry.reason);
-    for (const [reason, entries] of reasons) {
-        await declarationOf(row, options).notify(call, {
-            source,
-            recipients: entries.map((entry) => entry.owner),
-            reason,
-            payload: row.payload,
-            ...(row.key === null ? {} : { key: row.key }),
-            thread: row.thread,
-        });
-    }
+    // notify each reason's recipients together in one mutation
+    const reasons = [...Map.groupBy(recipients, (entry) => entry.reason)];
+    await call.mutate(
+        call.caller,
+        reasons.map(([reason, entries]) =>
+            activity.call("notify", {
+                parent: { packageId: source.packageId, type: source.type, id: source.id },
+                packageId: row.packageId,
+                name: row.name,
+                recipients: entries.map((entry) => entry.owner),
+                reason,
+                payload: row.payload,
+                ...(row.key === null ? {} : { key: row.key }),
+                thread: row.thread,
+            }),
+        ),
+    );
 
     // advance the cursor, finishing with a batch short of full
     return call.update({
@@ -110,7 +131,7 @@ async function expand(
     });
 }
 
-/** Read a page of an announcement's audience: its source's subscribers, the space's members, or the users with a permission. */
+/** Read a page of an announcement's audience. */
 async function readAudience(
     call: CallOf<typeof announcement, "expand">,
     source: ObjectReference,
@@ -122,7 +143,13 @@ async function readAudience(
 
     // read the source's subscribers
     if (target.kind === "subscribers") {
-        return Subscription.list(call, source, { ...page, until: row.updatedAt });
+        const parent = { packageId: source.packageId, type: source.type, id: source.id };
+        const read = await call.query(
+            call.caller,
+            subscription.call("subscribers", { parent, ...page, until: row.updatedAt }),
+        );
+
+        return read.items;
     }
     // read the space's members for the announcement's reason
     else if (target.kind === "members") {
@@ -130,11 +157,54 @@ async function readAudience(
 
         return members.map((entry) => ({ ...entry, reason: target.reason }));
     }
-
     // read the permitted users for the announcement's reason
-    const permitted = await readPermitted(call, source, target.permission, page);
+    else {
+        const permitted = await readPermitted(call, source, target.permission, page);
 
-    return permitted.map((entry) => ({ ...entry, reason: target.reason }));
+        return permitted.map((entry) => ({ ...entry, reason: target.reason }));
+    }
+}
+
+/** Subscribe a principal to an object, keeping an existing subscription. */
+async function add(
+    call: CallOf<typeof subscription, "add">,
+    next: NextOf<typeof subscription, "add">,
+): Promise<ResultOf<typeof subscription, "add">> {
+    // keep the principal's subscription to the parent, or subscribe it
+    const parent = call.requireParent();
+    const [existing] = await call.read(subscription).rows({
+        parentPackageId: parent.packageId,
+        parentType: parent.type,
+        parentId: parent.id,
+        owner: schema.string().parse(call.input["owner"]),
+    });
+
+    return existing ?? next();
+}
+
+/** Read a page of an object's subscribers, oldest first. */
+async function subscribers(
+    call: CallOf<typeof subscription, "subscribers">,
+): Promise<ResultOf<typeof subscription, "subscribers">> {
+    const { parent, after, limit, until } = call.input;
+    const rows = await call.read(subscription).rows(
+        {
+            parentPackageId: parent.packageId,
+            parentType: parent.type,
+            parentId: parent.id,
+            ...(after === undefined ? {} : { id: { gt: after } }),
+            ...(until === undefined ? {} : { createdAt: { lte: until } }),
+        },
+        { orderBy: { id: "asc" }, limit },
+    );
+
+    return {
+        items: rows.map((row) => ({
+            id: row.id,
+            owner: Subject.read(row.owner),
+            reason: row.reason,
+        })),
+    };
 }
 
 /** Read a page of the space's members: the users its copy follows because they joined it. */
@@ -142,24 +212,22 @@ async function readMembers(
     call: Call,
     page: { readonly after?: string; readonly limit: number },
 ): Promise<readonly { readonly id: string; readonly owner: Subject }[]> {
-    const rows = await call.database
-        .select({ id: user.table.id })
-        .from(user.table)
-        .where(
-            and(
-                Replica.includes(call.scope, user.table),
-                page.after === undefined
-                    ? undefined
-                    : gt(user.table.id, schema.identifier("user").parse(page.after)),
-            ),
-        )
-        .orderBy(asc(user.table.id))
-        .limit(page.limit);
+    // read the next users the space's copy includes, in key order past the page's start
+    const after =
+        page.after === undefined ? {} : { key: { gt: Key.name(user.table, { id: page.after }) } };
+    const included = await call
+        .requireTransaction()
+        .rows(
+            replicaRow,
+            { name: call.scope, table: user.table[TABLE].sqlName, ...after },
+            { orderBy: { key: "asc" }, limit: page.limit },
+        );
 
-    return rows.map((row) => ({
-        id: row.id,
-        owner: principal.user.reference(Scope.universe.id, row.id),
-    }));
+    return included.map((row) => {
+        const id = schema.identifier("user").parse(Key.parse(user.table, row.key)["id"]);
+
+        return { id, owner: principal.user.reference(Scope.universe.id, id) };
+    });
 }
 
 /** Read a page of the users with a permission on an object. */
@@ -176,7 +244,7 @@ async function readPermitted(
         type: principal.user.name,
     };
     const subjects = await authorizer.subjects(
-        Snapshot.live(call.database),
+        call.view(),
         authorizer.policy(source).permission(permission),
         source,
         userType,

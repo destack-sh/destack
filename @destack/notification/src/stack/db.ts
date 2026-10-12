@@ -1,21 +1,9 @@
-import { defineDatabase } from "@destack/db";
-import { journal } from "@destack/audit/stack";
-import { address, device, pushEndpoint, user } from "@destack/account/object";
-import { message } from "@destack/message";
-import { setting } from "@destack/setting/object";
-import { delivery } from "../object/delivery.ts";
-import { notification } from "../object/activity.ts";
+import { type Table } from "@destack/db";
+import { activity } from "../object/activity.ts";
+import { announcement } from "../object/announcement.ts";
+import { subscription } from "../object/subscription.ts";
 
-/** The database of one home's inbox: its notifications, their deliveries and the journal, with copies of the users it projects for, of their settings, devices and push endpoints, and of the messages its deliveries send. */
-export const inboxDatabase = defineDatabase({
-    name: "main",
-    tables: [...notification.tables, ...delivery.tables, journal],
-    copies: [
-        user.table,
-        address.table,
-        setting.table,
-        device.table,
-        pushEndpoint.table,
-        message.table,
-    ],
-});
+/** The tables of activities, announcements and subscriptions on a space's objects. */
+export const notificationTables: readonly Table[] = [activity, announcement, subscription].flatMap(
+    (object) => object.tables,
+);

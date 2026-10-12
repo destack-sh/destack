@@ -11,7 +11,7 @@ test.for(TEST_DIALECTS)(
         const fixture = await serveSpace(dialect);
 
         // let erin in Vienna, where it is noon, take changes in the summary going out at 08:00 and 18:00 by email
-        await fixture.reach("erin", { email: "erin@example.com", timeZone: "Europe/Vienna" });
+        await fixture.contact("erin", { email: "erin@example.com", timeZone: "Europe/Vienna" });
         await fixture.set("erin", change.preference, {
             channels: ["desktop", "push", "email"],
             delivery: "summary",
@@ -63,7 +63,7 @@ test.for(TEST_DIALECTS)(
         // read the draft's change, then send one summary of the rest at 18:00 in Vienna
         fixture.as("erin");
         await fixture.call(notification, "read", { id: drafted.id });
-        fixture.wait((evening - fixture.now()) / 60_000);
+        fixture.wait((evening - fixture.clock.now()) / 60_000);
         await fixture.dispatch();
         expect([
             fixture.mails.sent.map((mail) => [mail.to, mail.subject, mail.text]),
@@ -83,7 +83,7 @@ test.for(TEST_DIALECTS)(
         const fixture = await serveSpace(dialect);
 
         // let erin read Austrian German and receive email, subscribed to a document bob edits
-        await fixture.reach("erin", { email: "erin@example.com", locale: "de-AT" });
+        await fixture.contact("erin", { email: "erin@example.com", locale: "de-AT" });
         const plan = await fixture.call(document, "create", { title: "Launch plan" });
         await fixture.call(document, "grant", {
             id: plan.id,
@@ -112,7 +112,7 @@ test.for(TEST_DIALECTS)(
         });
         await fixture.call(document, "edit", { id: plan.id, summary: "Added a timeline" });
         await fixture.dispatch();
-        fixture.wait((Date.UTC(2026, 8, 28, 18, 0) - fixture.now()) / 60_000);
+        fixture.wait((Date.UTC(2026, 8, 28, 18, 0) - fixture.clock.now()) / 60_000);
         await fixture.dispatch();
         expect([
             (await fixture.notifications()).length,

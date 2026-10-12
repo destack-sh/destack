@@ -7,12 +7,10 @@ import { document } from "./fixture/document.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
 
 /** Bob's phone, a browser with a push subscription. */
-const PHONE = schema
-    .identifier("push-endpoint")
-    .parse("push-endpoint-019f5530-8000-7000-8000-00000000000b");
+const PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-00000000000b");
 
 /** Bob's laptop with a desktop that shows his notifications. */
-const LAPTOP = schema.identifier("device").parse("device-019f5530-8000-7000-8000-00000000000c");
+const LAPTOP = schema.identifier("client").parse("client-019f5530-8000-7000-8000-00000000000c");
 
 test.for(TEST_DIALECTS)(
     "deliver mentions to the desktop and the phone, badging the inbox until they are read, on %s",
@@ -26,7 +24,7 @@ test.for(TEST_DIALECTS)(
             url: "https://fcm.googleapis.com/fcm/send/bob",
             keys: phone.keys,
         });
-        await fixture.reach("bob", { email: "bob@example.com" });
+        await fixture.contact("bob", { email: "bob@example.com" });
         await fixture.desktop("bob", LAPTOP);
         const plan = await fixture.call(document, "create", { title: "Launch plan" });
         const draft = await fixture.call(document, "create", { title: "Draft" });
@@ -54,7 +52,7 @@ test.for(TEST_DIALECTS)(
         const desktop = aligned(await fixture.deliveries(first.id), 0);
         expect([
             box.unread,
-            [desktop.channel, desktop.device, desktop.state],
+            [desktop.channel, desktop.client, desktop.state],
             JSON.parse(await decrypt(phone, aligned(fixture.pushes.requests, 0).body)),
             fixture.pushes.requests.map((request) => [
                 request.urgency,
@@ -91,28 +89,25 @@ test.for(TEST_DIALECTS)(
             [
                 {
                     channel: "desktop",
-                    endpoint: null,
-                    device: LAPTOP,
+                    client: LAPTOP,
                     state: "sent",
-                    dueAt: fixture.now(),
+                    dueAt: fixture.clock.now(),
                     isSummarized: false,
                     reason: null,
                 },
                 {
                     channel: "email",
-                    endpoint: null,
-                    device: null,
+                    client: null,
                     state: "pending",
-                    dueAt: fixture.now() + 15 * 60_000,
+                    dueAt: fixture.clock.now() + 15 * 60_000,
                     isSummarized: false,
                     reason: null,
                 },
                 {
                     channel: "push",
-                    endpoint: PHONE,
-                    device: null,
+                    client: PHONE,
                     state: "sent",
-                    dueAt: fixture.now(),
+                    dueAt: fixture.clock.now(),
                     isSummarized: false,
                     reason: null,
                 },
@@ -137,15 +132,15 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // mark every unread notification read at once, clearing the badge and keeping the first one's time
-        const readAt = fixture.now() - 15 * 60_000;
+        const readAt = fixture.clock.now() - 15 * 60_000;
         await fixture.call(notification, "readAll", {
             where: { readAt: null },
-            readAt: fixture.now(),
+            readAt: fixture.clock.now(),
         });
         await box.until((state) => state.unread === 0);
         expect([found(box.rows, first.id).readAt, found(box.rows, second.id).readAt]).toEqual([
             readAt,
-            fixture.now(),
+            fixture.clock.now(),
         ]);
     },
 );

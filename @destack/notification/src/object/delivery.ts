@@ -1,9 +1,10 @@
-import { through } from "@destack/access";
-import { check, index, sql, uniqueIndex, type Select } from "@destack/db";
+import { space } from "@destack/account/object";
+import { none, through } from "@destack/access";
+import { type Select } from "@destack/db";
 import { MessageError } from "@destack/message";
 import { defineObject, field } from "@destack/object";
 import { defineSchema, schema } from "@destack/schema";
-import { space } from "@destack/space/object";
+
 import { CHANNELS } from "../preference/preference.ts";
 import { notification } from "./activity.ts";
 
@@ -37,10 +38,8 @@ export const delivery = defineObject({
     fields: {
         /** The channel. */
         channel: field.enum(CHANNELS),
-        /** The push endpoint, absent on other channels. */
-        endpoint: field.string(schema.identifier("push-endpoint")).optional(),
-        /** The device with the desktop that shows it, absent on other channels. */
-        device: field.string(schema.identifier("device")).optional(),
+        /** The client showing it on its desktop or receiving its push, absent for email. */
+        client: field.string(schema.identifier("client")).optional(),
 
         // schedule
         /** The state. */
@@ -60,31 +59,7 @@ export const delivery = defineObject({
         /** Why its message failed. */
         error: field.json(MessageError).optional(),
     },
-    constraints: (entry) => [
-        uniqueIndex("delivery_target").on(
-            entry.parentId,
-            entry.channel,
-            sql`coalesce(${entry.endpoint}, ${entry.device}, '')`,
-        ),
-        index("delivery_due").on(entry.scope, entry.state, entry.dueAt),
-        index("delivery_message").on(entry.message),
-        check(
-            "delivery_endpoint",
-            sql`(${entry.channel} = 'push') = (${entry.endpoint} IS NOT NULL)`,
-        ),
-        check(
-            "delivery_device",
-            sql`(${entry.channel} = 'desktop') = (${entry.device} IS NOT NULL)`,
-        ),
-        check("delivery_sending", sql`${entry.state} <> 'sending' OR ${entry.message} IS NOT NULL`),
-        check("delivery_sent", sql`(${entry.state} = 'sent') = (${entry.sentAt} IS NOT NULL)`),
-        check(
-            "delivery_skipped",
-            sql`(${entry.state} = 'skipped') = (${entry.reason} IS NOT NULL)`,
-        ),
-        check("delivery_failed", sql`${entry.state} <> 'failed' OR ${entry.error} IS NOT NULL`),
-    ],
-    permissions: { read: through("parent", "read") },
+    permissions: { read: through("parent", "read"), deliver: none() },
     // keep a finished delivery 7 days
     expiring: [
         {
@@ -93,16 +68,72 @@ export const delivery = defineObject({
             where: { state: { notIn: ["pending", "sending"] } },
         },
     ],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        schedule: method.create(null, { isSystem: true }),
-        record: method.update(null, { isSystem: true }),
-        discard: method.delete(null, { isSystem: true }),
-        send: method.mutation({ permission: null, isSystem: true, output: schema.object({}) }),
-        settle: method.mutation({ permission: null, isSystem: true, output: schema.object({}) }),
+    constraints: {
+        target: {
+            kind: "index",
+            on: ["parentId", "channel", "client"],
+            unique: true,
+            nullsNotDistinct: true,
+        },
+        due: { kind: "index", on: ["scope", "state", "dueAt"] },
+        message: { kind: "index", on: ["message"] },
+        client: {
+            kind: "check",
+            condition: {
+                OR: [
+                    { channel: { in: ["desktop", "push"] }, client: { isNotNull: true } },
+                    { channel: { notIn: ["desktop", "push"] }, client: { isNull: true } },
+                ],
+            },
+        },
+        sending: {
+            kind: "check",
+            condition: {
+                OR: [{ state: { ne: "sending" } }, { message: { isNotNull: true } }],
+            },
+        },
+        sent: {
+            kind: "check",
+            condition: {
+                OR: [
+                    { state: "sent", sentAt: { isNotNull: true } },
+                    { state: { ne: "sent" }, sentAt: { isNull: true } },
+                ],
+            },
+        },
+        skipped: {
+            kind: "check",
+            condition: {
+                OR: [
+                    { state: "skipped", reason: { isNotNull: true } },
+                    { state: { ne: "skipped" }, reason: { isNull: true } },
+                ],
+            },
+        },
+        failed: {
+            kind: "check",
+            condition: {
+                OR: [{ state: { ne: "failed" } }, { error: { isNotNull: true } }],
+            },
+        },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    schedule: method.create("deliver", { isInternal: true }),
+    record: method.update("deliver", { isInternal: true }),
+    discard: method.delete("deliver", { isInternal: true }),
+    send: method.mutation({
+        permission: "deliver",
+        isInternal: true,
+        output: schema.object({}),
     }),
-});
+    settle: method.mutation({
+        permission: "deliver",
+        isInternal: true,
+        output: schema.object({}),
+    }),
+}));
 
 /** A delivery as its table stores it. */
 export type Delivery = Select<typeof delivery.table>;

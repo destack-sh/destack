@@ -13,11 +13,9 @@ test.for(TEST_DIALECTS)(
 
         // give carol a phone, an email address and quiet hours from 11:00 to 14:00 in Vienna on Mondays, now noon there
         const phone = await subscribeBrowser();
-        await fixture.reach("carol", { email: "carol@example.com", timeZone: "Europe/Vienna" });
+        await fixture.contact("carol", { email: "carol@example.com", timeZone: "Europe/Vienna" });
         await fixture.subscribe("carol", {
-            id: schema
-                .identifier("push-endpoint")
-                .parse("push-endpoint-019f5530-8000-7000-8000-00000000000c"),
+            id: schema.identifier("client").parse("client-019f5530-8000-7000-8000-00000000000c"),
             url: "https://push.example/carol",
             keys: phone.keys,
         });
@@ -63,7 +61,7 @@ test.for(TEST_DIALECTS)(
         fixture.wait(120);
         await fixture.dispatch();
         expect([
-            fixture.now(),
+            fixture.clock.now(),
             fixture.pushes.requests.length,
             fixture.mails.sent.length,
             await fixture.deliveries(mentioned.id),

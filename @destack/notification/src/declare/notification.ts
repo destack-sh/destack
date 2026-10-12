@@ -1,7 +1,6 @@
 import { ModuleMetadata } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { NotificationType, type NotificationDefinition } from "../notification/notification.ts";
-import { ActionMetadata } from "../notification/content.ts";
 import { NotificationName } from "../object/activity.ts";
 import { INTERRUPTION_LEVELS, Preference } from "../preference/preference.ts";
 
@@ -29,22 +28,16 @@ export function defineNotification<Payload extends schema.Schema>(
     // stamp the declaring package
     const owner = ModuleMetadata.require(module, "defineNotification").package;
 
-    // validate the metadata
+    // validate the metadata and the action names
     const { name, title, description, interruption, preference, payload, actions } = definition;
     NotificationMetadata.parse({ name, title, description, interruption, preference });
-    for (const [action, declared] of Object.entries(actions ?? {})) {
+    for (const action of Object.keys(actions ?? {})) {
         NotificationName.parse(action);
-        ActionMetadata.parse(
-            schema.defined({
-                title: declared.title,
-                isDestructive: declared.isDestructive,
-                text: declared.text,
-            }),
-        );
     }
 
     // require a declarative payload schema
     defineSchema(payload);
 
+    // validate the action metadata as the declaration derives it
     return new NotificationType(owner, definition);
 }

@@ -3,8 +3,8 @@ import type { Call } from "@destack/object";
 import { defineSchema, schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 
-/** The text every channel shows, rendered in its recipient's locale. */
-export const Content = defineSchema(
+/** The wording every channel shows, rendered in its recipient's locale. */
+export const Wording = defineSchema(
     schema.object({
         /** The headline. */
         title: schema.string(),
@@ -14,14 +14,14 @@ export const Content = defineSchema(
         body: schema.string(),
     }),
 );
-/** The text every channel shows, rendered in its recipient's locale. */
-export type Content = schema.Infer<typeof Content>;
+/** The wording every channel shows, rendered in its recipient's locale. */
+export type Wording = schema.Infer<typeof Wording>;
 
-/** A text as a declaration writes it: as it reads, or a message rendered in each recipient's locale. */
+/** A text as a declaration writes it: as it reads, or a message in each recipient's locale. */
 type Text = string | Message;
 
-/** The text every channel shows as a declaration writes it, its messages rendered in each recipient's locale. */
-export interface ContentDefinition {
+/** The wording every channel shows, as a declaration writes it. */
+export interface WordingDefinition {
     /** The headline. */
     readonly title: Text;
     /** The line below the headline. */
@@ -30,10 +30,10 @@ export interface ContentDefinition {
     readonly body: Text;
 }
 
-/** The text a declaration writes, rendered in a recipient's locale. */
-export const ContentDefinition = {
+/** The wording a declaration writes, rendered in a recipient's locale. */
+export const WordingDefinition = {
     /** Render a definition's messages in a recipient's locale. */
-    render(definition: ContentDefinition, locale: Localization): Content {
+    render(definition: WordingDefinition, locale: Localization): Wording {
         const write = (text: Text) => (typeof text === "string" ? text : locale.render(text));
 
         return {

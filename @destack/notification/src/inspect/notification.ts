@@ -2,7 +2,7 @@ import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { defineSchema, schema, toJsonSchema, type JsonValue } from "@destack/schema";
-import { describeSetting, SettingDescription } from "@destack/setting/inspect";
+import type { Setting } from "@destack/setting";
 import { NotificationMetadata } from "../declare/notification.ts";
 import { ActionMetadata } from "../notification/content.ts";
 import type { NotificationType } from "../notification/notification.ts";
@@ -33,25 +33,14 @@ export function describeNotification(notification: NotificationType): Notificati
         interruption,
         preference,
         package: notification.package,
-        payload: schema.record(schema.string(), schema.json()).parse(toJsonSchema(payload)),
-        actions: Object.fromEntries(
-            Object.entries(notification.definition.actions ?? {}).map(([action, declared]) => [
-                action,
-                ActionMetadata.parse(
-                    schema.defined({
-                        title: declared.title,
-                        isDestructive: declared.isDestructive,
-                        text: declared.text,
-                    }),
-                ),
-            ]),
-        ),
+        payload: toJsonSchema(payload),
+        actions: notification.actions,
     };
 }
 
-/** Describe a notification's preference as the setting recipients change. */
-export function describeNotificationPreference(notification: NotificationType): SettingDescription {
-    return describeSetting(notification.preference);
+/** Read a notification's preference, the setting recipients change. */
+export function notificationPreference(notification: NotificationType): Setting {
+    return notification.preference;
 }
 
 /** Read the notifications a build declares. */
@@ -66,10 +55,8 @@ export async function readNotifications(reader: BuildReader): Promise<Notificati
 }
 
 /** List a notification's term: its name, with its payload's shape. */
-export function notificationVocabulary(
-    input: Record<string, JsonValue>,
-): Record<string, JsonValue> {
-    const description = NotificationDescription.parse(input);
+export function notificationVocabulary(notification: NotificationType): Record<string, JsonValue> {
+    const { name, payload } = notification.definition;
 
-    return { [description.name]: { payload: description.payload } };
+    return { [name]: { payload: toJsonSchema(payload) } };
 }

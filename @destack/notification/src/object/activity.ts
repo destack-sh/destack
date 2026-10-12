@@ -1,30 +1,29 @@
-import { intersection, relation, through } from "@destack/access";
-import { check, index, sql, unique, type Select } from "@destack/db";
-import { defineObject, field, type ObjectType } from "@destack/object";
+import { intersection, none, relation, through } from "@destack/access";
+import { type Select } from "@destack/db";
+import { defineObject, field, type ObjectType, ParentReference } from "@destack/object";
 import { Package, PackageId } from "@destack/package";
 import { defineSchema, Instant, schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
-import { address, user } from "@destack/account/object";
-import { space } from "@destack/space/object";
-import { ActionMetadata, Content } from "../notification/content.ts";
+import { Subject } from "@destack/sync";
+import { account, residence, space } from "@destack/account/object";
+
+import { ActionMetadata, Wording } from "../notification/content.ts";
 import { INTERRUPTION_LEVELS, Preference } from "../preference/preference.ts";
 import { REASONS } from "./subscription.ts";
 
-/** The most recipients one notify call names: 100 inserts of about 0.3 ms. */
+/** The most recipients one notify call lists: 100 inserts of about 0.3 ms. */
 export const NOTIFY_RECIPIENTS = 100;
 
 /** The longest key or thread. */
 const KEY_LENGTH = 200;
 
 /** A notification's name, one segment of its preference setting's name. */
-export const NotificationName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*$(?![\s\S])/u),
-);
+export const NotificationName = defineSchema(schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u));
 
 /** A notification key or thread. */
 export const NotificationKey = defineSchema(schema.string().min(1).max(KEY_LENGTH));
 
-/** What happened to an object, for one person: the declared notification it is, why they hear of it, and its rendered text. */
+/** What happened to an object, for one person. */
 export const activity = defineObject({
     name: "activity",
     plural: "activities",
@@ -43,7 +42,7 @@ export const activity = defineObject({
         release: field.json(Package),
         /** The notification's name in its package. */
         name: field.string(NotificationName),
-        /** The identity a later notice with the same key replaces, absent for one never replaced. */
+        /** The identity a later notice with the same key replaces. */
         key: field.string(NotificationKey).optional(),
         /** The thread it groups in. */
         thread: field.string(NotificationKey),
@@ -60,8 +59,8 @@ export const activity = defineObject({
 
         // rendering in the recipient's locale, as their home shows and delivers it
         /** The text every channel shows, rendered in its recipient's locale. */
-        content: field.json(Content),
-        /** The line a summary shows for it, such as "3 mentions", rendered in its recipient's locale. */
+        content: field.json(Wording),
+        /** The line a summary shows for it, such as "3 mentions", in its recipient's locale. */
         summary: field.string(),
         /** The actions offered beside it, by name. */
         actions: field.json(schema.record(NotificationName, ActionMetadata)),
@@ -70,54 +69,76 @@ export const activity = defineObject({
         /** The preference its recipient starts from. */
         preference: field.json(Preference),
     },
-    constraints: (entry) => [
-        unique("activity_key").on(
-            entry.scope,
-            entry.recipient,
-            entry.packageId,
-            entry.name,
-            entry.parentPackageId,
-            entry.parentType,
-            entry.parentId,
-            entry.key,
-        ),
-        index("activity_thread").on(
-            entry.scope,
-            entry.recipient,
-            entry.thread,
-            entry.packageId,
-            entry.name,
-        ),
-        check("activity_count", sql`${entry.count} >= 1`),
-    ],
     projections: (): readonly ObjectType[] => [notification],
     permissions: {
         // the recipient reads it through its source
         read: intersection(relation("recipient"), through("parent", "read")),
+        // the source's readers post what their calls do to it
+        post: through("parent", "read"),
     },
-    // keep an activity 180 days, as GitHub keeps notifications five months
+    // keep an activity 180 days, as code forges keep notifications five months
     expiring: [{ after: { days: 180 }, from: "occurredAt" }],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        post: method.create(null, { isSystem: true }),
-        occur: method.update(null, { isSystem: true }),
-        act: method.mutation({
-            permission: "read",
-            input: schema.object({
-                /** The declared action's name. */
-                action: NotificationName,
-                /** The text the action asks for. */
-                text: schema.string().min(1).exactOptional(),
-            }),
+    constraints: {
+        key: {
+            kind: "unique",
+            on: [
+                "scope",
+                "recipient",
+                "packageId",
+                "name",
+                "parentPackageId",
+                "parentType",
+                "parentId",
+                "key",
+            ],
+        },
+        thread: { kind: "index", on: ["scope", "recipient", "thread", "packageId", "name"] },
+        count: { kind: "check", condition: { count: { gte: 1 } } },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    post: method.create("post", { isInternal: true }),
+    occur: method.update("post", { isInternal: true }),
+    act: method.mutation({
+        permission: "read",
+        input: schema.object({
+            /** The declared action's name. */
+            action: NotificationName,
+            /** The text the action asks for. */
+            text: schema.string().min(1).exactOptional(),
         }),
     }),
-});
+    notify: method.mutation({
+        permission: "post",
+        target: "none",
+        isInternal: true,
+        input: schema.object({
+            /** The object it is about. */
+            parent: ParentReference,
+            /** The package declaring the notification. */
+            packageId: PackageId,
+            /** The notification's name in its package. */
+            name: NotificationName,
+            /** The principals it notifies. */
+            recipients: schema.array(Subject).max(NOTIFY_RECIPIENTS),
+            /** Why they receive it. */
+            reason: schema.enum(REASONS),
+            /** The values its content renders. */
+            payload: schema.json(),
+            /** The identity a later notice with the same key replaces. */
+            key: NotificationKey.exactOptional(),
+            /** The thread, the source's identifier by default. */
+            thread: NotificationKey.exactOptional(),
+        }),
+        output: schema.object({}),
+    }),
+}));
 
 /** An activity as its table stores it. */
 export type Activity = Select<typeof activity.table>;
 
-/** A person's notification of an activity in their home: the activity as they see it, with their read state and deliveries. */
+/** A person's notification of an activity in their home. */
 export const notification = defineObject({
     name: "notification",
     plural: "notifications",
@@ -146,7 +167,7 @@ export const notification = defineObject({
         /** When it last occurred. */
         occurredAt: field.time(),
         /** The text every channel shows, rendered in its recipient's locale. */
-        content: field.json(Content),
+        content: field.json(Wording),
         /** The line a summary shows for it, rendered in its recipient's locale. */
         summary: field.string(),
         /** The actions offered beside it, by name. */
@@ -187,38 +208,49 @@ export const notification = defineObject({
             preference: "preference",
         },
         clears: ["readAt", "snoozedUntil", "archivedAt", "plannedAt"],
-        residence: { user, address },
+        residence: { account, residence },
     },
-    constraints: (entry) => [
-        index("notification_thread").on(entry.scope, entry.recipient, entry.thread),
-        index("notification_occurred").on(entry.scope, entry.recipient, entry.occurredAt),
-    ],
-    permissions: { read: relation("recipient") },
-    methods: (method) => ({
+    permissions: { read: relation("recipient"), deliver: none() },
+    constraints: {
+        thread: { kind: "index", on: ["scope", "recipient", "thread"] },
+        occurred: { kind: "index", on: ["scope", "recipient", "occurredAt"] },
+    },
+})
+    .methods((method) => ({
         get: method.get("read"),
         list: method.list("read"),
         // mark read and keep the first read time
-        read: method
-            .mutation({ permission: "read", inverse: "unread" })
-            .handle(async (call) =>
-                call.target.readAt === null ? call.update({ readAt: call.now }) : call.target,
-            ),
+        read: method.mutation({ permission: "read", inverse: "unread" }),
         // mark unread
-        unread: method
-            .mutation({ permission: "read", inverse: "read" })
-            .handle(async (call) => call.update({ readAt: null })),
+        unread: method.mutation({ permission: "read", inverse: "read" }),
         readAll: method.updateMany("read", { fields: ["readAt"], match: ["thread", "readAt"] }),
 
         // defer until a time in the future
-        snooze: method
-            .mutation({
-                permission: "read",
-                input: schema.object({
-                    /** When the snooze ends, in UTC epoch milliseconds. */
-                    until: Instant,
-                }),
-            })
-            .handle(async (call) => {
+        snooze: method.mutation({
+            permission: "read",
+            input: schema.object({
+                /** When the snooze ends, in UTC epoch milliseconds. */
+                until: Instant,
+            }),
+        }),
+
+        // move out of the inbox until it occurs again, or back
+        archive: method.mutation({ permission: "read", inverse: "unarchive" }),
+        unarchive: method.mutation({ permission: "read", inverse: "archive" }),
+
+        // plan the deliveries of each channel
+        plan: method.mutation({
+            permission: "deliver",
+            isInternal: true,
+            output: schema.object({}),
+        }),
+    }))
+    .implement({
+        methods: {
+            read: async (call) =>
+                call.target.readAt === null ? call.update({ readAt: call.now }) : call.target,
+            unread: async (call) => call.update({ readAt: null }),
+            snooze: async (call) => {
                 // require a snooze ending later
                 if (call.input.until <= call.now) {
                     throw new ServiceError("BAD_REQUEST", {
@@ -227,18 +259,11 @@ export const notification = defineObject({
                 }
 
                 return call.update({ snoozedUntil: call.input.until });
-            }),
-
-        // move out of the inbox until it occurs again, or back
-        archive: method
-            .mutation({ permission: "read", inverse: "unarchive" })
-            .handle(async (call) => call.update({ archivedAt: call.now })),
-        unarchive: method
-            .mutation({ permission: "read", inverse: "archive" })
-            .handle(async (call) => call.update({ archivedAt: null })),
-        deliver: method.mutation({ permission: null, isSystem: true }),
-    }),
-});
+            },
+            archive: async (call) => call.update({ archivedAt: call.now }),
+            unarchive: async (call) => call.update({ archivedAt: null }),
+        },
+    });
 
 /** A notification as its table stores it. */
 export type Notification = Select<typeof notification.table>;

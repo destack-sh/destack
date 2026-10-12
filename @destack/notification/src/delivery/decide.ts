@@ -22,19 +22,13 @@ export interface Settings {
     readonly summary: Summary;
 }
 
-/** The fields of a delivery a decision reads. */
-type Decided = Pick<Delivery, "id" | "channel" | "device" | "endpoint" | "isSummarized" | "dueAt">;
-
-/** The fields of a notification a decision reads. */
-type Notified = Pick<
-    Notification,
-    "packageId" | "occurredAt" | "readAt" | "snoozedUntil" | "interruption"
->;
-
-/** Decide what a delivery's channel does with its notification now, the email waiting a delay in milliseconds. */
+/** Decide what a delivery's channel does with its notification now. */
 export function decide(
-    delivery: Decided,
-    notification: Notified,
+    delivery: Pick<Delivery, "channel" | "client" | "isSummarized" | "dueAt">,
+    notification: Pick<
+        Notification,
+        "packageId" | "occurredAt" | "readAt" | "snoozedUntil" | "interruption"
+    >,
     contact: Contact,
     settings: Settings,
     emailDelay: number,
@@ -49,16 +43,18 @@ export function decide(
 
 /** Settle read, unaddressed, snoozed, critical and turned-off notifications, absent otherwise. */
 function screen(
-    delivery: Decided,
-    notification: Notified,
+    delivery: Parameters<typeof decide>[0],
+    notification: Parameters<typeof decide>[1],
     contact: Contact,
     settings: Settings,
     now: number,
 ): Decision | undefined {
-    // skip read and unaddressed notifications
+    // skip read notifications
     if (notification.readAt !== null) {
         return { action: "skip", reason: "read" };
-    } else if (!Contact.addresses(contact, delivery)) {
+    }
+    // skip addresses the contact lost
+    else if (!Contact.addresses(contact, delivery)) {
         return { action: "skip", reason: "unaddressed" };
     }
     // wait out a snooze
@@ -77,10 +73,10 @@ function screen(
     return undefined;
 }
 
-/** Hold passive notifications and summarized preferences for the summary, absent otherwise. */
+/** Defer passive notifications and summarized preferences to the summary, absent otherwise. */
 function summarize(
-    delivery: Decided,
-    notification: Notified,
+    delivery: Parameters<typeof decide>[0],
+    notification: Parameters<typeof decide>[1],
     contact: Contact,
     settings: Settings,
     now: number,
@@ -112,19 +108,21 @@ function summarize(
 
 /** Wait out a focus and the email delay, or send. */
 function interrupt(
-    delivery: Decided,
-    notification: Notified,
+    delivery: Parameters<typeof decide>[0],
+    notification: Parameters<typeof decide>[1],
     contact: Contact,
     settings: Settings,
     emailDelay: number,
     now: number,
 ): Decision {
-    // wait out a focus unless allowed through
+    // read the focus and whether the notification breaks through it
     const { focus } = settings;
     const end = focusEnd(focus, contact.timeZone, now);
     const isAllowed =
         (notification.interruption === "timeSensitive" && focus.isTimeSensitiveAllowed) ||
         focus.allowed.includes(notification.packageId);
+
+    // wait out a focus
     if (end !== undefined && !isAllowed) {
         return { action: "defer", until: end, isSummarized: false };
     }

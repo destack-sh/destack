@@ -16,9 +16,6 @@
         "./view": {
             "runtimes": ["browser"]
         },
-        "./workload": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./inspect": {
             "runtimes": ["bun"]
         },
@@ -37,7 +34,7 @@
                 {
                     "kind": "setting",
                     "package": "@destack/setting",
-                    "function": "./inspect#describeNotificationPreference"
+                    "value": "./inspect#notificationPreference"
                 }
             ]
         }

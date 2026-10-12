@@ -53,7 +53,7 @@ test("list the person's notifications from their home and mark one read when ope
         .poll(() => rows(container))
         .toEqual(["unread: Unread 1 mention", "unread: Unread 1 mention"]);
 
-    // opening the first predicts it read, without failures from the server
+    // open the first to predict it read, with no failures from the server
     container.querySelector<HTMLElement>("[data-slot=notification] button")?.click();
     await expect
         .poll(() => rows(container))
@@ -71,7 +71,7 @@ test("count the person's unread notifications in every space, or in one", async 
         </>
     ));
 
-    // both unread notifications happened in the view's space, and none elsewhere
+    // count both unread notifications in the view's space, and none elsewhere
     await expect
         .poll(() =>
             [...container.querySelectorAll("[data-slot=notification-badge]")].map((badge) => [
@@ -85,7 +85,7 @@ test("count the person's unread notifications in every space, or in one", async 
         ]);
 });
 
-test("count unread notifications and mark them unread in the German drafts the package ships", async () => {
+test("count and label unread notifications in the German catalog the package ships", async () => {
     const home = await openHome();
     const german = { ...home, context: { ...home.context, locale: "de-AT" } };
     const container = drawInHome(
@@ -99,7 +99,7 @@ test("count unread notifications and mark them unread in the German drafts the p
         [GERMAN],
     );
 
-    // the spoken count and each row's hidden state read in German, the fixture's own summary as written
+    // read the spoken count and each row's hidden state in German, and the summary as written
     await expect
         .poll(() => [
             container.querySelector("[data-slot=notification-badge] :not([aria-hidden])")

@@ -111,14 +111,10 @@ test.for(TEST_DIALECTS)(
         });
         await fixture.dispatch();
         const announced = (await fixture.notifications()).filter((row) => row.name === "change");
-        expect(announced.map((row) => [row.recipient, row.reason])).toEqual(
-            (
-                [
-                    [Subject.key(actors.bob), "mention"],
-                    [Subject.key(actors.carol), "subscribed"],
-                ] satisfies [string, string][]
-            ).toSorted((left, right) => left[0].localeCompare(right[0])),
-        );
+        expect(announced.map((row) => [row.recipient, row.reason])).toEqual([
+            [Subject.key(actors.bob), "mention"],
+            [Subject.key(actors.carol), "subscribed"],
+        ]);
     },
 );
 

@@ -6,7 +6,7 @@ export const CHANNELS = ["desktop", "push", "email"] as const;
 /** A channel that alerts. */
 export type Channel = (typeof CHANNELS)[number];
 
-/** How strongly a notification interrupts, as Apple's interruption levels. */
+/** How strongly a notification interrupts, as mobile platforms' interruption levels. */
 export const INTERRUPTION_LEVELS = ["passive", "active", "timeSensitive", "critical"] as const;
 
 /** How strongly a notification interrupts. */

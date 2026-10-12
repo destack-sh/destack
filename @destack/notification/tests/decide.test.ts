@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { type Contact, decide, focus, type Settings, summary, Window } from "../src/index.ts";
+import { type Contact, decide, focus, summary, Window } from "../src/index.ts";
 import { notes } from "./fixture/document.ts";
 
 /** How long an email waits in the scenarios: a quarter hour. */
@@ -20,21 +20,17 @@ test("end quiet hours in a time zone after the night the clocks go back", () => 
     expect([inside, outside]).toEqual([Date.UTC(2026, 9, 25, 6, 0), undefined]);
 });
 
-/** A push endpoint the recipient's phone has. */
-const PHONE = schema
-    .identifier("push-endpoint")
-    .parse("push-endpoint-019f5530-8000-7000-8000-0000000000a1");
+/** The browser on the recipient's phone, subscribed to pushes. */
+const PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000a1");
 
 /** The desktop the recipient signed in. */
-const LAPTOP = schema.identifier("device").parse("device-019f5530-8000-7000-8000-0000000000a2");
+const LAPTOP = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000a2");
 
 test("decide each channel by the first rule that applies, from read state down to the email delay", () => {
     // start from an unread, active mention the recipient receives everywhere, with nothing quiet
     const delivery: Parameters<typeof decide>[0] = {
-        id: schema.identifier("delivery").parse("delivery-019f5530-8000-7000-8000-0000000000a3"),
         channel: "push",
-        device: null,
-        endpoint: PHONE,
+        client: PHONE,
         isSummarized: false,
         dueAt: SATURDAY,
     };
@@ -47,24 +43,24 @@ test("decide each channel by the first rule that applies, from read state down t
     };
     const contact: Contact = {
         desktops: [LAPTOP],
-        endpoints: [
+        browsers: [
             { id: PHONE, url: "https://push.example/phone", keys: { p256dh: "key", auth: "auth" } },
         ],
         email: "dana@example.com",
         timeZone: "UTC",
         locale: "en",
     };
-    const settings: Settings = {
+    const settings: Parameters<typeof decide>[3] = {
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         focus: focus.definition.default,
         summary: summary.definition.default,
     };
     const focused = { ...focus.definition.default, until: SATURDAY + HOUR };
-    const desktop: Changes["delivery"] = { channel: "desktop", device: LAPTOP, endpoint: null };
-    const email: Changes["delivery"] = { channel: "email", endpoint: null };
+    const desktop: Changes["delivery"] = { channel: "desktop", client: LAPTOP };
+    const email: Changes["delivery"] = { channel: "email", client: null };
     const cases: readonly [string, Changes][] = [
         ["read", { notification: { readAt: SATURDAY } }],
-        ["unaddressed", { contact: { endpoints: [] } }],
+        ["unaddressed", { contact: { browsers: [] } }],
         ["snoozed", { notification: { snoozedUntil: SATURDAY + HOUR } }],
         [
             "critical in a focus, turned off",
@@ -178,7 +174,7 @@ interface Changes {
     /** The contact's changed fields. */
     readonly contact?: Partial<Contact>;
     /** The changed settings. */
-    readonly settings?: Partial<Settings>;
+    readonly settings?: Partial<Parameters<typeof decide>[3]>;
     /** The changed time of the decision. */
     readonly now?: number;
 }

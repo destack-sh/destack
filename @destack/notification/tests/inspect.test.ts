@@ -2,11 +2,12 @@ import { MemoryBuild } from "@destack/package/test";
 import { plural, t } from "@destack/locale";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
+import { describeSetting } from "@destack/setting/inspect";
 import { defineNotification } from "../src/declare/index.ts";
 import { notification } from "../src/index.ts";
 import {
     describeNotification,
-    describeNotificationPreference,
+    notificationPreference,
     notificationVocabulary,
     readNotifications,
 } from "../src/inspect/index.ts";
@@ -36,12 +37,12 @@ test("describe a declared notification for manifests with its actions, and its p
 
     // fix the notification's name in stored notifications with its payload's shape
     const described = Described.parse(JSON.parse(JSON.stringify(describeNotification(mention))));
-    expect(notificationVocabulary(described)).toEqual({
+    expect(notificationVocabulary(mention)).toEqual({
         mention: { payload: described["payload"] },
     });
 
-    // describe the preference as the user setting notification.mention of the declaring package
-    expect(describeNotificationPreference(mention)).toEqual({
+    // derive the preference as the user setting notification.mention of the declaring package
+    expect(describeSetting(notificationPreference(mention))).toEqual({
         name: "notification.mention",
         title: "Mentions",
         description: "Someone mentions you in a remark.",
@@ -83,7 +84,7 @@ test("refuse declarations whose names cannot identify a setting, and unlabeled a
 
 test("read the notifications a build declares from its graph, and none another package declares", async () => {
     // declare the mention, and a notification of the notes package's kind beside it
-    const { reader } = await MemoryBuild.declaring(notes, [
+    const reader = await MemoryBuild.declaring(notes, [
         declaration(notification.package.id),
         declaration(notes.id),
     ]);
@@ -116,7 +117,7 @@ function declare(name: string, action: string, title: string) {
         );
 }
 
-/** Read the issues a refused declaration names, by code and path. */
+/** Read the issues refusing a declaration, by code and path. */
 function issues(build: () => unknown) {
     try {
         build();

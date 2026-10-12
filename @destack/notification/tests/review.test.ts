@@ -1,15 +1,13 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { activity, focus, notification, subscription } from "../src/index.ts";
 import { document, review } from "./fixture/document.ts";
 import { actors, documentParent, serveSpace } from "./fixture/space.ts";
 
 /** Bob's phone. */
-const PHONE = schema
-    .identifier("push-endpoint")
-    .parse("push-endpoint-019f5530-8000-7000-8000-00000000000b");
+const PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-00000000000b");
 
 test.for(TEST_DIALECTS)(
     "answer a review request from its notification, which breaks through a focus that defers a change until a snooze ends, on %s",
@@ -25,7 +23,7 @@ test.for(TEST_DIALECTS)(
                 auth: "BTBZMqHH6r4Tts7J_aSIgg",
             },
         });
-        const end = fixture.now() + 120 * 60_000;
+        const end = fixture.clock.now() + 120 * 60_000;
         await fixture.set("bob", focus, {
             schedules: [],
             allowed: [],
@@ -60,30 +58,31 @@ test.for(TEST_DIALECTS)(
         ]).toEqual([
             [["high", request.id.slice("notification-".length).replaceAll("-", "")]],
             [
-                ["email", "skipped", fixture.now()],
+                ["email", "skipped", fixture.clock.now()],
                 ["push", "pending", end],
             ],
         ]);
 
         // approve on the activity in the document's space, then read the notification in the home
         fixture.as("bob");
-        await expect(
+        const refused = await refusal(
             fixture.call(activity, "act", {
                 id: request.source.id,
                 action: "approve",
                 text: "looks good",
             }),
-        ).rejects.toMatchObject({
-            code: "BAD_REQUEST",
-            message: "action approve of review takes text only where it asks for it",
-        });
+        );
+        expect(refused).toEqual([
+            "BAD_REQUEST",
+            "action approve of review takes text only where it asks for it",
+        ]);
         await fixture.call(activity, "act", { id: request.source.id, action: "approve" });
         await fixture.call(notification, "read", { id: request.id });
         await box.until((state) => state.unread === 1);
         expect([
             (await fixture.call(document, "get", { id: plan.id }))["approvedBy"],
             (await fixture.call(notification, "get", { id: request.id }))["readAt"],
-        ]).toEqual([Subject.key(actors.bob), fixture.now()]);
+        ]).toEqual([Subject.key(actors.bob), fixture.clock.now()]);
 
         // snooze the change past the focus and keep it from the badge and the phone
         const until = end + 60 * 60_000;

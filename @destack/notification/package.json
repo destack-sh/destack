@@ -17,7 +17,6 @@
         "./setting": "./src/setting/index.ts",
         "./stack": "./src/stack/index.ts",
         "./view": "./src/view/index.ts",
-        "./workload": "./src/workload/index.ts",
         "./test": "./src/test/index.ts"
     },
     "scripts": {
@@ -29,26 +28,23 @@
         "@destack/account": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/identity": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/setting": "workspace:*",
-        "@destack/space": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/ui": "workspace:*",
         "@destack/view": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/theme": "workspace:*",
         "@destack/locale": "workspace:*",
-        "@destack/resource": "workspace:*",
         "uuid": "14.0.2",
-        "@destack/message": "workspace:*",
-        "@destack/mail": "workspace:*",
-        "@destack/host": "workspace:*"
+        "@destack/message": "workspace:*"
     },
     "devDependencies": {
-        "@destack/directory": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2"
     }

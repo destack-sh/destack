@@ -6,17 +6,13 @@ import { document } from "./fixture/document.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
 
 /** Bob's old phone, whose push service forgot it. */
-const OLD_PHONE = schema
-    .identifier("push-endpoint")
-    .parse("push-endpoint-019f5530-8000-7000-8000-0000000000b1");
+const OLD_PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000b1");
 
 /** Bob's new phone. */
-const NEW_PHONE = schema
-    .identifier("push-endpoint")
-    .parse("push-endpoint-019f5530-8000-7000-8000-0000000000b2");
+const NEW_PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000b2");
 
 test.for(TEST_DIALECTS)(
-    "push a mention to each of a recipient's phones as a message, and forget the phone its push service forgot through the push endpoint kind, on %s",
+    "push a mention to each of a recipient's phones as a message, and forget the subscription its push service forgot through the account service, on %s",
     async (dialect) => {
         const fixture = await serveSpace(dialect);
 
@@ -56,7 +52,7 @@ test.for(TEST_DIALECTS)(
             pushed: fixture.pushes.requests.map((request) => request.url).toSorted(),
             deliveries: (await fixture.deliveries(mentioned.id)).map((row) => [
                 row.channel,
-                row.endpoint,
+                row.client,
                 row.state,
                 row.reason,
             ]),

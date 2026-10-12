@@ -1,20 +1,38 @@
 import { type Select, TABLE } from "@destack/db";
-import type { ObjectServer } from "@destack/object/server";
+import type { ObjectStore } from "@destack/object/server";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { subjectContext } from "@destack/service/test";
 import type { Page, Subject } from "@destack/sync";
+import { UNREAD } from "../inbox/index.ts";
 import { notification } from "../object/index.ts";
-import { type Badge, UNREAD } from "../inbox/index.ts";
 
 /** A row of a change, read for its identifier. */
 const RowIdentity = schema.looseObject({ id: schema.string() });
+
+/** An unread group of the inbox: its space and app. */
+const BadgeGroup = schema.object({ space: schema.string(), packageId: PackageId });
+
+/** An unread group's counts. */
+const BadgeValues = schema.object({ unread: schema.number(), latestAt: schema.number() });
+
+/** The unread notifications of one app in one space. */
+export interface Badge {
+    /** The space of the notifications. */
+    readonly space: string;
+    /** The app. */
+    readonly packageId: PackageId;
+    /** The unread count. */
+    readonly unread: number;
+    /** When the latest occurred. */
+    readonly latestAt: number;
+}
 
 /** A person's inbox in their home: its notifications and their live unread counts. */
 export class HomeInbox {
     /** The rows kept, by identifier. */
     readonly rows = new Map<string, Select<typeof notification.table>>();
-    /** The unread counts kept, by app. */
+    /** The unread counts kept, by space and app. */
     readonly counts = new Map<string, Badge>();
     /** End the stream of pages. */
     readonly #following = new AbortController();
@@ -26,12 +44,12 @@ export class HomeInbox {
     #wake: () => void = () => {};
 
     /** Follow a home's notifications as a person until closed. */
-    constructor(server: Pick<ObjectServer, "source">, homeId: string, person: Subject) {
+    constructor(store: Pick<ObjectStore, "source">, homeId: string, person: Subject) {
         // read every page in the background into the rows and counts kept
         const context = subjectContext(person, homeId, { signal: this.#following.signal });
         const { where, ...aggregate } = UNREAD;
-        const pages = server.source.relayed(
-            server.source.queriesShape.subscription({
+        const pages = store.source.relayed(
+            store.source.queriesShape.subscription({
                 name: "objects",
                 scope: homeId,
                 below: homeId,
@@ -53,7 +71,7 @@ export class HomeInbox {
         })();
     }
 
-    /** Read the unread count across apps, as a dock badge shows it. */
+    /** Read the unread count across spaces and apps, as a dock badge shows it. */
     get unread(): number {
         return [...this.counts.values()].reduce((total, badge) => total + badge.unread, 0);
     }
@@ -64,27 +82,7 @@ export class HomeInbox {
         await this.#reading;
     }
 
-    /** Follow the notifications kept, the latest occurrence first. */
-    async *notifications(
-        signal: AbortSignal,
-    ): AsyncIterable<readonly Select<typeof notification.table>[]> {
-        while (!signal.aborted) {
-            yield [...this.rows.values()].toSorted(
-                (left, right) => right.occurredAt - left.occurredAt,
-            );
-            await this.#next(this.#pages + 1);
-        }
-    }
-
-    /** Follow the unread counts kept. */
-    async *badges(signal: AbortSignal): AsyncIterable<readonly Badge[]> {
-        while (!signal.aborted) {
-            yield [...this.counts.values()];
-            await this.#next(this.#pages + 1);
-        }
-    }
-
-    /** Wait until the kept rows and counts meet a condition and read each arriving page. */
+    /** Wait until the kept rows and counts meet a condition, reading each arriving page. */
     async until(condition: (inbox: HomeInbox) => boolean): Promise<void> {
         while (!condition(this)) {
             await this.#next(this.#pages + 1);
@@ -122,19 +120,22 @@ export class HomeInbox {
             }
         }
 
-        // keep each app's count, dropping groups that empty
+        // keep each space and app's count, dropping groups that empty
         for (const result of page.results ?? []) {
+            // drop every group
             if (result.group === null) {
                 this.counts.clear();
-            } else if (result.values === null) {
-                this.counts.delete(String(result.group["packageId"]));
-            } else {
-                this.counts.set(String(result.group["packageId"]), {
-                    space: schema.string().parse(result.group["space"]),
-                    packageId: PackageId.parse(result.group["packageId"]),
-                    unread: Number(result.values["unread"]),
-                    latestAt: Number(result.values["latestAt"]),
-                });
+            }
+            // drop a group that empties
+            else if (result.values === null) {
+                const group = BadgeGroup.parse(result.group);
+                this.counts.delete(`${group.space} ${group.packageId}`);
+            }
+            // keep a group's counts
+            else {
+                const group = BadgeGroup.parse(result.group);
+                const values = BadgeValues.parse(result.values);
+                this.counts.set(`${group.space} ${group.packageId}`, { ...group, ...values });
             }
         }
     }

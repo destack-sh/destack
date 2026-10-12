@@ -1,10 +1,11 @@
 import { plural, t } from "@destack/locale";
 import type { Identifier } from "@destack/schema";
 import * as style from "@destack/style";
-import { color, radius, space, stroke, text, weight } from "@destack/theme/tokens.stylex";
+import { media } from "@destack/style/media.stylex";
+import { text } from "@destack/theme/text";
+import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { Badge } from "@destack/ui/badge";
-import { useLocale } from "@destack/locale/solid";
-import { For, omit, Show, useHome, useQuery, type JSX } from "@destack/view";
+import { For, type JSX, omit, Show, useHome, useLocale, useQuery } from "@destack/view";
 import { NOTIFICATIONS, UNREAD } from "../inbox/inbox.ts";
 import { notification } from "../object/activity.ts";
 
@@ -16,9 +17,6 @@ const styles = style.create({
         margin: 0,
         padding: 0,
         listStyle: "none",
-        fontFamily: text.footnoteFontFamily,
-        fontSize: text.footnoteFontSize,
-        lineHeight: text.footnoteLineHeight,
     },
     entry: {
         display: "flex",
@@ -30,7 +28,10 @@ const styles = style.create({
         borderBottomStyle: "solid",
         borderBottomWidth: stroke.border,
         borderBottomColor: color.border,
-        backgroundColor: { default: "transparent", ":hover": color.accent },
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.accent },
+        },
         color: "inherit",
         textAlign: "start",
         cursor: "pointer",
@@ -61,9 +62,6 @@ const styles = style.create({
     },
     time: {
         color: color.mutedForeground,
-        fontFamily: text.captionFontFamily,
-        fontSize: text.captionFontSize,
-        fontWeight: weight.regular,
     },
     empty: {
         padding: space[5],
@@ -82,7 +80,7 @@ const styles = style.create({
 
 /** A notification as the inbox shows it. */
 export interface NotificationEntry {
-    /** The notification's id. */
+    /** The notification's identifier. */
     readonly id: Identifier<"notification">;
     /** The line it shows, rendered in the person's locale where it happened. */
     readonly summary: string;
@@ -132,7 +130,7 @@ export function NotificationInbox(properties: NotificationInboxProperties): JSX.
             aria-label={locale.render(t`Notifications`)}
             data-slot="notification-inbox"
             {...rest}
-            {...style.attrs(styles.inbox, properties.style)}
+            {...style.attrs(text.footnote, styles.inbox, properties.style)}
         >
             <For
                 each={entries()}
@@ -172,7 +170,7 @@ function NotificationRow(properties: {
                     {properties.entry.summary}
                     <time
                         datetime={new Date(properties.entry.occurredAt).toISOString()}
-                        {...style.attrs(styles.time)}
+                        {...style.attrs(text.caption, styles.time)}
                     >
                         {locale.relative(properties.entry.occurredAt, Date.now())}
                     </time>
@@ -182,7 +180,7 @@ function NotificationRow(properties: {
     );
 }
 
-/** Render the person's unread notifications as a count, for a space and app or all of them, hidden at none. */
+/** Render the person's unread notifications as a count, for a space and app or all of them. */
 export function NotificationBadge(properties: NotificationBadgeProperties): JSX.Element {
     // sum the unread counts of the groups the badge covers
     const locale = useLocale();
@@ -190,10 +188,11 @@ export function NotificationBadge(properties: NotificationBadgeProperties): JSX.
     const groups = useQuery(() => home.query.notification.aggregate(UNREAD));
     const unread = (): number =>
         groups()
-            .filter((count) => (properties.space ?? count.group.space) === count.group.space)
             .filter(
-                (count) =>
-                    (properties.packageId ?? count.group.packageId) === count.group.packageId,
+                ({ group }) =>
+                    (properties.space === undefined || properties.space === group.space) &&
+                    (properties.packageId === undefined ||
+                        properties.packageId === group.packageId),
             )
             .reduce((sum, count) => sum + count.values.unread, 0);
 

@@ -2,7 +2,7 @@ import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Authentication } from "@destack/service/authentication";
+import { Clock } from "@destack/schema";
 import type { ClientOptions } from "@destack/service/client";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
@@ -31,8 +31,8 @@ export interface Home {
 
 /** Serve a space where alice mentions bob in two documents, and open bob's home on a device following it. */
 export async function openHome(): Promise<Home> {
-    // mention bob in two documents and wait for both notifications in his home
-    const scenario = await serveSpace("sqlite");
+    // mention bob in two documents at the real time his device stamps its requests with
+    const scenario = await serveSpace("sqlite", { at: Date.now() });
     const plan = await scenario.call(document, "create", { title: "Launch plan" });
     const draft = await scenario.call(document, "create", { title: "Draft" });
     for (const shared of [plan, draft]) {
@@ -47,14 +47,17 @@ export async function openHome(): Promise<Home> {
             mentions: [actors.bob],
         });
     }
+
+    // wait for both notifications in his home
     await scenario.inbox("bob").until((state) => state.unread === 2);
 
     // serve the home over HTTP to bob, then follow it from his device
-    const endpoint = serveHome(scenario.server, scenario.homeId);
+    const endpoint = serveHome(scenario.store, scenario.homeId);
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ notification }), {
         isMigrated: true,
     });
     const client = await ObjectClient.open({
+        clock: Clock.system,
         database: storage.database,
         objects: { notification },
         scope: scenario.homeId,
@@ -89,30 +92,33 @@ export async function openHome(): Promise<Home> {
 
 /** Serve the home's inbox over HTTP on the real clock, authenticating every request as bob, and return bob's endpoint. */
 function serveHome(
-    objects: Awaited<ReturnType<typeof serveSpace>>["server"],
+    objects: Awaited<ReturnType<typeof serveSpace>>["store"],
     homeId: string,
 ): ClientOptions {
     const server = Server.start({
-        ...objects.implement(inboxService),
-        clock: () => Date.now(),
+        ...objects.implement(inboxService, objects.routed, objects.controllers(), {}),
+        clock: Clock.system,
         audience: AUDIENCE,
         scope: homeId,
         resources: new ResourceContext(),
         health: new Health(inboxService.name),
         drainTimeout: 1000,
-        authorizeHost: async () => {},
+        authorizeMachine: async () => {},
         authenticate: async () => {
             const now = Date.now();
 
-            return new Authentication({
+            return {
                 subject: actors.bob,
                 subjects: [actors.bob],
-                credential: { kind: "user", id: actors.bob.id },
-                audience: AUDIENCE,
-                scope: homeId,
-                verifiedAt: now,
-                expiresAt: now + TOKEN_LIFETIME,
-            });
+                credential: {
+                    kind: "session",
+                    id: actors.bob.id,
+                    audience: AUDIENCE,
+                    scope: homeId,
+                    verifiedAt: now,
+                    expiresAt: now + TOKEN_LIFETIME,
+                },
+            };
         },
     });
     onTestFinished(() => server.close());

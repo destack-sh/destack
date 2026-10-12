@@ -6,10 +6,10 @@ import { document } from "./fixture/document.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
 
 /** Carol's laptop. */
-const LAPTOP = schema.identifier("device").parse("device-019f5530-8000-7000-8000-00000000000d");
+const LAPTOP = schema.identifier("client").parse("client-019f5530-8000-7000-8000-00000000000d");
 
 /** Carol's studio machine that she signs out of. */
-const STUDIO = schema.identifier("device").parse("device-019f5530-8000-7000-8000-00000000000e");
+const STUDIO = schema.identifier("client").parse("client-019f5530-8000-7000-8000-00000000000e");
 
 test.for(TEST_DIALECTS)(
     "defer banners for each desktop through quiet hours, then send them to the desktops still signed in, on %s",
@@ -19,7 +19,7 @@ test.for(TEST_DIALECTS)(
         // give carol two desktops and quiet hours from 11:00 to 14:00 in Vienna on Mondays, now noon there
         await fixture.desktop("carol", LAPTOP);
         await fixture.desktop("carol", STUDIO);
-        await fixture.reach("carol", { timeZone: "Europe/Vienna" });
+        await fixture.contact("carol", { timeZone: "Europe/Vienna" });
         await fixture.set("carol", focus, {
             schedules: [{ days: [1], from: "11:00", to: "14:00" }],
             allowed: [],
@@ -46,7 +46,7 @@ test.for(TEST_DIALECTS)(
         const read = async () =>
             (await fixture.deliveries(mentioned.id))
                 .filter((row) => row.channel === "desktop")
-                .map((row) => [row.device, row.state, row.dueAt, row.reason]);
+                .map((row) => [row.client, row.state, row.dueAt, row.reason]);
         expect(await read()).toEqual([
             [LAPTOP, "pending", end, null],
             [STUDIO, "pending", end, null],
@@ -56,7 +56,7 @@ test.for(TEST_DIALECTS)(
         await fixture.desktop("carol", STUDIO, true);
         fixture.wait(120);
         await fixture.dispatch();
-        expect([fixture.now(), await read()]).toEqual([
+        expect([fixture.clock.now(), await read()]).toEqual([
             end,
             [
                 [LAPTOP, "sent", end, null],

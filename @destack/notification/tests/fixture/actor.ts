@@ -1,6 +1,5 @@
 import { principal } from "@destack/access";
 import { Scope, Subject } from "@destack/sync";
-import { Package } from "@destack/package";
 
 /** The principals the scenarios act as, users with fixed identifiers. */
 export const actors = {
@@ -30,10 +29,3 @@ export function nameOf(subject: Subject): Actor {
 function isActor(name: string): name is Actor {
     return Object.hasOwn(actors, name);
 }
-
-/** The account package release with the person's settings. */
-export const accounts = Package.parse({
-    id: "package-019f5530-8000-7000-8000-0000000000ac",
-    name: "@destack/account",
-    version: "2026.9.0",
-});

@@ -8,10 +8,10 @@ import { Window } from "../preference/window.ts";
 /** The most quiet windows one focus schedules: two per day for a week. */
 const WINDOW_COUNT = 14;
 
-/** The most summaries a day, as Apple allows twelve. */
+/** The most summaries a day, as mobile platforms allow twelve. */
 const SUMMARY_COUNT = 12;
 
-/** Build the setting of a recipient's preference for one declared notification, starting from its declared preference. */
+/** Build the setting of a recipient's preference for one declared notification. */
 export function preferenceSetting(
     owner: Package,
     notification: {
@@ -34,12 +34,12 @@ export function preferenceSetting(
         schema: Preference,
         default: notification.preference,
         scope: "user",
-        overrides: ["space", "installation", "device"],
+        overrides: ["space", "installation", "client"],
         apply: "immediate",
     });
 }
 
-/** When notifications stay quiet, as Apple's Focus. */
+/** When notifications stay quiet, as mobile platforms' focus modes. */
 export const focus = defineSetting({
     name: "focus",
     title: "Focus",
@@ -56,7 +56,7 @@ export const focus = defineSetting({
     }),
     default: { schedules: [], allowed: [], isTimeSensitiveAllowed: true },
     scope: "user",
-    overrides: ["device"],
+    overrides: ["client"],
     apply: "immediate",
 });
 

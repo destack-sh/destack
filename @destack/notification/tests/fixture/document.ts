@@ -1,13 +1,14 @@
+import { space } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
 import { Subject } from "@destack/sync";
 import { defineObject, field } from "@destack/object";
 import { Message, plural } from "@destack/locale";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
-import { space } from "@destack/space/object";
+
 import { defineNotification } from "../../src/declare/index.ts";
 import { nameOf } from "./actor.ts";
-import { activity, announcement, Subscription, subscription } from "../../src/index.ts";
+import { activity, announcement, NOTIFY_RECIPIENTS, subscription } from "../../src/index.ts";
 
 /** The package release declaring the fixture's notifications. */
 export const notes = Package.parse({
@@ -48,11 +49,15 @@ export const mention = defineNotification(
                         throw new TypeError("reply action needs its text");
                     }
 
-                    return call.invoke(document).remark({
-                        id: source.id,
-                        text,
-                        mentions: [],
-                    });
+                    return call
+                        .mutate(call.caller, [
+                            document.call("remark", {
+                                id: source.id,
+                                text,
+                                mentions: [],
+                            }),
+                        ])
+                        .then(([result]) => result);
                 },
             },
         },
@@ -75,7 +80,10 @@ export const review = defineNotification(
         actions: {
             approve: {
                 title: "Approve",
-                effect: ({ source }, call) => call.invoke(document).approve({ id: source.id }),
+                effect: ({ source }, call) =>
+                    call
+                        .mutate(call.caller, [document.call("approve", { id: source.id })])
+                        .then(([result]) => result),
             },
         },
     },
@@ -152,7 +160,8 @@ export const document = defineObject({
         announcement.attach({ by: "read" }),
         subscription.attach({ by: "read" }),
     ],
-    methods: (method) => ({
+})
+    .methods((method) => ({
         get: method.get("read"),
         create: method.create("manage", { fields: ["title"] }),
         remark: method.mutation({ permission: "read", input: Remark }),
@@ -176,79 +185,109 @@ export const document = defineObject({
                 excluded: schema.array(Subject).exactOptional(),
             }),
         }),
-    }),
-}).handle({
-    remark: async (call) => {
-        // subscribe and notify the principals a remark mentions
-        const { text, mentions } = call.input;
-        const author = call.requireCaller();
-        for (const mentioned of mentions) {
-            await Subscription.add(call, call.reference(), mentioned, "mention");
-        }
-        await mention.notify(call, {
-            source: call.reference(),
-            recipients: mentions,
-            reason: "mention",
-            payload: { author: nameOf(author), excerpt: text },
-        });
+    }))
+    .implement({
+        methods: {
+            remark: async (call) => {
+                // subscribe and notify the principals a remark mentions
+                const { text, mentions } = call.input;
+                const author = call.requireCaller();
+                const parent = documentParent(call.target.id);
+                await call.mutate(call.caller, [
+                    ...mentions.map((mentioned) =>
+                        subscription.call("add", {
+                            ...parent,
+                            owner: Subject.key(mentioned),
+                            reason: "mention",
+                        }),
+                    ),
+                    mention.call({
+                        source: call.reference(),
+                        recipients: mentions,
+                        reason: "mention",
+                        payload: { author: nameOf(author), excerpt: text },
+                    }),
+                ]);
 
-        return call.target;
-    },
-    publish: async (call) => {
-        // tell the owner the latest publishing state
-        const { state } = call.input;
-        await status.notify(call, {
-            source: call.reference(),
-            recipients: [Subject.read(call.target.owner)],
-            reason: "author",
-            payload: { state },
-            key: "publishing",
-        });
+                return call.target;
+            },
+            publish: async (call) => {
+                // tell the owner the latest publishing state
+                const { state } = call.input;
+                await call.mutate(call.caller, [
+                    status.call({
+                        source: call.reference(),
+                        recipients: [Subject.read(call.target.owner)],
+                        reason: "author",
+                        payload: { state },
+                        key: "publishing",
+                    }),
+                ]);
 
-        return call.target;
-    },
-    request: async (call) => {
-        // ask a reviewer for approval
-        const { reviewer } = call.input;
-        await review.notify(call, {
-            source: call.reference(),
-            recipients: [reviewer],
-            reason: "assigned",
-            payload: { title: call.target.title },
-            key: "review",
-        });
+                return call.target;
+            },
+            request: async (call) => {
+                // ask a reviewer for approval
+                const { reviewer } = call.input;
+                await call.mutate(call.caller, [
+                    review.call({
+                        source: call.reference(),
+                        recipients: [reviewer],
+                        reason: "assigned",
+                        payload: { title: call.target.title },
+                        key: "review",
+                    }),
+                ]);
 
-        return call.target;
-    },
-    approve: async (call) => call.update({ approvedBy: Subject.key(call.requireCaller()) }),
-    edit: async (call) => {
-        // tell the document's subscribers about the change
-        const { summary } = call.input;
-        const subscribers = await Subscription.list(call, call.reference(), { limit: 100 });
-        await change.notify(call, {
-            source: call.reference(),
-            recipients: subscribers.map((entry) => entry.owner),
-            reason: "subscribed",
-            payload: { summary },
-        });
+                return call.target;
+            },
+            approve: async (call) => call.update({ approvedBy: Subject.key(call.requireCaller()) }),
+            edit: async (call) => {
+                // tell the document's subscribers about the change
+                const { summary } = call.input;
+                const subscribers = await call.query(
+                    call.caller,
+                    subscription.call("subscribers", {
+                        ...documentParent(call.target.id),
+                        limit: NOTIFY_RECIPIENTS,
+                    }),
+                );
+                await call.mutate(call.caller, [
+                    change.call({
+                        source: call.reference(),
+                        recipients: subscribers.items.map((entry) => entry.owner),
+                        reason: "subscribed",
+                        payload: { summary },
+                    }),
+                ]);
 
-        return call.target;
-    },
-    broadcast: async (call) => {
-        // announce the document to its subscribers, the space's members or its editors
-        const { audience, excluded } = call.input;
-        await change.announce(call, {
-            source: call.reference(),
-            audience:
-                audience === "editors"
-                    ? { kind: "permission", permission: "edit", reason: "mention" }
-                    : audience === "members"
-                      ? { kind: "members", reason: "mention" }
-                      : { kind: "subscribers" },
-            payload: { summary: `${call.target.title} is out` },
-            ...(excluded === undefined ? {} : { excluded }),
-        });
+                return call.target;
+            },
+            broadcast: async (call) => {
+                // announce the document to its subscribers, the space's members or its editors
+                const { audience, excluded } = call.input;
+                await call.mutate(call.caller, [
+                    change.call({
+                        source: call.reference(),
+                        audience:
+                            audience === "editors"
+                                ? { kind: "permission", permission: "edit", reason: "mention" }
+                                : audience === "members"
+                                  ? { kind: "members", reason: "mention" }
+                                  : { kind: "subscribers" },
+                        payload: { summary: `${call.target.title} is out` },
+                        ...(excluded === undefined ? {} : { excluded }),
+                    }),
+                ]);
 
-        return call.target;
-    },
-});
+                return call.target;
+            },
+        },
+    });
+
+/** Refer to a document as its attachments' parent. */
+export function documentParent(id: string) {
+    return {
+        parent: { packageId: document.policy.definition.packageId, type: document.name, id },
+    };
+}
