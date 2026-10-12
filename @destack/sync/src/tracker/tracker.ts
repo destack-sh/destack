@@ -11,11 +11,7 @@ import {
     typedChannel,
 } from "@destack/db";
 
-/**
- * The heartbeat interval, in milliseconds.
- *
- * Three missed beats bound a crashed instance's rows to 45 s.
- */
+/** The heartbeat interval in milliseconds: three missed beats bound a crash to 45 s. */
 const HEARTBEAT_MILLISECONDS = 15_000;
 
 /** The missed heartbeats before the others drop an instance's rows. */

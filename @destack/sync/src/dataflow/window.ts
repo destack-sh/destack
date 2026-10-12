@@ -1,11 +1,7 @@
 import type { ColumnValue, Row } from "@destack/db";
 import { aligned } from "@destack/schema";
 
-/**
- * The most entries one chunk of a window has before it splits.
- *
- * An insert moves at most 512 pointers, well under a microsecond, and 100k entries span 200 chunks.
- */
+/** The most entries one window chunk has before it splits: an insert moves 512 pointers. */
 const CHUNK_ENTRIES = 512;
 
 /** One partition of a limited node with its first rows in order up to its limit. */

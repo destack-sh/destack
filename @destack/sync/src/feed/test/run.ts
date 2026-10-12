@@ -23,11 +23,7 @@ const WRITES = 8;
 /** The longest a run may take, in milliseconds. */
 const RUN_MILLISECONDS = 15_000;
 
-/**
- * The longest the run at scale may take, in milliseconds.
- *
- * It copies about 2900 rows through a replica four times, about 3 s each on PostgreSQL under load.
- */
+/** The longest the run at scale may take, in milliseconds. */
 const SCALE_RUN_MILLISECONDS = 30_000;
 
 /** One random run of queries through bursts of writes, reconnects and reshapes. */
