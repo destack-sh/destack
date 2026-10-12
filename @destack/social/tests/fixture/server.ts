@@ -70,7 +70,6 @@ const objects = {
     receipt,
     favourite,
     presence,
-    subscription,
     ...notifications,
 };
 
@@ -223,7 +222,12 @@ async function expand(
         database
             .select()
             .from(table)
-            .where(and(eq(table.scope, spaceId), isNull(table.expandedAt)));
+            .where(
+                and(
+                    eq(table.scope, schema.identifier("space").parse(spaceId)),
+                    isNull(table.expandedAt),
+                ),
+            );
 
     // expand them until none waits
     for (let rows = await waiting(); rows.length > 0; rows = await waiting()) {

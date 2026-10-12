@@ -1,7 +1,8 @@
 import { space } from "@destack/account/object";
-import { activity, announcement, Subscription, subscription } from "@destack/notification";
+import { activity, announcement, subscription } from "@destack/notification";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { Subject } from "@destack/sync";
 
 import { comment, favourite, presence, reaction, receipt } from "../../src/index.ts";
 
@@ -44,7 +45,14 @@ export const article = defineObject({
             create: async (call, next) => {
                 // subscribe the owner to the article it creates
                 const row = await next();
-                await Subscription.add(call, call.reference(), call.requireCaller(), "author");
+                const host = call.reference();
+                await call.mutate(call.caller, [
+                    subscription.call("add", {
+                        parent: { packageId: host.packageId, type: host.type, id: host.id },
+                        owner: Subject.key(call.requireCaller()),
+                        reason: "author",
+                    }),
+                ]);
 
                 return row;
             },

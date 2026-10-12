@@ -1,5 +1,5 @@
-import { type ObjectReference, Subject } from "@destack/sync";
-import { Subscription } from "@destack/notification";
+import { ObjectReference, Subject } from "@destack/sync";
+import { type Reason, subscription } from "@destack/notification";
 import { type Call, Chunk, type Selection } from "@destack/object";
 import { ServiceError } from "@destack/service/error";
 import * as base from "../object/comment.ts";
@@ -18,27 +18,22 @@ export const comment = base.comment.implement({
                 await requireThreadOf(call, input.threadId);
             }
 
-            // subscribe the author and notify the mentioned
+            // subscribe the author, notify the mentioned and announce the comment to the others
             const row = await next();
             const isReply = row.threadId !== null;
             const mentioned = row.body.mentions.map((mention) => mention.principal);
-            await Subscription.add(
-                call,
-                rootOf(row),
-                call.requireCaller(),
-                isReply ? "participating" : "author",
-            );
-            await notifyMentioned(call, row, mentioned);
-
-            // announce the comment to the other subscribers
-            const notice = {
-                source: placeOf(row),
-                audience: { kind: "subscribers" },
-                thread: row.parentId,
-                payload: excerptOf(row),
-                excluded: mentioned,
-            } as const;
-            await (isReply ? base.reply : base.thread).notify(call, notice);
+            const author = call.requireCaller();
+            await call.mutate(call.caller, [
+                subscribe(rootOf(row), author, isReply ? "participating" : "author"),
+                ...mentionCalls(row, mentioned),
+                (isReply ? base.reply : base.thread).call({
+                    source: placeOf(row),
+                    audience: { kind: "subscribers" },
+                    thread: row.parentId,
+                    payload: excerptOf(row),
+                    excluded: mentioned,
+                }),
+            ]);
 
             return row;
         },
@@ -56,7 +51,7 @@ export const comment = base.comment.implement({
             const mentioned = row.body.mentions
                 .map((mention) => mention.principal)
                 .filter((principal) => !before.some((known) => Subject.same(known, principal)));
-            await notifyMentioned(call, row, mentioned);
+            await call.mutate(call.caller, mentionCalls(row, mentioned));
 
             return row;
         },
@@ -155,16 +150,6 @@ function requireFirst(target: base.Comment): base.Comment {
     return target;
 }
 
-/** Reference a comment's host. */
-function hostOf(row: base.Comment): ObjectReference {
-    return {
-        packageId: row.parentPackageId,
-        type: row.parentType,
-        scope: row.scope,
-        id: row.parentId,
-    };
-}
-
 /** Reference a comment's thread. */
 function rootOf(row: base.Comment): ObjectReference {
     return base.comment.reference(row.scope, row.threadId ?? row.id);
@@ -172,7 +157,7 @@ function rootOf(row: base.Comment): ObjectReference {
 
 /** Reference where a comment's notifications go: its thread for a reply, else its host. */
 function placeOf(row: base.Comment): ObjectReference {
-    return row.threadId === null ? hostOf(row) : rootOf(row);
+    return row.threadId === null ? ObjectReference.parent(row) : rootOf(row);
 }
 
 /** Build a comment's excerpt without splitting a surrogate pair. */
@@ -188,24 +173,27 @@ function excerptOf(row: base.Comment): base.Excerpt {
     };
 }
 
-/** Subscribe and notify the principals a comment mentions. */
-async function notifyMentioned(
-    call: Call,
-    row: base.Comment,
-    mentioned: readonly Subject[],
-): Promise<void> {
-    // subscribe each principal
+/** Build the calls subscribing and notifying the principals a comment mentions. */
+function mentionCalls(row: base.Comment, mentioned: readonly Subject[]) {
     const place = placeOf(row);
-    for (const principal of mentioned) {
-        await Subscription.add(call, place, principal, "mention");
-    }
 
-    // notify them at once
-    await base.mention.notify(call, {
-        source: place,
-        recipients: mentioned,
-        reason: "mention",
-        thread: row.parentId,
-        payload: excerptOf(row),
+    return [
+        ...mentioned.map((principal) => subscribe(place, principal, "mention")),
+        base.mention.call({
+            source: place,
+            recipients: mentioned,
+            reason: "mention",
+            thread: row.parentId,
+            payload: excerptOf(row),
+        }),
+    ];
+}
+
+/** Build the call subscribing a principal to an object for a reason. */
+function subscribe(host: ObjectReference, principal: Subject, reason: Reason) {
+    return subscription.call("add", {
+        parent: { packageId: host.packageId, type: host.type, id: host.id },
+        owner: Subject.key(principal),
+        reason,
     });
 }
