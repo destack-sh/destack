@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import { index, type Select } from "@destack/db";
+import { type Select } from "@destack/db";
 import { t } from "@destack/locale";
 import { defineNotification } from "@destack/notification/declare";
 import { defineObject, field, type ObjectType } from "@destack/object";
@@ -59,19 +59,18 @@ export const alert = defineObject({
             },
         }),
     },
-    constraints: (entry) => [
-        index("alert_rule_status").on(entry.scope, entry.ruleId, entry.status),
-    ],
     permissions: ["read", "edit", "manage", "detect"],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        /** Fire an alert of a rule. */
-        fire: method.create("detect", {
-            isInternal: true,
-            fields: ["ruleId", "group", "value", "title"],
-        }),
+    constraints: {
+        ruleStatus: { kind: "index", on: ["scope", "ruleId", "status"] },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    /** Fire an alert of a rule. */
+    fire: method.create("detect", {
+        isInternal: true,
+        fields: ["ruleId", "group", "value", "title"],
     }),
-});
+}));
 /** An alert as its table stores it. */
 export type Alert = Select<typeof alert.table>;

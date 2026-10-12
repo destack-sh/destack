@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import { index, unique, type Select } from "@destack/db";
+import { type Select } from "@destack/db";
 import { plural, t } from "@destack/locale";
 import { activity, announcement, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
@@ -157,11 +157,6 @@ export const issue = defineObject({
         /** The comments on the issue. */
         commentCount: field.count(),
     },
-    constraints: (entry) => [
-        unique("issue_fingerprint").on(entry.scope, entry.installationId, entry.fingerprint),
-        index("issue_last_seen").on(entry.scope, entry.lastSeenAt),
-        index("issue_declaration").on(entry.scope, entry.declaration),
-    ],
     permissions: ["read", "edit", "manage", "detect"],
     attachments: [
         comment.attach({ by: "read" }),
@@ -169,34 +164,38 @@ export const issue = defineObject({
         announcement.attach({ by: "read" }),
         subscription.attach({ by: "read" }),
     ],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        /** Set what reopens the issue once resolved or ignored. */
-        update: method.update("edit", { fields: ["until"] }),
-        /** Open an issue for its first exceptions. */
-        open: method.create("detect", {
-            isInternal: true,
-            fields: [
-                "installationId",
-                "fingerprint",
-                "errorType",
-                "title",
-                "culprit",
-                "declaration",
-                "level",
-                "firstSeenAt",
-                "lastSeenAt",
-                "firstRevisionId",
-                "lastRevisionId",
-            ],
-        }),
-        /** Count further exceptions into an issue. */
-        occur: method.update("detect", {
-            isInternal: true,
-            fields: ["level", "lastSeenAt", "lastRevisionId", "count", "people"],
-        }),
+    constraints: {
+        fingerprint: { kind: "unique", on: ["scope", "installationId", "fingerprint"] },
+        lastSeen: { kind: "index", on: ["scope", "lastSeenAt"] },
+        declaration: { kind: "index", on: ["scope", "declaration"] },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    /** Set what reopens the issue once resolved or ignored. */
+    update: method.update("edit", { fields: ["until"] }),
+    /** Open an issue for its first exceptions. */
+    open: method.create("detect", {
+        isInternal: true,
+        fields: [
+            "installationId",
+            "fingerprint",
+            "errorType",
+            "title",
+            "culprit",
+            "declaration",
+            "level",
+            "firstSeenAt",
+            "lastSeenAt",
+            "firstRevisionId",
+            "lastRevisionId",
+        ],
     }),
-});
+    /** Count further exceptions into an issue. */
+    occur: method.update("detect", {
+        isInternal: true,
+        fields: ["level", "lastSeenAt", "lastRevisionId", "count", "people"],
+    }),
+}));
 /** An issue as its table stores it. */
 export type Issue = Select<typeof issue.table>;

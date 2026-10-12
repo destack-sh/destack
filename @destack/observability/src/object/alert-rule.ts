@@ -121,17 +121,16 @@ export const alertRule = defineObject({
         announcement.attach({ by: "read" }),
         subscription.attach({ by: "read" }),
     ],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("edit", {
-            fields: ["title", "condition", "actions", "interval"],
-        }),
-        update: method.update("edit", {
-            fields: ["title", "condition", "actions", "interval"],
-        }),
-        delete: method.delete("manage"),
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("edit", {
+        fields: ["title", "condition", "actions", "interval"],
     }),
-});
+    update: method.update("edit", {
+        fields: ["title", "condition", "actions", "interval"],
+    }),
+    delete: method.delete("manage"),
+}));
 /** An alert rule as its table stores it. */
 export type AlertRule = Select<typeof alertRule.table>;
