@@ -53,7 +53,7 @@ test("key derived identifiers of one key at different times as one request, and 
 test("accept created and derived identifiers, and refuse other UUID versions and expired ones", async () => {
     const derived = await RequestId.derive(TIME, "reading");
     expect({
-        created: RequestId.schema.safeParse(RequestId.create()).success,
+        created: RequestId.schema.safeParse(RequestId.create(Date.now())).success,
         derived: RequestId.schema.safeParse(derived).success,
         random: RequestId.schema.safeParse(crypto.randomUUID()).success,
         expired: await refusal(

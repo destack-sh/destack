@@ -41,11 +41,11 @@ export const WebhookDelivery = defineSchema(
 /** One verified webhook delivery. */
 export type WebhookDelivery = schema.Infer<typeof WebhookDelivery>;
 
-/** What a webhook trigger reads its secrets from: the installation's resources and its own derived secrets. */
+/** What a webhook trigger reads its secrets from. */
 export interface WebhookContext {
     /** The installation's resources, such as a bound vault secret. */
     readonly resources: ResourceContext;
-    /** Derive the installation's own secrets, such as the tokens it gave the subscriptions it opened. */
+    /** Derive the installation's own secrets. */
     readonly deriver: Deriver;
 }
 
@@ -73,7 +73,7 @@ export const WebhookOn = Object.assign(shape, {
         return names;
     },
 
-    /** Verify a request to a path below a trigger matching its path template with its secret or the keys its scheme reads, and read its delivery. */
+    /** Verify a request to a path below a trigger that matches its path template. */
     async receive(
         on: Pick<WebhookOn, "path"> & {
             readonly signature: WebhookSignature;
@@ -151,13 +151,13 @@ export interface WebhookMessage {
     readonly sentAt: number;
 }
 
-/** A webhook signature scheme: an HMAC under a shared secret, or a token verified against keys the sender publishes. */
+/** A webhook signature scheme. */
 export interface WebhookSignature {
     /** The scheme's name, which the manifest lists as a trigger's verification. */
     readonly name: string;
     /** Sign a message with the shared secret or the private key, returning the headers. */
     sign(message: WebhookMessage, secret: string): Promise<Headers>;
-    /** Verify a request's signature with the trigger's secret or the keys the installation's resources hold, and read its delivery. */
+    /** Verify a request's signature, and read its delivery. */
     verify(
         request: Request,
         secret: string | undefined,

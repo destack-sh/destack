@@ -41,7 +41,7 @@ export function describeRouter(name: string, service: ServiceRouter): RouterDesc
     return RouterDescription.parse({ name, procedures });
 }
 
-/** Plan a service's changes between releases: its procedures, their inputs and outputs, and the earliest callers it serves. */
+/** Plan a service's changes between releases. */
 export const compareService: Comparator = (earlier, later) => {
     // read both releases' services and the releases declaring them
     const before = ServiceDescription.parse(earlier.description);
@@ -133,7 +133,7 @@ function payloadPlans(
     ];
 }
 
-/** Read a payload's value schema, or the event schema of a stream, accepting anything when absent. */
+/** Read a payload's value schema, or the event schema of a stream. */
 function payload(description: ProcedureDescription["input"]): JsonSchema {
     // accept anything without a payload
     if (description === undefined) {

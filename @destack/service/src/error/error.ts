@@ -10,7 +10,7 @@ import { JsonValue, schema } from "@destack/schema";
 import { DomainError, SERVICE_ERROR_STATUSES, type ServiceErrorCode } from "@destack/error";
 import { Failure } from "@destack/sync";
 
-/** The failures every procedure declares with their statuses and data, which callers handle by their codes. */
+/** The failures every procedure declares with their statuses and data. */
 export const DECLARED_ERRORS = {
     NOT_IMPLEMENTED: { status: SERVICE_ERROR_STATUSES.NOT_IMPLEMENTED },
     UNAUTHORIZED: { status: SERVICE_ERROR_STATUSES.UNAUTHORIZED },
@@ -36,12 +36,12 @@ export const DECLARED_ERRORS = {
     Record<ServiceErrorCode, { readonly status: number; readonly data?: schema.Schema }>
 >;
 
-/** The client failures worth attempting again: a request timeout, a request too early, and a throttle (RFC 9110, 8470, 6585). */
+/** The client failures worth attempting again (RFC 9110, 8470, 6585). */
 export const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
 
 /** A service failure: its code, the status the code declares, a message and details. */
 export class ServiceError<Code extends ORPCErrorCode, Data> extends ORPCError<Code, Data> {
-    /** Create a failure with the status its code declares, defined when every procedure declares its code. */
+    /** Create a failure with the status its code declares. */
     constructor(code: Code, ...rest: MaybeOptionalOptions<ORPCErrorOptions<Data>>) {
         const options = resolveMaybeOptionalOptions(rest);
         super(code, {
@@ -58,7 +58,7 @@ export class ServiceError<Code extends ORPCErrorCode, Data> extends ORPCError<Co
         return statuses[code] ?? fallbackORPCErrorStatus(code, undefined);
     }
 
-    /** Read the data of a failure of a code that declares data, absent for another failure or data the code rejects. */
+    /** Read the data of a failure of a code that declares data. */
     static data(
         error: unknown,
         code: "MISDIRECTED_REQUEST",
@@ -68,7 +68,7 @@ export class ServiceError<Code extends ORPCErrorCode, Data> extends ORPCError<Co
             : undefined;
     }
 
-    /** Read the data of a response's failure of a code that declares data, absent for another status, a body that is no failure of the code, or data the code rejects. */
+    /** Read the data of a response's failure of a code that declares data. */
     static async read(
         response: Response,
         code: "MISDIRECTED_REQUEST",
@@ -90,7 +90,7 @@ export class ServiceError<Code extends ORPCErrorCode, Data> extends ORPCError<Co
         return failure.data?.data;
     }
 
-    /** Send a call, and send it once more when it answers misdirected, handing the second attempt where its scope is served. */
+    /** Send a call, and send it once more when it answers misdirected. */
     static async follow(
         send: (
             misdirected?: schema.Infer<typeof DECLARED_ERRORS.MISDIRECTED_REQUEST.data>,
@@ -135,7 +135,7 @@ export function isServiceError(value: unknown): value is ORPCError<string, unkno
     return value instanceof ORPCError;
 }
 
-/** Hide a denial from the caller as a missing resource and keep the denial as the cause for audit. */
+/** Hide a denial from the caller as a missing resource. */
 export function conceal(
     denial: ORPCError<string, unknown>,
     message: string,
@@ -180,7 +180,7 @@ export function errorOf(failure: Failure): ORPCError<string, JsonValue | undefin
     });
 }
 
-/** Read the failure a failed response answers: the service's own, or one of its status and body text. */
+/** Read the failure a failed response answers. */
 export async function failureOf(response: Response): Promise<Failure> {
     // read the service's own failure, else describe the status by the body
     const text = await response.text();

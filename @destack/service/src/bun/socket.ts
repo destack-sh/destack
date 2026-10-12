@@ -8,17 +8,17 @@ import {
     SocketAcceptance,
 } from "../workload/socket.ts";
 
-/** The most bytes one WebSocket message carries: 1 MiB, the relay's frames and any room's messages with room to spare. */
+/** The most bytes one WebSocket message carries: 1 MiB. */
 const MESSAGE_BYTES = 1024 * 1024;
 
-/** Hand an instance a request its host makes at a path below its origin, such as a held socket's event. */
+/** Hand an instance a request its host makes at a path below its origin. */
 export type SocketDelivery = (
     instanceId: string,
     path: string,
     request: RequestInit & { readonly headers: Record<string, string> },
 ) => Promise<Response>;
 
-/** What a held WebSocket keeps in Bun: the instance holding it, its description and its auto-response. */
+/** What a held WebSocket keeps in Bun. */
 interface Held {
     /** The instance holding the socket. */
     readonly instanceId: string;
@@ -28,7 +28,7 @@ interface Held {
     readonly respond: SocketAcceptance["respond"];
 }
 
-/** The WebSockets a Bun host keeps open for its instances, as Durable Objects keep theirs across hibernation: their events go to the instance, which sends through the host. */
+/** The WebSockets a Bun host keeps open for its instances. */
 export class BunHibernation {
     /** The held sockets, by instance and identifier. */
     readonly #held = new Map<string, Map<string, ServerWebSocket<Held>>>();
@@ -53,7 +53,7 @@ export class BunHibernation {
         };
     }
 
-    /** Hold a WebSocket the instance a machine names accepted in its answer to an upgrade, answering whether the server upgraded it. */
+    /** Keep a WebSocket that the instance a machine gives accepted in its answer to an upgrade. */
     upgrade(server: Server<Held>, request: Request, answer: Response): boolean {
         // read the instance's acceptance
         const accepted = answer.headers.get(SOCKET_HEADER);
@@ -129,7 +129,7 @@ export class BunHibernation {
         await this.#event(socket, { method: "DELETE" });
     }
 
-    /** Deliver a held socket's event to its instance below the socket's path, closing a socket the instance refuses. */
+    /** Deliver a held socket's event to its instance below the socket's path. */
     async #event(socket: ServerWebSocket<Held>, request: RequestInit): Promise<void> {
         // deliver the event below the socket's path, describing the socket
         const { instanceId, description } = socket.data;

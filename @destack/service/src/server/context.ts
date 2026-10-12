@@ -26,7 +26,7 @@ export class ServiceContext {
     readonly authenticationError: Error | undefined;
     /** The server-generated request identifier. */
     readonly requestId = crypto.randomUUID();
-    /** Abort when the request closes, its caller lapses or the server drains, ending handlers at their next consistent point. */
+    /** Abort when the request closes, its caller lapses or the server drains. */
     readonly signal: AbortSignal;
     /** The digests of the presented link secrets. */
     readonly linkSecrets: readonly string[];
@@ -38,7 +38,7 @@ export class ServiceContext {
     readonly observed = new Bookmark();
     /** The caller's authorization under the service's policies. */
     readonly authorization: Authorization | undefined;
-    /** The object the call's permission is decided on, set before the decision for audits of a denial. */
+    /** The object the call's permission is decided on. */
     target?: ObjectReference;
     /** The verified caller the request presented, absent for an anonymous request. */
     readonly presented: Caller | undefined;
@@ -91,7 +91,7 @@ export class ServiceContext {
         ]);
     }
 
-    /** Require an installation caller to hold a grant of a procedure from its space, concealing the procedure from one without it. */
+    /** Require an installation caller to have a grant of a procedure from its space. */
     requireCall(path: string): Caller {
         // admit callers other than installations by their own authority
         const caller = this.requireCaller();
@@ -137,7 +137,7 @@ export class ServiceContext {
         return this.authorization;
     }
 
-    /** Read the request's verified caller in a scope, with the link secrets it presented, anonymous without authentication. */
+    /** Read the request's verified caller in a scope, with the link secrets it presented. */
     caller(scope: string | undefined = this.scope): Caller {
         // report a credential failure
         if (this.authenticationError !== undefined) {

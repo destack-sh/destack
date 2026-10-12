@@ -2,19 +2,19 @@ import { DeclarationName } from "@destack/package";
 import { ResourceBinding } from "@destack/resource";
 import { defineSchema, schema } from "@destack/schema";
 
-/** The path below which an installation's origin receives webhook requests, and a host forwards them to a runner. */
+/** The path below which an installation's origin receives webhook requests. */
 export const WEBHOOK_PATH = "/.destack/webhook";
 
-/** The path below which a host hands a service the requests a route sends it, by the service's name, and at which the service answers them below its mount. */
+/** The path below which a host hands a service the requests a route sends it. */
 export const ROUTE_PATH = "/.destack/route";
 
-/** The header a caller names the partition of an installation its call goes to with, the installation's root without it. */
+/** The header that gives the partition of an installation a call goes to. */
 export const PARTITION_HEADER = "Destack-Partition";
 
-/** The header carrying the URL a request a front door hands on asked for, such as a routed request's. */
+/** The header with the URL that a request a front door hands on asked for. */
 export const FORWARDED_URL_HEADER = "Destack-Forwarded-Url";
 
-/** The path on a host's egress origin at which the host takes its instances' journals and relays them to their spaces' histories. */
+/** The path on a host's egress origin where the host takes its instances' journals. */
 export const JOURNAL_PATH = "/.destack/journal";
 
 /** The first line a host writes to a runner's input, starting one workload of an installation. */
@@ -26,11 +26,11 @@ export const WorkloadStart = defineSchema(
         scope: schema.identifier("space"),
         /** The installation the workload runs. */
         installation: schema.identifier("installation"),
-        /** The one partition of the installation's database the instance serves, every partition when absent. */
+        /** The one partition of the installation's database the instance serves. */
         partition: schema.string().min(1).exactOptional(),
         /** The resources the installation binds, by the package's resource name. */
         bindings: schema.record(DeclarationName, ResourceBinding),
-        /** The installation's resolved value of each setting its package declares, by `<package>/<name>`. */
+        /** The installation's resolved value of each setting its package declares. */
         settings: schema.record(schema.string().min(1), schema.json()),
         /** The secret the host and the runner prove each other's requests with. */
         secret: schema.string().min(1),
@@ -38,7 +38,7 @@ export const WorkloadStart = defineSchema(
         egress: schema.url(),
         /** The share of traces the workload keeps beside every failed or slow one, from 0 to 1. */
         sampling: schema.number().min(0).max(1),
-        /** The installation's journal key, 32 bytes as hexadecimal, which the host derives for it. */
+        /** The installation's journal key as 32 hexadecimal bytes, which the host derives. */
         callKey: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/u)),
     }),
 );

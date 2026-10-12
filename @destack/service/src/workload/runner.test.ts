@@ -16,7 +16,7 @@ import { defineTrigger, type WebhookParameters } from "../trigger/index.ts";
 import { GitHubSignature } from "../github/index.ts";
 import type { RunRequest } from "../trigger/index.ts";
 
-/** The OTLP logs export the observability service receives, down to its resource and each record's event name. */
+/** The OTLP logs export the observability service receives. */
 const LogsExport = schema
     .object({
         /** The logs by resource. */
@@ -73,7 +73,7 @@ const refusingEphemeral: EphemeralHost = {
 /** The runner's own service. */
 const notes = defineService("notes", {});
 
-/** A service of another package the runner's workload also serves, such as the event service a finance workload receives routed usage through. */
+/** A service of another package that the runner's workload also serves. */
 const events = defineService(
     "events",
     {},
@@ -402,7 +402,7 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
     ]);
 });
 
-/** The directory as the fixture's workloads see it: no homes, locales, addresses or message keys. */
+/** The directory as the fixture's workloads see it. */
 const directory: InstallationDirectory = {
     isHome: async () => false,
     locale: async (subject) => {

@@ -7,10 +7,16 @@ const EGRESS_PATH = "/.destack/egress";
 /** The separator between an installation's identifier and its space's in its address. */
 const INSTALLATION_SEPARATOR = "--";
 
-/** An address followed by the path below it: a scoped package as two segments, an installation as one. */
+/** An address followed by the path below it. */
 const ADDRESSED = /^\/(@[^/]+\/[^/]+|[^/@][^/]*)(\/.*)?$/u;
 
-/** The paths at which a host takes its workloads' calls: `<egress>/<address>/<path>`, the address an installation its space binds (`notes`), an installation in a space by identifier or alias (`<installation>--<space>`) or a package's service (`@destack/audit`). */
+/**
+ * The paths at which a host takes its workloads' calls: `<egress>/<address>/<path>`.
+ *
+ * The address may be an installation its space binds, such as `notes`.
+ * It may be an installation in a space by identifier or alias, as `<installation>--<space>`.
+ * It may be a package's service, such as `@destack/audit`.
+ */
 export const Egress = {
     /** The path of a host's egress on its loopback origin. */
     path: EGRESS_PATH,
@@ -20,7 +26,7 @@ export const Egress = {
         return `${egress.replace(/\/$/u, "")}/${address}`;
     },
 
-    /** Write the URL of a host path beside an egress, below the same prefix, such as its journal. */
+    /** Write the URL of a host path beside an egress, below the same prefix. */
     beside(egress: string, path: string): string {
         // keep the prefix above the egress path
         const url = new URL(egress);
@@ -54,7 +60,7 @@ export const Egress = {
             : undefined;
     },
 
-    /** Split a request to a host's egress into the address and the request below it, absent outside the egress. */
+    /** Split a request to a host's egress into the address and the request below it. */
     of(request: Request): { readonly address: string; readonly request: Request } | undefined {
         // require the egress path and an address below it
         const url = new URL(request.url);

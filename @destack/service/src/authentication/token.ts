@@ -23,16 +23,16 @@ import { ServiceError } from "../error/index.ts";
 export const KEY_CACHE_MILLISECONDS = 60000;
 /** The longest key discovery wait and the pause after a failed one, in milliseconds. */
 export const KEY_TIMEOUT_MILLISECONDS = 5000;
-/** The longest lifetime of a token and the verified identity and membership records it carries, unless an audience accepts longer. */
+/** The longest lifetime of a token and the verified identity and membership records it carries. */
 export const TOKEN_LIFETIME_MILLISECONDS = 60000;
-/** The longest lifetime of a token a space exchanged for a caller, lending its authority to an installation: an hour, above an outbox's delivery of a sent call. */
+/** The longest lifetime of a token a space exchanged for a caller, lending its authority. */
 export const EXCHANGE_LIFETIME_MILLISECONDS = 60 * 60_000;
-/** The credential kind of an installation's key, which code running outside Destack signs with as its installation. */
+/** The credential kind of an installation's key. */
 export const INSTALLATION_KEY = "installation-key";
-/** The credential kind of a token a space's own key signs for the space or one of its installations. */
+/** The credential kind of a token that a space's own key signs. */
 export const SPACE_KEY = "space-key";
 
-/** The caller an access token signs: its identity and restrictions in one space or the universe, its credential without receiver or times. */
+/** The caller an access token signs. */
 export const TokenCaller = Caller.schema.extend({
     /** The represented identity. */
     subject: Subject,
@@ -112,7 +112,7 @@ export class TokenVerifier {
         return this.verify(Bearer.require(request.headers), now, spaceId);
     }
 
-    /** Verify an access token at a time, optionally for one space, its credential lapsing within its audience's lifetime. */
+    /** Verify an access token at a time, optionally for one space. */
     async verify(token: string, now: number, spaceId?: string): Promise<VerifiedCaller> {
         // verify the signature and registered claims
         const payload = await this.#verifySignature(token, now);
@@ -192,7 +192,7 @@ export interface TokenVerifierOptions {
     readonly keys: URL | JSONWebKeySet | JWTVerifyGetKey;
     /** The fetch of key discovery. */
     readonly fetch?: (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;
-    /** The longest lifetime of the tokens it accepts, such as the relay's ten minutes between tunnel renewals, a minute by default. */
+    /** The longest lifetime of the tokens it accepts, a minute by default. */
     readonly lifetime?: number;
 }
 
@@ -211,7 +211,7 @@ export type TokenIssuerAuthority =
 
 /** The identities an issuer's keys may assert, and the check of a caller against them. */
 export const TokenIssuerAuthority = {
-    /** Require a caller's claims within an issuer's authority: its space's subjects, one deployment per installation, an acyclic chain of single principals. */
+    /** Require a caller's claims within an issuer's authority. */
     require(authority: TokenIssuerAuthority, caller: Caller): void {
         // limit a space's key to the space, its installations and exchanges in it
         const subjects = [
@@ -230,7 +230,7 @@ export const TokenIssuerAuthority = {
     },
 };
 
-/** Require a space key's claims to assert the space or its installations, with no contacts or delegates, or a person lent to one installation of the space in the space alone. */
+/** Require a space key's claims to assert the space or its installations. */
 function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly Subject[]): void {
     // accept a person lent to one of the space's installations within the space
     const lent = caller.delegates?.[0]?.subject;
@@ -262,7 +262,7 @@ function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly 
     }
 }
 
-/** Require one deployment per asserted installation, except the subject its own key or its space's key authenticated and at most one for an installation an exchange lent a person's authority to, and no other. */
+/** Require one deployment per asserted installation, and no other. */
 function requireDeployments(caller: Caller, subjects: readonly Subject[]): void {
     // list the asserted installations a deployment binds
     const kind = caller.credential?.kind;
@@ -299,7 +299,7 @@ function requireDeployments(caller: Caller, subjects: readonly Subject[]): void 
     }
 }
 
-/** Require an acyclic delegation chain of single principals, lending full authority only from its first user. */
+/** Require an acyclic delegation chain of single principals. */
 function requireDelegation(caller: Caller): void {
     const delegates = caller.delegates ?? [];
     const chain = [

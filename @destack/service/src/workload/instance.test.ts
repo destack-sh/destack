@@ -33,7 +33,7 @@ const publisher = {
     receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
 } satisfies Uplink;
 
-/** The fixture's installation, with a build of no files, publishers streaming none and a directory with no recipients. */
+/** The fixture's installation. */
 const installation: InstallationContext = {
     id: "installation-01996ab0-0000-7000-8000-000000000002",
     scope: "space-01996ab0-0000-7000-8000-000000000001",

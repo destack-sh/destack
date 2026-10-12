@@ -24,7 +24,7 @@ export interface Workload extends Declaration {
     readonly compute?: ComputeDefinition;
     /** The package's capabilities the workload uses, every one when absent. */
     readonly capabilities?: readonly CapabilityName[];
-    /** The kind permissions the workload requests by scope, consented to at install and granted exactly. */
+    /** The kind permissions the workload requests by scope. */
     readonly permissions?: PermissionRequest;
     /** Start one instance and return its services and webhooks. */
     start(context: WorkloadContext): WorkloadImplementation | Promise<WorkloadImplementation>;
@@ -34,7 +34,7 @@ export interface Workload extends Declaration {
 export function defineWorkload(
     definition: Omit<WorkloadDefinition, "permissions"> &
         Pick<Workload, "start"> & {
-            /** The kind permissions the workload requests by scope, consented to at install and granted exactly. */
+            /** The kind permissions the workload requests by scope. */
             readonly permissions?: { readonly [Scope in PermissionScope]?: readonly Permission[] };
         },
     module?: ModuleMetadata,
@@ -46,7 +46,7 @@ export function defineWorkload(
     return Object.freeze({ ...WorkloadDefinition.parse(fields), start, package: owner });
 }
 
-/** Where an instance keeps its ephemeral objects: a memory database and a channel between instances. */
+/** Where an instance keeps its ephemeral objects. */
 export interface EphemeralHost {
     /** Open the memory database with tables. */
     open(tables: readonly Table[]): Promise<DatabaseConnection & { close(): Promise<void> }>;
@@ -58,17 +58,17 @@ export interface EphemeralHost {
 export interface WorkloadContext {
     /** The installation's resource and service clients. */
     readonly resources: ResourceContext;
-    /** The audit history the workload's outboxes deliver to, absent for a workload journaling only in its own database. */
+    /** The audit history the workload's outboxes deliver to. */
     readonly history?: AuditHistory;
     /** The installation the workload runs as, absent outside a space. */
     readonly installation?: InstallationContext;
-    /** The machine recording the installation's runs: sent calls and the calls of its triggers' causes, absent outside a space. */
+    /** The machine that records the installation's runs. */
     readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
     /** The clock the workload runs at. */
     readonly clock: Clock;
-    /** Derive the installation's own secrets under labels, the same on every instance of the installation. */
+    /** Derive the installation's own secrets under labels. */
     readonly deriver: Deriver;
     /** Where the instance keeps its ephemeral objects, absent outside a runner. */
     readonly ephemeral?: EphemeralHost;
@@ -84,29 +84,29 @@ export interface WorkloadContext {
     defer(dispose: () => void | PromiseLike<void>): void;
 }
 
-/** The installation a workload runs as: its space, its build and settings, the publishers of its copies, and the directory through its machine. */
+/** The installation a workload runs as. */
 export interface InstallationContext {
     /** The installation's identifier. */
     readonly id: string;
     /** The installation's space. */
     readonly scope: string;
-    /** The one partition of the installation's database the instance serves, every partition when absent. */
+    /** The one partition of the installation's database the instance serves. */
     readonly partition?: string;
-    /** The build the installation's deployment runs, which reads the package's own files such as its catalogs. */
+    /** The build the installation's deployment runs. */
     readonly build: BuildReader;
-    /** The installation's resolved value of each setting its package declares, by `<package>/<name>`. */
+    /** The installation's resolved value of each setting its package declares. */
     readonly settings: Readonly<Record<string, JsonValue>>;
-    /** The publisher of the copies of the space's chain and the universe's rows it reads, receiving their changes: its machine. */
+    /** The publisher of the copies of the space's chain and the universe's rows it reads. */
     readonly publisher: Uplink;
-    /** Connect to the copies an installation at an address `<installation>--<space>` publishes through the object API of a package's service, which decides each follow by its shape's audience. */
+    /** Connect to the copies an installation at `<installation>--<space>` publishes. */
     publisherAt(address: string, packageId: PackageId): Publisher;
-    /** Reach the services at an address through the host's egress as the installation: a space's own at `<space>`, an installation's at `<installation>--<space>`. */
+    /** Reach the services at an address through the host's egress as the installation. */
     at(address: string): { readonly url: string; fetch(request: Request): Promise<Response> };
     /** The directory, through the space's machine. */
     readonly directory: InstallationDirectory;
 }
 
-/** The directory as an installation sees it through its machine: people's homes and locales, the addresses of projected rows, and the keys messages are sealed to. */
+/** The directory as an installation sees it through its machine. */
 export interface InstallationDirectory {
     /** Decide whether a person lives in a space. */
     isHome(subject: string, space: string): Promise<boolean>;

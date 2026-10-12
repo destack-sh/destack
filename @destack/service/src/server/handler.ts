@@ -42,7 +42,8 @@ function openApiSchemaOf(description: JsonSchema): JSONSchema;
 /**
  * Pass the document through unchanged.
  *
- * @construct Zod and oRPC declare the same JSON Schema draft 2020-12 document and differ only in how they type `$defs`.
+ * @construct Zod and oRPC declare the same JSON Schema draft 2020-12 document.
+ * They differ only in how they type `$defs`.
  */
 function openApiSchemaOf(description: JsonSchema): unknown {
     return description;
@@ -82,7 +83,7 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
         this.health = options.health;
     }
 
-    /** Refuse unserved releases and convert earlier inputs as JSON, before coercion as the earlier plugin. */
+    /** Refuse unserved releases and convert earlier inputs as JSON. */
     static #releasePlugin<State extends ServiceState>(
         service: Service,
     ): NonNullable<OpenAPIHandlerOptions<State>["plugins"]>[number] {
@@ -188,7 +189,7 @@ export class ServiceHandler<State extends ServiceState> extends OpenAPIHandler<S
         return caller;
     }
 
-    /** Convert an input of an earlier release through each later release's conversion, dropping the fields this release no longer declares. */
+    /** Convert an input of an earlier release through each later release's conversion. */
     static #convert(
         procedure: AnyProcedure,
         input: unknown,

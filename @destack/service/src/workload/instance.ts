@@ -161,7 +161,7 @@ export class WorkloadInstance implements AsyncDisposable {
         this.#controller.abort();
     }
 
-    /** Run the controllers at the host's wake-up until no key is due now or reconciling, or until a deadline. */
+    /** Run the controllers at the host's wake-up. */
     async alarm(deadline: number): Promise<void> {
         // set the wake-up again
         await this.#clock?.rang();
@@ -170,7 +170,7 @@ export class WorkloadInstance implements AsyncDisposable {
         );
     }
 
-    /** Dispatch a request to a service, as a caller verified elsewhere in this process where one is given. */
+    /** Dispatch a request to a service. */
     fetch(service: Service, request: Request, caller?: Caller): Promise<Response> {
         // require the service
         const server = this.#services.get(keyOf(service))?.server;
@@ -226,7 +226,7 @@ export class WorkloadInstance implements AsyncDisposable {
 export interface WorkloadInstanceOptions {
     /** The installation's resources. */
     readonly resources: ResourceContext;
-    /** The audit history the workload's outboxes deliver to, absent for a workload journaling only in its own database. */
+    /** The audit history the workload's outboxes deliver to. */
     readonly history?: AuditHistory;
     /** The installation the workload runs as, absent outside a space. */
     readonly installation?: InstallationContext;
@@ -234,7 +234,7 @@ export interface WorkloadInstanceOptions {
     readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
-    /** Keep a wake-up for the services' earliest due controller key, such as a Durable Object's alarm. */
+    /** Keep a wake-up for the services' earliest due controller key. */
     readonly alarm?: Alarm;
     /** Where the instance keeps its ephemeral objects, absent outside a runner. */
     readonly ephemeral?: EphemeralHost;

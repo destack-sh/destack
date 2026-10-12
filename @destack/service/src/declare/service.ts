@@ -49,7 +49,7 @@ export type ServiceRoutes<Input extends ServiceInput> = Extract<
     ServiceRouter
 >;
 
-/** Declare an HTTP service routing the input's procedures, each routed declaration's under its name, and the shared ones. */
+/** Declare an HTTP service that routes the input's procedures and the shared ones. */
 export function defineService<const Input extends ServiceInput>(
     name: string,
     input: Input,
@@ -61,7 +61,8 @@ export function defineService<const Input extends ServiceInput>(
 /**
  * Declare an HTTP service with the router routeObjects derives.
  *
- * @construct routeObjects routes each declaration under its own name and each object's procedures under its key, which is how ServiceRoutes maps the input.
+ * @construct routeObjects routes each declaration under its own name.
+ * It routes each object's procedures under its key, which is how ServiceRoutes maps the input.
  */
 export function defineService(name: string, input: ServiceInput, module?: ModuleMetadata): unknown {
     // stamp the declaring package

@@ -56,27 +56,27 @@ export interface RunnerOptions {
     readonly workload: Workload;
     /** The package's resource declarations by name. */
     readonly resources: Readonly<Record<string, ResourceDeclaration<unknown>>>;
-    /** Connect to the host relaying the workload's journal to its space's history, with the runner's secret. */
+    /** Connect to the host that relays the workload's journal to its space's history. */
     history(url: string, secret: string): AuditHistory;
-    /** Connect to a publisher of an installation's copies, its space's machine or another installation of its package, through the host's egress with the runner's secret. */
+    /** Connect to a publisher of an installation's copies. */
     publisher(url: string, secret: string): Uplink;
-    /** Connect to the directory through the space's machine, at the host's egress with the runner's secret. */
+    /** Connect to the directory through the space's machine. */
     directory(url: string, secret: string): InstallationDirectory;
-    /** Connect to the machine recording the installation's runs, through the host's egress with the runner's secret. */
+    /** Connect to the machine that records the installation's runs. */
     runs(url: string, start: WorkloadStart): RunClient;
-    /** Keep a wake-up for the workload's earliest due controller key, such as the Durable Object's alarm running it. */
+    /** Keep a wake-up for the workload's earliest due controller key. */
     readonly alarm?: Alarm;
-    /** Where the instance reaches the sockets its host keeps open, such as its partition's object, below its egress when absent. */
+    /** Where the instance reaches the sockets its host keeps open. */
     readonly socketHost?: SocketHost;
-    /** Where the runtime keeps the instance's ephemeral objects, such as in a Durable Object's storage. */
+    /** Where the runtime keeps the instance's ephemeral objects. */
     readonly ephemeral: EphemeralHost;
-    /** The connectors the runtime supplies by provider code, such as a Durable Object's for the databases it keeps, ahead of the declarations' own. */
+    /** The connectors the runtime supplies by provider code, ahead of the declarations' own. */
     readonly connectors?: Readonly<Record<string, Connector>>;
     /** The clock. */
     readonly clock: Clock;
 }
 
-/** A workload instance a host started, serving each of its services below its package's mount on any runtime. */
+/** A workload instance a host started, on any runtime. */
 export class WorkloadRunner implements AsyncDisposable {
     /** The host's start message. */
     readonly start: WorkloadStart;
@@ -94,7 +94,7 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly #runs: RunClient;
     /** The WebSockets the host keeps open for the instance. */
     readonly #hibernation: Hibernation;
-    /** The telemetry exporting to the host relaying it to the space's observability service, which the runner only stops. */
+    /** The telemetry that exports to the host, which relays it to observability. */
     readonly #telemetry: Pick<Telemetry, "shutdown">;
     /** The clock webhook deliveries arrive at. */
     readonly #clock: Clock;
@@ -124,7 +124,7 @@ export class WorkloadRunner implements AsyncDisposable {
         this.#clock = clock;
     }
 
-    /** Start a workload of a build as a host's start asks, with the runtime's telemetry and failure reporting. */
+    /** Start a workload of a build as a host's start asks. */
     static async start(
         runner: RunnerOptions,
         start: WorkloadStart,
@@ -191,7 +191,7 @@ export class WorkloadRunner implements AsyncDisposable {
         }
     }
 
-    /** Export a workload's telemetry to its host under the runner's secret, which proves the instance, installation and build the host stamps on it. */
+    /** Export a workload's telemetry to its host under the runner's secret. */
     static #telemetryOptions(
         runner: RunnerOptions,
         start: WorkloadStart,
@@ -203,7 +203,7 @@ export class WorkloadRunner implements AsyncDisposable {
         return exporter.options(runner.workload.package, { ratio: start.sampling });
     }
 
-    /** Mount each service of an instance at its package, closing an instance serving two services of one package. */
+    /** Mount each service of an instance at its package. */
     static async #mount(instance: WorkloadInstance): Promise<ReadonlyMap<string, Service>> {
         // index the services by package
         const services = new Map(
@@ -220,7 +220,7 @@ export class WorkloadRunner implements AsyncDisposable {
         });
     }
 
-    /** Describe a started workload's installation: its build, its space's stack service, and other installations through the host's egress. */
+    /** Describe a started workload's installation. */
     static #installation(
         runner: RunnerOptions,
         start: WorkloadStart,
@@ -257,7 +257,7 @@ export class WorkloadRunner implements AsyncDisposable {
         return this.instance.signal;
     }
 
-    /** Serve a forwarded request below the mount of one of the workload's services and refuse any other. */
+    /** Serve a forwarded request below the mount of one of the workload's services. */
     fetch(request: Request): Promise<Response> {
         // refuse a request without the host's secret before anything serves it
         if (request.headers.get("authorization") !== `Bearer ${this.start.secret}`) {
@@ -296,7 +296,7 @@ export class WorkloadRunner implements AsyncDisposable {
         this.instance.shutdown();
     }
 
-    /** Hand a routed request to the named service at the route path below its mount, refusing a name the workload serves no service under. */
+    /** Hand a routed request to the service of a name at the route path below its mount. */
     #route(request: Request, name: string): Promise<Response> {
         // find the named service
         const service = [...this.#services.values()].find((served) => served.name === name);
@@ -315,7 +315,7 @@ export class WorkloadRunner implements AsyncDisposable {
         return this.instance.fetch(service, copyRequest(request, {}, url.href));
     }
 
-    /** Hand the workload a held socket's message, or its close, as the host describes the socket. */
+    /** Hand the workload a held socket's message or close, as the host describes the socket. */
     async #socket(request: Request): Promise<Response> {
         try {
             // read the socket the host describes
@@ -342,12 +342,12 @@ export class WorkloadRunner implements AsyncDisposable {
         }
     }
 
-    /** Run the controllers at the host's wake-up until no key is due now or reconciling, or until a deadline. */
+    /** Run the controllers at the host's wake-up. */
     alarm(deadline: number): Promise<void> {
         return this.instance.alarm(deadline);
     }
 
-    /** Verify a request to one of the package's webhook triggers, and record the call its delivery runs once. */
+    /** Verify a request to one of the package's webhook triggers. */
     async #receive(request: Request, below: string): Promise<Response> {
         // find the webhook trigger the first segment selects
         const slash = below.indexOf("/");
@@ -403,7 +403,7 @@ export class WorkloadRunner implements AsyncDisposable {
         await this.close();
     }
 
-    /** Connect each bound resource through its declaration's connector for the resource's provider, keeping each client to dispose. */
+    /** Connect each bound resource through its declaration's connector for its provider. */
     static async #connect(
         runner: RunnerOptions,
         start: WorkloadStart,

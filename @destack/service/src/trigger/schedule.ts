@@ -46,7 +46,7 @@ export const ScheduleTiming = defineSchema(schema.union([CRON, INTERVAL, ONCE]))
 /** When a schedule's occurrences fall. */
 export type ScheduleTiming = schema.Infer<typeof ScheduleTiming>;
 
-/** A schedule a trigger fires on: when its occurrences fall, how they overlap, and how late they may start. */
+/** A schedule a trigger fires on. */
 export const ScheduleOn = defineSchema(
     schema.object({
         /** When the occurrences fall. */

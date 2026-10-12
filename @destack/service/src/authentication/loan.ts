@@ -6,10 +6,10 @@ import { jwtVerify, type JWTPayload, type JWTVerifyGetKey } from "jose";
 import { ServiceError } from "../error/index.ts";
 import { Bearer } from "./bearer.ts";
 
-/** How long a Loan lends a person's authority: a minute, one call's latency with room for retries, after the AT Protocol's inter-service tokens. */
+/** How long a Loan lends a person's authority: a minute. */
 export const LOAN_MILLISECONDS = 60_000;
 
-/** The claims of a Loan: a person's home lending their authority for one method in one other space. */
+/** The claims of a Loan. */
 const LoanClaims = schema.object({
     /** The home space lending the authority. */
     iss: schema.identifier("space"),
@@ -19,7 +19,7 @@ const LoanClaims = schema.object({
     aud: schema.identifier("space"),
     /** The one method lent, as `<package>/<object>.<method>`. */
     lxm: schema.string().min(1),
-    /** The home's installation acting with the authority (RFC 8693 4.1), absent for the person's own call. */
+    /** The home's installation acting with the authority (RFC 8693 4.1). */
     act: schema.object({ sub: schema.identifier("installation") }).exactOptional(),
     /** When it was signed, in seconds. */
     iat: schema.number().int(),
@@ -29,7 +29,7 @@ const LoanClaims = schema.object({
     jti: schema.string().min(1),
 });
 
-/** What an instance's call asks its host's egress to lend: the method it makes, and the token its space lent it the person's authority with. */
+/** What an instance's call asks its host's egress to lend. */
 export const LoanAsk = defineSchema(
     schema.object({
         /** The one method the call makes, as `<package>/<object>.<method>`. */
@@ -51,13 +51,13 @@ export const LoanRequest = defineSchema(
 /** What a home signs a Loan for. */
 export type LoanRequest = schema.Infer<typeof LoanRequest>;
 
-/** The context a call made for a served call's person carries, as a binding's client takes it per call: the delegation lending that person's authority. */
+/** The context a call made for a served call's person carries. */
 export interface LoanContext {
-    /** The delegation of the person the served call acts for, absent for the installation's own call. */
+    /** The delegation of the person the served call acts for. */
     readonly delegation?: string;
 }
 
-/** What a home lends: the person, the space and the one method, and the installation acting for the person. */
+/** What a home lends. */
 export interface LoanGrant {
     /** The person's home space, which signs the Loan. */
     readonly home: string;
@@ -83,11 +83,11 @@ export interface LoanVerification {
     readonly audience: PackageId;
 }
 
-/** A person's authority their home lends for one call of one method in another space, signed with the home's key and verified through the directory. */
+/** A person's authority their home lends for one call of one method in another space. */
 export const Loan = {
     /** The header carrying a Loan beside a call's own credential. */
     header: "Destack-Loan",
-    /** The header an instance's call asks its host's egress for a Loan with, as `<method> <delegation>`, which the egress takes off. */
+    /** The header an instance's call asks its host's egress for a Loan with. */
     asked: "Destack-Loan-Ask",
 
     /** Format a method of an object type as a Loan lends it: `<package>/<object>.<method>`. */
@@ -98,14 +98,14 @@ export const Loan = {
         return `${object.package.name}/${object.name}.${name}`;
     },
 
-    /** Read the context a call made for a served call's person carries: its caller's delegation, none for an undelegated caller. */
+    /** Read the context a call made for a served call's person carries. */
     of(caller: Pick<Caller, "delegation"> | undefined): LoanContext {
         const delegation = caller?.delegation;
 
         return delegation === undefined ? {} : { delegation };
     },
 
-    /** Write the headers asking the egress for a Loan of the person a call's context names, none for a call without a delegation. */
+    /** Write the headers that ask the egress for a Loan of the person in a call's context. */
     ask(method: string, context: LoanContext): Readonly<Record<string, string>> {
         const { delegation } = context;
 
@@ -152,7 +152,7 @@ export const Loan = {
         );
     },
 
-    /** Verify a Loan for this space against its home's published keys, answering the person lent to the acting installation for the one method. */
+    /** Verify a Loan for this space against its home's published keys. */
     async verify(token: string, options: LoanVerification, now: number): Promise<Caller> {
         // verify the signature of the home it claims, for this space, within a minute
         const issuer = schema.identifier("space").safeParse(Bearer.issuer(token));
@@ -207,7 +207,7 @@ export const Loan = {
         };
     },
 
-    /** Refuse a call of another method than the one a Loan lends, letting every other caller through. */
+    /** Refuse a call of another method than the one a Loan lends. */
     require(caller: Pick<Caller, "loan">, method: string): void {
         const lent = caller.loan?.method;
         if (lent !== undefined && lent !== method) {

@@ -70,7 +70,7 @@ export class TokenIssuer {
         return { accessToken, tokenType: "Bearer" as const, expiresAt: expiresAt * 1000 };
     }
 
-    /** Exchange a person's verified call for a token lending their authority to one installation of the issuing space (RFC 8693), for the calls it sends in that space. */
+    /** Exchange a person's verified call for a token that lends their authority (RFC 8693). */
     async exchange(
         caller: Caller,
         exchanged: {

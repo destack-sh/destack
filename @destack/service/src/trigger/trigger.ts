@@ -68,7 +68,7 @@ export interface ScheduleTrigger extends Declaration {
     readonly on: { readonly schedule: ScheduleOn };
 }
 
-/** A trigger firing on one object type's changes, each admitted change running one object method call. */
+/** A trigger that fires on one object type's changes. */
 export interface ChangeTrigger<Target extends Declaration = Declaration> extends Declaration {
     /** The declaration kind. */
     readonly kind: "trigger";
@@ -81,7 +81,7 @@ export interface ChangeTrigger<Target extends Declaration = Declaration> extends
             readonly where?: Condition;
             /** The operations fired on. */
             readonly operations: readonly ChangeOperation[];
-            /** Where a new trigger starts: at the log's head, or with every matching row as created. */
+            /** Where a new trigger starts. */
             readonly from: "now" | "snapshot";
             /** How long the log keeps changes the trigger has not recorded, in milliseconds. */
             readonly maxLag: number;
@@ -91,7 +91,7 @@ export interface ChangeTrigger<Target extends Declaration = Declaration> extends
     call(change: ObjectChange<Target>): Call;
 }
 
-/** A trigger firing on signed webhook requests, each verified delivery running one object method call. */
+/** A trigger that fires on signed webhook requests. */
 export interface WebhookTrigger extends Declaration {
     /** The declaration kind. */
     readonly kind: "trigger";
@@ -100,7 +100,7 @@ export interface WebhookTrigger extends Declaration {
         readonly webhook: Pick<WebhookOn, "path"> & {
             /** The scheme verifying each delivery's signature. */
             readonly signature: WebhookSignature;
-            /** Read the signing secret of a delivery's route parameters from the installation's resources or derived secrets. */
+            /** Read the signing secret of a delivery's route parameters. */
             readonly secret?: (
                 parameters: WebhookParameters,
                 context: WebhookContext,
@@ -164,7 +164,7 @@ export const Trigger = {
     },
 };
 
-/** An event that fired a trigger: a schedule's occurrence, a verified delivery, or an admitted change. */
+/** An event that fired a trigger. */
 const event = defineSchema(
     schema.union([
         schema.object({
@@ -196,7 +196,7 @@ export type RunEvent = schema.Infer<typeof event>;
 
 /** An event that fired a trigger, and the request recording its run once. */
 export const RunEvent = Object.assign(event, {
-    /** Derive the request an event records its run under: one per trigger, in log order for changes. */
+    /** Derive the request an event records its run under. */
     requestId(fired: RunEvent): string {
         // key an occurrence by its time
         if ("at" in fired) {
@@ -215,7 +215,7 @@ export const RunEvent = Object.assign(event, {
         }
     },
 
-    /** Derive the journal request of the run an event fires of a package's trigger, one however often the event fires it. */
+    /** Derive the journal request of the run an event fires of a package's trigger. */
     derive(packageId: string, triggerName: string, fired: RunEvent, at: number): Promise<string> {
         return RequestId.derive(at, `${packageId}/${triggerName} ${RunEvent.requestId(fired)}`);
     },
@@ -288,7 +288,7 @@ export function defineTrigger(
     },
     module?: ModuleMetadata,
 ): Trigger;
-/** Declare a trigger: a schedule with its call, or changes or webhook deliveries with the code building theirs. */
+/** Declare a trigger. */
 export function defineTrigger(definition: WrittenTrigger, module?: ModuleMetadata): Trigger {
     // stamp the declaring package
     const owner = ModuleMetadata.require(module, "defineTrigger").package;

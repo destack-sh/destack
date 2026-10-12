@@ -28,7 +28,7 @@ export interface SubjectContextOptions extends Pick<
     readonly clock?: Clock;
 }
 
-/** Build the request context of a subject calling in a scope or in none, ending with a signal and timed by a clock. */
+/** Build the request context of a subject calling in a scope or in none. */
 export function subjectContext(
     subject: Subject,
     scope: string | undefined,

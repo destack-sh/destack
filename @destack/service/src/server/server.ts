@@ -16,7 +16,7 @@ import { MAX_TIMER_DELAY } from "../timer/index.ts";
 import { copyRequest } from "../request/index.ts";
 import { Clock } from "@destack/schema";
 
-/** The seconds a starting service holds a request, and a client then waits before retrying, about the time a space takes to receive its first snapshots (RFC 9110 10.2.3). */
+/** The seconds a starting service keeps a request, and a client then waits before retrying. */
 const STARTING_RETRY_SECONDS = 1;
 
 /** A hosted HTTP service. */
@@ -267,7 +267,7 @@ export class Server implements AsyncDisposable {
         await this.close();
     }
 
-    /** Authenticate a request, or take a caller verified elsewhere in this process, and build its context. */
+    /** Authenticate a request, or take a caller verified elsewhere in this process. */
     static async #authenticate(
         request: Request,
         options: ServerOptions,
@@ -524,7 +524,7 @@ export interface ServerOptions extends ServiceImplementation {
     instance?: string;
     /** Keep a wake-up for the controllers' earliest due key, so an evicted instance runs it. */
     alarm?: Alarm;
-    /** Report a controller's failure to the host beside its telemetry, such as a failed reconciliation. */
+    /** Report a controller's failure to the host beside its telemetry. */
     report?(error: unknown): void;
 }
 
@@ -540,7 +540,7 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     fetch?(request: Request, context: ServiceContext): Promise<Response | undefined>;
     /** The service's controllers. */
     readonly controllers?: readonly Controller[];
-    /** Wait until the service can answer, such as once its copies hold complete snapshots, before it serves. */
+    /** Wait until the service can answer before it serves. */
     readonly ready?: (signal: AbortSignal) => Promise<void>;
 }
 
@@ -562,7 +562,7 @@ function attachBookmark(response: Response, observed: Bookmark): Response {
     });
 }
 
-/** Relay a response body chunk by chunk, finishing once it settles and failing with a cancellation's error. */
+/** Relay a response body chunk by chunk. */
 function relayBody(
     reader: Pick<ReadableStreamDefaultReader<Uint8Array>, "read" | "cancel">,
     signal: AbortSignal,

@@ -18,7 +18,7 @@ const { span } = telemetry.scope(import.meta.destack.package);
 /** The retry of a failed reconciliation, doubling from a second up to 5 minutes. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
 
-/** How long a key's peer may answer unavailable before its failures are reported: a minute, as alert rules wait a pending duration, far longer than a peer restarting takes. */
+/** How long a key's peer may answer unavailable before its failures are reported: a minute. */
 const UNAVAILABLE_REPORT_MILLISECONDS = 60_000;
 
 /** A loop keeping the actual state of each listed key matching its rows. */
@@ -33,7 +33,7 @@ export interface Controller {
     list(): Promise<readonly string[]>;
     /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
-    /** Whether a key converges and returns, or keeps its process running until stopped, reconcile by default. */
+    /** Whether a key converges and returns, or keeps its process running until stopped. */
     readonly mode?: "reconcile" | "follow";
     /** Converge one key and return the delay before looking again, or follow it until stopped. */
     reconcile(key: string, reconciliation: Reconciliation): Promise<number | undefined>;
@@ -51,7 +51,7 @@ export interface Reconciliation {
 
 /** Reconciliations of keys whose work another host may end, such as by cancelling it. */
 export const Reconciliation = {
-    /** Run work with a signal that aborts once the reconciliation stops or a check at a change of the key returns why the work ended elsewhere. */
+    /** Run work with a signal that aborts once the reconciliation stops. */
     async runUntil<Result>(
         reconciliation: Reconciliation,
         stop: () => Promise<Error | undefined>,
@@ -109,7 +109,7 @@ export class ControlLoop {
     readonly #queue = new DueQueue();
     /** The consecutive failures by controller and key. */
     readonly #failures = new Map<Controller, Map<string, number>>();
-    /** When each key's peer first answered unavailable in its current run of failures, by controller and key. */
+    /** When each key's peer first answered unavailable in its current run of failures. */
     readonly #unavailable = new Map<Controller, Map<string, number>>();
     /** The keys reconciling now by controller with their abort controllers. */
     readonly #running = new Map<Controller, Map<string, AbortController>>();
@@ -121,11 +121,11 @@ export class ControlLoop {
     readonly #alarm?: Alarm;
     /** The clock keys come due at. */
     readonly #clock: Clock;
-    /** How long a key's peer may answer unavailable before its failures are reported, in milliseconds. */
+    /** How long a key's peer may answer unavailable before its failures are reported. */
     readonly #unavailableFor: number;
     /** The earliest due time the alarm keeps, absent for none. */
     #alarmed: number | undefined;
-    /** The due time of the key that began the running reconciliations, where the alarm stays while any runs. */
+    /** The due time of the key that began the running reconciliations. */
     #busy: number | undefined;
     /** The callers waiting until no key is due now or reconciling. */
     #idle: (() => void)[] = [];
@@ -135,7 +135,7 @@ export class ControlLoop {
     #isStopped = false;
     /** The waiters for a change of each reconciling key, by controller. */
     readonly #changes = new Map<Controller, Map<string, (() => void)[]>>();
-    /** Aborts once work arrives after the worker last looked for it, ending its next sleep at once. */
+    /** Aborts once work arrives after the worker last looked for it. */
     #woken = new AbortController();
 
     /** Create the loop. */
@@ -153,7 +153,7 @@ export class ControlLoop {
             readonly alarm?: Alarm;
             /** The clock keys come due at. */
             readonly clock: Clock;
-            /** How long a key's peer may answer unavailable before its failures are reported, a minute by default. */
+            /** How long a key's peer may answer unavailable before reporting. */
             readonly unavailableFor?: number;
         },
     ) {
@@ -207,7 +207,7 @@ export class ControlLoop {
         }
     }
 
-    /** Settle once no key is due now or reconciling, or at a deadline, as an alarm's handler waits before it returns. */
+    /** Settle once no key is due now or reconciling, or at a deadline. */
     idle(deadline?: number): Promise<void> {
         // settle at once once the loop stopped
         if (this.#isStopped) {
@@ -299,7 +299,7 @@ export class ControlLoop {
         }
     }
 
-    /** List the keys a change touches, reporting a failing key function and listing every key of its controller again in their place. */
+    /** List the keys a change touches. */
     async #keys(controller: Controller, change: Change): Promise<readonly string[]> {
         try {
             return (await controller.keys?.(change)) ?? [];
@@ -528,7 +528,7 @@ export class ControlLoop {
         }
     }
 
-    /** Decide whether to report a failure: at once, or for a peer answering unavailable once it stays so past the window, as alert rules wait their duration. */
+    /** Decide whether to report a failure at once. */
     #isReported(work: Work, error: unknown): boolean {
         // report any failure but a peer's unavailability at once
         const now = this.#clock.now();
@@ -718,7 +718,7 @@ class DueQueue {
     }
 }
 
-/** Report whether a failure is a peer answering unavailable or refusing the connection, which retrying is expected to outlast, as gRPC retries UNAVAILABLE. */
+/** Report whether a failure is a peer answering unavailable or refusing the connection. */
 function isUnavailable(error: unknown): boolean {
     // read the failure's status and code
     const status =

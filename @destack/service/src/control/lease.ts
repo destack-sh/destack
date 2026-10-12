@@ -14,7 +14,7 @@ import { present } from "@destack/schema";
 /** The default lease duration in milliseconds, renewed at a third of it. */
 export const LEASE_MILLISECONDS = 15_000;
 
-/** The share of a lease's duration left below which its holder renews it: two thirds, renewing once a third passed. */
+/** The share of a lease's duration left below which its holder renews it. */
 const RENEWAL_REMAINING = 2 / 3;
 
 /** The instance reconciling a controller's key, and until when. */
@@ -33,7 +33,7 @@ export const controllerLease = defineTable("controller_lease", {
 
 /** The leases of instances over one database. */
 export const Leases = {
-    /** Acquire or renew a lease, returning its epoch or the time the other holder's lease lapses. */
+    /** Acquire or renew a lease. */
     async acquire(
         database: DatabaseConnection,
         controller: string,

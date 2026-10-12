@@ -11,12 +11,12 @@ export const Bearer = {
         return authorization === null ? undefined : BEARER.exec(authorization)?.[1];
     },
 
-    /** Read the one bearer token of a request without cookies, absent for none, an invalid one, or cookies beside it. */
+    /** Read the one bearer token of a request without cookies. */
     read(headers: Headers): string | undefined {
         return headers.has("cookie") ? undefined : Bearer.token(headers.get("authorization"));
     },
 
-    /** Require the one bearer token of a request without cookies, refusing it as unauthorized otherwise. */
+    /** Require the one bearer token of a request without cookies. */
     require(headers: Headers): string {
         const token = Bearer.read(headers);
         if (token === undefined) {
@@ -39,7 +39,7 @@ export const Bearer = {
         }
     },
 
-    /** Answer a failed verification of a signed token: a refusal for a token failing its checks, the key source's own refusal, and unavailability for any other failure, such as keys that do not load. */
+    /** Answer a failed verification of a signed token. */
     refusal(error: unknown, message: string): ServiceError<string, unknown> {
         // keep a refusal the key source answered
         if (isServiceError(error)) {

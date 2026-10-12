@@ -29,7 +29,7 @@ export type BunEndpoint = (
 ) & {
     /** Handle one request. */
     fetch(request: Request): Response | Promise<Response>;
-    /** The WebSockets the endpoint keeps open for instances, upgrading a request whose answer accepts one, absent for an endpoint keeping none. */
+    /** The WebSockets the endpoint keeps open for instances. */
     readonly hibernation?: BunHibernation;
 };
 
@@ -118,7 +118,7 @@ function listen(endpoint: BunEndpoint): Listener {
     });
 }
 
-/** Run a workload as a host's first input line starts it, on the Unix socket its host gives, until shutdown. */
+/** Run a workload as a host's first input line starts it, until shutdown. */
 export async function runWorkload(
     runner: RunnerOptions,
     lines: AsyncIterator<string>,

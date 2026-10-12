@@ -4,7 +4,7 @@ import type { Uplink } from "@destack/sync";
 import type { InstallationDirectory, InstallationContext } from "../workload/workload.ts";
 import { until } from "../timer/timer.ts";
 
-/** An uplink streaming nothing until stopped and refusing changes, as a machine with no chain to copy. */
+/** An uplink that streams nothing until stopped and refuses changes. */
 const IDLE: Uplink = {
     async *stream(_subscription, signal) {
         await until(signal);
@@ -13,7 +13,7 @@ const IDLE: Uplink = {
     receive: () => Promise.reject(new Error("the idle machine receives no changes")),
 };
 
-/** A directory in which nobody lives anywhere, reads a locale, receives projected rows or is sent messages. */
+/** A directory in which nobody lives anywhere. */
 const NOBODY: InstallationDirectory = {
     isHome: () => Promise.resolve(false),
     locale: (subject) => Promise.reject(new Error(`no person ${subject} reads a locale here`)),
@@ -21,7 +21,7 @@ const NOBODY: InstallationDirectory = {
     messageKey: (space) => Promise.reject(new Error(`no space ${space} is sent messages here`)),
 };
 
-/** Build the context of a package's installation in a space, as tests serve its objects, with an empty build, no settings and an idle machine. */
+/** Build the context of a package's installation in a space, as tests serve its objects. */
 export async function testInstallation(
     owner: Package,
     scope: string,

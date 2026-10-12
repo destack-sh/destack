@@ -15,14 +15,18 @@ import type { Service } from "./service.ts";
 /** The provider code of service bindings, which connect over HTTP through their host's egress. */
 export const SERVICE_PROVIDER = "http";
 
-/** A service binding's specification: the service it calls, and the address it calls unless a stack binds another. */
+/** A service binding's specification. */
 export const ServiceBindingSpec = defineSchema(
     schema.object({
         /** The service. */
         service: DeclarationReference,
-        /** The address an installation calls unless a stack binds another, such as `@destack/message` for a service of the platform. */
+        /**
+         * The address an installation calls unless a stack binds another.
+         *
+         * An example is `@destack/message` for a service of the platform.
+         */
         address: schema.string().min(1).exactOptional(),
-        /** The procedures the installation calls, by their dotted paths in the service's router, which the space grants it. */
+        /** The procedures the installation calls, by their dotted paths in the service's router. */
         calls: schema.array(schema.string().min(1)).exactOptional(),
     }),
 );
@@ -52,7 +56,7 @@ export class ServiceBinding<
         this.service = service;
     }
 
-    /** The HTTP connector, calling the service at the bound address through the host's egress with the bound credential. */
+    /** The HTTP connector. */
     override get connectors(): { readonly http: Connector<Client<Router, LoanContext>> } {
         return {
             http: {
@@ -91,14 +95,14 @@ export class ServiceBinding<
     }
 }
 
-/** Declare a dependency on a service, called at an address a stack binds or at the one it declares. */
+/** Declare a dependency on a service. */
 export function defineServiceBinding<Router extends ServiceRouter>(
     name: string,
     service: Service<Router>,
     options: {
         /** The address an installation calls unless a stack binds another. */
         readonly address?: string;
-        /** The procedures of the service's router the installation calls, granted to it at install. */
+        /** The procedures of the service's router the installation calls, granted at install. */
         readonly calls?: readonly unknown[];
     } = {},
     module?: ModuleMetadata,

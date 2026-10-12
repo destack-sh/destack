@@ -33,7 +33,7 @@ export const START_PATH = "/.destack/start";
 /** The path a partition's object asks its workload to drain and forget its start at. */
 export const STOP_PATH = "/.destack/stop";
 
-/** The path a partition's object rings an instance's alarm at, and the instance moves its wake-up at. */
+/** The path where a partition's object rings an instance's alarm. */
 export const ALARM_PATH = "/.destack/alarm";
 
 /** The path below which an instance reads its build's files through its partition's object. */
@@ -42,10 +42,10 @@ export const BUILD_PATH = "/.destack/build";
 /** The key of the start an instance keeps, which it resumes after an eviction. */
 const START_KEY = "start";
 
-/** The namespace of the database an instance keeps only while it runs, such as for its ephemeral objects. */
+/** The namespace of the database an instance keeps only while it runs. */
 const EPHEMERAL_NAMESPACE = "ephemeral";
 
-/** The start a partition's object hands its workload: the machine's start and the build's manifest. */
+/** The start a partition's object hands its workload. */
 export const DurableObjectStart = defineSchema(
     schema.object({
         /** The machine's start of the workload. */
@@ -60,7 +60,7 @@ export type DurableObjectStart = schema.Infer<typeof DurableObjectStart>;
 /** A ring of an instance's alarm, or a move of its wake-up. */
 export const DurableObjectAlarm = defineSchema(
     schema.object({
-        /** When the ring's run ends, or when the wake-up rings next, absent for none, in UTC epoch milliseconds. */
+        /** When the ring's run ends or the wake-up rings next, in UTC epoch milliseconds. */
         at: schema.number().int().nullable(),
     }),
 );
@@ -85,13 +85,13 @@ export interface DurableObjectRunnerState {
     blockConcurrencyWhile<Value>(closure: () => Promise<Value>): Promise<Value>;
 }
 
-/** The bindings an instance's facet reads: the partition's object starting it, which keeps its alarm and serves its build. */
+/** The bindings an instance's facet reads. */
 export interface DurableObjectRunnerEnvironment {
     /** The partition's object. */
     readonly PARTITION: { fetch(request: Request): Promise<Response> };
 }
 
-/** A workload instance in its partition's facet, beside the databases it keeps, started, woken and served by its partition's object. */
+/** A workload instance in its partition's facet, beside the databases it keeps. */
 export class DurableObjectRunner {
     /** The object's storage. */
     readonly #storage: DurableObjectRunnerStorage;
@@ -120,7 +120,7 @@ export class DurableObjectRunner {
         this.#running = state.blockConcurrencyWhile(() => this.#resume());
     }
 
-    /** Answer the partition's object's database operations, starts, stops and rings, and serve the workload. */
+    /** Answer the partition's object's database operations, starts, stops and rings. */
     async fetch(request: Request): Promise<Response> {
         try {
             const { pathname } = new URL(request.url);
@@ -173,7 +173,7 @@ export class DurableObjectRunner {
         return kept === undefined ? undefined : this.#start(DurableObjectStart.parse(kept));
     }
 
-    /** Start the workload over the object's databases, its build and alarm kept by the partition's object. */
+    /** Start the workload over the object's databases. */
     #start(started: DurableObjectStart): Promise<WorkloadRunner> {
         // read the build's files through the partition's object and keep the wake-up on its alarm
         const partition = this.#partition;

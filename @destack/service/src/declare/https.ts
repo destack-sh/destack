@@ -23,7 +23,7 @@ export const HttpsKind = defineResourceKind("https", { spec: HttpsSpec });
 /** A named dependency on an HTTPS API. */
 export type HttpsDescription = schema.Infer<typeof HttpsKind.description>;
 
-/** A client of a bound HTTPS API, whose calls the host's egress authenticates with the lent credential. */
+/** A client of a bound HTTPS API. */
 export interface HttpsClient {
     /** The bound address below the host's egress that calls go to. */
     readonly url: string;
@@ -31,9 +31,9 @@ export interface HttpsClient {
     fetch(path: string, init?: RequestInit): Promise<Response>;
 }
 
-/** A dependency on an HTTPS API, called through the host's egress, which applies the connection's credential the workload never sees. */
+/** A dependency on an HTTPS API, called through the host's egress. */
 export class HttpsBinding extends ResourceDeclaration<HttpsClient, HttpsDescription> {
-    /** The connector of lent resources, calling the bound address below the host's egress with the instance's credential. */
+    /** The connector of lent resources. */
     override get connectors(): { readonly connection: Connector<HttpsClient> } {
         return {
             connection: {
@@ -64,7 +64,7 @@ export class HttpsBinding extends ResourceDeclaration<HttpsClient, HttpsDescript
     }
 }
 
-/** Declare a dependency on an HTTPS API, which a stack binds to a connection lending its credential. */
+/** Declare a dependency on an HTTPS API. */
 export function defineHttps(name: string, spec: HttpsSpec, module?: ModuleMetadata): HttpsBinding {
     const owner = ModuleMetadata.require(module, "defineHttps").package;
 

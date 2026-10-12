@@ -15,7 +15,7 @@ export const RateLimitState = defineSchema(
 /** The tokens a bucket held when it was last counted. */
 export type RateLimitState = schema.Infer<typeof RateLimitState>;
 
-/** One request's admission: whether it may go, the bucket after it, and the wait until a token is free. */
+/** One request's admission. */
 export interface Admission {
     /** Whether the request is admitted. */
     readonly isAdmitted: boolean;
@@ -25,7 +25,7 @@ export interface Admission {
     readonly wait: number;
 }
 
-/** A token bucket: `rate` tokens a second refill up to `burst`, and each admitted request takes one. */
+/** A token bucket. */
 export class RateLimit {
     /** The tokens refilled each second. */
     readonly rate: number;

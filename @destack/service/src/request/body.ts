@@ -1,6 +1,6 @@
 import { ServiceError } from "../error/index.ts";
 
-/** The most bytes a request body carries when a reader sets no limit: 1 MiB, the OTLP/HTTP collectors' default. */
+/** The most bytes a request body carries when a reader sets no limit: 1 MiB. */
 export const BODY_BYTES = 1024 * 1024;
 
 /** What a body is read from: a request's headers and body stream, whichever runtime typed it. */

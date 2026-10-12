@@ -5,13 +5,13 @@ import { Expression } from "@destack/db";
 import { PermissionReference, type Permission, type Policy } from "@destack/access/declare";
 import { ObjectTypeReference } from "@destack/sync";
 
-/** Who may call a procedure: holders of a permission on its target or on each row it touches, principals of some kinds, or anyone. */
+/** Who may call a procedure. */
 export const ProcedurePermission = schema.union([
     /** The permission the service checks on the call's target. */
     PermissionReference,
     /** The permission the object store checks on each row the call reads or writes. */
     schema.object({ rows: PermissionReference }),
-    /** The permissions the served types declare, which their server checks on the rows the call reads or writes. */
+    /** The permissions the served types declare. */
     schema.literal("rows"),
     /** The kinds of principals that call as themselves. */
     schema.object({ principals: schema.array(ObjectTypeReference).min(1) }),
@@ -30,7 +30,7 @@ export const ProcedureAccess = schema.object({
     permission: ProcedurePermission,
     /** The category of the event a call records when it ends, or false to record only denials. */
     audit: schema.union([schema.literal(false), schema.enum(["activity", "access"])]),
-    /** Whether an installation calls it only with its space's grant, which its service binding declares. */
+    /** Whether an installation calls it only with its space's grant. */
     granted: schema.boolean().exactOptional(),
 });
 
@@ -43,7 +43,7 @@ const METAS = new WeakMap<object, ProcedureMeta>();
 /** A procedure's declared requirements and the conversions of inputs from earlier releases. */
 export const ProcedureMeta = Object.assign(
     ProcedureAccess.extend({
-        /** The input fields each release computes from an earlier input's fields, by the release introducing them. */
+        /** The input fields each release computes from an earlier input's fields. */
         convert: schema
             .record(Version, schema.record(schema.string().min(1), Expression.schema))
             .exactOptional(),

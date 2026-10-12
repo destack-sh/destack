@@ -1,9 +1,9 @@
 import { EXCHANGE_LIFETIME_MILLISECONDS } from "./token.ts";
 
-/** How long an exchanged token is reused: 80% of its life, as kubelet rotates projected service-account tokens and the AWS SDK refreshes assumed credentials before they expire. */
+/** How long an exchanged token is reused: 80% of its life. */
 const REUSE_MILLISECONDS = EXCHANGE_LIFETIME_MILLISECONDS * 0.8;
 
-/** The tokens exchanged for callers, reused for the same exchange until most of their life passed. */
+/** The tokens exchanged for callers. */
 export class TokenCache {
     /** The exchanged tokens by their exchange's key, with the time each stops being reused. */
     readonly #tokens = new Map<

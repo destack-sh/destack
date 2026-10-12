@@ -25,7 +25,7 @@ export const Schedule = {
         return timing;
     },
 
-    /** List the latest occurrences after one time and up to another, at most a limit, and how many earlier ones fell in between. */
+    /** List the latest occurrences after one time and up to another, at most a limit. */
     recent(
         timing: ScheduleTiming,
         after: number,

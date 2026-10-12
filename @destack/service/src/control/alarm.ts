@@ -1,4 +1,4 @@
-/** A durable wake-up the host keeps for a loop, such as a Durable Object's alarm, waking an evicted instance when its earliest key is due. */
+/** A durable wake-up the host keeps for a loop, such as a Durable Object's alarm. */
 export interface Alarm {
     /** Wake the instance at a time, in UTC epoch milliseconds, replacing the earlier wake-up. */
     setAlarm(at: number): Promise<void>;
@@ -6,7 +6,7 @@ export interface Alarm {
     deleteAlarm(): Promise<void>;
 }
 
-/** A clock keeping several loops' alarms on one host wake-up, which rings at the earliest of them. */
+/** A clock that keeps several loops' alarms on one host wake-up. */
 export class AlarmClock {
     /** The host's wake-up. */
     readonly #alarm: Alarm;
@@ -38,7 +38,7 @@ export class AlarmClock {
         };
     }
 
-    /** Set the host's wake-up again at the earliest alarm, since a ringing wake-up clears itself. */
+    /** Set the host's wake-up again at the earliest alarm. */
     async rang(): Promise<void> {
         this.#current = undefined;
         await this.#update();

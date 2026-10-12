@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import type { ScheduleTiming } from "../trigger/index.ts";
 import { Schedule } from "./schedule.ts";
 
-/** Nine in the morning in Berlin, which moves from 08:00 to 07:00 UTC when summer time starts on 2026-03-29. */
+/** Nine in the morning in Berlin. */
 const MORNING: ScheduleTiming = { timing: "cron", cron: "0 9 * * *", timezone: "Europe/Berlin" };
 
 test("follow a calendar in its time zone across a summer time change", () => {

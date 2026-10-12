@@ -5,10 +5,10 @@ import type { Fetch } from "../service/fetch.ts";
 /** The path at which a host and an instance exchange a held socket's messages, closes and sends. */
 export const SOCKET_PATH = "/.destack/socket";
 
-/** The header carrying a held socket beside its event, and an instance's acceptance of an upgrade. */
+/** The header that carries a held socket beside its event. */
 export const SOCKET_HEADER = "Destack-Socket";
 
-/** The header a machine names the instance that accepted an upgrade with, for the host holding the socket. */
+/** The header that identifies the instance that accepted an upgrade. */
 export const SOCKET_INSTANCE_HEADER = "Destack-Socket-Instance";
 
 /** A held socket as a host describes it: its identifier and the value kept beside it. */
@@ -23,14 +23,14 @@ export const HeldSocketDescription = defineSchema(
 /** A held socket as a host describes it. */
 export type HeldSocketDescription = schema.Infer<typeof HeldSocketDescription>;
 
-/** An instance's acceptance of a WebSocket upgrade: the identifier it gives the socket, the value kept beside it, and a text message the host answers itself without waking the instance. */
+/** An instance's acceptance of a WebSocket upgrade. */
 export const SocketAcceptance = defineSchema(
     schema.object({
         /** The socket's identifier, which the instance picks, unique among its held sockets. */
         id: schema.string().min(1),
         /** The value kept beside the socket. */
         attachment: schema.json(),
-        /** The subprotocol the upgrade answers with, among those the client offered (RFC 6455 4.2.2). */
+        /** The subprotocol the upgrade answers with, among those the client offered. */
         protocol: schema.string().min(1).exactOptional(),
         /** A text message and the answer the host sends to it, such as a liveness ping. */
         respond: schema
@@ -66,7 +66,7 @@ export interface SocketHandler {
     close(socket: HeldSocket): Promise<void>;
 }
 
-/** Where an instance reaches the sockets its host keeps open: below its egress on a machine, its partition's object on Cloudflare. */
+/** Where an instance reaches the sockets its host keeps open. */
 export interface SocketHost {
     /** The URL of the held sockets. */
     readonly url: string;
@@ -74,7 +74,7 @@ export interface SocketHost {
     readonly fetch: Fetch;
 }
 
-/** The WebSockets a host keeps open for an instance while it sleeps, as Durable Objects hibernate theirs, reached at the host with the instance's secret. */
+/** The WebSockets a host keeps open for an instance while it sleeps. */
 export class Hibernation {
     /** Where the host keeps the sockets. */
     readonly #host: SocketHost;
@@ -92,7 +92,7 @@ export class Hibernation {
         this.#report = report;
     }
 
-    /** Answer a WebSocket upgrade by accepting it, the host keeping the socket open with a value beside it. */
+    /** Answer a WebSocket upgrade by accepting it. */
     accept(acceptance: SocketAcceptance): Response {
         return new Response(null, {
             headers: { [SOCKET_HEADER]: JSON.stringify(SocketAcceptance.parse(acceptance)) },

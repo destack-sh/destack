@@ -2,7 +2,7 @@ import type { DatabaseConnection } from "@destack/db";
 import type { Controller } from "../control/index.ts";
 import { Clock } from "@destack/schema";
 
-/** How long a database keeps windowed changes: a week, longer than clients stay offline between syncs. */
+/** How long a database keeps windowed changes: a week. */
 const CHANGE_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
 /** How often a database compacts its log: hourly, a week of changes taking seconds to compact. */

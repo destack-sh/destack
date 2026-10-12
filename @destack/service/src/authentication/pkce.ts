@@ -10,7 +10,7 @@ export const Pkce = {
             .toBase64({ alphabet: "base64url", omitPadding: true });
     },
 
-    /** Derive a verifier's S256 challenge: its SHA-256 digest in unpadded base64url (RFC 7636 4.2). */
+    /** Derive a verifier's S256 challenge: its SHA-256 in unpadded base64url (RFC 7636 4.2). */
     async challenge(verifier: string): Promise<string> {
         const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
 

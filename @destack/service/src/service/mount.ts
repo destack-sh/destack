@@ -9,7 +9,7 @@ const MOUNTED = /^\/service\/([^/]+)(\/.*)?$/u;
 /** The path a machine serves each space under. */
 const SPACE = /^\/spaces\/([^/]+)(\/.*)?$/u;
 
-/** The path a machine takes calls to each installation it serves under, below the installation's space. */
+/** The path where a machine takes calls to each installation it serves. */
 const INSTALLED = /^\/spaces\/([^/]+)\/installations\/([^/]+)(\/.*)?$/u;
 
 /** The paths hosts serve packages' services at, one mount per package. */
@@ -24,14 +24,14 @@ export const ServiceMount = {
         return new URL(ServiceMount.path(packageId), origin).href;
     },
 
-    /** Split a path into the mounted package and the path below its mount, absent outside any mount. */
+    /** Split a path into the mounted package and the path below its mount. */
     parse(pathname: string): { readonly packageId: string; readonly path: string } | undefined {
         const [, packageId, path] = MOUNTED.exec(pathname) ?? [];
 
         return packageId === undefined ? undefined : { packageId, path: path ?? "/" };
     },
 
-    /** Split a request into the mounted package and the request below its mount, absent outside any mount. */
+    /** Split a request into the mounted package and the request below its mount. */
     of(request: Request): { readonly packageId: string; readonly request: Request } | undefined {
         // find the mount the path selects
         const url = new URL(request.url);
@@ -67,14 +67,14 @@ export const SpaceMount = {
     },
 };
 
-/** The paths machines take calls to their installations at, one per installation below its space, which a machine routes to the space. */
+/** The paths where machines take calls to their installations. */
 export const InstallationMount = {
-    /** Build the URL of an installation's service on the endpoint of the machine serving its space, naming it by its identifier or its alias in the space. */
+    /** Build the URL of an installation's service on its machine's endpoint. */
     url(endpoint: string, spaceId: string, installation: string): string {
         return new URL(`${SpaceMount.path(spaceId)}/installations/${installation}`, endpoint).href;
     },
 
-    /** Split a request into the space, the installation and the request below its mount, absent outside any mount. */
+    /** Split a request into the space, the installation and the request below its mount. */
     of(
         request: Request,
     ):

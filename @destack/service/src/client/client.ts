@@ -14,7 +14,7 @@ import { ServiceTelemetry } from "../telemetry/index.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
 import { wait } from "../timer/index.ts";
 
-/** The longest a call waits for a starting service, about ten space starts' first snapshots at a second each. */
+/** The longest a call waits for a starting service. */
 const STARTING_WAIT_MILLISECONDS = 10_000;
 
 /** The options of a client. */
@@ -30,7 +30,7 @@ export type ServiceClient<
     Context extends ClientContext = Record<never, never>,
 > = Client<Declared["router"], Context>;
 
-/** Create a typed HTTP client of a service, speaking the release of the service it was built against. */
+/** Create a typed HTTP client of a service. */
 export function createClient<
     Definition extends ServiceRouter,
     Context extends ClientContext = Record<never, never>,
@@ -101,7 +101,7 @@ export function createClient<
     });
 }
 
-/** Read the pause a starting service asks for before a retry, absent for any other answer (RFC 9110 10.2.3). */
+/** Read the pause a starting service asks for before a retry (RFC 9110 10.2.3). */
 function startingPause(response: {
     readonly status: number;
     readonly headers: Headers;
@@ -113,7 +113,7 @@ function startingPause(response: {
         : undefined;
 }
 
-/** Read a service's answered failure, marking a server failure captured, as the answering service captured it. */
+/** Read a service's answered failure. */
 function answeredError(body: unknown) {
     // leave a malformed answer to the link's own failure
     if (!isORPCErrorJson(body)) {

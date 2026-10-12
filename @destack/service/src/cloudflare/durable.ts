@@ -1,13 +1,13 @@
 import type { Alarm } from "../control/index.ts";
 
-/** How long an alarm runs the controllers at most: 10 minutes, below the 15 minutes a Durable Object's alarm may run. */
+/** How long an alarm runs the controllers at most: 10 minutes. */
 const ALARM_MILLISECONDS = 10 * 60_000;
 
-/** The members of a Durable Object's state a workload object uses: the storage keeping its alarm, and the gate holding its events while it starts. */
+/** The members of a Durable Object's state a workload object uses. */
 export interface DurableObjectState {
     /** The object's storage, whose alarm wakes the object. */
     readonly storage: Alarm;
-    /** Hold the object's other events until a closure settles, resetting the object when it fails. */
+    /** Block the object's other events until a closure settles. */
     blockConcurrencyWhile<Value>(closure: () => Promise<Value>): Promise<Value>;
 }
 
@@ -15,16 +15,16 @@ export interface DurableObjectState {
 export interface DurableObjectWorkloadInstance {
     /** Serve a request. */
     fetch(request: Request): Promise<Response>;
-    /** Run the controllers until no key is due now or reconciling, or until a deadline, keeping the alarm due while keys still run. */
+    /** Run the controllers until no key is due now or reconciling, or until a deadline. */
     alarm(deadline: number): Promise<void>;
 }
 
-/** A Durable Object holding one workload instance: started before its first event, its controllers woken by the object's alarm. */
+/** A Durable Object with one workload instance. */
 export class DurableObjectWorkload {
     /** The started workload. */
     readonly #started: Promise<DurableObjectWorkloadInstance>;
 
-    /** Start a workload before the object takes any event, keeping its controllers' wake-up on the object's alarm. */
+    /** Start a workload before the object takes any event. */
     constructor(
         state: DurableObjectState,
         start: (alarm: Alarm) => Promise<DurableObjectWorkloadInstance>,
@@ -39,7 +39,7 @@ export class DurableObjectWorkload {
         return workload.fetch(request);
     }
 
-    /** Run the controllers due at the alarm, settling once none is due or at the alarm's deadline. */
+    /** Run the controllers due at the alarm. */
     async alarm(): Promise<void> {
         // run for a bounded time
         const workload = await this.#started;

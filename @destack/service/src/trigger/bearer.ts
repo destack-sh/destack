@@ -34,7 +34,7 @@ const SigningKey = schema.looseObject({
     kid: schema.string().exactOptional(),
 });
 
-/** What a JWT bearer webhook scheme checks: the token's issuer and audience, where the sender's keys are, and how a body identifies its delivery. */
+/** What a JWT bearer webhook scheme checks. */
 export interface BearerOptions {
     /** The issuers the token may carry, the first signing (RFC 7519 4.1.1). */
     readonly issuer: string | readonly [string, ...string[]];
@@ -49,7 +49,7 @@ export interface BearerOptions {
     ) => { readonly id: string; readonly event: string };
 }
 
-/** A webhook scheme whose sender signs a JWT bearer token for the endpoint (RFC 7519, RFC 6750 2.1), verified against the key set it publishes, fetched through one of the installation's https resources. */
+/** A webhook scheme whose sender signs a JWT bearer token for the endpoint (RFC 7519, 6750 2.1). */
 export class BearerSignature implements WebhookSignature {
     /** The scheme's name. */
     readonly name = "bearer";
@@ -85,7 +85,7 @@ export class BearerSignature implements WebhookSignature {
         return new Headers({ authorization: `Bearer ${token}` });
     }
 
-    /** Verify the bearer token's signature, issuer, audience and lifetime, then read the delivery the body identifies. */
+    /** Verify the bearer token's signature, issuer, audience and lifetime. */
     async verify(
         request: Request,
         _secret: string | undefined,
@@ -126,7 +126,7 @@ export class BearerSignature implements WebhookSignature {
         return WebhookDelivery.parse({ id, event, payload, parameters, receivedAt: now });
     }
 
-    /** Read the sender's key set through the installation's https resource, cached per client as JOSE caches a remote set. */
+    /** Read the sender's key set through the installation's https resource. */
     #keySet(context: WebhookContext): JWTVerifyGetKey {
         // keep one remote set per client, fetched below its bound address
         const https = this.options.keys.resource.get(context.resources);

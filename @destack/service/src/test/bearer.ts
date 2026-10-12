@@ -18,7 +18,7 @@ export const TestBearer = {
         return header.slice(BEARER_PREFIX.length);
     },
 
-    /** Authenticate a subject for a minute: a space by its space key, any other principal by its type. */
+    /** Authenticate a subject for a minute. */
     authenticate(subject: Subject, audience: PackageId, now: number): Caller {
         const kind = principal.space.is(subject) ? SPACE_KEY : subject.type;
 
