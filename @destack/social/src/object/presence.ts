@@ -1,6 +1,5 @@
 import { space } from "@destack/account/object";
 import { intersection, relation, through } from "@destack/access";
-import { unique } from "@destack/db";
 import { defineObject, field, Selection } from "@destack/object";
 import { schema } from "@destack/schema";
 
@@ -23,23 +22,19 @@ export const presence = defineObject({
         /** Whether the principal is typing. */
         isTyping: field.boolean().default(false),
     },
-    constraints: (entry) => [
-        unique("presence_writer").on(
-            entry.parentPackageId,
-            entry.parentType,
-            entry.parentId,
-            entry.principal,
-            entry.writerId,
-        ),
-    ],
     permissions: {
         read: through("parent", "present"),
         write: intersection(relation("principal"), through("parent", "present")),
     },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-        update: method.update("write"),
-        delete: method.delete("write"),
-    }),
-});
+    constraints: {
+        writer: {
+            kind: "unique",
+            on: ["parentPackageId", "parentType", "parentId", "principal", "writerId"],
+        },
+    },
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+    update: method.update("write"),
+    delete: method.delete("write"),
+}));

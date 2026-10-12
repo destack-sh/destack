@@ -9,7 +9,7 @@ import {
 } from "@destack/access";
 import { plural, t } from "@destack/locale";
 import { Subject } from "@destack/sync";
-import { index, type Select } from "@destack/db";
+import { type Select } from "@destack/db";
 import { type Action, activity, announcement, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
 import { defineObject, field, type ObjectType, Selection } from "@destack/object";
@@ -77,8 +77,6 @@ export const comment = defineObject({
         /** The number of reactions. */
         reactionCount: field.count(),
     },
-    // find a thread's replies
-    constraints: (entry) => [index("comment_thread").on(entry.threadId)],
     permissions: {
         read: through("parent", "read"),
         comment: through("parent", "comment"),
@@ -94,16 +92,19 @@ export const comment = defineObject({
         activity.attach({ by: "read" }),
         announcement.attach({ by: "read" }),
     ],
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("comment", { fields: ["body", "selection", "threadId"] }),
-        update: method.update("edit", { fields: ["body"] }),
-        delete: method.delete("delete"),
-        resolve: method.mutation({ permission: "resolve" }),
-        reopen: method.mutation({ permission: "resolve" }),
-    }),
-});
+    constraints: {
+        // find a thread's replies
+        thread: { kind: "index", on: ["threadId"] },
+    },
+}).methods((method) => ({
+    get: method.get("read"),
+    list: method.list("read"),
+    create: method.create("comment", { fields: ["body", "selection", "threadId"] }),
+    update: method.update("edit", { fields: ["body"] }),
+    delete: method.delete("delete"),
+    resolve: method.mutation({ permission: "resolve" }),
+    reopen: method.mutation({ permission: "resolve" }),
+}));
 
 /** A comment as its table stores it. */
 export type Comment = Select<typeof comment.table>;

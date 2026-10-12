@@ -33,8 +33,7 @@ export const article = defineObject({
         receipt.attach({ by: "read" }),
         favourite.attach({ by: "read" }),
     ],
-    methods: (method) => ({ get: method.get("read"), list: method.list("read") }),
-});
+}).methods((method) => ({ get: method.get("read"), list: method.list("read") }));
 ```
 
 ## Notifications

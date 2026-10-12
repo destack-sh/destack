@@ -31,21 +31,22 @@ export const article = defineObject({
         favourite.attach({ by: "read" }),
         presence.attach({ by: "read" }),
     ],
-    methods: (method) => ({
+})
+    .methods((method) => ({
         get: method.get("read"),
         list: method.list("read"),
         create: method.create("manage"),
         update: method.update("edit", { fields: ["title"] }),
         delete: method.delete("manage"),
-    }),
-}).implement({
-    methods: {
-        create: async (call, next) => {
-            // subscribe the owner to the article it creates
-            const row = await next();
-            await Subscription.add(call, call.reference(), call.requireCaller(), "author");
+    }))
+    .implement({
+        methods: {
+            create: async (call, next) => {
+                // subscribe the owner to the article it creates
+                const row = await next();
+                await Subscription.add(call, call.reference(), call.requireCaller(), "author");
 
-            return row;
+                return row;
+            },
         },
-    },
-});
+    });

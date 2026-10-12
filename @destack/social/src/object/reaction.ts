@@ -1,6 +1,5 @@
 import { space } from "@destack/account/object";
 import { intersection, relation, through } from "@destack/access";
-import { unique } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
@@ -19,23 +18,19 @@ export const reaction = defineObject({
         /** The emoji. */
         emoji: field.string(schema.emoji().max(EMOJI_LENGTH)),
     },
-    constraints: (entry) => [
-        unique("reaction_author_emoji").on(
-            entry.parentPackageId,
-            entry.parentType,
-            entry.parentId,
-            entry.author,
-            entry.emoji,
-        ),
-    ],
     permissions: {
         read: through("parent", "read"),
         write: intersection(relation("author"), through("parent", "react")),
     },
     aggregates: { reactionCount: { function: "count" } },
-    methods: (method) => ({
-        list: method.list("read"),
-        create: method.create("write"),
-        delete: method.delete("write"),
-    }),
-});
+    constraints: {
+        authorEmoji: {
+            kind: "unique",
+            on: ["parentPackageId", "parentType", "parentId", "author", "emoji"],
+        },
+    },
+}).methods((method) => ({
+    list: method.list("read"),
+    create: method.create("write"),
+    delete: method.delete("write"),
+}));
