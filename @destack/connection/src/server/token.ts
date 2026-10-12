@@ -1,6 +1,6 @@
 import type { ServiceClient } from "@destack/service/client";
 import type { connectionService } from "../service/service.ts";
-import { and, eq } from "@destack/db";
+import { and, eq, Snapshot } from "@destack/db";
 import type { Condition } from "@destack/object";
 import { aligned, type Identifier, type JsonValue, present, schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
@@ -21,7 +21,8 @@ import {
 import { Assertion } from "../oauth/assertion.ts";
 import type { Fetch } from "@destack/service";
 import { AuthorizationServer, JWT_BEARER, TOKEN_EXCHANGE } from "../oauth/server.ts";
-import { ConsumerSecret } from "@destack/vault/server";
+import { Secret, SecretReading } from "@destack/vault";
+import { secret, vault } from "@destack/vault/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Caller } from "@destack/access";
 
@@ -82,6 +83,73 @@ export class TokenSource {
         return schema.identifier("secret").parse(`secret-${id.slice(id.indexOf("-") + 1)}`);
     }
 
+    /** Keep a connection's or integration's secret in a vault, bound to the service. */
+    async put(
+        system: ObjectStore,
+        reference: ObjectReference,
+        id: string,
+        value: string,
+    ): Promise<void> {
+        const now = system.clock.now();
+        await system.mutate(Caller.of(system.principal, now), {
+            id: RequestId.create(now),
+            calls: [
+                vault.call("put", {
+                    ...TokenSource.#vault(reference),
+                    secret: TokenSource.secret(id),
+                    value: { encoding: "text", value },
+                    consumer: this.options.consumer,
+                }),
+            ],
+        });
+    }
+
+    /** Read a connection's or integration's secret as the service, absent before it is put. */
+    async secretOf(
+        system: ObjectStore,
+        reference: ObjectReference,
+        id: string,
+    ): Promise<string | undefined> {
+        // read the secret's current version, none before its first put
+        const secretId = TokenSource.secret(id);
+        const [row] = await Snapshot.live(system.database).rows(secret.table, {
+            id: secretId,
+            purgedAt: { isNull: true },
+        });
+        const version = row?.currentVersion ?? null;
+        if (version === null) {
+            return undefined;
+        }
+
+        // read that version as the service
+        const target = secret.target({ scope: reference.scope, id: secretId });
+        const caller = Caller.of(this.options.consumer, system.clock.now());
+        const read = await system.query(caller, secret.call("read", { ...target, version }));
+        const reading = SecretReading.parse(read);
+
+        return Secret.text({ read: async () => reading });
+    }
+
+    /** Remove a connection's or integration's secret from its vault. */
+    async remove(system: ObjectStore, reference: ObjectReference, id: string): Promise<void> {
+        const now = system.clock.now();
+        await system.mutate(Caller.of(system.principal, now), {
+            id: RequestId.create(now),
+            calls: [
+                vault.call("remove", {
+                    ...TokenSource.#vault(reference),
+                    secret: TokenSource.secret(id),
+                    consumer: this.options.consumer,
+                }),
+            ],
+        });
+    }
+
+    /** Address a vault by its reference. */
+    static #vault(reference: ObjectReference) {
+        return vault.target({ scope: reference.scope, id: vault.identifier(reference.id) });
+    }
+
     /** Read a connection's credential, refreshing a token that expires within the margin. */
     async current(system: ObjectStore, row: Connection, now: number): Promise<Credential> {
         // send supplied material and a token that stays valid
@@ -115,18 +183,13 @@ export class TokenSource {
         return refreshing;
     }
 
-    /** Read a connection's credential from its vault, empty before the first write. */
+    /** Read a connection's credential from its vault. */
     async read(
         system: ObjectStore,
         row: { readonly id: string; readonly vault: ObjectReference },
     ): Promise<Credential> {
-        const { consumer } = this.options;
-        const value = await ConsumerSecret.read(
-            system,
-            row.vault,
-            TokenSource.secret(row.id),
-            consumer,
-        );
+        // read the connection's secret as the service, an empty credential before the first put
+        const value = await this.secretOf(system, row.vault, row.id);
 
         return value === undefined ? {} : Credential.read(value);
     }
@@ -174,9 +237,13 @@ export class TokenSource {
         }
 
         // request a kept integration's tokens with the secret its vault keeps
-        const secret = await this.#secret(system, row);
+        const clientSecret = await this.#secret(system, row);
 
-        return { integration: row, server: this.server(row, secret, system.clock), secret };
+        return {
+            integration: row,
+            server: this.server(row, clientSecret, system.clock),
+            secret: clientSecret,
+        };
     }
 
     /** Address a kept integration's server as its client, with its vault's secret. */
@@ -238,13 +305,7 @@ export class TokenSource {
         row: { readonly id: string; readonly vault: ObjectReference },
         credential: Credential,
     ): Promise<void> {
-        await ConsumerSecret.put(
-            system,
-            row.vault,
-            TokenSource.secret(row.id),
-            Credential.write(credential),
-            this.options.consumer,
-        );
+        await this.put(system, row.vault, row.id, Credential.write(credential));
     }
 
     /** Record a connection's Authorized condition and fields, refusing a deleted connection. */
@@ -281,7 +342,7 @@ export class TokenSource {
     /** Address an integration's server as its client, with its secret or public, on a clock. */
     server(
         row: Pick<Integration, "issuer" | "endpoints" | "clientId" | "authentication">,
-        secret: string | undefined,
+        clientSecret: string | undefined,
         clock: Clock,
     ): AuthorizationServer {
         return new AuthorizationServer({
@@ -290,7 +351,7 @@ export class TokenSource {
             client: {
                 clientId: row.clientId,
                 authentication: row.authentication,
-                ...(secret === undefined ? {} : { secret }),
+                ...(clientSecret === undefined ? {} : { secret: clientSecret }),
             },
             fetch: this.options.fetch,
             clock,
@@ -299,14 +360,7 @@ export class TokenSource {
 
     /** Read a kept integration's secret from its vault, absent for a public client. */
     async #secret(system: ObjectStore, row: Integration): Promise<string | undefined> {
-        return row.vault === null
-            ? undefined
-            : ConsumerSecret.read(
-                  system,
-                  row.vault,
-                  TokenSource.secret(row.id),
-                  this.options.consumer,
-              );
+        return row.vault === null ? undefined : this.secretOf(system, row.vault, row.id);
     }
 
     /** Obtain and keep a new token, marking the connection authorized or its grant expired. */

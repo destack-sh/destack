@@ -1,6 +1,6 @@
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/service/authentication";
 import { space } from "@destack/account/object";
-import { type Caller, principal, relation, Role } from "@destack/access";
+import { Caller, principal, relation, Role } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { journal } from "@destack/audit/stack";
 import {
@@ -17,11 +17,11 @@ import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
 import { defineObject, INTRINSIC } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
-import type {} from "@destack/package/import-meta";
-import { present, schema, Clock } from "@destack/schema";
+import { Clock, present, schema } from "@destack/schema";
 import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { VaultKeystore } from "@destack/vault/key";
-import { ConsumerSecret, secret, serveSecrets, vault } from "@destack/vault/server";
+import { secret, vault } from "@destack/vault/object";
+import { serveSecrets, serveVaults } from "@destack/vault/server";
 import { vaultTables } from "@destack/vault/stack";
 import { ResourceContext } from "@destack/resource/context";
 import { Health } from "@destack/service/health";
@@ -448,7 +448,7 @@ export class ConnectionFixture {
             principal: principal.space.reference(Scope.universe.id, scope.id),
             objects: {
                 ...serveConnections(tokens),
-                vault,
+                vault: serveVaults(keystore),
                 ...serveSecrets(keystore),
                 ...(home === undefined ? { integration: serveIntegrations(tokens) } : {}),
             },
@@ -594,15 +594,9 @@ export class ConnectionFixture {
                 eq(secret.table.parentId, schema.identifier("vault").parse(this.vaultReference.id)),
             )
             .orderBy(secret.table.createdAt);
-        const { consumer } = this.tokens.options;
         const values: string[] = [];
         for (const row of rows) {
-            const value = await ConsumerSecret.read(
-                this.objects,
-                this.vaultReference,
-                row.id,
-                consumer,
-            );
+            const value = await this.tokens.secretOf(this.objects, this.vaultReference, row.id);
             values.push(present(value, `the value of secret ${row.id}`));
         }
 

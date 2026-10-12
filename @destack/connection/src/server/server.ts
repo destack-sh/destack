@@ -26,7 +26,6 @@ import {
 } from "./token.ts";
 import { requireVault } from "./integration.ts";
 import { complete, exchange, poll, start, started } from "./authorization.ts";
-import { ConsumerSecret } from "@destack/vault/server";
 import type { ObjectStore } from "@destack/object/server";
 
 /** How long a connection waits to try again after its server failed to answer: a minute. */
@@ -166,9 +165,8 @@ async function withdraw(
             : server.revoke(token.refreshToken, "refresh_token"));
     }
 
-    // destroy the credential
-    const secret = TokenSource.secret(withdrawn.id);
-    await ConsumerSecret.destroy(system, withdrawn.vault, secret, tokens.options.consumer);
+    // remove the credential
+    await tokens.remove(system, withdrawn.vault, withdrawn.id);
 }
 
 /** Keep a connection's credential current. */
@@ -229,12 +227,8 @@ async function finalize(
     current: Connection,
     tokens: TokenSource,
 ): Promise<void> {
-    await ConsumerSecret.destroy(
-        reconciliation.store,
-        current.vault,
-        TokenSource.secret(current.id),
-        tokens.options.consumer,
-    );
+    // remove the credential, then let the connection go
+    await tokens.remove(reconciliation.store, current.vault, current.id);
     await reconciliation.mutate([connection.call("finalize", connection.target(current))]);
 }
 

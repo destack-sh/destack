@@ -7,7 +7,6 @@ import { integration, type Registration } from "../object/integration.ts";
 import { TokenGrant } from "../oauth/grant.ts";
 import { AuthorizationServer } from "../oauth/server.ts";
 import { TokenSource } from "./token.ts";
-import { ConsumerSecret } from "@destack/vault/server";
 import type { ObjectStore } from "@destack/object/server";
 
 /** Serve integrations, keeping each client secret or private key in its vault as the service. */
@@ -90,14 +89,7 @@ async function keepSecret(
     const secret = call.input.secret;
     if (vault !== undefined && secret !== undefined) {
         const id = present(call.id, "a prepared creation's identifier");
-        const { consumer } = tokens.options;
-        await ConsumerSecret.put(
-            call.requireStore(),
-            vault,
-            TokenSource.secret(id),
-            secret,
-            consumer,
-        );
+        await tokens.put(call.requireStore(), vault, id, secret);
     }
 
     return {};
@@ -113,9 +105,7 @@ async function destroy(
     const target = call.requireTarget();
     const deleted = await next();
     if (target.vault !== null) {
-        const secret = TokenSource.secret(target.id);
-        const { consumer } = tokens.options;
-        await ConsumerSecret.destroy(call.requireStore(), target.vault, secret, consumer);
+        await tokens.remove(call.requireStore(), target.vault, target.id);
     }
 
     return deleted;
@@ -134,7 +124,7 @@ async function register(
     system: ObjectStore,
 ): Promise<Registration> {
     // find the resource's authorization server and its registration endpoint
-    const { fetch, consumer } = tokens.options;
+    const { fetch } = tokens.options;
     const { issuer, endpoints } = await AuthorizationServer.discover(request.resource, fetch);
     if (endpoints.registration === undefined) {
         throw new ConnectionError(
@@ -168,7 +158,7 @@ async function register(
             `${issuer} issued a client secret, which ${scope} keeps in no vault`,
         );
     }
-    await ConsumerSecret.put(system, vault, TokenSource.secret(id), issued.secret, consumer);
+    await tokens.put(system, vault, id, issued.secret);
 
     return { ...registration, vault };
 }
