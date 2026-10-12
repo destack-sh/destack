@@ -35,13 +35,13 @@ export interface BuildContents {
     readonly dependencies?: Readonly<Record<string, DependencyResolution>>;
     /** The source maps of generated files, none when absent. */
     readonly sourceMaps?: readonly SourceMapReference[];
-    /** The graph file of each module, each describing one of the build's files, none when absent. */
+    /** The graph file of each module, each describing one build file, if any. */
     readonly graph?: readonly Module[];
     /** The upgrade from the previous release, qualified by the package defining its format. */
     readonly upgrade?: { readonly package: Package; readonly description: JsonValue };
 }
 
-/** Write a build in the format a `BuildReader` reads: files by digest, a graph file per module, the lists, and the manifest last. */
+/** Write a build for `BuildReader`: files by digest, module graph files, lists, then manifest. */
 export class BuildWriter {
     /** Where the bytes go. */
     readonly #storage: BuildStorage;
@@ -73,7 +73,7 @@ export class BuildWriter {
         return file;
     }
 
-    /** Record a file the storage already holds, such as a compiler's output, refusing different bytes at its path. */
+    /** Record a file in storage, such as compiler output, refusing other bytes at its path. */
     add(file: PackageFile): void {
         if (!this.#isWritten(file)) {
             this.#files.set(file.path, file);
@@ -90,7 +90,7 @@ export class BuildWriter {
         return file;
     }
 
-    /** Write the graph files, the lists and the upgrade, then the manifest naming them, returning the manifest. */
+    /** Write the graph files, lists and upgrade, then the manifest listing them, and return it. */
     async finish(contents: BuildContents): Promise<PackageManifest> {
         // write each module's graph file by its digest, refusing a module of no written file
         const root: Root = { modules: {} };

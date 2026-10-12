@@ -10,7 +10,7 @@ const PREFIX_BYTES = 155;
 /** The permissions of every archived file: readable by all, written by the owner. */
 const FILE_MODE = 0o644;
 
-/** The gzip member header: deflate, no flags, no time, no extra flags, unknown system (RFC 1952). */
+/** The gzip member header: deflate, no flags, time or extra flags, unknown system (RFC 1952). */
 const GZIP_HEADER = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff]);
 
 /** The offset of the gzip header's flags, which announce optional fields (RFC 1952). */
@@ -26,7 +26,7 @@ export interface TarballEntry {
 
 /** A gzip-compressed ustar archive of regular files, equal entries always giving equal bytes. */
 export const Tarball = {
-    /** Stream entries as one gzip member: each file's ustar blocks followed by the two end blocks. */
+    /** Stream entries as one gzip member: each file's ustar blocks, then the two end blocks. */
     stream(entries: AsyncIterable<TarballEntry>): ReadableStream<Uint8Array<ArrayBuffer>> {
         // pull one chunk at a time, stopping the entries when the reader cancels
         const chunks = compress(entries);
@@ -47,7 +47,7 @@ export const Tarball = {
     },
 };
 
-/** Write the gzip member of the entries' tar blocks under the fixed header, the runtime computing the deflated blocks, CRC-32 and size. */
+/** Write the gzip member of the entries' tar blocks under the fixed header. */
 async function* compress(
     entries: AsyncIterable<TarballEntry>,
 ): AsyncGenerator<Uint8Array<ArrayBuffer>> {
@@ -100,7 +100,7 @@ async function* archive(
     yield new Uint8Array(BLOCK_BYTES * 2);
 }
 
-/** Write one regular file as ustar blocks: its header, a PAX path record when the path is too long, its contents padded to a block. */
+/** Write one regular file as ustar blocks: its header, a PAX path record, and padded contents. */
 function blocks(path: string, contents: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer>[] {
     // split the path into a ustar prefix and name, or record it in a PAX header
     const encoded = new TextEncoder().encode(path);
@@ -124,7 +124,7 @@ function blocks(path: string, contents: Uint8Array<ArrayBuffer>): Uint8Array<Arr
     return written;
 }
 
-/** Split an encoded path at a slash into a prefix and name that fit their fields, absent when none fits. */
+/** Split an encoded path at a slash into a prefix and name that fit, absent when none fits. */
 function splitPath(
     path: Uint8Array<ArrayBuffer>,
 ): { prefix: Uint8Array<ArrayBuffer>; name: Uint8Array<ArrayBuffer> } | undefined {

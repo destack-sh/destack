@@ -18,7 +18,7 @@ export interface Interaction<Step = unknown, Observation = unknown, Environment 
     readonly environment: schema.Schema<Environment>;
 }
 
-/** The step every interaction shares: change properties an example declares, as its owner or a control would. */
+/** The step every interaction shares: change example properties, as the user or a control would. */
 export const SetStep = defineSchema(
     schema.object({
         /** Change properties an example declares. */
@@ -32,12 +32,12 @@ export const SetStep = defineSchema(
 /** The step every interaction shares: change properties an example declares. */
 export type SetStep = schema.Infer<typeof SetStep>;
 
-/** The schema of a step naming the set action, read as the shared set step before any interaction's. */
+/** The schema of a set action step, read as the shared set step before any interaction's. */
 const SetAction = schema.looseObject({ action: schema.literal("set") });
 
-/** The observations a scenario expects, after Gherkin's Then: named, and expected after each step or once at the end. */
+/** The observations a scenario expects, after Gherkin's Then: after each step, or at the end. */
 export const Then = Object.assign(defineSchema(thenOf(schema.json())), {
-    /** Build the schema of the observations a scenario expects, each one of an interaction's observations. */
+    /** Build the schema of the observations a scenario expects, each an interaction's. */
     of: thenOf,
 });
 /** The observations a scenario expects, each an observation of the scenario's interaction. */
@@ -53,13 +53,13 @@ export interface Given<Instance = unknown, Environment = unknown> {
     readonly environment?: Environment;
 }
 
-/** A scenario as its module defines it: given examples, steps taken on them and the observations they leave, all as data. */
+/** A scenario as its module defines it: examples, steps on them and resulting observations. */
 export interface ScenarioDefinition<Speaks extends Interaction = Interaction, Instance = unknown> {
-    /** The declaration the scenario exercises, such as a component, or the view or app a flow runs in. */
+    /** The declaration the scenario exercises, such as a component, or the flow's view or app. */
     readonly of: unknown;
     /** The interaction the steps and observations speak, which picks the driver playing them. */
     readonly interaction: Speaks;
-    /** The name of the behaviour it plays, verb first and unique among the declaration's scenarios, such as `select-with-arrow-keys`. */
+    /** The behaviour it plays, verb first and unique, such as `select-with-arrow-keys`. */
     readonly name: string;
     /** One sentence saying what the scenario shows. */
     readonly description: string;
@@ -71,11 +71,11 @@ export interface ScenarioDefinition<Speaks extends Interaction = Interaction, In
     readonly then: Then<schema.Infer<Speaks["observation"]>>;
 }
 
-/** Examples set in motion: steps across declarations and the observations they leave, played by a runner through a driver. */
+/** Examples in motion: steps across declarations and their observations, run through a driver. */
 export interface Scenario<Speaks extends Interaction = Interaction, Instance = unknown>
     extends Declaration, ScenarioDefinition<Speaks, Instance> {}
 
-/** Declare a scenario after Gherkin's Given, When and Then, its steps and observations read through its interaction. */
+/** Declare a scenario after Gherkin's Given, When and Then, read through its interaction. */
 export function defineScenario<Speaks extends Interaction, Instance>(
     definition: ScenarioDefinition<Speaks, Instance>,
     module?: ModuleMetadata,
@@ -109,7 +109,7 @@ export function defineScenario<Speaks extends Interaction, Instance>(
     });
 }
 
-/** Require at least one step, each the set step every interaction shares or one of the interaction's own. */
+/** Require at least one step, each the shared set step or one of the interaction's own. */
 function requireSteps(name: string, when: readonly unknown[], interaction: Interaction): void {
     // require a step
     if (when.length === 0) {
@@ -127,7 +127,7 @@ function isSetStep(step: unknown): step is SetStep {
     return SetAction.safeParse(step).success;
 }
 
-/** Require the expected values to name every observation, once after each step or once at the end. */
+/** Require expected values for every observation, after each step or once at the end. */
 function requireExpectations(name: string, steps: number, then: Then<unknown>): void {
     // compare the names each record expects with the observations
     const records = "each" in then ? then.each : [then.end];
@@ -158,7 +158,7 @@ function requireExamples(name: string, when: readonly unknown[], given: Given): 
     }
 }
 
-/** Build the schema of the observations a scenario expects, each one of an interaction's observations. */
+/** Build the schema of the observations a scenario expects, each an interaction's. */
 function thenOf<Observe extends schema.Schema>(observation: Observe) {
     const observe = schema.record(schema.string().min(1), observation);
 
@@ -178,7 +178,7 @@ function thenOf<Observe extends schema.Schema>(observation: Observe) {
     ]);
 }
 
-/** The description of a scenario declaration in the graph, its steps and observations stored as JSON its interaction reads. */
+/** The graph description of a scenario, its steps and observations as JSON for its interaction. */
 export const ScenarioDescription = defineSchema(
     schema.object({
         /** One sentence saying what the scenario shows. */
@@ -187,7 +187,7 @@ export const ScenarioDescription = defineSchema(
         interaction: Moniker,
         /** The examples the scenario starts from, by declaration moniker. */
         examples: schema.array(Moniker),
-        /** The environment the examples play in as JSON its interaction reads, the host's own when absent. */
+        /** The environment of the examples as JSON for the interaction, the host's when absent. */
         environment: schema.json().exactOptional(),
         /** The steps, taken in order. */
         when: schema.array(schema.json()).min(1),

@@ -2,7 +2,7 @@ import type { Plugin } from "vite";
 import { type ModulePackage, PackageLocator } from "../transform/locator.ts";
 import { transformModule } from "../transform/transform.ts";
 
-/** Inject Destack module metadata while Vite loads package sources, the compiled package's as the build releases it. */
+/** Inject module metadata while Vite loads package sources, as the build releases the package. */
 export function modulePlugin(compiled?: ModulePackage): Plugin {
     let packages = new PackageLocator(compiled);
 

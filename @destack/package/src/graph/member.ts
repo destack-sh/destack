@@ -11,7 +11,7 @@ export const Target = defineSchema(
         name: schema.string().min(1),
         /** The package declaring the symbol, the referring declaration's package when absent. */
         packageId: PackageId.exactOptional(),
-        /** The declaration the member belongs to, by kind and name, any declaration of the package when absent. */
+        /** The member's declaration by kind and name, any of the package's when absent. */
         parent: schema
             .object({
                 /** The declaration kind. */
@@ -40,7 +40,7 @@ export type Relationship = schema.Infer<typeof Relationship>;
 /** A member a declaration has with its relationships, as its kind's `symbols` function lists it. */
 export const MemberSymbol = defineSchema(
     schema.object({
-        /** The member, such as a service's procedure with that procedure's description, the declaration itself when absent. */
+        /** The member, such as a procedure with its description, the declaration if absent. */
         member: schema
             .object({
                 /** The member's kind. */

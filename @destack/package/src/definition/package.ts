@@ -1,6 +1,6 @@
-import { defineSchema, Digest, schema, Version } from "@destack/schema";
+import { aligned, defineSchema, Digest, schema, Version } from "@destack/schema";
 
-/** The pattern of a package-local name: lowercase words joined by single hyphens, such as role-permission. */
+/** The pattern of a package-local name: lowercase words and hyphens, such as role-permission. */
 export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 /** A concrete package export containing runnable code. */
@@ -16,12 +16,22 @@ export const DeclarationName = defineSchema(schema.string().regex(NAME_PATTERN))
 /** A declaration name within a package. */
 export type DeclarationName = schema.Infer<typeof DeclarationName>;
 
-/** A scoped Destack package name. */
-export const PackageName = defineSchema(
-    schema
-        .string()
-        .max(214)
-        .regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/u),
+/** A scoped Destack package name: `@<account handle>/<name>`. */
+export const PackageName = Object.assign(
+    defineSchema(
+        schema
+            .string()
+            .max(214)
+            .regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/u),
+    ),
+    {
+        /** Read the account handle scoping a package name and the name within the account. */
+        split(name: string): { readonly handle: string; readonly local: string } {
+            const parts = PackageName.parse(name).slice(1).split("/");
+
+            return { handle: aligned(parts, 0), local: aligned(parts, 1) };
+        },
+    },
 );
 
 /** A scoped or unscoped dependency name. */
@@ -50,7 +60,7 @@ export const DependencyPackage = defineSchema(
 /** A named dependency version. */
 export type DependencyPackage = schema.Infer<typeof DependencyPackage>;
 
-/** The key of the declaring package on a declaration whose properties are taken, such as a table's columns. */
+/** The key of the declaring package on a declaration with taken properties, such as columns. */
 export const PACKAGE = Symbol.for("destack.package");
 
 /** The schema of a package's identity. */

@@ -4,18 +4,18 @@ import { PackageError } from "../error/index.ts";
 /** Why a package needs a capability, shown when a person consents to it. */
 const Reason = schema.string().min(1);
 
-/** Declare a capability of the given fields, with its reason and whether installation may decline it. */
+/** Declare a capability of the given fields, with its reason and whether it is optional. */
 function capability<const Fields extends Readonly<Record<string, schema.Schema>>>(fields: Fields) {
     return schema.object({
         ...fields,
         /** Why the package needs it, shown at consent. */
         reason: Reason,
-        /** Whether an installation may decline it, the package failing loudly where it uses it ungranted. */
+        /** Whether an installation may decline it, the package failing loudly on ungranted use. */
         optional: schema.boolean().exactOptional(),
     });
 }
 
-/** A host a workload may connect to: a name or `*.` wildcard with an optional port, or `*` for any host. */
+/** A host a workload may connect to: a name or `*.` wildcard with an optional port, or `*`. */
 const HostPattern = schema
     .string()
     .regex(/^(?:\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*(?::\d{1,5})?)$/u);
@@ -26,13 +26,13 @@ const Access = schema.enum(["read", "write"]);
 /** What a package may reach beyond its sandbox, each consented to at installation. */
 const capabilitiesSchema = defineSchema(
     schema.object({
-        /** Running the workloads in a full Bun process instead of a workerd isolate, with the `bun` runtime. */
+        /** Running the workloads in a full Bun process instead of a workerd isolate. */
         process: schema.object({ reason: Reason }).exactOptional(),
         /** Outbound connections to the listed hosts. */
         network: capability({ connect: schema.array(HostPattern).min(1) }).exactOptional(),
         /** Listening for connections on loopback. */
         listen: capability({}).exactOptional(),
-        /** The directories a person grants the installation, read or written as the package declares. */
+        /** The directories a person grants, read or written as the package declares. */
         fs: capability({ access: Access }).exactOptional(),
         /** The host environment variables it may read. */
         env: capability({
@@ -94,12 +94,12 @@ export const HOST_CAPABILITIES = CapabilityName.extract([
     "run",
 ]).options;
 
-/** The capabilities browsers gate, by the Permissions Policy feature they allow, in the order its headers name them. */
+/** The capabilities browsers gate by Permissions Policy feature, in their header order. */
 export const BROWSER_CAPABILITIES = CapabilityName.exclude(HOST_CAPABILITIES).options;
 
 /** What a package may reach beyond its sandbox, each with its reason. */
 export const Capabilities = Object.assign(capabilitiesSchema, {
-    /** Narrow capabilities to those an installation runs with: every required one, and the optional ones it allows. */
+    /** Narrow capabilities to every required one and the optional ones an installation allows. */
     grant(declared: Capabilities, allowed: readonly CapabilityName[]): Capabilities {
         return capabilitiesSchema.parse(
             Object.fromEntries(
@@ -113,7 +113,7 @@ export const Capabilities = Object.assign(capabilitiesSchema, {
             ),
         );
     },
-    /** Select the named capabilities a workload or view uses, refusing one the package does not declare. */
+    /** Select the capabilities a workload or view uses, refusing undeclared ones. */
     select(declared: Capabilities, names: readonly CapabilityName[]): Capabilities {
         // refuse a name the package does not declare
         const undeclared = names.filter((name) => declared[name] === undefined);

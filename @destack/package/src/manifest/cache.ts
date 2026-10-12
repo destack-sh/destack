@@ -1,7 +1,7 @@
 import type { Digest } from "@destack/schema";
 import type { BuildReader } from "./reader.ts";
 
-/** The builds a cache keeps values of by default: 256 catalogs of some kilobytes each take a few megabytes. */
+/** The builds a cache keeps by default: 256 catalogs of some kilobytes take a few megabytes. */
 const CAPACITY = 256;
 
 /** Values read once from each build's declarations, kept by the instance serving them. */

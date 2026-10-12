@@ -30,7 +30,7 @@ export function isRuntimeModule(specifier: string, runtime: Runtime): boolean {
     );
 }
 
-/** The type checks every package compiles under, the same as Destack's own sources and templates. */
+/** The type checks every package compiles under, the same as Destack's sources and templates. */
 export const TYPE_CHECKS = {
     strict: true,
     noUncheckedIndexedAccess: true,

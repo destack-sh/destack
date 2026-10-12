@@ -25,7 +25,7 @@ export type HostResolution = "external" | "empty";
 export class HostModules {
     /** The runtime the compilation targets. */
     readonly runtime: Runtime;
-    /** The host modules each package's `browser` field replaces with nothing, by module directory. */
+    /** The host modules each package's `browser` field replaces with nothing, by directory. */
     readonly #replaced = new Map<string, ReadonlySet<string>>();
 
     /** Hold the host modules of one runtime. */
@@ -62,7 +62,7 @@ export class HostModules {
         };
     }
 
-    /** Report whether the importing package replaces a host module with nothing in its `browser` field. */
+    /** Report whether the importer's `browser` field replaces a host module with nothing. */
     #isReplaced(specifier: string, importer: string | undefined): boolean {
         // replace nothing on Bun, which supplies every host module, or for an entry
         if (this.runtime === "bun" || importer === undefined || !isHostModule(specifier)) {

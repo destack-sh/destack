@@ -6,7 +6,7 @@ import { Moniker } from "./moniker.ts";
 export const Declaration = Object.assign(
     defineSchema(
         schema.object({
-            /** The declaration's moniker: its symbol's moniker, a member it derives, and its kind. */
+            /** The declaration's moniker: its symbol's moniker, a member, and its kind. */
             moniker: Moniker,
             /** The symbol declaring it. */
             symbol: Moniker,
@@ -18,7 +18,7 @@ export const Declaration = Object.assign(
             name: schema.string().min(1),
             /** The description, parsed by the kind's schema at read. */
             description: schema.record(schema.string(), schema.json()),
-            /** The declaration's terms, such as `object/note/relation/editor`, with the digest of each definition. */
+            /** The declaration's terms, such as `object/note/relation/editor`, with digests. */
             vocabulary: schema.record(schema.string(), Digest).exactOptional(),
         }),
     ),
@@ -32,7 +32,7 @@ function at(symbol: Moniker, declared: Omit<Declaration, "moniker" | "symbol">):
     return { moniker: Moniker.parse(`${symbol}:${declared.kind}`), symbol, ...declared };
 }
 
-/** Report whether a declaration is a member another declaration derives, such as a service's procedure. */
+/** Report whether a declaration is a member another one derives, such as a procedure. */
 function isMember(declaration: Pick<Declaration, "moniker" | "symbol" | "kind">): boolean {
     return declaration.moniker !== `${declaration.symbol}:${declaration.kind}`;
 }

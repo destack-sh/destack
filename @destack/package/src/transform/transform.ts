@@ -127,7 +127,7 @@ function isStampable(
     return false;
 }
 
-/** Append the module binding to a stamped call, padding omitted arguments, reporting whether it did. */
+/** Append the module binding to a stamped call, padding omitted arguments, reporting success. */
 function stampCall(
     node: ESTree.CallExpression,
     bindings: ReadonlyMap<string, Binding>,
@@ -158,7 +158,7 @@ function stampCall(
     return true;
 }
 
-/** Find the module parameter position of the stamped function an imported name or its member chain names. */
+/** Find the module parameter position of the stamped function an import or member chain reads. */
 function findStamp(
     expression: ESTree.Expression,
     bindings: ReadonlyMap<string, Binding>,
@@ -184,7 +184,7 @@ function findStamp(
     return binding?.stamps.get([...binding.path, ...members].join("."));
 }
 
-/** Write the arguments placing the module binding at its parameter position after the given ones. */
+/** Write the arguments placing the module binding at its position after the given ones. */
 function moduleArguments(position: number, given: number): string {
     const padding = Array.from({ length: position - given }, () => "undefined");
 

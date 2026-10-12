@@ -30,7 +30,7 @@ export const Module = Object.assign(
             symbols: schema.array(Symbol),
             /** The declarations, by moniker. */
             declarations: schema.array(Declaration),
-            /** The edges from the module, its symbols and declarations, by source, kind and target. */
+            /** The edges from the module, its symbols and declarations. */
             edges: schema.array(Edge),
         }),
     ),

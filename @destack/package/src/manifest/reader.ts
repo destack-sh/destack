@@ -8,10 +8,10 @@ import { PackageError } from "../error/index.ts";
 import type { DeclarationName, PackageId } from "../definition/package.ts";
 import { PackageLocation, PackageManifest } from "./manifest.ts";
 
-/** The path of a build's root manifest beside its files, as stores and running workloads keep it. */
+/** The path of a build's root manifest beside its files, in stores and running workloads. */
 export const MANIFEST_PATH = "manifest.json";
 
-/** A build's manifest and its files, read through a caller-supplied file transport: a directory, a store, a registry or memory. */
+/** A build's manifest and files, read through a file transport: a directory, store or registry. */
 export class BuildReader {
     /** Manifest describing the stored package. */
     readonly manifest: PackageManifest;
@@ -98,7 +98,7 @@ export class BuildReader {
             .filter((declaration) => !Declaration.isMember(declaration));
     }
 
-    /** Read the declarations of one kind a package's constructors make, parsing each description. */
+    /** Read one kind's declarations from a package's constructors, parsing each description. */
     async declared<Item extends schema.Schema>(
         owner: PackageId,
         kind: DeclarationName,

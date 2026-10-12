@@ -32,12 +32,12 @@ export class PackageLocator {
     readonly #names = new Map<string, string | undefined>();
     /** The definition of each package directory, absent without a package definition. */
     readonly #definitions = new Map<string, PackageDefinition | undefined>();
-    /** The module parameter positions of each package's stamped functions, by package name and directory. */
+    /** The module parameter positions of stamped functions, by package name and directory. */
     readonly #imported = new Map<string, ReadonlyMap<string, number>>();
     /** The package a build compiles, as it releases it, in place of what its directory declares. */
     readonly #compiled: ModulePackage | undefined;
 
-    /** Find packages by their directories, taking the package a build compiles as it releases it, such as at a prerelease's version. */
+    /** Find packages by directory, taking the compiled package as its build releases it. */
     constructor(compiled?: ModulePackage) {
         this.#compiled = compiled;
     }
@@ -76,12 +76,12 @@ export class PackageLocator {
         return root;
     }
 
-    /** Read the declaration constructors a package's build describes, resolving it by name from a directory. */
+    /** Read the declaration constructors of a package's build, resolved from a directory. */
     constructors(name: string, from: string): DeclarationConstructorMap {
         return this.#definition(name, from)?.declarations ?? {};
     }
 
-    /** Map the functions a module's import specifier provides to the module parameters the transform fills, by export path. */
+    /** Map a module specifier's functions to their module parameters, by export path. */
     imported(
         specifier: string,
         path: string,
@@ -107,7 +107,7 @@ export class PackageLocator {
         return stamps;
     }
 
-    /** Read a package's destack.json once, resolving it by name from a directory, or nothing without one. */
+    /** Read a package's destack.json once, resolved by name from a directory, if any. */
     #definition(name: string, from: string): PackageDefinition | undefined {
         // find the package itself or its installation above the directory
         const root = this.directory(name, from);

@@ -21,9 +21,9 @@ export const DeclarationDescription = defineSchema(
         source: SourceLocation,
         /** The description validated by its domain inspector. */
         description: schema.record(schema.string(), schema.json()),
-        /** The declaration's terms, such as `object/note/relation/editor`, with the digest of each definition. */
+        /** The declaration's terms, such as `object/note/relation/editor`, with digests. */
         vocabulary: schema.record(schema.string(), Digest).exactOptional(),
-        /** The symbols its kind derives with their relationships, absent for a kind listing none. */
+        /** The symbols its kind derives with their relationships, if any. */
         symbols: schema.array(MemberSymbol).exactOptional(),
     }),
 );

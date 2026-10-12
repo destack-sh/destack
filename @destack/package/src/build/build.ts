@@ -9,9 +9,9 @@ import type { Runtime } from "../runtime/index.ts";
 
 export type { Plugin, PluginOption };
 
-/** A dependency's part in building the packages that use it, set in its destack.json build field. */
+/** A dependency's role in building the packages using it, set in its destack.json build field. */
 export interface BuildExtension {
-    /** Return the plugins transforming the modules of a package that uses the dependency, wherever they compile. */
+    /** Return the plugins transforming a dependent package's modules, wherever they compile. */
     transform?(context: TransformContext): readonly PluginOption[];
     /** Return the plugins compiling one module output of a package that uses the dependency. */
     compile?(compilation: Compilation): readonly PluginOption[];
@@ -21,7 +21,7 @@ export interface BuildExtension {
     readonly outputs?: Readonly<Record<string, OutputKind>>;
 }
 
-/** What modules compile for: the package, the runtime, whether a server renders pages, and options an output gives each extension. */
+/** What modules compile for: package, runtime, server rendering, and per-extension options. */
 export interface TransformContext {
     /** The package directory. */
     readonly directory: string;
@@ -33,11 +33,11 @@ export interface TransformContext {
     readonly options: Readonly<Record<string, unknown>>;
 }
 
-/** An output kind compiled in one pass into several outputs, such as a web application's browser and server. */
+/** An output kind compiled in one pass into several outputs, such as a web app's two sides. */
 export interface OutputKind {
     /** Expand a request into the outputs it compiles, by output name. */
     expand(name: string, request: OutputRequest): Readonly<Record<string, ExpandedOutput>>;
-    /** Compile the expanded outputs together and describe each one's manifest output, workloads and views included. */
+    /** Compile the expanded outputs together and describe each one's manifest output. */
     compile(
         name: string,
         request: OutputRequest,
@@ -46,12 +46,12 @@ export interface OutputKind {
     ): Promise<Readonly<Record<string, PackageOutput>>>;
 }
 
-/** A requested output of a kind an extension compiles, such as a web application, with the kind's settings. */
+/** A requested output of a kind an extension compiles, such as a web app, with its settings. */
 export const OutputRequest = schema.looseObject({
     /** The output kind. */
     kind: schema.string().min(1),
 });
-/** A requested output of a kind an extension compiles, such as a web application, with the kind's settings. */
+/** A requested output of a kind an extension compiles, such as a web app, with its settings. */
 export type OutputRequest = schema.Infer<typeof OutputRequest>;
 
 /** An output a kind expands a request into, inspected like a module output. */
@@ -68,9 +68,9 @@ export interface ExpandedOutput {
 export interface Pass {
     /** Return the plugins retaining sources, directories and module metadata for every output. */
     plugins(): Plugin[];
-    /** Return the plugins the extensions of the package's dependency closure transform its modules with. */
+    /** Return the plugins of the dependency closure's extensions, transforming the modules. */
     transforms(context: Omit<TransformContext, "directory">): PluginOption[];
-    /** Return the plugin recording what one Vite environment compiles, into an output when it has one. */
+    /** Return the plugin recording what one Vite environment compiles, into its output if any. */
     record(environment: string, output?: string): Plugin;
     /** Map a generated file's source map source to its package path. */
     mapSource(source: string, map: string, generated: string): string;

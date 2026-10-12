@@ -47,7 +47,7 @@ export class PackageError extends Error implements DomainError {
     }
 }
 
-/** Why a host cannot grant a capability: it has nothing of its kind to grant, or cannot enforce it as declared. */
+/** Why a host cannot grant a capability: it has none of its kind, or cannot enforce it. */
 export type CapabilityErrorCode = "UNSUPPORTED" | "UNENFORCEABLE";
 
 /** A workload's capability its host cannot grant, refused before the workload starts. */

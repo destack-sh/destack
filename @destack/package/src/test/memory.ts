@@ -26,7 +26,7 @@ export interface DeclaredValue {
 /** The parts of a declaration a declared value gives. */
 const Declared = Declaration.omit({ moniker: true, symbol: true });
 
-/** Builds kept in memory: written through a `BuildWriter`, read back through a `BuildReader` that verifies every digest. */
+/** Builds in memory: written with `BuildWriter`, read with a digest-checking `BuildReader`. */
 export const MemoryBuild = {
     /** Write a build into memory from its files by package path and what its manifest records. */
     async write(
@@ -50,7 +50,7 @@ export const MemoryBuild = {
         );
     },
 
-    /** Write a build declaring values, each module holding them written as a file with its graph module, beside further files and contents. */
+    /** Write a build declaring values, with extra files and contents. */
     async declaring(
         owner: Package,
         declared: readonly DeclaredValue[],

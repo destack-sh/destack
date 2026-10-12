@@ -7,10 +7,10 @@ import { DeclarationConstructorMap, FunctionReference, StampMap } from "./constr
 import { Capabilities } from "./capability.ts";
 import { PackageError } from "../error/index.ts";
 
-/** The export of a package's test layer, which serves its dependents' tests and never ships in a build. */
+/** The export of a package's test layer, serving its dependents' tests outside any build. */
 export const TEST_EXPORT = "./test";
 
-/** A finding the package accepts in named files with its reason, failing the check once nothing matches it. */
+/** A finding the package accepts in some files with a reason, failing once nothing matches. */
 export const Expectation = defineSchema(
     schema.object({
         /** The files the findings are in, relative to the package. */
@@ -40,7 +40,7 @@ const SchemaAddress = schema
 /** The settings a workspace root shares with its members. */
 const WorkspaceSettings = defineSchema(
     schema.object({
-        /** How checking treats the workspace's files: the findings it accepts, by paths relative to the root. */
+        /** How checking treats the workspace's files: accepted findings, by root-relative paths. */
         check: CheckSettings.exactOptional(),
     }),
 );
@@ -62,9 +62,9 @@ const definition = defineSchema(
         capabilities: Capabilities.exactOptional(),
         /** The declaration constructors the build describes, by name. */
         declarations: DeclarationConstructorMap.exactOptional(),
-        /** The exported functions, template tags and declaration constructors the transform passes the calling module to, by export path. */
+        /** The functions, tags and constructors receiving the calling module, by export path. */
         stamps: StampMap.exactOptional(),
-        /** The extension building the packages that use this one, such as `./build#viewExtension`. */
+        /** The extension building dependent packages, such as `./build#viewExtension`. */
         build: FunctionReference.exactOptional(),
         /** How checking treats the package: the findings it accepts. */
         check: CheckSettings.exactOptional(),
@@ -121,7 +121,7 @@ const anyDefinition = defineSchema(schema.union([definition, workspaceDefinition
 
 /** The contents of a destack.json: a package's definition, or a workspace root's. */
 export const Definition = Object.assign(anyDefinition, {
-    /** Parse the text of a destack.json, refusing a package's capabilities its runtimes cannot honour. */
+    /** Parse a destack.json, refusing capabilities its runtimes cannot honour. */
     read(text: string): Definition {
         const value = anyDefinition.parse(JSON.parse(text));
 

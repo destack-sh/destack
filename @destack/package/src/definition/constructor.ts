@@ -57,7 +57,7 @@ export const DeclarationConstructorMap = defineSchema(
 /** The declaration constructors a package's build describes, by name. */
 export type DeclarationConstructorMap = schema.Infer<typeof DeclarationConstructorMap>;
 
-/** A function, template tag or declaration constructor the module transform passes the calling module to, as its package declares it in destack.json. */
+/** A function, template tag or declaration constructor that receives the calling module. */
 export const Stamp = defineSchema(
     schema.object({
         /** The parameter position where the transform passes the calling module. */
@@ -67,7 +67,7 @@ export const Stamp = defineSchema(
 /** A function the module transform passes the calling module to. */
 export type Stamp = schema.Infer<typeof Stamp>;
 
-/** The functions a package's callers receive the calling module in, by export path such as `Message.context`. */
+/** The functions receiving the calling module, by export path such as `Message.context`. */
 export const StampMap = defineSchema(
     schema.record(
         schema.string().regex(/^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*$/u),

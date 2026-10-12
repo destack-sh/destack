@@ -42,9 +42,9 @@ export const PackageManifest = defineSchema(
         language: Language,
         /** The commit the build compiled, absent for a working tree with uncommitted changes. */
         commit: Commit.exactOptional(),
-        /** The upgrade from the package's previous release, qualified by the package defining its format. */
+        /** The upgrade from the previous release, qualified by its format's package. */
         upgrade: DescriptionReference.exactOptional(),
-        /** The list files listing the build's dependencies, files, source maps and graph modules. */
+        /** The list files of the build's dependencies, files, source maps and graph modules. */
         lists: ManifestLists,
         /** Named outputs compiled from the package. */
         outputs: schema.record(DeclarationName, PackageOutput),

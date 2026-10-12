@@ -6,7 +6,7 @@ import { Capabilities } from "../definition/capability.ts";
 /** The presentation priorities, the strongest first. */
 const PRESENTATION_PRIORITIES = ["default", "option"] as const;
 
-/** How strongly a view presents an object type: the one it opens by default, or one offered beside it, as VS Code's custom editors prioritise theirs. */
+/** How strongly a view presents an object type: its default view, or one offered beside it. */
 export const ViewPresentationPriority = Object.assign(
     defineSchema(schema.enum(PRESENTATION_PRIORITIES)),
     {
@@ -40,7 +40,7 @@ export const ViewDescription = Object.assign(
             .object({
                 /** The emitted chunk mounting the view. */
                 entrypoint: PackagePath,
-                /** The permissions the view requests by scope, as `@destack/access` reads a `PermissionRequest`. */
+                /** The permissions the view requests by scope, as a `PermissionRequest`. */
                 permissions: schema.record(schema.string(), schema.json()),
                 /** The browser features the view may use, as its package declares them. */
                 capabilities: Capabilities,
@@ -52,7 +52,7 @@ export const ViewDescription = Object.assign(
             .strict(),
     ),
     {
-        /** List view names from the top-ranked: views presenting no type first, the rest by their strongest presentation and by name. */
+        /** List view names by rank: views of no type first, then by strength and name. */
         rank(views: Readonly<Record<string, Pick<ViewDescription, "presents">>>): string[] {
             return Object.entries(views)
                 .map(([name, view]) => ({ name, strength: strength(view) }))
@@ -68,7 +68,7 @@ export const ViewDescription = Object.assign(
 /** A view a browser output compiles, as manifests describe it. */
 export type ViewDescription = schema.Infer<typeof ViewDescription>;
 
-/** A named call of an object type's method the shell offers in its command menu, menus, shortcuts, the terminal and agents, as its declaration describes it. */
+/** A call of an object type's method as a command the shell offers. */
 export const CommandDescription = defineSchema(
     schema.object({
         /** The command's title, shown in the command menu. */
@@ -86,7 +86,7 @@ export const CommandDescription = defineSchema(
 /** A named call of an object type's method the shell offers, as its declaration describes it. */
 export type CommandDescription = schema.Infer<typeof CommandDescription>;
 
-/** Rank a view by its strongest presentation, before every presentation when it presents no type. */
+/** Rank a view by its strongest presentation, first when it presents no type. */
 function strength(view: Pick<ViewDescription, "presents">): number {
     return view.presents.length === 0
         ? -1

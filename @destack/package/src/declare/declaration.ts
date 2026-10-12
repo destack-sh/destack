@@ -1,7 +1,7 @@
 import { defineSchema, schema, type JsonValue } from "@destack/schema";
 import { DeclarationName, Package, PackageId } from "../definition/package.ts";
 
-/** A named thing declared by a package: a resource, secret, service, connection, setting and so on. */
+/** A declared thing of a package with a name: a resource, secret, service, setting and so on. */
 export interface Declaration {
     /** The declaring package, supplied by the module transform. */
     readonly package: Package;
@@ -30,7 +30,7 @@ const declarationReferenceSchema = defineSchema(
 /** A declaration qualified by its declaring package. */
 export type DeclarationReference = schema.Infer<typeof declarationReferenceSchema>;
 
-/** A declaration qualified by its declaring package, as bindings, permissions and events store it. */
+/** A declaration qualified by its package, as bindings, permissions and events store it. */
 export const DeclarationReference = Object.assign(declarationReferenceSchema, {
     /** Reference a declaration by its package identity and name. */
     of(declaration: Declaration): DeclarationReference {

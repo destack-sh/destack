@@ -30,7 +30,7 @@ export const Symbol = defineSchema(
         signature: schema.string(),
         /** The first sentence of the documentation, absent without documentation. */
         comment: schema.string().min(1).exactOptional(),
-        /** Whether a module of the package exports the symbol, or the symbol a member belongs to. */
+        /** Whether a package module exports the symbol, or the symbol of its member. */
         isExported: schema.boolean(),
     }),
 );

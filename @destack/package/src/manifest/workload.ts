@@ -14,7 +14,7 @@ export const WorkloadDefinition = defineSchema(
             compute: ComputeDefinition.exactOptional(),
             /** The package's capabilities the workload uses, every one when omitted. */
             capabilities: schema.array(CapabilityName).exactOptional(),
-            /** The permissions the workload requests by scope, as `@destack/access` reads a `PermissionRequest`. */
+            /** The permissions the workload requests by scope, as a `PermissionRequest`. */
             permissions: schema.record(schema.string(), schema.json()).exactOptional(),
         })
         .strict(),
@@ -29,7 +29,7 @@ export const WorkloadDescription = defineSchema(
         entrypoint: Entrypoint,
         /** Service declarations of this package the workload imports. */
         services: schema.array(DeclarationReference),
-        /** Trigger declarations (schedules, webhooks, subscriptions) of this package the workload imports. */
+        /** The package's trigger declarations the workload imports, such as schedules. */
         triggers: schema.array(DeclarationReference),
         /** Resource declarations the workload imports. */
         resources: schema.array(DeclarationReference),
@@ -41,7 +41,7 @@ export const WorkloadDescription = defineSchema(
         compute: ComputeDefinition,
         /** What the workload may call beyond its sandbox, as its package declares it. */
         capabilities: Capabilities,
-        /** The permissions the workload requests by scope, as `@destack/access` reads a `PermissionRequest`. */
+        /** The permissions the workload requests by scope, as a `PermissionRequest`. */
         permissions: schema.record(schema.string(), schema.json()),
     }),
 );

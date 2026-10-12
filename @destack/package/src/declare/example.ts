@@ -8,7 +8,7 @@ import type { Declaration } from "./declaration.ts";
 /** The schema of the property values an example sets, each a JSON value a control can change. */
 const Properties = schema.record(schema.string(), schema.json());
 
-/** The property values an example of a declaration sets: some of a function's properties, or JSON values. */
+/** The property values an example sets: some of a function's properties, or JSON values. */
 export type PropertiesOf<Of> = Of extends (properties: infer Properties) => unknown
     ? Partial<Properties>
     : Readonly<Record<string, JsonValue>>;
@@ -17,19 +17,19 @@ export type PropertiesOf<Of> = Of extends (properties: infer Properties) => unkn
 export interface ExampleDefinition<Of, Instance> {
     /** The declaration the example shows, such as a component, a view or an object type. */
     readonly of: Of;
-    /** The name of the state it shows, unique among the declaration's examples, such as `history-unavailable`. */
+    /** The state it shows, unique per declaration, such as `history-unavailable`. */
     readonly name: string;
     /** One sentence saying what the example shows. */
     readonly description: string;
     /** The property values the example sets, each a JSON value a control can change. */
     readonly properties?: PropertiesOf<Of>;
-    /** The calls bringing the declaration's objects into the example's state, by the scope it opens them in, such as a view's space. */
+    /** The calls bringing the declaration's objects into the example's state, by scope. */
     readonly objects?: ExampleObjects;
-    /** Render the declaration with the properties, absent for a declaration its host renders, such as a view. */
+    /** Render the declaration with the properties, absent if its host renders it, as for a view. */
     readonly render?: (properties: PropertiesOf<Of>) => Instance;
 }
 
-/** The calls an example makes to bring objects into its state, by scope: methods of object types, named, with their inputs. */
+/** The calls bringing objects into an example's state, by scope: object type methods and inputs. */
 export type ExampleObjects = Readonly<
     Record<
         string,
@@ -57,7 +57,7 @@ export interface Example<
     readonly properties: Properties;
     /** The calls bringing the declaration's objects into the example's state, by scope. */
     readonly objects: ExampleObjects;
-    /** Render the declaration with the example's properties, or with the ones a control changed, absent for a declaration its host renders. */
+    /** Render the declaration with the example's properties, or the ones a control changed. */
     readonly render: ((properties?: Properties) => Instance) | undefined;
 }
 
@@ -164,7 +164,7 @@ export const ExampleDescription = defineSchema(
         properties: schema.record(schema.string(), schema.json()),
         /** The controls of the properties the declaration's package declares, by property. */
         controls: schema.array(Control),
-        /** The calls bringing the declaration's objects into the example's state, by scope, each object type by moniker. */
+        /** The calls bringing objects into the example's state, by scope and type moniker. */
         objects: schema.record(
             schema.string(),
             schema.array(
