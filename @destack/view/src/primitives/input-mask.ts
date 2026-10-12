@@ -10,7 +10,7 @@ export type InputMaskFn = (
 /** A mask of literal characters and patterns, one per position. */
 export type InputMaskArray = (string | RegExp)[];
 
-/** The arguments `String.prototype.replace` passes a replacer: the match, its groups, its offset and the string. */
+/** The arguments `String.prototype.replace` passes a replacer. */
 export type ReplaceArgs = [substring: string, ...rest: unknown[]];
 
 /** A mask that replaces a pattern's matches. */
@@ -27,7 +27,7 @@ export interface EventLike {
     readonly currentTarget: EventTarget | null;
 }
 
-/** The patterns of a string mask's characters: digits, letters and word characters, each required or optional. */
+/** The patterns of a string mask's characters. */
 export const stringMaskRegExp: Record<string, RegExp> = {
     9: /\d/u,
     0: /\d?/u,
@@ -71,7 +71,7 @@ export function regexMaskToFn(
     ];
 }
 
-/** Turn an array mask into a mask function that inserts literals and drops what no pattern takes. */
+/** Turn an array mask into a mask function. */
 export function maskArrayToFn(maskArray: InputMaskArray): InputMaskFn {
     return (input, selection) => {
         // walk the mask over the value
@@ -125,7 +125,7 @@ export function anyMaskToFn(mask: InputMask, regexps?: Record<string, RegExp>): 
     return maskArrayToFn(mask);
 }
 
-/** Make an input handler that masks its field's value and keeps the selection in place, returning the masked value. */
+/** Make an input handler that masks its field's value and keeps the selection in place. */
 export function createInputMask(
     mask: InputMask,
     regexps?: Record<string, RegExp>,
@@ -146,7 +146,7 @@ export function createInputMask(
     };
 }
 
-/** Wrap a mask handler to write the value and the rest of a pattern onto the element before the field, for CSS to show. */
+/** Wrap a mask handler to write the value and the rest of a pattern onto the element. */
 export function createMaskPattern<
     MaskEvent extends EventLike = KeyboardEvent | InputEvent | ClipboardEvent,
 >(

@@ -15,7 +15,7 @@ export interface Scheduled<Args extends unknown[]> {
     clear: () => void;
 }
 
-/** Where a leading and trailing schedule stands: idle, called on the leading edge, or due on the trailing one. */
+/** Where a leading and trailing schedule stands. */
 type Edge = "ready" | "leading" | "trailing";
 
 /** Debounce a callback to its trailing edge, cancelled on cleanup. */

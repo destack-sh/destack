@@ -19,7 +19,7 @@ export interface AppearanceOptions {
     readonly defaultAppearance?: Appearance;
 }
 
-/** Restore a visitor's stored appearance before the page paints, for a page without an account's settings. */
+/** Restore a visitor's stored appearance before the page paints. */
 export function AppearanceScript(properties: AppearanceOptions): JSX.Element {
     // set the stored or default scheme on the root, keeping the system's when storage holds none or refuses
     const key = JSON.stringify(properties.storageKey ?? STORAGE_KEY);
@@ -29,7 +29,7 @@ export function AppearanceScript(properties: AppearanceOptions): JSX.Element {
     return <script innerHTML={code} />;
 }
 
-/** A visitor's appearance, kept in browser storage, with the scheme it resolves to and the system's. */
+/** A visitor's appearance, kept in browser storage. */
 export interface LocalAppearance {
     /** The visitor's appearance: the system's, light or dark. */
     readonly appearance: Accessor<Appearance>;
@@ -41,7 +41,7 @@ export interface LocalAppearance {
     readonly systemAppearance: Accessor<ColorScheme>;
 }
 
-/** Follow and set a visitor's appearance in browser storage, for a page without an account's settings. */
+/** Follow and set a visitor's appearance in browser storage. */
 export function createAppearance(options: AppearanceOptions = {}): LocalAppearance {
     // hold the stored appearance and follow the device's scheme
     const { storageKey = STORAGE_KEY, defaultAppearance = "system" } = options;
@@ -78,7 +78,7 @@ export function createAppearance(options: AppearanceOptions = {}): LocalAppearan
     };
 }
 
-/** Follow the scheme an element renders in: its own or an enclosing theme root's, else the device's. */
+/** Follow the scheme an element renders in. */
 export function createColorScheme(element: Accessor<Element | undefined>): Accessor<ColorScheme> {
     // follow the device's scheme and every theme root's style above and at the element
     const isDeviceDark = createPrefersDark();

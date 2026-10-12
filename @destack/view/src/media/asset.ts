@@ -5,7 +5,7 @@ export const ImageFormat = defineSchema(schema.enum(["avif", "webp", "png", "jpe
 /** A raster image format. */
 export type ImageFormat = schema.Infer<typeof ImageFormat>;
 
-/** An image a build generated, after Astro's `ImageMetadata`: its original, its source set by width and format, and Next.js's blurred rendition. */
+/** An image a build generated, after Astro's `ImageMetadata`. */
 export const ImageMetadata = defineSchema(
     schema.object({
         /** The original image's address. */

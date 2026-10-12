@@ -4,7 +4,7 @@ import { flush } from "solid-js";
 import { type Blocker, type BlockerFunction, useBlocker } from "./blocker.ts";
 import { createRouter, defineRoutes, memoryHistory, useLocation, useNavigate } from "./index.ts";
 
-/** Render a router over a memory history whose pages block leaving while a flag holds, exposing the blocker, navigation and location. */
+/** Render a router over a memory history whose pages block leaving while a flag is set. */
 function renderBlocked(shouldBlock: BlockerFunction, history: "memory" | "browser" = "memory") {
     // route two pages, the first blocking while dirty
     const exposed: {

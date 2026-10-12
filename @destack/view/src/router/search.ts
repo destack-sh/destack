@@ -22,9 +22,9 @@ export interface Parser<Value> {
     eq(left: Value, right: Value): boolean;
 }
 
-/** A parser with the options its value moves through the URL with, and the builders adding a default or options. */
+/** A parser with the options its value moves through the URL with. */
 export class ParserBuilder<Value> implements Parser<Value> {
-    /** How the value reads and writes as text, which methods forward to so parsers of different values share a record. */
+    /** How the value reads and writes as text. */
     readonly parser: Parser<Value>;
     /** The options setting this value applies. */
     readonly options: Options;
@@ -101,19 +101,19 @@ export type Updates<Built extends Parsers> = {
     readonly [Key in keyof Built]?: ValueOf<Built[Key]> | null;
 };
 
-/** Set values: some of them, a function of the current ones, or null to remove them all, resolving to the query once written. */
+/** Set values: some of them, a function of the current ones, or null to remove them all. */
 export type SetValues<Built extends Parsers> = (
     updates: Updates<Built> | ((old: Values<Built>) => Updates<Built> | null) | null,
     options?: Options,
 ) => Promise<URLSearchParams>;
 
-/** Set one value: a value, a function of the current one, or null to remove it, resolving to the query once written. */
+/** Set one value: a value, a function of the current one, or null to remove it. */
 export type SetValue<Value> = (
     value: Value | null | ((old: Value) => Value | null),
     options?: Options,
 ) => Promise<URLSearchParams>;
 
-/** Write values as a query string for links, over a base's query when given, leaving defaults out. */
+/** Write values as a query string for links, over a base's query when given. */
 export interface Serializer<Built extends Parsers> {
     /** Write values as a query string, null removing them all. */
     (values: Updates<Built> | null): string;
@@ -127,7 +127,7 @@ export interface QueryStatesOptions<Built extends Parsers> extends Options {
     readonly urlKeys?: Readonly<Partial<Record<keyof Built, string>>>;
 }
 
-/** Make a parser from how a value reads and writes as text, and optionally how two values compare. */
+/** Make a parser from how a value reads and writes as text. */
 export function createParser<Value>(
     parser: Pick<Parser<Value>, "parse" | "serialize"> & Partial<Pick<Parser<Value>, "eq">>,
 ): ParserBuilder<Value> {
@@ -165,7 +165,7 @@ export const parseAsFloat: ParserBuilder<number> = createParser({
     serialize: (value) => String(value),
 });
 
-/** Read a whole number written in hexadecimal, refusing other text, and refuse to write any other number. */
+/** Read a whole number written in hexadecimal, refusing other text. */
 export const parseAsHex: ParserBuilder<number> = createParser({
     parse: (text) => (/^[0-9a-f]+$/iu.test(text) ? Number.parseInt(text, 16) : null),
     serialize: (value) => {
@@ -232,7 +232,7 @@ export function parseAsStringLiteral<const Literal extends string>(
     });
 }
 
-/** Read a list of items joined by a separator, refusing a list with an item the item parser refuses. */
+/** Read a list of items joined by a separator. */
 export function parseAsArrayOf<Item>(
     item: Parser<Item>,
     separator = ",",
@@ -255,7 +255,7 @@ export function parseAsArrayOf<Item>(
     });
 }
 
-/** Read a value as JSON a schema checks, refusing text that is no JSON or that the schema refuses. */
+/** Read a value as JSON a schema checks. */
 export function parseAsJson<Value>(checked: schema.Schema<Value>): ParserBuilder<Value> {
     return createParser({
         parse: (text) => {
@@ -269,7 +269,7 @@ export function parseAsJson<Value>(checked: schema.Schema<Value>): ParserBuilder
     });
 }
 
-/** Make a function writing values as a query string for links to a page's URL state, leaving defaults out. */
+/** Make a function that writes values as a query string for links to a page's URL state. */
 export function createSerializer<Built extends Parsers>(
     parsers: Built,
     options?: Pick<QueryStatesOptions<Built>, "urlKeys" | "clearOnDefault">,
@@ -277,7 +277,8 @@ export function createSerializer<Built extends Parsers>(
 /**
  * Write the values over the base's query.
  *
- * @construct one argument is the values and two are a base and the values, which is how Serializer overloads them
+ * @construct one argument is the values, and two are a base and the values.
+ * Serializer overloads them this way.
  */
 export function createSerializer(
     parsers: Parsers,
@@ -313,7 +314,7 @@ export function createSerializer(
     };
 }
 
-/** Make a function reading a page's URL state from an address or a query, outside a component, such as on the server. */
+/** Make a function that reads a page's URL state from an address or a query. */
 export function createLoader<Built extends Parsers>(
     parsers: Built,
     options: Pick<QueryStatesOptions<Built>, "urlKeys"> = {},
@@ -331,7 +332,7 @@ export function createLoader<Built extends Parsers>(
     };
 }
 
-/** Follow several values of the URL's query, each its default where missing or invalid, rewriting an invalid value away. */
+/** Follow several values of the URL's query. */
 export function useQueryStates<Built extends Parsers>(
     parsers: Built,
     options: QueryStatesOptions<Built> = {},
@@ -400,7 +401,8 @@ export function useQueryState<Value>(
 /**
  * Follow one value of the URL's query under a key.
  *
- * @construct a parser with a default never reads null, and text options read text, which is how the overloads narrow the value
+ * @construct a parser with a default never reads null, and text options read text.
+ * The overloads narrow the value this way.
  */
 export function useQueryState(
     key: string,
@@ -430,7 +432,7 @@ function readValues<Built extends Parsers>(
 /**
  * Read each value.
  *
- * @construct each key of the parsers holds the value its parser reads, which is how Values maps them
+ * @construct each key of the parsers has the value its parser reads, as Values maps them
  */
 function readValues(
     parsers: Parsers,
@@ -445,7 +447,7 @@ function readValues(
     );
 }
 
-/** Find the query changes that make the query canonical: invalid values dropped, values at their default left out. */
+/** Find the query changes that make the query canonical. */
 function canonicalOf<Built extends Parsers>(
     parsers: Built,
     query: Readonly<Record<string, string | string[] | undefined>>,

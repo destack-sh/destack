@@ -12,7 +12,7 @@ export interface ScopeObject {
     readonly id: string;
 }
 
-/** The commands of a scope that name objects and methods at run time: permission checks and calls by name. */
+/** The commands of a scope that refer to objects and methods at run time. */
 export interface ScopeCommands {
     /** Decide whether the person holds a permission on an object, the view's target by default. */
     can(permission: string, object?: ScopeObject): Promise<boolean>;
@@ -20,7 +20,7 @@ export interface ScopeCommands {
     call(object: ObjectType, method: string, input: JsonObject): Submission<unknown>;
 }
 
-/** One of a view's scopes: its object types' queries and mutators by key, atomic mutations and the person's history. */
+/** One of a view's scopes. */
 export interface ScopeAccess<Objects extends Readonly<Record<string, ObjectType>>>
     extends ObjectAccess<Objects>, ScopeCommands {
     /** Make several calls as one atomic mutation, predicted at once and undone as one step. */
@@ -49,7 +49,7 @@ export function useAccount<const Objects extends Readonly<Record<string, ObjectT
     return access(useClient(scopeOf(view, "account")), objects, view.target);
 }
 
-/** Read and change object types of the person's home by key, as the view's home permissions grant. */
+/** Read and change object types of the person's home by key. */
 export function useHome<const Objects extends Readonly<Record<string, ObjectType>>>(
     objects: Objects,
 ): ScopeAccess<Objects> {
@@ -76,7 +76,7 @@ function access<const Objects extends Readonly<Record<string, ObjectType>>>(
     };
 }
 
-/** Find the view's target among a scope's object types, refusing a view without one or a type the access lacks. */
+/** Find the view's target among a scope's object types. */
 function targetOf(
     objects: Readonly<Record<string, ObjectType>>,
     target: ObjectReference | undefined,

@@ -18,7 +18,7 @@ export type ConnectionType =
     | "other"
     | "unknown";
 
-/** The network's state: whether the browser is online, and the connection's quality where the browser reports it. */
+/** The network's state. */
 export type NetworkState = {
     /** Whether the browser is online. */
     readonly online: boolean;

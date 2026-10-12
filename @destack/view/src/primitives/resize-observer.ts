@@ -182,7 +182,7 @@ export function createElementSize(
 /**
  * Follow an element's sizes in a static store.
  *
- * @construct a fixed element always measures to numbers, so only an accessor's absent element reads null
+ * @construct a fixed element always measures to numbers, so only an accessor's absent one is null
  */
 export function createElementSize(
     target: Accessor<Element | false | undefined | null> | Element,

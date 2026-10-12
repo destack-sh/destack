@@ -8,7 +8,7 @@ export type MutationObserverAdd = (
     options?: MaybeAccessor<MutationObserverInit>,
 ) => void;
 
-/** A mutation observer's `add`, with how to start and stop it, its instance, absent on the server, and whether it runs. */
+/** A mutation observer's `add`, with how to start and stop it, and whether it runs. */
 export type MutationObserverReturn = [
     add: MutationObserverAdd,
     rest: {

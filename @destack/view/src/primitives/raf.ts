@@ -48,7 +48,7 @@ export function createRAF(
     return [running, start, stop];
 }
 
-/** Wrap a frame callback to run at most a number of times a second, carrying the time a frame missed by. */
+/** Wrap a frame callback to run at most a number of times a second. */
 export function targetFPS(
     callback: FrameRequestCallback,
     fps: MaybeAccessor<number>,
@@ -82,7 +82,7 @@ export function targetFPS(
     };
 }
 
-/** Count the milliseconds since the first frame at a frame rate, from zero again once a limit is reached. */
+/** Count the milliseconds since the first frame at a frame rate. */
 export function createMs(fps: MaybeAccessor<number>, limit?: MaybeAccessor<number>): MsCounter {
     // count from the first frame, starting over at the limit
     const [ms, setMs] = createSignal(0, { ownedWrite: true });

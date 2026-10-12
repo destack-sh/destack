@@ -42,10 +42,10 @@ const SMOOTHING = 0.8;
 /** The scale an amplitude reaches at its loudest. */
 const MAX_AMPLITUDE = 100;
 
-/** The gain from the frequencies' root mean square to the amplitude scale, which a normal voice fills. */
+/** The gain from the frequencies' root mean square to the amplitude scale. */
 const AMPLITUDE_GAIN = 4;
 
-/** Get a stream from a device or constraints, again as the source changes, stopping it on cleanup and reporting a refusal. */
+/** Get a stream from a device or constraints, again as the source changes. */
 export function createStream(streamSource: StreamSourceDescription): StreamReturn {
     // open nothing on the server
     if (isServer) {
@@ -65,7 +65,7 @@ export function createStream(streamSource: StreamSourceDescription): StreamRetur
     return [stream, controlsOf(stream, setStream)];
 }
 
-/** Capture the screen, a window or a tab, again as the options change, stopping it on cleanup and reporting a refusal. */
+/** Capture the screen, a window or a tab, again as the options change. */
 export function createScreen(
     screenSource: MaybeAccessor<DisplayMediaStreamOptions | undefined>,
 ): StreamReturn {
@@ -165,7 +165,7 @@ export function createAmplitudeStream(
     return [amplitude, { stream, stop }];
 }
 
-/** Ask for media permissions by opening a stream and stopping it right away, both kinds by default. */
+/** Ask for media permissions by opening a stream and stopping it right away. */
 export async function createMediaPermissionRequest(
     source?: MediaStreamConstraints | "audio" | "video",
 ): Promise<void> {
@@ -234,7 +234,7 @@ function controlsOf(
     };
 }
 
-/** Read the constraints of a source: a device's identifier for its kind, or the constraints as given. */
+/** Read the constraints of a source. */
 function constraintsOf(
     source: MediaDeviceInfo | MediaStreamConstraints | FalsyValue,
 ): MediaStreamConstraints | undefined {

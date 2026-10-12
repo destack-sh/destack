@@ -14,11 +14,11 @@ export interface ScopeOptions {
 export interface TextField {
     /** The current text, local predictions included, pending until the copy holds it. */
     readonly text: Accessor<string>;
-    /** Replace the text with a new value, as the one change between them, absent when nothing changed. */
+    /** Replace the text with a new value, as the one change between them. */
     replace(value: string): Promise<Submission<Undo>> | undefined;
 }
 
-/** Follow one text field of an object in the view's scope holding it, every keystroke shared live. */
+/** Follow one text field of an object in the view's scope that keeps it. */
 export function useText(
     object: ObjectType,
     id: string,

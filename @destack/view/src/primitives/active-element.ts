@@ -4,7 +4,7 @@ import { makeEventListener } from "./event-listener.ts";
 import { makeFocusListener } from "./focus.ts";
 import { createHydratableSignal } from "./utils.ts";
 
-/** Call back with the focused element, null when the body holds the focus, until cleanup or the returned function. */
+/** Call back with the focused element, null when the body has the focus. */
 export function makeActiveElementListener(callback: (element: Element | null) => void): () => void {
     // listen nowhere on the server
     if (isServer) {

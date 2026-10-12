@@ -76,7 +76,7 @@ export type VideoReturn = {
     readonly seeking: Accessor<boolean>;
     /** The media error it met, null while none. */
     readonly error: Accessor<MediaError | null>;
-    /** The length in seconds, pending until its metadata loads and again once its source changes. */
+    /** The length in seconds. */
     readonly duration: Accessor<number>;
 };
 
@@ -119,7 +119,7 @@ export function setVideoSrc(player: HTMLVideoElement, source: VideoSource): void
     }
 }
 
-/** Make a player of a video, or take an existing one, configured, with handlers removed by the returned function, which also pauses it. */
+/** Make a player of a video, or take an existing one, configured, with handlers. */
 export function makeVideo(
     source: VideoSource | HTMLVideoElement,
     handlers: VideoEventHandlers = {},
@@ -201,7 +201,7 @@ export function makeVideoPlayer(
     ];
 }
 
-/** Play a video reactively: whether it plays, its time, end, seeking, error and length, following a reactive source, pausing on cleanup. */
+/** Play a video reactively, following a reactive source and pausing on cleanup. */
 export function createVideo(
     source: VideoSource | Accessor<VideoSource>,
     options?: VideoOptions,
@@ -293,7 +293,7 @@ export function createVideo(
     };
 }
 
-/** Play a video reactively with every control: also its volume, muting, rate, looping, buffering, readiness and size. */
+/** Play a video reactively with every control. */
 export function createVideoPlayer(
     source: VideoSource | Accessor<VideoSource>,
     options?: VideoControlsOptions,
@@ -435,7 +435,7 @@ export function makeVideoFrameCallback(
     ];
 }
 
-/** Call back once per presented frame of the video an accessor gives while started, moving to each new video, stopping on cleanup. */
+/** Call back once per presented frame of the video an accessor gives while started. */
 export function createVideoFrameCallback(
     video: Accessor<HTMLVideoElement | undefined>,
     callback: VideoFrameRequestCallback,

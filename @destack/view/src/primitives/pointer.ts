@@ -120,7 +120,7 @@ export function getPositionToElement<Position extends { readonly x: number; read
     return { ...position, x, y, isInside: x >= 0 && y >= 0 && x <= width && y <= height };
 }
 
-/** Listen to pointer events of the chosen pointer kinds on a target, `document.body` by default, until cleanup. */
+/** Listen to pointer events of the chosen pointer kinds on a target until cleanup. */
 export function createPointerListeners(
     configuration: Partial<OnEventRecord<PointerEventNames, Handler>> & {
         readonly target?: MaybeAccessor<PointerTarget | undefined>;
@@ -151,7 +151,7 @@ export function createPointerListeners(
     }
 }
 
-/** Follow each pointer from when it enters or goes down until it leaves or goes up, with handlers it registers right away. */
+/** Follow each pointer from when it enters or goes down until it leaves or goes up. */
 export function createPerPointerListeners(
     configuration: {
         readonly target?: MaybeAccessor<PointerTarget>;

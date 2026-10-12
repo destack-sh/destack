@@ -25,7 +25,7 @@ export function isNotificationSupported(): boolean {
     return !isServer && "Notification" in window;
 }
 
-/** Make functions that show a notification, replacing the last, and close it, showing nothing where the device has no notifications. */
+/** Make functions that show a notification, replacing the last, and close it. */
 export function makeNotification(
     title: string,
     options?: NotificationOptions,
@@ -61,7 +61,7 @@ export function makeNotification(
     return [show, close];
 }
 
-/** Show notifications reactively, reading the title and options on each show, following the shown one, closing it on cleanup. */
+/** Show notifications reactively, reading the title and options on each show. */
 export function createNotification(
     title: MaybeAccessor<string>,
     options?: MaybeAccessor<NotificationOptions>,
@@ -131,7 +131,7 @@ export function createNotification(
     return { show, close, notification, supported };
 }
 
-/** Follow the notification permission and ask for it as an action, with whether the request is pending. */
+/** Follow the notification permission and ask for it as an action. */
 export function createNotificationPermission(): {
     permission: Accessor<PermissionState | "unknown">;
     requestPermission: () => Promise<void>;

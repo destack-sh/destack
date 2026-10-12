@@ -59,7 +59,7 @@ export async function readClipboard(): Promise<ClipboardItem[]> {
     return navigator.clipboard.read();
 }
 
-/** Follow the clipboard's items, read again on refetch and on clipboard changes, and write a signal to it as it changes. */
+/** Follow the clipboard's items, read again on refetch and on clipboard changes. */
 export function createClipboard(
     data?: Accessor<string | ClipboardItem[]>,
     deferInitial?: boolean,
@@ -105,7 +105,7 @@ export function createClipboard(
     return [clipboard, refetch, writeClipboard];
 }
 
-/** Copy to the clipboard on each click of the element a ref receives, its field value or text by default. */
+/** Copy to the clipboard on each click of the element a ref receives. */
 export function copyToClipboard(
     options?: MaybeAccessor<CopyToClipboardOptions>,
 ): (element: HTMLElement) => void {

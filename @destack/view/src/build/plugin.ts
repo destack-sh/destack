@@ -6,7 +6,7 @@ import type { Plugin, PluginOption } from "@destack/package/build";
 /** The package declaring views, whose installation resolves the framework's generated imports. */
 export const VIEW_PACKAGE = "@destack/view";
 
-/** Return the Solid and framework plugins, rendering on the server and hydrating its pages when asked, in tests too. */
+/** Return the Solid and framework plugins, in tests too. */
 export function viewPlugins(ssr: boolean, start?: StartOptions): PluginOption[] {
     return [
         frameworkPlugin(),

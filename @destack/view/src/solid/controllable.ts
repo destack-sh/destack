@@ -1,6 +1,6 @@
 import { type Accessor, createSignal } from "@solidjs/signals";
 
-/** A value its holder keeps unless its owner controls it by passing it, after controlled and uncontrolled inputs. */
+/** A value its keeper keeps unless its owner controls it by passing it. */
 export interface ControllableValue<Value> {
     /** Whether the owner passes the value, which makes it controlled. */
     readonly isControlled: () => boolean;

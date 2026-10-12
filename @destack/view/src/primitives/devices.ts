@@ -1,7 +1,7 @@
 import { isServer } from "@solidjs/web";
 import { type Accessor, createMemo, createSignal, onCleanup } from "solid-js";
 
-/** Follow the media devices, listed again as they change, each kind listed once without labels until it is permitted. */
+/** Follow the media devices, listed again as they change. */
 export function createDevices(): Accessor<MediaDeviceInfo[]> {
     // list nothing on the server
     if (isServer) {
@@ -35,7 +35,7 @@ export function createCameras(): Accessor<MediaDeviceInfo[]> {
     return createDevicesOfKind("videoinput");
 }
 
-/** Follow the devices of one kind, changing only when the list does, through a memo on every side to keep hydration keys aligned. */
+/** Follow the devices of one kind, changing only when the list does. */
 function createDevicesOfKind(kind: MediaDeviceKind): Accessor<MediaDeviceInfo[]> {
     const devices = createDevices();
 

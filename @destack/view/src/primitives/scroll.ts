@@ -299,7 +299,7 @@ export function createPreventScroll(properties: CreatePreventScrollProperties = 
     );
 }
 
-/** Apply a style to the document for one more instance, returning how to release it, restored after the last. */
+/** Apply a style to the document for one more instance, and return how to release it. */
 function applyDocumentStyle(
     key: string,
     element: HTMLElement,
@@ -343,7 +343,7 @@ function applyDocumentStyle(
     };
 }
 
-/** Check whether scrolling a target along an axis by a delta would move anything up to the wrapper. */
+/** Check whether scrolling a target along an axis by a delta would move anything. */
 function wouldScroll(
     target: HTMLElement,
     axis: Axis,
@@ -376,7 +376,7 @@ function wouldScroll(
     return delta < 0 ? Math.abs(availableBefore) >= 1 : true;
 }
 
-/** Check whether an element scrolls along an axis, the root scrolling while its overflow is visible. */
+/** Check whether an element scrolls along an axis. */
 function isScrollContainer(element: HTMLElement, axis: Axis): boolean {
     const style = getComputedStyle(element);
     const overflow = axis === "x" ? style.overflowX : style.overflowY;

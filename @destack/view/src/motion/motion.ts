@@ -6,7 +6,7 @@ import { createMutationObserver } from "../primitives/mutation-observer.ts";
 /** The device preference a theme's motion scale follows unless a person pins the motion setting. */
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
-/** Follow whether the theme holds an element's motion still: its motion scale reads zero, from the person's motion setting or the device's preference. */
+/** Follow whether the theme keeps an element's motion still. */
 export function createReducedMotion(element: Accessor<Element | undefined>): Accessor<boolean> {
     // follow the device preference and the theme roots at and above the element
     const isPreferred = createMediaQuery(REDUCED_MOTION_QUERY);

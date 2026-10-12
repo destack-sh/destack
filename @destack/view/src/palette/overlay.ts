@@ -55,7 +55,7 @@ const Launched = schema.object({
     url: schema.url(),
 });
 
-/** Open the command palette over the page on its key combination, and on each command's own keybinding, until the signal aborts. */
+/** Open the command palette over the page on its key combination until the signal aborts. */
 export async function listenForCommands(
     signal: AbortSignal,
     localization: () => Localization,
@@ -84,7 +84,7 @@ export async function listenForCommands(
     window.addEventListener("keydown", listener, { signal });
 }
 
-/** Open the command palette over the page in a modal dialog framing its space's origin, closing it on its message, Escape or a click beside it. */
+/** Open the command palette over the page in a modal dialog that frames its space's origin. */
 async function openPalette(command: string | undefined, localization: Localization): Promise<void> {
     // launch the palette over this page, at a command when one is asked for
     const response = await fetch(`${COMMAND_PATH}/launch`, {

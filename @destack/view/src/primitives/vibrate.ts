@@ -29,7 +29,7 @@ const DUTY_CYCLE = 0.5;
 /** The slowest pulse, once every ten seconds, below which a pulse reads as separate vibrations. */
 const MIN_PULSE_HZ = 0.1;
 
-/** The fastest pulse, one cycle every ten milliseconds, about the shortest vibration devices render. */
+/** The fastest pulse, one cycle every ten milliseconds. */
 const MAX_PULSE_HZ = 100;
 
 /** Report whether the device can vibrate. */
@@ -37,7 +37,7 @@ export function isVibrationSupported(): boolean {
     return !isServer && "vibrate" in navigator;
 }
 
-/** Make functions that start and stop a vibration, repeating it every interval when given, doing nothing where the device cannot vibrate. */
+/** Make functions that start and stop a vibration, repeating it every interval when given. */
 export function makeVibrate(
     pattern: VibratePattern,
     options: VibrateOptions = {},
@@ -65,7 +65,7 @@ export function makeVibrate(
     return [start, stop];
 }
 
-/** Vibrate in a pattern, restarting with a reactive pattern as it changes and stopping on cleanup, telling whether the device can vibrate. */
+/** Vibrate in a pattern, restarting with a reactive pattern as it changes. */
 export function createVibrate(
     pattern: MaybeAccessor<VibratePattern>,
     options: VibrateOptions = {},
@@ -139,7 +139,7 @@ export function makePulse(
     return makeVibrate(pattern, { interval: duration });
 }
 
-/** Pulse a number of times a second, restarting with a reactive frequency as it changes and stopping on cleanup, telling whether the device can vibrate. */
+/** Pulse a number of times a second, restarting with a reactive frequency as it changes. */
 export function createPulse(
     hz: MaybeAccessor<number>,
     options: PulseOptions = {},

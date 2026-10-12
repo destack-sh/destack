@@ -6,7 +6,7 @@ import { Step } from "./step.ts";
 /** The theme settings, locale, direction and width a host renders UI examples in. */
 export const Environment = defineSchema(
     schema.object({
-        /** The theme settings by name, such as `appearance: "dark"`, each setting's default when absent. */
+        /** The theme settings by name, such as `appearance: "dark"`. */
         theme: schema.record(schema.string().min(1), schema.json()).exactOptional(),
         /** The language and region, such as `ar-EG`, the source language when absent. */
         locale: schema.string().min(1).exactOptional(),

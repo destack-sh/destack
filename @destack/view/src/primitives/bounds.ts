@@ -34,7 +34,7 @@ export type UpdateGuard = <Args extends unknown[]>(
     update: (...args: Args) => void,
 ) => (...args: Args) => void;
 
-/** What moves bounds: scrolling, DOM mutations and resizes, each tracked by default or through a guard. */
+/** What moves bounds: scrolling, DOM mutations and resizes. */
 export type Options = {
     /** Whether, or through which guard, scrolling updates the bounds. */
     readonly trackScroll?: boolean | UpdateGuard;

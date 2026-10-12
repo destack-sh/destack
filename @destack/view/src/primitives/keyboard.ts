@@ -33,7 +33,7 @@ export interface CreateKeyDownOptions {
 /** The modifier keys, upper-cased as the primitives track keys. */
 const MODIFIERS = new Set(["ALT", "CONTROL", "META", "SHIFT"]);
 
-/** Follow the latest key-down event, null again after the event's task, through one listener shared by every user. */
+/** Follow the latest key-down event, null again after the event's task. */
 export const useKeyDownEvent: () => Accessor<KeyboardEvent | null> = createSingletonRoot(() => {
     // follow nothing on the server
     if (isServer) {
@@ -94,7 +94,7 @@ export const useKeyDownList: () => Accessor<string[]> = createSingletonRoot(() =
     return pressed;
 });
 
-/** Follow the key held alone, pressed while nothing else was, through one listener shared by every user. */
+/** Follow the key pressed alone, while nothing else was pressed. */
 export const useCurrentlyHeldKey: () => Accessor<string | null> = createSingletonRoot(() => {
     // follow nothing on the server
     if (isServer) {
@@ -113,7 +113,7 @@ export const useCurrentlyHeldKey: () => Accessor<string | null> = createSingleto
     }, TRANSPARENT);
 });
 
-/** Follow the sequence of key sets held since all keys were last released, through one listener shared by every user. */
+/** Follow the sequence of key sets pressed since all keys were last released. */
 export const useKeyDownSequence: () => Accessor<string[][]> = createSingletonRoot(() => {
     // follow nothing on the server
     if (isServer) {
@@ -311,12 +311,7 @@ export function createKeyDown(
     );
 }
 
-/**
- * Name an event's key upper-cased, as the primitives track keys.
- *
- * With Option held, Command platforms report the character it types, so the letter or digit comes from the physical key instead.
- * Some autocomplete keydowns have no key at all, which reads as undefined.
- */
+/** Read an event's key upper-cased, as the primitives track keys. */
 function keyOf(event: KeyboardEvent): string | undefined {
     // read nothing from an event without a key
     if (typeof event.key !== "string") {
@@ -332,7 +327,7 @@ function keyOf(event: KeyboardEvent): string | undefined {
     return event.key.toUpperCase();
 }
 
-/** List the modifiers held for a first non-modifier key, as they were pressed before listening began. */
+/** List the modifiers pressed for a first non-modifier key. */
 function heldModifiers(event: KeyboardEvent, key: string): string[] {
     if (MODIFIERS.has(key)) {
         return [];
@@ -353,7 +348,7 @@ function prevent(event: KeyboardEvent, shouldPrevent: boolean): void {
     }
 }
 
-/** Check whether each set of a held sequence matches the prefix of the shortcut it should have reached. */
+/** Check whether each set of a pressed sequence matches the prefix of its shortcut. */
 function isHoldSequence(sequence: string[][], model: string[]): boolean {
     return sequence.every((held, index) => isEqual(held, model.slice(0, index + 1)));
 }

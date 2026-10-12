@@ -10,11 +10,11 @@ import type { Component } from "solid-js";
 export interface ViewDefinition {
     /** The name, unique among the package's views. */
     readonly name: string;
-    /** The object types the view reads and changes, opened before it renders in each scope it requests their permissions in. */
+    /** The object types the view reads and changes. */
     readonly objects?: readonly ObjectType[];
     /** The permissions the view requests, by the scope they apply in relative to its context. */
     readonly permissions?: { readonly [Scope in PermissionScope]?: readonly Permission[] };
-    /** The object types the view presents, and how strongly, so opening an object picks its view. */
+    /** The object types the view presents, and how strongly. */
     readonly presents?: readonly Presentation[];
     /** The platform services the view calls as its person, such as the observability service. */
     readonly services?: readonly Service[];

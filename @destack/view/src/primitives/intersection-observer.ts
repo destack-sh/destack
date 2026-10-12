@@ -44,7 +44,7 @@ export type AddViewportObserverEntry = {
 /** Stop observing an element and forget its callback. */
 export type RemoveViewportObserverEntry = (element: Element) => void;
 
-/** A viewport observer's `add`, with how to remove, start and stop it and its instance, absent on the server. */
+/** A viewport observer's `add`, with how to remove, start and stop it and its instance. */
 export type CreateViewportObserverReturnValue = [
     AddViewportObserverEntry,
     {
@@ -133,7 +133,7 @@ export function makeIntersectionObserver(
     return { add, remove, start, stop, reset, instance };
 }
 
-/** Hold the latest entry of each observed element in a store, with a visibility reader pending until the first entry. */
+/** Keep the latest entry of each observed element in a store. */
 export function createIntersectionObserver(
     elements: Accessor<Element[]>,
     options?: MaybeAccessor<IntersectionObserverInit>,
@@ -329,7 +329,7 @@ export function createViewportObserver(
     return [addEntry, { remove: removeEntry, start, stop, instance }];
 }
 
-/** Follow whether one element is in view, pending until the first entry unless given an initial value. */
+/** Follow whether one element is in view. */
 export function createVisibilityObserver(
     element: Accessor<Element | FalsyValue> | Element,
     options?: IntersectionObserverInit & { initialValue?: boolean },

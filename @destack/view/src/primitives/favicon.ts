@@ -48,7 +48,7 @@ export type FaviconAnimationController = {
     dispose: () => void;
 };
 
-/** A badge's value: a count, a short text, a dot for true, or no badge for zero, false, empty or undefined. */
+/** A badge's value: a count, a short text, or a dot for true. */
 export type FaviconBadgeValue = number | string | boolean | undefined;
 
 /** The corner a badge sits in. */
@@ -144,7 +144,7 @@ export function makeFavicon(href: string, options: FaviconOptions = {}): Favicon
     return bindFaviconLink(options.rel ?? "icon", href);
 }
 
-/** Show a reactive address in the document's favicon link, putting back the previous one on cleanup. */
+/** Show a reactive address in the document's favicon link. */
 export function createFavicon(
     href: MaybeAccessor<string>,
     options: FaviconOptions = {},
@@ -239,7 +239,7 @@ export function makeFaviconAnimation(
     };
 }
 
-/** Cycle the favicon through reactive frames every interval, pausing while the page is hidden, putting back the favicon on cleanup. */
+/** Cycle the favicon through reactive frames every interval, pausing while the page is hidden. */
 export function createFaviconAnimation(
     frames: MaybeAccessor<readonly string[]>,
     options: FaviconAnimationOptions = {},
@@ -335,7 +335,7 @@ export function makeFaviconBadge(
     return guardRender(makeFavicon(href, options), renderBadge(href, value, options));
 }
 
-/** Draw a reactive badge over a reactive favicon, applying only the latest drawing, putting back the favicon on cleanup. */
+/** Draw a reactive badge over a reactive favicon, applying only the latest drawing. */
 export function createFaviconBadge(
     href: MaybeAccessor<string>,
     value: MaybeAccessor<FaviconBadgeValue>,
@@ -383,7 +383,7 @@ export function makeFaviconScheme(
     };
 }
 
-/** Show the favicon of the device's scheme from reactive icons, following both, putting back the favicon on cleanup. */
+/** Show the favicon of the device's scheme from reactive icons, following both. */
 export function createFaviconScheme(
     icons: MaybeAccessor<FaviconSchemeIcons>,
     options: FaviconOptions = {},
@@ -433,7 +433,7 @@ export function makeFaviconProgress(
     return guardRender(makeFavicon(href, options), renderProgress(href, progress, options));
 }
 
-/** Draw a reactive progress ring around a reactive favicon, applying only the latest drawing, putting back the favicon on cleanup. */
+/** Draw a reactive progress ring around a reactive favicon, applying only the latest drawing. */
 export function createFaviconProgress(
     href: MaybeAccessor<string>,
     progress: MaybeAccessor<number | undefined>,
@@ -442,7 +442,7 @@ export function createFaviconProgress(
     return createCanvasFavicon(href, progress, options, renderProgress);
 }
 
-/** Find the document's favicon link of a relation, or make one, showing an address, and remember what to put back. */
+/** Find the document's favicon link of a relation, or make one, and show an address. */
 function bindFaviconLink(rel: FaviconRel, href: string): FaviconController {
     // take the existing link, remembering its attribute, or make one
     const existing = document.head.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
@@ -648,7 +648,7 @@ function guardRender(favicon: FaviconController, render: Promise<string>): Favic
     };
 }
 
-/** Draw a reactive overlay over a reactive favicon, applying only the latest drawing, putting back the favicon on cleanup. */
+/** Draw a reactive overlay over a reactive favicon, applying only the latest drawing. */
 function createCanvasFavicon<Value, Options extends FaviconOptions>(
     href: MaybeAccessor<string>,
     value: MaybeAccessor<Value>,

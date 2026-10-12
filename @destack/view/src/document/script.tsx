@@ -10,7 +10,7 @@ export type ScriptStrategy = "beforeInteractive" | "afterInteractive" | "lazyOnl
 export interface ScriptProperties {
     /** The script's address. */
     readonly src: string;
-    /** When it loads: in the head before the page hydrates, once it has, or when the browser is idle after load. */
+    /** When it loads. */
     readonly strategy?: ScriptStrategy;
     /** Call back once the script loads. */
     readonly onLoad?: () => void;

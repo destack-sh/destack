@@ -9,7 +9,7 @@ export type LinkTarget = string | ObjectReference;
 
 /** The properties of a link, an anchor's properties included. */
 export interface LinkProperties extends Omit<JSX.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> {
-    /** Where the link goes: a path or URL, or an object opened in the strongest view presenting it. */
+    /** Where the link goes. */
     readonly href: LinkTarget;
     /** The view opening an object, the strongest presenting its type by default. */
     readonly view?: string;

@@ -27,7 +27,7 @@ export function makeTimer(callback: () => void, delay: number, timer: Timer): ()
     return () => clear(handle, timer);
 }
 
-/** Run a callback after a delay, or every delay, following a reactive delay and keeping the elapsed share across pauses. */
+/** Run a callback after a delay, or every delay, following a reactive delay. */
 export function createTimer(callback: () => void, delay: TimeoutSource, timer: Timer): void {
     // run nothing on the server, and a fixed delay until cleanup
     if (isServer) {

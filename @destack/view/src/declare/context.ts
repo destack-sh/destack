@@ -12,13 +12,13 @@ export const CATALOG_PATH = "/.destack/catalog";
 /** The same-origin host path streaming a view's display as server-sent events. */
 export const DISPLAY_PATH = "/.destack/display";
 
-/** The same-origin host path below which a browser registers its client and binds its view credential to it. */
+/** The same-origin host path below which a browser registers its client. */
 export const CLIENT_PATH = "/.destack/client";
 
-/** The same-origin host path below which a view calls the platform services it declares, each at its service mount. */
+/** The same-origin host path below which a view calls the platform services it declares. */
 export const PLATFORM_PATH = "/.destack/platform";
 
-/** The same-origin host path of the command palette on a space's origin, and below which it reaches the space's commands. */
+/** The same-origin host path of the command palette on a space's origin. */
 export const COMMAND_PATH = "/.destack/command";
 
 /** The header the command palette's page sends its page token in. */
@@ -30,7 +30,7 @@ export const PAGE_TOKEN_META = "destack-page-token";
 /** The query parameter of the command palette's path with the link of the window it opens over. */
 export const FOCUS_PARAMETER = "focus";
 
-/** The query parameter of the command palette's path with the command to run right away, as `<package>/<name>`. */
+/** The query parameter of the command palette's path with the command to run right away. */
 export const COMMAND_PARAMETER = "command";
 
 /** The query parameter of the open path with the object to open, as JSON. */
@@ -51,7 +51,7 @@ const SameOriginPath = schema.string().regex(/^\/(?:[^/\t\n\r\\][^\t\n\r\\]*)?$/
 /** What the host gives a view: where and for whom it runs. */
 export const ViewContext = defineSchema(
     schema.object({
-        /** The installation serving the view, absent for the shell's own pages such as the command palette. */
+        /** The installation serving the view. */
         installation: schema.string().min(1).exactOptional(),
         /** The space of the installation. */
         space: schema.string().min(1),
@@ -65,7 +65,7 @@ export const ViewContext = defineSchema(
         home: schema.string().min(1).exactOptional(),
         /** The object the view opens for, from its address. */
         target: ObjectReference.exactOptional(),
-        /** The language and region the person reads, the source language when the host names none. */
+        /** The language and region the person reads. */
         locale: LocaleTag.exactOptional(),
     }),
 );
@@ -107,7 +107,7 @@ export const ViewLaunch = defineSchema(
         release: schema.string().min(1),
         /** The same-origin path answering the replica procedures of every scope. */
         endpoint: SameOriginPath,
-        /** The catalogs translating the messages of the view's package and its dependencies along the person's locale's fallback chain. */
+        /** The catalogs that translate the messages of the view's package and its dependencies. */
         catalogs: schema.array(CatalogReference),
     }),
 );

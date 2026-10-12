@@ -7,7 +7,7 @@ export type EventTypeName = keyof HTMLElementEventMap | keyof DocumentEventMap;
 
 /** How an idle timer watches activity and when it prompts and goes idle. */
 export interface IdleTimerOptions {
-    /** The events that count as activity, pointer, key, wheel, touch, resize and visibility by default. */
+    /** The events that count as activity. */
     readonly events?: EventTypeName[];
     /** The element to watch, the document by default. */
     readonly element?: HTMLElement;

@@ -12,11 +12,11 @@ export interface CommandDefinition<Object extends ObjectType = ObjectType> {
     readonly object: Object;
     /** The method the command calls. */
     readonly method: CallableName<Object>;
-    /** The key combination running it, in the keybinding syntax editors write, such as `mod+shift+a`. */
+    /** The key combination that runs it, in the keybinding syntax editors write. */
     readonly keybinding?: string;
 }
 
-/** A command a package declares, offered by the shell in its command menu, menus, shortcuts, the terminal and agents. */
+/** A command a package declares. */
 export class Command<Object extends ObjectType = ObjectType> {
     /** The declaring package. */
     readonly package: Package;

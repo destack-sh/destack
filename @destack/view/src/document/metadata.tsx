@@ -30,7 +30,7 @@ export interface MetadataIcon {
 export interface Metadata {
     /** The address relative URLs resolve against, such as `https://destack.sh`. */
     readonly metadataBase?: string;
-    /** The title: plain, a template inner pages fill such as `%s | Destack` with its default, or one taken as is past enclosing templates. */
+    /** The title. */
     readonly title?:
         | string
         | { readonly template?: string; readonly default: string; readonly absolute?: string };
@@ -46,7 +46,7 @@ export interface Metadata {
     readonly creator?: string;
     /** The page's publisher. */
     readonly publisher?: string;
-    /** The canonical path, the alternate representations by media type, and the translations by locale. */
+    /** The canonical path and alternates. */
     readonly alternates?: {
         readonly canonical?: string;
         readonly types?: Readonly<Record<string, string>>;
@@ -76,7 +76,7 @@ export interface Metadata {
         readonly description?: string;
         readonly images?: readonly (string | MetadataImage)[];
     };
-    /** The icons: the favicons, the shortcut icon, the Apple touch icons and icons of other relations. */
+    /** The icons. */
     readonly icons?: {
         readonly icon?: string | readonly MetadataIcon[];
         readonly shortcut?: string;
@@ -188,7 +188,7 @@ export function Viewport(properties: Viewport): JSX.Element {
     );
 }
 
-/** Resolve metadata into its head tags, addresses against its base and previews falling back to the page's. */
+/** Resolve metadata into its head tags. */
 function tagsOf(metadata: Metadata, title: string | undefined): HeadTag[] {
     // resolve addresses and the previews' shared text
     const absolute = (path: string) =>
@@ -289,7 +289,7 @@ function tagsOf(metadata: Metadata, title: string | undefined): HeadTag[] {
     ];
 }
 
-/** Write the viewport tag's content: the width and zoom, and how far the person may zoom when limited. */
+/** Write the viewport tag's content. */
 function viewportContent(viewport: Viewport): string {
     const entries = [
         `width=${viewport.width ?? "device-width"}`,

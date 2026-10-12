@@ -103,7 +103,7 @@ export function createBodyCursor(value: Accessor<CursorProperty | FalsyValue>): 
     );
 }
 
-/** Show a grab cursor over an element, and a grabbing cursor over the whole body while it is dragged. */
+/** Show a grab cursor over an element. */
 export function createDragCursor(
     target: Accessor<HTMLElement | FalsyValue> | HTMLElement,
     options?: { readonly grab?: CursorProperty; readonly grabbing?: CursorProperty },
@@ -150,7 +150,7 @@ export function createDragCursor(
     );
 }
 
-/** Show a cursor over the element a ref receives, following a reactive cursor, until the calling owner is cleaned up. */
+/** Show a cursor over the element a ref receives, following a reactive cursor. */
 export function cursor(value: MaybeAccessor<CursorProperty>): (element: HTMLElement) => void {
     // follow the cursor in the calling owner, and only take the element in the ref
     const [target, setTarget] = createSignal<HTMLElement | undefined>(undefined, {

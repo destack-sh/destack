@@ -35,7 +35,7 @@ interface Rendered {
     readonly set: (properties: Readonly<Record<string, JsonValue>>) => void;
 }
 
-/** A driver playing UI scenarios in the test DOM in process, as a browser driver plays them in a browser. */
+/** A driver that plays UI scenarios in the test DOM in process. */
 export class ViewDriver implements Driver<typeof viewInteraction> {
     /** The interaction the driver speaks. */
     static readonly interaction = viewInteraction;
@@ -51,7 +51,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
         this.#examples = examples;
     }
 
-    /** Render a scenario's examples into the document in its environment for the test's duration, standing in for the Popover API the test DOM lacks. */
+    /** Render a scenario's examples into the document for the test's duration. */
     static start(given: Given<JSX.Element, Environment>): ViewDriver {
         // mount into the document until the test ends
         stubPopovers();
@@ -150,7 +150,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
         return element;
     }
 
-    /** Find every element a locator matches in document order: role and label locators within the accessibility tree, the others anywhere. */
+    /** Find every element a locator matches, in document order. */
     locateAll(locator: Locator): HTMLElement[] {
         // search inside the located scope
         const scope = locator.within === undefined ? this.container : this.locate(locator.within);
@@ -222,7 +222,7 @@ function click(element: HTMLElement): void {
     element.click();
 }
 
-/** Open an element's context menu at a point relative to its top left corner, its center by default. */
+/** Open an element's context menu at a point relative to its top left corner. */
 function rightClick(
     element: HTMLElement,
     position: { readonly x: number; readonly y: number } | undefined,
@@ -240,7 +240,7 @@ function rightClick(
     );
 }
 
-/** Press a key with its modifiers joined by plus signs, such as `Control+r`, on the focused element or the body. */
+/** Press a key with its modifiers joined by plus signs, such as `Control+r`. */
 function press(shortcut: string): void {
     // read the modifiers before the key
     const [key, ...held] = shortcut.split("+").toReversed();
@@ -313,12 +313,12 @@ function valueOf(element: HTMLElement): string {
     return element.value;
 }
 
-/** Report whether an element is in the accessibility tree, a closed popover hiding its contents as browsers do. */
+/** Report whether an element is in the accessibility tree. */
 function isExposed(element: HTMLElement): boolean {
     return !isInaccessible(element) && element.closest(CLOSED_POPOVER) === null;
 }
 
-/** Report whether an element has a role, its accessible name and the states a role locator asks for. */
+/** Report whether an element has a role, its accessible name and the states a locator asks for. */
 function isRole(element: HTMLElement, locator: Extract<Locator, { role: string }>): boolean {
     return (
         getRole(element) === locator.role &&
@@ -329,7 +329,7 @@ function isRole(element: HTMLElement, locator: Extract<Locator, { role: string }
     );
 }
 
-/** Report whether an element is in an ARIA state, reading native states where the element has them. */
+/** Report whether an element is in an ARIA state. */
 function isInState(element: HTMLElement, state: (typeof OBSERVED_STATES)[number]): boolean {
     if (state === "disabled") {
         return isDisabled(element);

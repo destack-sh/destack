@@ -12,7 +12,7 @@ import {
     TextSize,
 } from "@destack/theme";
 
-/** Where a display preference lives: the person's own, overridden per package, space, installation or client, applied at once. */
+/** Where a display preference lives, applied at once. */
 const PREFERENCE = {
     scope: "user",
     overrides: ["package", "space", "installation", "client"],
@@ -98,7 +98,7 @@ export const DISPLAY_SETTINGS: readonly SettingReference[] = [
     textSize,
 ].map((setting) => setting.reference);
 
-/** Resolve the display of a selection from the values placed along its scope chain, nearest scope first. */
+/** Resolve the display of a selection from the values placed along its scope chain. */
 export function resolveDisplay(
     selection: SettingSelection,
     values: readonly SettingValue[],

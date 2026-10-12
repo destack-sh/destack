@@ -6,7 +6,7 @@ import type { ObjectClient } from "@destack/object/client";
 import type { ViewContext } from "../declare/context.ts";
 import { type ViewMount, ViewMountContext } from "./view.ts";
 
-/** Render a component into an element as a mounted view over its scopes' clients and its platform services in the person's locale, returning how to unmount it. */
+/** Render a component into an element as a mounted view, in the person's locale. */
 export function renderView(
     component: Component,
     element: HTMLElement,

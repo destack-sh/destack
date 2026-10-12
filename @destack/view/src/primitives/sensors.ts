@@ -79,7 +79,7 @@ const BATTERY_EVENTS = [
     "levelchange",
 ] as const;
 
-/** Start a Generic Sensor API sensor, calling back with each reading and reporting its errors, until the returned function is called. */
+/** Start a Generic Sensor API sensor, calling back with each reading and reporting its errors. */
 export function makeSensor<Sensor extends GenericSensor, Options = SensorOptions>(
     SensorClass: SensorConstructor<Sensor, Options>,
     onChange: (sensor: Sensor) => void,
@@ -99,7 +99,7 @@ export function makeSensor<Sensor extends GenericSensor, Options = SensorOptions
     };
 }
 
-/** Follow a Generic Sensor API sensor through every reading, undefined until the first, until cleanup. */
+/** Follow a Generic Sensor API sensor through every reading until cleanup. */
 export function createSensor<Sensor extends GenericSensor, Options = SensorOptions>(
     SensorClass: SensorConstructor<Sensor, Options>,
     options?: Options,
@@ -117,7 +117,7 @@ export function createSensor<Sensor extends GenericSensor, Options = SensorOptio
     return () => sensor()?.current;
 }
 
-/** Call back with the device's acceleration on motion, at most once an interval, until the returned function is called. */
+/** Call back with the device's acceleration on motion, at most once an interval. */
 export function makeAccelerometer(
     onChange: (acceleration: AccelerometerReading) => void,
     options: { readonly includeGravity?: boolean; readonly interval?: number } = {},
@@ -153,7 +153,7 @@ export function createAccelerometer(
     return acceleration;
 }
 
-/** Call back with the device's orientation angles, at most once an interval, until the returned function is called. */
+/** Call back with the device's orientation angles, at most once an interval. */
 export function makeGyroscope(
     onChange: (orientation: GyroscopeReading) => void,
     options: { readonly interval?: number } = {},
@@ -196,7 +196,7 @@ export function createGyroscope(interval = READING_INTERVAL): GyroscopeReading {
     };
 }
 
-/** Start the device's magnetometer, calling back with each reading in microteslas, or return null where the device has no magnetometer API. */
+/** Start the device's magnetometer, calling back with each reading in microteslas. */
 export function makeCompass(
     onChange: (reading: CompassReading) => void,
     options?: CompassOptions,
@@ -239,7 +239,7 @@ export function createCompass(options?: CompassOptions): CompassReading {
     };
 }
 
-/** Call back with the battery's state once the API answers and on each change, until the returned function is called, doing nothing where the device has no Battery Status API. */
+/** Call back with the battery's state once the API answers and on each change. */
 export function makeBattery(onChange: (reading: BatteryReading) => void): () => void {
     // read nothing on the server or without the API
     const getBattery: unknown = isServer ? undefined : Reflect.get(navigator, "getBattery");
@@ -283,7 +283,7 @@ export function makeBattery(onChange: (reading: BatteryReading) => void): () => 
     };
 }
 
-/** Follow the battery's state, undefined until the API answers or where the device has none, until cleanup. */
+/** Follow the battery's state until cleanup. */
 export function createBattery(): Accessor<BatteryReading | undefined> {
     // read nothing on the server
     if (isServer) {

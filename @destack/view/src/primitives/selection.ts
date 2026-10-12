@@ -3,7 +3,7 @@ import { type Accessor, createEffect, createSignal } from "solid-js";
 import { makeEventListener } from "./event-listener.ts";
 import { TRANSPARENT } from "./utils.ts";
 
-/** A text selection: the field or editable element holding it with its start and end offsets, or no selection. */
+/** A text selection, or no selection. */
 export type HTMLSelection =
     | [node: HTMLElement, start: number, end: number]
     | [node: null, start: null, end: null];
@@ -113,7 +113,7 @@ function editableAncestor(node: Node | null): HTMLElement | null {
     return null;
 }
 
-/** Count the characters before an offset in a container, across the text nodes of its editable element. */
+/** Count the characters before an offset in a container. */
 function offsetIn(container: Node, offset: number, texts: readonly Text[]): number | undefined {
     const index = texts.findIndex((text) => text === container || text.parentElement === container);
     if (index === -1) {

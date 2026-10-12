@@ -2,7 +2,7 @@ import { isServer } from "@solidjs/web";
 import { type Accessor, createEffect, createSignal } from "solid-js";
 import { TRANSPARENT } from "./utils.ts";
 
-/** Follow a permission's state, unknown until the browser answers or where it does not report it. */
+/** Follow a permission's state. */
 export function createPermission(
     name: PermissionDescriptor | PermissionName,
 ): Accessor<PermissionState | "unknown"> {

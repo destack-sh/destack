@@ -27,7 +27,7 @@ const RECONNECT_MILLISECONDS = 1000;
 /** The identifier of the element with the page's launch. */
 const LAUNCH_ELEMENT = "destack-view";
 
-/** Mount a view into the page serving it once its scopes' objects are open, returning how to unmount it. */
+/** Mount a view into the page that serves it once its scopes' objects are open. */
 export async function mount(view: View): Promise<() => Promise<void>> {
     // read the page's launch
     const element = document.getElementById(LAUNCH_ELEMENT);
@@ -108,7 +108,7 @@ export async function mount(view: View): Promise<() => Promise<void>> {
     return unmount;
 }
 
-/** A view rendered into the page, rendered again in each new language once that language's catalogs arrive. */
+/** A view rendered into the page. */
 class LocalizedRendering {
     /** Render the view in a language with its catalogs, returning how to remove it. */
     readonly #render: (locale: ViewContext["locale"], catalogs: Catalog[]) => () => void;
@@ -139,7 +139,7 @@ class LocalizedRendering {
         return this.#localization;
     }
 
-    /** Render in a display's language once its catalogs arrive, keeping a language that stays and reporting a failed fetch. */
+    /** Render in a display's language once its catalogs arrive. */
     switch(next: ViewDisplay, signal: AbortSignal): void {
         // keep the language when it stays
         if (next.locale === this.#locale) {
@@ -169,7 +169,7 @@ class LocalizedRendering {
     }
 }
 
-/** Follow the host's display events until the signal aborts, reconnecting after a dropped stream. */
+/** Follow the host's display events until the signal aborts. */
 async function followDisplay(
     signal: AbortSignal,
     receive: (display: ViewDisplay) => void,
@@ -222,7 +222,7 @@ function lineDecoder(): TransformStream<Uint8Array, string> {
     });
 }
 
-/** Apply a display's theme and language to the page, dropping the custom properties it no longer sets. */
+/** Apply a display's theme and language to the page. */
 function restyle(display: ViewDisplay): void {
     // replace the root's custom properties and color scheme
     const root = document.documentElement;
@@ -266,7 +266,7 @@ async function fetchCatalogs(references: readonly CatalogReference[]): Promise<C
     );
 }
 
-/** Open a tab for each scope a view requests permissions in as the browser's client over the page's endpoint, each once its tables exist. */
+/** Open a tab for each scope a view requests permissions in, once its tables exist. */
 async function openTabs(
     context: ViewContext,
     endpoint: string,

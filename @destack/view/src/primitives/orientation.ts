@@ -13,7 +13,7 @@ export interface OrientationState {
 /** The orientation on the server. */
 const DEFAULT_STATE: OrientationState = { angle: 0, type: "portrait-primary" };
 
-/** Call back with the screen's orientation as it changes, until cleanup or the returned function. */
+/** Call back with the screen's orientation as it changes. */
 export function makeOrientation(onChange: (state: OrientationState) => void): () => void {
     // listen nowhere on the server
     if (isServer) {

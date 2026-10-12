@@ -4,10 +4,10 @@ import { type Accessor, createSignal } from "solid-js";
 /** Whether a blocker holds a navigation for the person to confirm. */
 export type BlockerState = "unblocked" | "blocked";
 
-/** How a navigation moves through history: back or forward, a new entry, or in place of the current one. */
+/** How a navigation moves through history. */
 export type HistoryAction = "POP" | "PUSH" | "REPLACE";
 
-/** Decide whether to block a navigation from where the page is, to where it goes, and how it moves through history. */
+/** Decide whether to block a navigation. */
 export type BlockerFunction = (args: {
     /** Where the page is. */
     readonly currentLocation: Location;
@@ -17,7 +17,7 @@ export type BlockerFunction = (args: {
     readonly historyAction: HistoryAction;
 }) => boolean;
 
-/** A navigation blocker: whether it holds a navigation, where that goes, and how to let it through or drop it. */
+/** A navigation blocker. */
 export interface Blocker {
     /** Whether a navigation is held. */
     readonly state: Accessor<BlockerState>;
@@ -29,7 +29,7 @@ export interface Blocker {
     reset(): void;
 }
 
-/** Hold navigations within the page while told to, so the page can ask the person before leaving, until cleanup. */
+/** Block navigations within the page while told to, until cleanup. */
 export function useBlocker(shouldBlock: boolean | BlockerFunction): Blocker {
     // hold the navigation waiting for the person
     const [held, setHeld] = createSignal<BeforeLeaveEventArgs | undefined>(undefined, {
@@ -72,7 +72,7 @@ export function useBlocker(shouldBlock: boolean | BlockerFunction): Blocker {
     };
 }
 
-/** Read how a navigation moves through history: a step back or forward, in place, or a new entry. */
+/** Read how a navigation moves through history. */
 function historyActionOf(event: BeforeLeaveEventArgs): HistoryAction {
     if (typeof event.to === "number") {
         return "POP";

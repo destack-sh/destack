@@ -23,7 +23,8 @@ export function createEventProps<Names extends EventNames>(
 /**
  * Record each named event in a signal of its own.
  *
- * @construct each name gets a store getter and an `on` property of that name, which is how the mapped types read them
+ * @construct each name gets a store getter and an `on` property of that name.
+ * The mapped types read them this way.
  */
 export function createEventProps(
     ...names: string[]

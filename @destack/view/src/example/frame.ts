@@ -36,7 +36,7 @@ const ThemeSettings = schema.object({
     accent: Seed.nullable().exactOptional(),
 });
 
-/** What an example frame shows: the example, the environment it renders in and the properties a control changed. */
+/** What an example frame shows. */
 export interface ExampleFrame<Properties extends object = object> {
     /** The example. */
     readonly example: Example<Properties, JSX.Element>;
@@ -50,7 +50,7 @@ export interface ExampleFrame<Properties extends object = object> {
     readonly theme?: Theme;
 }
 
-/** Render an example into an element in one environment: its locale, theme settings, direction and width, returning how to unmount it. */
+/** Render an example into an element in one environment. */
 export function renderExample<Properties extends object>(
     element: HTMLElement,
     frame: ExampleFrame<Properties>,
@@ -96,7 +96,7 @@ export function renderExample<Properties extends object>(
     };
 }
 
-/** Render what an example shows: a view over the objects its calls bring about, or the example's own rendering. */
+/** Render what an example shows. */
 function renderedOf<Properties extends object>(frame: ExampleFrame<Properties>): JSX.Element {
     const { example } = frame;
     if (example.of instanceof View) {

@@ -3,7 +3,7 @@ import { ViewPresentation, type ViewDescription } from "@destack/package/manifes
 import { schema } from "@destack/schema";
 import type { View } from "../declare/view.ts";
 
-/** Describe a view by its name, the permissions it requests by scope, the object types it presents and the platform services it calls. */
+/** Describe a view by its name and the permissions it requests by scope. */
 export function describeView(view: View): {
     readonly name: string;
     readonly permissions: ViewDescription["permissions"];

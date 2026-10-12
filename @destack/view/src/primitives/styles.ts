@@ -3,7 +3,7 @@ import { type Accessor, onCleanup } from "solid-js";
 import { createHydratableSingletonRoot } from "./rootless.ts";
 import { createHydratableSignal } from "./utils.ts";
 
-/** The browsers' default root font size in pixels, which the server renders with, knowing no client's own. */
+/** The browsers' default root font size in pixels. */
 const DEFAULT_REM_SIZE = 16;
 
 /** Read the root's font size, the rem, in pixels. */

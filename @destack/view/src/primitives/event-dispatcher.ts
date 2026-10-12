@@ -1,6 +1,6 @@
 import { isServer } from "@solidjs/web";
 
-/** The event handlers among a component's properties, by event name: `onChangeStep` as `changeStep`. */
+/** The event handlers among a component's properties, by event name. */
 export type Handlers<Properties> = {
     [
         Property in keyof Properties as Property extends `on${infer EventName}`
@@ -15,7 +15,7 @@ export type DispatcherOptions = {
     readonly cancelable?: boolean;
 };
 
-/** The arguments of a dispatch: the event name, its payload, typed by the handler, and the options. */
+/** The arguments of a dispatch: the event name, its payload, typed by the handler, and options. */
 export type DispatchArguments<
     Properties,
     Name extends keyof Handlers<Properties>,
@@ -25,7 +25,7 @@ export type DispatchArguments<
       ? [eventName: Name, payload: Detail, options?: DispatcherOptions]
       : [eventName: Name, payload?: unknown, options?: DispatcherOptions];
 
-/** Dispatch typed custom events to a component's `on` handlers, reporting whether none was cancelled. */
+/** Dispatch typed custom events to a component's `on` handlers. */
 export function createEventDispatcher<Properties>(
     properties: Properties,
 ): <Name extends keyof Handlers<Properties> & string>(
@@ -34,7 +34,8 @@ export function createEventDispatcher<Properties>(
 /**
  * Call the handler an event name selects with a custom event of the payload.
  *
- * @construct an event name selects the `on` handler of the same name, which takes the payload its type gives
+ * @construct an event name selects the `on` handler of that name.
+ * That handler takes the payload its type gives.
  */
 export function createEventDispatcher(
     properties: object,

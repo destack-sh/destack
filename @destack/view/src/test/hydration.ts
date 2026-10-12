@@ -4,7 +4,7 @@ import { loadTransforms } from "@destack/build/local";
 import { modulePlugin } from "@destack/package/vite";
 import { createServer } from "vite";
 
-/** Render each component a module of the tested package exports on a server compiled as builds of server-rendered applications compile it, returning each one's HTML by export name. */
+/** Render each component a module of the tested package exports on a server. */
 export async function renderOnServer(module: string): Promise<Record<string, string>> {
     // compile the module and Solid's server runtime for the server from the tested package, as builds do
     const root = process.cwd();
@@ -53,12 +53,12 @@ function isFunction(value: unknown): value is () => unknown {
     return typeof value === "function";
 }
 
-/** Report whether a value renders a component to HTML, as the server runtime's renderToString does. */
+/** Report whether a value renders a component to HTML. */
 function isRenderer(value: unknown): value is (render: () => unknown) => Promise<string> {
     return typeof value === "function";
 }
 
-/** Report whether a value creates a component's rendering, as the server runtime's createComponent does. */
+/** Report whether a value creates a component's rendering. */
 function isCreator(
     value: unknown,
 ): value is (component: () => unknown, properties: object) => unknown {

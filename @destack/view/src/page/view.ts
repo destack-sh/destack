@@ -12,7 +12,7 @@ import {
     type ViewContext,
 } from "../declare/context.ts";
 
-/** A mounted view: what its host gives it, the open clients of its scopes and the connections of the platform services it calls. */
+/** A mounted view. */
 export interface ViewMount {
     /** What the host gives the view. */
     readonly context: ViewContext;
@@ -64,7 +64,7 @@ export function useService<Definition extends ServiceRouter>(
     return createClient(service, options);
 }
 
-/** Mount the platform services a view declares below the platform path of its origin, by package. */
+/** Mount the platform services a view declares below the platform path of its origin. */
 export function mountServices(
     services: readonly Pick<Service, "package">[],
     origin: string,
@@ -78,7 +78,7 @@ export function mountServices(
     );
 }
 
-/** Write the same-origin address at which the host opens an object in the view presenting it, or in the view asked for. */
+/** Write the same-origin address where the host opens an object. */
 export function urlOf(
     reference: ObjectReference,
     options: { readonly view?: string } = {},

@@ -25,7 +25,7 @@ const SAMPLE_ACCOUNT = "account-01996ab0-0000-7000-8000-00000000e003";
 /** The address of the sample space's services, which never answer. */
 const OFFLINE = { url: "https://sample.invalid", fetch: () => new Promise<Response>(() => {}) };
 
-/** What a view's example renders: the view, and the calls bringing its objects into the example's state. */
+/** What a view's example renders. */
 interface ViewExampleProperties {
     /** The view to render. */
     readonly view: View;
@@ -33,11 +33,7 @@ interface ViewExampleProperties {
     readonly objects: ExampleObjects;
 }
 
-/**
- * Render a view's example offline over the objects its calls bring about, each scope in memory.
- *
- * Each scope the view opens keeps its objects in memory, written by the declared calls as the person's local changes.
- */
+/** Render a view's example offline over the objects its calls bring about, each scope in memory. */
 export function ViewExample(properties: ViewExampleProperties): JSX.Element {
     // open the scopes and load the view's component, closing the scopes on unmount
     const closing = new AbortController();
@@ -101,7 +97,7 @@ async function openSample(
     return { component, mount: { context, clients, services } };
 }
 
-/** Open one scope's objects in an in-memory database whose service never answers, closing both on abort. */
+/** Open one scope's objects in an in-memory database whose service never answers. */
 async function openScope(
     scope: string,
     objects: readonly ObjectType[],

@@ -12,7 +12,7 @@ afterEach(() => {
     window.matchMedia = original;
 });
 
-/** Answer media queries as matching when they name one of the widths, keeping each list to dispatch to. */
+/** Answer media queries as matching when they give one of the widths. */
 function stubMatchMedia(widths: readonly string[]): Map<string, MediaQueryList> {
     const lists = new Map<string, MediaQueryList>();
     window.matchMedia = (query: string) => {

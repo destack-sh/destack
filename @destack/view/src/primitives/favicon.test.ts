@@ -123,7 +123,7 @@ function iconHref(rel = "icon"): string | null {
     return document.head.querySelector(`link[rel="${rel}"]`)?.getAttribute("href") ?? null;
 }
 
-/** Read the overlay a favicon address draws, the drawing's operations after its base image, or plain for an undrawn one. */
+/** Read the overlay a favicon address draws. */
 function overlayOf(href: string | null | undefined): string {
     const number = /^data:drawn,(\d+)$/u.exec(href ?? "")?.[1];
 

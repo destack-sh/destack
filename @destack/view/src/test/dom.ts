@@ -17,7 +17,7 @@ const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 /** The ids Solid generates, numbered across every render in a test file. */
 const GENERATED_ID = /cl-\d+/gu;
 
-/** How `render` mounts: into which container, and whether it hydrates the server's HTML the container holds. */
+/** How `render` mounts. */
 export interface RenderOptions {
     /** The element to render into, a new one in the document by default. */
     readonly container?: HTMLElement;
@@ -33,7 +33,7 @@ export interface RenderResult {
     readonly unmount: () => void;
 }
 
-/** The bootstrap the document's hydration script installs before a page hydrates, without its event replay. */
+/** The bootstrap the document's hydration script installs before a page hydrates. */
 interface HydrationBootstrap {
     /** The events replayed once their elements hydrate. */
     readonly events: unknown[];
@@ -45,7 +45,7 @@ interface HydrationBootstrap {
     fe(): void;
 }
 
-/** Render an element, or an example as its hosts render it, into a container in the document for the test's duration, hydrating the container's server HTML when asked. */
+/** Render an element, or an example as its hosts render it, into a container in the document. */
 export function render<Properties extends object>(
     ui: (() => JSX.Element) | Example<Properties, JSX.Element>,
     options: RenderOptions = {},
@@ -105,7 +105,7 @@ export function focused(): string {
     return document.activeElement?.textContent ?? "";
 }
 
-/** Return a container's markup without classes, markers and icon bodies, numbering generated ids by first use. */
+/** Return a container's markup without classes, markers and icon bodies. */
 export function markup(container: Element): string {
     // drop classes, markers and icon bodies
     const html = container.innerHTML
@@ -129,7 +129,7 @@ export function classes(container: Element): string[] {
     return [...container.children].map((child) => child.className);
 }
 
-/** Show and hide popovers by a `data-popover-open` attribute naming their anchor's slot, standing in for the Popover API the test DOM lacks. */
+/** Show and hide popovers by a `data-popover-open` attribute with their anchor's slot. */
 export function stubPopovers(): void {
     // keep the prototype's own members to restore
     const prototype = HTMLElement.prototype;
@@ -200,7 +200,7 @@ function restore(
     }
 }
 
-/** Wait until a check passes after a change within an element, failing once some milliseconds pass, as Testing Library's waitFor watches mutations. */
+/** Wait until a check passes after a change within an element. */
 export async function changed(
     element: Element,
     check: () => boolean,

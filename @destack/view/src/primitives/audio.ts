@@ -45,7 +45,7 @@ export type AudioReturn = {
     readonly seek: (time: number) => void;
 };
 
-/** Make a player of a sound, or take an existing one, with event handlers removed by the returned function, which also pauses it. */
+/** Make a player of a sound, or take an existing one, with event handlers. */
 export function makeAudio(
     source: AudioSource | HTMLAudioElement,
     handlers: AudioEventHandlers = {},
@@ -106,7 +106,7 @@ export function makeAudioPlayer(
     ];
 }
 
-/** Play a sound reactively: whether it plays, its volume, time and length, following a reactive source, pausing on cleanup. */
+/** Play a sound reactively: whether it plays, its volume, time and length. */
 export function createAudio(source: AudioSource | Accessor<AudioSource>): AudioReturn {
     // play nothing on the server
     if (isServer) {

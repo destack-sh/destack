@@ -10,23 +10,23 @@ import { ObjectReference } from "@destack/sync";
 import { CommandReference } from "../declare/command.ts";
 import { Accelerator } from "./accelerator.ts";
 
-/** How strongly a title matching the query from its start ranks: above a word's start and anywhere inside. */
+/** How strongly a title matching the query from its start ranks. */
 const MATCHES = { start: 3, word: 2, inside: 1 } as const;
 
-/** How much an entry of the focused window's space, its installation, or acting on its object, ranks higher. */
+/** How much higher an entry ranks for the focused window. */
 const BOOSTS = { space: 0.25, installation: 0.5, object: 1 } as const;
 
 /** The identity of a space, which entries name their space by. */
 const SpaceId = schema.identifier("space");
 
-/** A source of the palette's entries, as the person turns it on or off: a built-in one, or a package's commands and views by its identifier. */
+/** A source of the palette's entries, as the person turns it on or off. */
 export const PaletteSource = defineSchema(
     schema.union([schema.enum(["windows", "spaces", "recent"]), PackageId]),
 );
 /** A source of the palette's entries. */
 export type PaletteSource = schema.Infer<typeof PaletteSource>;
 
-/** An entry the command palette offers: a command, a view, a window of this machine, a space, or an object opened lately. */
+/** An entry the command palette offers. */
 export const PaletteEntry = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -48,7 +48,7 @@ export const PaletteEntry = defineSchema(
             type: schema.string().min(1),
             /** The method it calls. */
             method: schema.string().min(1),
-            /** The key combination running it, the person's own or the declared one, null for none. */
+            /** The key combination that runs it. */
             keybinding: Accelerator.nullable(),
         }),
         schema.object({
@@ -98,7 +98,7 @@ export const PaletteEntry = defineSchema(
 /** An entry the command palette offers. */
 export type PaletteEntry = schema.Infer<typeof PaletteEntry>;
 
-/** What the window the palette opens over shows: its space and installation, and the object it presents. */
+/** What the window the palette opens over shows. */
 export const PaletteFocus = defineSchema(
     schema.object({
         /** The space of the window's view or object. */
@@ -114,7 +114,7 @@ export type PaletteFocus = schema.Infer<typeof PaletteFocus>;
 
 /** The palette's ranking of entries, their sources and their keybindings. */
 export const Palette = {
-    /** Rank the entries matching a query, the focused window's space, installation and object first, then by title. */
+    /** Rank the entries that match a query. */
     rank(entries: readonly PaletteEntry[], query: string, focus: PaletteFocus): PaletteEntry[] {
         const scored = entries.flatMap((entry) => {
             const match = Palette.match(entry, query);
@@ -130,7 +130,7 @@ export const Palette = {
             .map(({ entry }) => entry);
     },
 
-    /** Score how an entry's title or installation matches a query: from its start, a word's start, anywhere inside, or not at all. */
+    /** Score how an entry's title or installation matches a query. */
     match(entry: PaletteEntry, query: string): number {
         // match every entry for an empty query
         const wanted = query.trim().toLowerCase();
@@ -150,7 +150,7 @@ export const Palette = {
         return text.includes(wanted) ? MATCHES.inside : 0;
     },
 
-    /** Score how an entry relates to the focused window: its space, its installation there, and its object or a command acting on its type. */
+    /** Score how an entry relates to the focused window. */
     boost(entry: PaletteEntry, focus: PaletteFocus): number {
         // read the entry's space and installation against the focus
         const space = Palette.space(entry);
@@ -186,7 +186,7 @@ export const Palette = {
         return entry.space;
     },
 
-    /** Read the source an entry comes from: its package for a command or view, else its built-in source. */
+    /** Read the source an entry comes from. */
     source(entry: PaletteEntry): PaletteSource {
         const sources = { window: "windows", space: "spaces", object: "recent" } as const;
 
@@ -203,7 +203,7 @@ export const Palette = {
         return sources[Palette.source(entry)] !== false;
     },
 
-    /** Read the key combination running a command: the person's own, none when they unbound it, else the declared one. */
+    /** Read the key combination that runs a command. */
     keybinding(
         reference: CommandReference,
         declared: Accelerator | undefined,
@@ -238,15 +238,15 @@ export interface PaletteObject {
     readonly title: string;
 }
 
-/** How a command's method takes its input: whether it acts on one object, and the JSON Schema of the rest. */
+/** How a command's method takes its input. */
 export interface CommandShape {
     /** Whether the method acts on one object, which the palette picks. */
     readonly isTargeted: boolean;
-    /** The JSON Schema of the input beside the object, an object schema without properties for none. */
+    /** The JSON Schema of the input beside the object. */
     readonly input: JsonObject;
 }
 
-/** The entries the palette offers, with the failures of the spaces it could not read, which it shows beside them. */
+/** The entries the palette offers. */
 export interface PaletteListing {
     /** The entries. */
     readonly entries: readonly PaletteEntry[];
@@ -254,7 +254,7 @@ export interface PaletteListing {
     readonly failures: readonly string[];
 }
 
-/** What the palette reaches as the person: its listing, the objects and shapes of commands, their calls, and the openings of views, objects and windows. */
+/** What the palette reaches as the person. */
 export interface PaletteClient {
     /** List the entries the palette offers. */
     list(): Promise<PaletteListing>;

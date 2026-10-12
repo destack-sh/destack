@@ -84,7 +84,7 @@ test("write links to values, leaving defaults out and keeping the base's other v
     expect(() => serialize({ page: 1.5 })).toThrow(new RangeError("1.5 is no whole number"));
 });
 
-/** Render a router over a memory history at a path, exposing what a page reads and how it navigates. */
+/** Render a router over a memory history at a path. */
 function renderPage<Exposed>(path: string, read: () => Exposed) {
     // route every path to a page exposing what it reads
     const exposed: { value?: Exposed; search?: () => string; back?: () => void } = {};

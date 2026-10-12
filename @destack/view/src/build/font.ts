@@ -24,7 +24,7 @@ export interface FallbackMetrics {
     readonly lineGap: string;
 }
 
-/** A font file a build read: its address, its family and the overrides adjusting each local fallback to it. */
+/** A font file a build read. */
 export interface FontFile {
     /** The file's address. */
     readonly url: string;
@@ -67,7 +67,7 @@ export async function readFont(bytes: Uint8Array): Promise<Omit<FontFile, "url">
     return { family: metrics.familyName, fallbacks };
 }
 
-/** Turn `?font` imports into font files: emitted as build assets with their metrics, served from their source while developing. */
+/** Turn `?font` imports into font files. */
 export function fontPlugin(): Plugin {
     // remember whether the plugin builds or serves
     let isBuild = true;

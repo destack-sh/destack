@@ -35,7 +35,7 @@ export interface FontSource {
     readonly weight?: string;
     /** The style, normal unless italic. */
     readonly style?: "normal" | "italic";
-    /** The characters the file covers, such as a Latin Extended subset, which loads only when the page uses them. */
+    /** The characters the file covers, such as a Latin Extended subset. */
     readonly unicodeRange?: string;
 }
 
@@ -51,7 +51,7 @@ export interface FontDefinition {
     readonly preload?: boolean;
     /** The families shown before and instead of this one. */
     readonly fallback?: readonly string[];
-    /** The local font a fallback adjusts to the font's metrics so swapping moves no text, Arial by default. */
+    /** The local font a fallback adjusts to the font's metrics, Arial by default. */
     readonly adjustFontFallback?: keyof FontFile["fallbacks"] | false;
 }
 
@@ -182,7 +182,7 @@ function quote(family: string): string {
     return GENERIC_FAMILIES.has(family) ? family : `"${family}"`;
 }
 
-/** Read a font file's format and media type from its extension, refusing a format browsers do not load. */
+/** Read a font file's format and media type from its extension. */
 function formatOf(url: string): { readonly format: string; readonly type: string } {
     // look up the extension's format
     const extension = new URL(url, "file:///").pathname.split(".").at(-1) ?? "";

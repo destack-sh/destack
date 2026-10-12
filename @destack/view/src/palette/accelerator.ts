@@ -66,7 +66,7 @@ const EVENT_KEY_NAMES: Readonly<Record<string, string>> = {
 /** The user agents of platforms whose `mod` key is Command. */
 const COMMAND_PLATFORM = /Mac|iPhone|iPad/u;
 
-/** A key combination in the keybinding syntax editors write, such as `alt+space` or `mod+shift+k`, `mod` being Command on Command platforms and Control elsewhere. */
+/** A key combination in the keybinding syntax editors write. */
 export const Accelerator = Object.assign(
     defineSchema(
         schema
@@ -76,7 +76,7 @@ export const Accelerator = Object.assign(
             ),
     ),
     {
-        /** Write an accelerator for people: modifier symbols on Command platforms, words joined by plus signs elsewhere. */
+        /** Write an accelerator for people. */
         format(accelerator: string, isCommand: boolean): string {
             // name each modifier and the key the way each platform labels them
             const parts = accelerator.split("+");
@@ -89,14 +89,14 @@ export const Accelerator = Object.assign(
             return isCommand ? [...modifiers, label].join("") : [...modifiers, label].join("+");
         },
 
-        /** List the keys of an accelerator as keyboard events name them, `mod` being Meta on Command platforms and Control elsewhere. */
+        /** List the keys of an accelerator as keyboard events call them. */
         keys(accelerator: string, isCommand: boolean): string[] {
             return accelerator
                 .split("+")
                 .map((part) => (isCommand ? COMMAND_KEYS[part] : KEYS[part]) ?? part.toUpperCase());
         },
 
-        /** Report whether a key press presses an accelerator, `mod` being Command on Command platforms and Control elsewhere. */
+        /** Report whether a key press presses an accelerator. */
         matches(accelerator: string, event: KeyPress, isCommand: boolean): boolean {
             // read the modifiers and the key the accelerator names
             const parts = accelerator.split("+");

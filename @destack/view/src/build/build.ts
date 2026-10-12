@@ -14,7 +14,7 @@ import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";
 /** The prefix of the generated modules mounting each view. */
 const PREFIX = "virtual:@destack/view/view/";
 
-/** Compile Solid components wherever modules compile, turn imported images and fonts into assets, and mount each declared view from a separate browser chunk. */
+/** Compile Solid components wherever modules compile. */
 export const viewExtension: BuildExtension = {
     transform(context) {
         // compile Solid, as the application an output names when it names one
@@ -66,7 +66,7 @@ export const viewExtension: BuildExtension = {
     },
 };
 
-/** Refuse a package with views that declares more than one theme, since its views take its theme. */
+/** Refuse a package with views that declares more than one theme. */
 function requireOneTheme(compilation: Compilation, views: number): void {
     const themes = compilation.declarations.filter(
         (declaration) =>

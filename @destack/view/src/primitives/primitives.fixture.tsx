@@ -57,7 +57,7 @@ const target = () => element;
 /** Read the elements the fixture's ref received, none before rendering. */
 const targets = () => (element === undefined ? [] : [element]);
 
-/** Render a paragraph after a primitive ran, whose hydration key shows whether the primitive kept the keys aligned. */
+/** Render a paragraph after a primitive ran. */
 function Probe(properties: { readonly name: string }) {
     return (
         <p

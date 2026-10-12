@@ -10,7 +10,7 @@ const PICTURE_FORMATS: readonly ImageFormat[] = ["avif", "webp"];
 /** The format an image prefers for its single source. */
 const IMAGE_FORMAT: ImageFormat = "webp";
 
-/** The styles of images: a picture and its sources laying the image out as a bare image would, and a blurred placeholder. */
+/** The styles of images. */
 const styles = style.create({
     picture: {
         display: "contents",
@@ -42,7 +42,7 @@ interface ImageAttributes extends Omit<
     readonly style?: JSX.CSSProperties | string;
 }
 
-/** The properties of an image: a build's image with its own size, or an address with its width and height. */
+/** The properties of an image. */
 export type ImageProperties = ImageAttributes &
     (
         | {
@@ -59,12 +59,12 @@ export type ImageProperties = ImageAttributes &
           }
     );
 
-/** Show an image in its best single format at the width the layout needs, without shifting the layout. */
+/** Show an image in its best single format at the width the layout needs. */
 export function Image(properties: ImageProperties): JSX.Element {
     return <ImageElement image={properties} choose={preferred} />;
 }
 
-/** Show an image in the best format the browser reads, each format at the width the layout needs. */
+/** Show an image in the best format the browser reads. */
 export function Picture(properties: ImageProperties): JSX.Element {
     // offer each better format the image has before its original
     const files = () => (typeof properties.src === "string" ? [] : properties.src.srcSet);
@@ -91,7 +91,7 @@ export function Picture(properties: ImageProperties): JSX.Element {
     );
 }
 
-/** Render an image element over the files a choice keeps, its blurred rendition shown until it loads. */
+/** Render an image element over the files a choice keeps. */
 function ImageElement(properties: {
     readonly image: ImageProperties;
     readonly choose: (image: ImageMetadata) => ImageMetadata["srcSet"];

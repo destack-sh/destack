@@ -9,7 +9,7 @@ import {
 } from "solid-js";
 import { TRANSPARENT } from "./utils.ts";
 
-/** A chosen file, with an object URL showing it, which the primitive revokes once the file is dropped. */
+/** A chosen file, with an object URL that shows it. */
 export type UploadFile = {
     /** An object URL of the file. */
     readonly source: string;
@@ -125,7 +125,7 @@ export type FileUploadEntry = {
     response: unknown;
 };
 
-/** An uploader's upload action, its files, their combined progress and status, and how to abort and drop them. */
+/** An uploader's upload action, its files, and their combined progress and status. */
 export interface FileUploader {
     /** Send each file in its own request, resolving once all settle. */
     readonly upload: (files: UploadFile[]) => Promise<unknown[]>;
@@ -133,7 +133,7 @@ export interface FileUploader {
     readonly files: readonly FileUploadEntry[];
     /** The progress of all files together. */
     readonly progress: Accessor<UploadProgress>;
-    /** The status of all files together: uploading, else error, else aborted, else success, else idle. */
+    /** The status of all files together. */
     readonly status: Accessor<UploadStatus>;
     /** Abort every upload in flight. */
     readonly abort: () => void;
@@ -292,7 +292,7 @@ export function dropzone<Target extends HTMLElement = HTMLElement>(
     return Object.assign(ref, state);
 }
 
-/** Upload files through a send function, each file in its own request, following each and all of them. */
+/** Upload files through a send function, each file in its own request. */
 export function createFileUploader(send: SendFunction): FileUploader {
     // upload nothing on the server
     if (isServer) {
@@ -422,7 +422,7 @@ export function createFileUploader(send: SendFunction): FileUploader {
     return { upload, files, progress, status, abort, removeFile, clearFiles };
 }
 
-/** Make a send function that posts each file in a form through a request reporting upload progress. */
+/** Make a send function that posts each file in a form. */
 export function fileSender(url: string, options: FileSenderOptions = {}): SendFunction {
     const { fieldName = "file", headers = {} } = options;
 

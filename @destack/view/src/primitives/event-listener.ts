@@ -210,7 +210,7 @@ export function makeEventListener<
     handler: (event: EventMap[EventType]) => void,
     options?: EventListenerOptions,
 ): () => void;
-/** Listen to a custom event of a target until the owner is cleaned up or the returned function is called. */
+/** Listen to a custom event of a target. */
 export function makeEventListener<
     EventMap extends Record<string, Event>,
     EventType extends keyof EventMap = keyof EventMap,
@@ -248,7 +248,7 @@ export function createEventListener<
     handler: (event: EventMap[EventType]) => void,
     options?: EventListenerOptions,
 ): void;
-/** Listen to custom events of one or several targets, following the targets and types as they change. */
+/** Listen to custom events of one or several targets. */
 export function createEventListener<
     EventMap extends Record<string, Event>,
     EventType extends keyof EventMap = keyof EventMap,
@@ -407,7 +407,7 @@ export function makeEventListenerStack<
     target: Target,
     options?: EventListenerOptions,
 ): [listen: EventListenerStackOn<EventMap>, clear: () => void];
-/** Collect listeners to custom events on one target, all stopped together on cleanup or by the returned function. */
+/** Collect listeners to custom events on one target. */
 export function makeEventListenerStack<EventMap extends Record<string, Event>>(
     target: EventTarget,
     options?: EventListenerOptions,
@@ -497,7 +497,7 @@ export function stopImmediatePropagation<Event_ extends Event>(
     };
 }
 
-/** Listen to a target's events through `on` properties, naming each event by the rest of the property in lower case. */
+/** Listen to a target's events through `on` properties. */
 function listenToProperties(target: EventTarget, properties: object): void {
     for (const key of Object.keys(properties)) {
         const handler: unknown = Reflect.get(properties, key);

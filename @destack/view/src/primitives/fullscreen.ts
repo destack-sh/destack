@@ -9,7 +9,7 @@ export interface FullscreenPrimitiveOptions extends FullscreenOptions {
     readonly exitOnCleanup?: boolean;
 }
 
-/** Make functions that enter and exit fullscreen for an element, the entering options overriding the made ones. */
+/** Make functions that enter and exit fullscreen for an element. */
 export function makeFullscreen(
     element: HTMLElement,
     options?: FullscreenOptions,

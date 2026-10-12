@@ -25,7 +25,7 @@ function Page() {
 /** The fixture's router over every path. */
 const Router = createRouter({ routes: defineRoutes([{ path: "*path", component: Page }]) });
 
-/** Render the fixture at an address with an invalid page, on the server and in the browser alike. */
+/** Render the fixture at an address with an invalid page. */
 export function NotesAtInvalidPage() {
     return <Router url="/notes?q=milk&page=x" />;
 }

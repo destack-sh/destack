@@ -5,7 +5,7 @@ import type { Submission } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { type Accessor, createSignal } from "../solid/reactive.ts";
 
-/** Where a form's last submission stands: none yet, waiting for the server, confirmed, or refused. */
+/** Where a form's last submission stands. */
 export type FormStatus = "idle" | "pending" | "saved" | "failed";
 
 /** When a form submits: on each change of a field, as edits in place, or when it is submitted. */
@@ -27,7 +27,7 @@ export interface FormField<Value> {
     readonly value: Accessor<Value>;
     /** Edit the value, checked against the method's input schema, and submit in change mode. */
     set(value: Value): void;
-    /** Why the field's value or a value inside it is refused, in the person's language, absent while it is kept. */
+    /** Why the field's value or a value inside it is refused, in the person's language. */
     readonly problem: Accessor<string | undefined>;
 }
 
@@ -35,9 +35,9 @@ export interface FormField<Value> {
 export interface Form<Input extends object> {
     /** One input field. */
     field<Name extends keyof Input & string>(name: Name): FormField<Input[Name]>;
-    /** Submit the edited input when every field is kept, answering its submission, absent while a field is refused. */
+    /** Submit the edited input when every field is kept, and answer its submission. */
     submit(): Submission<unknown> | undefined;
-    /** Why each shown value is refused, in the person's language, by its JSON Pointer (RFC 6901) such as `/tags/0`. */
+    /** Why each shown value is refused, in the person's language. */
     readonly problems: Accessor<ReadonlyMap<string, string>>;
     /** Where the last submission stands. */
     readonly status: Accessor<FormStatus>;
@@ -47,7 +47,7 @@ export interface Form<Input extends object> {
     reset(): void;
 }
 
-/** Edit the input of one call of an object's method, every field checked by the method's input schema, after form libraries' field state. */
+/** Edit the input of one call of an object's method, after form libraries' field state. */
 export function useForm<Object extends ObjectType, Name extends MutationName<Object>>(
     object: Object,
     method: Name,
@@ -56,7 +56,7 @@ export function useForm<Object extends ObjectType, Name extends MutationName<Obj
     return useSchemaForm(object.procedure(method).input, options);
 }
 
-/** Edit an input a schema checks, such as one read from JSON Schema, refusing edited values at once and every value once submitted. */
+/** Edit an input a schema checks, such as one read from JSON Schema. */
 export function useSchemaForm<Input extends object>(
     input: schema.Schema,
     options: FormOptions<Input>,
@@ -199,7 +199,7 @@ function isContainer(value: unknown): value is Readonly<Record<string, unknown>>
     return typeof value === "object" && value !== null;
 }
 
-/** Read the issues of the union member closest to a held value, or the issue itself for a missing value or another issue. */
+/** Read the issues of the union member closest to a kept value. */
 function closest(issue: schema.Issue, held: unknown): schema.Issue[] {
     // keep an issue outside a union, or a union missing its value
     if (issue.code !== "invalid_union" || valueAt(held, issue.path) === undefined) {

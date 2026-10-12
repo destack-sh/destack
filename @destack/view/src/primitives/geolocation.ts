@@ -25,7 +25,7 @@ const DEFAULT_OPTIONS: PositionOptions = {
     timeout: Number.POSITIVE_INFINITY,
 };
 
-/** Make a function that queries the position once, and one that stops later queries, rejecting where the device cannot locate. */
+/** Make a function that queries the position once, and one that stops later queries. */
 export function makeGeolocation(
     options?: PositionOptions,
 ): [query: () => Promise<GeolocationCoordinates>, cleanup: () => void] {
@@ -55,7 +55,7 @@ export function makeGeolocation(
     ];
 }
 
-/** Watch the position into a plain object, without an owner, until the returned function is called. */
+/** Watch the position into a plain object, without an owner. */
 export function makeGeolocationWatcher(
     options?: PositionOptions,
 ): [
@@ -87,7 +87,7 @@ export function makeGeolocationWatcher(
     return [store, () => navigator.geolocation.clearWatch(watch)];
 }
 
-/** Query the position once, suspending until it answers, and again on refetch or when the options change, a seed standing in on the server. */
+/** Query the position once, suspending until it answers. */
 export function createGeolocation(
     options?: MaybeAccessor<PositionOptions>,
     initialLocation?: GeolocationCoord,
@@ -119,7 +119,7 @@ export function createGeolocation(
     return [location, () => setVersion((current) => current + 1)];
 }
 
-/** Watch the position while enabled, pending until the first fix unless seeded, with the latest error, restarting as the options change. */
+/** Watch the position while enabled, with the latest error. */
 export function createGeolocationWatcher(
     enabled: MaybeAccessor<boolean>,
     options?: MaybeAccessor<PositionOptions>,
@@ -179,7 +179,7 @@ export function createGeolocationWatcher(
     return { location, error };
 }
 
-/** Follow the distance from the position to a target by the haversine formula, null until the first fix. */
+/** Follow the distance from the position to a target by the haversine formula. */
 export function createDistance(
     target: MaybeAccessor<GeolocationCoord>,
     options: {
@@ -212,7 +212,7 @@ export function createDistance(
     };
 }
 
-/** Follow whether the position lies within a radius in metres of a centre, false until the first fix. */
+/** Follow whether the position lies within a radius in metres of a centre. */
 export function createWithinRadius(
     center: MaybeAccessor<GeolocationCoord>,
     radius: MaybeAccessor<number>,
@@ -247,7 +247,7 @@ async function currentPosition(options?: PositionOptions): Promise<GeolocationCo
     });
 }
 
-/** Stand a seed position in for measured coordinates, whose accuracy is unmeasured and so spans any distance. */
+/** Stand a seed position in for measured coordinates. */
 function coordinatesOf(seed: GeolocationCoord): GeolocationCoordinates {
     const coordinates = {
         latitude: seed.latitude,

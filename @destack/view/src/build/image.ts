@@ -19,7 +19,7 @@ const BLUR_QUALITY = 40;
 /** The raster images an import turns into image metadata, by extension. */
 const RASTER = /\.(?:png|jpe?g|webp|avif|gif)$/u;
 
-/** The widths and formats an image renders at, Next.js's device sizes and AVIF and WebP by default. */
+/** The widths and formats an image renders at. */
 export interface ImageOptions {
     /** The widths to render at, each below the image's own, beside its own. */
     readonly widths?: readonly number[];
@@ -35,7 +35,7 @@ export interface ImageFile {
     readonly format: ImageFormat;
 }
 
-/** An image rendered for a build: its size and format, its blurred rendition, and each file of its source set with its bytes. */
+/** An image rendered for a build. */
 export interface TransformedImage {
     /** The intrinsic width in pixels. */
     readonly width: number;
@@ -61,7 +61,7 @@ export function imageFiles(
     return widths.flatMap((entry) => formats.map((each) => ({ width: entry, format: each })));
 }
 
-/** Read an image's size and format, and render its blurred rendition and the source set the options plan. */
+/** Read an image's size and format. */
 export async function transformImage(
     bytes: Uint8Array,
     options: ImageOptions = {},
@@ -105,7 +105,7 @@ export async function transformImage(
     };
 }
 
-/** Turn raster image imports into image metadata: their source sets emitted by a build, their original while serving. */
+/** Turn raster image imports into image metadata. */
 export function imagePlugin(): Plugin {
     // remember whether the plugin builds or serves
     let isBuild = true;

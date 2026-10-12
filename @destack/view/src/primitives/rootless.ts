@@ -1,7 +1,7 @@
 import { isServer } from "@solidjs/web";
 import { createRoot, getOwner, onCleanup, type Owner, runWithOwner, sharedConfig } from "solid-js";
 
-/** Run a computation in a root of its own, disposed with any of its owners, the current one by default. */
+/** Run a computation in a root of its own. */
 export function createSubRoot<Result>(
     compute: (dispose: () => void) => Result,
     ...owners: (Owner | null)[]
@@ -52,7 +52,7 @@ export function createSingletonRoot<Value>(
     };
 }
 
-/** Share one root between its users, except on the server and while hydrating, where each user gets a root of its own at its place in the hydration keys. */
+/** Share one root between its users. */
 export function createHydratableSingletonRoot<Value>(
     factory: (dispose: () => void) => Value,
 ): () => Value {

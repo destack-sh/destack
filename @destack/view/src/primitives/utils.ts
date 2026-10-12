@@ -1,7 +1,7 @@
 import { isServer } from "@solidjs/web";
 import { type Accessor, createEffect, createSignal, sharedConfig, untrack } from "solid-js";
 
-/** The options of an owner outside the hydration keys the server and browser share: one only the browser creates, or one in a root of its own. */
+/** The options of an owner outside the hydration keys the server and browser share. */
 export const TRANSPARENT = { transparent: true } as const;
 
 /** A value, or an accessor that reads it. */
@@ -38,7 +38,7 @@ function isList<Value>(value: Many<Value>): value is Value[] {
     return Array.isArray(value);
 }
 
-/** Call back for each item a list gained and lost against its previous version, comparing by identity. */
+/** Call back for each item a list gained and lost against its previous version. */
 export function handleDiffArray<Item>(
     current: readonly Item[],
     previous: readonly Item[],
@@ -102,7 +102,7 @@ export function createHydratableSignal<Value>(
     return [() => box().value, (value) => setBox({ value })];
 }
 
-/** Run a callback once the browser mounts the calling owner, which the server never does, returning an optional cleanup. */
+/** Run a callback once the browser mounts the calling owner, which the server never does. */
 export function onMount(callback: () => (() => void) | void): void {
     // mount nothing on the server
     if (isServer) {

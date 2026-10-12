@@ -13,7 +13,7 @@ export type WebShareResult = {
     readonly message: Accessor<string | undefined>;
 };
 
-/** Make a share function through the Web Share API, rejecting where the browser cannot share the data. */
+/** Make a share function through the Web Share API. */
 export function makeWebShare(): (data: ShareData) => Promise<void> {
     return async (data) => {
         // refuse where the browser has no share sheet, or cannot share these files
@@ -28,7 +28,7 @@ export function makeWebShare(): (data: ShareData) => Promise<void> {
     };
 }
 
-/** Share through the Web Share API as an action, following whether it is pending, succeeded, and why it failed. */
+/** Share through the Web Share API as an action. */
 export function createWebShare(): WebShareResult {
     // share nothing on the server
     if (isServer) {

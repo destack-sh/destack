@@ -1,7 +1,7 @@
 import { createContext, useContext } from "solid-js";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 
-/** The person's localization, which a mounted view or a website provides, the source language without one. */
+/** The person's localization, which a mounted view or a website provides. */
 export const LocaleContext = createContext<Localization>(Localization.of(SOURCE_LOCALE, []));
 
 /** Read the person's localization to render messages and format values in. */

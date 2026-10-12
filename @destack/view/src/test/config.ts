@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 /** How a test configuration compiles components beside its DOM. */
 export interface ViewTestOptions {
-    /** Compile components to hydrate pages a server rendered, as builds of server-rendered applications do. */
+    /** Compile components to hydrate pages a server rendered. */
     readonly isHydrated?: boolean;
 }
 
