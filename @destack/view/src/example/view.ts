@@ -22,7 +22,7 @@ const SAMPLE_HOME = "space-01996ab0-0000-7000-8000-00000000e002";
 /** The account of the sample space. */
 const SAMPLE_ACCOUNT = "account-01996ab0-0000-7000-8000-00000000e003";
 
-/** The address of the sample space's services, which never answer. */
+/** The address of the sample space's packages, which never answer. */
 const OFFLINE = { url: "https://sample.invalid", fetch: () => new Promise<Response>(() => {}) };
 
 /** What a view's example renders. */
@@ -90,11 +90,11 @@ async function openSample(
         }
     }
 
-    // mount the declared services offline beside the scopes
-    const services = new Map(view.services.map((service) => [service.package.id, OFFLINE]));
+    // mount the declared packages offline beside the scopes
+    const packages = new Map(view.packages.map((handle) => [handle.id, OFFLINE]));
     const { default: component } = await view.component();
 
-    return { component, mount: { context, clients, services, origin: () => OFFLINE } };
+    return { component, mount: { context, clients, packages, origin: () => OFFLINE } };
 }
 
 /** Open one scope's objects in an in-memory database whose service never answers. */

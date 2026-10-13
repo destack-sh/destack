@@ -8,7 +8,7 @@ export function describeView(view: View): {
     readonly name: string;
     readonly permissions: ViewDescription["permissions"];
     readonly presents: readonly ViewPresentation[];
-    readonly services: ViewDescription["services"];
+    readonly packages: ViewDescription["packages"];
 } {
     // describe the permissions of each scope as plain references
     const permissions: ViewDescription["permissions"] = Object.fromEntries(
@@ -26,7 +26,7 @@ export function describeView(view: View): {
             type: object.name,
             priority,
         })),
-        services: view.services.map((service) => service.package.id),
+        packages: view.packages.map((handle) => handle.id),
     };
 }
 

@@ -2,8 +2,13 @@ import { createContext, useContext } from "solid-js";
 import type { ObjectClient } from "@destack/object/client";
 import { type PermissionScope } from "@destack/access";
 import type { ObjectReference } from "@destack/sync";
-import { type Client, type Service, type ServiceRouter, ServiceMount } from "@destack/service";
-import { type ClientOptions, createClient } from "@destack/service/client";
+import {
+    type Client,
+    type PackageHandle,
+    type ProcedureRouter,
+    PackageMount,
+} from "@destack/runtime";
+import { type ClientOptions, createClient } from "@destack/runtime/client";
 import {
     OBJECT_PARAMETER,
     OPEN_PATH,
@@ -18,8 +23,8 @@ export interface ViewMount {
     readonly context: ViewContext;
     /** The clients of the scopes the view opens, by scope. */
     readonly clients: ReadonlyMap<string, ObjectClient>;
-    /** How the view reaches the platform services it declares, by package. */
-    readonly services: ReadonlyMap<string, ClientOptions>;
+    /** How the view reaches the packages it declares, by package identifier. */
+    readonly packages: ReadonlyMap<string, ClientOptions>;
     /** Reach a path below the page's origin with the page's credential. */
     readonly origin: (path: string) => ClientOptions;
 }
@@ -58,28 +63,28 @@ export function useClient(scope: string): ObjectClient {
     return client;
 }
 
-/** Connect to a platform service the mounted view declares, refusing one it does not declare. */
-export function useService<Definition extends ServiceRouter>(
-    service: Service<Definition>,
+/** Connect to a package the mounted view declares, refusing any other. */
+export function usePackage<Definition extends ProcedureRouter>(
+    handle: PackageHandle & { readonly router: Definition },
 ): Client<Definition> {
-    // connect where the host mounted the declared service
-    const options = useContext(ViewMountContext).services.get(service.package.id);
+    // connect where the host mounted the declared package
+    const options = useContext(ViewMountContext).packages.get(handle.id);
     if (options === undefined) {
-        throw new TypeError(`the view declares no ${service.name} service`);
+        throw new TypeError(`the view declares no package ${handle.name}`);
     }
 
-    return createClient(service, options);
+    return createClient(handle, options);
 }
 
-/** Mount the platform services a view declares below the platform path of its origin. */
-export function mountServices(
-    services: readonly Pick<Service, "package">[],
+/** Mount the packages a view declares below the platform path of its origin. */
+export function mountPackages(
+    handles: readonly PackageHandle[],
     origin: (path: string) => ClientOptions,
 ): ReadonlyMap<string, ClientOptions> {
     return new Map(
-        services.map((service) => [
-            service.package.id,
-            origin(`${PLATFORM_PATH}${ServiceMount.path(service.package.id)}`),
+        handles.map((handle) => [
+            handle.id,
+            origin(`${PLATFORM_PATH}${PackageMount.path(handle.id)}`),
         ]),
     );
 }

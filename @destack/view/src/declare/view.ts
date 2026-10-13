@@ -3,7 +3,7 @@ import { type ViewPresentationPriority } from "@destack/package/manifest";
 import { PermissionScope } from "@destack/access";
 import { type Permission, PermissionReference } from "@destack/access";
 import type { ObjectType } from "@destack/object";
-import type { Service } from "@destack/service";
+import type { PackageHandle } from "@destack/runtime";
 import type { Component } from "solid-js";
 
 /** A view as its package defines it. */
@@ -16,8 +16,8 @@ export interface ViewDefinition {
     readonly permissions?: { readonly [Scope in PermissionScope]?: readonly Permission[] };
     /** The object types the view presents, and how strongly. */
     readonly presents?: readonly Presentation[];
-    /** The platform services the view calls as its person, such as the observability service. */
-    readonly services?: readonly Service[];
+    /** The packages the view calls as its person, such as observability. */
+    readonly packages?: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
     readonly component: () => Promise<{ readonly default: Component }>;
 }
@@ -42,8 +42,8 @@ export class View {
     readonly permissions: NonNullable<ViewDefinition["permissions"]>;
     /** The object types the view presents. */
     readonly presents: readonly Presentation[];
-    /** The platform services the view calls as its person. */
-    readonly services: readonly Service[];
+    /** The packages the view calls as its person. */
+    readonly packages: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
     readonly component: ViewDefinition["component"];
 
@@ -55,7 +55,7 @@ export class View {
         this.objects = definition.objects ?? [];
         this.permissions = definition.permissions ?? {};
         this.presents = definition.presents ?? [];
-        this.services = definition.services ?? [];
+        this.packages = definition.packages ?? [];
         this.component = definition.component;
     }
 

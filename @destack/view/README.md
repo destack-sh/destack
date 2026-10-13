@@ -33,21 +33,21 @@ export const notes = defineView({
 });
 ```
 
-## Platform services
+## Packages
 
-`useService` calls a platform service that the view declares in `services`.
+`usePackage` calls a package that the view declares in `packages`.
 
 ```tsx
-export const issues = defineView({
-    name: "issues",
+export const traces = defineView({
+    name: "traces",
     objects,
     permissions,
-    services: [observabilityService],
+    packages: [observabilityPackage],
     component,
 });
 
-const observability = useService(observabilityService);
-const trace = createMemo(() => observability.trace({ scope, trace: traceId }));
+const observability = usePackage(observabilityPackage);
+const spans = createMemo(() => observability.span.list({ scope, where: `trace = "${traceId}"` }));
 ```
 
 ## Page origin
@@ -56,14 +56,12 @@ const trace = createMemo(() => observability.trace({ scope, trace: traceId }));
 
 ```ts
 import { useOrigin } from "@destack/view";
-import { SERVICE_PATH, ServiceMount, SpaceMount } from "@destack/service";
+import { PACKAGE_PATH, PackageMount, SpaceMount } from "@destack/runtime";
 
 const origin = useOrigin();
 createClient(
-    stackService,
-    origin(
-        `${SERVICE_PATH}${SpaceMount.path(spaceId)}${ServiceMount.path(stackService.package.id)}`,
-    ),
+    stackPackage,
+    origin(`${PACKAGE_PATH}${SpaceMount.path(spaceId)}${PackageMount.path(stackPackage.id)}`),
 );
 createClient(settings, origin(`${HOME_PATH}/${userId}`)); // where a change of the person's own rows goes
 ```
@@ -306,10 +304,8 @@ export default defineConfiguration({ test: { include: ["tests/*.test.tsx"] } });
 const unmount = renderView(
     Notes,
     element,
-    context,
-    { [context.space]: client },
+    { context, clients: new Map([[context.space, client]]), packages: new Map(), origin },
     catalogs,
-    services,
 );
 ```
 

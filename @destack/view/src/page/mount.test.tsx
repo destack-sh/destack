@@ -4,8 +4,11 @@ import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import type { ViewContext } from "../declare/context.ts";
 import { renderView } from "./mount.ts";
-import { mountServices, useService } from "./view.ts";
-import { defineProcedure, defineService } from "@destack/service";
+import { mountPackages, usePackage } from "./view.ts";
+import { definePackage } from "@destack/runtime";
+import { defineObject, method } from "@destack/object";
+import { none } from "@destack/access";
+import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import { createSignal } from "solid-js";
 import { Errored } from "../solid/flow.ts";
@@ -57,7 +60,7 @@ function textOf(context: ViewContext): string {
     const dispose = renderView(
         Status,
         element,
-        { context, clients: new Map(), services: new Map(), origin: noOrigin },
+        { context, clients: new Map(), packages: new Map(), origin: noOrigin },
         CATALOGS,
     );
     const text = element.textContent;
@@ -73,34 +76,50 @@ test("render in the person's locale from the view's context with the launch's ca
     ]);
 });
 
-/** A platform service answering how many notes a person keeps. */
-const counter = defineService("counter", {
-    count: defineProcedure({
-        authentication: "identity",
-        permission: { principals: [principal.user] },
-        audit: false,
-    })
-        .route({ method: "GET", path: "/count" })
-        .output(schema.object({ notes: schema.number() })),
-});
+/** Counts of a person's notes, answered by a package's query. */
+const tally = defineObject({
+    name: "tally",
+    plural: "tallies",
+    scope: Scope.universe.id,
+    fields: {},
+    permissions: { read: none() },
+}).methods(() => ({
+    count: method.query({
+        permission: "read",
+        target: "none",
+        output: schema.object({ notes: schema.number() }),
+    }),
+}));
 
-/** Show the note count the counter service answers. */
+/** A package answering how many notes a person keeps. */
+const counter = definePackage(
+    { objects: { tally } },
+    {
+        package: Package.parse({
+            id: "package-019f7480-0000-7000-8000-000000000002",
+            name: "@example/counter",
+            version: "2026.9.0",
+        }),
+    },
+);
+
+/** Show the note count the counter package answers. */
 function Count() {
     const [notes, setNotes] = createSignal<number>();
-    void useService(counter)
-        .count()
+    void usePackage(counter)
+        .tally.count({})
         .then((answer) => setNotes(answer.notes));
 
     return <p>{`notes: ${notes() ?? "…"}`}</p>;
 }
 
-test("call a platform service the view declares where the host mounts it, and refuse it to a view declaring none", async () => {
+test("call a package the view declares where the host mounts it, and refuse it to a view declaring none", async () => {
     // mount the counter at the view's platform path, answering from a fetch recording the path
     const paths: string[] = [];
-    const mounted = mountServices([counter], (path) => ({
+    const mounted = mountPackages([counter], (path) => ({
         url: new URL(path, "https://notes--personal--florian.localhost").href,
     }));
-    const services = new Map(
+    const packages = new Map(
         [...mounted].map(([packageId, options]) => [
             packageId,
             {
@@ -117,31 +136,31 @@ test("call a platform service the view declares where the host mounts it, and re
     const dispose = renderView(
         Count,
         element,
-        { context: CONTEXT, clients: new Map(), services, origin: noOrigin },
+        { context: CONTEXT, clients: new Map(), packages, origin: noOrigin },
         [],
     );
 
-    // read the count through the declared service's mount
+    // read the count through the declared package's mount
     await changed(element, () => element.textContent === "notes: 3", RENDER_MILLISECONDS);
     dispose();
-    expect(paths).toEqual([`/.destack/platform/service/${counter.package.id}/count`]);
+    expect(paths).toEqual([`/.destack/platform/${counter.id}/tallies/count`]);
 
-    // refuse the service to a view declaring none, into the error boundary
+    // refuse the package to a view declaring none, into the error boundary
     const refused = document.createElement("div");
     const disposeRefused = renderView(
         () => (
             <Errored fallback={(error) => <p>{String(error())}</p>}>
                 {(() => {
-                    useService(counter);
+                    usePackage(counter);
 
                     return <p>counted</p>;
                 })()}
             </Errored>
         ),
         refused,
-        { context: CONTEXT, clients: new Map(), services: new Map(), origin: noOrigin },
+        { context: CONTEXT, clients: new Map(), packages: new Map(), origin: noOrigin },
         [],
     );
-    expect(refused.textContent).toBe("TypeError: the view declares no counter service");
+    expect(refused.textContent).toBe("TypeError: the view declares no package @example/counter");
     disposeRefused();
 });

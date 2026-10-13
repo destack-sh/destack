@@ -6,7 +6,7 @@ import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import type { Subject } from "@destack/sync";
 import { PermissionScope } from "@destack/access";
-import type { ClientOptions } from "@destack/service/client";
+import type { ClientOptions } from "@destack/runtime/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import {
@@ -22,7 +22,7 @@ import {
 } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
 import { renderView } from "../page/mount.ts";
-import { mountServices } from "../page/view.ts";
+import { mountPackages } from "../page/view.ts";
 import { listenForCommands } from "../palette/overlay.ts";
 
 /** How long to wait before following the display again after its stream drops. */
@@ -56,7 +56,7 @@ export async function mount(view: View): Promise<() => Promise<void>> {
         fetchCatalogs(catalogs),
     ]);
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
-    const services = mountServices(view.services, origin);
+    const packages = mountPackages(view.packages, origin);
 
     // render the root component under the view, its clients and the launch's catalogs
     const { default: Component } = await view.component();
@@ -68,7 +68,7 @@ export async function mount(view: View): Promise<() => Promise<void>> {
                 {
                     context: locale === undefined ? context : { ...context, locale },
                     clients,
-                    services,
+                    packages,
                     origin,
                 },
                 translated,

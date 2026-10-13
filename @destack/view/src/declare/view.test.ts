@@ -1,19 +1,19 @@
 import { expect, test } from "@destack/test";
 import { none, Policy } from "@destack/access";
 import { defineObject } from "@destack/object";
-import { PackageId } from "@destack/package";
+import { Package, PackageId } from "@destack/package";
 import { Scope } from "@destack/sync";
 import { describeCommand, describeView } from "../inspect/index.ts";
 import { defineCommand } from "./command.ts";
-import { defineService } from "@destack/service";
+import { PackageHandle } from "@destack/runtime";
 import { defineView } from "./view.ts";
 
 /** The declaring package. */
-const notes = {
+const notes = Package.parse({
     id: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
     name: "@example/notes",
     version: "2026.9.0",
-};
+});
 
 /** The notes a view opens. */
 const note = defineObject({
@@ -23,7 +23,7 @@ const note = defineObject({
     isScope: true,
     fields: {},
     permissions: { read: none() },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
 /** The reminders a view opens in the person's home. */
 const reminder = defineObject({
@@ -33,24 +33,24 @@ const reminder = defineObject({
     isScope: true,
     fields: {},
     permissions: { read: none() },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
-test("describe a declared view by its name, permissions, presented types and platform services without loading its component", () => {
-    // declare a view of notes calling a platform service, whose component never loads
-    const counter = defineService("counter", {}, { package: notes });
+test("describe a declared view by its name, permissions, presented types and packages without loading its component", () => {
+    // declare a view of notes calling a package, whose component never loads
+    const counter = PackageHandle.of(notes, {});
     const view = defineView(
         {
             name: "notes",
             objects: [note],
             permissions: { space: [note.permission("read")] },
             presents: [{ object: note, priority: "default" }],
-            services: [counter],
+            packages: [counter],
             component: () => Promise.reject(new Error("loaded")),
         },
         { package: notes },
     );
 
-    // describe the name, permissions, presented types and services, and keep the package and object types
+    // describe the name, permissions, presented types and packages, and keep the package and object types
     expect([view.package, view.objects, describeView(view)]).toEqual([
         notes,
         [note],
@@ -58,7 +58,7 @@ test("describe a declared view by its name, permissions, presented types and pla
             name: "notes",
             permissions: { space: [{ packageId: note.package.id, type: "note", name: "read" }] },
             presents: [{ packageId: note.package.id, type: "note", priority: "default" }],
-            services: [notes.id],
+            packages: [notes.id],
         },
     ]);
 });
@@ -126,7 +126,7 @@ test("accept a view requesting a permission of an opened object representing ano
         represents: devices,
         fields: {},
         permissions: devices.definition.permissions,
-    }).methods((method) => ({ list: method.list("read") }));
+    }).methods();
     const view = defineView(
         {
             name: "devices",

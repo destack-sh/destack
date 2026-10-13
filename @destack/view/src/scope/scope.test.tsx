@@ -123,7 +123,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
             {
                 context: CONTEXT,
                 clients: new Map([[BOARD_ID, client]]),
-                services: new Map(),
+                packages: new Map(),
                 origin: noOrigin,
             },
             [],
@@ -160,7 +160,7 @@ test("fail access to an object type the view's space does not hold into the erro
             {
                 context: CONTEXT,
                 clients: new Map([[BOARD_ID, client]]),
-                services: new Map(),
+                packages: new Map(),
                 origin: noOrigin,
             },
             [],

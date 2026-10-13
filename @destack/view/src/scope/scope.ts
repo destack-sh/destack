@@ -14,8 +14,8 @@ export interface ScopeObject {
 
 /** The commands of a scope that refer to objects and methods at run time. */
 export interface ScopeCommands {
-    /** Decide whether the person holds a permission on an object, the view's target by default. */
-    can(permission: string, object?: ScopeObject): Promise<boolean>;
+    /** Check whether the person holds a permission on an object, the view's target by default. */
+    check(permission: string, object?: ScopeObject): Promise<boolean>;
     /** Call an object type's mutating method by name as one mutation. */
     call(object: ObjectType, method: string, input: JsonObject): Submission<unknown>;
 }
@@ -67,10 +67,10 @@ function access<const Objects extends Readonly<Record<string, ObjectType>>>(
         mutation: (run) => client.mutation(run),
         undo: () => client.undo(),
         redo: () => client.redo(),
-        can: (permission, object) => {
+        check: (permission, object) => {
             const checked = object ?? targetOf(objects, target);
 
-            return client.can(checked.type, checked.id, permission);
+            return client.check(checked.type, checked.id, permission);
         },
         call: (object, method, input) => client.call(object, method, input),
     };
@@ -91,7 +91,7 @@ function targetOf(
               );
     if (target === undefined || type === undefined) {
         throw new TypeError(
-            "can needs an object outside a view opened for one of the access's types",
+            "check needs an object outside a view opened for one of the access's types",
         );
     }
 

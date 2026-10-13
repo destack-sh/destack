@@ -129,7 +129,7 @@ test("generate the module mounting a view from the export declaring it, and desc
         description: {
             permissions: {},
             presents: [{ packageId: owner.id, type: "note", priority: "default" }],
-            services: [],
+            packages: [],
         },
     };
     const entries = new Map<string, string>();
@@ -181,7 +181,7 @@ test("generate the module mounting a view from the export declaring it, and desc
                     permissions: {},
                     capabilities: { camera: { reason: "scans receipts", optional: true } },
                     presents: [{ packageId: owner.id, type: "note", priority: "default" }],
-                    services: [],
+                    packages: [],
                 },
             },
         },
