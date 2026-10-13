@@ -377,6 +377,47 @@ test.for(TEST_DIALECTS)(
     },
 );
 
+/** Preferences in the next release, whose conversion writes a mode the column refuses. */
+const preferenceMisconverted = defineTable(
+    "preference",
+    { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
+    {
+        convert: {
+            "2026.10.0": {
+                mode: Expression.case(
+                    Expression.scalar(Expression.column("mode"), "text"),
+                    [{ when: "emacs", then: Expression.json("nano") }],
+                    Expression.column("mode"),
+                ),
+            },
+        },
+    },
+    NEXT_RELEASE,
+);
+
+test.for(TEST_DIALECTS)(
+    "refuse a conversion writing a value its column refuses, keeping the rows as they were, on %s",
+    async (dialect) => {
+        const database = await open(dialect, [preferenceMisconverted]);
+        await database.migrate([preferenceOne]);
+        await database.execute(
+            sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
+        );
+
+        // refuse the conversion loudly and roll it back
+        await expect(database.migrate([preferenceMisconverted])).rejects.toMatchObject({
+            code: "MIGRATION_FAILED",
+            message: `conversion writes a value ${table(preferenceMisconverted)}.mode refuses: ✖ Invalid option: expected one of "standard"|"vim"`,
+        });
+        expect(
+            await database.execute(
+                sql`SELECT mode FROM ${sql.identifier(table(preferenceOne))}`,
+                schema.object({ mode: schema.unknown() }),
+            ),
+        ).toEqual([{ mode: dialect === "sqlite" ? '"emacs"' : "emacs" }]);
+    },
+);
+
 /** Preferences rebuilt within the first release, converting the emacs mode it drops. */
 const preferenceRebuilt = defineTable(
     "preference",

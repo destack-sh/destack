@@ -31,6 +31,8 @@ export interface TableStep extends Step {
     readonly statements: readonly string[];
     /** The tree a rebuild step reconstructs. */
     readonly tree?: TreeDescription;
+    /** The table and columns a conversion step writes, whose values the apply checks. */
+    readonly converted?: { readonly table: string; readonly columns: readonly string[] };
 }
 
 /** The steps from a database's applied state to its declared tables. */
@@ -754,9 +756,12 @@ function convertRows(
         .map(([column, expression]) => `${quote(column)} = ${expression}`)
         .join(", ");
 
-    return step("convert", Address.join("table", name), "fallible", `convert rows to ${release}`, [
-        `UPDATE ${quote(name)} SET ${set}`,
-    ]);
+    return {
+        ...step("convert", Address.join("table", name), "fallible", `convert rows to ${release}`, [
+            `UPDATE ${quote(name)} SET ${set}`,
+        ]),
+        converted: { table: name, columns: Object.keys(assignments) },
+    };
 }
 
 /** Check each kept column's values: widened values are safe, narrowed ones need a conversion. */
