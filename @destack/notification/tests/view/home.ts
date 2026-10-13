@@ -29,7 +29,7 @@ export interface Home {
     readonly failures: readonly unknown[];
 }
 
-/** Serve a space where alice mentions bob in two documents, and open bob's home on a device following it. */
+/** Serve a space where alice mentions bob twice, and open bob's home on a device. */
 export async function openHome(): Promise<Home> {
     // mention bob in two documents at the real time his device stamps its requests with
     const scenario = await serveSpace("sqlite", { at: Date.now() });
@@ -90,7 +90,7 @@ export async function openHome(): Promise<Home> {
     };
 }
 
-/** Serve the home's inbox over HTTP on the real clock, authenticating every request as bob, and return bob's endpoint. */
+/** Serve the home's inbox over HTTP as bob on the real clock, returning his endpoint. */
 function serveHome(
     objects: Awaited<ReturnType<typeof serveSpace>>["store"],
     homeId: string,

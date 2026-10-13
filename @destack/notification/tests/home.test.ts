@@ -74,7 +74,7 @@ const INBOX = schema
     .identifier("installation")
     .parse("installation-019f5530-8000-7000-8000-0000000000d2");
 
-/** An uplink streaming nothing until stopped and receiving no changes, as a machine with no chain to copy. */
+/** An uplink streaming nothing until stopped, as a machine with no chain to copy. */
 const idle: Uplink = {
     async *stream(_request, signal) {
         await until(signal);
@@ -200,7 +200,7 @@ test(
     },
 );
 
-/** Open the account service's, the documents' and alice's home databases, and serve the documents. */
+/** Open the account, documents and home databases, and serve the documents. */
 async function openScenario() {
     // keep the account service's users and addresses, the documents' space and alice's home
     const accounts = await open([...user.tables, ...account.tables, ...residence.tables]);
@@ -254,7 +254,7 @@ async function open(
     return opened.database;
 }
 
-/** Sign alice up with her personal account at a home, in the account service's database and her home's copies. */
+/** Sign alice up with her personal account at a home and copy it into her home. */
 async function signUp(
     copies: readonly DatabaseConnection[],
     recipient: string,
@@ -340,7 +340,7 @@ function installationDirectory(
     };
 }
 
-/** Serve an object service over HTTP in a space, authenticating `user:<id>` and `installation:<space>:<id>` bearers. */
+/** Serve an object service over HTTP in a space, authenticating user and installation bearers. */
 function serve(implementation: ServiceImplementation, scope: string) {
     // serve at once, as the test writes the copies itself and the idle uplink sends no snapshot
     const audience = PackageId.parse(implementation.service.package.id);

@@ -14,7 +14,7 @@ const GERMAN = Catalog.of(
     t`Unread`.package,
 );
 
-/** Render an element as a mounted view whose host opens bob's home in a locale, removing it after the test. */
+/** Render an element as a mounted view whose host opens bob's home in a locale. */
 function drawInHome(
     home: Home,
     element: () => JSX.Element,
@@ -27,10 +27,15 @@ function drawInHome(
         renderView(
             () => <Loading>{element()}</Loading>,
             container,
-            home.context,
-            home.clients,
+            {
+                context: home.context,
+                clients: new Map(Object.entries(home.clients)),
+                services: new Map(),
+                origin: (path) => {
+                    throw new TypeError(`the inbox reaches no ${path}`);
+                },
+            },
             catalogs,
-            new Map(),
         ),
     );
 

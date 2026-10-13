@@ -1,5 +1,5 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned } from "@destack/schema";
+import { found } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { notification, subscription } from "../src/index.ts";
 import { change, document } from "./fixture/document.ts";
@@ -42,8 +42,9 @@ test.for(TEST_DIALECTS)(
         await fixture.call(document, "edit", { id: plan.id, summary: "Added a timeline" });
         await fixture.call(document, "edit", { id: draft.id, summary: "Fixed a typo" });
         await fixture.dispatch();
-        const planned = aligned(await fixture.notifications(), 0);
-        const drafted = aligned(await fixture.notifications(), 1);
+        const threads = new Map((await fixture.notifications()).map((row) => [row.thread, row]));
+        const planned = found(threads, plan.id);
+        const drafted = found(threads, draft.id);
         const evening = Date.UTC(2026, 8, 28, 16, 0);
         expect([
             (await fixture.deliveries(planned.id)).map((row) => [

@@ -3,16 +3,7 @@ import { anyone, type PermissionReference, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, client, key, user, space, Account } from "@destack/account/object";
 import { journal } from "@destack/audit/stack";
-import {
-    type Database,
-    type DatabaseConnection,
-    type Dialect,
-    eq,
-    Key,
-    Snapshot,
-    TABLE,
-    type Table,
-} from "@destack/db";
+import { type Database, type DatabaseConnection, type Dialect, eq, Key, Snapshot, TABLE, type Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Catalog, type LocaleTag } from "@destack/locale";
 import { Derivation } from "@destack/identity";
@@ -21,19 +12,12 @@ import { MailFixture } from "@destack/message/test";
 import { type PushKeys, pushProvider, Vapid } from "@destack/message/push";
 import { message, messageAttempt, MessageKey } from "@destack/message";
 import { serveMessages } from "@destack/message/server";
-import {
-    Call,
-    type CallableName,
-    type CallInput,
-    type CallOutput,
-    type ObjectCall,
-    type ObjectType,
-} from "@destack/object";
+import { Call, type CallableName, type CallInput, type CallOutput, type ObjectCall, type ObjectType } from "@destack/object";
 import { ObjectStore, ScopeProjector } from "@destack/object/server";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { PackageId } from "@destack/package";
-import { Clock, type Identifier, present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { setting } from "@destack/setting/object";
 import type { Controller } from "@destack/service/control";
@@ -676,7 +660,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
                     notification,
                     present(notification.projected, "the notifications' projection"),
                     this.homeId,
-                    Clock.system,
+                    this.clock,
                 ),
             ],
         });

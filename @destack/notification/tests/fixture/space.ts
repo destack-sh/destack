@@ -31,7 +31,7 @@ export const NOTES_BUILD: BuildReader = await MemoryBuild.write(
     { package: notes },
 );
 
-/** The scenarios' database: the documents, their subscriptions, activities and announcements, beside the fixture's own tables. */
+/** The scenarios' database: the documents and their activities beside the fixture's tables. */
 export const documentDatabase = defineDatabase({
     name: "main",
     tables: [
@@ -41,7 +41,7 @@ export const documentDatabase = defineDatabase({
     copies: NotificationFixture.copies,
 });
 
-/** Serve documents and their activities in a new space as alice, on Monday unless given a start, batching announcements when given. */
+/** Serve documents and their activities in a new space as alice, on Monday by default. */
 export function serveSpace(
     dialect: Dialect,
     options: { readonly batch?: number; readonly at?: number } = {},

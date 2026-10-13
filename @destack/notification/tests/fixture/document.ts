@@ -132,7 +132,7 @@ const Remark = schema.object({
     mentions: schema.array(Subject),
 });
 
-/** Documents their owner shares with editors and viewers, taking activities, announcements and subscriptions. */
+/** Documents their owner shares with editors and viewers, taking activities. */
 export const document = defineObject({
     name: "document",
     plural: "documents",
