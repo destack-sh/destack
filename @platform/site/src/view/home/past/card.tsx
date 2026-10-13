@@ -5,10 +5,11 @@ import { createMemo, For } from "@destack/view";
 
 import { cardVariables, tape } from "./card.stylex";
 import { palette } from "../../palette.stylex";
+import { AgentAvatar, isAgent } from "../figure/agent";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
 
-/** The height of a card: five hole rows, kept between a readable least and a most, so taller rows gain room around the cards. */
+/** The height of a card: five hole rows, kept between a readable least and a most. */
 const cardHeight = `clamp(2.75rem, calc(${frame.cellRow} * 5), 4rem)`;
 /** The orange corner marks around a card on the open stack: two strokes at each corner. */
 const cornerMarks = ["0 0", "100% 0", "0 100%", "100% 100%"]
@@ -18,7 +19,7 @@ const cornerMarks = ["0 0", "100% 0", "0 100%", "100% 100%"]
     ])
     .join(", ");
 
-/** How far a shared item has risen into its band, from 0 to 1: after the band opens past its middle, one item after another. */
+/** How far a shared item has risen into its band, from 0 to 1. */
 const itemEntry = "var(--band-reveal, 1) * 4 - 1.6 - var(--item, 0) * 0.45";
 
 /** One entity in the stack figure. */
@@ -29,7 +30,7 @@ export type Entity = {
     icon: string;
     /** The short role printed above the label, such as agent or app. */
     role: string;
-    /** The icon tile's colour, or ink by default. */
+    /** The icon tile's colour, absent for your space's own apps, which wear the brand's orange. */
     tint?: string;
     /** The icon's colour on its tile, or cream by default. */
     glyph?: string;
@@ -71,30 +72,61 @@ export function Card(properties: {
     );
 }
 
-/** Render an entity's icon on a rounded tile in its own colour, or as an outlined lock when locked away. */
+/** Render an entity's icon on a tile in its own colour, your agent as its avatar, or a lock. */
 function Tile(properties: { entity: Entity; isLocked?: boolean }) {
+    // show your agent as its avatar, filling the tile
+    if (isAgent(properties.entity.icon) && properties.isLocked !== true) {
+        return (
+            <span {...style.attrs(styles.chip, styles.avatarChip)}>
+                <AgentAvatar size="fill" />
+            </span>
+        );
+    }
+
     return (
         <span
             style={
                 properties.isLocked === true
                     ? undefined
                     : {
-                          "background-color": properties.entity.tint ?? palette.ink,
-                          color: properties.entity.glyph ?? palette.cream,
+                          "background-color": properties.entity.tint,
+                          color:
+                              properties.entity.glyph ??
+                              (isBrand(properties.entity) ? palette.tileGlyph : palette.cream),
                       }
             }
             class={
-                style.attrs(styles.chip, properties.isLocked === true && styles.lockedChip).class
+                style.attrs(
+                    styles.chip,
+                    isBrand(properties.entity) && styles.brandChip,
+                    properties.isLocked === true && styles.lockedChip,
+                ).class
             }
         >
             <span
                 style={{
-                    "mask-image": `url(/diagram/${properties.isLocked === true ? "lock" : properties.entity.icon}.svg)`,
+                    "mask-image": `url(/diagram/${iconPathOf(properties.entity, properties.isLocked === true)}.svg)`,
                 }}
                 {...style.attrs(styles.icon)}
             />
         </span>
     );
+}
+
+/** Return the glyph path of an entity's tile: the lock, a solid app glyph, or its own glyph. */
+function iconPathOf(entity: Entity, isLocked: boolean): string {
+    if (isLocked) {
+        return "lock";
+    } else if (isBrand(entity)) {
+        return `fill/${entity.icon}`;
+    }
+
+    return entity.icon;
+}
+
+/** Report whether an entity is one of your space's own, as a white glyph on the sky tile. */
+function isBrand(entity: Entity): boolean {
+    return entity.tint === undefined;
 }
 
 /** Render a layer shared by every app as one wide card listing what it holds. */
@@ -325,6 +357,14 @@ const styles = style.create({
         gridRow: { default: null, [media.maxMd]: 1 },
         marginTop: { default: null, [media.maxMd]: "0.375rem" },
     },
+    avatarChip: {
+        boxShadow: "none",
+    },
+    brandChip: {
+        backgroundImage: palette.skyField,
+        boxShadow: `inset 0 1px 0 color-mix(in srgb, ${palette.cream} 14%, transparent), inset 0 0 0 0.5px color-mix(in srgb, ${palette.cream} 10%, transparent)`,
+    },
+
     logos: {
         display: "flex",
         flexShrink: 0,

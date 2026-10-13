@@ -26,9 +26,9 @@ const sceneTime = 5200;
 const firstSceneTime = 1200;
 /** The milliseconds between neighbouring cards turning over, left to right. */
 const flipStagger = 60;
-/** The milliseconds after the stack opens before its apps turn into view, once the silos have sunk. */
+/** The milliseconds after the stack opens before its apps turn into view. */
 const openFlipAt = 500;
-/** The milliseconds a card's ink takes to fade out before it hands over its box, or to fade in after it takes one. */
+/** The milliseconds a card's ink takes to fade out before handing over its box, or to fade in. */
 const inkFade = 320;
 /** The milliseconds a card takes to turn over and show the card replacing it. */
 const flipTime = 600;
@@ -97,41 +97,39 @@ export const entities: Record<string, Entity> = {
         label: "Launch tracker",
         icon: "tasks",
         role: "Built on Destack",
-        tint: "#b8862b",
     },
-    ownPortal: { label: "Client portal", icon: "pages", role: "Built on Destack", tint: "#3d6fb0" },
-    ownPipeline: { label: "Hiring board", icon: "user", role: "Built on Destack", tint: "#5b7f2e" },
-    ownBudget: { label: "Family budget", icon: "table", role: "Built on Destack", tint: "#a0485f" },
+    ownPortal: { label: "Client portal", icon: "pages", role: "Built on Destack" },
+    ownPipeline: { label: "Hiring board", icon: "accounts", role: "Built on Destack" },
+    ownBudget: { label: "Family budget", icon: "table", role: "Built on Destack" },
 
     // apps
-    pages: { label: "Pages", icon: "pages", role: "App", tint: "#3d6fb0" },
-    notes: { label: "Notes", icon: "file", role: "App", tint: "#b8862b" },
-    chat: { label: "Chat", icon: "chat", role: "App", tint: "#4f8a5b" },
-    tasks: { label: "Tasks", icon: "tasks", role: "App", tint: "#c64a17" },
-    source: { label: "Source", icon: "source", role: "App", tint: "#24292f" },
-    forms: { label: "Forms", icon: "template", role: "App", tint: "#6b5ca5" },
-    calendar: { label: "Calendar", icon: "calendar", role: "App", tint: "#c64a17" },
-    sheets: { label: "Sheets", icon: "table", role: "App", tint: "#4f8a5b" },
-    mail: { label: "Mail", icon: "mail", role: "App", tint: "#3d6fb0" },
-    files: { label: "Files", icon: "bucket", role: "App", tint: "#2f7d8c" },
-    canvas: { label: "Canvas", icon: "vector", role: "App", tint: "#c64a17" },
+    pages: { label: "Pages", icon: "pages", role: "App" },
+    notes: { label: "Notes", icon: "file", role: "App" },
+    chat: { label: "Chat", icon: "chat", role: "App" },
+    tasks: { label: "Tasks", icon: "tasks", role: "App" },
+    source: { label: "Source", icon: "source", role: "App" },
+    forms: { label: "Forms", icon: "template", role: "App" },
+    calendar: { label: "Calendar", icon: "calendar", role: "App" },
+    sheets: { label: "Sheets", icon: "table", role: "App" },
+    mail: { label: "Mail", icon: "mail", role: "App" },
+    files: { label: "Files", icon: "bucket", role: "App" },
+    canvas: { label: "Canvas", icon: "canvas", role: "App" },
 
     // remixes, each named after the apps it joins
-    room: { label: "Launch room", icon: "chat", role: "Pages + Chat", tint: "#4f8a5b" },
-    roadmap: { label: "Roadmap", icon: "tasks", role: "Pages + Tasks", tint: "#c64a17" },
-    issues: { label: "Issues", icon: "notify", role: "Source + Tasks", tint: "#24292f" },
-    review: { label: "Design review", icon: "vector", role: "Canvas + Notes", tint: "#c64a17" },
-    research: { label: "User research", icon: "template", role: "Forms + Notes", tint: "#6b5ca5" },
+    room: { label: "Launch room", icon: "chat", role: "Pages + Chat" },
+    roadmap: { label: "Roadmap", icon: "tasks", role: "Pages + Tasks" },
+    issues: { label: "Issues", icon: "notify", role: "Source + Tasks" },
+    review: { label: "Design review", icon: "canvas", role: "Canvas + Notes" },
+    research: { label: "User research", icon: "template", role: "Forms + Notes" },
     interviews: {
         label: "Interviews",
         icon: "calendar",
         role: "Forms + Calendar",
-        tint: "#a0485f",
     },
-    bookings: { label: "Bookings", icon: "calendar", role: "Sheets + Calendar", tint: "#3f6f73" },
-    report: { label: "Report", icon: "table", role: "Sheets + Pages", tint: "#4f8a5b" },
-    handbook: { label: "Handbook", icon: "pages", role: "Files + Pages", tint: "#3d6fb0" },
-    hub: { label: "Family hub", icon: "storage", role: "Files + Chat", tint: "#2f7d8c" },
+    bookings: { label: "Bookings", icon: "calendar", role: "Sheets + Calendar" },
+    report: { label: "Report", icon: "table", role: "Sheets + Pages" },
+    handbook: { label: "Handbook", icon: "pages", role: "Files + Pages" },
+    hub: { label: "Family hub", icon: "storage", role: "Files + Chat" },
 };
 
 /** The apps each remix joins, in the order its role names them. */
@@ -194,7 +192,7 @@ type Scene = {
     links: readonly [string, string][];
 };
 
-/** The locked stack today, one change per step: a silo swaps on its iceberg or someone new signs in, and the logins reshuffle. */
+/** The locked stack today, one change per step. */
 export const todayScenes: readonly Scene[] = [
     locked(
         ["you", "cofounder", "designer", "agent"],
@@ -258,7 +256,7 @@ export const todayScenes: readonly Scene[] = [
     ),
 ];
 
-/** The open loop: each locked scene with every silo replaced in its place, then its two replaced apps joined into a remix. */
+/** The open loop. */
 export const scenes: readonly Scene[] = todayScenes.flatMap((scene) => {
     // replace each silo in its place, and point each person at the replacement
     const swap = (id: string) => replacements[id] ?? id;
@@ -303,7 +301,7 @@ const ids = [
     ),
 ];
 
-/** The services each open app calls, each with the store that service keeps the app's state in, by label; remixes use their apps' own. */
+/** The services each open app calls, each with the store it keeps the app's state in. */
 const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> = withRemixes({
     pages: [
         ["Access", "DB"],
@@ -363,7 +361,7 @@ const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> 
     ],
 });
 
-/** The source step each open scene shows at work, by its label: installing a set of apps, then building its remix. */
+/** The source step each open scene shows at work, by its label. */
 export const sceneSources = scenes.map((scene, index) => {
     // build a remix, or install from each source in turn, two scenes each
     const source = scene.lower.some((card) => card.id in remixes)
@@ -376,7 +374,7 @@ export const sceneSources = scenes.map((scene, index) => {
     return source;
 });
 
-/** How far the user row sits below the middle of its figure row, in CSS pixels, to leave room for the switch on the seam above it. */
+/** How far the user row sits below its figure row's middle, in CSS pixels, to clear the switch. */
 const userDrop = 8;
 
 /** The hole row the hosts' tops sit on, counted from the layer's top. */
@@ -405,13 +403,13 @@ type Placement = {
     width: number;
     /** Whether the card shows on the board. */
     isShown: boolean;
-    /** How the card moves there: stays or travels on the board, enters or leaves across an edge, fuses into the cards replacing it, or parks out of sight. */
+    /** How the card moves there. */
     step: Step;
     /** The milliseconds the card waits before it moves. */
     delay: number;
     /** Whether the card shows or hides at the end of its move rather than at its start. */
     isLate: boolean;
-    /** How far the card is turned about its horizontal axis, in degrees: flipped away while it swaps places with another card in its slot. */
+    /** How far the card is turned about its horizontal axis, in degrees. */
     turn?: number;
 };
 
@@ -431,11 +429,7 @@ type Kind = "locked" | "link" | "chain" | "drop";
 /** A point in layer pixels. */
 type Point = { x: number; y: number };
 
-/**
- * A right-angled cable run between two ends.
- *
- * The bend is where its middle segment crosses, down then across then down, or across then down then across.
- */
+/** A right-angled cable run between two ends. */
 type Run = { from: Point; to: Point; bend: number };
 
 /** A card's edges and centre in layer pixels. */
@@ -453,11 +447,11 @@ type Cable = {
     alpha: number;
     /** The time the cable starts to fade in. */
     showsAt: number;
-    /** How far the cable has settled onto the grid, from 0 following its cards to 1 resting in the holes. */
+    /** How far the cable has settled onto the grid, from 0 on its cards to 1 in the holes. */
     settle: number;
 };
 
-/** Show the top two layers, locked today or freely rearranging with Destack, every card draggable. */
+/** Show the top two layers, locked today or freely rearranging with Destack, all draggable. */
 export function Remix(properties: {
     isOpen: boolean;
     today: number;
@@ -552,7 +546,7 @@ export function Remix(properties: {
                     continue;
                 }
 
-                // turn a card over to show the one card that takes its slot
+                // turn a card over to show the one card that takes its place
                 const [successor] = successors;
                 if (
                     successors.length === 1 &&
@@ -835,7 +829,7 @@ export function Remix(properties: {
             const share = narrowScreen.matches ? captionedBus : 0.5;
             const middle = (top: number, bottom: number) => top + (bottom - top) * share;
 
-            // link the upper cards to the lower cards they work with: once open, each person runs straight down, across on their own lane, and down into the app
+            // link the upper cards to the lower cards they work with: once open, each person runs straight down, across on their own row, and down into the app
             const kind = isOpen ? "link" : "locked";
             current.links.forEach(([upper, lower]) => {
                 // find both cards of the link, skipping links whose cards are missing
@@ -1158,7 +1152,7 @@ export function Remix(properties: {
     );
 }
 
-/** How far down a gap the cable bus runs on narrow screens, as a share of the gap, clear of the row captions below it. */
+/** How far down a gap the cable bus runs on narrow screens, as a share of the gap. */
 const captionedBus = 0.3;
 /** The easing of a card travelling between places. */
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
@@ -1215,7 +1209,7 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
               };
     }
 
-    // turn a card over in its slot: the old one turns away, and the new one turns into view from behind it
+    // turn a card over in its place: the old one turns away, and the new one turns into view from behind it
     if (place.step === "flip" || place.turn !== undefined) {
         const half = flipTime / 2;
         const at = place.delay + (isShown ? half : 0);
@@ -1275,7 +1269,7 @@ function inkOf(isVendor: boolean, place: Placement): Ink {
         : { opacity: "0", time: `${inkFade}ms`, delay: `${swap - inkFade}ms` };
 }
 
-/** Add the drag offset to a card's motion: the card follows the pointer while held and springs home when let go. */
+/** Add the drag offset to a card's motion. */
 function follow(
     entrance: Record<string, string>,
     held: { x: number; y: number } | undefined,
@@ -1297,11 +1291,7 @@ function plug(point: Point) {
     return `M${point.x - 2} ${point.y - 2}h4v4h-4Z`;
 }
 
-/**
- * Place every card a scene shows in whole board cells.
- *
- * The upper row shares the board evenly with four-cell gaps; the lower row snaps to the three board columns.
- */
+/** Place every card a scene shows in whole board cells. */
 function arrange(scene: Scene): Map<string, Placement> {
     // share the upper row evenly between its cards
     const placed = new Map<string, Placement>();
@@ -1344,7 +1334,7 @@ function arrange(scene: Scene): Map<string, Placement> {
     return placed;
 }
 
-/** Return how long a silo waits to show: landing on the reformed ice after the water returns, bobbing up in a swap, or staying put. */
+/** Return how long a silo waits to show. */
 function vendorDelay(previous: Placement | undefined, isToggle: boolean) {
     // land after the ice reforms
     if (isToggle) {
@@ -1387,7 +1377,7 @@ function slotOf(place: Placement) {
     return Math.round((place.left / boardCells) * 4);
 }
 
-/** Return whether two placements take the same slot: the same row, edge, and width. */
+/** Return whether two placements take the same place: the same row, edge, and width. */
 function sameSlot(first: Placement, second: Placement) {
     return (
         first.row === second.row &&
@@ -1445,7 +1435,7 @@ function beyond(place: Placement): Placement {
     return { ...place, left, isShown: false, delay: 0 };
 }
 
-/** Delay each card by its turn: the lowest key goes first, then one every 70 milliseconds after a start. */
+/** Delay each card by its turn. */
 function stagger(places: Placement[], start: number, key: (place: Placement) => number) {
     const order = places.toSorted((first, second) => key(first) - key(second));
     order.forEach((place, turn) => {
@@ -1473,7 +1463,7 @@ function upcoming(id: string, from: number): Placement {
     throw new Error(`card ${id} never appears`);
 }
 
-/** Build a locked scene: the people above, one silo per iceberg below, and the silo each person signs in to. */
+/** Build a locked scene. */
 function locked(
     upper: readonly string[],
     lower: readonly [string, string, string],

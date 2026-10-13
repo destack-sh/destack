@@ -55,7 +55,7 @@ type Layer = {
     detail: Record<Stack, string>;
     /** What the layer means for you, as a line under the claim. */
     note: Record<Stack, string>;
-    /** What the layer costs you, as a line on the bill counted from the scene's people and vendors. */
+    /** What the layer costs you, as a bill line counted from the scene's people and vendors. */
     item: Record<Stack, (count: Count) => string>;
 };
 
@@ -111,7 +111,7 @@ const layers: readonly Layer[] = [
         detail: { today: "Vendor formats", destack: "SQL, JSON, MD, S3" },
         note: {
             today: "exports only in the formats they allow",
-            destack: "queries in any format you like",
+            destack: "your agent reads all of it, within your rules",
         },
         item: {
             today: ({ vendors }) => `${vendors} silos`,
@@ -194,87 +194,75 @@ const shared: readonly {
     items: readonly Entity[];
 }[] = [
     {
-        entity: { label: "Services", icon: "services", role: "Shared logic", tint: "#6b5ca5" },
+        entity: { label: "Services", icon: "services", role: "Shared logic" },
         items: [
             {
                 label: "Access",
-                tint: "#a0485f",
                 icon: "auth",
                 role: "Roles",
             },
             {
                 label: "Settings",
-                tint: "#6d7f86",
                 icon: "settings",
                 role: "JSON",
             },
             {
                 label: "Search",
-                tint: "#3d6fb0",
                 icon: "search",
                 role: "Full text",
             },
             {
                 label: "AI",
-                tint: "#6b5ca5",
                 icon: "ai",
                 role: "Your own",
             },
         ],
     },
     {
-        entity: { label: "Data", icon: "storage", role: "Your data", tint: "#2f7d8c" },
+        entity: { label: "Data", icon: "storage", role: "Your data" },
         items: [
             {
                 label: "DB",
-                tint: "#2f7d8c",
                 icon: "storage",
                 role: "SQL",
             },
             {
                 label: "Bucket",
-                tint: "#b8862b",
                 icon: "bucket",
                 role: "S3",
             },
             {
                 label: "Vault",
-                tint: "#12313c",
                 icon: "vault",
                 role: "Secrets",
             },
             {
                 label: "Audit",
-                tint: "#5b7f2e",
                 icon: "audit",
                 role: "Change log",
             },
         ],
     },
     {
-        entity: { label: "Source", icon: "source", role: "Your code", tint: "#c64a17" },
+        entity: { label: "Source", icon: "source", role: "Your code" },
         items: [
             {
                 label: "Repository",
-                tint: "#c64a17",
                 icon: "source",
                 role: "Git",
             },
             {
                 label: "Registry",
-                tint: "#a0485f",
                 icon: "registry",
                 role: "npm",
             },
             {
                 label: "Build",
-                tint: "#4f8a5b",
                 icon: "build",
                 role: "Node",
             },
             {
                 label: "Templates",
-                tint: "#3d6fb0",
                 icon: "template",
                 role: "Starters",
             },
@@ -288,25 +276,21 @@ const hosts: readonly Entity[] = [
         label: "Your laptop",
         icon: "computer",
         role: "You run, we tunnel",
-        tint: "#3d6fb0",
     },
     {
         label: "Your server",
         icon: "hosts",
         role: "You run, we tunnel",
-        tint: "#4f8a5b",
     },
     {
         label: "Your cloud",
         icon: "cloud",
         role: "You run everything",
-        tint: "#6b5ca5",
     },
     {
         label: "Our cloud",
         icon: "cloud",
         role: "We run everything",
-        tint: "#c64a17",
     },
 ];
 
@@ -321,7 +305,7 @@ const WATER_COLORS: WaterColors = {
     ink: palette.ink,
 };
 
-/** The box of the water and ice layers: past the figure on the sides and bottom, clipped to its rim. */
+/** The box of the water and ice layers. */
 const spillStyle = {
     "clip-path": `inset(0 ${WATER_SPILL}px ${WATER_SPILL}px)`,
     height: `calc(100% + ${WATER_SPILL}px)`,
@@ -332,7 +316,7 @@ const spillStyle = {
 /** How far each strip of duct tape is turned off level, in degrees, one per gap. */
 const tapeTurns: readonly number[] = [-4, 3];
 
-/** The connectors taped between the vendor apps; the strides that pick them stay coprime to their count, so every swap beside a strip gives it a new one. */
+/** The connectors taped between the vendor apps. */
 const tapeLabels = [
     "APIs",
     "Zapier",
@@ -349,7 +333,7 @@ const tapeLabels = [
 /** The gaps between the three columns that duct tape spans. */
 const tapeGaps = [0, 1];
 
-/** Compare apps today, their lower layers under water, with the open Destack stack revealed by draining it. */
+/** Compare apps today, their lower layers under water, with the open Destack stack drained. */
 export function StackFigure(properties: { onChange: (isOpen: boolean) => void }) {
     // hold the chosen stack, the scene, the canvases, and the effect timers
     const [stack, setStack] = createSignal<Stack>("today");
@@ -802,7 +786,7 @@ function reportFailure(failure: ShaderFailure): void {
     });
 }
 
-/** Return the items a shared layer lights up in an open scene: the services its apps call, their stores, or its source step. */
+/** Return the items a shared layer lights up in an open scene. */
 function activeOf(scene: number, band: number): readonly string[] {
     // follow each app of the scene to its service and on to its store
     const uses = present(scenes[scene], "scene").lower.flatMap((card) => usesOf(card.id));
@@ -860,9 +844,9 @@ function lockedLayer(id: string, depth: number): Entity {
     return layer;
 }
 
-/** Return the mask that grows a shared band out of the three plates sunk in its row: three windows over the plates that widen until they meet. */
+/** Return the mask that grows a shared band out of the three plates sunk in its row. */
 function growOutOfPlates(reveal: string): JSX.CSSProperties {
-    // widen each window from its plate's span to its third of the board, overlapping a little so no seam shows
+    // widen each window from its plate's span to its third of the board, overlapping a little so no gap shows
     const third = boardCells / 3;
     const windows = columnLefts.map((left, index) => {
         const end = index * third - 0.2;
@@ -882,7 +866,7 @@ function growOutOfPlates(reveal: string): JSX.CSSProperties {
     };
 }
 
-/** Return the four layers a silo keeps under water, each labelled with who holds it, the last with the cloud it runs on when known. */
+/** Return the four layers a silo keeps under water, each labelled with who holds it. */
 function sunk(
     role: string,
     [services, storage, source, cloud]: readonly [string, string, string, string],
@@ -898,7 +882,7 @@ function sunk(
     ];
 }
 
-/** Return the four layers a homemade silo rents under water, each showing the logos of the products behind it. */
+/** Return the four layers a homemade silo rents under water, each with its products' logos. */
 function rented(
     services: readonly string[],
     data: readonly string[],
@@ -968,7 +952,7 @@ function Swap(properties: {
     );
 }
 
-/** Return the label taped across a gap between two columns, picked by the pair of silos it joins, so any swap on either side retapes it. */
+/** Return the label taped across a gap between two columns, picked by the silos it joins. */
 function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
     // place each silo in its column's turn, and step through the labels by coprime strides
     const left = silosOf(gap).indexOf(siloOn(scene, gap));

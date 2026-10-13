@@ -6,7 +6,7 @@ export const boardInset = 3;
 export const rowCells = 9;
 /** The width of each column in a row of three cards, in cells. */
 export const columnWidth = 24;
-/** The left edge of each column in a row of three cards, in cells: five-cell gaps between them, three-cell insets at the edges. */
+/** The left edge of each column in a row of three cards, in cells. */
 export const columnLefts = [3, 32, 61];
 /** The centre of each column in a row of three cards, in cells. */
 export const columnCentres = columnLefts.map((left) => left + columnWidth / 2);

@@ -1,13 +1,1 @@
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="20"
-  height="20"
-  viewBox="0 0 20 20"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="1.5"
-  stroke-linecap="square"
-  stroke-linejoin="miter"
->
-  <path d="M5.5 15.75h9a3.25 3.25 0 0 0 .4-6.47 4.75 4.75 0 0 0-9.08-1.03A3.75 3.75 0 0 0 5.5 15.75Z" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" color="#000"><g><path d="M7 19.5h10a4.25 4.25 0 0 0 .6-8.45 5.75 5.75 0 0 0-11.1-1A4.75 4.75 0 0 0 7 19.5Z" fill="currentColor" fill-opacity="0.3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></g></svg>

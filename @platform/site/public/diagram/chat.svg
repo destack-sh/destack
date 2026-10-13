@@ -1,14 +1,1 @@
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="20"
-  height="20"
-  viewBox="0 0 20 20"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="1.5"
-  stroke-linecap="square"
-  stroke-linejoin="miter"
->
-  <path d="M2.75 3.75h14.5v10H9l-3.75 3v-3h-2.5Z" />
-  <path d="M6.5 7.5h7M6.5 10.25h4.5" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" color="#000"><g><path d="M7.5 4h9A4.5 4.5 0 0 1 21 8.5v4.5a4.5 4.5 0 0 1-4.5 4.5h-5.3l-4 3.2c-.5.4-1.2 0-1.2-.6v-2.7A4.5 4.5 0 0 1 3 13V8.5A4.5 4.5 0 0 1 7.5 4Z" fill="currentColor" fill-opacity="0.3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 10.75h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 10.75h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 10.75h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></svg>

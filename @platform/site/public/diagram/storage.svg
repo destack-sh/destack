@@ -1,15 +1,1 @@
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="20"
-  height="20"
-  viewBox="0 0 20 20"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="1.5"
-  stroke-linecap="square"
-  stroke-linejoin="miter"
->
-  <ellipse cx="10" cy="5" rx="6" ry="2.25" />
-  <path d="M4 5v10c0 1.25 2.7 2.25 6 2.25s6-1 6-2.25V5" />
-  <path d="M4 10c0 1.25 2.7 2.25 6 2.25s6-1 6-2.25" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" color="#000"><g><path d="M4.5 6c0-1.9 3.4-3.5 7.5-3.5s7.5 1.6 7.5 3.5v12c0 1.9-3.4 3.5-7.5 3.5S4.5 19.9 4.5 18Z" fill="currentColor" fill-opacity="0.3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4.5 6c0 1.9 3.4 3.5 7.5 3.5s7.5-1.6 7.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 12c0 1.9 3.4 3.5 7.5 3.5s7.5-1.6 7.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g></svg>

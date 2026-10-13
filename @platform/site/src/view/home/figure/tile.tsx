@@ -1,40 +1,51 @@
 import * as style from "@destack/style";
 
-import type { Entity } from "../past/card";
-import { entities } from "../past/remix";
 import { palette } from "../../palette.stylex";
+import { AgentAvatar, isAgent } from "./agent";
+import { paperGlyphOf } from "./planet";
 
-/** The Home app, which the stack figure never shows as a card. */
-const home: Entity = { label: "Home", icon: "notify", role: "App", tint: "#2f7d8c" };
-
-/** Return the entity behind a name: the Home app, or one of the stack figure's entities. */
-function entityOf(name: string): Entity {
-    // read the entity, or refuse a name neither knows
-    const entity = name === "home" ? home : entities[name];
-    if (entity === undefined) {
-        throw new RangeError(`no entity named ${name}`);
+/** Draw a Destack app, service or resource as an app icon: its white glyph on the sky. */
+export function Tile(properties: { icon: string; size: "small" | "large" }) {
+    // show your agent as its avatar, every other app or service as its glyph on the sky
+    if (isAgent(properties.icon)) {
+        return <AgentAvatar size={properties.size} />;
     }
-
-    return entity;
-}
-
-/** Draw an entity's icon on a small tile in its own colour. */
-export function Tile(properties: { name: string }) {
-    const entity = () => entityOf(properties.name);
 
     return (
         <span
-            style={{
-                "background-color": entity().tint ?? palette.ink,
-                color: entity().glyph ?? palette.cream,
-            }}
-            {...style.attrs(styles.tile)}
+            {...style.attrs(
+                styles.tile,
+                styles.tileBrand,
+                properties.size === "large" && styles.tileLarge,
+            )}
         >
             <span
-                style={{ "mask-image": `url(/diagram/${entity().icon}.svg)` }}
-                {...style.attrs(styles.glyph)}
+                style={{
+                    "mask-image": `url(/diagram/fill/${properties.icon}.svg)`,
+                    "background-color": palette.tileGlyph,
+                }}
+                {...style.attrs(styles.glyph, properties.size === "large" && styles.glyphLarge)}
             />
         </span>
+    );
+}
+
+/** Draw a Destack app or service inside a page: its glyph alone, in its colour. */
+export function ServiceGlyph(properties: { icon: string }) {
+    // show your agent as its avatar, every other app or service as its glyph
+    if (isAgent(properties.icon)) {
+        return <AgentAvatar size="glyph" />;
+    }
+
+    return (
+        <span
+            aria-hidden="true"
+            style={{
+                "mask-image": `url(/diagram/${properties.icon}.svg)`,
+                "background-color": paperGlyphOf(properties.icon),
+            }}
+            {...style.attrs(styles.glyph, styles.serviceGlyph)}
+        />
     );
 }
 
@@ -42,20 +53,38 @@ export function Tile(properties: { name: string }) {
 const styles = style.create({
     tile: {
         alignItems: "center",
-        borderRadius: "5px",
-        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${palette.ink} 18%, transparent)`,
+        borderRadius: "0.3125rem",
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${palette.ink} 10%, transparent)`,
         display: "inline-flex",
         flexShrink: 0,
         height: "1.25rem",
         justifyContent: "center",
         width: "1.25rem",
     },
+    tileBrand: {
+        backgroundImage: palette.skyField,
+        boxShadow: `inset 0 1px 0 color-mix(in srgb, ${palette.cream} 14%, transparent), inset 0 0 0 0.5px color-mix(in srgb, ${palette.cream} 10%, transparent), 0 1px 2px color-mix(in srgb, ${palette.ink} 25%, transparent)`,
+    },
+    tileLarge: {
+        borderRadius: "0.4375rem",
+        height: "1.75rem",
+        width: "1.75rem",
+    },
     glyph: {
-        backgroundColor: "currentColor",
-        height: "0.8125rem",
+        height: "0.875rem",
+        width: "0.875rem",
         maskPosition: "center",
         maskRepeat: "no-repeat",
         maskSize: "contain",
-        width: "0.8125rem",
+    },
+    serviceGlyph: {
+        display: "inline-block",
+        flexShrink: 0,
+        height: "1rem",
+        width: "1rem",
+    },
+    glyphLarge: {
+        height: "1.1875rem",
+        width: "1.1875rem",
     },
 });

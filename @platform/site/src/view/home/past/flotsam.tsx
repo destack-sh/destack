@@ -9,7 +9,7 @@ import { media } from "@destack/style/media.stylex";
 
 /** How far in from each edge of the water the surface starts to dip away, in CSS pixels. */
 const edgeReach = 110;
-/** How deep the surface dips at the very edges of the water, deep enough to hide the largest piece, in CSS pixels. */
+/** How deep the surface dips at the edges of the water, enough to hide the largest piece. */
 const edgeDive = 90;
 
 /** The slowest drift, in CSS pixels per second. */
@@ -18,7 +18,7 @@ const slowest = 9;
 const fastest = 17;
 /** The longest calm before a piece drifts in again, in seconds. */
 const longestCalm = 30;
-/** The least room between two pieces on the water, as a share of its width, so at most two show at once. */
+/** The least room between two pieces on the water, as a share of its width. */
 const leastGap = 0.6;
 /** The length of the wire between a piece and its tag, in CSS pixels. */
 const wireLength = 44;
@@ -33,7 +33,7 @@ const strandTime = 4;
 /** The steepest a floating tag tilts, in degrees, so it stays readable. */
 const steepestTag = 6;
 
-/** One piece of flotsam: its drawing, how it sits in the water, where its tag hangs, and the tags it wears. */
+/** One piece of flotsam: its drawing, how it sits in the water. */
 type Piece = {
     /** The drawing, in CSS pixels. */
     art: () => JSX.Element;

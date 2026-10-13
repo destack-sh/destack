@@ -16,11 +16,11 @@ const destacked: Form = {
     sense: {
         definition: "unified into one stack you control",
         highlight: ["unified", "control"],
-        sentence: "You, your people, apps, agents, data, and context in one unified place.",
+        sentence: "You, your people, apps, agents, data, and context, in one place.",
     },
 };
 
-/** Show the past participle at work: your apps replaced in place, their separate stacks becoming one space, with the switch between both states. */
+/** Show the past participle at work. */
 export function PastParticiple(properties: {
     isOpen: boolean;
     onChange: (isOpen: boolean) => void;
@@ -32,10 +32,10 @@ export function PastParticiple(properties: {
                 <FigureLabel
                     number={2}
                     isOpen={properties.isOpen}
-                    stacked="each app on its own separate stack"
+                    stacked="each app on its own stack"
                     destacked="every app on one shared stack"
                 >
-                    <StackSwitch isOpen={properties.isOpen} />
+                    <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>
                 <div {...style.attrs(lattice.cell, styles.labelCell, styles.drawingLabel)}>
                     <Label>Your apps, and what's really under them</Label>

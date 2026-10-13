@@ -1,13 +1,1 @@
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="20"
-  height="20"
-  viewBox="0 0 20 20"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="1.5"
-  stroke-linecap="square"
-  stroke-linejoin="miter"
->
-  <path d="M4 16l6-6M12 4l4 4-6 6-4-4z" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" color="#000"><defs><mask id="m0" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><path d="M12.6 4.1a2 2 0 0 1 2.8 0l4.5 4.5a2 2 0 0 1 0 2.8l-1 1a2 2 0 0 1-2.8 0l-4.5-4.5a2 2 0 0 1 0-2.8Z" fill="#000" stroke="#000" stroke-width="4" stroke-linejoin="round"/></mask></defs><g mask="url(#m0)"><path d="M11.25 12.75 4.5 19.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><g><path d="M12.6 4.1a2 2 0 0 1 2.8 0l4.5 4.5a2 2 0 0 1 0 2.8l-1 1a2 2 0 0 1-2.8 0l-4.5-4.5a2 2 0 0 1 0-2.8Z" fill="currentColor" fill-opacity="0.3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></g></svg>

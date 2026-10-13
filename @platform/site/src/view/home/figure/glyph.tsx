@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-/** The lightest a mark's tint gets on dark fields, an OKLCH lightness that reads on the night water. */
+/** The lightest a mark's tint gets on dark fields, an OKLCH lightness for the night water. */
 const DARK_LIGHTNESS = 0.8;
 
 /** A glyph the browser and its pages draw. */
@@ -138,7 +138,7 @@ export function Glyph(properties: { name: GlyphName; size?: number; weight?: num
     );
 }
 
-/** Draw a brand or app icon from the diagram set in its colour, lifted on dark fields, at a size in pixels. */
+/** Draw a brand or app icon from the diagram set in its colour, lifted on dark fields. */
 export function Favicon(properties: { icon: string; tint: string; size?: number }) {
     const size = () => `${properties.size ?? 14}px`;
 
