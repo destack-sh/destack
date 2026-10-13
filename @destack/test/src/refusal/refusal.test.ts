@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { expect, test } from "vitest";
 import { refusal } from "./refusal.ts";
 
-/** An error carrying a code, as service errors do. */
+/** An error carrying a code, as call errors do. */
 class CodedFailure extends Error {
     /** The failure's code. */
     readonly code = "NOT_FOUND";
