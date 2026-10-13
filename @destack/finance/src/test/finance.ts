@@ -19,7 +19,7 @@ import { type Package, PackageId } from "@destack/package";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock, found, Identifier, JsonValue, schema } from "@destack/schema";
+import { Clock, found, Identifier, JsonValue, present, schema } from "@destack/schema";
 import { Health } from "@destack/service/health";
 import { Server } from "@destack/service/server";
 import { reconciliation, TestBearer, testCallKey } from "@destack/service/test";
@@ -40,6 +40,7 @@ import { describeFeature, describeMeter, describeSku } from "../inspect/index.ts
 import type { Meter } from "../meter/index.ts";
 import type { PaymentProvider } from "../provider/index.ts";
 import { serveFinance } from "../server/index.ts";
+import { price, product, productFeature, seller } from "../object/index.ts";
 import { Sku } from "../sku/index.ts";
 import { financeService } from "../service/index.ts";
 import { Catalog } from "../catalog/catalog.ts";
@@ -300,11 +301,16 @@ export class FinanceFixture {
 
     /** Apply a stack's sellers and products to the home, as the home's stack applies them. */
     declare(definition: Pick<StackDefinition, "sellers" | "products">): Promise<Plan> {
-        const { seller, product, price, productFeature } = this.#served;
+        const declared = [seller, product, price, productFeature];
 
         return Stack.apply({
             database: this.test.database,
-            objects: [seller, product, price, productFeature],
+            objects: declared.map((type) =>
+                present(
+                    this.#served.find((each) => each.same(type)),
+                    `the served ${type.name}`,
+                ),
+            ),
             manager: STACK,
             as: principal.space.reference(Scope.universe.id, HOME),
             scope: HOME,

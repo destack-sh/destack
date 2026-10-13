@@ -66,8 +66,8 @@ export interface FinanceOptions {
     readonly report: (error: unknown) => void;
 }
 
-/** The announcements of the accounts' usage limits. */
-const activities = serveActivities({ notifications: [usageLimit] });
+/** The announcements of the accounts' usage limits, without their activities and subscriptions. */
+const [, announcements] = serveActivities({ notifications: [usageLimit] });
 
 /** Extend a residency home's store with finance: its objects, webhooks and controllers. */
 export function implementFinance(options: FinanceOptions): ObjectExtension {
@@ -111,10 +111,10 @@ export function serveFinance(
     const { catalog } = metering;
     const billing = new Billing(provider, home);
 
-    return {
+    return [
         customer,
-        seller: serveSellers(billing),
-        product: product.implement({
+        serveSellers(billing),
+        product.implement({
             methods: {
                 update: {
                     authorize: (call) =>
@@ -133,8 +133,8 @@ export function serveFinance(
                 retire: "archived",
             },
         }),
-        productFeature: serveProductFeatures(metering),
-        price: price.implement({
+        serveProductFeatures(metering),
+        price.implement({
             methods: {
                 create: {
                     authorize: (call) =>
@@ -176,19 +176,19 @@ export function serveFinance(
                 retire: "archived",
             },
         }),
-        subscription: serveSubscriptions(billing),
+        serveSubscriptions(billing),
         subscriptionItem,
-        checkoutSession: serveCheckouts(billing),
-        entitlement: serveEntitlements(metering),
+        serveCheckouts(billing),
+        serveEntitlements(metering),
         allowance,
-        announcement: activities.announcement,
-        charge: charge.implement({
+        announcements,
+        charge.implement({
             methods: {
                 rate: (call) => metering.rate(call, call.input.accountId, call.input.after),
             },
         }),
         invoice,
-    };
+    ] as const;
 }
 
 /** Serve entitlements, deriving each account's and notifying usage state changes. */
