@@ -320,11 +320,11 @@ export function exceptionAttributes(error: unknown, isEscaped: boolean): Attribu
     };
 }
 
-/** Read a failure's error type: its service error code, else its own code, else its name. */
+/** Read a failure's error type: its call error code, else its own code, else its name. */
 function errorType(exception: Error): string {
-    // the service error code a domain error reports
+    // the call error code a domain error reports
     if (DomainError.is(exception)) {
-        return exception.toServiceError().code;
+        return exception.toCallError().code;
     }
     // the failure's own code, such as a system error's
     else if ("code" in exception && typeof exception.code === "string") {

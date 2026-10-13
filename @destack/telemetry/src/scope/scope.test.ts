@@ -168,7 +168,7 @@ test("capture handled failures and messages as exceptions with their error type,
         scope.captureException(answered, { isEscaped: true });
         scope.captureException(
             Object.assign(new Error("note is gone"), {
-                toServiceError: () => ({ code: "NOT_FOUND" as const, message: "note is gone" }),
+                toCallError: () => ({ code: "NOT_FOUND" as const, message: "note is gone" }),
             }),
         );
         scope.captureMessage("quota nearly reached", { level: "warning", fingerprint: ["quota"] });
