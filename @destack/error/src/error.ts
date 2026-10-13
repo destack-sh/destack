@@ -1,7 +1,7 @@
 import type { JsonValue } from "@destack/schema";
 
-/** The HTTP status of each service error code, from RFC 9110, 6585 and 8470 or from Destack. */
-export const SERVICE_ERROR_STATUSES = {
+/** The HTTP status of each call error code, from RFC 9110, 6585 and 8470 or from Destack. */
+export const CALL_ERROR_STATUSES = {
     BAD_REQUEST: 400,
     UNAUTHORIZED: 401,
     INSUFFICIENT_AUTHENTICATION: 401,
@@ -30,33 +30,33 @@ export const SERVICE_ERROR_STATUSES = {
     GATEWAY_TIMEOUT: 504,
 } as const;
 
-/** A service error code. */
-export type ServiceErrorCode = keyof typeof SERVICE_ERROR_STATUSES;
+/** A call error code. */
+export type CallErrorCode = keyof typeof CALL_ERROR_STATUSES;
 
-/** The service error a caller receives for a failure, as plain values. */
-export interface ServiceErrorReport {
-    /** The service error code. */
-    readonly code: ServiceErrorCode;
+/** The call error a caller receives for a failure, as plain values. */
+export interface CallErrorReport {
+    /** The call error code. */
+    readonly code: CallErrorCode;
     /** The readable message. */
     readonly message: string;
     /** The structured details. */
     readonly data?: JsonValue;
 }
 
-/** A package's failure that knows the service error its caller receives. */
+/** A package's failure that knows the call error its caller receives. */
 export interface DomainError extends Error {
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport;
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport;
 }
 
-/** Recognise a package's failures that know the service error their caller receives. */
+/** Recognise a package's failures that know the call error their caller receives. */
 export const DomainError = {
-    /** Report whether a value is an error with a service error. */
+    /** Report whether a value is an error with a call error. */
     is(value: unknown): value is DomainError {
         return (
             value instanceof Error &&
-            "toServiceError" in value &&
-            typeof value.toServiceError === "function"
+            "toCallError" in value &&
+            typeof value.toCallError === "function"
         );
     },
 };
