@@ -1,25 +1,12 @@
+import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 
 import { lattice } from "../../layout/lattice.stylex";
-import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { assistants, LaunchBoard } from "./board";
-import { Favicon } from "../figure/glyph";
-import { Tile } from "../figure/tile";
-import { Label } from "../entry/label";
-import { createSteps } from "../figure/stagger";
-import { StackSwitch } from "../entry/switch";
-import { Window } from "../figure/window";
 import { screen } from "../../layout/screen.stylex";
-import { present } from "@destack/schema";
-import { createSignal } from "@destack/view";
-import { createTimer } from "@destack/view/primitives/timer";
-import { createReducedMotion } from "@destack/view/motion";
-
-/** The milliseconds between the steps of the figure's switch, one per service. */
-const stepTime = 80;
-
-/** The milliseconds each rented assistant holds the chat before it turns to the next. */
-const assistantTime = 5200;
+import { Entry, FigureLabel, type Form } from "../entry/entry";
+import { Label } from "../entry/label";
+import { StackSwitch } from "../entry/switch";
+import { Inspector } from "./inspect";
 
 /** The adjective every app answers to. */
 const destackable: Form = {
@@ -27,33 +14,16 @@ const destackable: Form = {
     pronunciation: "/diːˈstakəbl/",
     partOfSpeech: "adjective",
     sense: {
-        definition: "standardised, connected, open, and malleable",
-        highlight: ["standardised", "connected"],
-        sentence: "Every app is built the same way, and sees everything you keep.",
+        definition: "open, transparent, and hackable",
+        highlight: ["transparent", "hackable"],
+        sentence: "See everything every app and agent does, and change it.",
     },
 };
 
-/** Show the adjective at work. */
+/** Show the adjective at work: your launch as rented dashboards see it, or as your space does. */
 export function Adjective(properties: { isOpen: boolean }) {
-    // follow the motion the section shows
-    const [section, setSection] = createSignal<HTMLElement>();
-    const isReduced = createReducedMotion(section);
-
-    // switch the chat first and then the board beside it
-    const { isOpenAt } = createSteps(() => properties.isOpen, 2, stepTime, isReduced);
-
-    // turn between the rented assistants while stacked, held while motion is reduced
-    const [turn, setTurn] = createSignal(0);
-    createTimer(
-        () => setTurn((count) => count + 1),
-        () => (isReduced() || properties.isOpen ? false : assistantTime),
-        setInterval,
-    );
-    const assistant = () => present(assistants[turn() % assistants.length], "shown assistant");
-
     return (
         <section
-            ref={setSection}
             {...style.attrs(
                 lattice.frame,
                 lattice.ruled,
@@ -66,37 +36,18 @@ export function Adjective(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={4}
                 isOpen={properties.isOpen}
-                stacked="an app that only sees its own data"
-                destacked="an app that sees all of yours"
+                stacked="one invite, six consoles"
+                destacked="one invite, one trace"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
                     {properties.isOpen
-                        ? "A launch board, from all your apps"
-                        : "A launch board, from one app's data"}
+                        ? "Inviting 400 from the waitlist, as your space shows it"
+                        : "Inviting 400 from the waitlist, as six vendors show it"}
                 </Label>
-                <Window
-                    title={
-                        <span {...style.attrs(styles.title)}>
-                            {isOpenAt(0) ? (
-                                <>
-                                    <Tile icon="chat" size="small" />
-                                    Chat
-                                </>
-                            ) : (
-                                <>
-                                    <Favicon icon={assistant().icon} tint={assistant().tint} />
-                                    {assistant().name}
-                                </>
-                            )}
-                        </span>
-                    }
-                    xstyle={styles.window}
-                >
-                    <LaunchBoard isOpenAt={isOpenAt} assistant={assistant()} />
-                </Window>
+                <Inspector isOpen={properties.isOpen} />
             </div>
         </section>
     );
@@ -110,17 +61,6 @@ const styles = style.create({
     stage: {
         containerType: "inline-size",
         gridColumn: "1 / -1",
-        gridTemplateRows: "auto minmax(0, 1fr)",
-    },
-    window: {
-        minHeight: 0,
-        height: { default: null, [screen.belowDesktop]: "48rem" },
-    },
-    title: {
-        alignItems: "center",
-        display: "inline-flex",
-        flexGrow: 1,
-        fontWeight: 600,
-        gap: "0.375rem",
+        gridTemplateRows: { default: "auto minmax(0, 1fr)", [media.maxMd]: "auto 39rem" },
     },
 });

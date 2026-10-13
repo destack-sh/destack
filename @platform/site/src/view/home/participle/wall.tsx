@@ -708,17 +708,6 @@ function entryOf(
     };
 }
 
-/** Label the bill. */
-export function labelOf(picks: readonly string[], isOpen: boolean): string {
-    // count only what the space takes over, since the services it works with bill on their own either way
-    const picked = tools.filter((tool) => picks.includes(tool.name));
-    const isKept = (tool: Tool) => connections.some(([, names]) => names.includes(tool.name));
-    const takenOver = picked.filter((tool) => !isKept(tool));
-    const billed = subscriptionsOf(takenOver);
-
-    return isOpen ? "1 space" : `${takenOver.length} tools, ${billed.length} invoices`;
-}
-
 /** Sum the work a row's tools take: their storage and compute, a floor where any of them is. */
 function workloadOfRow(doers: readonly Tool[]): Workload {
     const workloads = doers.map((tool) => workloadOf(tool.name));

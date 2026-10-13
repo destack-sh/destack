@@ -2,12 +2,11 @@ import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
 import { Metadata } from "@destack/view/document";
 
-import { Adjective } from "../home/adjective/adjective";
 import { Noun } from "../home/noun/noun";
 import { BottomBar } from "../home/entry/switch";
-import { Imperative } from "../home/imperative/imperative";
+import { Adjective } from "../home/adjective/adjective";
 import { Participle } from "../home/participle/participle";
-import { firstPicks, promptOf } from "../home/imperative/wall";
+import { firstPicks, promptOf } from "../home/participle/wall";
 import { PastParticiple } from "../home/past/past";
 import { Verb } from "../home/verb/verb";
 import { lattice } from "../layout/lattice.stylex";
@@ -34,8 +33,7 @@ export function Home() {
             <PastParticiple isOpen={isOpen()} onChange={setIsOpen} />
             <Noun isOpen={isOpen()} />
             <Adjective isOpen={isOpen()} />
-            <Participle isOpen={isOpen()} />
-            <Imperative
+            <Participle
                 isOpen={isOpen()}
                 picks={picks()}
                 onPick={pick}
