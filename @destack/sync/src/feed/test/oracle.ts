@@ -391,7 +391,14 @@ function meets(
     const fields = Namespace.fields(query.table, { extras: query.extras ?? {} });
     const match = Predicate.compile(Condition.resolve(query.where, fields), query.table);
 
-    return match({ field: (name) => row[name], placeholder: () => null, exists }) === true;
+    return (
+        match({
+            field: (name) => row[name],
+            placeholder: () => null,
+            exists,
+            search: (words) => query.table[TABLE].requireFullText().matches(row, words),
+        }) === true
+    );
 }
 
 /** Read a row's visible related rows that meet a condition. */

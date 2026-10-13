@@ -16,10 +16,10 @@ const failureSchema = defineSchema(
         data: schema.json().exactOptional(),
     }),
 );
-/** How a call failed, as the wire sends a service error. */
+/** How a call failed, as the wire sends a call error. */
 export type Failure = schema.Infer<typeof failureSchema>;
 
-/** How a call failed, as the wire sends a service error, and how a thrown value reads as one. */
+/** How a call failed, as the wire sends a call error, and how a thrown value reads as one. */
 export const Failure = Object.assign(failureSchema, {
     /** Describe a thrown value by its code, status, message and details, or its error name. */
     of(error: unknown): Failure {

@@ -82,7 +82,10 @@ test.for(TEST_DIALECTS)(
             await Replica.isCopied(Snapshot.live(copy), "inbox", task),
             await Replica.scopes(copy, note),
             await Replica.scopes(copy, task),
-        ]).toEqual([true, false, true, false, ["inbox"], []]);
+            await Replica.scopes(copy, note, "notes"),
+            await Replica.scopes(copy, task, "notes"),
+            await Replica.scopes(copy, note, "tasks"),
+        ]).toEqual([true, false, true, false, ["inbox"], [], ["inbox"], [], []]);
         await source.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
         await source.delete(note).where(eq(note.id, "b"));
         expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(true);
@@ -94,6 +97,13 @@ test.for(TEST_DIALECTS)(
             ["a", "Renamed"],
         ]);
         expect(await notes.position(copy)).toEqual(await source.log.position());
+
+        // release a row the copy's database pruned from the copy's bookkeeping
+        const kept = async () =>
+            (await copy.select({ key: replicaRow.key }).from(replicaRow)).map((row) => row.key);
+        const before = await kept();
+        await Replica.release(copy, note, [{ id: "a" }]);
+        expect([before, await kept()]).toEqual([[Key.name(note, { id: "a" })], []]);
 
         // keep the rows once promoted
         await Transaction.run(copy, (transaction) => notes.promote(transaction));

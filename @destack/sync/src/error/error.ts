@@ -1,7 +1,7 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The service error code per sync failure: capacity, unready copy, bad stream or scope, cycle. */
-const SERVICE_CODES = {
+/** The call error code per sync failure: capacity, unready copy, bad stream or scope, cycle. */
+const CALL_CODES = {
     OVERLOADED: "SERVICE_UNAVAILABLE",
     OVER_CAPACITY: "UNPROCESSABLE_CONTENT",
     STALE: "SERVICE_UNAVAILABLE",
@@ -9,10 +9,10 @@ const SERVICE_CODES = {
     INVALID_SCOPE: "UNPROCESSABLE_CONTENT",
     NOT_FOUND: "NOT_FOUND",
     CYCLE: "CONFLICT",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** A failure code of copies, subscriptions and scopes. */
-export type SyncErrorCode = keyof typeof SERVICE_CODES;
+export type SyncErrorCode = keyof typeof CALL_CODES;
 
 /** A copy, subscription or scope the source cannot serve. */
 export class SyncError extends Error implements DomainError {
@@ -26,8 +26,8 @@ export class SyncError extends Error implements DomainError {
         this.code = code;
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }

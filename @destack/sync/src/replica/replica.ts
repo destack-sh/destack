@@ -382,16 +382,50 @@ export class Replica {
         return new Set(included.map((row) => row.key));
     }
 
-    /** List the scopes whose rows of a table a database keeps as copies. */
-    static async scopes(database: DatabaseConnection, table: Table): Promise<string[]> {
+    /** Take rows a database pruned out of every copy including them. */
+    static async release(
+        database: DatabaseConnection,
+        table: Table,
+        rows: readonly Row[],
+    ): Promise<void> {
+        // keep no bookkeeping in a database without copies
+        if (!database.tables.includes(replicaRow) || rows.length === 0) {
+            return;
+        }
+
+        // delete the rows' entries of every copy
+        await database.delete(replicaRow).where(
+            and(
+                eq(replicaRow.table, table[TABLE].sqlName),
+                inArray(
+                    replicaRow.key,
+                    rows.map((row) => Key.name(table, row)),
+                ),
+            ),
+        );
+    }
+
+    /** List the scopes whose rows of a table the database's copies keep, or one named copy. */
+    static async scopes(
+        database: DatabaseConnection,
+        table: Table,
+        copy?: string,
+    ): Promise<string[]> {
+        // keep no copies in a database without them
+        if (!database.tables.includes(replica)) {
+            return [];
+        }
+
+        // read the copies, or the named one, with the tables they keep
         const name = table[TABLE].sqlName;
         const copies = await database
             .select({ scope: replica.scope, tables: replica.tables })
-            .from(replica);
+            .from(replica)
+            .where(copy === undefined ? undefined : eq(replica.name, copy));
 
         return [
             ...new Set(
-                copies.filter((copy) => copy.tables.includes(name)).map(({ scope }) => scope),
+                copies.filter((kept) => kept.tables.includes(name)).map(({ scope }) => scope),
             ),
         ];
     }

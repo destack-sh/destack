@@ -585,6 +585,7 @@ export class Dataflow implements Arrangement {
         const lists = zip(names, zip(orders, rows)).map(([name, [keys, listed]], position) => {
             const entries = zip(keys, listed).map(([key, row], index) =>
                 materialization.entry(
+                    node.table,
                     key,
                     row,
                     aligned(concealed, offset++),

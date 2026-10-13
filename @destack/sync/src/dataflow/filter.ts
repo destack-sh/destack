@@ -7,6 +7,7 @@ import {
     Expression,
     type RelationReader,
     DatabaseError,
+    TABLE,
 } from "@destack/db";
 import { measureName, type Node } from "../query/node.ts";
 import type { Run } from "./run.ts";
@@ -60,6 +61,7 @@ export class Filter {
             this.#match({
                 field: (name) => resolved[name],
                 placeholder: Predicate.unbound,
+                search: (words) => this.node.table[TABLE].requireFullText().matches(resolved, words),
                 exists: (via, where) => {
                     // count the related rows meeting the condition
                     const relation = this.node.relation(via, where);

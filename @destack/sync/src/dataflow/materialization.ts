@@ -1,4 +1,4 @@
-import type { Row } from "@destack/db";
+import { type Row, type Table, TABLE } from "@destack/db";
 import { aligned } from "@destack/schema";
 import type { Item, AggregateRow } from "../query/query.ts";
 import type { Member, Partition } from "./pipeline.ts";
@@ -80,6 +80,7 @@ export class Materialization {
 
     /** Reuse a row's entry if its row, concealment and nested results are unchanged, else build. */
     entry(
+        table: Table,
         key: string,
         source: Row,
         hidden: readonly string[],
@@ -101,9 +102,7 @@ export class Materialization {
 
         // build the entry, keeping the last one when its values are equal
         const entry: Item = {
-            row: Object.fromEntries(
-                Object.entries(source).filter(([column]) => !hidden.includes(column)),
-            ),
+            row: table[TABLE].conceal(source, hidden),
             with: Object.fromEntries(included),
             measures: Object.fromEntries(measured),
         };
