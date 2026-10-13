@@ -1,6 +1,6 @@
 import { type AwsCredentials, AwsSigner } from "@destack/identity/aws";
 import { schema } from "@destack/schema";
-import type { Fetch } from "@destack/service";
+import type { Fetch } from "@destack/runtime";
 import type { Envelope, MimeMessage } from "../mime/index.ts";
 import { SesError, type SesErrorCode } from "./error.ts";
 

@@ -1,7 +1,7 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The service error code per SES failure: a refused message, a throttle, SES or the machine. */
-const SERVICE_CODES = {
+/** The call error code per SES failure: a refused message, a throttle, SES or the machine. */
+const CALL_CODES = {
     INVALID_OPTIONS: "INTERNAL_SERVER_ERROR",
     CONNECTION: "BAD_GATEWAY",
     THROTTLED: "TOO_MANY_REQUESTS",
@@ -13,10 +13,10 @@ const SERVICE_CODES = {
     SUSPENDED: "SERVICE_UNAVAILABLE",
     INVALID_REQUEST: "BAD_REQUEST",
     INVALID_RESPONSE: "BAD_GATEWAY",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** Failures sending mail through SES. */
-export type SesErrorCode = keyof typeof SERVICE_CODES;
+export type SesErrorCode = keyof typeof CALL_CODES;
 
 /** The failures a later send of the same message may get past. */
 const RETRYABLE: ReadonlySet<SesErrorCode> = new Set([
@@ -53,8 +53,8 @@ export class SesError extends Error implements DomainError {
         this.isRetryable = RETRYABLE.has(code);
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }

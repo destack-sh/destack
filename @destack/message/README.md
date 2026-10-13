@@ -26,26 +26,27 @@ await WebhookSignature.sign(secret, id, timestamp, body); // Standard Webhooks' 
 
 ## Messages
 
-`message.create` requests one pending message to one recipient, its content sealed by the producer to the space's message key.
+`message.create` requests one pending message to one recipient, its content sealed by the producer to the space's message key, and `message.serverKey` reads the VAPID key browsers subscribe to the space's pushes with.
 
 ```ts
-const { key } = await messages.key.read({ scope: spaceId });
+// pushManager.subscribe's applicationServerKey
+const { key: serverKey } = await client.message.serverKey({ scope: spaceId });
 await client.message.create({
     scope: spaceId,
     requestId: await RequestId.derive(regressedAt, `${issueId} regressed`),
     to: { channel: "email", address: "dana@example.com" },
     source: issue.reference(spaceId, issueId), // the object it delivers for
     status: "pending", // until its provider sends it or refuses it for good
-    ciphertext: await MessageKey.of(key).seal(
+    ciphertext: await MessageKey.of(messageKey).seal(
         { channel: "email", subject: "Regressed", text: "title is too long" },
         spaceId,
     ),
 });
 ```
 
-## Service
+## Server
 
-`implementMessages` serves a space's messages, attempts and endpoints, and sends each message through its channel's provider.
+`implementMessages` serves a space's messages, attempts and endpoints, sends each message through its channel's provider, and delivers each endpoint's calls from the store's own call events.
 
 ```ts
 import { implementMessages } from "@destack/message/server";
@@ -57,7 +58,6 @@ const messages = implementMessages({
         webhook: webhookProvider(open, fetch),
     },
     deriver,
-    events: history.store,
 });
 ```
 

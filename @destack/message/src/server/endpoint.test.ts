@@ -1,32 +1,27 @@
 import { Policy, principal, Caller } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { AuditCall, defineAuditAction } from "@destack/audit";
-import { AuditHistory } from "@destack/audit/history";
-import { AuditRecorder } from "@destack/audit/server";
-import * as audit from "@destack/audit";
-import { journal } from "@destack/audit/stack";
-import { DatabasePersonalKeyring, EventStore } from "@destack/event";
-import { eventTables } from "@destack/event/stack";
-import { MemoryBucket } from "@destack/bucket/test";
-import { outbox } from "@destack/service/outbox";
-import { defineDatabase, type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { AuditCall, call, defineAuditAction, journal } from "@destack/object";
+import { AuditRecorder, Journal } from "@destack/object/server";
+import { testEvents } from "@destack/object/test";
+import { outbox } from "@destack/runtime/outbox";
+import { defineDatabase, type DatabaseConnection, eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Derivation, LocalKeyring } from "@destack/identity";
+import { Derivation } from "@destack/identity";
 import { ObjectStore } from "@destack/object/server";
-import { PackageId } from "@destack/package";
+import { Package, PackageId } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import { Clock, Identifier, present, schema } from "@destack/schema";
-import { type Controller, ControlLoop } from "@destack/service/control";
-import { testCallKey } from "@destack/service/test";
+import { type Controller, ControlLoop } from "@destack/runtime/control";
+import { testCallKey } from "@destack/runtime/test";
 import { type ObjectReference, Scope, Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { type Endpoint, endpoint, message, MessageKey } from "../object/index.ts";
-import { messageService } from "../service/index.ts";
+import messagePackage from "../package.ts";
 import { messageTables } from "../stack/index.ts";
 import { WebhookSignature, webhookProvider } from "../webhook/index.ts";
 import { EndpointReader, serveEndpoints } from "./endpoint.ts";
 import { serveMessages } from "./server.ts";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 
 /** The scope type of the endpoints and their messages, as an organisation is in the universe. */
 const place = new Policy(import.meta.destack.package, {
@@ -35,17 +30,14 @@ const place = new Policy(import.meta.destack.package, {
     scope: true,
 });
 
-/** A database with endpoints, their messages and their audit history, as a machine keeps them. */
+/** A database with endpoints, their messages and the calls they deliver, as a space keeps them. */
 const endpointDatabase = defineDatabase({
     name: "endpoint",
-    tables: [...messageTables, journal, ...eventTables([audit.call]), outbox],
+    tables: [...messageTables, journal, ...call.tables, outbox],
 });
 
 /** The longest a test waits for an endpoint's delivery, far above three retries at 10 ms. */
 const SETTLE_MILLISECONDS = 5000;
-
-/** The keyring sealing people's personal values in the history. */
-const KEYRING = await LocalKeyring.read(LocalKeyring.generate());
 
 /** The root secret the scope's message key derives from. */
 const ROOT = Derivation.of(await Derivation.root(crypto.getRandomValues(new Uint8Array(32))));
@@ -66,9 +58,6 @@ const HOST = principal.space.reference(
     Scope.universe.id,
     "space-019f5530-8000-7000-8000-0000000000f7",
 );
-
-/** A scope inside the endpoint's scope. */
-const NESTED = place.reference(SCOPE.id, "place-019f5530-8000-7000-8000-0000000000f6");
 
 /** The user who created the endpoint, as whom its secret is read. */
 const USER = principal.user.reference(
@@ -133,18 +122,13 @@ function run(database: DatabaseConnection, controllers: readonly Controller[]): 
 
 /** Record a person's finished call in a scope. */
 function finished(
-    scope: ObjectReference,
+    recording: Journal,
     action: typeof documentRename | typeof documentDelete,
     outcome: "success" | "failure" = "success",
 ): AuditCall {
     const recorder = new AuditRecorder(
-        {
-            caller: { subject: USER },
-            package: import.meta.destack.package,
-            service: "document",
-            scope: scope.id,
-        },
-        { record: async () => {}, clock: Clock.system },
+        { caller: { subject: USER }, package: import.meta.destack.package, scope: SCOPE.id },
+        recording,
     );
     const target = { type: "document" as const, id: "one" };
     const running =
@@ -179,11 +163,14 @@ async function serveHistory(statuses: readonly number[]) {
         },
     );
 
-    // keep the endpoints with their messages and the history they read, which records their deliveries too
+    // keep the endpoints with their messages and the calls they read, which record their deliveries too
     const storage = await TestDatabase.create("sqlite", endpointDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
-    const store = openEvents(storage.database);
-    const history = new AuditHistory(store);
+    const store = await testEvents(storage.database);
+    const recording = new Journal(storage.database, testCallKey, {
+        clock: Clock.system,
+        events: store,
+    });
     const objects = new ObjectStore({
         clock: Clock.system,
         principal: HOST,
@@ -193,25 +180,26 @@ async function serveHistory(statuses: readonly number[]) {
                 retry: RETRY,
                 deriver: async () => ROOT,
             }),
-            serveEndpoints({
-                events: store,
-                key: async () => (await MessageKey.derive(ROOT)).key,
-            }),
+            serveEndpoints(async () => (await MessageKey.derive(ROOT)).key),
         ],
         policies: [place],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: messageService.package, service: messageService.name },
-        history: { ingest: (batch) => history.ingest(batch) },
+        events: store,
+        origin: { package: Package.of(messagePackage) },
     });
     const access = new AccessFixture(storage.database);
     await access.copyScope({ ...SCOPE });
-    await access.copyScope({ ...NESTED });
     await access.copyOwner(SCOPE, HOST);
 
     return {
         database: storage.database,
-        history,
+        recording,
+        record: (calls: readonly AuditCall[]) =>
+            store.append(
+                call.eventKind(),
+                calls.map((ended) => Journal.event(ended)),
+            ),
         objects,
         posts,
         reads,
@@ -224,31 +212,6 @@ async function serveHistory(statuses: readonly number[]) {
             ),
         start: () => run(storage.database, [...objects.controllers(), ...store.controllers]),
     };
-}
-
-/** Open the events keeping the audit history, routing each call to its enclosing scopes. */
-function openEvents(database: DatabaseConnection): EventStore {
-    const store = new EventStore({
-        clock: Clock.system,
-        database,
-        kinds: [audit.call],
-        files: () => new MemoryBucket(),
-        personal: new DatabasePersonalKeyring(database, KEYRING),
-        forwarder: {
-            targets: async (_route, scope) => {
-                const chains = await Scope.chains(Snapshot.live(database), [scope]);
-
-                return (chains.get(scope) ?? []).slice(1).map((link) => link.object.id);
-            },
-            deliver: (_kind, events) => store.receive(audit.call.key, events),
-        },
-        // fail the test on a dropped event
-        report: (error) => {
-            throw error;
-        },
-    });
-
-    return store;
 }
 
 /** An endpoint's messages and Delivered condition as a test reads them. */
@@ -331,7 +294,7 @@ async function readEvents(posts: readonly { readonly headers: Headers; readonly 
     };
 }
 
-test("send each subscribed succeeded call of the scope and the scopes inside it as one event signed with the secret read as the endpoint's user", async () => {
+test("send each subscribed succeeded call of the scope as one event signed with the secret read as the endpoint's user", async () => {
     const served = await serveHistory([204, 204]);
     const id = await subscribe(served.database, {
         events: [documentRename.name],
@@ -339,17 +302,15 @@ test("send each subscribed succeeded call of the scope and the scopes inside it 
         authentication: { kind: "signature" },
     });
 
-    // keep renames in and inside the scope with a failed rename and an unsubscribed deletion
-    const outer = finished(SCOPE, documentRename);
-    const nested = finished(NESTED, documentRename);
-    await served.history.ingest({
-        calls: [
-            outer,
-            finished(SCOPE, documentRename, "failure"),
-            finished(SCOPE, documentDelete),
-            nested,
-        ],
-    });
+    // keep two renames with a failed rename and an unsubscribed deletion
+    const first = finished(served.recording, documentRename);
+    const second = finished(served.recording, documentRename);
+    await served.record([
+        first,
+        finished(served.recording, documentRename, "failure"),
+        finished(served.recording, documentDelete),
+        second,
+    ]);
     served.start();
 
     // post both renames once each in either order and mark the endpoint delivered
@@ -359,7 +320,7 @@ test("send each subscribed succeeded call of the scope and the scopes inside it 
     );
     expect(await served.read(id)).toEqual({ messages: 2, delivered: ["true", "Delivered", ""] });
     expect({ ...(await readEvents(served.posts)), reads: served.reads }).toEqual({
-        data: [outer, nested]
+        data: [first, second]
             .map((delivered) => ({
                 scope: delivered.execution.context.scope,
                 target: delivered.execution.target,
@@ -384,8 +345,11 @@ test("send a page of calls as one NDJSON batch carrying the secret in the endpoi
     });
 
     // keep a rename and a deletion
-    const calls = [finished(SCOPE, documentRename), finished(NESTED, documentDelete)];
-    await served.history.ingest({ calls });
+    const calls = [
+        finished(served.recording, documentRename),
+        finished(served.recording, documentDelete),
+    ];
+    await served.record(calls);
     served.start();
 
     // post both calls as lines of JSON with the secret in the header and no signature
@@ -406,7 +370,7 @@ test("send a page of calls as one NDJSON batch carrying the secret in the endpoi
         type: post?.headers.get("content-type"),
     }).toEqual({
         posts: 1,
-        calls: calls.map((call) => call.execution.id),
+        calls: calls.map((ended) => ended.execution.id),
         key: SECRET_VALUE,
         signature: null,
         type: "application/x-ndjson",
@@ -424,7 +388,7 @@ test("advance an endpoint past each page and create no message twice when a page
     const before = await position();
 
     // deliver one call and advance the endpoint past it
-    await served.history.ingest({ calls: [finished(SCOPE, documentRename)] });
+    await served.record([finished(served.recording, documentRename)]);
     served.start();
     const isAdvanced = async () => (await position()) !== before;
     await TestDatabase.settle(served.database, isAdvanced, SETTLE_MILLISECONDS);
@@ -447,8 +411,8 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
     });
 
     // deliver a first call
-    const first = finished(SCOPE, documentRename);
-    await served.history.ingest({ calls: [first] });
+    const first = finished(served.recording, documentRename);
+    await served.record([first]);
     const loop = served.start();
     await served.until(
         id,
@@ -475,8 +439,8 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
     await update("disabled");
     await loop.idle();
     const delivered = await position();
-    const second = finished(SCOPE, documentDelete);
-    await served.history.ingest({ calls: [second] });
+    const second = finished(served.recording, documentDelete);
+    await served.record([second]);
     await loop.idle();
     expect(await position()).toBe(delivered);
 
@@ -502,7 +466,7 @@ test("mark an endpoint failing once the message service gives up a message its U
     });
 
     // give the batch up after the retries and flag the endpoint with the URL's answer
-    await served.history.ingest({ calls: [finished(SCOPE, documentRename)] });
+    await served.record([finished(served.recording, documentRename)]);
     served.start();
     await served.until(id, (delivery) => delivery.delivered?.[1] === "Failing");
     expect(await served.read(id)).toEqual({

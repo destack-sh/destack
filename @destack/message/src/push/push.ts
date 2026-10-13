@@ -1,4 +1,4 @@
-import type { Fetch } from "@destack/service";
+import type { Fetch } from "@destack/runtime";
 import { type MessageProvider, Outcome } from "../provider/index.ts";
 import { PushEncryption } from "./encryption.ts";
 import type { Vapid } from "./vapid.ts";

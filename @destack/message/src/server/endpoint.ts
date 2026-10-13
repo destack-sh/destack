@@ -1,10 +1,9 @@
 import { principal } from "@destack/access";
-import * as audit from "@destack/audit";
 import { and, type DatabaseConnection, desc, eq, inArray, ne } from "@destack/db";
-import { type ObjectReconciliation, ObjectWatch } from "@destack/object";
+import { AuditCall, call, type ObjectReconciliation, ObjectWatch } from "@destack/object";
 import { aligned, Identifier, type JsonValue, present } from "@destack/schema";
-import { EventReader, type EventStore } from "@destack/event";
-import { RequestId } from "@destack/service/request";
+import { EventReader } from "@destack/event";
+import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import {
     type Endpoint,
@@ -33,13 +32,8 @@ const DELIVERY_TYPES: ReadonlySet<string> = new Set([
     endpoint.name,
 ]);
 
-/** What endpoints deliver from: their scopes' calls and the key their messages are sealed to. */
-export interface EndpointOptions {
-    /** The calls of the endpoints' scopes and the scopes inside them, read in commit order. */
-    readonly events: EventStore;
-    /** Read the public key the messages of a scope are sealed to, its message home's. */
-    readonly key: (scope: string) => Promise<string>;
-}
+/** Read the public key the messages of a scope are sealed to, its message home's. */
+export type MessageKeyReader = (scope: string) => Promise<string>;
 
 /** The reader of the calls an endpoint delivers, whose log position keeps its place. */
 export const EndpointReader = {
@@ -50,23 +44,23 @@ export const EndpointReader = {
 };
 
 /** Serve endpoints: deliver each enabled endpoint's calls page by page as webhook messages. */
-export function serveEndpoints(options: EndpointOptions) {
+export function serveEndpoints(key: MessageKeyReader) {
     return endpoint.implement({
         methods: {
-            create: async (call, next) => {
+            create: async (creating, next) => {
                 // place the endpoint's reader where the log stands as it is created
                 const row = await next();
-                call.requireTransaction().record((database) =>
-                    EndpointReader.of(row.id).start(database, call.now),
-                );
+                creating
+                    .requireTransaction()
+                    .record((database) => EndpointReader.of(row.id).start(database, creating.now));
 
                 return row;
             },
-            delete: async (call, next) => {
+            delete: async (deleting, next) => {
                 // let the log go of the calls the endpoint had not read
                 const deleted = await next();
-                const reader = EndpointReader.of(call.requireTarget().id);
-                call.requireTransaction().record((database) => reader.release(database));
+                const reader = EndpointReader.of(deleting.requireTarget().id);
+                deleting.requireTransaction().record((database) => reader.release(database));
 
                 return deleted;
             },
@@ -79,9 +73,9 @@ export function serveEndpoints(options: EndpointOptions) {
                         ? [{ id: row.source.id }]
                         : [],
                 ),
-                ObjectWatch.of(audit.call.table, async (row, database) => {
+                ObjectWatch.of(call.table, async (row, database) => {
                     // wake the enabled endpoints of the scope keeping a succeeded call
-                    if (audit.call.event(row).keys.outcome !== "success") {
+                    if (call.eventKind().event(row).keys.outcome !== "success") {
                         return [];
                     }
                     const enabled = await database
@@ -98,7 +92,7 @@ export function serveEndpoints(options: EndpointOptions) {
                 }),
             ],
             reconcile: (reconciliation) =>
-                deliver(reconciliation, aligned(reconciliation.rows, 0), options),
+                deliver(reconciliation, aligned(reconciliation.rows, 0), key),
         },
     });
 }
@@ -107,22 +101,24 @@ export function serveEndpoints(options: EndpointOptions) {
 async function deliver(
     reconciliation: ObjectReconciliation<typeof endpoint>,
     row: Endpoint,
-    options: EndpointOptions,
+    key: MessageKeyReader,
 ): Promise<number | undefined> {
-    // read the succeeded calls of the endpoint's scope and the scopes inside it committed past its place, from its first read on
+    // read the succeeded calls of the endpoint's scope committed past its place, from its first read on
     const reader = EndpointReader.of(row.id);
     const after = await reader.after(reconciliation.database);
-    const page = await options.events.changes(
-        audit.call,
-        { scope: row.scope, where: { outcome: "success" } },
-        after,
-        PAGE_CALLS,
-    );
-    const items = page.events.map((event) => audit.AuditCall.parse(event.data));
+    const page = await reconciliation.store
+        .requireEvents()
+        .changes(
+            call.eventKind(),
+            { scopes: [row.scope], where: { outcome: "success" } },
+            after,
+            PAGE_CALLS,
+        );
+    const items = page.events.map((event) => AuditCall.parse(event.data));
 
     // hand the subscribed calls to messages, each identified by its request, leaving those a repeated page already created
     const calls = items.filter((item) => isSubscribed(row, item));
-    const described = await describeMessages(row, calls, await options.key(row.scope));
+    const described = await describeMessages(row, calls, await key(row.scope));
     const existing = await reconciliation.database
         .select({ id: message.table.id })
         .from(message.table)
@@ -181,14 +177,14 @@ async function mark(
 }
 
 /** Report whether an endpoint receives a call: one of its events, and no message delivery. */
-function isSubscribed(row: Endpoint, call: audit.AuditCall): boolean {
-    return !isDelivery(call) && (row.events === "all" || row.events.includes(call.method));
+function isSubscribed(row: Endpoint, ended: AuditCall): boolean {
+    return !isDelivery(ended) && (row.events === "all" || row.events.includes(ended.method));
 }
 
 /** Report whether a call is one of this package's controllers delivering endpoint messages. */
-function isDelivery(call: audit.AuditCall): boolean {
-    const { component, package: served } = call.execution.context;
-    const type = call.method.slice(0, call.method.lastIndexOf("."));
+function isDelivery(ended: AuditCall): boolean {
+    const { component, package: served } = ended.execution.context;
+    const type = ended.method.slice(0, ended.method.lastIndexOf("."));
 
     return component !== undefined && served.id === message.package.id && DELIVERY_TYPES.has(type);
 }
@@ -196,7 +192,7 @@ function isDelivery(call: audit.AuditCall): boolean {
 /** Describe the messages with a page's calls to an endpoint: an event per call, or one batch. */
 async function describeMessages(
     row: Endpoint,
-    calls: readonly audit.AuditCall[],
+    calls: readonly AuditCall[],
     key: string,
 ): Promise<Awaited<ReturnType<typeof describeMessage>>[]> {
     // send nothing for a page without subscribed calls
@@ -209,15 +205,15 @@ async function describeMessages(
     // send each call as an event
     if (row.format === "event") {
         return Promise.all(
-            calls.map(async (call) => {
-                const { execution } = call;
+            calls.map(async (ended) => {
+                const { execution } = ended;
 
                 return describeMessage(row, key, {
                     requestId: await RequestId.derive(
                         Math.max(row.updatedAt, execution.finishedAt ?? execution.startedAt),
                         `${row.id} ${row.generation} ${execution.id}`,
                     ),
-                    type: call.method,
+                    type: ended.method,
                     data: {
                         scope: execution.context.scope,
                         target: execution.target,

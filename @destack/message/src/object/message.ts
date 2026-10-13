@@ -138,8 +138,6 @@ export const message = defineObject({
     },
 })
     .methods((method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
         /** Send a pending message with its sealed content. */
         create: method.create("send", {
             fields: ["to", "source"],
@@ -148,6 +146,15 @@ export const message = defineObject({
         }),
         /** Erase a settled message's sealed content after its retention, as the controller does. */
         erase: method.mutation({ permission: "erase", isInternal: true }),
+        /** Read the VAPID key a scope's pushes are signed with, which browsers subscribe with. */
+        serverKey: method.query({
+            permission: "read",
+            target: "none",
+            output: schema.object({
+                /** The key, an uncompressed P-256 point in base64url (RFC 8292 3.2). */
+                key: schema.string(),
+            }),
+        }),
     }))
     .implement({
         methods: { erase: (call) => call.updateStatus({ ciphertext: null, erasedAt: call.now }) },

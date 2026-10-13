@@ -1,24 +1,23 @@
-import { EventFixture } from "@destack/event/test";
-import { call } from "@destack/audit";
 import { Policy, principal, Caller } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { journal } from "@destack/audit/stack";
-import { Journal } from "@destack/audit/server";
+import { call, JournalEntry, journal } from "@destack/object";
+import { testEvents } from "@destack/object/test";
 import { ObjectExtension } from "@destack/object/server";
 import { defineDatabase, type DatabaseConnection, eq, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Derivation } from "@destack/identity";
 import type {} from "@destack/package/import-meta";
 import { type Duration, type Identifier, present, schema, Clock } from "@destack/schema";
-import { type Controller, ControlLoop } from "@destack/service/control";
-import { testCallKey } from "@destack/service/test";
+import { type Controller, ControlLoop } from "@destack/runtime/control";
+import { testCallKey } from "@destack/runtime/test";
 import { Scope } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { message, messageAttempt, messageConditions, MessageKey } from "../object/index.ts";
 import type { MessageProvider, Outcome } from "../provider/index.ts";
+import { pushProvider, Vapid } from "../push/index.ts";
 import { messageTables } from "../stack/index.ts";
-import { implementMessages } from "./server.ts";
-import { RequestId } from "@destack/service/request";
+import { implementMessages, type MessageOptions } from "./server.ts";
+import { RequestId } from "@destack/runtime/request";
 
 /** The scope type the messages live in, as a space runs on a machine. */
 const place = new Policy(import.meta.destack.package, {
@@ -57,7 +56,10 @@ const RETRY = {
 const SETTLE_MILLISECONDS = 5000;
 
 /** A database keeping messages, as a machine keeps its spaces'. */
-const messageDatabase = defineDatabase({ name: "message", tables: [...messageTables, journal] });
+const messageDatabase = defineDatabase({
+    name: "message",
+    tables: [...messageTables, journal, ...call.tables],
+});
 
 /** Run some controllers over a database until the test ends, failing it on a reported failure. */
 function run(database: DatabaseConnection, controllers: readonly Controller[]): void {
@@ -78,37 +80,10 @@ function run(database: DatabaseConnection, controllers: readonly Controller[]): 
 async function serveMessages(answers: readonly Outcome[], retention: Duration = { minutes: 1 }) {
     // keep the messages, sending each email through a provider answering in turn
     const { provider, sent, texts } = answerInTurn(answers);
-    const storage = await TestDatabase.create("sqlite", messageDatabase, { isMigrated: true });
-    onTestFinished(() => storage.close());
-    const { store: messages } = ObjectExtension.compose(
-        [
-            implementMessages({
-                providers: { email: provider },
-                deriver: async () => ROOT,
-                events: (await EventFixture.open("sqlite", [call])).store,
-                retry: RETRY,
-                retention,
-            }),
-        ],
-        {
-            clock: Clock.system,
-            principal: SPACE,
-            database: storage.database,
-            callKey: testCallKey,
-            policies: [place],
-            origin: { package: message.package, service: "message" },
-            machine: MACHINE,
-        },
-    );
+    const { messages, storage, scope } = await openMessages({ email: provider }, retention);
     run(storage.database, messages.controllers());
 
-    // request an email in a scope
-    const scope = {
-        ...place.reference(Scope.universe.id, "place-019f5530-8000-7000-8000-0000000000e3"),
-    };
-    const fixture = new AccessFixture(storage.database);
-    await fixture.copyScope(scope);
-    await fixture.copyOwner(scope, SPACE);
+    // request an email in the scope
     const id = schema.identifier("message").parse(message.generateId());
     await messages.mutate(Caller.of(SPACE, Date.now()), {
         id: RequestId.create(Date.now()),
@@ -142,6 +117,43 @@ async function serveMessages(answers: readonly Outcome[], retention: Duration = 
         sent,
         texts,
     };
+}
+
+/** Keep a scope the space owns, and serve its messages through the given providers. */
+async function openMessages(providers: MessageOptions["providers"], retention: Duration) {
+    // serve the messages over a database of their own
+    const storage = await TestDatabase.create("sqlite", messageDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { store: messages } = ObjectExtension.compose(
+        [
+            implementMessages({
+                providers,
+                deriver: async () => ROOT,
+                retry: RETRY,
+                retention,
+            }),
+        ],
+        {
+            clock: Clock.system,
+            principal: SPACE,
+            database: storage.database,
+            callKey: testCallKey,
+            events: await testEvents(storage.database),
+            policies: [place],
+            origin: { package: message.package },
+            machine: MACHINE,
+        },
+    );
+
+    // keep the scope, owned by the space
+    const scope = {
+        ...place.reference(Scope.universe.id, "place-019f5530-8000-7000-8000-0000000000e3"),
+    };
+    const fixture = new AccessFixture(storage.database);
+    await fixture.copyScope(scope);
+    await fixture.copyOwner(scope, SPACE);
+
+    return { messages, storage, scope };
 }
 
 /** Provide email through answers in turn, keeping the identifier and text of each send. */
@@ -195,15 +207,13 @@ async function readSending(database: DatabaseConnection, id: Identifier<"message
 
 /** List each journaled call's method with the principal and component making it, in order. */
 async function listCallers(database: DatabaseConnection) {
-    const calls = await new Journal(database, testCallKey, { clock: Clock.system }).read({
-        limit: 100,
-    });
+    const rows = await database.select().from(journal).orderBy(journal.startedAt, journal.position);
 
-    return calls.map((recorded) => [
-        recorded.method,
-        recorded.execution.context.caller,
-        recorded.execution.context.component,
-    ]);
+    return rows.map(({ call: recorded }) => {
+        const entry = JournalEntry.parse(recorded);
+
+        return [entry.method, entry.execution.context.caller, entry.execution.context.component];
+    });
 }
 
 /** List the tables whose rows have the content's text, or its ciphertext as a compact JWE. */
@@ -324,4 +334,22 @@ test("erase a settled message's sealed content once its retention passes, leavin
 
     // keep no copy of the content in any row or journal entry
     expect([await sent.leaks(), await failed.leaks()]).toEqual([[], []]);
+});
+
+test("read the key a scope's pushes are signed with, refusing it on a machine sending no pushes", async () => {
+    // serve the scope's messages with a push provider, and again with none
+    const vapid = await Vapid.derive(ROOT, "https://destack.app");
+    const pushing = await openMessages({ push: pushProvider(async () => vapid) }, { minutes: 1 });
+    const silent = await openMessages({}, { minutes: 1 });
+    const read = (opened: typeof pushing) =>
+        opened.messages.query(
+            Caller.of(SPACE, Date.now()),
+            message.call("serverKey", { scope: opened.scope.id }),
+        );
+
+    // answer the provider's VAPID public key, and refuse where no provider sends pushes
+    expect([await read(pushing), await refusal(read(silent))]).toEqual([
+        { key: await vapid.publicKey() },
+        ["NOT_FOUND", "this machine sends no pushes"],
+    ]);
 });

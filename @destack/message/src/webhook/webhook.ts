@@ -1,5 +1,5 @@
 import type { schema } from "@destack/schema";
-import type { Fetch } from "@destack/service";
+import type { Fetch } from "@destack/runtime";
 import { type ObjectReference, Subject } from "@destack/sync";
 import { encodeBody, WebhookDestination } from "./message.ts";
 import { type MessageProvider, Outcome } from "../provider/index.ts";

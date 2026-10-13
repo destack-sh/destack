@@ -1,5 +1,5 @@
 import { principal } from "@destack/access";
-import { AuditActionName } from "@destack/audit";
+import { AuditActionName } from "@destack/object";
 import { type Select } from "@destack/db";
 import { Conditions, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -40,8 +40,6 @@ export const endpoint = defineObject({
         scope: { kind: "index", on: ["scope", "status"] },
     },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("manage", {
         fields: ["url", "events", "format", "authentication", "secret", "status"],
     }),

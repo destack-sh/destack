@@ -16,8 +16,6 @@ export const messageAttempt = defineObject({
     },
     permissions: { read: through("parent", "read"), record: none() },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     /** Record a provider's try, as the message controller does. */
     create: method.create("record", { isInternal: true }),
 }));

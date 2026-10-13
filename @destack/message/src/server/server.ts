@@ -2,15 +2,14 @@ import { count, eq } from "@destack/db";
 import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
 import type { ObjectExtension, ObjectStore } from "@destack/object/server";
-import { implement, type ServiceContext } from "@destack/service/server";
 import { aligned, Duration, present } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import { RetryPolicy } from "@destack/service/timer";
+import { CallError } from "@destack/runtime/error";
+import { RetryPolicy } from "@destack/runtime/timer";
 import { type Message, message, messageAttempt, MessageKey } from "../object/index.ts";
 import type { MessageProvider, Outcome } from "../provider/index.ts";
 import type { PushProvider } from "../push/index.ts";
-import { messageService } from "../service/index.ts";
-import { type EndpointOptions, serveEndpoints } from "./endpoint.ts";
+import messagePackage from "../package.ts";
+import { serveEndpoints } from "./endpoint.ts";
 
 /** How refused sends retry by default: 5 s doubling to 15 min, 8 attempts over about an hour. */
 const RETRY = RetryPolicy.of({
@@ -39,46 +38,21 @@ export interface MessageOptions {
     };
     /** Read the deriver of a scope's identity, whose message key opens its messages' content. */
     readonly deriver: (scope: string) => Promise<Pick<Deriver, "derivePrivateKey">>;
-    /** The events keeping the calls the space's endpoints deliver. */
-    readonly events: EndpointOptions["events"];
     /** How refused sends retry, about an hour of eight attempts by default. */
     readonly retry?: RetryPolicy;
     /** How long a settled message keeps its sealed content, seven days by default. */
     readonly retention?: Duration;
 }
 
-/** Implement the message service. */
+/** Implement the message package. */
 export function implementMessages(options: MessageOptions): ObjectExtension {
-    // route the keys and pushes, the push provider answering the key browsers subscribe with
-    const pushes = implement(messageService.router.push).$context<ServiceContext>();
-    const keys = implement(messageService.router.key).$context<ServiceContext>();
-    const push = options.providers.push;
+    // seal each endpoint's messages to its scope's message key
     const key = async (scope: string) =>
         (await MessageKey.derive(await options.deriver(scope))).key;
 
     return {
-        service: messageService,
-        objects: [...serveMessages(options), serveEndpoints({ events: options.events, key })],
-        serve: () => ({
-            // route the message service's keys and pushes beside its objects
-            procedures: {
-                key: keys.router({
-                    read: keys.read.handler(async ({ input }) => ({ key: await key(input.scope) })),
-                }),
-                push: pushes.router({
-                    applicationServerKey: pushes.applicationServerKey.handler(async ({ input }) => {
-                        // refuse a machine sending no pushes
-                        if (push === undefined) {
-                            throw new ServiceError("NOT_FOUND", {
-                                message: "this machine sends no pushes",
-                            });
-                        }
-
-                        return { key: await push.applicationServerKey(input.scope) };
-                    }),
-                }),
-            },
-        }),
+        package: messagePackage,
+        objects: [...serveMessages(options), serveEndpoints(key)],
     };
 }
 
@@ -95,6 +69,19 @@ export function serveMessages(
 
     return [
         message.implement({
+            methods: {
+                serverKey: async (call) => {
+                    // refuse a machine sending no pushes
+                    const push = options.providers.push;
+                    if (push === undefined) {
+                        throw new CallError("NOT_FOUND", {
+                            message: "this machine sends no pushes",
+                        });
+                    }
+
+                    return { key: await push.applicationServerKey(call.scope) };
+                },
+            },
             controller: {
                 pending: { erasedAt: { isNull: true } },
                 concurrency: CONCURRENCY,

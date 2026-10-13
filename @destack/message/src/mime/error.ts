@@ -1,15 +1,15 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The service error code of each composition failure: every one is the caller's. */
-const SERVICE_CODES = {
+/** The call error code of each composition failure: every one is the caller's. */
+const CALL_CODES = {
     INVALID_ADDRESS: "BAD_REQUEST",
     INVALID_HEADER: "BAD_REQUEST",
     INVALID_KEY: "BAD_REQUEST",
     INVALID_DATE: "BAD_REQUEST",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** Failures composing a message. */
-export type MimeErrorCode = keyof typeof SERVICE_CODES;
+export type MimeErrorCode = keyof typeof CALL_CODES;
 
 /** A message composition failure with a stable code. */
 export class MimeError extends Error implements DomainError {
@@ -23,8 +23,8 @@ export class MimeError extends Error implements DomainError {
         this.code = code;
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }
