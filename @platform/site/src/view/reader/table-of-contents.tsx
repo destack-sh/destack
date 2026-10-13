@@ -63,13 +63,13 @@ interface Section extends Heading {
 export interface TableOfContentsProperties extends Omit<JSX.HTMLAttributes<HTMLElement>, "class"> {
     /** The page's headings in document order. */
     readonly headings: readonly Heading[];
-    /** The distance in pixels from the viewport's top above which a heading counts as read, such as a sticky header's height. */
+    /** The distance in pixels from the viewport's top above which a heading counts as read. */
     readonly offset?: number;
     /** The StyleX styles applied after the navigation's styles. */
     readonly xstyle?: style.Styles;
 }
 
-/** Render the navigation landmark of a page's headings, marking the section being read; its links take the navigation's color. */
+/** Render the navigation landmark of a page's headings, marking the section being read. */
 export function TableOfContents(properties: TableOfContentsProperties): JSX.Element {
     // nest the headings and follow the one being read
     const rest = omit(properties, "headings", "offset", "xstyle", "style");

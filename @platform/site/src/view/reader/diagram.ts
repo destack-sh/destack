@@ -3,7 +3,7 @@ import { captureException } from "../telemetry.ts";
 /** The media query for a system that prefers dark colors. */
 const PREFERS_DARK = "(prefers-color-scheme: dark)";
 
-/** The smallest a diagram shrinks to fit its column before it scrolls sideways instead, so its labels stay legible. */
+/** The smallest a diagram shrinks to fit its column before it scrolls sideways instead. */
 const leastScale = 0.75;
 
 /** Render Mermaid fences and follow the reader theme. */
@@ -148,7 +148,7 @@ export function renderDiagrams(article: HTMLElement): () => void {
     };
 }
 
-/** Convert computed CSS RGB and RGBA colors to Mermaid's hexadecimal theme format, with alpha when translucent. */
+/** Convert computed CSS colors to Mermaid's hex theme format, with alpha when translucent. */
 function themeColor(value: string): string {
     // read the channels and the optional alpha
     const match = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/u.exec(value);

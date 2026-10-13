@@ -30,7 +30,7 @@ const metadata = defineMetadata({
     manifest: "/manifest.webmanifest",
 });
 
-/** Lay out every page in the site frame, with the site's one goo field under the bars that hold its goo cells. */
+/** Lay out every page in the site frame, with the one goo field under its goo cells. */
 export function Layout(properties: RouteSectionProps) {
     // open each destination on its key combination, leaving the site in a new tab
     const navigate = useNavigate();

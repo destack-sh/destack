@@ -27,7 +27,7 @@ export const lattice = style.create({
         height: { default: frame.section, [screen.belowDesktop]: "auto" },
     },
 
-    /** A band whose cells sit on the rule colour a hairline apart, so every rule between them is drawn once and meets its neighbours, the colour kept inside the band's own edge rules so those are drawn once too. */
+    /** A band whose cells sit on the rule colour a hairline apart. */
     ruled: {
         backgroundClip: "padding-box",
         backgroundColor: color.border,
@@ -40,7 +40,7 @@ export const lattice = style.create({
         minWidth: 0,
     },
 
-    /** A figure cell of a ruled band: a label, what it shows, and the terms under it, inset alike in every band. */
+    /** A figure cell of a ruled band. */
     figureCell: {
         display: "grid",
         gap: "0.75rem",
@@ -49,7 +49,7 @@ export const lattice = style.create({
         padding: `1.5rem ${frame.inset}`,
     },
 
-    /** An empty band between two sections, closed by the frame edges so the frame runs unbroken down the page. */
+    /** An empty band between two sections, closed by the frame edges so the frame runs on. */
     interval: {
         height: { default: "6rem", [media.maxMd]: "3rem" },
     },

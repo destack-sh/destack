@@ -5,7 +5,7 @@ import { once } from "node:events";
 import { watch } from "node:fs";
 import { isAbsolute, join, normalize, relative, resolve } from "node:path";
 
-/** The milliseconds to wait after the last source change before regenerating, so one save runs one generation. */
+/** The milliseconds to wait after the last source change before regenerating. */
 const debounceTime = 150;
 
 /** One generated content collection watched during development. */

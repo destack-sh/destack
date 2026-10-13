@@ -49,7 +49,7 @@ export interface CopyButtonProperties extends Omit<ButtonProperties, "onClick"> 
     readonly onFailure?: (error: unknown) => void;
 }
 
-/** Render a button that copies a text, shows a check mark for a moment and announces the copy, labelled by its children or named Copy. */
+/** Render a button that copies a text, shows a check mark and announces the copy. */
 export function CopyButton(properties: CopyButtonProperties): JSX.Element {
     // read the labels and keep a clipboard for the button
     const button = merge(DEFAULTS, properties);

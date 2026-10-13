@@ -10,19 +10,19 @@ const PHONE_WIDTH = "100vw";
 /** The height of the top bar, the footer and toolbar rows. */
 const BAR = "56px";
 
-/** The height of one homepage section on desktop: the screen under the top bar, between 720px and 1080px. */
+/** The height of one homepage section on desktop. */
 const SECTION = `clamp(720px, calc(100svh - ${BAR}), 1080px)`;
 
 /** The height of every dictionary entry on desktop, so the sections line up. */
 const ENTRY = "12.5rem";
 
-/** The stack figure's row on desktop: six rows fill the section under the entry and its 50px figure label. */
+/** The stack figure's row on desktop. */
 const STAGE = `calc((${SECTION} - ${ENTRY} - 50px) / 6)`;
 
-/** The stack figure's row below the desktop width, which carries only the cards: thirteen breadboard holes, between 112px and 134px. */
+/** The stack figure's row below the desktop width, which carries only the cards. */
 const NARROW_STAGE = `clamp(112px, calc(${WIDTH} / 88 * 13), 134px)`;
 
-/** The stack figure's row on phones, which carries only the cards since the claims list under the drawing. */
+/** The stack figure's row on phones. */
 const PHONE_STAGE = "120px";
 
 /** The stack figure's row on the smallest phones, whose narrow tiles wrap onto more lines. */
@@ -57,7 +57,7 @@ export const frame = style.defineVars({
         [screen.phone]: PHONE_STAGE,
         [screen.smallPhone]: SMALL_PHONE_STAGE,
     },
-    /** The breadboard hole pitch across: the stack figure's drawing is 88 cells over eight columns, or the frame below the desktop width. */
+    /** The breadboard hole pitch across. */
     cell: {
         default: `calc(${WIDTH} / 12 * 8 / 88)`,
         [screen.tablet]: `calc(${WIDTH} / 88)`,

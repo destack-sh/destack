@@ -10,9 +10,9 @@ import { isMotionReduced } from "@destack/view/motion";
 import { makeEventListener } from "@destack/view/primitives/event-listener";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
-/** The distance the goo field reaches past the site frame, in CSS pixels, so its rim can wobble across the frame rules. */
+/** The distance the goo field reaches past the site frame, in CSS pixels. */
 const spill = 8;
-/** How far past its cells the goo can reach, in CSS pixels: its rim, the charge swell and the pointer's pull, with room to spare. */
+/** How far past its cells the goo can reach, in CSS pixels. */
 const clipMargin = 24;
 /** The deep space behind the goo's stars, the same in both appearances. */
 const SPACE = "#081723";
@@ -22,13 +22,13 @@ const fadeTime = 500;
 const rimOffset = 3;
 /** The most goo islands the field draws. */
 const islandCapacity = 4;
-/** The seconds the goo's bulge takes to catch up with the pointer, so it follows like something thick. */
+/** The seconds the goo's bulge takes to catch up with the pointer. */
 const gooLag = 0.6;
 /** The seconds the goo takes to swell toward a pointer that comes near. */
 const swellTime = 1;
 /** The seconds the goo takes to sag back once the pointer leaves. */
 const sagTime = 2.4;
-/** The milliseconds between measurements of the goo cells, in case the page shifts under them without resizing. */
+/** The milliseconds between goo cell measurements, in case the page shifts without resizing. */
 const remeasureTime = 1000;
 /** The milliseconds between frames while the goo only twinkles: thirty a second. */
 const twinklePace = 33;
@@ -37,7 +37,7 @@ const distantStars = "0.14";
 /** The share of near star cells that hold a star. */
 const closeStars = "0.16";
 
-/** A still tile of stars that shows before the shader paints, seeded so server and browser agree. */
+/** A still tile of stars shown before the shader paints, seeded so server and browser agree. */
 export const stillStars = (() => {
     // draw a dozen stars from a fixed seed
     let seed = 11;
@@ -181,12 +181,12 @@ void main() {
 /** How charged the goo is, from 0 to 1, while the Destack switch is hovered. */
 const pageCharge = { target: 0 };
 
-/** Charge the page's goo to a level: 0 at rest, 1 while the switch promises Destack, and more while the switch is held down. */
+/** Charge the page's goo to a level. */
 export function charge(level: number) {
     pageCharge.target = level;
 }
 
-/** Whether the goo field has painted, so its cells let it show through instead of their still stars. */
+/** Whether the goo field has painted. */
 const [isFieldPainted, setIsFieldPainted] = createSignal(false);
 
 /** Mark a lattice cell as an island of goo, drawn by the site's one field behind its content. */
@@ -349,7 +349,7 @@ function reportFailure(failure: ShaderFailure): void {
     captureException(new Error(`the goo shader failed: ${failure}`), { tags: { feature: "goo" } });
 }
 
-/** Return how far a client point lies outside the nearest island cell and its rim, in CSS pixels. */
+/** Return how far a client point lies outside the nearest island cell and its rim, in pixels. */
 function outsideAt(x: number, y: number, islands: readonly Rect[]) {
     let nearest = Number.POSITIVE_INFINITY;
     for (const island of islands) {

@@ -6,7 +6,7 @@ import { HydrationScript } from "@destack/web/render";
 import { mono, sans, sansItalics } from "./font.ts";
 import { theme } from "./theme.ts";
 
-/** The theme root's custom properties, following the system's appearance until a visitor picks one. */
+/** The theme root's custom properties, following the system appearance until one is picked. */
 const themeStyle = theme.variables("system", DEFAULT_PREFERENCES);
 
 /** The page's root styles: clip sideways overflow and keep the page from bouncing past its ends. */

@@ -25,7 +25,7 @@ import { createEffect, createSignal } from "@destack/view";
 import { ImageMetadata, Picture } from "@destack/view/media";
 import { createReducedMotion } from "@destack/view/motion";
 
-/** The components that stand in for the elements of the site's articles: listings, figures and tables. */
+/** The components that stand in for the elements of the site's articles. */
 export const blocks: ContentComponents = {
     pre: Listing,
     figure: Figure,
@@ -41,7 +41,7 @@ export const blocks: ContentComponents = {
     ),
 };
 
-/** Render a fence as a listing: a numbered, highlighted code block under its title and format, or a Mermaid diagram's source. */
+/** Render a fence as a listing. */
 function Listing(properties: ContentElementProperties) {
     // read the fence's language, title and format, and its code
     const language = attribute(properties, "data-language");
@@ -96,7 +96,7 @@ function Listing(properties: ContentElementProperties) {
     );
 }
 
-/** Render a figure by its kind: a framed image or video numbered under its caption, a diagram, or a credited quotation. */
+/** Render a figure by its kind. */
 function Figure(properties: ContentElementProperties) {
     // read the figure's kind, number, width and caption
     const kind = attribute(properties, "data-kind");
@@ -305,7 +305,7 @@ function Animation(properties: { source: string; alt: string; poster: ImageMetad
     );
 }
 
-/** Read the published image a figure carries, its source or its poster frame, none for an external one. */
+/** Read the published image a figure carries, its source or poster frame, none if external. */
 function imageOf(properties: ContentElementProperties): ImageMetadata | undefined {
     // read none for an external image, else the published image's description
     const serialized = attribute(properties, "data-image");

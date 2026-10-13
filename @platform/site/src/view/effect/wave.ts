@@ -16,7 +16,7 @@ export function stir(x: number, strength: number) {
     }
 }
 
-/** Return how far a wavy waterline rises or falls at a position across the canvas, in CSS pixels. */
+/** Return how far a wavy waterline rises or falls at a position across the canvas. */
 export function waveAt(x: number, seconds: number) {
     // sum three rolling waves
     const long = Math.sin(x * 0.017 + seconds * 0.7) * 1.8;

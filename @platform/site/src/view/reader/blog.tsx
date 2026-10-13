@@ -14,7 +14,7 @@ import { Reader } from "./reader";
 import { PageHeader } from "./header";
 import { formatDate } from "../content/presentation";
 
-/** The distance from the viewport's top above which a heading counts as read: the 56px top bar and some air. */
+/** The distance from the viewport's top above which a heading counts as read. */
 const HEADER_OFFSET = 96;
 
 /** Properties for one rendered blog article. */

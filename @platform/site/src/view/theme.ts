@@ -2,7 +2,7 @@ import { DEFAULT_PREFERENCES } from "@destack/theme";
 import { defineTheme } from "@destack/theme/declare";
 import { mono, sans } from "./font.ts";
 
-/** White by day, framed by its rules, and night water by night, with the signal orange for primary actions. */
+/** White by day and night water by night, with signal orange for primary actions. */
 export const theme = defineTheme({
     name: "site",
     base: "sand",
@@ -21,5 +21,5 @@ export const theme = defineTheme({
     },
 });
 
-/** The dark theme root of the surfaces that stay night in both appearances, such as the starry goo cells. */
+/** The dark theme root of surfaces that stay night in both appearances, like the goo cells. */
 export const night = theme.variables("dark", DEFAULT_PREFERENCES);

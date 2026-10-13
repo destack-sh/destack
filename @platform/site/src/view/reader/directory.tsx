@@ -171,7 +171,7 @@ export function DirectoryContent(properties: {
     );
 }
 
-/** Render a collection's entries as a list of links between rules, each with its cover, summary and date. */
+/** Render a collection's entries as links between rules, each with cover, summary and date. */
 function DirectoryList(properties: { label: string; entries: readonly ContentEntry[] }) {
     return (
         <ItemGroup aria-label={properties.label} xstyle={styles.list}>

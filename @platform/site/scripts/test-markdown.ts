@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { renderMarkdown } from "./markdown.ts";
 
-/** A page with a titled fence, an alert, a credited quotation, a footnote, a table and an external figure. */
+/** A page with a titled fence, an alert, a quotation, a footnote, a table and a figure. */
 const page = `## Setup
 
 \`\`\`ts title="install.ts"
@@ -32,7 +32,7 @@ The Bull, 1945
 /** The page's tree, as remark and rehype build it and the site shapes it. */
 const tree = renderMarkdown(page, { assets: [], kind: "blog", ownHeadings: new Set(["setup"]) });
 
-/** Return an element of the tree's top level by its position among the elements, skipping the newlines between them. */
+/** Return a top-level element of the tree by its position, skipping the newlines between. */
 function element(index: number) {
     const found = tree.children.filter((node) => node.type === "element")[index];
     if (found === undefined) {

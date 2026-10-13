@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-/** The site's breakpoints beside Tailwind's in `media.stylex`: the homepage's desktop width starts at 1100px, the reader's side column at 60rem. */
+/** The site's breakpoints beside Tailwind's in `media.stylex`. */
 export const screen = style.defineConsts({
     /** Windows below the homepage's desktop width. */
     belowDesktop: "@media (max-width: 1099px)",
@@ -12,7 +12,7 @@ export const screen = style.defineConsts({
     smallPhone: "@media (max-width: 399px)",
     /** Windows wide enough for the reader's side column. */
     reader: "@media (width >= 60rem)",
-    /** Desktop windows too short for a homepage section to hold every line of its figures, a section under about 820 pixels. */
+    /** Desktop windows too short for a homepage section to hold every line of its figures. */
     short: "@media (min-width: 1100px) and (max-height: 880px)",
     /** Windows too narrow for the reader's side column. */
     belowReader: "@media (width < 60rem)",

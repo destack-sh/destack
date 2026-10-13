@@ -12,7 +12,7 @@ import { caret } from "./footer.stylex";
 import { socialDestinations } from "./navigation";
 import { screen } from "./screen.stylex";
 
-/** Close every page with a band of starry space holding the install command and the community links. */
+/** Close every page with a band of starry space holding the install command and links. */
 export function Footer() {
     return (
         <footer data-component="SiteFooter" {...style.attrs(styles.root)}>

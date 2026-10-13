@@ -86,7 +86,7 @@ const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
 /** The generated rendered-body loader module. */
 const generatedAssetFile = join(generatedDirectory, "assets.ts");
 
-/** The raster images published in several widths and formats, by extension, animated GIFs keeping only their original. */
+/** The raster images published in several widths and formats, by extension, GIFs as they are. */
 const RASTER_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".avif"]);
 
 /** Whether this run checks the generated files instead of writing them. */
@@ -205,7 +205,7 @@ function appendChapterContents(documents: DocumentationPage[]) {
     }
 }
 
-/** Write rendered page bodies and their content-addressed assets, raster images in several widths and formats. */
+/** Write rendered page bodies and their content-addressed assets, rasters in several widths. */
 async function writePageContent(pages: RenderedPage[]) {
     // hold the routes and images published so far, each written once
     mkdirSync(publicContentDirectory, { recursive: true });
@@ -246,7 +246,7 @@ async function writePageContent(pages: RenderedPage[]) {
     }
 }
 
-/** Write a published file under its route unless a previous run wrote it, its content address keeping it current. */
+/** Write a published file under its route unless a previous run wrote it. */
 function publishFile(route: string, bytes: Uint8Array) {
     // keep a file a previous run wrote
     const file = join(publicDirectory, route.slice(1));
@@ -299,7 +299,7 @@ function describeImage(
     };
 }
 
-/** Give each image figure its published source, and each animation its published poster frame, by placeholder. */
+/** Give each image figure its published source and each animation its poster frame. */
 function attachImages(node: Root | ElementContent, images: ReadonlyMap<string, ImageMetadata>) {
     // attach an image figure's published source, or an animation's published poster frame
     if (node.type === "element") {
@@ -758,7 +758,7 @@ function coverFor(
         : null;
 }
 
-/** Describe a post's cover by its published routes and size, leaving out the blurred rendition so the record stays reproducible. */
+/** Describe a post's cover by its published routes and size, without the blurred rendition. */
 async function coverOf(source: { readonly path: string; readonly alt: string } | null) {
     // describe no cover for a post without a raster image
     if (source === null) {

@@ -44,7 +44,7 @@ export type MarkdownContext = {
 /** The parser of the site's Markdown: GitHub's flavour with block directives. */
 const parser = unified().use(remarkParse).use(remarkGfm).use(remarkDirective);
 
-/** The converter of a Markdown tree to an HTML tree, writing footnotes as GitHub does under a visible heading. */
+/** The converter of a Markdown tree to HTML, writing footnotes as GitHub does. */
 const converter = unified().use(remarkRehype, {
     clobberPrefix: "",
     footnoteLabel: "Notes",
@@ -153,7 +153,7 @@ function parseMarkdown(markdown: string): mdast.Root {
     return parser.parse(braced);
 }
 
-/** Shape a Markdown tree in place: resolve links and assets, name headings, and mark alerts, credits, directives and fences. */
+/** Shape a Markdown tree in place. */
 function shapeMarkdown(
     parent: { children: mdast.RootContent[] },
     context: MarkdownContext,
@@ -233,7 +233,7 @@ function shapeMarkdown(
     }
 }
 
-/** Write a quotation that opens with `[!NOTE]` as a GitHub alert, or one that ends with `— source` as a figure crediting it. */
+/** Write a quotation as a GitHub alert, or as a figure crediting its source. */
 function shapeQuotation(quotation: mdast.Blockquote): void {
     // open an alert with its kind as title
     const first = quotation.children[0];
@@ -279,7 +279,7 @@ function shapeQuotation(quotation: mdast.Blockquote): void {
     }
 }
 
-/** Mark a figure or video directive as a figure of its kind, its caption as the figure's caption and its attributes as data. */
+/** Mark a figure or video directive as a figure, its caption and attributes as data. */
 function shapeDirective(
     node: Extract<mdast.RootContent, { type: "containerDirective" }>,
     context: MarkdownContext,
@@ -357,7 +357,7 @@ function shapeDirective(
     }
 }
 
-/** Shape the HTML tree in place: highlight listings, number figures and plain diagrams, and label table cells by their column. */
+/** Shape the HTML tree in place. */
 function shapeHtml(
     parent: { children: ElementContent[] } | Root,
     context: MarkdownContext,
@@ -438,7 +438,7 @@ function shapeHtml(
     }
 }
 
-/** Split highlighted code into its lines, carrying each span that crosses a line break into both lines. */
+/** Split highlighted code into lines, carrying each span that crosses a break into both. */
 function splitLines(nodes: readonly ElementContent[]): ElementContent[][] {
     // start the first line, and add each piece to the line being written
     const lines: ElementContent[][] = [[]];
@@ -495,7 +495,7 @@ function labelCells(table: Element): void {
     }
 }
 
-/** Return a tree without the source positions and node data the parser recorded, which the page never reads. */
+/** Return a tree without the source positions and node data the parser recorded. */
 function withoutParserData(tree: Root): Root {
     const copy = structuredClone(tree);
     stripParserData(copy);

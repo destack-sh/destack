@@ -24,7 +24,7 @@ const SIGNAL = "#ff792e";
 /** The dark side of the planet. */
 const shadow = "#c64a17";
 
-/** The mark's planet and ring as drawn on screen, in client pixels, with the ring's inclination in radians. */
+/** The mark's planet and ring as drawn on screen, in client pixels, the ring's tilt in radians. */
 export type Orbit = {
     /** The planet's centre across. */
     x: number;
@@ -40,7 +40,7 @@ export type Orbit = {
     tilt: number;
 };
 
-/** Return the header mark's planet and ring as drawn on screen, or nothing when the page shows no mark. */
+/** Return the header mark's planet and ring as drawn on screen, or nothing without a mark. */
 export function orbitOf(): Orbit | undefined {
     // find the globe and its place on screen
     const globe = document.querySelector<SVGCircleElement>("[data-planet]");
@@ -62,7 +62,7 @@ export function orbitOf(): Orbit | undefined {
     };
 }
 
-/** Render the Destack planet mark: an orange globe with a shadow side, and an orange ring cut free by a gap. */
+/** Render the Destack planet mark. */
 export function Mark(properties: { xstyle?: style.Styles }) {
     return (
         <svg

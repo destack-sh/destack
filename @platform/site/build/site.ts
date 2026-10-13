@@ -13,7 +13,7 @@ import { origin, tagline } from "../src/view/content/site.ts";
 /** The address security reports go to. */
 const SECURITY_CONTACT = "mailto:florian@symbol.industries";
 
-/** How long the security contact stays valid after a build: half a year, inside RFC 9116's one-year bound. */
+/** How long the security contact stays valid after a build. */
 const SECURITY_LIFETIME = 183 * 24 * 60 * 60 * 1000;
 
 /** Absolute package directory for development and production builds. */
@@ -73,7 +73,7 @@ export async function run(command: string | undefined): Promise<void> {
     }
 }
 
-/** Publish the sitemap of every page, the crawler rules, blog feed, model guide, manifest and security contact. */
+/** Publish the sitemap, crawler rules, blog feed, model guide, manifest and security contact. */
 async function metadataOptions(): Promise<MetadataOptions> {
     // read each documentation page's title, summary and Markdown from its generated metadata
     const documentation = await Promise.all(

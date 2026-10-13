@@ -5,7 +5,7 @@ import sun from "@destack/icon/phosphor/sun";
 import { Button } from "@destack/ui/button";
 import { createAppearance } from "@destack/view/document";
 
-/** Switch between the light and dark appearance, following the system until switched and kept for the next visit. */
+/** Switch between light and dark, following the system until switched, kept for next visit. */
 export function AppearanceToggle() {
     const { setAppearance, resolvedAppearance } = createAppearance();
     const target = () => (resolvedAppearance() === "dark" ? "light" : "dark");

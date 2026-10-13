@@ -3,7 +3,7 @@ import type { ShaderMount, ShaderValues } from "@destack/shader";
 /** The most icebergs the water holds. */
 const BERG_CAPACITY = 3;
 
-/** How far the water reaches past the figure on the sides and bottom, in CSS pixels, where the figure clips its rim. */
+/** How far the water reaches past the figure on the sides and bottom, in CSS pixels. */
 export const WATER_SPILL = 8;
 
 /** The milliseconds a full drain or fill takes. */
@@ -12,7 +12,7 @@ export const TRAVEL = 700;
 /** The layers the water fragment draws: the ice behind the cards, and the water over them. */
 export type WaterLayer = "ice" | "water";
 
-/** The icebergs under the water: the centre of each across the canvas, the half width of the card it carries, and the depths its top and bottom sit at at rest, in CSS pixels. */
+/** The icebergs under the water. */
 export type Bergs = {
     /** The centre of each iceberg across the canvas. */
     readonly centres: readonly number[];
@@ -26,7 +26,7 @@ export type Bergs = {
     readonly tip: number;
 };
 
-/** The water fragment shader: faceted icebergs riding a waterline that drains and fills, and the water over them. */
+/** The water fragment shader. */
 export const WATER_FRAGMENT = `#version 300 es
 precision highp float;
 
@@ -255,7 +255,7 @@ void main() {
 }
 `;
 
-/** Ease a waterline from one level to the next on a shader mount's clock, reading the level in between. */
+/** Ease a waterline from one level to the next on a shader mount's clock. */
 export class Waterline {
     /** The level the current move starts at, in CSS pixels. */
     from: number;
