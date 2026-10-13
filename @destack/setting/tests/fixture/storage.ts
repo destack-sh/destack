@@ -1,9 +1,10 @@
+import { Package } from "@destack/package";
 import { Clock } from "@destack/schema";
-import { outbox } from "@destack/service/outbox";
+import { outbox } from "@destack/runtime/outbox";
 import { AccessFixture } from "@destack/access/test";
 import { Scope, type ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { accessTables, principal, universe } from "@destack/access";
 import { account, machine, organisation, user, space } from "@destack/account/object";
 
@@ -17,19 +18,16 @@ import {
     type ObjectType,
 } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
+import { testEvents } from "@destack/object/test";
 
 import { settingTables } from "../../src/stack/index.ts";
-import { setting } from "../../src/object/index.ts";
 import { serveSettings } from "../../src/server/index.ts";
+import settingPackage from "../../src/package.ts";
 import type { BuildReader } from "@destack/package/manifest";
-import { defineService } from "@destack/service";
 import { type Setting, SettingCatalog } from "../../src/setting/index.ts";
 import { editor, lineNumbers, release } from "./setting/index.ts";
 import { alice } from "./value.ts";
-import { subjectContext, testCallKey } from "@destack/service/test";
-
-/** The fixture's service of setting values. */
-export const settingService = defineService("setting", { objects: { setting } });
+import { subjectContext, testCallKey } from "@destack/runtime/test";
 
 /** Setting values served from a migrated test database. */
 export class Storage {
@@ -47,7 +45,11 @@ export class Storage {
     readonly objects: ObjectStore;
 
     /** Serve values checked against a release declaring some settings. */
-    constructor(test: TestDatabase, declarations: readonly Setting[]) {
+    constructor(
+        test: TestDatabase,
+        declarations: readonly Setting[],
+        events: Awaited<ReturnType<typeof testEvents>>,
+    ) {
         this.test = test;
         this.database = test.database;
         this.subject = Subject.parse(principal.user.reference(Scope.universe.id, alice));
@@ -56,12 +58,13 @@ export class Storage {
         this.objects = new ObjectStore({
             clock: Clock.system,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
-            objects: [serveSettings(this.catalog, [])],
+            objects: [serveSettings({ declared: this.catalog, after: [] })],
             // decide access in the scopes the values live in
             policies: [user, space, account, organisation, machine].map((type) => type.policy),
             database: test.database,
             callKey: testCallKey,
-            origin: { package: settingService.package, service: settingService.name },
+            events,
+            origin: { package: Package.of(settingPackage) },
         });
     }
 
@@ -72,7 +75,7 @@ export class Storage {
         await copies.copyOwner(scope, this.subject);
     }
 
-    /** Send a call as an untyped client does, as Alice in a scope, its input unchecked until the store parses it. */
+    /** Send a call as Alice in a scope, its input unchecked until the store parses it. */
     async send(
         object: ObjectType,
         name: string,
@@ -115,7 +118,7 @@ export class Storage {
     ): Promise<Storage> {
         const tables = [...accessTables, ...settingTables, outbox];
         const test = await TestDatabase.create(dialect, tables, { isMigrated: true });
-        const storage = new Storage(test, declarations);
+        const storage = new Storage(test, declarations, await testEvents(test.database));
         await storage.own(principal.user.reference(Scope.universe.id, alice));
 
         return storage;

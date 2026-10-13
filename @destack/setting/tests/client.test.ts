@@ -5,9 +5,9 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
 import { canonicalize, Identifier, schema, Clock } from "@destack/schema";
-import { Health } from "@destack/service/health";
-import { Observable } from "@destack/service/observable";
-import { Server } from "@destack/service/server";
+import { Health } from "@destack/runtime/health";
+import { Observable } from "@destack/runtime/observable";
+import { Server } from "@destack/runtime/server";
 
 import { expect, onTestFinished, test } from "@destack/test";
 import { clientSetting, setting, type SettingValue } from "../src/object/index.ts";
@@ -18,7 +18,8 @@ import {
     SettingSelection,
 } from "../src/setting/index.ts";
 import { editor, lineNumbers, notes } from "./fixture/setting/index.ts";
-import { settingService, Storage } from "./fixture/storage.ts";
+import settingPackage from "../src/package.ts";
+import { Storage } from "./fixture/storage.ts";
 import { alice, clientSource, named, source } from "./fixture/value.ts";
 
 /** The space Alice acts in. */
@@ -201,7 +202,7 @@ test("resolve a value the client keeps over the user's own, keeping it off the s
     });
 });
 
-/** Serve a scope's values to Alice and follow them into a local copy beside the client's own values. */
+/** Serve a scope's values to Alice and follow them into a local copy. */
 async function follow(
     storage: Storage,
     scope: string,
@@ -212,12 +213,10 @@ async function follow(
     const server = Server.start({
         clock: Clock.system,
         ...storage.objects.implement(
-            settingService,
+            settingPackage,
             storage.objects.routed,
             storage.objects.controllers(),
-            {},
         ),
-        audience: notes.id,
         scope,
         resources: new ResourceContext(),
         health: new Health("setting"),
@@ -229,7 +228,7 @@ async function follow(
             credential: {
                 kind: "session",
                 id: "test-session",
-                audience: notes.id,
+                audience: settingPackage.id,
                 scope,
                 verifiedAt: Date.now(),
                 expiresAt: Date.now() + 60_000,

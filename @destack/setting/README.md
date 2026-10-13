@@ -67,7 +67,7 @@ await client.mutate(clientSetting).create({ ...editorMode.reference, value: "vim
     .confirmed;
 ```
 
-## Service
+## Server
 
 `serveSettings` serves the `setting` objects, checking each written value against the catalog of its release, and `settingTables` lists their tables.
 

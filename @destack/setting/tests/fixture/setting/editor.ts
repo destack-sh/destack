@@ -39,7 +39,7 @@ export const lineNumbers = defineSetting(
     { package: notes },
 );
 
-/** The person's key bindings of commands, each command's binding resolved from its own nearest placement. */
+/** The person's key bindings, each resolved from its own nearest placement. */
 export const keybindings = defineSetting(
     {
         name: "editor.keybindings",

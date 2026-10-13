@@ -39,7 +39,7 @@ test.each(TEST_DIALECTS)(
             space.reference(Scope.universe.id, spaceId),
             "own",
         );
-        const objects = [serveSettings(storage.catalog, [])];
+        const objects = [serveSettings({ declared: storage.catalog, after: [] })];
         const apply = (settings: JsonObject) =>
             Stack.apply({
                 now: Date.now(),

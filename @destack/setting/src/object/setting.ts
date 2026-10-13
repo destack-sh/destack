@@ -63,8 +63,6 @@ export const setting = defineObject({
         },
     },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("write"),
     update: method.update("write", { fields: ["mode", "value", "release"] }),
     delete: method.delete("write"),

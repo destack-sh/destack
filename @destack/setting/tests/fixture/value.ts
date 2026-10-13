@@ -83,7 +83,7 @@ export function named(declared: Setting): Pick<SettingValue, "packageId" | "name
     return { packageId: declared.reference.packageId, name: declared.reference.name };
 }
 
-/** Describe a placed value as the source it contributes to a resolution, valid or skipped as invalid. */
+/** Describe a placed value as the source it contributes to a resolution. */
 export function source(value: SettingValue, kind: "value" | "invalid" = "value"): SettingSource {
     const placed = {
         kind: "value" as const,
@@ -95,7 +95,7 @@ export function source(value: SettingValue, kind: "value" | "invalid" = "value")
     return kind === "value" ? placed : { kind, source: placed };
 }
 
-/** Describe a client's value as the source it contributes to a resolution, valid or skipped as invalid. */
+/** Describe a client's value as the source it contributes to a resolution. */
 export function clientSource(
     value: ClientSettingValue,
     kind: "client" | "invalid" = "client",

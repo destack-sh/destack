@@ -6,18 +6,31 @@ import {
     type SettingReference,
     type SettingWrite,
 } from "../setting/index.ts";
+import settingPackage from "../package.ts";
 import { BuildCache } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import type { ObjectType } from "@destack/object";
+import { ObjectExtension } from "@destack/object/server";
 
-/** Serve declared values. */
-export function serveSettings(
-    declared: (
+/** What a store serves its setting values with. */
+export interface SettingOptions {
+    /** Read the catalog declaring each written value. */
+    readonly declared: (
         written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
-    ) => Promise<SettingCatalog>,
-    after: readonly ObjectType[],
-) {
+    ) => Promise<SettingCatalog>;
+    /** The types whose declarations a stack applies before its settings. */
+    readonly after: readonly ObjectType[];
+}
+
+/** Extend a store with its setting values, checked against their declarations. */
+export function implementSettings(options: SettingOptions): ObjectExtension {
+    return ObjectExtension.of(settingPackage, [serveSettings(options)]);
+}
+
+/** Serve values checked against their declarations. */
+export function serveSettings(options: SettingOptions) {
     // read each stack release's settings once
+    const { declared, after } = options;
     const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
 
     return setting.implement({
@@ -69,7 +82,7 @@ export function serveSettings(
 async function requireDeclared(
     value: Parameters<typeof SettingPlacement.of>[0] &
         Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release">,
-    declared: Parameters<typeof serveSettings>[0],
+    declared: SettingOptions["declared"],
 ): Promise<void> {
     // check it against the catalog declaring it at its placement
     const placement = SettingPlacement.of(value);

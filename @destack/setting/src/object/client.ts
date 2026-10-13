@@ -27,7 +27,6 @@ export const clientSetting = defineObject({
         name: { kind: "index", on: ["packageId", "name"], unique: true },
     },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
     update: method.update("write", { fields: ["value", "release"] }),
     delete: method.delete("write"),

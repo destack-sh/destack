@@ -13,6 +13,7 @@
         "./stack": "./src/stack/index.ts",
         "./server": "./src/server/index.ts",
         "./object": "./src/object/index.ts",
+        "./package": "./src/package.ts",
         "./error": "./src/error/index.ts",
         "./native": "./src/native/index.ts"
     },
@@ -22,13 +23,12 @@
     },
     "dependencies": {
         "@destack/sync": "workspace:*",
-        "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/service": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "@destack/error": "workspace:*"
     },
     "devDependencies": {
