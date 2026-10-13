@@ -59,7 +59,7 @@ export function implementObservability(options: ObservabilityOptions): Observabi
 
     return {
         service: observabilityService,
-        objects: spaces === undefined ? {} : serveIssues({ events }),
+        objects: spaces === undefined ? [] : serveIssues({ events }),
         policies: [telemetry, analytics],
         events:
             spaces === undefined

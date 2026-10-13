@@ -8,7 +8,7 @@
             "runtimes": ["bun", "workerd"]
         },
         "./service": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["browser", "bun", "workerd"]
         },
         "./server": {
             "runtimes": ["bun", "workerd"]

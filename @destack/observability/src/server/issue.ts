@@ -32,9 +32,9 @@ export interface IssueOptions {
 export function serveIssues(options: IssueOptions) {
     const alertRule = alertRuleOf(options);
 
-    return {
+    return [
         issue,
-        alertRule: alertRule.implement({
+        alertRule.implement({
             controller: {
                 pending: {},
                 key: (row) => ({ scope: row.scope }),
@@ -43,10 +43,10 @@ export function serveIssues(options: IssueOptions) {
             },
         }),
         alert,
-        comment: socialServer.comment,
+        socialServer.comment,
         reaction,
         ...activities,
-    };
+    ];
 }
 
 /** Issues announcing their resolutions and regressions, clearing their condition once reopened. */
