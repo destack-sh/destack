@@ -1,14 +1,14 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The service error code of each sandbox failure: an unsupported restriction, or the host's. */
-const SERVICE_CODES = {
+/** The call error code of each sandbox failure: an unsupported restriction, or the host's. */
+const CALL_CODES = {
     UNSUPPORTED: "NOT_IMPLEMENTED",
     START_FAILED: "INTERNAL_SERVER_ERROR",
     STOP_FAILED: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** A failed sandbox operation. */
-export type SandboxErrorCode = keyof typeof SERVICE_CODES;
+export type SandboxErrorCode = keyof typeof CALL_CODES;
 
 /** A process could not start or stop under the requested OS restrictions. */
 export class SandboxError extends Error implements DomainError {
@@ -22,8 +22,8 @@ export class SandboxError extends Error implements DomainError {
         this.code = code;
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }

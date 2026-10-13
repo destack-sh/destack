@@ -70,11 +70,11 @@ HTTP/1.1 403 Forbidden
 
 ## Errors
 
-A failed start or stop throws a `SandboxError` with the code `UNSUPPORTED`, `START_FAILED` or `STOP_FAILED`, and `toServiceError` names the service error its caller receives.
+A failed start or stop throws a `SandboxError` with the code `UNSUPPORTED`, `START_FAILED` or `STOP_FAILED`, and `toCallError` names the call error its caller receives.
 
 ```ts
 import { SandboxError } from "@destack/sandbox/error";
 
 // { code: "NOT_IMPLEMENTED", … }
-new SandboxError("UNSUPPORTED", "this platform has no sandbox").toServiceError();
+new SandboxError("UNSUPPORTED", "this platform has no sandbox").toCallError();
 ```
