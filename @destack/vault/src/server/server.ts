@@ -41,11 +41,14 @@ export interface VaultImplementation extends ObjectExtension {
 export function implementVault(options: VaultOptions): VaultImplementation {
     // serve the vaults with their keys and secrets, and the provider keeping them
     const keystore = new VaultKeystore(options.database, options.keyring, options.machine);
-    const { secret, version } = serveSecrets(keystore, options.recovery);
 
     return {
         service: vaultService,
-        objects: { vault: serveVaults(keystore), vaultKey: serveKeys(keystore), secret, version },
+        objects: [
+            serveVaults(keystore),
+            serveKeys(keystore),
+            ...serveSecrets(keystore, options.recovery),
+        ],
         providers: [vaultProvider(keystore)],
         keep: async (store, scope, transaction, now) => {
             // answer the scope's existing credentials vault

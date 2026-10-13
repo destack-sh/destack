@@ -309,7 +309,7 @@ export function serveSecrets(keystore: VaultKeystore, recovery: Duration = SECRE
         },
     });
 
-    return { secret: recoverable.within(secrets, recovery), version: versions };
+    return [recoverable.within(secrets, recovery), versions] as const;
 }
 
 /** Read a version of a vault's secret of a name, refusing a caller who opens no such secret. */

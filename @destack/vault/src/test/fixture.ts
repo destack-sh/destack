@@ -159,11 +159,7 @@ export class VaultFixture implements AsyncDisposable {
 
         return new ObjectStore({
             principal: this.spacePrincipal,
-            objects: {
-                vault: vaults,
-                vaultKey: serveKeys(keystore),
-                ...serveSecrets(keystore, SECRET_RECOVERY),
-            },
+            objects: [vaults, serveKeys(keystore), ...serveSecrets(keystore, SECRET_RECOVERY)],
             policies: [space],
             database: this.database,
             callKey: testCallKey,
