@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BunProcess } from "../bun/process.ts";
 
@@ -8,14 +8,24 @@ const TOOLCHAIN = "toolchain";
 
 /** The tools on disk. */
 export const Toolchain = {
-    /** The toolchain directory beside a standalone executable, absent in a workspace. */
-    directory: BunProcess.isStandalone ? join(dirname(process.execPath), TOOLCHAIN) : undefined,
+    /** The toolchain directory of a standalone executable, absent in a workspace. */
+    get directory(): string | undefined {
+        return BunProcess.isStandalone ? Toolchain.of(process.execPath) : undefined;
+    },
 
     /** The suffix of this platform's native addon packages. */
     platform: `${process.platform}-${process.arch}${process.platform === "linux" ? "-gnu" : ""}`,
 
-    /** Name the toolchain directory beside an executable. */
-    beside(executable: string): string {
+    /** Find an executable's toolchain: in its macOS application's resources, else beside it. */
+    of(executable: string): string {
+        // read a macOS application's toolchain from its bundle's resources, as code signing requires
+        const parts = executable.split(sep);
+        const contents = parts.lastIndexOf("Contents");
+        if (parts[contents - 1]?.endsWith(".app") === true) {
+            return join(parts.slice(0, contents + 1).join(sep), "Resources", TOOLCHAIN);
+        }
+
+        // read the toolchain beside any other executable
         return join(dirname(executable), TOOLCHAIN);
     },
 
