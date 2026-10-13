@@ -66,19 +66,28 @@ export function canonicalize(value: unknown): string {
     }
     // write arrays element by element
     else if (Array.isArray(value)) {
-        return `[${value.map(canonicalize).join(",")}]`;
+        let text = "";
+        for (const item of value) {
+            text += text === "" ? canonicalize(item) : `,${canonicalize(item)}`;
+        }
+
+        return `[${text}]`;
     }
     // reject values JSON cannot represent
     else if (typeof value !== "object" || !isPlain(value)) {
         throw new TypeError(`value is not JSON: ${describe(value)}`);
     }
 
-    // sort the defined fields by key and write each one
-    const fields = Object.entries(value)
-        .filter(([, field]) => field !== undefined)
-        .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+    // write the defined fields sorted by key
+    let text = "";
+    for (const key of Object.keys(value).toSorted()) {
+        const field = value[key];
+        if (field !== undefined) {
+            text += `${text === "" ? "" : ","}${JSON.stringify(key)}:${canonicalize(field)}`;
+        }
+    }
 
-    return `{${fields.map(([key, field]) => `${JSON.stringify(key)}:${canonicalize(field)}`).join(",")}}`;
+    return `{${text}}`;
 }
 
 /** Name a value that is not JSON for an error message. */
@@ -87,7 +96,7 @@ function describe(value: unknown): string {
 }
 
 /** Report whether an object is a plain record, made by a literal or without a prototype. */
-function isPlain(value: object): boolean {
+function isPlain(value: object): value is Readonly<Record<string, unknown>> {
     const prototype: unknown = Object.getPrototypeOf(value);
 
     return prototype === Object.prototype || prototype === null;

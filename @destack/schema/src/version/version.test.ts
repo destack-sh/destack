@@ -94,3 +94,19 @@ test("name the release after a version's release in its year and month", () => {
         ["2026.9.0", "2026.12.4", "2026.9.0-dev.3"].map((version) => Version.next(version)),
     ).toEqual(["2026.9.1", "2026.12.5", "2026.9.1"]);
 });
+
+test("tell dev and nightly prereleases from releases, and the release each leads to", () => {
+    const versions = ["2026.9.0", "2026.9.0-dev.3", "2026.10.1-nightly.0", "2026.9.1-dev.0"];
+
+    expect(
+        versions.map((version) => [
+            Version.isPrerelease(version),
+            Version.leadsTo(version, "2026.9.0"),
+        ]),
+    ).toEqual([
+        [false, true],
+        [true, true],
+        [true, false],
+        [true, false],
+    ]);
+});
