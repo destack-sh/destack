@@ -30,7 +30,7 @@ export function implementDistributions(options: {
 
     return {
         service: distributionService,
-        objects: { distribution: serveDistributions(host) },
+        objects: [serveDistributions(host)],
         serve: (store) => ({
             controllers:
                 host === undefined
