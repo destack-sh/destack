@@ -7,10 +7,5 @@
         "./test": {
             "runtimes": ["bun"]
         }
-    },
-    "stamps": {
-        "defineEventKind": {
-            "module": 1
-        }
     }
 }

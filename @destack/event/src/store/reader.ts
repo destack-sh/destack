@@ -25,12 +25,7 @@ export class EventReader {
     }
 
     /** Move the reader's place past a sequence, in the transaction that read up to it. */
-    async move(
-        database: DatabaseConnection,
-        from: number,
-        to: number,
-        now: number,
-    ): Promise<void> {
+    async move(database: DatabaseConnection, from: number, to: number, now: number): Promise<void> {
         await database.log.move(this.name, from, to, now + this.hold);
     }
 

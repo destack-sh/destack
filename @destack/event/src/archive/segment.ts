@@ -19,14 +19,13 @@ const KEY_COLUMNS = {
 /** The columns every segment row has, as the reader decodes them. */
 const SegmentRow = schema.looseObject({
     id: schema.string(),
-    source: schema.string(),
     time: schema.union([schema.bigint(), schema.number()]),
     data: schema.string(),
 });
 
 /** The events of one kind in one scope as a Parquet file in time order. */
 export const SegmentFile = {
-    /** Encode events as Parquet: a column per query key beside identity, source, time and data. */
+    /** Encode events as Parquet: a column per query key beside identity, time and data. */
     async encode(kind: EventKind, events: readonly Event[]): Promise<Uint8Array<ArrayBuffer>> {
         // lay out the columns every event has, then one per query key
         const types = kind.keyTypes;
@@ -35,7 +34,6 @@ export const SegmentFile = {
             writer,
             columnData: [
                 { name: "id", data: events.map((event) => event.id), type: "STRING" },
-                { name: "source", data: events.map((event) => event.source), type: "STRING" },
                 { name: "time", data: events.map((event) => BigInt(event.time)), type: "INT64" },
                 {
                     name: "data",
@@ -70,13 +68,19 @@ export const SegmentFile = {
         return new Uint8Array(writer.getBuffer());
     },
 
-    /** Decode a segment file's events in a filter's time range and key values, in time order. */
-    async decode(kind: EventKind, file: AsyncBuffer, filter: EventFilter): Promise<Event[]> {
+    /** Decode a scope's segment's events in a filter's time range and key values, in time order. */
+    async decode(
+        kind: EventKind,
+        scope: string,
+        file: AsyncBuffer,
+        filter: EventFilter,
+    ): Promise<Event[]> {
         // read the rows in the range and with the values asked for, skipping row groups outside them
         const types = kind.keyTypes;
+        const range = EventFilter.range(filter);
         const time = {
-            ...(filter.from === undefined ? {} : { $gte: BigInt(filter.from) }),
-            ...(filter.before === undefined ? {} : { $lt: BigInt(filter.before) }),
+            ...(range.from === undefined ? {} : { $gte: BigInt(range.from) }),
+            ...(range.before === undefined ? {} : { $lt: BigInt(range.before) }),
         };
         const wanted = Object.entries(EventFilter.equalities(kind, filter)).map(
             ([name, value]) => ({
@@ -116,9 +120,8 @@ export const SegmentFile = {
             );
 
             return {
-                scope: filter.scope,
+                scope,
                 id: read.id,
-                source: read.source,
                 time: Number(read.time),
                 keys,
                 data: schema.json().parse(JSON.parse(read.data)),

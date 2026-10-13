@@ -1,10 +1,36 @@
 import { type EventKeyShape, EventTime } from "../kind/kind.ts";
+import { Histogram } from "../kind/histogram.ts";
 
-/** How a series folds the measured key in each step. */
-export const SERIES_FOLDS = ["sum", "count", "min", "max", "average", "last", "unique"] as const;
+/** The quantile each quantile fold reads from a step's merged distributions. */
+const QUANTILES = { p50: 0.5, p90: 0.9, p99: 0.99 } as const;
+
+/** How a series folds the measured key, or the kind's distributions, in each step. */
+export const SERIES_FOLDS = [
+    "sum",
+    "count",
+    "min",
+    "max",
+    "average",
+    "last",
+    "unique",
+    "p50",
+    "p90",
+    "p99",
+] as const;
 
 /** How a series folds the measured key of the events in each step. */
 export type Fold = (typeof SERIES_FOLDS)[number];
+
+/** A fold reading a quantile of the kind's distributions. */
+export type QuantileFold = keyof typeof QUANTILES;
+
+/** The folds of series. */
+export const Fold = {
+    /** Report whether a fold reads a quantile of the kind's distributions. */
+    isQuantile(fold: Fold): fold is QuantileFold {
+        return Object.hasOwn(QUANTILES, fold);
+    },
+};
 
 /** A field a series measures or groups by. */
 export type SeriesField<Shape extends EventKeyShape> =
@@ -14,7 +40,7 @@ export type SeriesField<Shape extends EventKeyShape> =
 
 /** How a series folds a kind's events: measured key, fold, grouping keys and step. */
 export interface SeriesRequest<Shape extends EventKeyShape> {
-    /** The key folded, numeric for arithmetic folds, needed by every fold but count. */
+    /** The key folded, numeric for arithmetic folds, needed by all but count and quantiles. */
     readonly measure?: SeriesField<Shape>;
     /** The fold. */
     readonly fold: Fold;
@@ -56,6 +82,8 @@ export interface StepFold {
     readonly last: { readonly time: number; readonly value: number } | undefined;
     /** The distinct measured values, absent when folded in SQL. */
     readonly distinct: ReadonlySet<string | number> | undefined;
+    /** The merged distributions, absent outside quantile folds. */
+    readonly distribution: Histogram | undefined;
 }
 
 /** The series of a request while its events and partial folds come in, by group and step. */
@@ -79,10 +107,13 @@ export class SeriesFold<Shape extends EventKeyShape> {
         }
     >();
 
-    /** Start folding a request over a range, refusing a fold but count without a measure. */
+    /** Start folding a request over a range, refusing a measure the fold lacks or needs. */
     constructor(request: SeriesRequest<Shape>, from: number | undefined) {
-        // require a measure for every fold but count
-        if (request.measure === undefined && request.fold !== "count") {
+        // require a measure for every fold but count and quantiles, which read distributions
+        const isQuantile = Fold.isQuantile(request.fold);
+        if (isQuantile && request.measure !== undefined) {
+            throw new TypeError(`a ${request.fold} series reads distributions, measuring no key`);
+        } else if (!isQuantile && request.measure === undefined && request.fold !== "count") {
             throw new TypeError(`a ${request.fold} series folds a measured key`);
         }
         this.measure = request.measure;
@@ -107,45 +138,49 @@ export class SeriesFold<Shape extends EventKeyShape> {
         this.#groups.set(key, held);
     }
 
-    /** Fold one event's measured value into its step. */
+    /** Fold one event's measured value, or its distribution, into its step. */
     addEvent(event: {
         readonly time: number;
         readonly keys: Readonly<Record<string, unknown>>;
+        readonly distribution: Histogram | undefined;
     }): void {
-        // count a distinct value of any scalar, else fold a number
+        // read the measured value and the event's step
         const value = this.measure === undefined ? 0 : event.keys[this.measure];
-        if (this.#fold === "unique" && (typeof value === "string" || typeof value === "number")) {
-            this.add(event.keys, this.startOf(event.time), {
-                events: 1,
-                sum: 0,
-                min: 0,
-                max: 0,
-                last: undefined,
-                distinct: new Set([value]),
-            });
-        } else if (typeof value === "number") {
-            this.add(event.keys, this.startOf(event.time), {
-                events: 1,
-                sum: value,
-                min: value,
-                max: value,
-                last: { time: event.time, value },
-                distinct: undefined,
-            });
+        const start = this.startOf(event.time);
+        const step = { events: 1, sum: 0, min: 0, max: 0, last: undefined, distinct: undefined };
+
+        // merge a distribution for a quantile
+        if (Fold.isQuantile(this.#fold)) {
+            if (event.distribution !== undefined) {
+                this.add(event.keys, start, { ...step, distribution: event.distribution });
+            }
+        }
+        // count a distinct value of any scalar
+        else if (this.#fold === "unique") {
+            if (typeof value === "string" || typeof value === "number") {
+                const distinct = new Set([value]);
+                this.add(event.keys, start, { ...step, distinct, distribution: undefined });
+            }
+        }
+        // fold a number
+        else if (typeof value === "number") {
+            const last = { time: event.time, value };
+            const number = { sum: value, min: value, max: value, last, distribution: undefined };
+            this.add(event.keys, start, { ...step, ...number });
         }
     }
 
-    /** Close each group's steps by the fold, oldest first. */
+    /** Close each group's steps by the fold, oldest first, leaving out steps of no value. */
     close(): Series[] {
         return [...this.#groups.values()].map((held) => ({
             group: held.group,
             steps: [...held.steps.entries()]
                 .toSorted(([left], [right]) => left - right)
-                .map(([start, fold]) => ({
-                    start,
-                    value: folded(this.#fold, fold),
-                    events: fold.events,
-                })),
+                .flatMap(([start, fold]) => {
+                    const value = folded(this.#fold, fold);
+
+                    return value === undefined ? [] : [{ start, value, events: fold.events }];
+                }),
         }));
     }
 }
@@ -174,11 +209,15 @@ function merged(left: StepFold | undefined, right: StepFold): StepFold {
             left.distinct === undefined || right.distinct === undefined
                 ? (left.distinct ?? right.distinct)
                 : left.distinct.union(right.distinct),
+        distribution:
+            left.distribution === undefined || right.distribution === undefined
+                ? (left.distribution ?? right.distribution)
+                : Histogram.merge(left.distribution, right.distribution),
     };
 }
 
-/** Close a step's fold. */
-function folded(fold: Fold, step: StepFold): number {
+/** Close a step's fold, absent for a step holding no value of it. */
+function folded(fold: Fold, step: StepFold): number | undefined {
     switch (fold) {
         case "sum":
             return step.sum;
@@ -191,8 +230,14 @@ function folded(fold: Fold, step: StepFold): number {
         case "average":
             return step.sum / step.events;
         case "last":
-            return step.last?.value ?? 0;
+            return step.last?.value;
         case "unique":
-            return step.distinct?.size ?? 0;
+            return step.distinct?.size;
+        case "p50":
+        case "p90":
+        case "p99":
+            return step.distribution === undefined
+                ? undefined
+                : Histogram.quantile(step.distribution, QUANTILES[fold]);
     }
 }

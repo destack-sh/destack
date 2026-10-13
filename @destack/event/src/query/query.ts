@@ -1,5 +1,15 @@
-import { Condition, Expression, type JsonCondition, type Namespace, Predicate } from "@destack/db";
+import {
+    Condition,
+    Expression,
+    Filter,
+    type JsonCondition,
+    type Namespace,
+    Predicate,
+    SearchText,
+    TABLE,
+} from "@destack/db";
 import { defineSchema, type JsonValue, schema } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
 import type { Event, EventKind } from "../kind/kind.ts";
 
 /** The order a page reads events in: oldest first, or newest first. */
@@ -26,6 +36,26 @@ export const EventCursor = Object.assign(
             return cursor === undefined || EventCursor.compare(event, cursor) > 0;
         },
 
+        /** Write a cursor as the opaque text a list page continues after. */
+        write(cursor: EventCursor): string {
+            return `${String(cursor.time)}.${cursor.id}`;
+        },
+
+        /** Read a cursor from the text a list page answered, refusing text no page writes. */
+        read(text: string): EventCursor {
+            // split the time from the identity at the first dot
+            const separator = text.indexOf(".");
+            const time = Number(text.slice(0, separator));
+            const parsed = EventCursor.safeParse({ time, id: text.slice(separator + 1) });
+
+            // refuse text without both
+            if (separator < 1 || !parsed.success) {
+                throw new CallError("BAD_REQUEST", { message: `no event cursor ${text}` });
+            }
+
+            return parsed.data;
+        },
+
         /** Report whether an event is past a cursor: later ascending, earlier descending. */
         isPast(event: EventCursor, cursor: EventCursor | undefined, order: EventOrder): boolean {
             const compared = cursor === undefined ? 0 : EventCursor.compare(event, cursor);
@@ -42,17 +72,27 @@ export interface EventCursor {
     readonly id: string;
 }
 
-/** The events of a scope a query selects. */
+/** A filter's text in the field query language, with map entries by their dotted names. */
+export const FilterText = Object.assign(schema.string().min(1).max(1000), {
+    /** Read a filter's text as the condition it writes, every event when absent. */
+    condition(text: string | undefined): JsonCondition | undefined {
+        return text === undefined ? undefined : Filter.parse(text, { isRelational: false });
+    },
+});
+
+/** The events of some scopes a query selects. */
 export interface EventFilter {
-    /** The scope. */
-    readonly scope: string;
-    /** The condition over the keys, map entries as `<key>.<entry>`, and `source`. */
+    /** The scopes, at least one: a scope's own, and the copies of the scopes within it it keeps. */
+    readonly scopes: readonly [string, ...string[]];
+    /** The condition over `id`, `time` and the keys, map entries as `<key>.<entry>`. */
     readonly where?: JsonCondition;
-    /** Text the opened data contains, ignoring case. */
-    readonly text?: string;
-    /** The earliest time, in Unix microseconds, inclusive. */
+}
+
+/** The time range a filter's condition requires, in Unix microseconds, open where absent. */
+export interface EventRange {
+    /** The earliest time, inclusive. */
     readonly from?: number;
-    /** The time the events come before, in Unix microseconds, exclusive. */
+    /** The time the events come before, exclusive. */
     readonly before?: number;
 }
 
@@ -63,7 +103,7 @@ export const EventFilter = {
         const maps = new Set(kind.mapKeys);
         const scalars = kind.keys.filter((name) => !maps.has(name));
 
-        return new Set(["source", ...scalars, ...EventFilter.entries(kind, filter)]);
+        return new Set(["id", "time", ...scalars, ...EventFilter.entries(kind, filter)]);
     },
 
     /** List the map key entries a filter's condition names, as `<key>.<entry>`. */
@@ -116,8 +156,11 @@ export const EventFilter = {
     },
 
     /** Read an event's fields as conditions see them. */
-    flatten(kind: EventKind, event: Pick<Event, "source" | "keys">): Record<string, JsonValue> {
-        const flat: Record<string, JsonValue> = { source: event.source };
+    flatten(
+        kind: EventKind,
+        event: Pick<Event, "id" | "time" | "keys">,
+    ): Record<string, JsonValue> {
+        const flat: Record<string, JsonValue> = { id: event.id, time: event.time };
         for (const [name, value] of Object.entries(kind.keyValues(event.keys))) {
             if (value !== null && typeof value === "object") {
                 for (const [entry, held] of Object.entries(value)) {
@@ -142,64 +185,107 @@ export const EventFilter = {
     /** Read the keys a condition pins to one value, which prune segments. */
     equalities(kind: EventKind, filter: EventFilter): Readonly<Record<string, string | number>> {
         return Object.fromEntries(
-            Object.entries(filter.where ?? {}).filter(
-                (entry): entry is [string, string | number] =>
-                    kind.keys.includes(entry[0]) &&
-                    (typeof entry[1] === "string" || typeof entry[1] === "number"),
+            Condition.conjuncts(filter.where).flatMap((condition) =>
+                Object.entries(condition).filter(
+                    (entry): entry is [string, string | number] =>
+                        kind.keys.includes(entry[0]) &&
+                        (typeof entry[1] === "string" || typeof entry[1] === "number"),
+                ),
             ),
         );
     },
 
-    /** Build the match of a filter's time range and condition over a kind's events, text aside. */
+    /** Build the match of a filter's condition over a kind's events. */
     match(
         kind: EventKind,
         filter: EventFilter,
-    ): (event: Pick<Event, "source" | "time" | "keys">) => boolean {
-        // compile the condition over the source and the query keys
+    ): (event: Pick<Event, "id" | "time" | "keys">) => boolean {
+        // compile the condition over the event's fields and keys
         const where = filter.where;
-        const match =
-            where === undefined
-                ? undefined
-                : Predicate.compile(Condition.resolve(where, EventFilter.fields(kind, filter)));
+        if (where === undefined) {
+            return () => true;
+        }
+        const match = Predicate.compile(Condition.resolve(where, EventFilter.fields(kind, filter)));
 
-        // hold the time range, then the condition
+        // decide the fields and keys, and the searched keys' words
         return (event) => {
-            if (filter.from !== undefined && event.time < filter.from) {
-                return false;
-            } else if (filter.before !== undefined && event.time >= filter.before) {
-                return false;
-            } else if (match === undefined) {
-                return true;
-            } else {
-                return Predicate.matches(match, EventFilter.flatten(kind, event));
-            }
+            const flat = EventFilter.flatten(kind, event);
+
+            return (
+                match({
+                    field: (name) => flat[name],
+                    placeholder: Predicate.unbound,
+                    exists: () => undefined,
+                    search: (words) => kind.table[TABLE].requireFullText().matches(flat, words),
+                }) === true
+            );
         };
     },
 
-    /** Report whether an opened data contains a filter's text, ignoring case. */
-    contains(filter: EventFilter, data: JsonValue): boolean {
-        return (
-            filter.text === undefined ||
-            JSON.stringify(data).toLowerCase().includes(filter.text.toLowerCase())
+    /** Read the words a filter's condition searches at its top, which prune segments. */
+    search(filter: EventFilter): string[] {
+        return Condition.conjuncts(filter.where).flatMap((condition) => {
+            const searched = condition["SEARCH"];
+
+            return typeof searched === "string" ? SearchText.query(searched) : [];
+        });
+    },
+
+    /** Read the identifier a filter's condition pins at its top, which prunes segments. */
+    identity(filter: EventFilter): string | undefined {
+        const pinned = Condition.conjuncts(filter.where).map((condition) => condition["id"]);
+
+        return pinned.find((id): id is string => typeof id === "string");
+    },
+
+    /** Read the time range a filter's condition requires at its top, which prunes segments. */
+    range(filter: EventFilter): EventRange {
+        // read each bound on time the condition and its top conjunction require
+        const bounds = Condition.conjuncts(filter.where).flatMap((condition) =>
+            boundsOf(condition["time"]),
         );
+        const froms = bounds.flatMap((bound) => (bound.from === undefined ? [] : [bound.from]));
+        const befores = bounds.flatMap((bound) =>
+            bound.before === undefined ? [] : [bound.before],
+        );
+
+        return {
+            ...(froms.length === 0 ? {} : { from: Math.max(...froms) }),
+            ...(befores.length === 0 ? {} : { before: Math.min(...befores) }),
+        };
     },
 };
+
+/** Read the time range one entry on time requires: an equality, or comparisons. */
+function boundsOf(entry: unknown): readonly EventRange[] {
+    // bound an exact time to its microsecond, and skip an entry that bounds nothing
+    if (typeof entry === "number") {
+        return [{ from: entry, before: entry + 1 }];
+    } else if (!Condition.is(entry)) {
+        return [];
+    }
+
+    // bound each comparison, times being whole microseconds
+    const { gte, gt, lt, lte } = entry;
+
+    return [
+        ...(typeof gte === "number" ? [{ from: gte }] : []),
+        ...(typeof gt === "number" ? [{ from: gt + 1 }] : []),
+        ...(typeof lt === "number" ? [{ before: lt }] : []),
+        ...(typeof lte === "number" ? [{ before: lte + 1 }] : []),
+    ];
+}
 
 /** List the field names a condition compares, its combinations and negations walked. */
 function named(condition: JsonCondition): string[] {
     return Object.entries(condition).flatMap(([name, entry]) => {
         // walk combinations and negations, else take the compared field
         if (name === "AND" || name === "OR" || name === "NOT") {
-            return (Array.isArray(entry) ? entry : [entry]).filter(isCondition).flatMap(named);
+            return (Array.isArray(entry) ? entry : [entry]).filter(Condition.is).flatMap(named);
         }
 
         return [name];
     });
-}
-
-/** Report whether a condition's entry is itself a condition, as combinations and negations hold. */
-function isCondition(entry: unknown): entry is JsonCondition {
-    return typeof entry === "object" && entry !== null && !Array.isArray(entry);
 }
 
 /** List the fields a resolved condition compares with numbers. */
@@ -220,6 +306,7 @@ function numericFields(predicate: Predicate): string[] {
         case "like":
         case "characters":
         case "length":
+        case "search":
         case "exists":
             return [];
     }

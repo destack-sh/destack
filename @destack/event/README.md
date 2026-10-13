@@ -1,115 +1,69 @@
 # @destack/event
 
-An `Event` is a CloudEvent (`id`, `source`, `time`, `data`) kept by a scope, and `EventStore` keeps each kind's events hot in SQL, flushes them into Parquet segments in the scope's bucket, and seals personal values for crypto-shredding.
+`EventStore` keeps the events of each events type hot in SQL, flushes them into Parquet segments in the scope's bucket, and seals personal values for crypto-shredding.
 
 ```ts
-// CloudEvents' id, source, time, data
-const event: Event = {
-    scope,
-    id,
-    source: spaceId,
-    time: 1791158400000000,
-    keys: { actor, method },
-    data: {},
-};
-await store.append(call, [event], transaction); // in the caller's transaction, kept once
-// AIP-160 over hot rows and Parquet
-await store.query(log, {
-    scope,
-    where: Filter.parse("severity >= 13"),
-    text: "timeout",
-    from,
-    before,
+// an events type's kind, built by @destack/object from its table
+const kind = call.eventKind();
+await store.append(kind, [{ scope, id, time, keys: { actor, method }, data }], transaction); // kept once
+// one condition language over hot rows and Parquet, time and identity included
+await store.query(kind, {
+    scopes: [scope],
+    where: Filter.parse('outcome = "failure" AND time >= 1791158400000000'),
 });
+await store.get(kind, { scopes: [scope], id }); // a per-segment identifier filter prunes flushed segments
 await store.series(
-    usage,
-    { scope, from, before },
-    { measure: "quantity", fold: "sum", group: ["meter"], step: HOUR },
+    usage.eventKind(),
+    { scopes: [scope], where },
+    { measure: "quantity", fold: "sum", group: ["meter"] },
 );
+// p50, p90 and p99 merge the distributions a kind records, such as metric histograms
+await store.series(metric.eventKind(), { scopes: [scope] }, { fold: "p99", group: ["name"] });
 await store.forget("user-…"); // crypto-shredding: the person's key goes, the events stay
 ```
 
-## Kinds
+## Storage
 
-`defineEventKind` declares a kind of event with its query keys, data, delivery, flush and retention policy, route, lock and subject.
-
-```ts
-import { defineEventKind } from "@destack/event/declare";
-
-export const call = defineEventKind({
-    name: "call",
-    description: "A call made in a scope.",
-    keys: schema.object({ actor: schema.string(), method: schema.string() }),
-    data: schema.object({ address: schema.sensitive(schema.string(), "personal").exactOptional() }),
-    delivery: "exactly-once",
-    policy: { flush: { maxAge: HOUR, maxRows: 100_000 }, retention: 10 * YEAR },
-    route: "enclosing", // copied to every enclosing scope
-    isLocked: true, // chained by digest for the retention, never compacted
-    subject: "actor",
-});
-```
-
-## Store
-
-`EventStore` keeps the events of its kinds over a database and the scopes' buckets, and lists the controllers that flush, compact and route them.
+A database keeps each kind's hot table, the segment catalog and people's keys; the store's controllers flush, compact and expire segments.
 
 ```ts
-import { eventTables } from "@destack/event/stack";
-
 export const spaceDatabase = defineDatabase({
     name: "space",
-    tables: [...eventTables([log, span, call]), outbox],
+    tables: eventTables([call.eventKind()]),
 });
 const store = new EventStore({
     database,
-    kinds: [log, span, call],
+    kinds: [call.eventKind()],
     files,
     personal,
-    forwarder: { targets, deliver }, // copies to the scopes each route names, through the store's outbox
-    report, // the at-most-once writes it drops
+    clock,
+    report,
 });
 loop.add(...store.controllers);
 ```
 
-## Following
+## Reading in order
 
-`tail` follows a scope's events in commit order, and an `EventReader` holds a log slot so that a reader misses no event.
+`changes` reads appends after a log position, and an `EventReader` holds a log slot so that a reader misses no event.
 
 ```ts
-for await (const { event } of store.tail(log, { scope, where }, signal)) {
-    render(event);
-}
-const reader = new EventReader(`endpoint:${id}`, 7 * DAY);
+const reader = new EventReader(`metering:${accountId}`, 7 * DAY);
 const { events, sequence } = await store.changes(
-    call,
-    { scope },
+    usage.eventKind(),
+    { scopes: [accountId] },
     await reader.after(database),
     100,
 );
 await reader.advance(database, sequence, now);
 ```
 
-## Service
-
-`serveEvents` serves a scope's events of each kind whose `access` names its readers, and masks personal values unless the caller may unmask them.
-
-```ts
-import { serveEvents } from "@destack/event/server";
-
-const procedures = serveEvents({
-    store,
-    admit,
-    unmasked: (context, read) => server.unmasked(context, read),
-});
-```
-
 ## Tests
 
-`EventFixture` keeps events over a test database, a memory bucket and a generated keyring, on a clock the test sets.
+Tests run on SQLite and PostgreSQL through `EventFixture` with a memory bucket and keyring.
 
 ```ts
-await using fixture = await EventFixture.open("sqlite", [call]);
-await fixture.store.append(call, events);
-fixture.now += HOUR;
-await fixture.settle();
+const fixture = await EventFixture.open(dialect, [
+    testKind({ name: "reading", keys, data, delivery: "exactly-once", policy }),
+]);
+await fixture.settle(); // reconcile every controller once
 ```

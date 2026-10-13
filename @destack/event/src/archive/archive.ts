@@ -11,11 +11,12 @@ import {
     lte,
     min,
     type DatabaseConnection,
-    type Select,
 } from "@destack/db";
 import { present } from "@destack/schema";
+import { SearchText, TABLE } from "@destack/db";
+import { Replica } from "@destack/sync";
 import type { AsyncBuffer } from "hyparquet";
-import { eventSegment } from "./catalog.ts";
+import { BloomFilter, type ChosenSegment, chosenSegment, eventSegment } from "./catalog.ts";
 import { type Event, type EventPolicy, type EventKind, EventTime } from "../kind/kind.ts";
 import { EventCursor, EventFilter, type EventOrder } from "../query/query.ts";
 import { SegmentFile } from "./segment.ts";
@@ -62,7 +63,7 @@ export class EventArchive {
 
     /** Keep segments as the options say. */
     constructor(options: EventArchiveOptions) {
-        // hold the database, buckets, prefix and policy
+        // keep the database, buckets, prefix and policy
         this.#database = options.database;
         this.#files = options.files;
         this.#prefix = options.prefix;
@@ -123,20 +124,15 @@ export class EventArchive {
         // write the segment, chained to the scope's previous one when the kind is locked
         const previous = kind.isLocked ? await this.#latestDigest(kind, scope) : null;
         await this.#write(kind, scope, events, now, policy, previous, async (transaction) => {
-            // prune exactly the flushed events by source, never a later one with an earlier time
-            for (const [source, held] of Map.groupBy(events, (event) => event.source)) {
-                for (let start = 0; start < held.length; start += PRUNE_BATCH) {
-                    const batch = held.slice(start, start + PRUNE_BATCH).map((event) => event.id);
-                    await transaction
-                        .delete(kind.table)
-                        .where(
-                            and(
-                                eq(kind.table.scope, scope),
-                                eq(kind.table.source, source),
-                                inArray(kind.table.id, batch),
-                            ),
-                        );
-                }
+            // prune exactly the flushed events and release the copies among them
+            for (let start = 0; start < events.length; start += PRUNE_BATCH) {
+                const batch = events.slice(start, start + PRUNE_BATCH).map((event) => event.id);
+                await transaction.delete(kind.table).where(inArray(kind.table.id, batch));
+                await Replica.release(
+                    transaction,
+                    kind.table,
+                    batch.map((id) => ({ id })),
+                );
             }
         });
 
@@ -172,7 +168,9 @@ export class EventArchive {
         // write their events as one segment, replacing their catalog rows together
         const read = await Promise.all(
             group.map((segment) =>
-                SegmentFile.decode(kind, this.#file(scope, segment.file, segment.bytes), { scope }),
+                SegmentFile.decode(kind, scope, this.#file(scope, segment.file, segment.bytes), {
+                    scopes: [scope],
+                }),
             ),
         );
         const events = read
@@ -229,7 +227,7 @@ export class EventArchive {
             return 0;
         }
 
-        // delete the scope's files of the kind that no catalog row names, past the hour, a listed page at a time
+        // delete the uncatalogued files older than the orphan age, one listed page at a time
         const catalogued = new Set(
             (await this.#catalog(kind, scope)).map((segment) => segment.file),
         );
@@ -255,25 +253,26 @@ export class EventArchive {
         return orphans;
     }
 
-    /** Choose the catalogued segments that may hold the events a read selects. */
+    /** Choose the catalogued segments that may contain the events a read selects. */
     async choose(
         kind: EventKind,
         filter: EventFilter,
         after: EventCursor | undefined,
-        order: EventOrder = "ascending",
-        connection: DatabaseConnection = this.#database,
-    ): Promise<Select<typeof eventSegment>[]> {
-        const segments = await connection
-            .select()
+        order: EventOrder,
+    ): Promise<ChosenSegment[]> {
+        // choose by time range and key values
+        const range = EventFilter.range(filter);
+        const segments = await this.#database
+            .select(chosenSegment)
             .from(eventSegment)
             .where(
                 and(
                     eq(eventSegment.kind, kind.key),
-                    eq(eventSegment.scope, filter.scope),
-                    filter.before === undefined ? undefined : lt(eventSegment.from, filter.before),
+                    inArray(eventSegment.scope, filter.scopes),
+                    range.before === undefined ? undefined : lt(eventSegment.from, range.before),
                     gte(
                         eventSegment.to,
-                        Math.max(filter.from ?? 0, order === "ascending" ? (after?.time ?? 0) : 0),
+                        Math.max(range.from ?? 0, order === "ascending" ? (after?.time ?? 0) : 0),
                     ),
                     order === "descending" && after !== undefined
                         ? lte(eventSegment.from, after.time)
@@ -281,14 +280,42 @@ export class EventArchive {
                 ),
             )
             .orderBy(asc(eventSegment.from), asc(eventSegment.id));
+        const held = segments.filter((segment) => SegmentFile.mayHold(kind, segment.keys, filter));
 
-        return segments.filter((segment) => SegmentFile.mayHold(kind, segment.keys, filter));
+        // choose by identifier and gram filters when the read selects one event or searches words
+        const id = EventFilter.identity(filter);
+        const grams = [
+            ...new Set(EventFilter.search(filter).flatMap((word) => SearchText.grams(word))),
+        ];
+        if ((id === undefined && grams.length === 0) || held.length === 0) {
+            return held;
+        }
+        const filters = await this.#database
+            .select({ id: eventSegment.id, ids: eventSegment.ids, grams: eventSegment.grams })
+            .from(eventSegment)
+            .where(
+                inArray(
+                    eventSegment.id,
+                    held.map((segment) => segment.id),
+                ),
+            );
+        const holding = new Set(
+            filters
+                .filter(
+                    (each) =>
+                        (id === undefined || BloomFilter.mayHold(each.ids, id)) &&
+                        grams.every((gram) => BloomFilter.mayHold(each.grams, gram)),
+                )
+                .map((each) => each.id),
+        );
+
+        return held.filter((segment) => holding.has(segment.id));
     }
 
     /** Decode the selected events of chosen segments, absent once one was compacted away. */
     async decode(
         kind: EventKind,
-        segments: readonly Select<typeof eventSegment>[],
+        segments: readonly ChosenSegment[],
         filter: EventFilter,
         after: EventCursor | undefined,
         order: EventOrder = "ascending",
@@ -298,7 +325,8 @@ export class EventArchive {
             segments.map((segment) =>
                 SegmentFile.decode(
                     kind,
-                    this.#file(filter.scope, segment.file, segment.bytes),
+                    segment.scope,
+                    this.#file(segment.scope, segment.file, segment.bytes),
                     filter,
                 ).catch((error: unknown) => {
                     if (error instanceof DeletedSegment) {
@@ -355,6 +383,8 @@ export class EventArchive {
                     rows: events.length,
                     bytes: data.byteLength,
                     keys: SegmentFile.keyIndex(kind, events),
+                    ids: BloomFilter.build(events.map((event) => event.id)),
+                    grams: BloomFilter.build(searchedGrams(kind, events)),
                     file,
                     digest,
                     previous,
@@ -409,4 +439,18 @@ export class EventArchive {
             },
         };
     }
+}
+
+/** List the distinct three-character runs of the words in events' searched keys. */
+function searchedGrams(kind: EventKind, events: readonly Event[]): string[] {
+    const searched = kind.table[TABLE].fullText?.properties ?? [];
+    const words = events.flatMap((event) =>
+        searched.flatMap((key) => {
+            const value: unknown = event.keys[key];
+
+            return typeof value === "string" ? SearchText.words(value) : [];
+        }),
+    );
+
+    return [...new Set(words.flatMap((word) => SearchText.grams(word)))];
 }

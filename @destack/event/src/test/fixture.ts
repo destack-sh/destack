@@ -1,33 +1,102 @@
 import { TestClock } from "@destack/test";
-import type { Dialect } from "@destack/db";
+import {
+    type ColumnBuilder,
+    defineTable,
+    index,
+    integer,
+    json,
+    real,
+    text,
+    type Dialect,
+} from "@destack/db";
+import { present, schema, toJsonSchema, type JsonValue } from "@destack/schema";
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
 import { MemoryBucket } from "@destack/bucket/test";
-import { outbox } from "@destack/service/outbox";
 import { DatabasePersonalKeyring } from "../personal/personal.ts";
-import type { Event, EventKind, EventPolicy, Route } from "../kind/kind.ts";
+import {
+    EventKind,
+    type EventKeyShape,
+    type EventKeyType,
+    type EventKindDescription,
+    type EventPolicy,
+    eventColumns,
+} from "../kind/kind.ts";
 import { eventTables } from "../stack/db.ts";
 import { EventStore } from "../store/store.ts";
 
-/** The test event options beside kinds: a scope's policy and the delivery of routed copies. */
+/** The test event options beside kinds: a scope's policy. */
 export interface EventFixtureOptions {
     /** Read a scope's policy for a kind, the kind's own when absent. */
-    readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy | undefined>;
-    /** Name the scopes a route copies a scope's events to, none when absent. */
-    readonly targets?: (route: Route, scope: string) => Promise<readonly string[]>;
-    /** Deliver routed copies, such as to another fixture's store. */
-    readonly deliver?: (
-        kind: string,
-        events: readonly Event[],
-        signal: AbortSignal,
-    ) => Promise<void>;
+    readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy>;
+}
+
+/** Build a test kind and its table: the event columns, and an indexed column per key. */
+export function testKind<Shape extends EventKeyShape, Data extends JsonValue>(
+    description: Omit<EventKindDescription<Shape, Data>, "table">,
+    search: readonly string[] = [],
+): EventKind<Shape, Data> {
+    // lay out a column per key beside the event columns
+    const name = `event_${description.name.replaceAll("-", "_")}`;
+    const keys = Object.entries(description.keys.shape);
+
+    // build each key's column by its type, a map of entries as JSON
+    const columns = Object.fromEntries(
+        keys.map(([key, value]) => {
+            // declare the column of the key's type under its snake-case name
+            const column = snake(key);
+            const type = keyTypeOf(value);
+            const built =
+                type === "text"
+                    ? text(column)
+                    : type === "integer"
+                      ? integer(column)
+                      : type === "real"
+                        ? real(column)
+                        : json(column, schema.record(schema.string(), schema.json()));
+
+            return [key, built];
+        }),
+    );
+    const builders: ReturnType<typeof eventColumns> & Readonly<Record<string, ColumnBuilder>> = {
+        ...columns,
+        ...eventColumns(),
+    };
+    const table = defineTable(
+        name,
+        builders,
+        {
+            log: { appendOnly: true },
+            fullText: search,
+            constraints: (built) => [
+                index(`${name}_time`).on(built.scope, built.time, built.id),
+                ...keys
+                    .filter(([, value]) => keyTypeOf(value) !== "json")
+                    .map(([key]) =>
+                        index(`${name}_${snake(key)}`).on(
+                            built.scope,
+                            present(built[key], `the column of ${key}`),
+                            built.time,
+                        ),
+                    ),
+            ],
+        },
+        { package: description.package },
+    );
+
+    return new EventKind({ ...description, table });
+}
+
+/** Write a camel-case key in snake case, as its column is named. */
+function snake(key: string): string {
+    return key.replaceAll(/[A-Z]/gu, (letter) => `_${letter.toLowerCase()}`);
 }
 
 /** A host's events over a test database, memory bucket and keyring, on a clock the test sets. */
 export class EventFixture implements AsyncDisposable {
     /** The store. */
     readonly store: EventStore;
-    /** The test database keeping the hot events, the catalog, people's keys and the outbox. */
+    /** The test database keeping the hot events, the catalog and people's keys. */
     readonly database: TestDatabase;
     /** The clock the controllers and the bucket's locks read, which tests set. */
     readonly clock = new TestClock(Date.UTC(2026, 9, 1));
@@ -47,8 +116,8 @@ export class EventFixture implements AsyncDisposable {
         kinds: readonly EventKind[],
         options: EventFixtureOptions = {},
     ): Promise<EventFixture> {
-        // migrate the kinds' tables with the outbox
-        const tables = [...eventTables(kinds), outbox];
+        // migrate the kinds' tables
+        const tables = eventTables(kinds);
         const database = await TestDatabase.create(dialect, tables);
         await database.database.migrate(tables);
         const keyring = await LocalKeyring.read(LocalKeyring.generate());
@@ -61,10 +130,6 @@ export class EventFixture implements AsyncDisposable {
                     kinds,
                     files: () => fixture.bucket,
                     personal: new DatabasePersonalKeyring(database.database, keyring),
-                    forwarder: {
-                        targets: options.targets ?? (() => Promise.resolve([])),
-                        deliver: options.deliver ?? (() => Promise.resolve()),
-                    },
                     ...(options.policy === undefined ? {} : { policy: options.policy }),
                     clock: fixture.clock,
                     // fail the test on a dropped event
@@ -97,5 +162,32 @@ export class EventFixture implements AsyncDisposable {
     /** Close the database. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.database.close();
+    }
+}
+
+/** Read the column type a test key's schema keeps its values in, from its JSON type. */
+function keyTypeOf(key: schema.Schema): EventKeyType {
+    // read the described types of the key and each of its alternatives, ignoring null
+    const described = toJsonSchema(key);
+    const types = [described, ...(described.anyOf ?? [])]
+        .flatMap((each) => (typeof each === "object" ? [each.type].flat() : []))
+        .filter((type) => type !== undefined && type !== "null");
+
+    // map text, whole numbers, numbers and maps of entries to their columns
+    const [type] = types;
+    if (types.length !== 1) {
+        throw new TypeError(`an event key holds one type of value: ${JSON.stringify(described)}`);
+    } else if (type === "object") {
+        return "json";
+    } else if (type === "string") {
+        return "text";
+    } else if (type === "integer") {
+        return "integer";
+    } else if (type === "number") {
+        return "real";
+    } else {
+        throw new TypeError(
+            `an event key holds text, a number or a map: ${JSON.stringify(described)}`,
+        );
     }
 }
