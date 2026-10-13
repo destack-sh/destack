@@ -1,7 +1,7 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The service error code per database failure: conflict, bad request, lost history, host. */
-const SERVICE_CODES = {
+/** The call error code per database failure: conflict, bad request, lost history, host. */
+const CALL_CODES = {
     INVALID_MIGRATION: "INTERNAL_SERVER_ERROR",
     MIGRATION_FAILED: "INTERNAL_SERVER_ERROR",
     PLAN_CHANGED: "INTERNAL_SERVER_ERROR",
@@ -22,10 +22,10 @@ const SERVICE_CODES = {
     QUERY_FAILED: "INTERNAL_SERVER_ERROR",
     NO_CHANNEL: "INTERNAL_SERVER_ERROR",
     CONTENT_UNAVAILABLE: "SERVICE_UNAVAILABLE",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** The database failure codes. */
-export type DatabaseErrorCode = keyof typeof SERVICE_CODES;
+export type DatabaseErrorCode = keyof typeof CALL_CODES;
 
 /** A database failure with a stable code. */
 export class DatabaseError extends Error implements DomainError {
@@ -72,9 +72,9 @@ export class DatabaseError extends Error implements DomainError {
             : undefined;
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }
 

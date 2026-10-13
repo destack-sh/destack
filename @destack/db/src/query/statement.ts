@@ -8,7 +8,10 @@ import {
     type SQLWrapper,
 } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import type { DriverValue } from "../table/column.ts";
+import type { Column, DriverValue } from "../table/column.ts";
+import { TABLE, type Table } from "../table/table.ts";
+import type { Row } from "../table/row.ts";
+import type { Dialect } from "../dialect/dialect.ts";
 
 /** A statement rendered once per dialect and namespace and run with named values. */
 export class Statement {
@@ -73,4 +76,40 @@ export function jsonElements(array: SQLWrapper, name: string): SQL {
         sqlite: sql`json_each(${array}) AS ${sql.identifier(name)}`,
         postgresql: sql`jsonb_array_elements(${array}::jsonb) AS ${sql.identifier(name)}(value)`,
     });
+}
+
+/** Read a JSON element's value at a position as a column's type, the element named `wanted`. */
+export function elementValue(column: Column, index: number, dialect: Dialect): SQL {
+    // read a JSON column's element as JSON, a JSON null as SQL NULL, and any other element as its text
+    const position = sql.raw(String(index));
+    const isJson = column.definition.kind === "json";
+    const element = isJson
+        ? dialectSQL({
+              sqlite: sql`NULLIF(wanted.value -> ${position}, 'null')`,
+              postgresql: sql`NULLIF(wanted.value -> ${position}, 'null'::jsonb)`,
+          })
+        : sql`wanted.value ->> ${position}`;
+    const type = column.definition.types.postgresql;
+
+    // read SQLite values and PostgreSQL text as they are
+    if (dialect === "sqlite" || type === "text") {
+        return element;
+    }
+    // decode PostgreSQL bytes from base64
+    else if (column.definition.kind === "binary") {
+        return sql`decode(${element}, 'base64')`;
+    }
+    // cast any other PostgreSQL value from its text or JSON
+    else {
+        return sql`(${element})::${sql.raw(type)}`;
+    }
+}
+
+/** Write a row's column value in JSON form, null for none. */
+export function jsonOf(table: Table, column: string, row: Row): unknown {
+    const value = row[column];
+
+    return value === undefined || value === null
+        ? null
+        : table[TABLE].column(column).definition.toJson(value);
 }

@@ -46,9 +46,22 @@ export const note = defineTable(
 );
 ```
 
+## Full-text search
+
+A table's `fullText` columns keep a full-text index, and `SEARCH` matches rows whose text has each word as a word's prefix.
+
+```ts
+export const note = defineTable("note", columns, { log: {}, fullText: ["title", "body"] });
+await database
+    .select()
+    .from(note)
+    .where(Condition.render({ SEARCH: "lov ada" }, note));
+note[TABLE].requireFullText().matches(row, SearchText.query("lov ada")); // the same match in memory
+```
+
 ## Databases
 
-`defineDatabase` declares the tables a service owns and the tables it copies, and `defineRelations` relates them as Drizzle's `defineRelations` does.
+`defineDatabase` declares the tables a package owns and the tables it copies, and `defineRelations` relates them as Drizzle's `defineRelations` does.
 
 ```ts
 export const relations = defineRelations({ project, task }, (r) => ({

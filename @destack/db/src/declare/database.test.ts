@@ -4,10 +4,10 @@ import { text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { defineDatabase } from "./database.ts";
 
-/** Users, which another service owns. */
+/** Users, which another package owns. */
 const user = defineTable("user", { id: text("id").primaryKey() });
 
-/** Folders, a tree another service owns. */
+/** Folders, a tree another package owns. */
 const folder = defineTable(
     "folder",
     {
@@ -18,7 +18,7 @@ const folder = defineTable(
     { tree: { id: "id", scope: "scope", parent: "parentId" } },
 );
 
-/** Notes, which this service owns. */
+/** Notes, which this package owns. */
 const note = defineTable("note", { id: text("id").primaryKey() });
 
 test("keep owned tables and copies, copying a copied tree's index, and refuse a table listed twice", () => {

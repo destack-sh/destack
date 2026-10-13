@@ -72,7 +72,7 @@ test.for(TEST_DIALECTS)(
 
         expect({
             losing,
-            code: lost instanceof DatabaseError ? lost.toServiceError().code : lost,
+            code: lost instanceof DatabaseError ? lost.toCallError().code : lost,
             failing,
             failed,
         }).toEqual({

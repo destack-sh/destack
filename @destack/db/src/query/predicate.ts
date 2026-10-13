@@ -55,6 +55,8 @@ export interface Binding<Value, Decision = Value> {
     placeholder(name: string): Scalar;
     /** Resolve whether a related row meets a condition. */
     exists(via: string, where: Condition): Decision;
+    /** Resolve whether the row's searched text holds each word as a word's prefix. */
+    search(words: readonly string[]): Decision;
 }
 
 /** A condition resolved against its row's fields, which rendering and matching walk. */
@@ -77,7 +79,8 @@ export type Predicate =
     | { readonly kind: "length"; readonly name: string; readonly predicate: Predicate }
     | { readonly kind: "all" | "any"; readonly predicates: readonly Predicate[] }
     | { readonly kind: "not"; readonly predicate: Predicate }
-    | { readonly kind: "exists"; readonly via: string; readonly where: Condition };
+    | { readonly kind: "exists"; readonly via: string; readonly where: Condition }
+    | { readonly kind: "search"; readonly words: readonly string[] };
 
 /** A compiled predicate, deciding a row in three-valued logic. */
 export type Match = (binding: Binding<unknown, boolean | undefined>) => boolean | undefined;
@@ -200,6 +203,7 @@ function rename(predicate: Predicate, name: (field: string) => string): Predicat
         case "not":
             return { ...predicate, predicate: rename(predicate.predicate, name) };
         case "exists":
+        case "search":
             return predicate;
     }
 }
@@ -212,6 +216,7 @@ function size(predicate: Predicate): number {
         case "like":
         case "characters":
         case "exists":
+        case "search":
             return 1;
         case "length":
             return 1 + size(predicate.predicate);
@@ -323,6 +328,17 @@ function bind(
 
             return namespace.exists(via, where);
         },
+        search: (words) => {
+            // match the searched columns through the table's full-text index
+            const definition = table[TABLE];
+            const search = definition.requireFullText();
+
+            return search.match(
+                words,
+                search.properties.map((property) => columnOf(table, property)),
+                definition.key.map((property) => columnOf(table, property)),
+            );
+        },
     };
 }
 
@@ -379,6 +395,8 @@ function render(predicate: Predicate, binding: Binding<SQLWrapper>): SQL {
             return sql`(NOT ${render(predicate.predicate, binding)})`;
         case "exists":
             return sql`${binding.exists(predicate.via, predicate.where)}`;
+        case "search":
+            return sql`${binding.search(predicate.words)}`;
     }
 }
 
@@ -541,6 +559,8 @@ function compile(predicate: Predicate, table?: Table): Match {
             return compileNot(predicate, table);
         case "exists":
             return compileExists(predicate);
+        case "search":
+            return compileSearch(predicate);
     }
 }
 
@@ -722,6 +742,13 @@ function compileExists(predicate: Extract<Predicate, { readonly kind: "exists" }
     return (binding) => binding.exists(via, where);
 }
 
+/** Compile a search, which the binding decides over the row's searched text. */
+function compileSearch(predicate: Extract<Predicate, { readonly kind: "search" }>): Match {
+    const { words } = predicate;
+
+    return (binding) => binding.search(words);
+}
+
 /** Refuse a placeholder no value binds, as rendering refuses it. */
 function unbound(name: string): never {
     throw new DatabaseError("INVALID_QUERY", `no value for placeholder ${name}`);
@@ -730,8 +757,12 @@ function unbound(name: string): never {
 /** Decide a compiled predicate on a row with relations unknown. */
 function matches(match: Match, row: Row): boolean {
     return (
-        match({ field: (name) => row[name], placeholder: unbound, exists: () => undefined }) ===
-        true
+        match({
+            field: (name) => row[name],
+            placeholder: unbound,
+            exists: () => undefined,
+            search: () => undefined,
+        }) === true
     );
 }
 

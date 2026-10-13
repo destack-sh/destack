@@ -143,11 +143,10 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         });
     }
 
-    /** Mark the value as personal, exported and erased with its subject, marked so in schemas. */
-    personal(): ColumnBuilder<Definition & { readonly classification: "personal" }> {
+    /** Mark the value personal in its schemas, masked when concealed. */
+    personal(): ColumnBuilder<Definition> {
         return new ColumnBuilder({
             ...this.definition,
-            classification: "personal" as const,
             schema: schema.sensitive(this.definition.schema.clone(), "personal"),
             json: schema.sensitive(this.definition.json.clone(), "personal"),
         });
@@ -229,8 +228,8 @@ export interface ColumnDefinition<
     readonly reference?: ReferenceAction & {
         readonly column: () => Column<ColumnDefinition<Value>>;
     };
-    /** The protection: sensitive values stay in the row, personal ones export and erase. */
-    readonly classification?: "sensitive" | "personal";
+    /** The protection: sensitive values stay in the row and out of the log. */
+    readonly classification?: "sensitive";
     /** Encode an application value as a driver parameter. */
     encode(value: unknown, dialect: Dialect): DriverValue;
     /** Decode a driver value as an application value. */

@@ -9,7 +9,7 @@ import {
 } from "../sqlite/client.ts";
 import { SqliteScript } from "../sqlite/script.ts";
 
-/** The most prepared statement texts per connection: a service runs 400 to 600 of 2 to 10 KB. */
+/** The most prepared statement texts per connection: a package runs 400 to 600 of 2 to 10 KB. */
 const PREPARED_TEXTS = 512;
 
 /** The work queue of each database file, shared by the process's connections to it. */

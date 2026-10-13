@@ -18,7 +18,7 @@ import type { Model } from "../query/model.ts";
 /** A database's resource settings. */
 export const DatabaseSpec = defineSchema(
     schema.object({
-        /** The SQL names of the tables the database copies from their owning service. */
+        /** The SQL names of the tables the database copies from their owning package. */
         copies: schema.array(schema.string().min(1)),
     }),
 );
@@ -52,7 +52,7 @@ export class Database<
     readonly tables: readonly Table[];
     /** The relations of the tables, which relational reads name. */
     readonly relations: Relations<Models>;
-    /** The SQL names of the tables the database copies from their owning service. */
+    /** The SQL names of the tables the database copies from their owning package. */
     readonly copied: ReadonlySet<string>;
     /** The required tables' description, described on first read. */
     #state: DatabaseState | undefined;
@@ -109,13 +109,13 @@ export interface DatabaseDefinition<
     readonly name: string;
     /** The tables the database owns, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
-    /** The tables the database copies from their service, filled by follows, none by default. */
+    /** The tables the database copies from their owning package, filled by follows. */
     readonly copies?: readonly Table[];
     /** The relations of the tables. */
     readonly relations?: Relations<Models>;
 }
 
-/** Declare a database of the tables it owns and the tables it copies from their owning service. */
+/** Declare a database of the tables it owns and the tables it copies from their owning package. */
 export function defineDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(definition: DatabaseDefinition<Models>, module?: ModuleMetadata): Database<Models> {

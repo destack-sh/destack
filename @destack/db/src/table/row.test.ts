@@ -71,3 +71,44 @@ test("roundtrip every column kind through its JSON form as text", () => {
     expect(sample[TABLE].encode({ id: "b", views: null })).toEqual({ id: "b", views: null });
     expect(sample[TABLE].decode({ id: "b", views: null })).toEqual({ id: "b", views: null });
 });
+
+test("conceal columns by masking the personal values their schemas mark and leaving out the rest", () => {
+    // keep a call's personal address inside its data, a personal email and a plain note
+    const entry = defineTable("conceal_sample", {
+        /** The identity. */
+        id: text("id").primaryKey(),
+        /** A call, its address personal. */
+        data: json(
+            "data",
+            schema.object({
+                method: schema.string(),
+                address: schema.sensitive(schema.string(), "personal"),
+            }),
+        ),
+        /** A personal email. */
+        email: text("email").personal(),
+        /** A plain note. */
+        note: text("note"),
+    });
+    const row = {
+        id: "one",
+        data: { method: "update", address: "ada@example.com" },
+        email: "ada@example.com",
+        note: "hello",
+    };
+
+    // mask the personal columns readers lack and leave out the plain one, in rows and their JSON form
+    expect([
+        entry[TABLE].conceal(row, []),
+        entry[TABLE].conceal(row, ["data", "email", "note"]),
+        entry[TABLE].encodeLogged(row, ["data", "note"]),
+    ]).toEqual([
+        row,
+        { id: "one", data: { method: "update", address: "****" }, email: "****" },
+        {
+            id: "one",
+            data: { method: "update", address: "****" },
+            email: "ada@example.com",
+        },
+    ]);
+});

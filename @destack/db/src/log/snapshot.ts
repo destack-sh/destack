@@ -14,7 +14,7 @@ import { headFields, latestOf, LogInteger, selectHead, type LogPosition } from "
 import type { Row } from "../table/row.ts";
 import type { ReadSet } from "./commit.ts";
 import type { Column, ColumnValue } from "../table/column.ts";
-import { jsonElements, Statement } from "../query/statement.ts";
+import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 
@@ -181,15 +181,20 @@ export class Snapshot {
         if (tuples.length === 0) {
             return [];
         }
-        this.#reads?.images(table, {
-            OR: tuples.map((tuple) =>
-                Condition.equal(
-                    Object.fromEntries(
-                        columns.map((column, index) => [column, Scalar.parse(tuple[index])]),
+        this.#reads?.match(
+            table,
+            Condition.any(
+                tuples.map((tuple) =>
+                    Condition.equal(
+                        Object.fromEntries(
+                            columns.map((column, index) => [column, Scalar.parse(tuple[index])]),
+                        ),
                     ),
                 ),
+                table,
             ),
-        });
+            "image",
+        );
         const read = await tupleRead(table, columns, this.database.dialect).values(this.database, {
             tuples: JSON.stringify(tuples),
         });
@@ -210,7 +215,7 @@ export class Snapshot {
         // keep unchanged rows and matching images
         const wanted = new Set(tuples.map((tuple) => JSON.stringify(tuple)));
         const match = (row: Row) =>
-            wanted.has(JSON.stringify(columns.map((column) => toJson(table, column, row))));
+            wanted.has(JSON.stringify(columns.map((column) => jsonOf(table, column, row))));
         const kept =
             images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
         for (const image of images.values()) {
@@ -408,7 +413,7 @@ export class Snapshot {
                     : augment(image, namespace.extras, await relations?.resolve(image));
             if (
                 augmented !== null &&
-                (await decides(match, predicate, augmented, relations)) &&
+                (await decides(match, predicate, table, augmented, relations)) &&
                 (query.after === undefined || Order.rows(order, augmented, query.after) > 0) &&
                 (admits === undefined || (await admits.image(augmented)))
             ) {
@@ -647,6 +652,7 @@ function augment(row: Row, extras: Extras, related?: RelationReader): Row {
 async function decides(
     match: Match,
     predicate: Predicate,
+    table: Table,
     row: Row,
     relations: RelationView | undefined,
 ): Promise<boolean> {
@@ -655,6 +661,7 @@ async function decides(
         field: (name: string) => row[name],
         placeholder: Predicate.unbound,
         exists: () => undefined,
+        search: (words: readonly string[]) => table[TABLE].requireFullText().matches(row, words),
     };
     const decided = match(binding);
     if (decided !== undefined || relations === undefined) {
@@ -694,41 +701,12 @@ function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): 
                 LEFT JOIN ${table} ON ${sql.join(
                     columns.map(
                         (column, index) =>
-                            sql`${table[TABLE].column(column)} = ${wantedValue(table[TABLE].column(column), index, dialect)}`,
+                            sql`${table[TABLE].column(column)} = ${elementValue(table[TABLE].column(column), index, dialect)}`,
                     ),
                     sql` AND `,
                 )}`,
         );
     });
-}
-
-/** Read a wanted tuple's value of a column from its JSON form, as the column's type. */
-function wantedValue(column: Column, index: number, dialect: Dialect): SQL {
-    // read the element of the column's position
-    const element = sql`wanted.value ->> ${sql.raw(String(index))}`;
-    const type = column.definition.types.postgresql;
-
-    // read SQLite values and PostgreSQL text as they are
-    if (dialect === "sqlite" || type === "text") {
-        return element;
-    }
-    // decode PostgreSQL bytes from base64
-    else if (column.definition.kind === "binary") {
-        return sql`decode(${element}, 'base64')`;
-    }
-    // cast any other PostgreSQL value from its text
-    else {
-        return sql`(${element})::${sql.raw(type)}`;
-    }
-}
-
-/** Write a row's column value in JSON form. */
-function toJson(table: Table, column: string, row: Row): unknown {
-    const value = row[column];
-
-    return value === undefined || value === null
-        ? null
-        : table[TABLE].column(column).definition.toJson(value);
 }
 
 /** Read a driver row, an array of values, by the property of each selected column. */

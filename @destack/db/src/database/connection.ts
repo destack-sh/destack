@@ -445,6 +445,8 @@ export class ConnectionState {
     readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
     /** The database's namespace in a shared SQLite store, absent for a database of its own. */
     readonly namespace: string | undefined;
+    /** The searched tables whose full-text rows SQLite writes keep, by SQL name. */
+    readonly searched: ReadonlyMap<string, Table>;
     /** Whether the database keeps a log. */
     isLogged = false;
     /** The submitted statements and transactions. */
@@ -465,6 +467,11 @@ export class ConnectionState {
         this.openChannel = openChannel;
         this.namespace = options.namespace;
         this.cascades = listCascades(tables, options.dialect);
+        this.searched = new Map(
+            tables
+                .filter((table) => table[TABLE].fullText !== undefined)
+                .map((table) => [table[TABLE].sqlName, table]),
+        );
 
         // watch commits on the log channel, announcing those the database leaves unannounced
         const logged = tables

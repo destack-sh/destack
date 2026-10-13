@@ -36,6 +36,8 @@ export const TableState = defineSchema(
         aggregates: schema.array(AggregateDescription).exactOptional(),
         /** The rows of other tables referencing this table's rows. */
         dependents: schema.array(DependentDescription).exactOptional(),
+        /** The SQL names of the text columns the full-text index reads. */
+        fullText: schema.array(schema.string().min(1)).exactOptional(),
         /** The previous SQL names of the table and its columns. */
         moved: schema
             .object({
@@ -200,7 +202,7 @@ export function declareState(
         const dependents = isReplica ? [] : describeDependents(table, tables);
         const aggregated = aggregates.get(definition.sqlName);
 
-        // leave a copied table's uniqueness and references to its owning service
+        // leave a copied table's uniqueness and references to its owning package
         const described = withinDatabase(describeTable(table, dialect), local, copies);
         const kept = copies.has(definition.sqlName) ? copied(described) : described;
 
@@ -211,6 +213,9 @@ export function declareState(
             ...(tree === undefined ? {} : { tree }),
             ...(aggregated === undefined ? {} : { aggregates: aggregated }),
             ...(dependents.length === 0 ? {} : { dependents }),
+            ...(definition.fullText === undefined
+                ? {}
+                : { fullText: [...definition.fullText.columns] }),
             ...(moved === undefined ? {} : { moved }),
             ...(conversions === undefined ? {} : { conversions }),
         };

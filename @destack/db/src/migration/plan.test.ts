@@ -856,7 +856,7 @@ test.each(TEST_DIALECTS)(
                 state.table.indexes.map((described) => [described.name, described.unique]),
             ]);
 
-        // keep the owner's keys, and leave a copy's to its owning service, SQLite checking its primary key is not null besides
+        // keep the owner's keys, and leave a copy's to its owning package, SQLite checking its primary key is not null besides
         const [lists, items] = [list[TABLE].sqlName, item[TABLE].sqlName];
         const checks = dialect === "sqlite" ? ["check"] : [];
         expect([shape([]), shape([lists])]).toEqual([

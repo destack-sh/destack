@@ -355,7 +355,7 @@ function namesOf(condition: JsonCondition): Set<string> {
         // descend into combinations and keep the other names
         if (name === "AND" || name === "OR" || name === "NOT") {
             const combined = Array.isArray(entry) ? entry : [entry];
-            for (const each of combined.filter(isCondition)) {
+            for (const each of combined.filter(Condition.is)) {
                 namesOf(each).forEach((found) => names.add(found));
             }
         } else {
@@ -364,11 +364,6 @@ function namesOf(condition: JsonCondition): Set<string> {
     }
 
     return names;
-}
-
-/** Report whether a condition's entry is itself a condition, as combinations hold. */
-function isCondition(entry: unknown): entry is JsonCondition {
-    return typeof entry === "object" && entry !== null && !Array.isArray(entry);
 }
 
 /** Read the comparator starting at an offset, absent for none. */

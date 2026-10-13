@@ -1,6 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 import type { JsonOf } from "../table/column.ts";
 import { DatabaseError } from "../error/error.ts";
+import { SearchText } from "../search/text.ts";
 import { Predicate } from "./predicate.ts";
 import { Namespace } from "./namespace.ts";
 import { Placeholder, type SQL } from "../sql/index.ts";
@@ -192,6 +193,8 @@ type KnownCondition<Row, Relations> = {
         | Placeholder
         | FieldCondition<ComparableOf<Row[Name]>>;
 } & { readonly [Name in keyof Relations]?: true | Relations[Name] } & {
+    /** Require the row's searched text to contain each word, as a word's prefix. */
+    readonly SEARCH?: string;
     /** Require every condition. */
     readonly AND?: readonly KnownCondition<Row, Relations>[];
     /** Require any condition. */
@@ -241,9 +244,24 @@ export const Condition = {
     /** The schema of a condition. */
     schema: conditionSchema,
     equal,
+    any,
     resolve,
     render,
+    is,
+    conjuncts,
 };
+
+/** Report whether a condition's entry is itself a condition, as in combinations and negations. */
+function is(entry: unknown): entry is JsonCondition {
+    return typeof entry === "object" && entry !== null && !Array.isArray(entry);
+}
+
+/** List the conditions a condition requires at its top: itself and its conjunction's members. */
+function conjuncts(where: JsonCondition | undefined): readonly JsonCondition[] {
+    const conjunction = where?.["AND"];
+
+    return [where ?? {}, ...(Array.isArray(conjunction) ? conjunction.filter(is) : [])];
+}
 
 /** Match rows whose fields equal some values, a null value matching a missing one. */
 function equal(values: Readonly<Record<string, Scalar>>): OpenCondition {
@@ -253,6 +271,16 @@ function equal(values: Readonly<Record<string, Scalar>>): OpenCondition {
             value === null ? { isNull: true } : value,
         ]),
     );
+}
+
+/** Resolve conditions the engine builds, such as reads of many keys, unbounded, matching any. */
+function any(conditions: readonly Condition[], table: Table): Predicate {
+    const fields = Namespace.fields(table);
+
+    return {
+        kind: "any",
+        predicates: conditions.map((condition) => resolveCondition(condition, fields)),
+    };
 }
 
 /** Resolve a bounded condition against its row's fields, any other name being a relation. */
@@ -297,6 +325,14 @@ function resolveEntry(name: string, entry: OpenEntry, fields: ReadonlySet<string
     // negate a condition
     else if (name === "NOT") {
         return { kind: "not", predicate: resolveCondition(conditionOf(name, entry), fields) };
+    }
+    // search the row's text for every word of a query
+    else if (name === "SEARCH") {
+        if (typeof entry !== "string") {
+            throw new DatabaseError("INVALID_QUERY", "a search takes text");
+        }
+
+        return { kind: "search", words: SearchText.query(entry) };
     }
     // compare a field
     else if (fields.has(name)) {
@@ -435,8 +471,8 @@ function nestedPredicates(name: string, field: FieldCondition): Predicate[] {
         predicates.push(Predicate.all(...field.AND.map((nested) => fieldPredicate(name, nested))));
     }
     if (field.OR !== undefined) {
-        const any = field.OR.map((nested) => fieldPredicate(name, nested));
-        predicates.push({ kind: "any", predicates: any });
+        const alternatives = field.OR.map((nested) => fieldPredicate(name, nested));
+        predicates.push({ kind: "any", predicates: alternatives });
     }
     if (field.NOT !== undefined) {
         predicates.push({ kind: "not", predicate: fieldPredicate(name, field.NOT) });

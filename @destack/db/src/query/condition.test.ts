@@ -302,7 +302,12 @@ test("decide relations through the binding, unknown until the relation is read",
     );
     const match = Predicate.compile(predicate, sample);
     const decide = (count: number, exists: boolean | undefined) =>
-        match({ field: () => count, placeholder: () => null, exists: () => exists });
+        match({
+            field: () => count,
+            placeholder: () => null,
+            exists: () => exists,
+            search: () => undefined,
+        });
     expect([decide(1, undefined), decide(0, undefined), decide(0, true), decide(0, false)]).toEqual(
         [true, undefined, false, true],
     );

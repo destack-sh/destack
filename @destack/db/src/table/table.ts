@@ -24,10 +24,15 @@ import type { Condition, Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../log/description.ts";
 import { Tree } from "../tree/tree.ts";
+import { FullTextIndex } from "../search/search.ts";
+import { DatabaseError } from "../error/error.ts";
 import type { ColumnDescription, TableDescription } from "./description.ts";
 import type { TableState } from "../migration/state.ts";
 import type { Row } from "./row.ts";
 import { recordSchema, type JsonShape, type Shape } from "./schema.ts";
+
+/** The schema of a masked column's JSON value. */
+const JSON_VALUE = schema.json();
 
 /** The key of a table's declaration, shared by every copy of this module. */
 export const TABLE = Symbol.for("destack.table");
@@ -120,6 +125,14 @@ export class Table<
                 convert: {},
                 aggregates: [],
                 dependents: [],
+                fullText:
+                    state.fullText === undefined
+                        ? undefined
+                        : new FullTextIndex(
+                              state.fullText.map((column) => properties[column] ?? column),
+                              state.fullText,
+                              description.name,
+                          ),
             },
         );
     }
@@ -157,6 +170,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly aggregates: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
+    /** The table's full-text index, absent for a table nothing searches. */
+    readonly fullText: FullTextIndex | undefined;
     /** The source table of a query alias. */
     readonly source: Table | undefined;
     /** The table this defines. */
@@ -175,6 +190,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     #entries: readonly (readonly [string, Column])[] | undefined;
     /** The logged columns, read on first use. */
     #logged: Readonly<Record<string, Column>> | undefined;
+    /** The columns whose schemas mark personal values, read on first use. */
+    #personal: ReadonlySet<string> | undefined;
     /** The built statements by name. */
     readonly #statements = new Map<string, Statement>();
     /** The table's descriptions by dialect, described on first use. */
@@ -199,6 +216,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.convert = declaration.convert;
         this.aggregates = declaration.aggregates;
         this.dependents = declaration.dependents;
+        this.fullText = declaration.fullText;
         this.source = options.source;
         this.#table = table;
         this.#declared = declaration.constraints;
@@ -298,6 +316,47 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return this.#logged;
     }
 
+    /** The columns whose schemas mark personal values, which concealment masks. */
+    get personal(): ReadonlySet<string> {
+        this.#personal ??= new Set(
+            this.entries
+                .filter(([, column]) => schema.marksPersonal(column.definition.schema))
+                .map(([property]) => property),
+        );
+
+        return this.#personal;
+    }
+
+    /** Show a row as readers lacking its concealed columns see it, personal values masked. */
+    conceal(row: Row, concealed: readonly string[]): Row {
+        // keep a row nothing conceals as it is
+        if (concealed.length === 0) {
+            return row;
+        }
+
+        return Object.fromEntries(
+            Object.entries(row).flatMap(([property, value]) => {
+                // keep a shown column, mask a personal one, and leave out the rest
+                if (!concealed.includes(property)) {
+                    return [[property, value]];
+                } else if (this.personal.has(property)) {
+                    return [[property, maskOf(this.column(property), value)]];
+                }
+
+                return [];
+            }),
+        );
+    }
+
+    /** Read the table's full-text index, refusing a table nothing searches. */
+    requireFullText(): FullTextIndex {
+        if (this.fullText === undefined) {
+            throw new DatabaseError("INVALID_QUERY", `${this.name} keeps no text to search`);
+        }
+
+        return this.fullText;
+    }
+
     /** Read a column by property, failing for a property the table does not declare. */
     column(property: string): Column {
         const column = this.columns[property];
@@ -343,12 +402,12 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
 
     /** Write the columns a row has in JSON form, leaving out concealed ones. */
     encode(row: Row, concealed: readonly string[] = []): Record<string, JsonValue> {
-        return encodeRow(this.entries, row, concealed);
+        return encodeRow(this.entries, this.conceal(row, concealed));
     }
 
     /** Write a row's logged columns as JSON without concealed ones, as log readers see it. */
     encodeLogged(row: Row, concealed: readonly string[]): Record<string, JsonValue> {
-        return encodeRow(Object.entries(this.logged), row, concealed);
+        return encodeRow(Object.entries(this.logged), this.conceal(row, concealed));
     }
 
     /** Fill a row's omitted columns in memory: each default, else null in a nullable column. */
@@ -533,6 +592,8 @@ interface TableDeclaration {
     readonly aggregates: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
+    /** The table's full-text index, absent for a table nothing searches. */
+    readonly fullText: FullTextIndex | undefined;
 }
 
 /** A count, sum or extreme of one table's rows kept on the rows they reference. */
@@ -607,6 +668,8 @@ export interface TableOptions<Columns> {
     readonly aggregates?: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents?: readonly Dependent[];
+    /** The text properties a full-text index keeps, in a logged table. */
+    readonly fullText?: readonly (keyof Columns & string)[];
 }
 
 /** The columns by property. */
@@ -717,6 +780,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
             convert: options.convert ?? {},
             aggregates: options.aggregates ?? [],
             dependents: options.dependents ?? [],
+            fullText: fullTextOf(name, sqlName, columns, options),
         },
         options.tree === undefined ? {} : { tree: options.tree },
     );
@@ -747,6 +811,7 @@ export function alias<Definition extends Table, Name extends string>(
             convert: source[TABLE].convert,
             aggregates: source[TABLE].aggregates,
             dependents: source[TABLE].dependents,
+            fullText: source[TABLE].fullText,
         },
         { source },
     );
@@ -813,16 +878,48 @@ function aliasColumns(source: Table, name: string): ColumnMap {
 function encodeRow(
     columns: readonly (readonly [string, Column])[],
     row: Row,
-    concealed: readonly string[],
 ): Record<string, JsonValue> {
     const encoded: Record<string, JsonValue> = {};
     for (const [property, column] of columns) {
-        // write the unconcealed columns the row has
+        // write the columns the row has
         const value = row[property];
-        if (value !== undefined && !concealed.includes(property)) {
+        if (value !== undefined) {
             encoded[property] = value === null ? null : column.definition.toJson(value);
         }
     }
 
     return encoded;
+}
+
+/** Mask the personal values a column's schema marks in its value. */
+function maskOf(column: Column, value: ColumnValue): ColumnValue {
+    return value === null ? null : schema.mask(column.definition.schema, JSON_VALUE.parse(value));
+}
+
+/** Read a table's full-text index, refusing non-text columns and an unlogged table. */
+function fullTextOf(
+    name: string,
+    sqlName: string,
+    columns: ColumnMap,
+    options: Pick<TableOptions<ColumnMap>, "fullText" | "log">,
+): FullTextIndex | undefined {
+    // index no text by default
+    const search = options.fullText ?? [];
+    if (search.length > 0 && options.log === undefined) {
+        throw new TypeError(`table ${name} searches text, which needs its changes logged`);
+    }
+
+    // require text columns
+    const untexted = search.find((property) => columns[property]?.definition.kind !== "text");
+    if (untexted !== undefined) {
+        throw new TypeError(`table ${name} searches ${untexted}, which keeps no text`);
+    }
+
+    return search.length === 0
+        ? undefined
+        : new FullTextIndex(
+              search,
+              search.map((property) => present(columns[property], property).definition.name),
+              sqlName,
+          );
 }

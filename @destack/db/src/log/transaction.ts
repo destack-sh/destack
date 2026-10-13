@@ -4,6 +4,7 @@ import { v7 } from "uuid";
 import type { ConnectionState } from "../database/connection.ts";
 import { LOG_TRANSACTION } from "./schema.ts";
 import { relation } from "../table/namespace.ts";
+import { FullTextIndex } from "../search/search.ts";
 
 /** Identify a SQLite transaction to the change triggers. */
 export async function openTransaction(
@@ -27,11 +28,12 @@ export async function openTransaction(
     return true;
 }
 
-/** Clear the transaction identity before commit. */
+/** Keep the transaction's searched rows' full-text rows, then clear its identity before commit. */
 export async function closeTransaction(
     session: Session,
     connection: ConnectionState,
 ): Promise<void> {
+    await FullTextIndex.keep(session, connection.searched, connection.namespace);
     const marker = quote(relation(LOG_TRANSACTION, connection.namespace));
     await session.run(`DELETE FROM ${marker} WHERE slot = 1`, []);
 }

@@ -3,6 +3,7 @@ import type { TableDescription } from "../table/description.ts";
 import type { TreeDescription } from "../tree/description.ts";
 import { createLog, logTriggers } from "../log/trigger.ts";
 import { treeTriggers } from "../tree/trigger.ts";
+import { FullTextIndex } from "../search/search.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
 import { dependentTriggers } from "../dependent/trigger.ts";
 import { createState, deleteState, coversState, type TableState } from "./state.ts";
@@ -11,7 +12,7 @@ import { quote } from "../dialect/quote.ts";
 import { bridgeTriggers } from "./bridge.ts";
 import type { Triggers } from "./trigger.ts";
 import type { Merge } from "./merge.ts";
-import { canonicalize, Version } from "@destack/schema";
+import { canonicalize, present, Version } from "@destack/schema";
 import { v7 } from "uuid";
 import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
@@ -89,8 +90,10 @@ export function planTables(input: PlanInput): TablePlan {
     // drop applied tables no longer declared, keeping those a newer release of a declared package added
     const dropped = droppedTables(declared, remaining);
     for (const name of dropped) {
+        const previous = present(remaining.get(name), `the applied state of ${name}`);
         steps.push(
             step("delete", Address.join("table", name), "destructive", "drop table", [
+                ...(previous.fullText === undefined ? [] : FullTextIndex.drop(previous, dialect)),
                 statement.dropTable(name),
                 deleteState(name, input.namespace),
             ]),
@@ -186,9 +189,14 @@ function planCreate(
 
         return undefined;
     }
-    // create the table
+    // create the table and its full-text index
     else {
-        const statements = createStatements(state.table);
+        const statements = [
+            ...createStatements(state.table),
+            ...(state.fullText === undefined
+                ? []
+                : FullTextIndex.create(state, state.table.dialect)),
+        ];
 
         return step("create", Address.join("table", name), "safe", "create table", statements);
     }
@@ -227,6 +235,7 @@ function planChange(
     changes.push(...convertSteps(state, previous, isEmpty, problems));
     changes.push(...bridgeSteps(state, previous));
     changes.push(...treeSteps(state, previous));
+    changes.push(...fullTextSteps(state, previous));
 
     // reinstall log triggers when nothing else changed
     if (
@@ -305,6 +314,33 @@ function treeSteps(state: TableState, previous: TableState): TableStep[] {
     );
 
     return [{ ...rebuild, tree: state.tree }];
+}
+
+/** Rebuild a full-text index whose columns or table changed, and drop or create one as declared. */
+function fullTextSteps(state: TableState, previous: TableState): TableStep[] {
+    // leave an unchanged index of an unrenamed table
+    const isSame =
+        canonicalize(state.fullText ?? null) === canonicalize(previous.fullText ?? null) &&
+        state.table.name === previous.table.name;
+    if (isSame) {
+        return [];
+    }
+
+    // drop the applied index, then create the declared one
+    const dialect = state.table.dialect;
+
+    return [
+        step(
+            "update",
+            Address.join("table", state.table.name, "fullText"),
+            "safe",
+            "rebuild the full-text index",
+            [
+                ...(previous.fullText === undefined ? [] : FullTextIndex.drop(previous, dialect)),
+                ...(state.fullText === undefined ? [] : FullTextIndex.create(state, dialect)),
+            ],
+        ),
+    ];
 }
 
 /** Compute new or changed aggregates and stop keeping removed ones. */
