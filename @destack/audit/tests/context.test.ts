@@ -2,19 +2,20 @@ import { expect, test } from "@destack/test";
 import { ServiceContext } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service";
-import { schema, Clock } from "@destack/schema";
+import { Clock, Identifier, schema } from "@destack/schema";
 import { AuditActor, AuditCaller } from "../src/record/index.ts";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./storage.ts";
 import { anyone, type Caller, principal } from "@destack/access";
 
-test("persist verified caller identities, record an unauthenticated caller as anyone, and tell apart identities of different scopes", async () => {
+test("persist verified caller identities with their delegates and grant, record an unauthenticated caller as anyone, and tell apart identities of different scopes", async () => {
     const storage = await AuditStorage.open();
     try {
         // use the same identifier in two scopes
         const origin = { package: documentRename.package, service: "document", scope: "universe" };
         const now = Date.now();
         const represented = principal.user.reference("universe", "person");
+        const grantId = Identifier.create("grant");
         const actor = principal.installation.reference("space-example", "agent");
         const deploymentId = schema
             .identifier("deployment")
@@ -33,7 +34,8 @@ test("persist verified caller identities, record an unauthenticated caller as an
                     },
                     { subject: actor, id: deploymentId },
                 ],
-                delegates: [{ subject: actor, authority: "lent" as const }],
+                delegates: [actor],
+                grant: { id: grantId, scope: represented.id, permissions: [] },
             },
             { subject: principal.installation.reference("space-example", "share") },
         ];
@@ -103,8 +105,9 @@ test("persist verified caller identities, record an unauthenticated caller as an
             { ...origin, caller: local },
             {
                 ...origin,
-                caller: { ...person, delegates: [{ subject: actor, authority: "lent" }] },
+                caller: { ...person, delegates: [actor] },
                 deploymentId,
+                grantId,
             },
             { ...origin, caller: share },
             { ...origin, caller: { subject: anyone.reference("*", "*") } },

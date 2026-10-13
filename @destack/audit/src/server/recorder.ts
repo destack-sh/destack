@@ -98,7 +98,7 @@ export class AuditRecorder<Transaction = never> {
         requestId?: string,
     ): AuditRecorder<Transaction> {
         // record the represented subject and its delegates, or anyone, and read who acted
-        const { subject, delegates, credential, loan } = caller;
+        const { subject, delegates, credential, grant } = caller;
         const recorded: AuditCaller =
             subject === undefined
                 ? AuditCaller.anyone
@@ -129,7 +129,7 @@ export class AuditRecorder<Transaction = never> {
                 ...(sessionId === undefined ? {} : { sessionId }),
                 ...(tokenId === undefined ? {} : { tokenId }),
                 ...(traceId === undefined ? {} : { traceId }),
-                ...(loan === undefined ? {} : { loan: { id: loan.id, issuer: loan.issuer } }),
+                ...(grant === undefined ? {} : { grantId: grant.id }),
             },
             writer,
             requestId,

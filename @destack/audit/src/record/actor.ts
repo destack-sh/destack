@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { anyone, Delegate } from "@destack/access";
+import { anyone } from "@destack/access";
 import { Subject } from "@destack/sync";
 
 /** The principal that performed a call. */
@@ -27,7 +27,7 @@ const auditCaller = defineSchema(
         /** The represented principal, anyone for an unauthenticated caller. */
         subject: Subject,
         /** The principals acting for the subject in order, the last one sending the call. */
-        delegates: schema.array(Delegate).exactOptional(),
+        delegates: schema.array(Subject).exactOptional(),
         /** The represented subject's display name captured when recording. */
         name: schema.string().exactOptional(),
     }),
@@ -42,7 +42,7 @@ export const AuditCaller = Object.assign(auditCaller, {
 
     /** Read who acted: the last delegate, else the represented subject. */
     actor(caller: AuditCaller): AuditActor {
-        const sender = caller.delegates?.at(-1)?.subject;
+        const sender = caller.delegates?.at(-1);
 
         return sender === undefined
             ? {

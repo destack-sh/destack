@@ -11,15 +11,8 @@ export const AuditContext = defineSchema(
         component: schema.string().min(1).exactOptional(),
         /** The scope whose history receives the call. */
         scope: schema.string().min(1),
-        /** The Loan the caller's authority came with: its identifier and its signing home space. */
-        loan: schema
-            .object({
-                /** The Loan's identifier. */
-                id: schema.string().min(1),
-                /** The home space that signed it. */
-                issuer: schema.string().min(1),
-            })
-            .exactOptional(),
+        /** The grant the caller's delegates acted under. */
+        grantId: schema.identifier("grant").exactOptional(),
         /** The package serving the call. */
         package: Package,
         /** The service serving the call. */
