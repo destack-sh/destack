@@ -14,7 +14,7 @@
         "./publish": "./src/publish/index.ts",
         "./server": "./src/server/index.ts",
         "./test": "./src/test/index.ts",
-        "./service": "./src/service/index.ts"
+        "./package": "./src/package.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",
@@ -25,7 +25,7 @@
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/service": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "@tufjs/models": "5.0.0",
         "tar": "7.5.22",
         "tuf-js": "6.0.0"

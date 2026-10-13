@@ -37,8 +37,6 @@ export const distribution = defineObject({
     },
     permissions: ["read", "update", "record"],
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("record", { isInternal: true }),
     /** Download and verify the channel's latest release if newer than the installed one. */
     stage: method.mutation({ permission: "update", prepared: Staging }),

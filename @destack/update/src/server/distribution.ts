@@ -1,12 +1,12 @@
 import type { ObjectStore, ObjectExtension } from "@destack/object/server";
-import { distributionService } from "../service/index.ts";
+import updatePackage from "../package.ts";
 import type { Identifier } from "@destack/schema";
-import type { Controller } from "@destack/service/control";
-import { ServiceError } from "@destack/service/error";
+import type { Controller } from "@destack/runtime/control";
+import { CallError } from "@destack/runtime/error";
 import type { Distribution } from "../distribution/index.ts";
 import { distribution } from "../object/index.ts";
 import { Caller } from "@destack/access";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 
 /** How often the distribution stages its channel's latest release: daily, Sparkle's default. */
 const STAGE_INTERVAL_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -29,7 +29,7 @@ export function implementDistributions(options: {
     const { host } = options;
 
     return {
-        service: distributionService,
+        package: updatePackage,
         objects: [serveDistributions(host)],
         serve: (store) => ({
             controllers:
@@ -68,7 +68,7 @@ export function serveDistributions(host: DistributionHost | undefined) {
                     // require a staged release
                     const staged = await requireHost(host).distribution.staged();
                     if (staged === undefined) {
-                        throw new ServiceError("PRECONDITION_FAILED", {
+                        throw new CallError("PRECONDITION_FAILED", {
                             message: "no Destack release is staged",
                         });
                     }
@@ -142,7 +142,7 @@ export class DistributionController implements Controller {
                   )
                 : [found];
         if (recorded === undefined) {
-            throw new ServiceError("INTERNAL_SERVER_ERROR", {
+            throw new CallError("INTERNAL_SERVER_ERROR", {
                 message: "recording the distribution answered nothing",
             });
         }
@@ -164,7 +164,7 @@ export class DistributionController implements Controller {
 /** Read the host's distribution. */
 function requireHost(host: DistributionHost | undefined): DistributionHost {
     if (host === undefined) {
-        throw new ServiceError("PRECONDITION_FAILED", {
+        throw new CallError("PRECONDITION_FAILED", {
             message: "development builds take no published updates",
         });
     }
