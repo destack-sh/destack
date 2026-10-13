@@ -1,14 +1,9 @@
 import { basename, dirname, join, resolve } from "node:path";
 import { Installation } from "../installation/index.ts";
 import type { StagedRelease } from "../install/installer.ts";
-import type { Channel, Release } from "../release/index.ts";
+import { CHANNEL_ROOTS, type Channel, type Release } from "../release/index.ts";
 import { UpdateError } from "../error/index.ts";
 import { Updater } from "../update/index.ts";
-import nightly from "./root/nightly.json" with { type: "json" };
-import stable from "./root/stable.json" with { type: "json" };
-
-/** The root metadata each channel's repository is trusted from, bundled with every release. */
-const ROOTS = { stable, nightly } as const satisfies Record<Channel, unknown>;
 
 /** What a distribution is: its channel, location, followed repository and running release. */
 export interface DistributionOptions {
@@ -64,7 +59,7 @@ export class Distribution {
 
     /** Read the root metadata a channel's releases bundle, which its repository is trusted from. */
     static root(channel: Channel): string {
-        return JSON.stringify(ROOTS[channel]);
+        return JSON.stringify(CHANNEL_ROOTS[channel]);
     }
 
     /** Find the Mac application containing an executable, absent outside one. */
