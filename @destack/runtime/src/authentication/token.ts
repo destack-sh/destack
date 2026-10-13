@@ -1,5 +1,5 @@
 import { Bearer } from "./bearer.ts";
-import type { PackageId } from "@destack/package";
+import { PackageId } from "@destack/package";
 import {
     createLocalJWKSet,
     createRemoteJWKSet,
@@ -8,7 +8,7 @@ import {
     type JSONWebKeySet,
     type JWTVerifyGetKey,
 } from "jose";
-import { schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import {
     Caller,
@@ -45,37 +45,46 @@ export const TokenIdentity = Caller.schema
 /** The verified identity an access token signs. */
 export type TokenIdentity = schema.Infer<typeof TokenIdentity>;
 
-/** The claims of an access token, in their RFC 7519, 7800, 8693 and 9396 names. */
-export const AccessTokenClaims = schema
+/** The JWT type of an access token (RFC 9068 2.1). */
+export const ACCESS_TOKEN_TYPE = "at+jwt";
+
+/** An access token as RFC 9068 shapes it, with RFC 8693's `act` and Destack's claims. */
+export const AccessToken = schema
     .object({
-        /** The issuer: the universe's URL, or a space signing for itself. */
+        /** The issuer: the token endpoint's issuer URL, or a space signing for itself. */
         iss: schema.string(),
         /** The represented subject's identifier. */
         sub: schema.string(),
-        /** The receiving package. */
-        aud: schema.string(),
+        /** The receiving packages, each as its resource URI. */
+        aud: schema.union([schema.string(), schema.array(schema.string()).min(1)]),
+        /** The key holder the token was issued to: the sending principal, or a user's client. */
+        client_id: schema.union([
+            schema.identifier("client"),
+            schema.identifier("machine"),
+            schema.identifier("installation"),
+            schema.identifier("space"),
+            schema.identifier("token"),
+        ]),
+        /** The granted scopes, space separated. */
+        scope: schema.string().exactOptional(),
         /** The token's unique identifier. */
         jti: schema.string().min(1),
         /** The issue time, in UTC epoch seconds. */
         iat: schema.number().int(),
         /** The expiry time, in UTC epoch seconds. */
         exp: schema.number().int(),
-        /** The token's use, always an access token. */
-        token_use: schema.literal("access"),
         /** The principals acting for the subject in order, the last sending the call. */
         act: schema.array(Subject).min(1).exactOptional(),
         /** The grant limiting the call to what the subject gave. */
         grant: CallerGrant.exactOptional(),
-        /** The client whose key the token is bound to. */
-        cnf: schema.object({ client: schema.identifier("client") }).exactOptional(),
         /** The space the token is bound to, absent for a call to a universe package. */
         space: schema.identifier("space").exactOptional(),
         /** The verified identity. */
         caller: TokenIdentity,
     })
     .loose();
-/** The claims of an access token. */
-export type AccessTokenClaims = schema.Infer<typeof AccessTokenClaims>;
+/** An access token as RFC 9068 shapes it. */
+export type AccessToken = schema.Infer<typeof AccessToken>;
 
 /** A caller a token verified: its subject and its credential, both present. */
 type VerifiedCaller = Caller & Required<Pick<Caller, "subject" | "credential">>;
@@ -130,13 +139,14 @@ export class TokenVerifier {
         // verify the signature and registered claims
         const payload = await this.#verifySignature(token, now);
 
-        // parse the claims and check the space
-        const result = AccessTokenClaims.safeParse(payload);
+        // parse the claims and check the space and the client
+        const result = AccessToken.safeParse(payload);
+        const client = result.success ? clientOf(result.data) : undefined;
         if (
             !result.success ||
+            client === undefined ||
             (spaceId !== undefined && result.data.space !== spaceId) ||
             result.data.sub !== result.data.caller.subject.id ||
-            result.data.aud !== this.options.audience ||
             result.data.exp <= result.data.iat
         ) {
             throw new CallError("UNAUTHORIZED", { message: "invalid access token claims" });
@@ -158,7 +168,7 @@ export class TokenVerifier {
             ...(claims.grant === undefined ? {} : { grant: claims.grant }),
             credential: {
                 ...credential,
-                ...(claims.cnf === undefined ? {} : { client: claims.cnf.client }),
+                ...client,
                 audience: this.options.audience,
                 ...(claims.space === undefined ? {} : { scope: claims.space }),
                 verifiedAt,
@@ -178,10 +188,11 @@ export class TokenVerifier {
     async #verifySignature(token: string, now: number): Promise<unknown> {
         try {
             const { payload } = await jwtVerify(token, this.keys, {
+                typ: ACCESS_TOKEN_TYPE,
                 issuer: this.options.issuer,
-                audience: this.options.audience,
+                audience: PackageId.resource(this.options.audience),
                 algorithms: ["ES256"],
-                requiredClaims: ["iss", "aud", "sub", "iat", "exp", "jti"],
+                requiredClaims: ["iss", "aud", "sub", "client_id", "iat", "exp", "jti"],
                 maxTokenAge: (this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS) / 1000,
                 clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
                 currentDate: new Date(now),
@@ -243,6 +254,20 @@ export const TokenIssuerAuthority = {
         requireDelegation(caller);
     },
 };
+
+/** Read a token's client: none for the sender's own key, else a user's client. */
+function clientOf(token: AccessToken): { readonly client?: Identifier<"client"> } | undefined {
+    // take the sender's own key, the last delegate or else the subject, else require a client
+    const sender = token.act?.at(-1)?.id ?? token.sub;
+    const client = schema.identifier("client").safeParse(token.client_id);
+    if (token.client_id === sender) {
+        return {};
+    } else if (client.success) {
+        return { client: client.data };
+    }
+
+    return undefined;
+}
 
 /** Require a space key's claims to assert the space or its installations alone. */
 function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly Subject[]): void {

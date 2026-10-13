@@ -414,11 +414,9 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
 
 /** The directory as the fixture's workloads see it. */
 const directory: InstallationDirectory = {
-    isHome: async () => false,
     locale: async (subject) => {
         throw new Error(`no person ${subject} reads a locale here`);
     },
-    address: async () => {},
     messageKey: async (space) => {
         throw new Error(`no space ${space} is sent messages here`);
     },

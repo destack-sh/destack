@@ -1,7 +1,8 @@
 import { schema } from "@destack/schema";
 import type { JWTPayload } from "jose";
 import { Caller } from "@destack/access";
-import { type AccessTokenClaims, TokenIdentity, TokenIssuerAuthority } from "./token.ts";
+import { PackageId } from "@destack/package";
+import { ACCESS_TOKEN_TYPE, AccessToken, TokenIdentity, TokenIssuerAuthority } from "./token.ts";
 import { CallError } from "../error/index.ts";
 
 /** Issue access tokens for verified callers. */
@@ -47,23 +48,30 @@ export class TokenIssuer {
         );
         const { delegates = [], grant } = caller;
 
+        // issue to the caller's client, else to the sending principal itself
+        const sender = delegates.at(-1) ?? caller.subject;
+        const client = AccessToken.shape.client_id.safeParse(credential.client ?? sender.id);
+        if (!client.success) {
+            throw new CallError("UNAUTHORIZED", { message: "a user's token needs a client" });
+        }
+
         // sign the registered claims with the caller
-        const accessToken = await this.options.sign({
+        const claims = {
             iss: this.options.issuer,
             sub: caller.subject.id,
-            aud: credential.audience,
+            aud: PackageId.resource(credential.audience),
+            client_id: client.data,
             iat: issuedAt,
             exp: expiresAt,
             jti: crypto.randomUUID(),
-            token_use: "access",
             ...(delegates.length === 0 ? {} : { act: [...delegates] }),
             ...(grant === undefined ? {} : { grant }),
-            ...(credential.client === undefined ? {} : { cnf: { client: credential.client } }),
             ...(credential.scope === undefined
                 ? {}
                 : { space: schema.identifier("space").parse(credential.scope) }),
             caller: identity,
-        } satisfies AccessTokenClaims);
+        } satisfies AccessToken;
+        const accessToken = await this.options.sign(claims, { typ: ACCESS_TOKEN_TYPE });
 
         return { accessToken, tokenType: "Bearer" as const, expiresAt: expiresAt * 1000 };
     }
@@ -75,6 +83,6 @@ export interface TokenIssuerOptions {
     readonly issuer: string;
     /** The identity authority of this signer. */
     readonly authority: TokenIssuerAuthority;
-    /** Sign with the authority's active ES256 key. */
-    readonly sign: (payload: JWTPayload) => Promise<string>;
+    /** Sign claims under a header's type with the authority's active ES256 key. */
+    readonly sign: (payload: JWTPayload, header: { readonly typ: string }) => Promise<string>;
 }

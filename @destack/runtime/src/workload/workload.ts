@@ -108,12 +108,8 @@ export interface InstallationContext {
 
 /** The directory as an installation sees it through its machine. */
 export interface InstallationDirectory {
-    /** Decide whether a person lives in a space. */
-    isHome(subject: string, space: string): Promise<boolean>;
     /** Read the language and region a person reads. */
     locale(subject: string): Promise<LocaleTag>;
-    /** Record that the installation sends a person projected rows. */
-    address(recipient: string): Promise<void>;
     /** Read the public key the messages of a space are sealed to, its identity's message key. */
     messageKey(space: string): Promise<string>;
 }

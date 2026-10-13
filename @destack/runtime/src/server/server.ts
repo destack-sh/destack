@@ -273,13 +273,14 @@ export class Server implements AsyncDisposable {
         caller: Caller | undefined,
         draining: AbortSignal,
     ): Promise<RequestContext> {
-        // take the given caller, else authenticate the request, and require it live
+        // take the given caller, else authenticate the request, and require it current here
         let authenticated: Caller | undefined;
         let authenticationError: Error | undefined;
         try {
             const verified = caller ?? (await options.authenticate(request));
             if (verified !== undefined) {
-                Caller.requireLive(verified, options.clock.now());
+                const scope = options.scope ?? verified.credential?.scope;
+                Caller.requireCurrent(verified, options.package.id, options.clock.now(), scope);
             }
             authenticated = verified;
         } catch (error) {

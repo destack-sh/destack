@@ -1,4 +1,5 @@
 import { Caller, principal } from "@destack/access";
+import { PackageId } from "@destack/package";
 import { expect, onTestFinished, test, vi } from "@destack/test";
 import { schema, Clock } from "@destack/schema";
 import { Health, health } from "../health/index.ts";
@@ -705,4 +706,44 @@ test("refuse starting a server whose procedures carry payloads the HTTP layer ca
             drainTimeout: 1000,
         }),
     ).toThrow("unsupported schema check: custom");
+});
+
+test("refuse a caller authenticated for another package as unauthenticated, auditing the denial", async () => {
+    // serve an audited procedure to a caller whose credential names another package
+    const procedures = {
+        get: defineProcedure({ authentication: "public", permission: "anyone", audit: "access" })
+            .route({ method: "GET", path: "/work" })
+            .output(schema.string()),
+    };
+    const implementation = implement(procedures);
+    const audited: string[] = [];
+    const alice = createCaller("alice");
+    const server = Server.start({
+        clock: Clock.system,
+        ...hosting,
+        router: implementation.router({ get: implementation.get.handler(() => "complete") }),
+        health: new Health("work"),
+        drainTimeout: 5,
+        authenticate: async () => ({
+            ...alice,
+            credential: {
+                ...Caller.requireCredential(alice),
+                audience: PackageId.parse("package-019f7480-0000-7000-8000-0000000000ff"),
+            },
+        }),
+        audit: async (event) => {
+            audited.push(event.call.context.authenticationError?.message ?? "verified");
+        },
+    });
+    onTestFinished(() => server.close());
+
+    // answer unauthorized, recording the failed authentication
+    const client = createClient(
+        { version: fixturePackage.version, router: procedures },
+        { url: "https://test.local", fetch: (request) => server.fetch(request) },
+    );
+    expect(await settle(client.get())).toBe(
+        "UNAUTHORIZED: caller authentication has a different audience or scope",
+    );
+    expect(audited).toEqual(["caller authentication has a different audience or scope"]);
 });

@@ -15,9 +15,7 @@ const IDLE: Uplink = {
 
 /** A directory in which nobody lives anywhere. */
 const NOBODY: InstallationDirectory = {
-    isHome: () => Promise.resolve(false),
     locale: (subject) => Promise.reject(new Error(`no person ${subject} reads a locale here`)),
-    address: () => Promise.resolve(),
     messageKey: (space) => Promise.reject(new Error(`no space ${space} is sent messages here`)),
 };
 

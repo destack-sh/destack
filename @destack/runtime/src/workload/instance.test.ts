@@ -57,9 +57,7 @@ const installation: InstallationContext = {
         fetch: () => Promise.reject(new Error("the fixture installation reaches no address")),
     }),
     directory: {
-        isHome: async () => false,
         locale: (subject) => Promise.reject(new TypeError(`the fixture knows no ${subject}`)),
-        address: async () => {},
         messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
     },
 };

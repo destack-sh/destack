@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import type { Subject } from "@destack/sync";
 import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
-import { INSTALLATION_KEY, SPACE_KEY, TokenVerifier } from "./token.ts";
+import { ACCESS_TOKEN_TYPE, INSTALLATION_KEY, SPACE_KEY, TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
 import { principal, GrantPermission, Caller } from "@destack/access";
 import { PackageId } from "@destack/package";
@@ -18,12 +18,12 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const issuedAt = Math.floor(Date.now() / 1000);
     const claims = {
         iss: issuer,
-        aud: audience,
+        aud: PackageId.resource(audience),
         sub: subject.id,
         iat: issuedAt,
         exp: issuedAt + 60,
         jti: "token-example",
-        token_use: "access",
+        client_id: "client-019f7480-0000-7000-8000-000000000009",
         space: spaceId,
         caller: {
             credential: { kind: "session", id: "session-example" },
@@ -38,7 +38,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         keys: { keys: [publicKey] },
     });
     const signed = await new SignJWT(claims)
-        .setProtectedHeader({ alg: "ES256", kid: "current" })
+        .setProtectedHeader({ alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE })
         .sign(keys.privateKey);
     const request = new Request("https://notes.example", {
         headers: { authorization: `Bearer ${signed}` },
@@ -56,7 +56,11 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
             new Request(request, {
                 headers: {
                     authorization: `Bearer ${await new SignJWT({ ...claims, act: [impersonator] })
-                        .setProtectedHeader({ alg: "ES256", kid: "current" })
+                        .setProtectedHeader({
+                            alg: "ES256",
+                            kid: "current",
+                            typ: ACCESS_TOKEN_TYPE,
+                        })
                         .sign(keys.privateKey)}`,
                 },
             }),
@@ -80,17 +84,23 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     // reject changed claims signed by a trusted key
     for (const changed of [
         { iss: "https://other.example" },
-        { aud: "another-package" },
+        { aud: audience },
+        {
+            aud: PackageId.resource(
+                PackageId.parse("package-019f7480-0000-7000-8000-000000000008"),
+            ),
+        },
         { sub: "another-user" },
         { exp: issuedAt },
         { iat: issuedAt + 10, exp: issuedAt + 60 },
         { exp: issuedAt + 61 },
-        { token_use: "identity" },
+        { client_id: "user-example-client" },
+        { client_id: "machine-019f7480-0000-7000-8000-000000000009" },
         { jti: "" },
         { space: "space-019f7480-0000-7000-8000-000000000003" },
     ]) {
         const token = await new SignJWT({ ...claims, ...changed })
-            .setProtectedHeader({ alg: "ES256", kid: "current" })
+            .setProtectedHeader({ alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE })
             .sign(keys.privateKey);
         await expect(
             verifier.authenticate(
@@ -101,10 +111,30 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     }
 
+    // accept the audience among several, bound to the user's client, and refuse an untyped token
+    const typed = async (payload: JWTPayload, typ: string) =>
+        verifier.authenticate(
+            new Request(request, {
+                headers: {
+                    authorization: `Bearer ${await new SignJWT(payload)
+                        .setProtectedHeader({ alg: "ES256", kid: "current", typ })
+                        .sign(keys.privateKey)}`,
+                },
+            }),
+            issuedAt * 1000,
+            spaceId,
+        );
+    const several = await typed(
+        { ...claims, aud: [PackageId.resource(audience), "urn:destack:package:other"] },
+        ACCESS_TOKEN_TYPE,
+    );
+    expect(several.credential.client).toBe(claims.client_id);
+    await expect(typed(claims, "JWT")).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
     // reject a token signed by an untrusted key
     const attacker = await generateKeyPair("ES256");
     const forged = await new SignJWT(claims)
-        .setProtectedHeader({ alg: "ES256", kid: "current" })
+        .setProtectedHeader({ alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE })
         .sign(attacker.privateKey);
     await expect(
         verifier.authenticate(
@@ -176,9 +206,9 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const signing = {
         authority: { kind: "universe" as const },
         issuer,
-        sign: async (payload: JWTPayload) =>
+        sign: async (payload: JWTPayload, header: { readonly typ: string }) =>
             new SignJWT(payload)
-                .setProtectedHeader({ alg: "ES256", kid: "current" })
+                .setProtectedHeader({ alg: "ES256", kid: "current", ...header })
                 .sign(keys.privateKey),
     };
     const authority = new TokenIssuer(signing);
@@ -261,12 +291,15 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         [{ ...actor, type: "space" }],
         [secondActor],
     ]) {
-        const token = await signing.sign({
-            ...claims,
-            exp: issuedAt + 30,
-            act,
-            caller: { ...claims.caller, deployments: [{ subject: actor, id: deploymentId }] },
-        });
+        const token = await signing.sign(
+            {
+                ...claims,
+                exp: issuedAt + 30,
+                act,
+                caller: { ...claims.caller, deployments: [{ subject: actor, id: deploymentId }] },
+            },
+            { typ: ACCESS_TOKEN_TYPE },
+        );
         await expect(
             verifier.authenticate(
                 new Request(request, {

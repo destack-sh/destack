@@ -10,7 +10,7 @@ import {
 } from "@destack/db";
 import { PublicKey } from "@destack/identity";
 import type { PackageId } from "@destack/package";
-import { Digest } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import {
     type Caller,
@@ -18,7 +18,7 @@ import {
     KEY_ASSURANCE,
     principal,
 } from "@destack/access";
-import { decodeProtectedHeader, errors, jwtVerify, SignJWT } from "jose";
+import { decodeJwt, decodeProtectedHeader, errors, jwtVerify, SignJWT } from "jose";
 import { CallError } from "../error/index.ts";
 import { Bearer } from "./bearer.ts";
 import { INSTALLATION_KEY, MACHINE_KEY } from "./token.ts";
@@ -50,7 +50,7 @@ export const proofReplay = defineTable(
 export interface AssertionKey {
     /** The key's identifier, which an assertion's header refers to as its kid. */
     readonly id: string;
-    /** The principal the key signs for: a machine or an installation. */
+    /** The principal the key signs as: a machine, an installation or a space. */
     readonly subject: Subject;
     /** The public key. */
     readonly publicKey: PublicKey;
@@ -61,12 +61,13 @@ type AssertedCaller = Caller & Required<Pick<Caller, "subject" | "credential">>;
 
 /** Key-signed assertions principals exchange at a token endpoint (RFC 7523 jwt-bearer). */
 export const Assertion = {
-    /** Sign an assertion of a key's principal for an audience at a time, living a minute. */
+    /** Sign an assertion of a principal under a key for a token endpoint, living a minute. */
     async sign(
         privateKey: CryptoKey,
         key: AssertionKey,
-        audience: PackageId,
+        endpoint: string,
         now: number,
+        subject: string = key.subject.id,
     ): Promise<string> {
         const [algorithm] = PublicKey.algorithms(key.publicKey);
         const issuedAt = Math.floor(now / 1000);
@@ -74,8 +75,8 @@ export const Assertion = {
         return new SignJWT({ jti: crypto.randomUUID() })
             .setProtectedHeader({ alg: algorithm, typ: ASSERTION_TYPE, kid: key.id })
             .setIssuer(key.subject.id)
-            .setSubject(key.subject.id)
-            .setAudience(audience)
+            .setSubject(subject)
+            .setAudience(endpoint)
             .setIssuedAt(issuedAt)
             .setExpirationTime(issuedAt + SIGNED_LIFETIME_MILLISECONDS / 1000)
             .sign(privateKey);
@@ -94,21 +95,23 @@ export class AssertionVerifier {
 
     /** Verify and spend an assertion at a time, answering its principal as the caller. */
     async verify(assertion: string, now: number): Promise<AssertedCaller> {
-        // find the standing key the header refers to
+        // find the standing key of the claimed issuer the header refers to
         const { kid } = refused(() => decodeProtectedHeader(assertion));
-        const key = kid === undefined ? undefined : await this.options.keys(kid, now);
+        const { iss } = refused(() => decodeJwt(assertion));
+        const key =
+            kid === undefined || iss === undefined
+                ? undefined
+                : await this.options.keys(kid, iss, now);
         if (key === undefined) {
             throw new CallError("UNAUTHORIZED", { message: "assertion has no standing key" });
         }
 
-        // verify the signature, the type, and the claims of the key's principal and this audience
-        const id = key.subject.id;
+        // verify the signature, the type, and the claims of the key's principal and this endpoint
         const verifying = jwtVerify(assertion, await PublicKey.import(key.publicKey), {
             algorithms: PublicKey.algorithms(key.publicKey),
             typ: ASSERTION_TYPE,
-            issuer: id,
-            subject: id,
-            audience: this.options.audience,
+            issuer: key.subject.id,
+            audience: this.options.endpoint,
             requiredClaims: ["iat", "exp", "jti"],
             maxTokenAge: ASSERTION_LIFETIME_MILLISECONDS / 1000,
             clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
@@ -119,8 +122,8 @@ export class AssertionVerifier {
                 ? new CallError("UNAUTHORIZED", { message: "assertion expired", cause: error })
                 : Bearer.refusal(error, "invalid assertion");
         });
-        const { iat, exp, jti } = payload;
-        if (iat === undefined || exp === undefined || jti === undefined) {
+        const { sub, iat, exp, jti } = payload;
+        if (sub === undefined || iat === undefined || exp === undefined || jti === undefined) {
             throw new CallError("UNAUTHORIZED", { message: "invalid assertion" });
         } else if ((exp - iat) * 1000 > ASSERTION_LIFETIME_MILLISECONDS) {
             throw new CallError("UNAUTHORIZED", {
@@ -132,16 +135,18 @@ export class AssertionVerifier {
         const expiresAt = exp * 1000;
         await spend(this.options.database, key, jti, expiresAt, now);
 
-        return asserted(key, this.options.audience, now, expiresAt);
+        return asserted(key, sub, this.options.audience, now, expiresAt);
     }
 }
 
 /** The configuration of an assertion verifier. */
 export interface AssertionVerifierOptions {
-    /** The receiving package, every assertion's audience. */
+    /** The token endpoint's URL, every assertion's audience (RFC 7523 3). */
+    readonly endpoint: string;
+    /** The package serving the token endpoint, the audience of the callers it verifies. */
     readonly audience: PackageId;
-    /** Read the standing key an assertion's header refers to at a time, absent for none. */
-    readonly keys: (id: string, now: number) => Promise<AssertionKey | undefined>;
+    /** Read an issuer's standing key an assertion's header refers to, absent for none. */
+    readonly keys: (id: string, issuer: string, now: number) => Promise<AssertionKey | undefined>;
     /** The database keeping spent assertions. */
     readonly database: DatabaseConnection;
 }
@@ -175,19 +180,17 @@ async function spend(
     });
 }
 
-/** Describe a key's principal as the caller its assertion authenticated until it expires. */
+/** Describe an assertion's principal as the caller it authenticated until it expires. */
 function asserted(
     key: AssertionKey,
+    sub: string,
     audience: PackageId,
     now: number,
     expiresAt: number,
 ): AssertedCaller {
-    // take the key kind of a machine, or of an installation within its space
-    const { subject } = key;
+    // take the key's own machine or installation, or an installation its space signs for
+    const subject = assertedSubject(key, sub);
     const isMachine = principal.machine.is(subject);
-    if (!isMachine && !principal.installation.is(subject)) {
-        throw new TypeError(`assertion key ${key.id} signs for no machine or installation`);
-    }
 
     return {
         subject,
@@ -202,6 +205,26 @@ function asserted(
             expiresAt,
         },
     };
+}
+
+/** Read the principal an assertion's subject claim asserts under a key, refusing another. */
+function assertedSubject(key: AssertionKey, sub: string): Subject {
+    // take the key's own machine or installation
+    const { subject } = key;
+    const installation = schema.identifier("installation").safeParse(sub);
+    if (
+        sub === subject.id &&
+        (principal.machine.is(subject) || principal.installation.is(subject))
+    ) {
+        return subject;
+    }
+    // take an installation of the space signing for it
+    else if (principal.space.is(subject) && installation.success) {
+        return principal.installation.reference(subject.id, installation.data);
+    }
+
+    // refuse any other subject
+    throw new CallError("UNAUTHORIZED", { message: "assertion subject exceeds its key" });
 }
 
 /** Read an assertion's header, refusing one that is no compact JWS. */

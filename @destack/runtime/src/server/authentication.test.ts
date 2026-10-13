@@ -179,9 +179,9 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const issuer = new TokenIssuer({
         issuer: "https://account.example",
         authority: { kind: "universe" },
-        sign: (payload) =>
+        sign: (payload, header) =>
             new SignJWT(payload)
-                .setProtectedHeader({ alg: "ES256", kid: "current" })
+                .setProtectedHeader({ alg: "ES256", kid: "current", ...header })
                 .sign(keys.privateKey),
     });
     const verifier = new TokenVerifier({
@@ -202,6 +202,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                 credential: {
                     kind: "session",
                     id: subject.id,
+                    client: Identifier.create("client"),
                     audience: packageId,
                     scope: spaceId,
                     verifiedAt: now,
@@ -336,6 +337,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             credential: {
                 kind: "personal",
                 id: "restricted-token",
+                client: Identifier.create("client"),
                 audience: packageId,
                 scope: spaceId,
                 verifiedAt: now,

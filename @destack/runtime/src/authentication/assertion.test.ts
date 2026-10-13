@@ -3,13 +3,16 @@ import { TestDatabase } from "@destack/db/test";
 import { KEY_ASSURANCE, principal } from "@destack/access";
 import { PublicKey } from "@destack/identity";
 import { PackageId } from "@destack/package";
+import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { SignJWT } from "jose";
 import { Assertion, AssertionVerifier, proofReplay, type AssertionKey } from "./assertion.ts";
 import { MACHINE_KEY } from "./token.ts";
 
-/** The package receiving the calls. */
+/** The package serving the token endpoint. */
 const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000031");
+/** The token endpoint every assertion names as its audience. */
+const endpoint = "https://account.example/oauth2/token";
 
 /** Generate a P-256 key pair. */
 async function generate(): Promise<CryptoKeyPair> {
@@ -32,28 +35,29 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
         publicKey: await PublicKey.of(pair.publicKey),
     };
     const verifier = new AssertionVerifier({
+        endpoint,
         audience,
         keys: async (id) => (id === key.id ? key : undefined),
         database: storage.database,
     });
     const now = Date.now();
-    const signed = await Assertion.sign(pair.privateKey, key, audience, now);
+    const signed = await Assertion.sign(pair.privateKey, key, endpoint, now);
 
     // sign a late, forged, unknown, foreign and untyped assertion
     const issuedAt = Math.floor(now / 1000);
-    const foreign = PackageId.parse("package-019f7480-0000-7000-8000-000000000032");
+    const foreign = "https://other.example/oauth2/token";
     const untyped = new SignJWT({ jti: "untyped" })
         .setProtectedHeader({ alg: "ES256", kid: key.id })
         .setIssuer(key.subject.id)
         .setSubject(key.subject.id)
-        .setAudience(audience)
+        .setAudience(endpoint)
         .setIssuedAt(issuedAt)
         .setExpirationTime(issuedAt + 60);
     const refused: [string, number][] = [
         [signed, now],
-        [await Assertion.sign(pair.privateKey, key, audience, now), now + 120_000],
-        [await Assertion.sign(forger.privateKey, key, audience, now), now],
-        [await Assertion.sign(pair.privateKey, { ...key, id: "key-2" }, audience, now), now],
+        [await Assertion.sign(pair.privateKey, key, endpoint, now), now + 120_000],
+        [await Assertion.sign(forger.privateKey, key, endpoint, now), now],
+        [await Assertion.sign(pair.privateKey, { ...key, id: "key-2" }, endpoint, now), now],
         [await Assertion.sign(pair.privateKey, key, foreign, now), now],
         [await untyped.sign(pair.privateKey), now],
     ];
@@ -102,13 +106,14 @@ test("authenticate an installation within its space", async () => {
         publicKey: await PublicKey.of(pair.publicKey),
     };
     const verifier = new AssertionVerifier({
+        endpoint,
         audience,
         keys: async () => key,
         database: storage.database,
     });
     const now = Date.now();
     const caller = await verifier.verify(
-        await Assertion.sign(pair.privateKey, key, audience, now),
+        await Assertion.sign(pair.privateKey, key, endpoint, now),
         now,
     );
 
@@ -118,4 +123,44 @@ test("authenticate an installation within its space", async () => {
         "installation-key",
         "space-1",
     ]);
+});
+
+test("authenticate an installation by its space's key, refusing a subject the key cannot assert", async () => {
+    const storage = await TestDatabase.create("sqlite", [proofReplay], { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // publish a space's key, found under the issuer its assertions claim
+    const pair = await generate();
+    const spaceId = Identifier.create("space");
+    const key: AssertionKey = {
+        id: "key-1",
+        subject: principal.space.reference(Scope.universe.id, spaceId),
+        publicKey: await PublicKey.of(pair.publicKey),
+    };
+    const verifier = new AssertionVerifier({
+        endpoint,
+        audience,
+        keys: async (id, issuer) => (id === key.id && issuer === spaceId ? key : undefined),
+        database: storage.database,
+    });
+
+    // assert an installation of the space, the space itself, and a machine
+    const now = Date.now();
+    const installationId = Identifier.create("installation");
+    const sign = (subject: string) => Assertion.sign(pair.privateKey, key, endpoint, now, subject);
+    const caller = await verifier.verify(await sign(installationId), now);
+    const refusals = [
+        await refusal(verifier.verify(await sign(spaceId), now)),
+        await refusal(verifier.verify(await sign(Identifier.create("machine")), now)),
+    ];
+
+    // answer the installation within its space, refusing what the space's key cannot assert
+    expect({ subject: caller.subject, scope: caller.credential.scope, refusals }).toEqual({
+        subject: principal.installation.reference(spaceId, installationId),
+        scope: spaceId,
+        refusals: [
+            ["UNAUTHORIZED", "assertion subject exceeds its key"],
+            ["UNAUTHORIZED", "assertion subject exceeds its key"],
+        ],
+    });
 });
