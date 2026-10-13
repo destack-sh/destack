@@ -11,6 +11,7 @@ import { ServiceError } from "../error/index.ts";
 import type {
     AuditHistory,
     EphemeralHost,
+    HookHandler,
     InstallationContext,
     Workload,
     WorkloadContext,
@@ -120,6 +121,11 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#current.requireSocketHandler();
     }
 
+    /** What the workload does with its store's hook requests, refusing a workload serving none. */
+    requireHookHandler(): HookHandler {
+        return this.#current.requireHookHandler();
+    }
+
     /** Request shutdown. */
     shutdown(): void {
         this.#controller.abort();
@@ -162,6 +168,8 @@ class Generation {
     readonly #cleanup = new AsyncDisposableStack();
     /** What the start does with its held sockets' events, absent for a start holding none. */
     #sockets: SocketHandler | undefined;
+    /** What the start does with its store's hook requests, absent for a start serving none. */
+    #hooks: HookHandler | undefined;
     /** The shutdown. */
     #closing?: Promise<void>;
 
@@ -207,6 +215,7 @@ class Generation {
                 generation.#register(trigger);
             }
             generation.#sockets = implementation.sockets;
+            generation.#hooks = implementation.hooks;
 
             // reject a cancelled start
             generation.#controller.signal.throwIfAborted();
@@ -286,6 +295,15 @@ class Generation {
         }
 
         return this.#sockets;
+    }
+
+    /** What the start does with its store's hook requests, refusing a start serving none. */
+    requireHookHandler(): HookHandler {
+        if (this.#hooks === undefined) {
+            throw new ServiceError("NOT_FOUND", { message: "the workload serves no hooks" });
+        }
+
+        return this.#hooks;
     }
 
     /** Abort the start's background work. */

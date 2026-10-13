@@ -2,16 +2,9 @@ import { Address, Plan, type Comparator, type Step } from "@destack/resource";
 import { schema, Version, type JsonSchema } from "@destack/schema";
 import type { ServiceRouter } from "../service/index.ts";
 import { describeProcedures } from "./procedure.ts";
-import {
-    ProcedureDescription,
-    RouterDescription,
-    ServiceDescription,
-} from "../service/description.ts";
+import { ProcedureDescription, RouterDescription, ServiceDescription } from "../service/description.ts";
 import type { Service } from "../declare/service.ts";
 import { graph } from "@destack/package";
-
-/** The kind of the declarations `defineService` makes, as manifests list them. */
-export const SERVICE_DECLARATION = "service";
 
 /** The releases a procedure converts earlier callers' inputs at. */
 const CONVERSIONS = schema.record(schema.string(), schema.json());
@@ -32,7 +25,10 @@ export function describeService(service: Service): ServiceDescription {
         protocol: service.protocol,
         api: describeRouter(service.name, service.router),
         objects: Object.fromEntries(
-            Object.entries(service.objects).map(([route, type]) => [route, type.name]),
+            Object.entries(service.objects).map(([route, routed]) => [
+                route,
+                { type: routed.typeReference, hooks: routed.hooks },
+            ]),
         ),
         routes: Object.keys(service.router).filter((route) => !derived.has(route)),
     });

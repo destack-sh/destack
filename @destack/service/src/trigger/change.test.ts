@@ -1,12 +1,19 @@
+import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { describeTrigger } from "../inspect/index.ts";
 import { defineService } from "../declare/service.ts";
 import { MAX_LAG_MILLISECONDS } from "./change.ts";
 import { defineTrigger, RunEvent } from "./trigger.ts";
 
+/** The package-qualified note type the calls call. */
+const NOTE = {
+    packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000001"),
+    type: "note",
+};
+
 /** Summarize the changed note. */
 function summarize() {
-    return { method: "note.summarize", input: {}, release: "2026.9.0" };
+    return { type: NOTE, method: "summarize", input: {}, release: "2026.9.0" };
 }
 
 /** Derive the request of a change at a position, at a snapshot row when keyed. */

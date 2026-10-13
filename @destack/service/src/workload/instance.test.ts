@@ -1,6 +1,6 @@
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
-import { present, Clock } from "@destack/schema";
+import { present, Clock, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { defineWorkload, type InstallationContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
@@ -10,6 +10,12 @@ import type { RunClient } from "../trigger/index.ts";
 import { GitHubSignature } from "../github/index.ts";
 import { hosting } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
+
+/** The package-qualified repository type the calls call. */
+const REPOSITORY = {
+    packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000001"),
+    type: "repository",
+};
 
 /** The first declared fixture service. */
 const first = defineService("first", {});
@@ -67,7 +73,8 @@ const github = defineTrigger({
         webhook: { signature: new GitHubSignature(), path: "/", secret: async () => "secret" },
     },
     call: (delivery) => ({
-        method: "repository.push",
+        type: REPOSITORY,
+        method: "push",
         input: { id: delivery.id },
         release: "2026.9.0",
     }),

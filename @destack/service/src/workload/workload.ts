@@ -137,4 +137,12 @@ export interface WorkloadImplementation {
     readonly triggers?: readonly Trigger[];
     /** What the workload does with its held sockets' messages and closes. */
     readonly sockets?: SocketHandler;
+    /** What the workload does with its space store's requests to run its objects' hooks. */
+    readonly hooks?: HookHandler;
+}
+
+/** What a workload does with its space store's requests to run its objects' hooks. */
+export interface HookHandler {
+    /** Answer a request to run a hook. */
+    fetch(request: Request): Promise<Response>;
 }

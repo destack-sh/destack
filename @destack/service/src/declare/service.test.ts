@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { expect, test } from "@destack/test";
 import { defineProcedure } from "../procedure/index.ts";
-import { defineService, type Routed } from "./service.ts";
+import { defineService, type ObjectDeclaration } from "./service.ts";
 
 /** A procedure every declaration of a kind shares. */
 const push = defineProcedure({
@@ -11,9 +11,11 @@ const push = defineProcedure({
 });
 
 /** A declaration sharing the push procedure under `replica`. */
-const routed: Routed = {
+const routed: ObjectDeclaration = {
     package: { name: "@destack/test" },
     name: "routed",
+    typeReference: { packageId: "package-01996ab0-0000-7000-8000-00000000c002", type: "routed" },
+    hooks: {},
     procedures: {},
     shared: { replica: { push } },
 };

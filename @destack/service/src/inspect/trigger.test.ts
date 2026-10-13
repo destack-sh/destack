@@ -1,7 +1,14 @@
+import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { GitHubSignature } from "../github/index.ts";
 import { defineTrigger } from "../trigger/index.ts";
 import { triggerSymbols } from "./trigger.ts";
+
+/** The package-qualified note type the calls call. */
+const NOTE = {
+    packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000001"),
+    type: "note",
+};
 
 test("relate a scheduled trigger to the object method it invokes, and other triggers to nothing", () => {
     // call the note type's archive method every hour
@@ -12,7 +19,7 @@ test("relate a scheduled trigger to the object method it invokes, and other trig
                 timing: { timing: "interval", interval: 3_600_000, startsAt: 0 },
                 concurrency: "forbid",
                 deadline: 60_000,
-                call: { method: "note.archive", input: {}, release: "2026.9.0" },
+                call: { type: NOTE, method: "archive", input: {}, release: "2026.9.0" },
             },
         },
     });
@@ -27,7 +34,7 @@ test("relate a scheduled trigger to the object method it invokes, and other trig
                 secret: async () => "secret",
             },
         },
-        call: () => ({ method: "note.archive", input: {}, release: "2026.9.0" }),
+        call: () => ({ type: NOTE, method: "archive", input: {}, release: "2026.9.0" }),
     });
 
     expect([triggerSymbols(scheduled), triggerSymbols(webhook)]).toEqual([
@@ -47,22 +54,4 @@ test("relate a scheduled trigger to the object method it invokes, and other trig
         ],
         [],
     ]);
-});
-
-test("refuse a scheduled call naming no object type", () => {
-    const scheduled = defineTrigger({
-        name: "digest",
-        on: {
-            schedule: {
-                timing: { timing: "once", startsAt: 0 },
-                concurrency: "allow",
-                deadline: 0,
-                call: { method: "archive", input: {}, release: "2026.9.0" },
-            },
-        },
-    });
-
-    expect(() => triggerSymbols(scheduled)).toThrow(
-        new TypeError("trigger call names no object type: archive"),
-    );
 });

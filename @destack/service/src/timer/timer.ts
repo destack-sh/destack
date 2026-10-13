@@ -1,6 +1,9 @@
 /** The longest timer delay, the largest signed 32 bit integer, in milliseconds. */
 export const MAX_TIMER_DELAY = 2 ** 31 - 1;
 
+/** The runtime's `setImmediate` on Bun, Node and workerd, absent in browsers. */
+const SET_IMMEDIATE = loadSetImmediate();
+
 /** Wait a delay in milliseconds, as `scheduler.wait` does, rejecting once the signal aborts. */
 export function wait(
     delay: number,
@@ -49,4 +52,32 @@ export function until(signal: AbortSignal): Promise<void> {
             signal.addEventListener("abort", () => resolve(), { once: true });
         }
     });
+}
+
+/** Let the event loop run its waiting tasks before going on, like the web's `scheduler.yield`. */
+export function yieldToEventLoop(): Promise<void> {
+    return new Promise((resolve) => {
+        // run after the waiting I/O callbacks on a server runtime
+        if (SET_IMMEDIATE !== undefined) {
+            SET_IMMEDIATE(resolve);
+        }
+        // run after the queued tasks in a browser
+        else {
+            setTimeout(resolve, 0);
+        }
+    });
+}
+
+/** Read the runtime's `setImmediate`, absent in browsers. */
+function loadSetImmediate(): ((callback: () => void) => unknown) | undefined {
+    const scope: object = globalThis;
+
+    return "setImmediate" in scope && isCallback(scope.setImmediate)
+        ? scope.setImmediate
+        : undefined;
+}
+
+/** Report whether a value schedules a callback. */
+function isCallback(value: unknown): value is (callback: () => void) => unknown {
+    return typeof value === "function";
 }

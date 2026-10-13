@@ -69,9 +69,14 @@ export const SpaceMount = {
 
 /** The paths where machines take calls to their installations. */
 export const InstallationMount = {
+    /** Build the path an installation of a space is served at, by its identifier or its alias. */
+    path(spaceId: string, installation: string): `/spaces/${string}/installations/${string}` {
+        return `${SpaceMount.path(spaceId)}/installations/${installation}`;
+    },
+
     /** Build the URL of an installation's service on its machine's endpoint. */
     url(endpoint: string, spaceId: string, installation: string): string {
-        return new URL(`${SpaceMount.path(spaceId)}/installations/${installation}`, endpoint).href;
+        return new URL(InstallationMount.path(spaceId, installation), endpoint).href;
     },
 
     /** Split a request into the space, the installation and the request below its mount. */

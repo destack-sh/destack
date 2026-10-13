@@ -17,6 +17,9 @@ export const FORWARDED_URL_HEADER = "Destack-Forwarded-Url";
 /** The path on a host's egress origin where the host takes its instances' journals. */
 export const JOURNAL_PATH = "/.destack/journal";
 
+/** The path at which a runner takes its space store's requests to run its objects' hooks. */
+export const HOOK_PATH = "/.destack/hook";
+
 /** The first line a host writes to a runner's input, starting one workload of an installation. */
 export const WorkloadStart = defineSchema(
     schema.object({

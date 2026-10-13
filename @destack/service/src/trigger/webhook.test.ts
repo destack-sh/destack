@@ -1,3 +1,4 @@
+import { schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { describeTrigger } from "../inspect/index.ts";
 import { ResourceContext } from "@destack/resource/context";
@@ -8,6 +9,12 @@ import { GitHubSignature } from "../github/index.ts";
 import { CallKey } from "../request/index.ts";
 import { testCallKey } from "../test/index.ts";
 
+/** The package-qualified repository type the calls call. */
+const REPOSITORY = {
+    packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000001"),
+    type: "repository",
+};
+
 /** Push the delivered branch to the repository its path names. */
 function push(delivery: WebhookDelivery) {
     // require the path's repository
@@ -17,7 +24,8 @@ function push(delivery: WebhookDelivery) {
     }
 
     return {
-        method: "repository.push",
+        type: REPOSITORY,
+        method: "push",
         input: { repository, payload: delivery.payload },
         release: "2026.9.0",
     };
@@ -172,7 +180,8 @@ test("receive a delivery with its path's parameters and the secret they resolve,
             receivedAt: NOW,
         },
         {
-            method: "repository.push",
+            type: REPOSITORY,
+            method: "push",
             input: { repository: "acme site", payload: { ref: "refs/heads/main" } },
             release: "2026.9.0",
         },

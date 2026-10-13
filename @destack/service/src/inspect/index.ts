@@ -4,6 +4,7 @@ export * from "./binding.ts";
 export {
     PayloadDescription,
     ProcedureDescription,
+    ObjectRoute,
     RouterDescription,
     ServiceDescription,
 } from "../service/description.ts";

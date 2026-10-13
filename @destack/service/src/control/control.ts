@@ -8,7 +8,7 @@ import {
 import { aligned, Clock, found } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { RetryPolicy, wait } from "../timer/index.ts";
+import { RetryPolicy, wait, yieldToEventLoop } from "../timer/index.ts";
 import type { Alarm } from "./alarm.ts";
 import { LEASE_MILLISECONDS, Leases } from "./lease.ts";
 
@@ -289,6 +289,9 @@ export class ControlLoop {
                             }
                         }
                     }
+
+                    // let other tasks run before the next page
+                    await yieldToEventLoop();
                 }
             } catch (error) {
                 // list again after compaction
@@ -386,6 +389,12 @@ export class ControlLoop {
             const { runnable, due, skipped } = this.#take(now);
             if (runnable !== undefined) {
                 this.#start(runnable);
+
+                // keep the wake-up due while the key runs
+                await this.#keep(this.#busy);
+
+                // let other tasks run before the next key
+                await yieldToEventLoop();
             }
             // keep the wake-up due while keys run or at the next key
             else {

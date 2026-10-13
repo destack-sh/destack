@@ -1,5 +1,6 @@
 import { defineSchema, schema, Version } from "@destack/schema";
 import { DeclarationName } from "@destack/package";
+import { ObjectTypeReference } from "@destack/sync";
 
 /** A JSON Schema. */
 const JsonSchema = schema.record(schema.string(), schema.json());
@@ -70,6 +71,21 @@ export const RouterDescription = defineSchema(
 /** The procedures of a service. */
 export type RouterDescription = schema.Infer<typeof RouterDescription>;
 
+/** A service's route to an object type, with its code's phases by method. */
+export const ObjectRoute = defineSchema(
+    schema.object({
+        /** The object type. */
+        type: ObjectTypeReference,
+        /** The phases the service's code attaches to the type's methods, by method name. */
+        hooks: schema.record(schema.string().min(1), schema.array(schema.string().min(1))),
+    }),
+);
+/** A service's route to an object type, with its code's phases by method. */
+export type ObjectRoute = schema.Infer<typeof ObjectRoute>;
+
+/** The kind of the declarations `defineService` makes, as manifests list them. */
+export const SERVICE_DECLARATION = "service";
+
 /** A declared service. */
 export const ServiceDescription = defineSchema(
     schema.object({
@@ -81,8 +97,8 @@ export const ServiceDescription = defineSchema(
         protocol: schema.literal("http"),
         /** The service's procedures. */
         api: RouterDescription,
-        /** The names of the object types the service serves, by route name. */
-        objects: schema.record(schema.string().min(1), schema.string().min(1)),
+        /** The object types the service serves with their code's phases, by route name. */
+        objects: schema.record(schema.string().min(1), ObjectRoute),
         /** The service's own route names beside its objects. */
         routes: schema.array(schema.string().min(1)),
     }),

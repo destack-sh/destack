@@ -40,14 +40,8 @@ export function triggerSymbols(trigger: Trigger): graph.MemberSymbol[] {
         return [];
     }
 
-    // split the object type and method the call targets
+    // read the object type and method the call targets
     const { call } = on.schedule;
-    const separator = call.method.indexOf(".");
-    if (separator === -1) {
-        throw new TypeError(`trigger call names no object type: ${call.method}`);
-    }
-    const type = call.method.slice(0, separator);
-    const method = call.method.slice(separator + 1);
 
     return schema.array(graph.MemberSymbol).parse([
         {
@@ -56,8 +50,8 @@ export function triggerSymbols(trigger: Trigger): graph.MemberSymbol[] {
                     kind: "invokes",
                     symbol: {
                         kind: "method",
-                        name: method,
-                        parent: { kind: "object", name: type },
+                        name: call.method,
+                        parent: { kind: "object", name: call.type.type },
                     },
                 },
             ],

@@ -5,7 +5,8 @@ import { type BunHibernation } from "./socket.ts";
 import { SOCKET_HEADER } from "../workload/socket.ts";
 import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 
-import { startTelemetry } from "@destack/telemetry/bun";
+import { observeProcess, startTelemetry } from "@destack/telemetry/bun";
+import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
 import { ServiceError } from "../error/index.ts";
 import {
     type RunnerOptions,
@@ -138,7 +139,7 @@ export async function runWorkload(
         runner,
         start,
         build,
-        startTelemetry,
+        startRunnerTelemetry,
         (error) => process.stderr.write(`workload failed: ${String(error)}\n`),
     );
 
@@ -150,6 +151,15 @@ export async function runWorkload(
         close: () => workload.close(),
         ready: () => ready({}),
     });
+}
+
+/** Start a runner's telemetry, reporting the runner process's CPU time to its host. */
+async function startRunnerTelemetry(options: TelemetryOptions): Promise<Telemetry> {
+    // start the telemetry and observe the process's CPU time
+    const telemetry = await startTelemetry(options);
+    observeProcess(telemetry, options);
+
+    return telemetry;
 }
 
 /** Read the build a host wrote into a directory: its manifest at the root and its files below. */

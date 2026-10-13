@@ -16,6 +16,12 @@ import { defineTrigger, type WebhookParameters } from "../trigger/index.ts";
 import { GitHubSignature } from "../github/index.ts";
 import type { RunRequest } from "../trigger/index.ts";
 
+/** The package-qualified repository type the calls call. */
+const REPOSITORY = {
+    packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000001"),
+    type: "repository",
+};
+
 /** The OTLP logs export the observability service receives. */
 const LogsExport = schema
     .object({
@@ -287,7 +293,8 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
                 }
 
                 return {
-                    method: "repository.push",
+                    type: REPOSITORY,
+                    method: "push",
                     input: { repository, payload: delivery.payload },
                     release: "2026.9.0",
                 };
@@ -392,7 +399,8 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
     expect(recorded).toEqual([
         {
             call: {
-                method: "repository.push",
+                type: REPOSITORY,
+                method: "push",
                 input: { repository: "notes", payload: { ref: "refs/heads/main" } },
                 release: "2026.9.0",
             },

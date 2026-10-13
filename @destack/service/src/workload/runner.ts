@@ -14,7 +14,7 @@ import { ServiceError } from "../error/index.ts";
 import { Egress } from "../service/egress.ts";
 import { ServiceMount } from "../service/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
-import { JOURNAL_PATH, ROUTE_PATH, WEBHOOK_PATH, type WorkloadStart } from "./start.ts";
+import { HOOK_PATH, JOURNAL_PATH, ROUTE_PATH, WEBHOOK_PATH, type WorkloadStart } from "./start.ts";
 import {
     HeldSocketDescription,
     Hibernation,
@@ -277,6 +277,10 @@ export class WorkloadRunner implements AsyncDisposable {
         else if (pathname.startsWith(`${SOCKET_PATH}/`)) {
             return this.#socket(request);
         }
+        // hand the store's request to run a hook to the workload
+        else if (pathname === HOOK_PATH && request.method === "POST") {
+            return this.#hook(request);
+        }
         // hand a routed request to the service its route names
         else if (pathname.startsWith(`${ROUTE_PATH}/`)) {
             return this.#route(request, decodeURIComponent(pathname.slice(ROUTE_PATH.length + 1)));
@@ -345,6 +349,15 @@ export class WorkloadRunner implements AsyncDisposable {
     /** Run the controllers at the host's wake-up. */
     alarm(deadline: number): Promise<void> {
         return this.instance.alarm(deadline);
+    }
+
+    /** Hand the workload its store's request to run a hook, answering a refusal as it is. */
+    async #hook(request: Request): Promise<Response> {
+        try {
+            return await this.instance.requireHookHandler().fetch(request);
+        } catch (error) {
+            return refusal(error);
+        }
     }
 
     /** Verify a request to one of the package's webhook triggers. */
