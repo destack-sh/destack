@@ -58,10 +58,7 @@ export function implementMessages(options: MessageOptions): ObjectExtension {
 
     return {
         service: messageService,
-        objects: {
-            ...serveMessages(options),
-            endpoint: serveEndpoints({ events: options.events, key }),
-        },
+        objects: [...serveMessages(options), serveEndpoints({ events: options.events, key })],
         serve: () => ({
             // route the message service's keys and pushes beside its objects
             procedures: {
@@ -96,16 +93,16 @@ export function serveMessages(
         retention: Duration.milliseconds(options.retention ?? SEALED_RETENTION),
     };
 
-    return {
-        message: message.implement({
+    return [
+        message.implement({
             controller: {
                 pending: { erasedAt: { isNull: true } },
                 concurrency: CONCURRENCY,
                 reconcile: (reconciliation) => send(reconciliation, sending),
             },
         }),
-        attempt: messageAttempt,
-    };
+        messageAttempt,
+    ] as const;
 }
 
 /** Send each due message and record its outcome, or erase settled content after its retention. */

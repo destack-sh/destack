@@ -187,17 +187,17 @@ async function serveHistory(statuses: readonly number[]) {
     const objects = new ObjectStore({
         clock: Clock.system,
         principal: HOST,
-        objects: {
+        objects: [
             ...serveMessages({
                 providers: { webhook: provider },
                 retry: RETRY,
                 deriver: async () => ROOT,
             }),
-            endpoint: serveEndpoints({
+            serveEndpoints({
                 events: store,
                 key: async () => (await MessageKey.derive(ROOT)).key,
             }),
-        },
+        ],
         policies: [place],
         database: storage.database,
         callKey: testCallKey,
