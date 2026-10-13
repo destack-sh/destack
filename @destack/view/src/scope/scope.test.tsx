@@ -10,6 +10,11 @@ import { Errored, For, Loading } from "../solid/flow.ts";
 import { useQuery, useSpace } from "./index.ts";
 import { changed } from "../test/dom.ts";
 
+/** A page origin reaching nothing, as a test page has none. */
+function noOrigin(path: string): never {
+    throw new TypeError(`a test page reaches no ${path}`);
+}
+
 /** The longest a test waits for a render, far above the few microtasks a local resource takes. */
 const RENDER_MILLISECONDS = 2000;
 
@@ -115,10 +120,13 @@ test("show a query's rows after loading, and re-render only the row a predicted 
                 </Loading>
             ),
             element,
-            CONTEXT,
-            { [BOARD_ID]: client },
+            {
+                context: CONTEXT,
+                clients: new Map([[BOARD_ID, client]]),
+                services: new Map(),
+                origin: noOrigin,
+            },
             [],
-            new Map(),
         ),
     );
     await changed(element, () => element.textContent === "ApplesBread", RENDER_MILLISECONDS);
@@ -149,10 +157,13 @@ test("fail access to an object type the view's space does not hold into the erro
                 </Errored>
             ),
             element,
-            CONTEXT,
-            { [BOARD_ID]: client },
+            {
+                context: CONTEXT,
+                clients: new Map([[BOARD_ID, client]]),
+                services: new Map(),
+                origin: noOrigin,
+            },
             [],
-            new Map(),
         ),
     );
     expect(element.textContent).toBe("the client has no object board");

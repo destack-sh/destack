@@ -4,6 +4,18 @@ import { CommandReference } from "../declare/command.ts";
 import { PaletteSource } from "./entry.ts";
 import { Accelerator } from "./accelerator.ts";
 
+/** The key combination that opens the command palette from anywhere. */
+export const shortcut = defineSetting({
+    name: "palette.shortcut",
+    title: "Command palette shortcut",
+    description: "The key combination opening the command palette from anywhere.",
+    schema: Accelerator,
+    default: "alt+space",
+    scope: "user",
+    overrides: ["client"],
+    apply: "restart",
+});
+
 /** The key combinations that run commands, by command, merged key by key from every scope. */
 export const keybindings = defineSetting({
     name: "keybindings",

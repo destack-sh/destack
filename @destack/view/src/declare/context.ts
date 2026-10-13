@@ -2,8 +2,10 @@ import { DeclarationName } from "@destack/package";
 import { Catalog, LocaleTag } from "@destack/locale";
 import { defineSchema, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
+import { Accelerator } from "../palette/accelerator.ts";
+import { CommandReference } from "./command.ts";
 
-/** The same-origin host path opening an object in the view presenting it. */
+/** The same-origin host path opening an object, a view or the command palette. */
 export const OPEN_PATH = "/.destack/open";
 
 /** The same-origin host path serving a view's catalogs by their content's digest. */
@@ -14,6 +16,9 @@ export const DISPLAY_PATH = "/.destack/display";
 
 /** The same-origin host path below which a browser registers its client. */
 export const CLIENT_PATH = "/.destack/client";
+
+/** The same-origin host path below which a view reaches the home of a scope, `<path>/<scope>`. */
+export const HOME_PATH = "/.destack/home";
 
 /** The same-origin host path below which a view calls the platform services it declares. */
 export const PLATFORM_PATH = "/.destack/platform";
@@ -39,6 +44,12 @@ export const OBJECT_PARAMETER = "object";
 /** The query parameter of the open path with the view asked for. */
 export const VIEW_PARAMETER = "view";
 
+/** The query parameter of the open path with the installation of the view asked for, by alias. */
+export const INSTALLATION_PARAMETER = "installation";
+
+/** The query parameter of the open path with the address of the space of the view asked for. */
+export const SPACE_PARAMETER = "space";
+
 /** The query parameter of a view's address with the object it opens for, as JSON. */
 export const TARGET_PARAMETER = "target";
 
@@ -63,6 +74,8 @@ export const ViewContext = defineSchema(
         user: Subject,
         /** The person's home space, absent where the host opens none for the view. */
         home: schema.string().min(1).exactOptional(),
+        /** The computer's native client whose local objects the page reaches, absent for none. */
+        client: schema.string().min(1).exactOptional(),
         /** The object the view opens for, from its address. */
         target: ObjectReference.exactOptional(),
         /** The language and region the person reads. */
@@ -95,6 +108,15 @@ export const ViewDisplay = defineSchema(
         catalogs: schema.array(CatalogReference),
         /** The theme's custom properties and color scheme for the person's display. */
         style: schema.record(schema.string(), schema.string()),
+        /** The key combinations running the commands of the view's installation, for the person. */
+        keybindings: schema.array(
+            schema.object({
+                /** The command, as `<package>/<name>`. */
+                command: CommandReference.key,
+                /** Its key combination. */
+                keybinding: Accelerator,
+            }),
+        ),
     }),
 );
 /** What the host shows a view in. */

@@ -94,7 +94,7 @@ async function openSample(
     const services = new Map(view.services.map((service) => [service.package.id, OFFLINE]));
     const { default: component } = await view.component();
 
-    return { component, mount: { context, clients, services } };
+    return { component, mount: { context, clients, services, origin: () => OFFLINE } };
 }
 
 /** Open one scope's objects in an in-memory database whose service never answers. */

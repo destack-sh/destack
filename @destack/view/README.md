@@ -50,6 +50,24 @@ const observability = useService(observabilityService);
 const trace = createMemo(() => observability.trace({ scope, trace: traceId }));
 ```
 
+## Page origin
+
+`useOrigin` reaches a path below the page's origin with the page's credential: a shell page's token, else its cookies; the machine forwards each path as the person.
+
+```ts
+import { useOrigin } from "@destack/view";
+import { SERVICE_PATH, ServiceMount, SpaceMount } from "@destack/service";
+
+const origin = useOrigin();
+createClient(
+    stackService,
+    origin(
+        `${SERVICE_PATH}${SpaceMount.path(spaceId)}${ServiceMount.path(stackService.package.id)}`,
+    ),
+);
+createClient(settings, origin(`${HOME_PATH}/${userId}`)); // where a change of the person's own rows goes
+```
+
 ## Commands
 
 `defineCommand` declares a method call that the shell offers in menus, shortcuts and the terminal.
@@ -75,7 +93,7 @@ import { Palette } from "@destack/view/palette";
 
 const ranked = Palette.rank(entries, "arch", focus);
 const binding = Palette.keybinding(command, "mod+e", overrides); // "mod+e" or null
-const isOffered = Palette.isOffered(entry, { recent: false }); // false
+const isOffered = Palette.isOffered(entry, { spaces: false }); // false for a space
 ```
 
 ## Shortcuts

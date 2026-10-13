@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Accelerator, type KeyPress } from "./accelerator.ts";
 import { CommandReference } from "../declare/command.ts";
-import { Palette, type PaletteEntry } from "./entry.ts";
+import { Palette, type PaletteEntry, PaletteFocus } from "./entry.ts";
 
 /** The package declaring the tasks and their commands. */
 const TASKS = PackageId.parse("package-019f5530-8000-7000-8000-0000000000a1");
@@ -16,6 +16,9 @@ const WORK = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000
 
 /** The person's home, with notes. */
 const HOME = schema.identifier("space").parse("space-019f5530-8000-7000-8000-0000000000b2");
+
+/** The domain the local machine serves origins under. */
+const DOMAIN = "localhost";
 
 /** A command of an installation calling a method of one of its types. */
 function command(
@@ -97,16 +100,11 @@ test("rank entries by how their title matches, the focused window's space, insta
     ]);
 });
 
-test("offer the entries of every source the person leaves on: built-in ones by name, packages by identifier", () => {
+test("offer the entries of every source the person leaves on: windows, spaces and recent objects by kind, packages by identifier", () => {
     const entries: readonly PaletteEntry[] = [
         ...ENTRIES,
-        {
-            kind: "window",
-            id: "window-1",
-            title: "Inbox",
-            link: "destack://home--personal--ada/home",
-        },
         { kind: "space", id: HOME, title: "personal.ada" },
+        { kind: "window", id: "window-1", title: "Board", link: "destack://work--ada/board" },
         {
             kind: "object",
             space: HOME,
@@ -120,7 +118,8 @@ test("offer the entries of every source the person leaves on: built-in ones by n
     expect([
         entries.map((entry) => [Palette.source(entry), Palette.space(entry)]),
         offered({}),
-        offered({ [TASKS]: false, windows: false, recent: false, spaces: true }),
+        offered({ [TASKS]: false, spaces: true }),
+        offered({ spaces: false, windows: false, recent: false }),
     ]).toEqual([
         [
             [TASKS, WORK],
@@ -128,8 +127,8 @@ test("offer the entries of every source the person leaves on: built-in ones by n
             [NOTES, WORK],
             [NOTES, HOME],
             [NOTES, WORK],
-            ["windows", undefined],
             ["spaces", HOME],
+            ["windows", undefined],
             ["recent", HOME],
         ],
         [
@@ -138,13 +137,55 @@ test("offer the entries of every source the person leaves on: built-in ones by n
             "Archive note",
             "Archive journal note",
             "Notes",
-            "Inbox",
             "personal.ada",
+            "Board",
             "Journal",
         ],
-        ["Archive note", "Archive journal note", "Notes", "personal.ada"],
+        ["Archive note", "Archive journal note", "Notes", "personal.ada", "Board", "Journal"],
+        ["Complete task", "Archive project", "Archive note", "Archive journal note", "Notes"],
     ]);
 });
+
+test("read what a window shows from its location: the installation its origin names, and the object an opening or a view names, refusing a location the machine never writes", () => {
+    const note = { packageId: NOTES, type: "note", scope: HOME, id: "note-1" };
+    const json = encodeURIComponent(JSON.stringify(note));
+
+    expect([
+        PaletteFocus.of(null, HOME, DOMAIN),
+        PaletteFocus.of("http://notes--home--ada.localhost:4000/home", HOME, DOMAIN),
+        PaletteFocus.of(`http://notes--home--ada.localhost:4000/home?target=${json}`, HOME, DOMAIN),
+        PaletteFocus.of(
+            `http://home--ada.localhost:4000/.destack/open?object=${json}`,
+            HOME,
+            DOMAIN,
+        ),
+    ]).toEqual([
+        {},
+        { space: HOME, installation: "notes" },
+        { space: HOME, installation: "notes", object: note },
+        { space: HOME, object: note },
+    ]);
+
+    // refuse a location the machine never writes
+    expect(
+        ["not a location", "http://notes--home--ada.localhost:4000/home?target=%7B"].map(
+            (location) => thrown(() => PaletteFocus.of(location, HOME, DOMAIN)),
+        ),
+    ).toEqual([
+        ["TypeError", "Invalid URL"],
+        ["SyntaxError", "JSON Parse error: Expected '}'"],
+    ]);
+});
+
+/** Read the name and message of what a read throws, refusing a read that returns. */
+function thrown(read: () => unknown): readonly [string, string] {
+    try {
+        read();
+    } catch (error) {
+        return error instanceof Error ? [error.name, error.message] : ["", String(error)];
+    }
+    throw new TypeError("the read returned");
+}
 
 test("read a command's keybinding: the person's own, none once unbound, else the declared one", () => {
     const complete = { packageId: TASKS, name: "complete" };

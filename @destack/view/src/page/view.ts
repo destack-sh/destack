@@ -20,6 +20,8 @@ export interface ViewMount {
     readonly clients: ReadonlyMap<string, ObjectClient>;
     /** How the view reaches the platform services it declares, by package. */
     readonly services: ReadonlyMap<string, ClientOptions>;
+    /** Reach a path below the page's origin with the page's credential. */
+    readonly origin: (path: string) => ClientOptions;
 }
 
 /** The mounted view. */
@@ -39,6 +41,11 @@ export function scopeOf(context: ViewContext, scope: PermissionScope): string {
     }
 
     return found;
+}
+
+/** Read how the mounted view reaches a path below its page's origin with the page's credential. */
+export function useOrigin(): (path: string) => ClientOptions {
+    return useContext(ViewMountContext).origin;
 }
 
 /** Read the open client of one of the mounted view's scopes. */
@@ -67,14 +74,13 @@ export function useService<Definition extends ServiceRouter>(
 /** Mount the platform services a view declares below the platform path of its origin. */
 export function mountServices(
     services: readonly Pick<Service, "package">[],
-    origin: string,
+    origin: (path: string) => ClientOptions,
 ): ReadonlyMap<string, ClientOptions> {
     return new Map(
-        services.map((service) => {
-            const path = `${PLATFORM_PATH}${ServiceMount.path(service.package.id)}`;
-
-            return [service.package.id, { url: new URL(path, origin).href }];
-        }),
+        services.map((service) => [
+            service.package.id,
+            origin(`${PLATFORM_PATH}${ServiceMount.path(service.package.id)}`),
+        ]),
     );
 }
 

@@ -1,13 +1,9 @@
+import { InstallationOrigin } from "@destack/account/address";
 import { DeclarationName, PackageId } from "@destack/package";
-import {
-    defineSchema,
-    type Identifier,
-    type JsonObject,
-    type JsonValue,
-    schema,
-} from "@destack/schema";
+import { defineSchema, type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { CommandReference } from "../declare/command.ts";
+import { OBJECT_PARAMETER, OPEN_PATH, TARGET_PARAMETER } from "../declare/context.ts";
 import { Accelerator } from "./accelerator.ts";
 
 /** How strongly a title matching the query from its start ranks. */
@@ -19,7 +15,7 @@ const BOOSTS = { space: 0.25, installation: 0.5, object: 1 } as const;
 /** The identity of a space, which entries name their space by. */
 const SpaceId = schema.identifier("space");
 
-/** A source of the palette's entries, as the person turns it on or off. */
+/** A source of the palette's entries, as the person turns it on or off: a kind, or a package. */
 export const PaletteSource = defineSchema(
     schema.union([schema.enum(["windows", "spaces", "recent"]), PackageId]),
 );
@@ -66,7 +62,7 @@ export const PaletteEntry = defineSchema(
             title: schema.string().min(1),
         }),
         schema.object({
-            /** A window of this machine, coming into focus. */
+            /** A window of this computer, coming into focus. */
             kind: schema.literal("window"),
             /** The window's identifier. */
             id: schema.string().min(1),
@@ -99,15 +95,42 @@ export const PaletteEntry = defineSchema(
 export type PaletteEntry = schema.Infer<typeof PaletteEntry>;
 
 /** What the window the palette opens over shows. */
-export const PaletteFocus = defineSchema(
-    schema.object({
-        /** The space of the window's view or object. */
-        space: SpaceId.exactOptional(),
-        /** The installation of the window's view, by alias. */
-        installation: DeclarationName.exactOptional(),
-        /** The object the window presents. */
-        object: ObjectReference.exactOptional(),
-    }),
+export const PaletteFocus = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The space of the window's view or object. */
+            space: SpaceId.exactOptional(),
+            /** The installation of the window's view, by alias. */
+            installation: DeclarationName.exactOptional(),
+            /** The object the window presents. */
+            object: ObjectReference.exactOptional(),
+        }),
+    ),
+    {
+        /** Read what a window shows in a space from its location under a domain. */
+        of(location: string | null, space: Identifier<"space">, domain: string): PaletteFocus {
+            // read nothing from a window showing no location yet
+            if (location === null) {
+                return {};
+            }
+            const url = new URL(location);
+
+            // read the installation its origin names
+            const origin = InstallationOrigin.parse(url.hostname, domain);
+
+            // read the object an opening names or the one a view opens for
+            const parameter = url.pathname === OPEN_PATH ? OBJECT_PARAMETER : TARGET_PARAMETER;
+            const object = referenceOf(url.searchParams.get(parameter));
+
+            return {
+                space,
+                ...(origin === undefined
+                    ? {}
+                    : { installation: DeclarationName.parse(origin.alias) }),
+                ...(object === undefined ? {} : { object }),
+            };
+        },
+    },
 );
 /** What the window the palette opens over shows. */
 export type PaletteFocus = schema.Infer<typeof PaletteFocus>;
@@ -158,15 +181,13 @@ export const Palette = {
         const isInstallation =
             isSpace && "installation" in entry && entry.installation === focus.installation;
 
-        // read the object it names or acts on
+        // read the object a command acts on
         const { object } = focus;
         const isObject =
             object !== undefined &&
-            ((entry.kind === "command" &&
-                object.packageId === entry.typePackageId &&
-                object.type === entry.type) ||
-                (entry.kind === "object" &&
-                    ObjectReference.key(object) === ObjectReference.key(entry.object)));
+            entry.kind === "command" &&
+            object.packageId === entry.typePackageId &&
+            object.type === entry.type;
 
         return (
             (isSpace ? BOOSTS.space : 0) +
@@ -175,7 +196,7 @@ export const Palette = {
         );
     },
 
-    /** Read the space an entry belongs to, absent for a window of this machine. */
+    /** Read the space an entry belongs to, absent for a window of this computer. */
     space(entry: PaletteEntry): Identifier<"space"> | undefined {
         if (entry.kind === "window") {
             return undefined;
@@ -186,7 +207,7 @@ export const Palette = {
         return entry.space;
     },
 
-    /** Read the source an entry comes from. */
+    /** Read the source an entry comes from: its kind's, or the package declaring it. */
     source(entry: PaletteEntry): PaletteSource {
         const sources = { window: "windows", space: "spaces", object: "recent" } as const;
 
@@ -221,7 +242,7 @@ export type CommandEntry = Extract<PaletteEntry, { readonly kind: "command" }>;
 /** A view the palette offers. */
 export type ViewEntry = Extract<PaletteEntry, { readonly kind: "view" }>;
 
-/** A window of this machine the palette offers. */
+/** A window of this computer the palette offers. */
 export type WindowEntry = Extract<PaletteEntry, { readonly kind: "window" }>;
 
 /** A space of the person the palette offers. */
@@ -230,44 +251,7 @@ export type SpaceEntry = Extract<PaletteEntry, { readonly kind: "space" }>;
 /** An object opened lately the palette offers. */
 export type ObjectEntry = Extract<PaletteEntry, { readonly kind: "object" }>;
 
-/** An object a command's picker offers. */
-export interface PaletteObject {
-    /** The object's identifier. */
-    readonly id: string;
-    /** The text naming it. */
-    readonly title: string;
-}
-
-/** How a command's method takes its input. */
-export interface CommandShape {
-    /** Whether the method acts on one object, which the palette picks. */
-    readonly isTargeted: boolean;
-    /** The JSON Schema of the input beside the object. */
-    readonly input: JsonObject;
-}
-
-/** The entries the palette offers. */
-export interface PaletteListing {
-    /** The entries. */
-    readonly entries: readonly PaletteEntry[];
-    /** Why the entries of some spaces are missing, one message each. */
-    readonly failures: readonly string[];
-}
-
-/** What the palette reaches as the person. */
-export interface PaletteClient {
-    /** List the entries the palette offers. */
-    list(): Promise<PaletteListing>;
-    /** Read how a command's method takes its input. */
-    shape(command: CommandEntry): Promise<CommandShape>;
-    /** List the objects of a command's type whose title matches a text. */
-    objects(command: CommandEntry, title: string): Promise<readonly PaletteObject[]>;
-    /** Call a command's method with its input, the chosen object's identifier among it. */
-    call(command: CommandEntry, input: JsonObject): Promise<JsonValue>;
-    /** Open a view, or an object in the view presenting it. */
-    open(entry: ViewEntry | ObjectEntry): Promise<void>;
-    /** Bring a window of this machine into focus. */
-    focus(window: WindowEntry): Promise<void>;
-    /** Close the palette. */
-    close(): void;
+/** Read an object reference written as JSON, absent for none. */
+function referenceOf(json: string | null): ObjectReference | undefined {
+    return json === null ? undefined : ObjectReference.parse(JSON.parse(json));
 }

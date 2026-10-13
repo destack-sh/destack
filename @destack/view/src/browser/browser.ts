@@ -6,12 +6,16 @@ import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import type { Subject } from "@destack/sync";
 import { PermissionScope } from "@destack/access";
+import type { ClientOptions } from "@destack/service/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import {
     type CatalogReference,
     CLIENT_PATH,
     DISPLAY_PATH,
+    HOME_PATH,
+    PAGE_TOKEN_HEADER,
+    PAGE_TOKEN_META,
     type ViewContext,
     ViewDisplay,
     ViewLaunch,
@@ -46,12 +50,13 @@ export async function mount(view: View): Promise<() => Promise<void>> {
 
     // open the view's scopes as this browser's client over the launch's endpoint while fetching its catalogs
     const client = await new BrowserClient({ path: CLIENT_PATH }).subject();
+    const origin = pageOrigin();
     const [tabs, translations] = await Promise.all([
-        openTabs(context, endpoint, view, client),
+        openTabs(context, endpoint, view, client, origin),
         fetchCatalogs(catalogs),
     ]);
-    const clients = Object.fromEntries([...tabs].map(([scope, tab]) => [scope, tab.client]));
-    const services = mountServices(view.services, location.origin);
+    const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
+    const services = mountServices(view.services, origin);
 
     // render the root component under the view, its clients and the launch's catalogs
     const { default: Component } = await view.component();
@@ -60,21 +65,34 @@ export async function mount(view: View): Promise<() => Promise<void>> {
             renderView(
                 Component,
                 document.body,
-                locale === undefined ? context : { ...context, locale },
-                clients,
+                {
+                    context: locale === undefined ? context : { ...context, locale },
+                    clients,
+                    services,
+                    origin,
+                },
                 translated,
-                services,
             ),
         context.locale,
         translations,
     );
     const stopping = new AbortController();
 
-    // open the command palette, restyle on each display change and render again in a new language
-    void listenForCommands(stopping.signal, () => rendering.localization).catch(reportError);
+    // open the command palette over an installation's views by the display's keybindings
+    let keybindings: ViewDisplay["keybindings"] = [];
+    if (context.installation !== undefined) {
+        listenForCommands(
+            stopping.signal,
+            () => rendering.localization,
+            () => keybindings,
+        );
+    }
+
+    // restyle on each display change, render again in a new language and follow its keybindings
     void followDisplay(stopping.signal, (next) => {
         restyle(next);
         rendering.switch(next, stopping.signal);
+        keybindings = next.keybindings;
     });
 
     // record a visit of the view as it loads and after each navigation within it
@@ -272,6 +290,7 @@ async function openTabs(
     endpoint: string,
     view: View,
     client: Subject,
+    origin: (path: string) => ClientOptions,
 ): Promise<Map<string, BrowserTab>> {
     // group the object types by the scope each opens in, merging a home that is the view's space
     const byScope = new Map<string, Readonly<Record<string, ObjectType>>>();
@@ -284,7 +303,7 @@ async function openTabs(
         }
     }
 
-    // open each scope's tab over the origin's endpoint
+    // open each scope's tab over the origin's endpoint, reaching other scopes' homes below the origin's home path
     const url = new URL(endpoint, location.origin).href;
 
     return new Map(
@@ -299,6 +318,7 @@ async function openTabs(
                     endpoint: { url },
                     // reopen the same endpoint
                     reconnect: () => ({ url }),
+                    homes: (home: string) => origin(`${HOME_PATH}/${home}`),
                     clock: Clock.system,
                     report: reportError,
                 });
@@ -308,4 +328,15 @@ async function openTabs(
             }),
         ),
     );
+}
+
+/** Reach a path below the page's origin with the token a shell page carries, else its cookies. */
+function pageOrigin(): (path: string) => ClientOptions {
+    // read the token the machine writes into a shell page
+    const token = document.querySelector<HTMLMetaElement>(`meta[name="${PAGE_TOKEN_META}"]`);
+
+    return (path) => ({
+        url: new URL(path, location.origin).href,
+        ...(token === null ? {} : { headers: { [PAGE_TOKEN_HEADER]: token.content } }),
+    });
 }

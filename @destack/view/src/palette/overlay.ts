@@ -1,8 +1,11 @@
-import { CommandReference } from "../declare/command.ts";
 import { Accelerator, isCommandPlatform } from "./accelerator.ts";
-import { COMMAND_PATH } from "../declare/context.ts";
+import {
+    COMMAND_PARAMETER,
+    FOCUS_PARAMETER,
+    OPEN_PATH,
+    type ViewDisplay,
+} from "../declare/context.ts";
 import { type Localization, t } from "@destack/locale";
-import { schema } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, radius, shadow } from "@destack/theme/tokens.stylex";
 
@@ -39,66 +42,37 @@ const styles = style.create({
 /** The message the palette's page posts to close it. */
 const CLOSE_ACTION = "palette.close";
 
-/** The keybindings of the installation's commands, as the host resolves them for the person. */
-const Keybindings = schema.array(
-    schema.object({
-        /** The command, as `<package>/<name>`. */
-        command: CommandReference.key,
-        /** Its key combination. */
-        keybinding: Accelerator,
-    }),
-);
-
-/** The location of a launched palette. */
-const Launched = schema.object({
-    /** The palette's location on the space's origin. */
-    url: schema.url(),
-});
-
 /** Open the command palette over the page on its key combination until the signal aborts. */
-export async function listenForCommands(
+export function listenForCommands(
     signal: AbortSignal,
     localization: () => Localization,
-): Promise<void> {
-    // read the keybindings of the installation's commands
-    const response = await fetch(`${COMMAND_PATH}/keybindings`, { signal });
-    if (!response.ok) {
-        throw new Error(`the command keybindings answered ${response.status}`);
-    }
-    const keybindings = Keybindings.parse(await response.json());
-    const isCommand = isCommandPlatform();
-
+    keybindings: () => ViewDisplay["keybindings"],
+): void {
     // open the palette, at a command its keybinding runs
+    const isCommand = isCommandPlatform();
     const listener = (event: KeyboardEvent) => {
-        const bound = keybindings.find((entry) =>
+        const bound = keybindings().find((entry) =>
             Accelerator.matches(entry.keybinding, event, isCommand),
         );
         if (bound !== undefined) {
             event.preventDefault();
-            void openPalette(bound.command, localization()).catch(reportError);
+            openPalette(bound.command, localization());
         } else if (Accelerator.matches(PALETTE_ACCELERATOR, event, isCommand)) {
             event.preventDefault();
-            void openPalette(undefined, localization()).catch(reportError);
+            openPalette(undefined, localization());
         }
     };
     window.addEventListener("keydown", listener, { signal });
 }
 
 /** Open the command palette over the page in a modal dialog that frames its space's origin. */
-async function openPalette(command: string | undefined, localization: Localization): Promise<void> {
-    // launch the palette over this page, at a command when one is asked for
-    const response = await fetch(`${COMMAND_PATH}/launch`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-            focus: location.href,
-            ...(command === undefined ? {} : { command }),
-        }),
-    });
-    if (!response.ok) {
-        throw new Error(await response.text());
+function openPalette(command: string | undefined, localization: Localization): void {
+    // open the palette over this page through the open path, at a command when one is asked for
+    const query = new URLSearchParams({ [FOCUS_PARAMETER]: location.href });
+    if (command !== undefined) {
+        query.set(COMMAND_PARAMETER, command);
     }
-    const { url } = Launched.parse(await response.json());
+    const url = `${OPEN_PATH}?${query.toString()}`;
 
     // show it in a modal dialog above the page
     const dialog = document.createElement("dialog");
@@ -114,8 +88,7 @@ async function openPalette(command: string | undefined, localization: Localizati
     document.body.append(dialog);
     dialog.showModal();
 
-    // remove it once closed by its message, Escape or a click on the backdrop
-    const origin = new URL(url).origin;
+    // remove it once closed by its frame's message, Escape or a click on the backdrop
     const closing = new AbortController();
     dialog.addEventListener("close", () => {
         dialog.remove();
@@ -124,7 +97,7 @@ async function openPalette(command: string | undefined, localization: Localizati
     window.addEventListener(
         "message",
         (event) => {
-            if (event.origin === origin && isClose(event.data)) {
+            if (event.source === frame.contentWindow && isClose(event.data)) {
                 dialog.close();
             }
         },

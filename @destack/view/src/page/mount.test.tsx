@@ -13,6 +13,11 @@ import { useLocale } from "./locale.ts";
 import type { Catalog } from "@destack/locale";
 import { changed } from "../test/dom.ts";
 
+/** A page origin reaching nothing, as a test page has none. */
+function noOrigin(path: string): never {
+    throw new TypeError(`a test page reaches no ${path}`);
+}
+
 /** The longest a test waits for a render, far above the few microtasks a local resource takes. */
 const RENDER_MILLISECONDS = 2000;
 
@@ -49,7 +54,12 @@ function Status() {
 /** Render the status into a detached element and read its text. */
 function textOf(context: ViewContext): string {
     const element = document.createElement("div");
-    const dispose = renderView(Status, element, context, {}, CATALOGS, new Map());
+    const dispose = renderView(
+        Status,
+        element,
+        { context, clients: new Map(), services: new Map(), origin: noOrigin },
+        CATALOGS,
+    );
     const text = element.textContent;
     dispose();
 
@@ -87,7 +97,9 @@ function Count() {
 test("call a platform service the view declares where the host mounts it, and refuse it to a view declaring none", async () => {
     // mount the counter at the view's platform path, answering from a fetch recording the path
     const paths: string[] = [];
-    const mounted = mountServices([counter], "https://notes--personal--florian.localhost");
+    const mounted = mountServices([counter], (path) => ({
+        url: new URL(path, "https://notes--personal--florian.localhost").href,
+    }));
     const services = new Map(
         [...mounted].map(([packageId, options]) => [
             packageId,
@@ -102,7 +114,12 @@ test("call a platform service the view declares where the host mounts it, and re
         ]),
     );
     const element = document.createElement("div");
-    const dispose = renderView(Count, element, CONTEXT, {}, [], services);
+    const dispose = renderView(
+        Count,
+        element,
+        { context: CONTEXT, clients: new Map(), services, origin: noOrigin },
+        [],
+    );
 
     // read the count through the declared service's mount
     await changed(element, () => element.textContent === "notes: 3", RENDER_MILLISECONDS);
@@ -122,10 +139,8 @@ test("call a platform service the view declares where the host mounts it, and re
             </Errored>
         ),
         refused,
-        CONTEXT,
-        {},
+        { context: CONTEXT, clients: new Map(), services: new Map(), origin: noOrigin },
         [],
-        new Map(),
     );
     expect(refused.textContent).toBe("TypeError: the view declares no counter service");
     disposeRefused();
