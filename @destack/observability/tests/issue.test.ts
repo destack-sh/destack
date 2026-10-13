@@ -1,13 +1,11 @@
 import { expect, test } from "@destack/test";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
-import { installationRevision } from "@destack/stack/object";
 import { log, span } from "../src/index.ts";
 import { client, eventClient, ids, serveObservability } from "./fixture/observability.ts";
 import {
     exportLogs,
     NOTES_EMITTER,
-    openNotesBuild,
     recordNotesRevision,
     renameFailure,
     tracesExport,
@@ -15,8 +13,7 @@ import {
 
 test("group failures logged and annotated on spans into an issue at the declaration they ran, counting a span's exception once, list its events by issue, and regress the resolved issue", async () => {
     // serve observability with the notes build
-    const { fixture, server, eventServer, receive, database, events, failures } =
-        await serveObservability();
+    const { fixture, server, eventServer, receive, events, failures } = await serveObservability();
     const revision = await recordNotesRevision(fixture);
     const alice = client(server, "alice");
 
@@ -99,7 +96,11 @@ test("group failures logged and annotated on spans into an issue at the declarat
     const spans = await events.query(span, { scope: ids.space });
 
     // regress the issue once it fails again after alice resolves it
-    await alice.issue.resolve({ spaceId: ids.space, id: opened.id, requestId: RequestId.create(Date.now()) });
+    await alice.issue.resolve({
+        spaceId: ids.space,
+        id: opened.id,
+        requestId: RequestId.create(Date.now()),
+    });
     await exportLogs({ receive }, [renameFailure(Date.now(), "dana")]);
     expect({
         logged: logged.events.map((event) => log.parseKeys(event.keys).issue),

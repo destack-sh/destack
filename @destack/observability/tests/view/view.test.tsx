@@ -29,7 +29,7 @@ function reach(server: Server) {
     };
 }
 
-/** Open alice's device following the space's issues, alert rules and alerts, closed after the test. */
+/** Open alice's device following the space's issues, alert rules and alerts. */
 async function openDevice(server: Server): Promise<ObjectClient> {
     // keep the objects in a local replica database
     const objects = { issue, alertRule, alert };
@@ -64,7 +64,7 @@ async function openDevice(server: Server): Promise<ObjectClient> {
     return device;
 }
 
-/** Render a page as a view of the space alice owns on her device, calling the observability and event services as her, removing it after the test. */
+/** Render a page as a view of alice's space on her device, calling the services as her. */
 async function draw(
     served: { readonly server: Server; readonly eventServer: Server },
     view: string,
@@ -79,17 +79,22 @@ async function draw(
             () => <Loading>{page()}</Loading>,
             container,
             {
-                space: ids.space,
-                account: ids.account,
-                view,
-                user: principal.user.reference("universe", "alice"),
+                context: {
+                    space: ids.space,
+                    account: ids.account,
+                    view,
+                    user: principal.user.reference("universe", "alice"),
+                },
+                clients: new Map([[ids.space, device]]),
+                services: new Map([
+                    [observabilityService.package.id, reach(served.server)],
+                    [eventService.package.id, reach(served.eventServer)],
+                ]),
+                origin: (path) => {
+                    throw new TypeError(`the observability view reaches no ${path}`);
+                },
             },
-            { [ids.space]: device },
             [],
-            new Map([
-                [observabilityService.package.id, reach(served.server)],
-                [eventService.package.id, reach(served.eventServer)],
-            ]),
         ),
     );
 
@@ -119,7 +124,7 @@ async function drained(device: ObjectClient): Promise<void> {
     );
 }
 
-/** Read the cells of each row a selector finds, leaving out the first, the time each row shows in the local zone. */
+/** Read the cells of each row a selector finds but the first, times in the local zone. */
 function rows(container: Element, selector: string): string[][] {
     return [...container.querySelectorAll(selector)].map((row) =>
         [...row.querySelectorAll("td")].slice(1).map((cell) => cell.textContent ?? ""),

@@ -92,6 +92,8 @@ import { Reading } from "@destack/observability/server";
 Reading.counted(rowsRead, [{ scope, installation, value: 1200 }]);
 ```
 
+## Machine hours
+
 `machineHours` measures the hours a dedicated machine stays awake, beside the spaces' meters.
 
 ```ts

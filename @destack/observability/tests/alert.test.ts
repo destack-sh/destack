@@ -1,7 +1,6 @@
 import type { BuildReader } from "@destack/package/manifest";
 import { expect, refusal, test } from "@destack/test";
 import { eq } from "@destack/db";
-import { present } from "@destack/schema";
 import { RequestId } from "@destack/service/request";
 import { ServiceError } from "@destack/service/error";
 import { installation } from "@destack/stack/object";

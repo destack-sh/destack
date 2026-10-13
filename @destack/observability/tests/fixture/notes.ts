@@ -1,5 +1,4 @@
 import { ids, notes } from "./observability.ts";
-import { type DatabaseConnection } from "@destack/db";
 import { alertRule, type AlertRuleDefinition } from "../../src/object/index.ts";
 import { graph } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
@@ -23,7 +22,7 @@ export function encode(value: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(value);
 }
 
-/** Open the notes build: a workload whose first generated line maps into `Note.rename`, an object method declaration, and the alert rules it declares. */
+/** Open the notes build: a workload mapping into `Note.rename`, with its alert rules. */
 export async function openNotesBuild(
     rules: Readonly<Record<string, AlertRuleDefinition>> = {},
 ): Promise<BuildReader> {
@@ -87,7 +86,7 @@ export async function openNotesBuild(
     );
 }
 
-/** Build the note module's graph file: the `Note` class, its `rename` method declaration, and each alert rule. */
+/** Build the note module's graph file: `Note`, its `rename` method and each alert rule. */
 async function notesModule(rules: Readonly<Record<string, AlertRuleDefinition>>) {
     return graph.Module.file({
         path: "src/note.ts",
@@ -139,7 +138,7 @@ async function notesModule(rules: Readonly<Record<string, AlertRuleDefinition>>)
     });
 }
 
-/** Keep a notes release in the space's build bucket and record a revision of it created at a time, the plain notes build by default. */
+/** Keep a notes release in the space's build bucket and record a revision of it at a time. */
 export async function recordNotesRevision(
     fixture: StackFixture,
     now = Date.now(),

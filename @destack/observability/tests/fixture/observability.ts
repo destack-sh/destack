@@ -20,7 +20,7 @@ import { eventService } from "@destack/event/service";
 import { type Controller, ControlLoop } from "@destack/service/control";
 import { isServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
-import { Outbox, outbox } from "@destack/service/outbox";
+import { outbox } from "@destack/service/outbox";
 import { Server, type ServiceImplementation } from "@destack/service/server";
 import { socialTables } from "@destack/social/stack";
 import { installation } from "@destack/stack/object";
@@ -42,7 +42,7 @@ const OBJECT_CONTROLLERS: ReadonlySet<string> = new Set(["alert-rule"]);
 /** The event kinds a test space keeps beside its calls: telemetry, analytics and usage. */
 const KINDS = [...OBSERVABILITY_KINDS, usage];
 
-/** A space's database keeping its events, issues, alert rules, alerts and the visitor salt beside the space's tables, with the comments, subscriptions and notifications on them. */
+/** A space's database keeping its events and observability tables beside the space's tables. */
 export const observedDatabase = defineDatabase({
     name: "space",
     tables: [
@@ -58,7 +58,7 @@ export const observedDatabase = defineDatabase({
     copies: spaceCopies,
 });
 
-/** Run some controllers over a database until the test ends, keeping each failure but a conflict, which the loop retries. */
+/** Run some controllers until the test ends, keeping each failure but a conflict. */
 function run(
     database: DatabaseConnection,
     controllers: readonly Controller[],
@@ -96,7 +96,7 @@ export const ids = {
 /** The notes package, as its workload names itself. */
 export const notes = { id: ids.package, name: "@example/notes", version: "2026.9.0" };
 
-/** How a test serves observability: the builds it opens, what it measures and where routed copies go. */
+/** How a test serves observability: what it measures and where routed copies go. */
 export interface ObservabilityTestOptions {
     /** Read what the space uses, nothing by default. */
     readonly measure?: (from: number, to: number) => Promise<readonly Reading[]>;
@@ -108,7 +108,7 @@ export interface ObservabilityTestOptions {
     readonly deliver?: (kind: string, events: readonly Event[]) => Promise<void>;
 }
 
-/** Serve a space's observability over its space's events, where alice owns the space and notes is installed, authenticating by bearer name. */
+/** Serve a space's observability where alice owns the space and notes is installed. */
 export async function serveObservability(options: ObservabilityTestOptions = {}) {
     // keep alice's space with the notes installation
     const fixture = await StackFixture.open({ database: observedDatabase });
@@ -155,7 +155,11 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     });
     const { store: objects, services } = served;
     const observed = implementation.receiver(objects);
-    const server = listen(present(services[1], "the observability service"), report, objects.clock);
+    const server = listen(
+        present(services.at(-1), "the observability service"),
+        report,
+        objects.clock,
+    );
 
     // serve the space's events to readers as the event service
     const eventServer = listen(
@@ -204,7 +208,7 @@ export async function serveObservability(options: ObservabilityTestOptions = {})
     };
 }
 
-/** Serve an observability implementation over HTTP to callers authenticating by bearer name, keeping its controllers' failures, closed as the test finishes. */
+/** Serve an implementation over HTTP to callers authenticating by bearer name. */
 function listen(
     implementation: ServiceImplementation,
     report: (error: unknown) => void,
@@ -239,7 +243,11 @@ export async function createSpace(database: DatabaseConnection): Promise<void> {
     await Authorization.run(
         new Authorizer([space.policy], [space.mapping]),
         database,
-        () => ({ subjects: [principal.user.reference("universe", ids.owner)], now, attributes: {} }),
+        () => ({
+            subjects: [principal.user.reference("universe", ids.owner)],
+            now,
+            attributes: {},
+        }),
         (authorization) =>
             authorization.grant({
                 object: space.reference(ids.account, ids.space),
