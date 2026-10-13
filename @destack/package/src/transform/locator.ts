@@ -1,18 +1,21 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, sep } from "node:path";
 import type { DeclarationConstructorMap } from "../definition/constructor.ts";
 import { Definition, type PackageDefinition } from "../definition/definition.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DependencyName } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
-import { schema } from "@destack/schema";
+import { schema, type Version } from "@destack/schema";
 
 /** The name and version fields of a package.json. */
 const Manifest = schema.looseObject({
     name: schema.string().exactOptional(),
     version: schema.string().exactOptional(),
 });
+
+/** The name and version fields of a Destack package's package.json. */
+const ReleasedManifest = schema.looseObject({ name: schema.string(), version: schema.string() });
 
 /** A package directory and the metadata its modules receive. */
 export interface ModulePackage {
@@ -34,12 +37,12 @@ export class PackageLocator {
     readonly #definitions = new Map<string, PackageDefinition | undefined>();
     /** The module parameter positions of stamped functions, by package name and directory. */
     readonly #imported = new Map<string, ReadonlyMap<string, number>>();
-    /** The package a build compiles, as it releases it, in place of what its directory declares. */
-    readonly #compiled: ModulePackage | undefined;
+    /** The versions the build releases its source packages at, by package name. */
+    readonly #versions: Readonly<Record<string, Version>>;
 
-    /** Find packages by directory, taking the compiled package as its build releases it. */
-    constructor(compiled?: ModulePackage) {
-        this.#compiled = compiled;
+    /** Find packages by directory, the sources at the versions the build releases them at. */
+    constructor(versions: Readonly<Record<string, Version>> = {}) {
+        this.#versions = versions;
     }
 
     /** Find the Destack package containing a module, or nothing outside Destack packages. */
@@ -142,12 +145,8 @@ export class PackageLocator {
 
     /** Read the nearest package definition at or above a directory. */
     async #read(directory: string): Promise<ModulePackage | undefined> {
-        // take the compiled package as the build releases it
-        if (directory === this.#compiled?.directory) {
-            return this.#compiled;
-        }
         // stop at dependency installations and the filesystem root
-        else if (basename(directory) === "node_modules" || dirname(directory) === directory) {
+        if (basename(directory) === "node_modules" || dirname(directory) === directory) {
             return undefined;
         }
 
@@ -167,12 +166,29 @@ export class PackageLocator {
                 `${join(directory, "destack.json")} has no package.json beside it`,
             );
         }
-        const manifest = Manifest.parse(JSON.parse(manifestText));
+        const manifest = ReleasedManifest.parse(JSON.parse(manifestText));
+        const version = PackageLocator.release(directory, manifest, this.#versions);
         const metadata = ModuleMetadata.parse({
-            package: { id: definition.id, name: manifest.name, version: manifest.version },
+            package: { id: definition.id, name: manifest.name, version },
         });
 
         return { directory, metadata };
+    }
+
+    /** Read a package's release, the version a build releases its source at or the declared one. */
+    static release(
+        directory: string,
+        declared: { readonly name: string; readonly version: string },
+        versions: Readonly<Record<string, Version>>,
+    ): string {
+        // keep the declared version of an installation or a package the build leaves out
+        const version = versions[declared.name];
+        const isInstalled = directory.split(sep).includes("node_modules");
+        if (isInstalled || version === undefined) {
+            return declared.version;
+        }
+
+        return version;
     }
 
     /** Read the name in a directory's package.json once, or nothing without one. */
