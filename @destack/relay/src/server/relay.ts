@@ -267,7 +267,7 @@ export class Relay {
             return undefined;
         }
 
-        // name the machine only while it stands
+        // route to the machine only while it stands
         return {
             destination: { machineId, residencyId: copied.residencyId },
             accountId: copied.accountId,

@@ -128,7 +128,7 @@ export class RelayFixture implements AsyncDisposable {
         await RelayFixture.#claim(this.accounts, { id: this.spaceId, scope: ids.account, name });
     }
 
-    /** Name a space of an account, the acme account unless named, and place it on a machine. */
+    /** Create a space of an account, the acme account by default, and place it on a machine. */
     static async place(
         accounts: AccountFixture,
         name: string,
