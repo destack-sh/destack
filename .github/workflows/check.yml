@@ -5,11 +5,6 @@ on:
     push:
         branches: [main]
     workflow_call:
-        inputs:
-            dialects:
-                description: Database dialects to test, as a JSON array
-                type: string
-                default: '["sqlite"]'
 
 permissions:
     contents: read
@@ -19,65 +14,66 @@ concurrency:
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-    typecheck:
-        name: Typecheck workspace
+    repository:
+        name: Check workflows and documents, list affected packages
         runs-on: ubuntu-24.04
-        timeout-minutes: 20
+        timeout-minutes: 10
+        outputs:
+            packages: ${{ steps.affected.outputs.packages }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
               with:
                   persist-credentials: false
+                  # the merge base with the target branch, or the pushed range, selects the affected packages
+                  fetch-depth: 0
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
-            - name: Install OpenTofu
-              uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
-              with:
-                  tofu_version: 1.12.6
-            - name: Typecheck workspace
-              run: just typecheck
+            - name: Lint workflows
+              run: actionlint
+            - name: Check repository documents
+              run: bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md
+            - name: List affected packages
+              id: affected
+              env:
+                  EVENT: ${{ github.event_name }}
+                  BASE_REF: ${{ github.base_ref }}
+                  BEFORE: ${{ github.event.before }}
+              run: |
+                  # gate the pull request's or the push's affected packages, and every package for a release
+                  base=""
+                  if [ "$EVENT" = pull_request ]; then
+                      base="origin/$BASE_REF"
+                  elif [ "$EVENT" = push ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+                      base="$BEFORE"
+                  fi
+                  packages="$(just affected "$base" | jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))')"
+                  echo "packages=$packages" >> "$GITHUB_OUTPUT"
+                  echo "$packages"
 
-    lint:
-        name: Lint and format workspace
-        runs-on: ubuntu-24.04
-        timeout-minutes: 20
-        steps:
-            - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-              with:
-                  persist-credentials: false
-            - name: Set up platform tools
-              uses: ./.github/actions/setup-platform
-            - name: Lint workspace
-              run: just lint
-            - name: Check workspace formatting
-              run: just format-check
-
-    test:
-        name: Test workspace (${{ matrix.dialect }})
+    gate:
+        name: Gate ${{ matrix.package }}
+        needs: [repository]
+        if: needs.repository.outputs.packages != '[]'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
         strategy:
             fail-fast: false
+            max-parallel: 16
             matrix:
-                dialect: ${{ fromJSON(inputs.dialects || '["sqlite"]') }}
+                package: ${{ fromJSON(needs.repository.outputs.packages) }}
         services:
             postgres:
-                # an empty image skips the container on runs without postgres
-                image: ${{ matrix.dialect == 'postgres' && 'postgres:18' || '' }}
+                image: postgres:18
                 env:
                     POSTGRES_HOST_AUTH_METHOD: trust
                 ports: ["55432:5432"]
                 options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12
-        env:
-            DESTACK_TEST_POSTGRES: ${{ matrix.dialect == 'postgres' && 'postgres://postgres@127.0.0.1:55432/postgres' || '' }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
               with:
                   persist-credentials: false
-                  # the merge base with the target branch selects the affected packages
-                  fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
             - name: Install sandbox tools
@@ -86,12 +82,11 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install --yes bubblewrap socat ripgrep
                   sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
-            - name: Test affected packages
-              if: github.event_name == 'pull_request'
-              run: just test-affected "origin/$GITHUB_BASE_REF"
-            - name: Test workspace
-              if: github.event_name != 'pull_request'
-              run: just test
+            - name: Run the gates
+              env:
+                  PACKAGE: ${{ matrix.package }}
+                  DESTACK_TEST_POSTGRES: postgres://postgres@127.0.0.1:55432/postgres
+              run: just gate "$PACKAGE"
 
     macos:
         name: Test filesystem and updates on macOS
@@ -109,8 +104,8 @@ jobs:
             - name: Typecheck filesystem
               run: bun run --cwd @destack/fs typecheck
             - name: Test filesystem operations
-              run: bun --bun run --cwd @destack/fs test
+              run: bun --bun run --cwd @destack/fs test --maxWorkers=4
             - name: Typecheck updates
               run: bun run --cwd @destack/update typecheck
             - name: Test updates
-              run: bun --bun run --cwd @destack/update test
+              run: bun --bun run --cwd @destack/update test --maxWorkers=4

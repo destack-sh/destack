@@ -66,25 +66,43 @@ format:
 
 alias fmt := format
 
-# test the packages the changes since a base commit affect, with their dependents
-test-affected base="origin/main": (postgres "up")
+# list the packages the changes since a base commit affect with their dependents, or every package
+affected base="":
     #!/usr/bin/env bash
     set -euo pipefail
-    directories="$(bun run destack-check affected "{{base}}")"
-    # run everything when a change reaches every package
+    directories="*"
+    if [ -n "{{base}}" ]; then
+        directories="$(bun run destack-check affected "{{base}}")"
+    fi
+    # list every package when a change reaches every package
     if [ "$directories" = "*" ]; then
-        just test
-        exit 0
+        directories="$(printf '%s\n' @destack/* @app/* @platform/* @template/*)"
     fi
-    filters=()
+    # keep packages with sources, leaving out test fixtures
     for directory in $directories; do
-        filters+=(--filter "./$directory")
+        if [ -f "$directory/package.json" ] && [ -d "$directory/src" ] && [[ "$directory" != */tests/* ]]; then
+            echo "$directory"
+        fi
     done
-    if [ ${#filters[@]} -eq 0 ]; then
-        echo "no package is affected"
-        exit 0
-    fi
-    bun run --bun --sequential --no-exit-on-error "${filters[@]}" --if-present test
+
+# run each package's gates: formatting, types, lints, and tests on 4 workers
+gate +directories:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for directory in {{directories}}; do
+        echo "gate $directory"
+        cd "{{justfile_directory()}}/$directory"
+        bun run destack-check format-check
+        bunx tsc --noEmit -p .
+        bun run destack-check check
+        # run vitest suites on 4 workers, and other test scripts as written
+        test="$(jq -r '.scripts.test // ""' package.json)"
+        if [[ "$test" == *vitest* ]]; then
+            bun run test --maxWorkers=4
+        elif [ -n "$test" ]; then
+            bun run test
+        fi
+    done
 
 # start, stop or report the test PostgreSQL on port 55432, or start it unless it runs (up)
 postgres action:

@@ -1,5 +1,5 @@
 name: Set up platform tools
-description: Install Bun, just, actionlint, and workspace dependencies.
+description: Install Bun, just, actionlint, OpenTofu, and workspace dependencies.
 
 runs:
     using: composite
@@ -16,6 +16,11 @@ runs:
           uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
           with:
               tool: actionlint
+
+        - name: Install OpenTofu
+          uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
+          with:
+              tofu_version: 1.12.6
 
         - name: Install dependencies
           shell: bash

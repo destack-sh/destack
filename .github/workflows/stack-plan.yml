@@ -40,11 +40,6 @@ jobs:
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
 
-            - name: Install OpenTofu
-              uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
-              with:
-                  tofu_version: 1.12.6
-
             - name: Assume plan role
               uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
               with:
@@ -74,7 +69,7 @@ jobs:
                               name="${file#@platform/stack/deployment/}"
                               add "${name%.tfvars}"
                               ;;
-                          src/main.ts | src/command/* | src/cloudflare/* | src/deployment/* | src/placement/* | src/universe/residency.ts | package.json | justfile)
+                          src/main.ts | src/command/* | src/cloudflare/credential.ts | src/deployment/* | package.json | justfile)
                               add shared production/universe production/eu production/us
                               ;;
                       esac

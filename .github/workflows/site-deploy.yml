@@ -35,11 +35,6 @@ jobs:
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
 
-            - name: Install OpenTofu
-              uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
-              with:
-                  tofu_version: 1.12.6
-
             - name: Check platform
               run: |
                   just @platform/site/check

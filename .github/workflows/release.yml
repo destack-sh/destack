@@ -67,8 +67,6 @@ jobs:
         permissions:
             contents: read
         uses: ./.github/workflows/check.yml
-        with:
-            dialects: '["sqlite", "postgres"]'
 
     build:
         name: Build distribution (${{ matrix.target }})
@@ -331,10 +329,6 @@ jobs:
                   persist-credentials: false
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
-            - name: Install OpenTofu
-              uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
-              with:
-                  tofu_version: 1.12.6
             - name: Assume deploy role
               uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
               with:
@@ -379,10 +373,6 @@ jobs:
                   persist-credentials: false
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
-            - name: Install OpenTofu
-              uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
-              with:
-                  tofu_version: 1.12.6
             - name: Assume plan role
               uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
               with:
