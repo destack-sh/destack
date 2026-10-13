@@ -4,7 +4,7 @@ import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "../src/index.ts";
+
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present } from "@destack/schema";
 

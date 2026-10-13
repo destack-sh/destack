@@ -1,5 +1,4 @@
 import { defineSchema, schema } from "@destack/schema";
-import { PackageId } from "@destack/package";
 import {
     Aggregate,
     Expression,
@@ -137,27 +136,6 @@ export const EXTERNAL_SHAPE = "external";
 
 /** The shape of the access rows a caller's own checks read in a scope's chain. */
 export const ACCESS_SHAPE = "access";
-
-/** The shape of the rows of a type a home's residents receive, which the home projects. */
-export const PROJECTION_SHAPE = "projection";
-
-/** The parameters of a projection shape. */
-export const ProjectionParameters = defineSchema(
-    schema.object({
-        /** The installation in the scope keeping the rows. */
-        installation: schema.identifier("installation"),
-        /** The package declaring the type, whose installation streams the rows. */
-        packageId: PackageId,
-        /** The type's name. */
-        type: schema.string().min(1),
-        /** The type's recipient field. */
-        to: schema.string().min(1),
-        /** The residents receiving the rows, as subject keys. */
-        recipients: schema.array(schema.string().min(1)).min(1),
-    }),
-);
-/** The parameters of a projection shape. */
-export type ProjectionParameters = schema.Infer<typeof ProjectionParameters>;
 
 /** The parameters of a scope's durable objects shape: named queries, else all listed types. */
 export const QueriesParameters = defineSchema(

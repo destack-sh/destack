@@ -14,7 +14,7 @@ import {
     through,
     union,
 } from "@destack/access";
-import { journal } from "../src/index.ts";
+
 import { AccessFixture } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -30,7 +30,7 @@ import { ObjectStore, Subscriber } from "../src/server/index.ts";
 import { userContext } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
 
-/** How long a copy may take to reach its home or relist: 5 s, far above the milliseconds it takes. */
+/** How long a copy may take to reach its home or relist: 5 s, far above its milliseconds. */
 const COPY_MILLISECONDS = 5000;
 
 /** Refuse a change sent over the uplink, as these copies receive none. */
@@ -98,7 +98,7 @@ const comment = defineObject({
     permissions: { read: none() },
 }).methods();
 
-/** Annotations an installation keeps in its own space, each on an account its readers read it through. */
+/** Annotations an installation keeps in its space, each readable through its account. */
 const annotation = defineObject({
     name: "annotation",
     plural: "annotations",
@@ -678,7 +678,7 @@ test("copy a scoped table an installation's database declares beside its followe
     });
 });
 
-/** Keep an account with a member role and two spaces at home, and serve a machine following the chains of the requested spaces from it. */
+/** Keep an account and two spaces at home, and serve a machine following their chains. */
 async function openCopies() {
     // keep the account, its member role and its two spaces at home
     const home = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
@@ -948,7 +948,7 @@ test("copy the chain of an account another copy brought first, once the universe
     expect(await Promise.race([followed.promise, timeout])).toEqual([accountId, followingSpaceId]);
 });
 
-/** Follow a store's copy of the universe until it reaches the home's head, stopping when the test finishes. */
+/** Follow a store's copy of the universe until the test finishes. */
 async function followUniverse(
     copying: ObjectStore,
     home: DatabaseConnection,

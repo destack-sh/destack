@@ -8,7 +8,6 @@ import type { RequestContext, PackageImplementation } from "@destack/runtime/ser
 import { ObjectTypeReference, type Shape, type Subject, type Uplink } from "@destack/sync";
 import type { InstallationContext } from "@destack/runtime/workload";
 import { copyRequest } from "@destack/runtime/request";
-import { ProjectionParameters } from "../replica/replica.ts";
 import { ObjectType } from "../object/object.ts";
 import type { SandboxHooks } from "../hook/sandbox.ts";
 import type { ExternalStorage } from "./external.ts";
@@ -279,36 +278,14 @@ async function installationSubscriptions(
     installation: InstallationContext,
     store: ObjectStore,
 ): Promise<readonly SubscriberEntry[]> {
-    return [
-        ...(await store.source.subscriptions(installation.scope, { kind: "follower" })).map(
-            (subscription) => ({ subscription, publisher: installation.publisher }),
-        ),
-        ...(await projectionSubscriptions(installation, store.objects, store)),
-    ];
-}
-
-/** List the projections an installation follows into its space for the types it serves. */
-async function projectionSubscriptions(
-    installation: InstallationContext,
-    objects: readonly ObjectType[],
-    store: ObjectStore,
-): Promise<readonly SubscriberEntry[]> {
-    // follow each source installation's projected rows through the installation's egress
-    const subscriptions = await store.source.projectionSubscriptions(installation.scope, objects);
-
-    return subscriptions.map((subscription) => {
-        const { installation: keeping, packageId } = ProjectionParameters.parse(
-            subscription.parameters,
-        );
-
-        return {
-            subscription,
-            publisher: installation.publisherAt(
-                Egress.address(keeping, subscription.scope),
-                packageId,
-            ),
-        };
+    const subscriptions = await store.source.subscriptions(installation.scope, {
+        kind: "follower",
     });
+
+    return subscriptions.map((subscription) => ({
+        subscription,
+        publisher: installation.publisher,
+    }));
 }
 
 /** Follow a partition's chain below an installation's root through its package's object API. */
@@ -423,11 +400,6 @@ function compose(
                               : partitionSubscriptions(installation, installation.partition, store),
                         subscriptions?.(store) ?? [],
                         ...composed.map(async (each) => (await each.subscriptions?.(store)) ?? []),
-                        ...composed.map(async ({ installation: serving, objects: served }) =>
-                            serving === undefined
-                                ? []
-                                : projectionSubscriptions(serving, served, store),
-                        ),
                     ])
                 ).flat(),
         },

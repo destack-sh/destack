@@ -12,7 +12,7 @@ export function userContext(
     return subjectContext(principal.user.reference("universe", user), scope, options);
 }
 
-/** Authenticate a request as the user its bearer token names, verified for an audience in a scope for a minute, and as no one without a token. */
+/** Authenticate a request as the user of its bearer token, else as no one. */
 export function bearerUser(
     audience: PackageId,
     scope: string,

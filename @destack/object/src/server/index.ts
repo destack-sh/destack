@@ -7,7 +7,6 @@ export * from "./ephemeral.ts";
 export * from "./provisioned.ts";
 export * from "./expiring.ts";
 export * from "./recoverable.ts";
-export * from "./projected.ts";
 export * from "./tracked.ts";
 export * from "./external.ts";
 export { Settlement } from "./settlement.ts";

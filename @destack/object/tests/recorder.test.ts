@@ -5,9 +5,7 @@ import { AuditCall, defineAuditAction } from "../src/index.ts";
 import { document } from "./fixture/journal.ts";
 import { schema } from "@destack/schema";
 import { AuditRecorder } from "../src/server/index.ts";
-import { AccessFixture } from "@destack/access/test";
-import { eq } from "@destack/db";
-import { Scope } from "@destack/sync";
+
 import { journal } from "../src/index.ts";
 import type { JournalEntry } from "../src/index.ts";
 import { RequestId } from "@destack/runtime/request";

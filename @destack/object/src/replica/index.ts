@@ -2,8 +2,6 @@ export {
     ACCESS_SHAPE,
     EPHEMERAL_SHAPE,
     EphemeralParameters,
-    PROJECTION_SHAPE,
-    ProjectionParameters,
     QUERIES_SHAPE,
     QueriesParameters,
     type OpenQueryOptions,

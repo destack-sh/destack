@@ -356,13 +356,12 @@ test.for(TEST_DIALECTS)(
             })
             .subscribe();
         await boards.ready;
-        const present = (rows: Awaited<ReturnType<typeof boards.read>>) =>
-            rows.map((row) => row.presences.map((entry) => [entry.activity, entry.profile?.name]));
-        const shown = async () => present(await boards.read());
+        const shown = async () =>
+            (await boards.read()).map((row) =>
+                row.presences.map((entry) => [entry.activity, entry.profile?.name]),
+            );
         await reach(boards, (rows) =>
-            present(rows)
-                .flat()
-                .some(([, name]) => name === "Alice"),
+            rows.some((row) => row.presences.some((entry) => entry.profile?.name === "Alice")),
         );
         expect(await shown()).toEqual([[["editing", "Alice"]], []]);
 
@@ -391,7 +390,7 @@ test.for(TEST_DIALECTS)(
         // count none once the viewer's presence goes, and forget her profile
         alice.stop();
         await reach(counts, (rows) => rows[0]?.viewers === 0);
-        await reach(boards, (rows) => present(rows).flat().length === 0);
+        await reach(boards, (rows) => rows.every((row) => row.presences.length === 0));
         expect(await shown()).toEqual([[], []]);
 
         // refuse conditions relating the other storage's objects

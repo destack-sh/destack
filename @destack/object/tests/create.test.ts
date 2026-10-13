@@ -1,6 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { sql } from "@destack/db";
+
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, Identifier, schema } from "@destack/schema";
 
@@ -21,7 +21,7 @@ const privateId = schema.identifier("space").parse("space-01996ab0-0000-7000-800
 /** The authentication creating a handle asks for: several factors within ten minutes. */
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
 
-/** Names unique within a space, created only by the user they refer to after strong authentication. */
+/** Names unique within a space, created by their own user after strong authentication. */
 const handle = defineObject({
     name: "handle",
     plural: "handles",
@@ -320,5 +320,46 @@ test("create each variant of a sum type from its own fields beside the shared on
         { label: "Mail", kind: "email", address: "alice@example.com", number: null, region: null },
         { label: "Desk", kind: "phone", address: null, number: "+4930123456", region: "de" },
         ["BAD_REQUEST", 'invalid input: unrecognized key: "number"'],
+    ]);
+});
+
+/** Channels keyed by the slug their holder chooses. */
+const channel = defineObject({
+    name: "channel",
+    plural: "channels",
+    scope: space,
+    key: schema.string().regex(/^[a-z]+$/u),
+    fields: { holder: field.reference(principal.user), name: field.string() },
+    permissions: { read: relation("holder"), create: relation("holder") },
+}).methods((method) => ({ create: method.create("create") }));
+
+test("create an object under a natural key the creator chooses, refusing a taken one", async () => {
+    const storage = await TestDatabase.create("sqlite", [...callTables, ...channel.tables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [channel],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: channel.package },
+    });
+    const context = userContext("alice", spaceId);
+    const create = (name: string) =>
+        store
+            .mutate(context.caller(), {
+                id: RequestId.create(Date.now()),
+                calls: [channel.call("create", { spaceId, id: "core", holderId: "alice", name })],
+            })
+            .then(([written]) => written.id);
+
+    // keep the chosen key, and refuse it once taken
+    expect([await create("Core"), await refusal(create("Again"))]).toEqual([
+        "core",
+        ["CONFLICT", "channel identifier is taken"],
     ]);
 });

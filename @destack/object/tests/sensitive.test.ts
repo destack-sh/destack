@@ -19,7 +19,7 @@ import { auditedCalls } from "./fixture/audit.ts";
 /** An API key a caller hands a method, which nothing derived from the call keeps. */
 const ApiKey = schema.sensitive(schema.string().regex(/^sk-/u));
 
-/** A key holder whose creation takes a sensitive key it keeps nowhere, and a sensitive token it keeps in its row alone. */
+/** A key holder taking a sensitive key it keeps nowhere and a token kept in its row. */
 const holder = defineObject({
     name: "holder",
     plural: "holders",

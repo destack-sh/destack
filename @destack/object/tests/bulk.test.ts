@@ -2,7 +2,7 @@ import { Package } from "@destack/package";
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "../src/index.ts";
+
 import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/runtime";
@@ -307,6 +307,14 @@ test.each(TEST_DIALECTS)(
     },
 );
 
+/** Build labels of one color for a bulk creation of a size. */
+function items(size: number) {
+    return Array.from({ length: size }, (_, index) => ({
+        name: `label-${String(size)}-${String(index)}`,
+        color: `color-${String(size)}`,
+    }));
+}
+
 test.each(TEST_DIALECTS)(
     "create and trash a thousand objects on %s in as many statements as one object",
     async (dialect) => {
@@ -320,11 +328,6 @@ test.each(TEST_DIALECTS)(
 
             return state.statements - before;
         };
-        const items = (size: number) =>
-            Array.from({ length: size }, (_, index) => ({
-                name: `label-${String(size)}-${String(index)}`,
-                color: `color-${String(size)}`,
-            }));
         const statements = {
             createOne: await counted(() => call("user-1", "createMany", { items: items(1) })),
             createThousand: await counted(() =>

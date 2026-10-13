@@ -1,8 +1,9 @@
-import { principal, relation } from "@destack/access";
+import { Caller, none, principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { EventTime } from "@destack/event";
 import { schema, Clock } from "@destack/schema";
+import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -41,10 +42,14 @@ const visit = defineObject({
         /** The page the visitor came from, absent for a direct visit. */
         data: field.json(schema.object({ referrer: schema.string().nullable() })),
     },
-    permissions: { read: relation("visitor") },
+    permissions: { read: relation("visitor"), record: none() },
 }).methods((method) => ({
     list: method.list("read"),
     get: method.get("read"),
+    record: method.createMany("record", {
+        isInternal: true,
+        fields: ["visitorId", "page", "duration", "data"],
+    }),
 }));
 
 test.for(TEST_DIALECTS)(
@@ -71,19 +76,28 @@ test.for(TEST_DIALECTS)(
             origin: { package: visit.package },
         });
 
-        // record two visits of alice a minute apart and one of bob
+        // record two visits of alice a minute apart and one of bob, as the space itself
         const visited = (id: string, visitor: string, page: string, minute: number) => ({
-            scope: spaceId,
             id,
             time: START + minute * MINUTE,
-            keys: { visitorId: visitor, page, duration: 1000 * (minute + 1) },
+            visitorId: visitor,
+            page,
+            duration: 1000 * (minute + 1),
             data: { referrer: null },
         });
-        await events.append(visit.eventKind(), [
-            visited("visit-1", "alice", "home", 0),
-            visited("visit-2", "alice", "about", 1),
-            visited("visit-3", "bob", "home", 0),
-        ]);
+        const recorded = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [
+                visit.call("record", {
+                    spaceId,
+                    items: [
+                        visited("visit-1", "alice", "home", 0),
+                        visited("visit-2", "alice", "about", 1),
+                        visited("visit-3", "bob", "home", 0),
+                    ],
+                }),
+            ],
+        });
 
         // list, get and fold as alice
         const alice = userContext("alice", spaceId).caller();
@@ -104,6 +118,7 @@ test.for(TEST_DIALECTS)(
                 }),
             );
         expect({
+            recorded,
             listed: (
                 await store.query(alice, visit.call("list", { spaceId, orderBy: { time: "asc" } }))
             ).items.map((item) => item.id),
@@ -113,6 +128,7 @@ test.for(TEST_DIALECTS)(
             unfiltered: await refusal(fold({})),
             foreign: await refusal(fold({ visitorId: "bob" })),
         }).toEqual({
+            recorded: [{ ids: ["visit-1", "visit-2", "visit-3"] }],
             listed: ["visit-1", "visit-2"],
             own: "about",
             other: ["NOT_FOUND", "no visit visit-3"],

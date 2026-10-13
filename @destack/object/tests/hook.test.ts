@@ -82,7 +82,12 @@ const OTHER_PACKAGE = schema
 /** One message of a sandbox's exchange with its store, its session told apart by its order. */
 type Message = readonly JsonValue[];
 
-/** Serve cards from a store whose card hooks run in a sandbox of the package's installation, recording their exchange. */
+/** Send a value through JSON, as a request between processes carries it. */
+function travel(value: unknown): unknown {
+    return JSON.parse(JSON.stringify(value));
+}
+
+/** Serve cards whose hooks run in a sandbox of the package's installation. */
 async function serveCards(cards: PackageHandle, owner: Package = card.package) {
     // keep the space's cards in memory
     const storage = await TestDatabase.create(
@@ -109,7 +114,6 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
 
         return `session ${sessions.indexOf(token) + 1}`;
     };
-    const travel = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
     // run the hooks in a sandbox reached through the store's sandbox hooks
     const installation = await testInstallation(owner, spaceId);
@@ -192,15 +196,19 @@ function moved(
         type: schema.literal("card"),
     });
     const owner = schema.looseObject({ id: schema.literal(card.package.id) });
-    const description: unknown = JSON.parse(JSON.stringify(entry.description), (_key, value) => {
-        const referenced = reference.safeParse(value);
-        const owned = owner.safeParse(value);
-        return referenced.success
-            ? { ...referenced.data, packageId }
-            : owned.success
-              ? { ...owned.data, id: packageId }
-              : value;
-    });
+    const description: unknown = JSON.parse(
+        JSON.stringify(entry.description),
+        (_key, value: unknown): unknown => {
+            const referenced = reference.safeParse(value);
+            const owned = owner.safeParse(value);
+
+            return referenced.success
+                ? { ...referenced.data, packageId }
+                : owned.success
+                  ? { ...owned.data, id: packageId }
+                  : value;
+        },
+    );
 
     return { ...entry, packageId, description: schema.json().parse(description) };
 }

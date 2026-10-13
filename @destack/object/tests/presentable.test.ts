@@ -25,7 +25,7 @@ const media = new ResourceDeclaration<unknown, { name: string; kind: "bucket"; s
     },
 );
 
-/** Boards presented by their name with a chosen icon, an accent and a cover, found by name and ordered by rank. */
+/** Boards presented by name, icon, accent and cover, found by name and ordered by rank. */
 const board = defineObject({
     name: "board",
     plural: "boards",

@@ -1,7 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import { journal } from "../src/index.ts";
+
 import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -76,7 +76,7 @@ const installationId = schema
     .identifier("installation")
     .parse("installation-01996ab0-0000-7000-8000-000000000057");
 
-/** The fields a box of the fixture package starts with, its approval threshold set as its space sets it. */
+/** The fields a box of the fixture package starts with. */
 const declared = {
     scope: spaceId,
     definitionPackageId: PackageId.parse("package-01996ab0-0000-7000-8000-000000000056"),
@@ -146,6 +146,11 @@ class Boxes {
     }
 }
 
+/** Digest each desired state of a box. */
+function digests(states: readonly { size: number }[]): Promise<string[]> {
+    return Promise.all(states.map((state) => Digest.json(state)));
+}
+
 /** Serve the boxes and links of an open space with their providers. */
 async function serve(boxes: Boxes) {
     // open the database with the space
@@ -200,8 +205,6 @@ async function serve(boxes: Boxes) {
         (await database.select().from(box.table).where(eq(box.table.id, id)))[0];
 
     // keep a box's desired states and write their digests and its approval threshold as its space does
-    const digests = (states: readonly { size: number }[]) =>
-        Promise.all(states.map((state) => Digest.json(state)));
     const want = async (
         id: typeof ids.first,
         states: { size: number }[],
@@ -228,12 +231,12 @@ async function serve(boxes: Boxes) {
         });
     };
 
-    return { store, database, reconcile, read, want, digests };
+    return { store, database, reconcile, read, want };
 }
 
 test("provision a box, apply its consumers' growth, and apply a destructive shrink only once its plan is approved", async () => {
     const boxes = new Boxes();
-    const { store, database, reconcile, read, want, digests } = await serve(boxes);
+    const { store, database, reconcile, read, want } = await serve(boxes);
     const now = Date.now();
     await database.insert(box.table).values({
         ...declared,

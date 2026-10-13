@@ -1,7 +1,7 @@
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test, TestClock } from "@destack/test";
 import { none, principal, relation, Caller } from "@destack/access";
-import { journal } from "../src/index.ts";
+
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
@@ -140,8 +140,8 @@ test.each(TEST_DIALECTS)(
                 }),
             ],
         });
-        await Transaction.run(storage.database, (transaction) =>
-            Scope.fence(transaction, spaceId, "host-2", 7_000),
+        await Transaction.run(storage.database, (fencing) =>
+            Scope.fence(fencing, spaceId, "host-2", 7_000),
         );
         const moved = store.mutate(at(8_000), {
             id: RequestId.create(clock.now()),

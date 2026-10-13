@@ -17,7 +17,7 @@ import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import { aligned, present, Clock } from "@destack/schema";
+import { aligned, Clock } from "@destack/schema";
 
 /** The space with the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";

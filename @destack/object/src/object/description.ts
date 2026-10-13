@@ -20,9 +20,7 @@ import { INTRINSIC } from "./intrinsic.ts";
 
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
-    ["projections"],
     ["indexes", "*", "across"],
-    ["projected", "from"],
     ["constraints", "*", "references", "object"],
 ];
 

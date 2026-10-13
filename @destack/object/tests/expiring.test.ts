@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
-import { journal } from "../src/index.ts";
+
 import { eq, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";

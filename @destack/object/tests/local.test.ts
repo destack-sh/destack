@@ -170,6 +170,13 @@ test("refuse to serve local objects at another principal's store, and refuse loc
     ]);
 });
 
+/** Call as a signed-in user who lives inside the given subjects. */
+function callerOf(id: string, inside: readonly Subject[]): Caller {
+    const person = Caller.of(principal.user.reference(Scope.universe.id, id), Date.now());
+
+    return { ...person, subjects: [...person.subjects, ...inside] };
+}
+
 test("serve a client's local objects at its own store to the people signed in on it alone", async () => {
     // keep a laptop's stickies
     const [ada, bob] = [Identifier.create("user"), Identifier.create("user")];
@@ -196,11 +203,6 @@ test("serve a client's local objects at its own store to the people signed in on
     });
 
     // call as ada signed in on the laptop, who lives inside it, and as bob signed in elsewhere
-    const callerOf = (id: string, inside: readonly Subject[]): Caller => {
-        const person = Caller.of(principal.user.reference(Scope.universe.id, id), Date.now());
-
-        return { ...person, subjects: [...person.subjects, ...inside] };
-    };
     const callers = {
         ada: callerOf(ada, [{ ...laptop, relation: CONTAINED }]),
         bob: callerOf(bob, []),

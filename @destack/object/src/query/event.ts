@@ -9,8 +9,27 @@ import type { ListInput } from "../method/record.ts";
 /** The list input fields only the SQL dataflow serves, which the event log refuses. */
 const DATAFLOW_FIELDS = ["extras", "with", "aggregate", "deleted", "at", "branch"] as const;
 
-/** The rows of an events type as `list` and `get` read them: hot and flushed from the event log. */
-export const EventListing = {
+/** The event log behind an events type: `create` appends to it, `list` and `get` read it. */
+export const EventLog = {
+    /** Append created rows as events of the scope. */
+    async append(call: Call, rows: readonly Row[]): Promise<void> {
+        // read each row as its event
+        const kind = call.object.eventKind();
+        const events = rows.map((row) => kind.event(row));
+
+        // append events kept exactly once as the call commits
+        const store = call.requireStore().requireEvents();
+        if (kind.delivery === "exactly-once") {
+            call.requireTransaction().record((committing) =>
+                store.append(kind, events, committing),
+            );
+        }
+        // append events kept at most once alone, outliving a failed call
+        else {
+            await store.append(kind, events);
+        }
+    },
+
     /** Read a page of the scope's events the caller may read, in time order. */
     async page(call: Call, input: ListInput): Promise<{ items: Row[]; cursor: string | null }> {
         // refuse what only the SQL dataflow serves
@@ -38,7 +57,7 @@ export const EventListing = {
             .query(
                 kind,
                 {
-                    scopes: await EventListing.scopes(call),
+                    scopes: await EventLog.scopes(call),
                     ...(where === undefined ? {} : { where }),
                 },
                 {
@@ -64,7 +83,7 @@ export const EventListing = {
         const event = await call
             .requireStore()
             .requireEvents()
-            .get(kind, { scopes: await EventListing.scopes(call), id });
+            .get(kind, { scopes: await EventLog.scopes(call), id });
 
         return event === undefined ? null : kind.row(event);
     },

@@ -14,7 +14,7 @@ import { Scope } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { serveObjects, spaceId } from "./fixture/device.ts";
 import { notebook, note, notesDatabase, notesPackage } from "./fixture/note.ts";
-import { openSpace, spacePrincipal } from "./fixture/space.ts";
+import { openSpace } from "./fixture/space.ts";
 
 /** Build a call's space and a new request. */
 function request() {
@@ -56,9 +56,7 @@ async function serveInstalledNotes() {
             throw new TypeError("the fixture fetches no address");
         },
         directory: {
-            isHome: async () => false,
             locale: () => Promise.reject(new TypeError("the fixture knows no person")),
-            address: () => Promise.reject(new TypeError("the fixture resolves no address")),
             messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
         },
     };

@@ -66,7 +66,7 @@ const preferences = definePackage({ objects: { preference } });
 /** Refuse a change sent over the uplink, as the client sends its changes home itself. */
 const refuseChanges = () => Promise.reject(new Error("the copy receives no changes"));
 
-/** Serve alice's preferences at their home and a copy of them at her room's machine, recording the writes each receives. */
+/** Serve alice's preferences at their home and a copy at her room's machine. */
 async function serveHomes() {
     // keep alice's person and room at home, owned by her
     const homeStorage = await TestDatabase.create(
@@ -197,7 +197,7 @@ async function followChain(
     }
 }
 
-/** Open alice's client of her room, reaching her person's home for its rows, following and pushing. */
+/** Open alice's client of her room, reaching her person's home for its rows. */
 async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
     // keep the room's preferences on the device
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ preference }), {

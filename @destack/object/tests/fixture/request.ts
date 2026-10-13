@@ -3,7 +3,7 @@ import { RequestId } from "@destack/runtime/request";
 import type { CallableName, CallOutput, ObjectType } from "../../src/index.ts";
 import type { ObjectStore } from "../../src/server/index.ts";
 
-/** Run one method as a request carries it: a query for a reading method, else a one-call mutation under the request's identifier or writer. */
+/** Run one method as a request carries it: a query, else a one-call mutation. */
 export async function request<Type extends ObjectType, Name extends CallableName<Type>>(
     store: ObjectStore,
     object: Type,

@@ -67,7 +67,9 @@ test("answer each request at or below an adapter's path by its fetch, below the 
     const answer = async (path: string) => {
         const response = await server.fetch(new Request(`https://pages.test${path}`));
 
-        return response.status === 200 ? await response.json() : response.status;
+        return response.status === 200
+            ? schema.json().parse(await response.json())
+            : response.status;
     };
 
     expect([

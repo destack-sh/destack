@@ -12,7 +12,7 @@ export async function auditedCalls(database: DatabaseConnection): Promise<AuditC
     return rows.map((row) => AuditCall.parse(row.data));
 }
 
-/** Read the methods a database's audited calls ran, by callers' requests or by a principal's components, a failed one with its error code. */
+/** Read the methods a database's audited calls ran, a failed one with its error code. */
 export async function auditedActions(
     database: DatabaseConnection,
     actor: "caller" | "component",

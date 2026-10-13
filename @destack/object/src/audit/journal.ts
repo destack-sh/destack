@@ -158,7 +158,7 @@ export class Journal {
         else if (options.isAudited && execution.outcome !== undefined) {
             await this.#events.append(
                 Journal.kind,
-                [Journal.#event(AuditCall.parse(Journal.kept(entry)))],
+                [Journal.event(AuditCall.parse(Journal.kept(entry)))],
                 transaction,
             );
         }
@@ -184,7 +184,7 @@ export class Journal {
     }
 
     /** Write an ended call as an event of its scope. */
-    static #event(ended: AuditCall) {
+    static event(ended: AuditCall) {
         const { execution } = ended;
         const { target } = execution;
 

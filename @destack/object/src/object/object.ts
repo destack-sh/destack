@@ -99,7 +99,6 @@ import {
     type RecoverableMethodMap,
 } from "../trait/recoverable.ts";
 import { expiring, type ExpiryRule } from "../trait/expiring.ts";
-import { projected, type ProjectedDefinition } from "../trait/projected.ts";
 import { versioned, type VersionsDefinition } from "../trait/versioned.ts";
 import {
     type RoleFieldsOf,
@@ -257,7 +256,6 @@ const TRAITS: readonly Trait<unknown>[] = [
     transitions,
     recoverable,
     expiring,
-    projected,
     versioned,
     controlled,
     declarable,
@@ -344,10 +342,6 @@ export interface ObjectTraits<Declared = unknown, Permissions extends string = s
     readonly recoverable?: RecoverableDefinition<Permissions>;
     /** The rules after which their store removes the objects. */
     readonly expiring?: readonly ExpiryRule[];
-    /** Project another type's rows into the objects, each its own object with its own state. */
-    readonly projected?: ProjectedDefinition;
-    /** The types projecting the objects into recipients' homes, as their `projected` refers. */
-    readonly projections?: () => readonly ObjectType[];
     /** The objects' natural key, by which callers and sources identify them in place of ids. */
     readonly key?: schema.Schema<string>;
     /** The scopes inside each object's scope that copy the objects, matching any condition. */
@@ -799,16 +793,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The kind whose resources the objects are, absent for other objects. */
     get provisioned(): ProvisionedDefinition | undefined {
         return this.definition.provisioned;
-    }
-
-    /** The type whose rows the objects project, absent for objects projecting none. */
-    get projected(): ProjectedDefinition | undefined {
-        return this.definition.projected;
-    }
-
-    /** Read the types projecting the objects into recipients' homes, as declared. */
-    get projecting(): (() => readonly ObjectType[]) | undefined {
-        return this.definition.projections;
     }
 
     /** Whether reads of the objects are audited. */
@@ -1332,21 +1316,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             this.scope !== Scope.universe.id &&
             (this.scopes.length === 0 || this.scopes.some((type) => type.policy.is(scope)))
         );
-    }
-
-    /** List the types projecting the objects into recipients' homes, refusing other sources. */
-    get projections(): readonly ObjectType[] {
-        // read the declared projections, refusing one projecting another type
-        const projecting = this.projecting?.() ?? [];
-        const other = projecting.find(
-            (object) =>
-                object.projected === undefined || !projected.sourceOf(object.projected).same(this),
-        );
-        if (other !== undefined) {
-            throw new TypeError(`object ${other.name} projects no ${this.name}`);
-        }
-
-        return projecting;
     }
 
     /** Decide whether objects of another type attach to these objects. */

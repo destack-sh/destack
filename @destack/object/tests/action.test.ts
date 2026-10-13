@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { schema } from "@destack/schema";
+
 import { documentRename } from "./fixture/journal.ts";
 import { auditActionVocabulary, describeAuditAction } from "../src/inspect/index.ts";
 

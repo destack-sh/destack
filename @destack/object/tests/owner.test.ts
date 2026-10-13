@@ -1,6 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, through, union, universe } from "@destack/access";
-import { journal } from "../src/index.ts";
+
 import { defineDatabase, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, schema } from "@destack/schema";
@@ -160,11 +160,7 @@ test.each(TEST_DIALECTS)(
             origin: { package: asset.package },
             claims: { object: claim },
         });
-        const call = <Name extends CallableName<typeof asset>>(
-            by: string,
-            name: Name,
-            input: object,
-        ) =>
+        const call = (by: string, name: CallableName<typeof asset>, input: object) =>
             refusal(
                 request(
                     store,

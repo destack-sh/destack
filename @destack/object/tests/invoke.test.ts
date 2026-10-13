@@ -1,7 +1,7 @@
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
-import { journal } from "../src/index.ts";
+
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";

@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { principal } from "@destack/access";
-import { declareState, TABLE } from "@destack/db";
+import { declareState } from "@destack/db";
 import { t } from "@destack/locale";
 import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import { schema, toJsonSchema } from "@destack/schema";
@@ -28,7 +28,7 @@ const box = defineObject({
     fields: {},
 }).methods();
 
-/** A type with a field of every builder and modifier, a method of every builder and option, and a constraint of every kind. */
+/** A type with every field builder, method builder and constraint kind. */
 const sample = defineObject({
     name: "sample",
     plural: "samples",
@@ -293,18 +293,6 @@ test("refuse code, unknown declarations and intrinsic types at their path", () =
         new TypeError(
             `a description refers to object type ${JSON.stringify([note.package.id, "note"])}, which is not known`,
         ),
-    );
-
-    // refuse a lazy reference returning no types
-    const empty = defineObject({
-        name: "empty",
-        plural: "empties",
-        scope: space,
-        fields: {},
-        projections: () => [],
-    }).methods();
-    expect(() => empty.describe()).toThrow(
-        new TypeError("empty.projections returns no object types or policies"),
     );
 
     // refuse the chunk type, whose table text keeps

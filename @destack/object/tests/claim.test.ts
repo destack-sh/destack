@@ -28,13 +28,13 @@ import { RequestId } from "@destack/runtime/request";
 import { Server } from "@destack/runtime/server";
 import { v7 } from "uuid";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
-import { none, principal, universe } from "@destack/access";
+import { none, universe } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import { journal } from "../src/index.ts";
-import { claim as claimType, serveClaims } from "./fixture/claim.ts";
+
+import { claim, serveClaims } from "./fixture/claim.ts";
 
 test.each(TEST_DIALECTS)(
     "keep handles unique across spaces in separate databases on %s",
@@ -108,12 +108,12 @@ test.each(TEST_DIALECTS)(
         const served = await serveClaims(storage.database, Clock.system);
         const home = present(served.home, "the universe's claims");
         const seen: (readonly [string, number])[] = [];
-        let space: DatabaseConnection | undefined;
+        let spaceDatabase: DatabaseConnection | undefined;
         const claims: ClaimHome = {
             object: served.object,
             home: {
                 mutate: async (mutation, claimer) => {
-                    const database = present(space, "the space's database");
+                    const database = present(spaceDatabase, "the space's database");
                     const rows = await database.select().from(profile.table);
                     seen.push(...mutation.calls.map((call) => [call.method, rows.length] as const));
 
@@ -123,7 +123,7 @@ test.each(TEST_DIALECTS)(
             },
         };
         const east = await serveProfiles(dialect, claims);
-        space = east.database;
+        spaceDatabase = east.database;
 
         // create a profile claiming a handle
         await east.alice.profile.create({
@@ -174,7 +174,7 @@ test.each(TEST_DIALECTS)(
             const [replaced] = await present(claims.home, "the universe's claims").mutate(
                 {
                     id: RequestId.create(now),
-                    calls: [Call.wire(claimType.call("replace", owned))],
+                    calls: [Call.wire(claim.call("replace", owned))],
                 },
                 { kind: "store" },
             );
@@ -237,7 +237,7 @@ test.each(TEST_DIALECTS)(
         const [first, second] = [`place-${v7()}`, `place-${v7()}`];
         const index = "package-1/place/name";
         const owner = "account-1";
-        const claim = (key: string, objectId: string) => ({
+        const entry = (key: string, objectId: string) => ({
             index,
             key,
             packageId: "package-1",
@@ -248,7 +248,7 @@ test.each(TEST_DIALECTS)(
             indexes: [index],
             objectId,
             owner,
-            claims: [claim(key, objectId)],
+            claims: [entry(key, objectId)],
             state,
         });
         const now = Date.now();
@@ -257,7 +257,7 @@ test.each(TEST_DIALECTS)(
         expect([
             await Claim.reserve(database, owned("notes", "active"), "request-1", now),
             await Claim.reserve(database, owned("notes", "active", second), "request-2", now),
-        ]).toEqual([[], [claim("notes", second)]]);
+        ]).toEqual([[], [entry("notes", second)]]);
         const reserved = await Claim.owner(claimsOf(database), { index, key: "notes" });
         await Claim.confirm(database, owned("notes", "active"), "request-1");
         const active = await Claim.owner(claimsOf(database), { index, key: "notes" });
@@ -283,7 +283,7 @@ test.each(TEST_DIALECTS)(
             undefined,
             { objectId: first, owner },
             undefined,
-            [claim("notes", second)],
+            [entry("notes", second)],
             { objectId: first, owner },
             undefined,
             { objectId: first, owner },
@@ -469,7 +469,7 @@ test("keep a trashed object's names, activate them on restore, and release them 
 
 /** Open the universe's database with its claims and the journal of their calls. */
 async function universeStorage(dialect: Dialect) {
-    const tables = [...new Set([outbox, ...callTables, ...claimType.tables])];
+    const tables = [...new Set([outbox, ...callTables, ...claim.tables])];
     const storage = await TestDatabase.create(dialect, tables, { isMigrated: true });
     onTestFinished(() => storage.close());
 

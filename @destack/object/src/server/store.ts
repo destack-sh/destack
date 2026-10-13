@@ -95,7 +95,6 @@ import { EphemeralStorage } from "./ephemeral.ts";
 import { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
 
-import type { Residence } from "../trait/projected.ts";
 import { Provisioned } from "../trait/provisioned.ts";
 import { ProvisionedController, type ProvisionedOptions } from "./provisioned.ts";
 import { ExpiringController } from "./expiring.ts";
@@ -354,8 +353,6 @@ export class ObjectStore {
     readonly shapes: readonly sync.Shape[];
     /** The installations serving objects and their projections, by type reference key. */
     readonly #installed: ReadonlyMap<string, InstallationContext>;
-    /** The copied types of the residents whose rows the served types project, if any. */
-    readonly residence: Residence | undefined;
     /** The served or authorized durable types whose rows the database copies from home. */
     readonly copied: readonly ObjectType[];
     /** The machine recording runs: the calls methods send and their change triggers' calls. */
@@ -413,12 +410,11 @@ export class ObjectStore {
         this.events = options.events;
         this.external = options.external ?? [];
 
-        // build the authorizer over the objects, the scope types enclosing them and the residence
+        // build the authorizer over the objects and the scope types enclosing them
         this.database = options.database;
         this.principal = options.principal;
         this.#partition = options.partition;
-        this.residence = ObjectStore.#residence(this.objects);
-        this.authorizer = ObjectStore.#authorizer(this.objects, this.residence, options);
+        this.authorizer = ObjectStore.#authorizer(this.objects, options);
         TrackedHistory.require(this.objects, this.authorizer);
 
         // keep the journal, the audit and the request context
@@ -597,20 +593,14 @@ export class ObjectStore {
         return triggers;
     }
 
-    /** Build the authorizer over the objects, their scope types, residence and other policies. */
+    /** Build the authorizer over the objects, their scope types and other policies. */
     static #authorizer(
         objects: readonly ObjectType[],
-        residence: Residence | undefined,
         options: Pick<ObjectStoreOptions, "database" | "policies" | "clock" | "partition">,
     ): Authorizer {
-        // add the residence's types the store does not serve
-        const residents = (
-            residence === undefined ? [] : [residence.account, residence.residence]
-        ).filter((type) => !objects.some((served) => served.same(type)));
-
         return ObjectAccess.authorizer(
             objects,
-            [...(options.policies ?? []), ...residents],
+            options.policies ?? [],
             (table) => options.database.copies(table),
             options.partition,
         );
@@ -727,23 +717,6 @@ export class ObjectStore {
         if (unfiled !== undefined) {
             throw new TypeError(`external object ${unfiled.name} needs files keeping it`);
         }
-    }
-
-    /** Read the residence the projecting types share, refusing types with different ones. */
-    static #residence(objects: readonly ObjectType[]): Residence | undefined {
-        // read each projecting type's residence, refusing a second one
-        const [first, ...others] = objects.flatMap((object) =>
-            object.projected === undefined ? [] : [object.projected.residence],
-        );
-        const differing = others.find(
-            (other) =>
-                !other.account.same(first?.account) || !other.residence.same(first?.residence),
-        );
-        if (differing !== undefined) {
-            throw new TypeError("the projecting types name different residences");
-        }
-
-        return first;
     }
 
     /** Implement a package's served objects. */
@@ -1771,7 +1744,6 @@ export class ObjectStore {
                 ? []
                 : [new ChangeController(this.database, this.triggers, this.runs, this.#report)]),
             ...(this.subscriber === undefined ? [] : [this.source.controller(this.subscriber)]),
-            ...[this.source.addresses()].filter((controller) => controller !== undefined),
             ...[...this.objects, ...this.#provisioned].flatMap((object) =>
                 object.controller === undefined
                     ? []

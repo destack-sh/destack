@@ -1,6 +1,6 @@
 import { callTables } from "../src/test/index.ts";
 import { defineObject, field, type ObjectType } from "../src/index.ts";
-import { journal } from "../src/index.ts";
+
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";

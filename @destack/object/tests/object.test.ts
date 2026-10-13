@@ -18,7 +18,7 @@ import { request } from "./fixture/request.ts";
 /** The space the declared objects live in. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 
-/** Cards stacks declare by name, which their owners also write directly and hand over between both. */
+/** Cards stacks declare by name, which their owners also write directly. */
 const card = defineObject({
     name: "card",
     plural: "cards",
@@ -381,7 +381,7 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-/** Declare a ledger in the universe, a scope or a record there, granting its read to contained spaces. */
+/** Declare a universe ledger, a scope or a record, readable by contained spaces. */
 function ledger(isScope: boolean) {
     return defineObject({
         name: "ledger",

@@ -27,6 +27,7 @@ export {
     type ObjectIndex,
     type ObjectScope,
     type ObjectStorage,
+    type EventKindOf,
 } from "./object.ts";
 export { ObjectConstraint } from "./constraint.ts";
 export { ObjectDescription, type BuilderCall, type KnownDeclaration } from "./description.ts";

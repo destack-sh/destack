@@ -6,7 +6,7 @@ import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, present, Clock } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { Server, type PackageImplementation } from "@destack/runtime/server";

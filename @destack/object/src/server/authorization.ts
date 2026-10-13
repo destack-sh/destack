@@ -23,7 +23,7 @@ import {
 import { aligned, schema } from "@destack/schema";
 import { conceal, CallError } from "@destack/runtime/error";
 import type { Call } from "../method/call.ts";
-import { EventListing } from "../query/event.ts";
+import { EventLog } from "../query/event.ts";
 import type { MethodKind } from "../method/kind.ts";
 import { SCOPE_READ, type ObjectType } from "../object/object.ts";
 
@@ -426,7 +426,7 @@ export class Authorization extends access.Authorization {
         const row =
             call.object.storage !== "events"
                 ? await call.requireTransaction().row(call.object.table, { id })
-                : await EventListing.row(call, id);
+                : await EventLog.row(call, id);
         const rows: readonly Row[] = row === null || row["scope"] !== call.scope ? [] : [row];
 
         return this.keep(rows, permission, evaluated);

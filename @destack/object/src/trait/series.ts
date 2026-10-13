@@ -4,7 +4,7 @@ import { defineSchema, schema } from "@destack/schema";
 import type { Call } from "../method/call.ts";
 import { ObjectType } from "../object/object.ts";
 import { method } from "../method/record.ts";
-import { EventListing } from "../query/event.ts";
+import { EventLog } from "../query/event.ts";
 import { traitPermissions, type Trait } from "./trait.ts";
 
 /** The most keys a series groups by: four keys of a few values each stay a readable chart. */
@@ -101,7 +101,7 @@ async function fold(call: Call): Promise<schema.Infer<typeof SeriesResult>> {
     } = SeriesQuery.parse(call.input);
     const range = { time: { gte: from, lt: before } };
     const filter = {
-        scopes: await EventListing.scopes(call),
+        scopes: await EventLog.scopes(call),
         where: { AND: [range, ...(where === undefined ? [] : [where])] },
     };
 

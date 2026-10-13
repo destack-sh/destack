@@ -148,7 +148,7 @@ await store.mutate(Caller.of(space, Date.now()), { id: RequestId.create(), calls
 
 ## Events
 
-A type kept in the event log takes `storage: { kind: "events", … }`: its rows are appended once, read by the same `get` and `list` hot and flushed alike, and folded by `series`; a guarded field masks the personal values its schema marks.
+A type kept in the event log takes `storage: { kind: "events", … }`: an internal `create` or `createMany` appends its rows under the caller's `id` and `time`, the same `get` and `list` read them hot and flushed alike, and `series` folds them; a guarded field masks the personal values its schema marks.
 
 ```ts
 export const call = defineObject({
@@ -167,8 +167,10 @@ export const call = defineObject({
         actor: field.string(),
         method: field.string(),
     },
-    permissions: ["read", "unmask"],
-}).methods();
+    permissions: ["read", "unmask", "record"],
+}).methods((method) => ({
+    record: method.createMany("record", { isInternal: true, fields: ["data", "actor", "method"] }),
+}));
 const events = new EventStore({
     database,
     kinds: [call.eventKind()],
@@ -184,6 +186,10 @@ const store = new ObjectStore({
     callKey,
     events,
     origin,
+});
+await store.mutate(Caller.of(space, now), {
+    id: requestId,
+    calls: [call.call("record", { scope, items: [{ id, time, data, actor, method }] })],
 });
 await store.query(
     caller,

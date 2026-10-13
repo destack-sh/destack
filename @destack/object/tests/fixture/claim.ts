@@ -25,9 +25,7 @@ export const claim = defineObject({
     scope: "universe",
     permissions: { read: none(), claim: none(), resolve: none() },
 })
-    .methods((method) => ({
-        ...claimMethods,
-    }))
+    .methods(() => claimMethods)
     .implement({
         methods: {
             reserve: async (call) => {

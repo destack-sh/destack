@@ -13,14 +13,10 @@ import {
     Caller,
     type UniverseParameters,
 } from "@destack/access";
-import { ScopeProjector } from "./projected.ts";
 import { Scope, ObjectReference, Subject } from "@destack/sync";
 import type { JsonValue } from "@destack/schema";
 import {
-    and,
-    Change,
     type DatabaseConnection,
-    eq,
     LogPosition,
     Snapshot,
     TABLE,
@@ -28,9 +24,9 @@ import {
     Transaction,
 } from "@destack/db";
 
-import { aligned, Digest, Duration, found, present, schema } from "@destack/schema";
+import { Digest, Duration, found, schema } from "@destack/schema";
 
-import { isCallError, CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/runtime/error";
 
 import { type RequestContext } from "@destack/runtime/server";
 import { withEventMeta } from "@destack/runtime";
@@ -40,20 +36,17 @@ import {
     ACCESS_SHAPE,
     EPHEMERAL_SHAPE,
     EXTERNAL_SHAPE,
-    PROJECTION_SHAPE,
-    ProjectionParameters,
     EphemeralParameters,
     QUERIES_SHAPE,
     QueriesParameters,
 } from "../replica/replica.ts";
 import { ObjectType, REPLICATE, type ObjectStorage } from "../object/object.ts";
 import { ExternalStorage } from "./external.ts";
-import { projected } from "../trait/projected.ts";
 
 import { Authorization } from "./authorization.ts";
 
 import { EphemeralStorage } from "./ephemeral.ts";
-import { ObjectAudience, RecipientAudience } from "./audience.ts";
+import { ObjectAudience } from "./audience.ts";
 
 import type { Controller } from "@destack/runtime/control";
 
@@ -66,9 +59,6 @@ const BROADCAST_BYTES = 16 * 1024;
 
 /** An event an object sends, with the object it is about. */
 const SENT_EVENT = ObjectReference.extend({ event: schema.json() });
-
-/** The key of an address to record: the keeping installation and the recipient. */
-const AddressKey = schema.tuple([schema.string(), schema.string()]);
 
 /** The copies a store streams: client feeds of scope queries, and replicas for databases below. */
 export class ObjectSource {
@@ -132,10 +122,6 @@ export class ObjectSource {
         else if (shape === this.accessShape) {
             yield* this.#access(subscription, context);
         }
-        // project a home's rows
-        else if (shape === this.projectionShape) {
-            yield* this.project(subscription, context.request.signal, context.signal);
-        }
         // relay any other copy to the follower it is for
         else {
             const { after, ...request } = subscription;
@@ -154,31 +140,12 @@ export class ObjectSource {
                 await this.store.enter(context, subscription.scope);
 
                 return { context };
-            case "recipient":
-                ObjectSource.#requireHome(subscription, context);
-
-                return { context };
             case "contained":
             case "reader": {
                 const { after: _after, ...request } = subscription;
 
                 return this.#follower(request, context);
             }
-        }
-    }
-
-    /** Require the caller to be the home a projection follows, or one of its installations. */
-    static #requireHome(subscription: sync.Subscription, context: RequestContext): void {
-        const { subjects } = context.requireCaller();
-        const isHome = subjects.some(
-            (subject) =>
-                subject.id === subscription.below ||
-                (principal.installation.is(subject) && subject.scope === subscription.below),
-        );
-        if (!isHome) {
-            throw new CallError("FORBIDDEN", {
-                message: `only ${subscription.below} follows the rows its residents receive`,
-            });
         }
     }
 
@@ -387,248 +354,6 @@ export class ObjectSource {
         isReadinessGate: true,
         replica: ({ name, scope }) => new sync.Replica({ name, scope, tables: decisionTables }),
     });
-
-    /** The shape of rows a home's residents receive per recipient, copied and projected. */
-    readonly projectionShape = sync.defineShape({
-        name: PROJECTION_SHAPE,
-        parameters: ProjectionParameters,
-        audience: "recipient",
-        isReadinessGate: false,
-        replica: ({ name, scope, parameters }) => {
-            // project the source's rows into the home the copy is for, through the served types projecting them
-            const projectors = this.store.objects.flatMap((object) => {
-                // keep a projecting type's projector for the given source
-                if (object.projected === undefined) {
-                    return [];
-                }
-                const projector = new ScopeProjector(
-                    object,
-                    object.projected,
-                    name,
-                    this.store.clock,
-                );
-                const source = projected.sourceOf(object.projected);
-                const isSource =
-                    source.name === parameters.type &&
-                    source.policy.definition.packageId === parameters.packageId;
-
-                return isSource ? [projector] : [];
-            });
-            if (projectors.length === 0) {
-                throw new CallError("NOT_FOUND", {
-                    message: `nothing here projects ${parameters.type}`,
-                });
-            }
-
-            return new sync.Replica({ name, scope, tables: [], isRelayed: false, projectors });
-        },
-    });
-
-    /** Stream a type's rows for a home's residents from a position, decided per recipient. */
-    async *project(
-        subscription: sync.Subscription,
-        signal: AbortSignal,
-        drain?: AbortSignal,
-    ): AsyncGenerator<sync.Page> {
-        // require the rows the named installation keeps here, and each recipient to live in the following home
-        const parameters = ProjectionParameters.parse(subscription.parameters);
-        const source = this.#projected(parameters);
-        const installation = this.store.installationOf(source);
-        if (installation === undefined || parameters.installation !== installation.id) {
-            throw new CallError("NOT_FOUND", {
-                message: `${parameters.installation} keeps the rows elsewhere`,
-            });
-        }
-        for (const recipient of parameters.recipients) {
-            if (!(await installation.directory.isHome(recipient, subscription.below))) {
-                throw new CallError("FORBIDDEN", {
-                    message: `${recipient} lives in no home ${subscription.below}`,
-                });
-            }
-        }
-
-        // restart from a snapshot once the recipients changed
-        const { scope, previous, origin } = subscription;
-        const after = previous === undefined ? subscription.after : undefined;
-
-        // stream the rows each recipient receives
-        const audience = await RecipientAudience.of(
-            this.store,
-            scope,
-            parameters.to,
-            parameters.recipients,
-        );
-        const queries: Record<string, sync.Query> = {
-            [source.name]: {
-                table: source.table,
-                scopes: [scope],
-                where: { [parameters.to]: { in: parameters.recipients } },
-            },
-        };
-        yield* marking(
-            this.store.feed.subscribe(queries, after, signal, {
-                audience,
-                ...(drain === undefined ? {} : { drain }),
-                ...(origin === undefined ? {} : { origin }),
-            }),
-            [scope],
-        );
-    }
-
-    /** Find the served type a projection refers to, refusing one without its recipient field. */
-    #projected(parameters: ProjectionParameters): ObjectType {
-        const source = this.store.durable.find(
-            (object) =>
-                object.name === parameters.type &&
-                object.policy.definition.packageId === parameters.packageId,
-        );
-        if (source?.fields[parameters.to]?.type !== "subject") {
-            throw new CallError("NOT_FOUND", {
-                message: `no ${parameters.type} received through ${parameters.to}`,
-            });
-        }
-
-        return source;
-    }
-
-    /** List a home's subscriptions: one per type projected and source installation of residents. */
-    async projectionSubscriptions(
-        home: string,
-        objects: readonly ObjectType[],
-    ): Promise<sync.Subscription[]> {
-        // project nowhere without a projected type
-        const projecting = objects.flatMap((object) =>
-            object.projected === undefined ? [] : [object.projected],
-        );
-        const { residence } = this.store;
-        if (residence === undefined || projecting.length === 0) {
-            return [];
-        }
-
-        // read the residences of the users whose personal account this home belongs to, grouped by source and installation
-        const account = residence.account.table[TABLE];
-        const residing = residence.residence.table[TABLE];
-        const rows = await this.store.database
-            .select({
-                user: residing.column("scope"),
-                source: residing.column("sourceId"),
-                installation: residing.column("installation"),
-            })
-            .from(residence.residence.table)
-            .innerJoin(
-                residence.account.table,
-                and(
-                    eq(account.column("scope"), residing.column("scope")),
-                    eq(account.column("kind"), "personal"),
-                ),
-            )
-            .innerJoin(Scope.table, eq(Scope.table.parent, account.column("id")))
-            .where(eq(Scope.table.scope, home))
-            .orderBy(
-                residing.column("sourceId"),
-                residing.column("installation"),
-                residing.column("scope"),
-            );
-        const sources = Map.groupBy(
-            rows.map((row) => ({
-                source: schema.string().parse(row.source),
-                installation: schema.identifier("installation").parse(row.installation),
-                recipient: Subject.key(
-                    principal.user.reference(Scope.universe.id, schema.string().parse(row.user)),
-                ),
-            })),
-            (row) => JSON.stringify([row.source, row.installation]),
-        );
-
-        // follow each projected type from each source for its recipients
-        return projecting.flatMap((options) => {
-            const source = projected.sourceOf(options);
-
-            return [...sources.values()].map((entries) => {
-                const { source: scope, installation } = aligned(entries, 0);
-
-                return this.projectionShape.subscription({
-                    name: home,
-                    scope,
-                    below: home,
-                    parameters: {
-                        installation,
-                        packageId: source.policy.definition.packageId,
-                        type: source.name,
-                        to: options.to,
-                        recipients: entries.map((entry) => entry.recipient),
-                    },
-                });
-            });
-        });
-    }
-
-    /** Build the controller recording in each recipient's user scope its projected rows' keeper. */
-    addresses(): Controller | undefined {
-        // find the served types some type projects, with their recipient fields and the installations keeping them
-        const sources = this.store.durable.flatMap((object) => {
-            const installation = this.store.installationOf(object);
-
-            return object.projections.flatMap((projecting) =>
-                projecting.projected === undefined || installation === undefined
-                    ? []
-                    : [{ table: object.table, to: projecting.projected.to, installation }],
-            );
-        });
-        if (sources.length === 0) {
-            return undefined;
-        }
-        const keepers = new Map(sources.map(({ installation }) => [installation.id, installation]));
-
-        // key each recipient with its keeper, and record it once
-        return {
-            name: "address",
-            watches: sources.map(({ table }) => table),
-            keys: (change) => {
-                // read the recipient the changed row refers to
-                const row = Change.image(change);
-                const source = sources.find(({ table }) => table === change.table);
-                const recipient = source === undefined ? undefined : row[source.to];
-
-                return source !== undefined && typeof recipient === "string"
-                    ? [JSON.stringify([source.installation.id, recipient])]
-                    : [];
-            },
-            list: async () => {
-                const keys = await Promise.all(
-                    sources.map(async ({ table, to, installation }) => {
-                        const rows = await this.store.database
-                            .selectDistinct({ recipient: table[TABLE].column(to) })
-                            .from(table);
-
-                        return rows.flatMap(({ recipient }) =>
-                            typeof recipient === "string"
-                                ? [JSON.stringify([installation.id, recipient])]
-                                : [],
-                        );
-                    }),
-                );
-
-                return [...new Set(keys.flat())];
-            },
-            reconcile: async (key) => {
-                // read the keeper and the recipient
-                const [keeper, recipient] = AddressKey.parse(JSON.parse(key));
-                const installation = present(keepers.get(keeper), `the installation ${keeper}`);
-
-                // settle a recipient without a user, whose key a change of a row referring to them enqueues again
-                try {
-                    await installation.directory.address(recipient);
-                } catch (error) {
-                    if (!(isCallError(error) && error.code === "NOT_FOUND")) {
-                        throw error;
-                    }
-                }
-
-                return undefined;
-            },
-        };
-    }
 
     /** Follow a scope's durable objects for the caller. */
     async *#durable(
@@ -875,7 +600,6 @@ export class ObjectSource {
                 this.ephemeralShape,
                 this.externalShape,
                 this.accessShape,
-                this.projectionShape,
                 ...this.store.shapes,
             ].map((shape) => [shape.name, shape]),
         );
@@ -930,22 +654,13 @@ export class ObjectSource {
 
     /** List the tables whose changes list the copies again. */
     #copyWatches(subscriber: Subscriber): Table[] {
-        // watch the copied scope types, the rows each copy includes, and the residents' homes and addresses
-        const { residence } = this.store;
+        // watch the copied scope types and the rows each copy includes
         const scopes = this.store.copied
             .filter((object) => object.policy.definition.scope === true)
             .map((object) => object.table);
 
         return [
-            ...new Set([
-                Scope.table,
-                sync.replicaRow,
-                ...scopes,
-                ...(residence === undefined
-                    ? []
-                    : [residence.account.table, residence.residence.table]),
-                ...(subscriber.watches ?? []),
-            ]),
+            ...new Set([Scope.table, sync.replicaRow, ...scopes, ...(subscriber.watches ?? [])]),
         ];
     }
 

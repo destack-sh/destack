@@ -37,7 +37,7 @@ export interface ObjectSchema {
     readonly scope: schema.JsonObject;
     /** The fields selecting one object. */
     readonly target: schema.JsonObject;
-    /** The identifier a caller may choose for a created object. */
+    /** The identifier a creation may choose, and an event's identity and time. */
     readonly created: schema.JsonObject["shape"];
     /** The parent a created object belongs to. */
     readonly parent: schema.JsonObject["shape"];
@@ -188,7 +188,10 @@ export function objectSchema(object: ObjectType): ObjectSchema {
         callers: written(callers, false),
         scope: selection,
         target: selection.extend({ id }),
-        created: { id: id.exactOptional() },
+        created:
+            object.storage === "events"
+                ? { id, time: object.table[TABLE].column("time").definition.json }
+                : { id: id.exactOptional() },
         ...parentShapes(object),
         replay:
             object.storage === "ephemeral"

@@ -2,7 +2,7 @@ import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessTables, principal, relation, Caller } from "@destack/access";
-import { journal } from "../src/index.ts";
+
 import { asc, defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, Identifier, present, schema } from "@destack/schema";
@@ -15,6 +15,7 @@ import type { RunDelivery, RunRequest } from "@destack/runtime/trigger";
 import { Call, defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { until } from "@destack/runtime/timer";
+import { any } from "./fixture/match.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 import { createRouterClient } from "@destack/runtime/server";
@@ -49,7 +50,7 @@ const member = defineObject({
         },
     });
 
-/** Notes their owners write and rename, which a follower copies and changes through the server keeping them. */
+/** Notes their owners write and rename, which a follower copies and changes. */
 const note = defineObject({
     name: "note",
     plural: "notes",
@@ -437,7 +438,7 @@ test("refuse an in-process change of copied rows, and send it toward their home 
     const sent = await copies.database.select({ message: outbox.message }).from(outbox);
     expect(sent.map((row) => schema.json().parse(JSON.parse(row.message)))).toEqual([
         {
-            requestId: expect.any(String),
+            requestId: any(String),
             request: { call: Call.wire(call), exchange: { subject: person, grant: grant.id } },
         },
     ]);

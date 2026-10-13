@@ -32,6 +32,11 @@ const document = defineObject({
     list: method.list("read"),
 }));
 
+/** Build a new request identifier. */
+function request(): string {
+    return RequestId.create(Date.now());
+}
+
 test.for(TEST_DIALECTS)(
     "list the %s objects holding every word of a search in their searchable fields and text, across chunks",
     async (dialect) => {
@@ -52,7 +57,6 @@ test.for(TEST_DIALECTS)(
             origin: { package: document.package },
         });
         const context = userContext("user-1", spaceId);
-        const request = () => RequestId.create(Date.now());
 
         // write a long body whose first and last words land in different chunks, and a short one
         const [physics, notes] = await store.mutate(context.caller(), {

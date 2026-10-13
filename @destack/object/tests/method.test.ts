@@ -1326,13 +1326,14 @@ function handleDraw() {
     return folder.implement({
         methods: {
             draw: async (call) => ({
-                id: await call.generateId(task),
+                id: call.generateId(task),
                 draws: [await call.random(), await call.random()],
             }),
         },
     });
 }
 
+/** Implement the task's archive method by setting its archived field. */
 function handleArchive() {
     return task.implement({
         methods: {
@@ -1356,7 +1357,7 @@ test("refuse a handler naming a key that is no phase, such as a misspelled handl
     // pass phases the compiler cannot see, as an untyped caller would
     const phases = { expand: async () => [], handler: async () => ({}) };
 
-    expect(() => Reflect.apply(task.implement, task, [{ methods: { archive: phases } }])).toThrow(
-        new TypeError("a method's handler has no phase handler"),
-    );
+    expect(() => {
+        Reflect.apply(task.implement.bind(task), undefined, [{ methods: { archive: phases } }]);
+    }).toThrow(new TypeError("a method's handler has no phase handler"));
 });

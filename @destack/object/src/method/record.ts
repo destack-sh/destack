@@ -49,7 +49,7 @@ import {
 } from "./procedure.ts";
 import { InputSchema } from "./input.ts";
 import { kebabCase } from "../object/name.ts";
-import { EventListing } from "../query/event.ts";
+import { EventLog } from "../query/event.ts";
 import { Listing } from "../query/listing.ts";
 import { nest } from "../query/item.ts";
 import { ListShape, QueryShape, ViewShape } from "../replica/replica.ts";
@@ -280,6 +280,14 @@ export function create<
                 }
 
                 return this.handler(call);
+            }
+
+            // append an events type's object to the event log
+            if (call.object.storage === "events") {
+                const row = createdRow(call.object.table, await createdValues(call));
+                await EventLog.append(call, [row]);
+
+                return row;
             }
 
             // insert under an unused identifier and record its access
@@ -828,8 +836,18 @@ async function insertAuthorized(
 
 /** Create one object per item as its own creation does, returning their identifiers in order. */
 async function createItems(call: Call<ObjectTable>): Promise<{ ids: string[] }> {
-    // create independent items in one write and require each to be writable
+    // append an events type's items to the event log on a server
     const { object } = call;
+    if (object.storage === "events" && !call.isPredicted) {
+        const rows = await eachItem(call, async (item) =>
+            createdRow(object.table, await createdValues(item)),
+        );
+        await EventLog.append(call, rows);
+
+        return { ids: rows.map((row) => schema.string().parse(row["id"])) };
+    }
+
+    // create independent items in one write and require each to be writable
     const isSequential =
         call.isPredicted || object.ordering !== undefined || object.lifecycle.versioned;
     if (!isSequential) {
@@ -1370,8 +1388,8 @@ async function createdId(call: Call<ObjectTable>): Promise<string> {
 
     // find a row with the identifier, or a relationship a deleted object left under it
     const { packageId, name } = object.policy.definition;
-    const id = schema.anyIdentifier().parse(chosen);
-    const rows = await call.requireTransaction().images(object.table, { id });
+    const id = object.idSchema.parse(chosen);
+    const rows = await call.requireTransaction().images<Table>(object.table, { id });
     const relationships = await call.requireAuthorization().transaction.images(accessRelationship, {
         packageId,
         type: name,
@@ -1392,7 +1410,7 @@ export async function listObjects(call: Call) {
     // read an events type's rows from the event log on a server, hot and flushed alike
     const input = LIST_INPUT.parse(call.input);
     if (call.object.storage === "events" && !call.isPredicted) {
-        return EventListing.page(call, input);
+        return EventLog.page(call, input);
     }
 
     // bind the cursor to the query
@@ -1622,10 +1640,10 @@ type MatchShape<Object extends ObjectType, Declared extends Method> = ColumnShap
     true
 >;
 
-/** The identifier a caller may choose for a created object. */
-type CreationShape<Object extends ObjectType> = {
-    id: schema.ExactOptional<IdSchema<Object>>;
-};
+/** The identifier a caller may choose for a created object, and an event's identity and time. */
+type CreationShape<Object extends ObjectType> = Object["storage"] extends "events"
+    ? { id: IdSchema<Object>; time: schema.Schema<number, number> }
+    : { id: schema.ExactOptional<IdSchema<Object>> };
 
 /** Read how a call creates its object's first relationships. */
 function creationOf(

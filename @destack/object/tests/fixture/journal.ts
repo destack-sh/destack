@@ -1,5 +1,5 @@
 import { defineTable, text } from "@destack/db";
-import { Clock, type Duration, present, schema } from "@destack/schema";
+import { Clock, type Duration, schema } from "@destack/schema";
 import type { JsonCondition } from "@destack/db";
 import { testCallKey } from "@destack/runtime/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -10,7 +10,7 @@ import { call, storeTables } from "../../src/index.ts";
 import { MemoryBucket } from "@destack/bucket/test";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { LocalKeyring } from "@destack/identity";
-import { Snapshot } from "@destack/db";
+
 import { Scope } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { principal } from "@destack/access";

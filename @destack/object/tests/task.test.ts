@@ -4,7 +4,7 @@ import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, present, Clock } from "@destack/schema";
+import { schema, Clock } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
