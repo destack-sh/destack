@@ -214,12 +214,7 @@ async function openScenario() {
     // serve the documents as their installation, recording whom their activities address
     const documents = serve(
         ObjectExtension.compose(
-            [
-                ObjectExtension.of(
-                    documentsService,
-                    Object.values(serveActivities({ notifications })),
-                ),
-            ],
+            [ObjectExtension.of(documentsService, serveActivities({ notifications }))],
             {
                 clock: Clock.system,
                 origin: { package: documentsService.package, service: documentsService.name },
@@ -503,7 +498,9 @@ test(
         // wait for the email message the inbox sends its space
         const emailed = async () =>
             sent.flatMap((mutation) =>
-                mutation.calls.filter((call) => call.method === `${message.name}.create`),
+                mutation.calls.filter(
+                    (call) => call.type.type === message.name && call.method === "create",
+                ),
             );
         await expect.poll(async () => (await emailed()).length, { timeout: 10_000 }).toBe(1);
         const [call] = await emailed();

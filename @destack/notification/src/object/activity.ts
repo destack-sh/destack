@@ -32,8 +32,8 @@ export const activity = defineObject({
     fields: {
         /** The person it is for. */
         recipient: field.subject().personal(),
-        /** The principal whose call made it, absent for the system's. */
-        actor: field.subject().personal().optional(),
+        /** The principal whose call posted it. */
+        actor: field.subject().personal().caller(),
 
         // declaration and identity
         /** The package declaring the notification. */
@@ -73,7 +73,7 @@ export const activity = defineObject({
     permissions: {
         // the recipient reads it through its source
         read: intersection(relation("recipient"), through("parent", "read")),
-        // the source's readers post what their calls do to it
+        // the source's readers post what their calls do to it, in their apps' sandboxes too
         post: through("parent", "read"),
     },
     // keep an activity 180 days, as code forges keep notifications five months
@@ -98,8 +98,8 @@ export const activity = defineObject({
 }).methods((method) => ({
     get: method.get("read"),
     list: method.list("read"),
-    post: method.create("post", { isInternal: true }),
-    occur: method.update("post", { isInternal: true }),
+    post: method.create("post"),
+    occur: method.update("post"),
     act: method.mutation({
         permission: "read",
         input: schema.object({
@@ -112,7 +112,6 @@ export const activity = defineObject({
     notify: method.mutation({
         permission: "post",
         target: "none",
-        isInternal: true,
         input: schema.object({
             /** The object it is about. */
             parent: ParentReference,

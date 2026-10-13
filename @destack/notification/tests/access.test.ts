@@ -1,10 +1,11 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { aligned, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { focus } from "../src/index.ts";
+import { activity, focus } from "../src/index.ts";
+import { Subject } from "@destack/sync";
 import { subscribeBrowser } from "@destack/message/test";
-import { document } from "./fixture/document.ts";
-import { actors, serveSpace } from "./fixture/space.ts";
+import { document, mention } from "./fixture/document.ts";
+import { actors, documentParent, serveSpace } from "./fixture/space.ts";
 
 test.for(TEST_DIALECTS)(
     "retract a notification from a recipient who loses access to its activity before it goes out, and project it again on a regained share, on %s",
@@ -80,3 +81,32 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
+
+test("post an activity through notify as its calling reader, and refuse a caller who cannot read its source", async () => {
+    // share a document with bob alone
+    const fixture = await serveSpace("sqlite");
+    const plan = await fixture.call(document, "create", { title: "Launch plan" });
+    await fixture.call(document, "grant", { id: plan.id, relation: "viewer", subject: actors.bob });
+    const notice = {
+        ...documentParent(plan.id),
+        packageId: mention.reference.packageId,
+        name: mention.name,
+        recipients: [actors.alice],
+        reason: "mention" as const,
+        payload: { author: "bob", excerpt: "@alice, a question" },
+    };
+
+    // notify alice as bob, then as carol, who reads no document
+    fixture.as("bob");
+    await fixture.call(activity, "notify", notice);
+    fixture.as("carol");
+    const refused = fixture.call(activity, "notify", notice);
+
+    await expect(refused).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: "permission denied: post",
+    });
+    expect(
+        (await fixture.activities()).map((row) => [row.recipient, row.actor, row.reason]),
+    ).toEqual([[Subject.key(actors.alice), Subject.key(actors.bob), "mention"]]);
+});

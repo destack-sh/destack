@@ -58,6 +58,8 @@ export const delivery = defineObject({
         reason: field.enum(SKIP_REASONS).optional(),
         /** Why its message failed. */
         error: field.json(MessageError).optional(),
+        /** When its desktop client received it, absent until then. */
+        receivedAt: field.time().optional(),
     },
     permissions: { read: through("parent", "read"), deliver: none() },
     // keep a finished delivery 7 days
@@ -116,6 +118,12 @@ export const delivery = defineObject({
                 OR: [{ state: { ne: "failed" } }, { error: { isNotNull: true } }],
             },
         },
+        received: {
+            kind: "check",
+            condition: {
+                OR: [{ receivedAt: { isNull: true } }, { channel: "desktop", state: "sent" }],
+            },
+        },
     },
 }).methods((method) => ({
     get: method.get("read"),
@@ -133,6 +141,8 @@ export const delivery = defineObject({
         isInternal: true,
         output: schema.object({}),
     }),
+    /** Record its desktop client receiving it, keeping the first time. */
+    receive: method.mutation({ permission: "read" }),
 }));
 
 /** A delivery as its table stores it. */

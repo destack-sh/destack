@@ -64,17 +64,14 @@ export interface InboxOptions {
 /** Extend a home's store with the inbox: its notifications and their deliveries. */
 export function implementInbox(options: InboxOptions): ObjectExtension {
     return {
-        ...ObjectExtension.of(inboxService, Object.values(serveInbox(options))),
+        ...ObjectExtension.of(inboxService, serveInbox(options)),
         policies: [user, setting, client, message],
     };
 }
 
 /** Serve a home's notifications and deliveries. */
 export function serveInbox(options: InboxOptions) {
-    return {
-        notification: serveNotifications(options),
-        delivery: serveDeliveries(options),
-    };
+    return [serveNotifications(options), serveDeliveries(options)] as const;
 }
 
 /** Serve notifications, planning the deliveries of each unread one once its snooze ends. */
@@ -111,6 +108,7 @@ function serveDeliveries(options: InboxOptions) {
         methods: {
             send: (call) => send(call, options),
             settle: (call) => settle(call),
+            receive: (call) => receive(call),
         },
         controller: {
             pending: { state: { in: ["pending", "sending"] } },
@@ -179,6 +177,21 @@ async function readNotification(
     );
 
     return read;
+}
+
+/** Record a desktop client receiving a sent delivery, keeping the first time. */
+async function receive(
+    call: CallOf<typeof delivery, "receive">,
+): Promise<ResultOf<typeof delivery, "receive">> {
+    // refuse a delivery no desktop shows
+    const { target } = call;
+    if (target.channel !== "desktop" || target.state !== "sent") {
+        throw new ServiceError("CONFLICT", {
+            message: `delivery ${target.id} is not a sent desktop delivery`,
+        });
+    }
+
+    return target.receivedAt === null ? call.update({ receivedAt: call.now }) : target;
 }
 
 /** Plan a notification's deliveries. */

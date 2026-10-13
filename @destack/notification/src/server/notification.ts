@@ -32,14 +32,14 @@ export interface NotificationOptions {
 
 /** Serve an app's activities, announcements and subscriptions. */
 export function serveActivities(options: NotificationOptions) {
-    return {
-        activity: activity.implement({
+    return [
+        activity.implement({
             methods: {
                 act: (call) => act(call, options),
                 notify: (call) => declarationOf(call.input, options).notify(call),
             },
         }),
-        announcement: announcement.implement({
+        announcement.implement({
             methods: {
                 announce: (call) => declarationOf(call.input, options).announce(call),
                 expand: (call) => expand(call, options),
@@ -58,13 +58,13 @@ export function serveActivities(options: NotificationOptions) {
                 },
             },
         }),
-        subscription: subscription.implement({
+        subscription.implement({
             methods: {
                 add: (call, next) => add(call, next),
                 subscribers: (call) => subscribers(call),
             },
         }),
-    };
+    ] as const;
 }
 
 /** Find the served declaration of an activity, an announcement or a notice. */

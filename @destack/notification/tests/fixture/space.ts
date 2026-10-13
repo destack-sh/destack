@@ -52,10 +52,10 @@ export function serveSpace(
         dialect,
         origin: { package: document.package, service: "notification" },
         database: documentDatabase,
-        objects: {
+        objects: [
             document,
             ...serveActivities({ notifications, ...(batch === undefined ? {} : { batch }) }),
-        },
+        ],
         people: actors,
         actor: "alice",
         build: NOTES_BUILD,

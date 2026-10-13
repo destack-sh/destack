@@ -74,10 +74,11 @@ const unread = home.query.notification.aggregate(UNREAD);
 
 ## Delivery
 
-`implementInbox` extends each home's store with its inbox, and `decide` sends, defers or skips each delivery under the recipient's contact, focus and summary.
+`implementInbox` extends each home's store with its inbox, `decide` sends, defers or skips each delivery under the recipient's contact, focus and summary, and `delivery.receive` records the desktop receiving a sent desktop delivery.
 
 ```ts
 const extension = implementInbox({ catalogs, key: (space) => messageKey(space) });
+await inbox.mutate(delivery).receive({ id }).confirmed; // receivedAt: the first time
 const decision = decide(
     row,
     notification,

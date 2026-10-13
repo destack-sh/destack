@@ -21,7 +21,14 @@ import { MailFixture } from "@destack/message/test";
 import { type PushKeys, pushProvider, Vapid } from "@destack/message/push";
 import { message, messageAttempt, MessageKey } from "@destack/message";
 import { serveMessages } from "@destack/message/server";
-import type { CallableName, CallInput, CallOutput, ObjectCall, ObjectType } from "@destack/object";
+import {
+    Call,
+    type CallableName,
+    type CallInput,
+    type CallOutput,
+    type ObjectCall,
+    type ObjectType,
+} from "@destack/object";
 import { ObjectStore, ScopeProjector } from "@destack/object/server";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
@@ -115,7 +122,7 @@ export interface NotificationFixtureOptions<Name extends string> {
     /** The app's package and service recording the calls. */
     readonly origin: ObjectStore["origin"];
     /** The app's objects in the space, with the activities it serves. */
-    readonly objects: Readonly<Record<string, ObjectType>>;
+    readonly objects: readonly ObjectType[];
     /** The database with the app's objects' tables and the fixture's tables. */
     readonly database: Database;
     /** The people the scenario acts as and notifies, by name. */
@@ -297,7 +304,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
 
     /** Serve the app's objects beside the users, the inbox and the messages. */
     static async #objects(
-        served: Readonly<Record<string, ObjectType>>,
+        served: readonly ObjectType[],
         transports: { readonly pushes: PushService; readonly mails: MailFixture },
     ) {
         // send mail and pushes through the fixtures' transports
@@ -316,7 +323,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
             ),
         };
 
-        return {
+        return [
             ...served,
             user,
             ...serveInbox({
@@ -324,7 +331,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
                 key: async () => (await MessageKey.derive(root)).key,
             }),
             ...serveMessages({ providers, retry: RETRY, deriver: async () => root }),
-        };
+        ];
     }
 
     /** Open a new space below a new account, and return its identifier. */
@@ -418,11 +425,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
     ): Promise<unknown> {
         // read through a query, or write through a one-call mutation, in the object's space
         const scope = HOME_OBJECTS.has(object.name) ? this.homeId : this.spaceId;
-        const call: ObjectCall = {
-            method: `${object.name}.${name}`,
-            release: object.package.version,
-            input: { spaceId: scope, ...input },
-        };
+        const call: ObjectCall = object.call(name, { spaceId: scope, ...input });
         const caller = this.#context(scope).caller();
 
         return object.method(name).mutates
@@ -646,8 +649,8 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
     async #receive(mutation: Mutation): Promise<void> {
         for (const call of mutation.calls) {
             // refuse any other change than forgetting a push subscription
-            if (call.method !== `${client.name}.unsubscribe`) {
-                throw new TypeError(`the fixture receives no ${call.method}`);
+            if (Call.typeOf([client], call) === undefined || call.method !== "unsubscribe") {
+                throw new TypeError(`the fixture receives no ${call.type.type}.${call.method}`);
             }
 
             // forget it in its copy

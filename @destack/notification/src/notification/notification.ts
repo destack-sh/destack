@@ -317,12 +317,10 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
     /** Build the call posting a recipient's first activity of a notice. */
     #post(call: CallOf<typeof activity, "notify">, recipient: string, occurrence: Occurrence) {
         const { parent, key, reason } = call.input;
-        const { subject } = call.caller;
 
         return activity.call("post", {
             parent,
             recipient,
-            ...(subject === undefined ? {} : { actor: Subject.key(subject) }),
             packageId: this.reference.packageId,
             release: this.package,
             name: this.name,

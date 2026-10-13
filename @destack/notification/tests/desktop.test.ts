@@ -1,7 +1,8 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned, schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
-import { focus, notification } from "../src/index.ts";
+import { and, eq } from "@destack/db";
+import { aligned, present, schema } from "@destack/schema";
+import { expect, refusal, test } from "@destack/test";
+import { delivery, focus, notification } from "../src/index.ts";
 import { document } from "./fixture/document.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
 
@@ -64,8 +65,40 @@ test.for(TEST_DIALECTS)(
             ],
         ]);
 
-        // withdraw the banners once carol reads the notification
+        // receive the laptop's delivery once, keeping the first time, and refuse the studio's
         fixture.as("carol");
+        const desktops = async () =>
+            fixture.database
+                .select({
+                    id: delivery.table.id,
+                    client: delivery.table.client,
+                    receivedAt: delivery.table.receivedAt,
+                })
+                .from(delivery.table)
+                .where(
+                    and(
+                        eq(delivery.table.parentId, mentioned.id),
+                        eq(delivery.table.channel, "desktop"),
+                    ),
+                )
+                .orderBy(delivery.table.client);
+        const [laptop, studio] = (await desktops()).map((row) => row.id);
+        const receive = (id: string | undefined) =>
+            refusal(fixture.call(delivery, "receive", { id: present(id, "a desktop delivery") }));
+        const first = await receive(laptop);
+        fixture.wait(1);
+        const again = await receive(laptop);
+        expect([first, again, await receive(studio), await desktops()]).toEqual([
+            "done",
+            "done",
+            ["CONFLICT", `delivery ${studio} is not a sent desktop delivery`],
+            [
+                { id: laptop, client: LAPTOP, receivedAt: end },
+                { id: studio, client: STUDIO, receivedAt: null },
+            ],
+        ]);
+
+        // withdraw the banners once carol reads the notification
         await fixture.call(notification, "read", { id: mentioned.id });
         await fixture.dispatch();
         expect(await read()).toEqual([]);
