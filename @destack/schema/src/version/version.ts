@@ -31,24 +31,6 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
         return components(version).stage === 0;
     },
 
-    /** Report whether a version is a release or a prerelease leading to it. */
-    leadsTo(version: string, release: string): boolean {
-        // take the release itself
-        if (version === release) {
-            return true;
-        }
-        // take a prerelease of the same year, month and release
-        else if (Version.safeParse(version).success && Version.isPrerelease(version)) {
-            const { year, month, release: number } = components(version);
-
-            return `${year}.${month}.${number}` === release;
-        }
-        // refuse any other version
-        else {
-            return false;
-        }
-    },
-
     /** Read the next release in a version's year and month. */
     next(version: string): string {
         const { year, month, release } = components(version);
