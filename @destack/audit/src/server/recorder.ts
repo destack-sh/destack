@@ -1,9 +1,16 @@
 import { AuditCaller } from "../record/actor.ts";
-import { AuditCall, JournalEntry } from "../record/call.ts";
+import type { AuditCall, JournalEntry } from "../record/call.ts";
 import { AuditContext } from "../record/context.ts";
 import { AuditExecution, type AuditTarget } from "../record/execution.ts";
-import { v7 } from "uuid";
-import { canonicalize, Clock, type JsonObject, JsonValue, schema } from "@destack/schema";
+import {
+    canonicalize,
+    Clock,
+    Identifier,
+    type JsonObject,
+    JsonValue,
+    present,
+    schema,
+} from "@destack/schema";
 import { Failure, Outcome, Subject } from "@destack/sync";
 import { denialOf, ServiceError } from "@destack/service";
 import type { Caller } from "@destack/access";
@@ -237,16 +244,13 @@ export class AuditRecorder<Transaction = never> {
         action: AuditAction<Target, Details>,
         values: Omit<Ended<Target, Details>, "outcome">,
     ): JournalEntry {
-        return JournalEntry.parse(
-            this.#call(action, values, "activity", { startedAt: this.#writer.clock.now() }),
-        );
+        return this.#call(action, values, "activity", { startedAt: this.#writer.clock.now() });
     }
 
     /** Prepare the end of a running call, merging any result details. */
     finish(running: JournalEntry, outcome: Outcome, details?: JsonObject): AuditCall {
         // require a running call of this context
-        const call = JournalEntry.parse(running);
-        const execution = call.execution;
+        const execution = running.execution;
         if (
             execution.outcome !== undefined ||
             canonicalize(execution.context) !== canonicalize(this.#context)
@@ -257,8 +261,8 @@ export class AuditRecorder<Transaction = never> {
             );
         }
 
-        return AuditCall.parse({
-            ...call,
+        return {
+            ...running,
             execution: {
                 ...execution,
                 details:
@@ -268,7 +272,7 @@ export class AuditRecorder<Transaction = never> {
                 outcome,
                 finishedAt: this.#writer.clock.now(),
             },
-        });
+        };
     }
 
     /** Record a prepared call of this context, running or ended. */
@@ -393,23 +397,21 @@ export class AuditRecorder<Transaction = never> {
     ): Promise<AuditCall> {
         // build the call, ended now
         const now = this.#writer.clock.now();
-        const call = AuditCall.parse(
-            this.#call(
-                action,
-                values,
-                category,
-                {
-                    ...(request === undefined ? {} : { digest: request.digest }),
-                    ...(request?.transaction === undefined
-                        ? {}
-                        : { transaction: request.transaction }),
-                    outcome: values.outcome,
-                    startedAt: now,
-                    finishedAt: now,
-                },
-                request,
-            ),
+        const entry = this.#call(
+            action,
+            values,
+            category,
+            {
+                ...(request === undefined ? {} : { digest: request.digest }),
+                ...(request?.transaction === undefined ? {} : { transaction: request.transaction }),
+                startedAt: now,
+            },
+            request,
         );
+        const call: AuditCall = {
+            ...entry,
+            execution: { ...entry.execution, outcome: values.outcome, finishedAt: now },
+        };
 
         // write it, keyed for retries within a request
         await this.#writer.record(
@@ -450,7 +452,7 @@ export class AuditRecorder<Transaction = never> {
             "id" | "requestId" | "category" | "context" | "target" | "details"
         >,
         request?: CallRequest,
-    ): object {
+    ): JournalEntry {
         const requestId = request?.requestId ?? this.#requestId;
 
         return {
@@ -458,12 +460,15 @@ export class AuditRecorder<Transaction = never> {
             input: request?.input ?? {},
             release: request?.release ?? action.package.version,
             execution: {
-                id: `call-${v7()}`,
+                id: Identifier.create("call"),
                 ...(requestId === undefined ? {} : { requestId }),
                 category,
                 context: this.#context,
                 target: action.target.parse(values.target),
-                details: schema.redact(action.details, action.details.parse(values.details)),
+                details: present(
+                    schema.redact(action.details, action.details.parse(values.details)),
+                    "the call's details",
+                ),
                 ...execution,
             },
         };

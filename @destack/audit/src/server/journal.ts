@@ -24,7 +24,7 @@ import type { Controller } from "@destack/service/control";
 import type { Outcome } from "@destack/sync";
 import { AuditError } from "../error/index.ts";
 import { AuditHistory } from "../history/history.ts";
-import { AuditCall, JournalEntry } from "../record/call.ts";
+import { AuditCall, type JournalEntry } from "../record/call.ts";
 import type { AuditBatch } from "../service/batch.ts";
 import { MAX_EXECUTION_BYTES } from "../record/execution.ts";
 import { Replay } from "../record/replay.ts";
@@ -104,7 +104,7 @@ export class Journal {
 
     /** Record a call, or its outcome once it ends, inside a transaction when given. */
     async record(
-        value: JournalEntry,
+        call: JournalEntry,
         options: {
             readonly isAudited: boolean;
             readonly caller?: string;
@@ -112,11 +112,8 @@ export class Journal {
         },
         transaction?: DatabaseConnection,
     ): Promise<void> {
-        // read the call with its execution
-        const call = JournalEntry.parse(value);
-        const execution = call.execution;
-
         // bound what the history keeps
+        const execution = call.execution;
         if (
             new TextEncoder().encode(canonicalize(AuditHistory.kept(call))).byteLength >
             MAX_EXECUTION_BYTES
@@ -309,7 +306,7 @@ export class Journal {
 
         // deliver the kept calls within a timeout and mark them delivered
         const timeout = AbortSignal.timeout(DELIVERY_TIMEOUT_MILLISECONDS);
-        const calls = rows.map((row) => AuditHistory.kept(AuditCall.parse(row.call)));
+        const calls = rows.map((row) => AuditCall.parse(AuditHistory.kept(row.call)));
         await history.ingest(
             { calls },
             {
