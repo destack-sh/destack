@@ -90,7 +90,7 @@ export function canonicalize(value: unknown): string {
     return `{${text}}`;
 }
 
-/** Name a value that is not JSON for an error message. */
+/** Describe a value that is not JSON for an error message. */
 function describe(value: unknown): string {
     return typeof value === "object" ? (value?.constructor?.name ?? "object") : typeof value;
 }
