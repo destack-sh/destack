@@ -1,7 +1,7 @@
 import { sql } from "../sql/index.ts";
-import { canonicalize, defineSchema, schema, Version } from "@destack/schema";
+import { canonicalize, defineSchema, present, schema, Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
-import { Package } from "@destack/package";
+import { Package, type PackageId } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
@@ -16,6 +16,7 @@ import { qualify, relation } from "../table/namespace.ts";
 import { describeLog, loggedKey } from "../log/schema.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { literal, quote } from "../dialect/quote.ts";
+import { DatabaseError } from "../error/error.ts";
 
 /** The SQL name of the applied state table. */
 export const STATE = "__destack_state";
@@ -98,6 +99,8 @@ export interface DeclareOptions {
     readonly isReplica?: boolean;
     /** The SQL names of copied tables, which keep no unique constraints or foreign keys. */
     readonly copies?: ReadonlySet<string>;
+    /** The package whose tables to describe, the others' only placing them, every table without. */
+    readonly package?: PackageId;
 }
 
 /** List the declared tables with an unapplied declaration. */
@@ -182,8 +185,12 @@ export function declareState(
     const declared = isReplica ? tables : expandTrees(tables);
     const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
     const copies = options.copies ?? new Set<string>();
+    const owned =
+        options.package === undefined
+            ? declared
+            : declared.filter((table) => table[TABLE].package.id === options.package);
 
-    return declared.map((table) => {
+    return owned.map((table) => {
         // describe the table with its log and tree
         const definition = table[TABLE];
         const log = describeLog(table);
@@ -308,6 +315,26 @@ export async function readTables(database: DatabaseConnection): Promise<string[]
     return rows.map((row) => row.name);
 }
 
+/** List the tables among some that hold no rows, in one statement. */
+export async function readEmpty(
+    database: DatabaseConnection,
+    tables: readonly string[],
+): Promise<Set<string>> {
+    // ask each table for its first row
+    if (tables.length === 0) {
+        return new Set();
+    }
+    const checks = tables.map(
+        (name) => `SELECT ${literal(name)} AS name WHERE NOT EXISTS (SELECT 1 FROM ${quote(name)})`,
+    );
+    const rows = await database.execute(
+        sql.raw(checks.join(" UNION ALL ")),
+        schema.object({ name: schema.string() }),
+    );
+
+    return new Set(rows.map((row) => row.name));
+}
+
 /** Read every managed table's applied state. */
 export async function readState(database: DatabaseConnection): Promise<TableState[]> {
     // find the state table
@@ -316,20 +343,52 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
         return [];
     }
 
-    // decode each table in name order
+    // read each table's state in name order
     const rows = await database.execute(
-        sql`SELECT state FROM ${sql.relation(STATE)} ORDER BY "table"`,
-        schema.object({ state: schema.string() }),
+        sql`SELECT "table", state FROM ${sql.relation(STATE)} ORDER BY "table"`,
+        schema.object({ table: schema.string(), state: schema.string() }),
     );
 
-    return rows.map((row) => TableState.parse(JSON.parse(row.state)));
+    // decode each state, refusing one in a format this release no longer reads
+    const states: TableState[] = [];
+    for (const row of rows) {
+        const parsed = TableState.safeParse(JSON.parse(row.state));
+        if (!parsed.success) {
+            const name = await readName(database);
+            const problem = schema.prettifyError(parsed.error);
+            throw new DatabaseError(
+                "INVALID_MIGRATION",
+                `the applied state of table ${row.table} in database ${name} has an unknown format: ${problem}`,
+                { cause: parsed.error },
+            );
+        }
+        states.push(parsed.data);
+    }
+
+    return states;
+}
+
+/** Read the database's name: the server's database and schema, or a SQLite store's namespace. */
+async function readName(database: DatabaseConnection): Promise<string> {
+    // name a SQLite database by its namespace in a shared store
+    const { namespace } = database.state;
+    if (database.dialect === "sqlite") {
+        return namespace === undefined ? "sqlite" : `sqlite namespace ${namespace}`;
+    }
+
+    // name the server's database and schema
+    const [row] = await database.execute(
+        sql`SELECT current_database() || '.' || current_schema() AS name`,
+        schema.object({ name: schema.string() }),
+    );
+
+    return present(row, "the current database").name;
 }
 
 /** Record the applied state of one table within a database's namespace. */
 export function writeState(state: TableState, appliedAt: number, namespace?: string): string {
-    // drop the conversions, keeping the moves a later rollback reads
-    const { conversions: _conversions, ...applied } = state;
-    const encoded = literal(JSON.stringify(applied));
+    // keep the conversions, so a rebuilt release runs only the ones it adds
+    const encoded = literal(JSON.stringify(state));
 
     return `INSERT INTO ${quote(relation(STATE, namespace))} ("table", package_id, state, applied_at)
         VALUES (${literal(state.table.name)}, ${literal(state.package.id)}, ${encoded}, ${appliedAt})

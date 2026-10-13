@@ -64,6 +64,8 @@ export interface PlanInput {
     readonly dialect: Dialect;
     /** The database's namespace in a shared SQLite store, already part of the states' names. */
     readonly namespace?: string;
+    /** The applied tables holding no rows, whose changes convert and fill nothing. */
+    readonly empty: ReadonlySet<string>;
 }
 
 /** Plan a database's migration, or name every problem to fix. */
@@ -149,7 +151,7 @@ function planDeclared(
         }
         // change an applied table
         else {
-            steps.push(...planChange(state, previous, problems));
+            steps.push(...planChange(state, previous, input.empty.has(name), problems));
         }
     }
 
@@ -191,7 +193,12 @@ function planCreate(
 }
 
 /** Plan the changes from a table's applied state to its declared one. */
-function planChange(state: TableState, previous: TableState, problems: Problem[]): TableStep[] {
+function planChange(
+    state: TableState,
+    previous: TableState,
+    isEmpty: boolean,
+    problems: Problem[],
+): TableStep[] {
     // rename a moved table before changing it
     const name = state.table.name;
     const steps: TableStep[] = [];
@@ -210,11 +217,12 @@ function planChange(state: TableState, previous: TableState, problems: Problem[]
         { ...previous.table, name },
         state.table,
         state.moved?.columns ?? {},
+        isEmpty,
         problems,
     );
 
     // convert rows, backfill newly bridged columns and rebuild a changed tree's index
-    changes.push(...convertSteps(state, previous, problems));
+    changes.push(...convertSteps(state, previous, isEmpty, problems));
     changes.push(...bridgeSteps(state, previous));
     changes.push(...treeSteps(state, previous));
 
@@ -237,18 +245,28 @@ function planChange(state: TableState, previous: TableState, problems: Problem[]
     return [...steps, ...changes];
 }
 
-/** Convert rows through each release after the applied one. */
-function convertSteps(state: TableState, previous: TableState, problems: Problem[]): TableStep[] {
-    const conversions = Version.between(
-        state.conversions ?? {},
-        previous.package.version,
-        state.package.version,
-    );
+/** Convert rows by each conversion from the applied release on that the applied state lacks. */
+function convertSteps(
+    state: TableState,
+    previous: TableState,
+    isEmpty: boolean,
+    problems: Problem[],
+): TableStep[] {
+    // run a rebuilt release's new conversion too, since its earlier build wrote the rows
+    const applied = previous.package.version;
+    const conversions = Object.entries(state.conversions ?? {})
+        .filter(
+            ([release]) =>
+                Version.compare(release, applied) >= 0 &&
+                Version.compare(release, state.package.version) <= 0 &&
+                previous.conversions?.[release] === undefined,
+        )
+        .toSorted(([left], [right]) => Version.compare(left, right));
     const releases = conversions.map(([release]) => release);
 
     return [
         ...conversions.map(([release, assignments]) => convertRows(state, release, assignments)),
-        ...changeValues(previous, state, releases, problems),
+        ...changeValues(previous, state, releases, isEmpty, problems),
     ];
 }
 
@@ -445,6 +463,7 @@ function changeTable(
     previous: TableDescription,
     next: TableDescription,
     moved: Readonly<Record<string, string>>,
+    isEmpty: boolean,
     problems: Problem[],
 ): TableStep[] {
     // rename moved columns first
@@ -484,9 +503,10 @@ function changeTable(
         return old !== undefined && isChanged ? [{ applied: old, declared: column }] : [];
     });
 
-    // require a value for each new required column
+    // require a value for each new required column of a table with rows
     const unfilled = added.filter(
-        (column) => !column.nullable && column.default === undefined && !column.generated,
+        (column) =>
+            !isEmpty && !column.nullable && column.default === undefined && !column.generated,
     );
     for (const column of unfilled) {
         problems.push({
@@ -512,11 +532,14 @@ function changeSQLiteTable(
     removed: readonly TableDescription["columns"][number][],
     changed: readonly ColumnChange[],
 ): TableStep[] {
-    // rebuild for changes beyond additions and indexes
+    // rebuild for changes beyond additions and indexes, and for a required column without a default, which only an empty table takes
     const isRebuilt =
         removed.length > 0 ||
         changed.length > 0 ||
         added.some((column) => column.generated?.mode === "stored") ||
+        added.some(
+            (column) => !column.nullable && column.default === undefined && !column.generated,
+        ) ||
         canonicalize(previous.constraints) !== canonicalize(next.constraints);
     if (isRebuilt) {
         const copied = next.columns
@@ -741,6 +764,7 @@ function changeValues(
     previous: TableState,
     state: TableState,
     releases: readonly Version[],
+    isEmpty: boolean,
     problems: Problem[],
 ): TableStep[] {
     // compare each kept column's value schema, under its previous name when moved
@@ -755,10 +779,10 @@ function changeValues(
             continue;
         }
 
-        // plan the change, leaving convert steps to the row conversions
-        const isConverted = releases.some(
-            (release) => state.conversions?.[release]?.[column.name] !== undefined,
-        );
+        // plan the change, leaving convert steps to the row conversions, which a table without rows needs none of
+        const isConverted =
+            isEmpty ||
+            releases.some((release) => state.conversions?.[release]?.[column.name] !== undefined);
         try {
             const planned = Plan.values({
                 target: Address.join("table", name, "column", column.name),

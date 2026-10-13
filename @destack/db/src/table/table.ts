@@ -24,7 +24,7 @@ import type { Condition, Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../log/description.ts";
 import { Tree } from "../tree/tree.ts";
-import type { ColumnDescription } from "./description.ts";
+import type { ColumnDescription, TableDescription } from "./description.ts";
 import type { TableState } from "../migration/state.ts";
 import type { Row } from "./row.ts";
 import { recordSchema, type JsonShape, type Shape } from "./schema.ts";
@@ -177,6 +177,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     #logged: Readonly<Record<string, Column>> | undefined;
     /** The built statements by name. */
     readonly #statements = new Map<string, Statement>();
+    /** The table's descriptions by dialect, described on first use. */
+    readonly descriptions = new Map<Dialect, TableDescription>();
 
     /** Define a table. */
     constructor(
@@ -402,21 +404,15 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Take a row of this table's column values, built at runtime, failing for other properties. */
     values(row: Row): Partial<Select<Table<Name, Columns>>> & Row;
     /**
-     * Return the row once each property is a table column with a value of the column's type.
+     * Return the row once each property is a table column, null only where nullable.
      *
-     * @construct each property is a column whose schema parses its value, or null if nullable.
+     * @construct each property is a column, and its encoder parses the value when written.
      */
     values(row: Row): Row {
-        // require every property to be a column holding a value of its type
+        // refuse other properties and null in a column without nulls
         for (const [property, value] of Object.entries(row)) {
-            // refuse null in a column without nulls
-            const { definition } = this.column(property);
-            if (value === null && !definition.nullable) {
+            if (value === null && !this.column(property).definition.nullable) {
                 throw new TypeError(`column ${property} of ${this.name} is not nullable`);
-            }
-            // parse a present value by the column's schema
-            else if (value !== null) {
-                definition.schema.parse(value);
             }
         }
 

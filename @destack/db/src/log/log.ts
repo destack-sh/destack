@@ -20,7 +20,7 @@ import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
 import type { ColumnValue } from "../table/column.ts";
 import { Key } from "../query/key.ts";
-import { Digest, schema, toJsonSchema, type JsonValue } from "@destack/schema";
+import { Digest, schema, toJsonSchema } from "@destack/schema";
 
 /** The default page size of a log read, in changes. */
 const PAGE_LIMIT = 1000;
@@ -143,13 +143,13 @@ const LogEntry = schema.looseObject({
     /** The changed table's SQL name. */
     table: schema.string(),
     /** The encoded primary key, in key order. */
-    key: logJson(schema.array(schema.json())),
+    key: logJson(schema.array(schema.unknown())),
     /** Insert, update or delete. */
     operation: schema.enum(["insert", "update", "delete"]),
-    /** The encoded row by column name. */
-    row: logJson(schema.record(schema.string(), schema.json())),
+    /** The encoded row by column name, which its columns decode. */
+    row: logJson(schema.record(schema.string(), schema.unknown())),
     /** The values an update changed, before it, by column name. */
-    previous: logJson(schema.record(schema.string(), schema.json())).nullable(),
+    previous: logJson(schema.record(schema.string(), schema.unknown())).nullable(),
     /** The changed row's scope. */
     scope: schema.string(),
     /** The change time. */
@@ -168,8 +168,41 @@ const LogBounds = schema.looseObject({
     horizon: LogInteger,
 });
 
+/** The log's head: its epoch, newest logged and highest compacted sequence. */
+const LogHead = LogBounds.extend({ epoch: schema.string() });
+
+/** One change the open transaction wrote, unsequenced in PostgreSQL until it commits. */
+const WrittenEntry = LogEntry.extend({ sequence: LogInteger.nullable() });
+
 /** The latest sequence of some entries, null over none. */
 const SequenceRow = schema.looseObject({ sequence: LogInteger.nullable() });
+
+/** The oldest change slots keep, null without a slot, beside the highest compacted sequence. */
+const KeptRow = SequenceRow.extend({ horizon: LogInteger });
+
+/** A consumer's slot position. */
+const SlotRow = schema.looseObject({ sequence: LogInteger });
+
+/** The first change of a transaction a compaction would split, null for none. */
+const SplitRow = schema.looseObject({ first: LogInteger.nullable() });
+
+/** The log's epoch. */
+const EpochRow = schema.looseObject({ epoch: schema.string() });
+
+/** The open transaction's log identity, null outside a writing transaction. */
+const TransactionRow = schema.looseObject({ id: schema.string().nullable() });
+
+/** The positions and times of a transaction's first and last change, null once compacted. */
+const BoundsRow = schema.looseObject({
+    /** The first change's sequence. */
+    first: LogInteger.nullable(),
+    /** The last change's sequence. */
+    last: LogInteger.nullable(),
+    /** The first change's time. */
+    startedAt: LogInteger.nullable(),
+    /** The last change's time. */
+    committedAt: LogInteger.nullable(),
+});
 
 /** The hex digits of a layout digest: 128 bits, with negligible collisions among tables. */
 const LAYOUT_LENGTH = 32;
@@ -312,7 +345,7 @@ export class Log {
     async position(origin?: string): Promise<LogPosition> {
         // read the head
         const [row] = await this.database.execute(selectHead(this.database.dialect));
-        const head = LogBounds.extend({ epoch: schema.string() }).parse(row);
+        const head = LogHead.parse(row);
         if (origin === undefined) {
             return { epoch: head.epoch, sequence: latestOf(head.logged, head.horizon) };
         }
@@ -402,7 +435,7 @@ export class Log {
             sql`SELECT epoch FROM ${sql.relation(LOG_EPOCH)} WHERE slot = 1`,
         );
 
-        return schema.looseObject({ epoch: schema.string() }).parse(row).epoch;
+        return EpochRow.parse(row).epoch;
     }
 
     /** Start a new epoch after a restore. */
@@ -465,7 +498,7 @@ export class Log {
     async transaction(): Promise<string | undefined> {
         const [row] = await this.database.execute(sql`SELECT ${this.stamp()} AS id`);
 
-        return schema.looseObject({ id: schema.string().nullable() }).parse(row).id ?? undefined;
+        return TransactionRow.parse(row).id ?? undefined;
     }
 
     /** Read the open transaction's changes before commit. */
@@ -498,7 +531,7 @@ export class Log {
         `);
 
         return rows.map((row) => {
-            const entry = LogEntry.extend({ sequence: LogInteger.nullable() }).parse(row);
+            const entry = WrittenEntry.parse(row);
 
             return decodeChange(entry, tableOf(byName, entry.table), this.database.dialect);
         });
@@ -582,9 +615,7 @@ export class Log {
             sql`SELECT sequence FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`,
         );
 
-        return row === undefined
-            ? undefined
-            : schema.looseObject({ sequence: LogInteger }).parse(row).sequence;
+        return row === undefined ? undefined : SlotRow.parse(row).sequence;
     }
 
     /** Drop a consumer's slot, keeping no more changes for it. */
@@ -617,7 +648,7 @@ export class Log {
                     (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
-            const kept = SequenceRow.extend({ horizon: LogInteger }).parse(keptRow);
+            const kept = KeptRow.parse(keptRow);
             const cap = kept.sequence === null ? newest : Math.min(newest, kept.sequence);
             if (cap <= kept.horizon) {
                 return;
@@ -631,9 +662,7 @@ export class Log {
                 JOIN ${log} earlier ON earlier."transaction" = change."transaction"
                 WHERE change.sequence = ${cap}
             `);
-            const first = schema
-                .looseObject({ first: LogInteger.nullable() })
-                .parse(splitRow).first;
+            const first = SplitRow.parse(splitRow).first;
             const sequence = first === null ? cap : first - 1;
 
             // remove the windowed changes of whole transactions
@@ -660,14 +689,7 @@ export class Log {
             WHERE sequence = ${sequence}
                 OR "transaction" = (SELECT "transaction" FROM ${log} WHERE sequence = ${sequence})
         `);
-        const bounds = schema
-            .looseObject({
-                first: LogInteger.nullable(),
-                last: LogInteger.nullable(),
-                startedAt: LogInteger.nullable(),
-                committedAt: LogInteger.nullable(),
-            })
-            .parse(row);
+        const bounds = BoundsRow.parse(row);
         if (
             bounds.first === null ||
             bounds.last === null ||
@@ -783,7 +805,7 @@ function decodeChange<Definition extends Table>(
 /** Decode a logged row's values by column name, whose signature types it by its table. */
 function decodeLogged<Definition extends Table>(
     table: Definition,
-    row: Readonly<Record<string, JsonValue>>,
+    row: Readonly<Record<string, unknown>>,
     dialect: Dialect,
 ): RowImage<Definition>;
 /**
@@ -793,7 +815,7 @@ function decodeLogged<Definition extends Table>(
  */
 function decodeLogged(
     table: Table,
-    row: Readonly<Record<string, JsonValue>>,
+    row: Readonly<Record<string, unknown>>,
     dialect: Dialect,
 ): Record<string, ColumnValue> {
     return Object.fromEntries(
@@ -818,7 +840,7 @@ function decodeLogged(
 /** Decode a logged key's values in key order, whose signature types it by its table. */
 function decodeKey<Definition extends Table>(
     table: Definition,
-    key: readonly JsonValue[],
+    key: readonly unknown[],
     dialect: Dialect,
 ): Key<Definition>;
 /**
@@ -828,7 +850,7 @@ function decodeKey<Definition extends Table>(
  */
 function decodeKey(
     table: Table,
-    key: readonly JsonValue[],
+    key: readonly unknown[],
     dialect: Dialect,
 ): Record<string, ColumnValue> {
     return Object.fromEntries(

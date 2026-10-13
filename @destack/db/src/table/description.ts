@@ -133,8 +133,24 @@ interface KeyConstraint {
     readonly columns: readonly Column[];
 }
 
-/** Describe a table in a dialect. */
+/** Describe a table in a dialect, once per table and dialect. */
 export function describeTable(table: Table, dialect: Dialect): TableDescription {
+    // reuse the table's description in the dialect
+    const descriptions = table[TABLE].descriptions;
+    const known = descriptions.get(dialect);
+    if (known !== undefined) {
+        return known;
+    }
+
+    // describe it once
+    const described = describe(table, dialect);
+    descriptions.set(dialect, described);
+
+    return described;
+}
+
+/** Describe a table's columns, constraints and indexes in a dialect. */
+function describe(table: Table, dialect: Dialect): TableDescription {
     // collect the declared constraints
     const definition = table[TABLE];
     const constraints = definition.constraints(dialect);

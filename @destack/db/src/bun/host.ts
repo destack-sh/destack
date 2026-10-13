@@ -1,18 +1,18 @@
 import { mkdir, rm, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import type { Digest } from "@destack/schema";
-import { type KindState, Plan, type ResourceRecord } from "@destack/resource";
+import { type KindState, Plan, ResourceRecord } from "@destack/resource";
 import { connectBunSqlite } from "./connection.ts";
 import { openBunSqlite } from "./sqlite.ts";
 import type { DatabaseKind } from "../declare/database.ts";
-import { type DatabaseHost, requireReference } from "../provider/provider.ts";
+import type { DatabaseHost } from "../provider/provider.ts";
 import { DatabaseHandle } from "../database/handle.ts";
 import { Table } from "../table/table.ts";
 
 /** Keep databases as SQLite files below a directory, one folder per space. */
 export class BunSqliteDatabaseHost implements DatabaseHost {
     /** The provider code of SQLite files. */
-    readonly provider = "sqlite";
+    readonly provider: string = "sqlite";
     /** The directory URL holding a folder per space. */
     readonly root: URL;
 
@@ -56,7 +56,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
 
     /** Remove the file with its WAL and shared memory. */
     async destroy(record: ResourceRecord<typeof DatabaseKind>): Promise<void> {
-        const path = fileURLToPath(requireReference(record.reference));
+        const path = fileURLToPath(ResourceRecord.reference(record));
         for (const suffix of ["", "-wal", "-shm"]) {
             await rm(`${path}${suffix}`, { force: true });
         }

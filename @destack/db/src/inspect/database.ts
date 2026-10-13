@@ -44,6 +44,7 @@ export const compareDatabase: Comparator = (before, after) => {
                 existing: applied.map((state) => state.table.name),
                 declared: later.tables[dialect],
                 dialect,
+                empty: new Set(),
             });
         } catch (error) {
             throw error instanceof PlanError

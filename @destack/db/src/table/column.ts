@@ -373,7 +373,7 @@ export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean,
     });
 }
 
-/** Define validated JSON. */
+/** Define JSON validated on write and read back as the database stored it. */
 export function json<Value extends JsonValue>(
     name: string,
     validator: schema.Schema<Value>,
@@ -391,21 +391,36 @@ export function json<Value extends JsonValue>(
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
         encode: (value) => JSON.stringify(validator.parse(value)),
-        decode(value, dialect) {
-            // parse SQLite JSON text
-            if (dialect === "sqlite") {
-                return validator.parse(JSON.parse(TEXT.parse(value)));
-            }
-            // take parsed PostgreSQL JSON
-            else if (dialect === "postgresql") {
-                return validator.parse(value);
-            }
-            // reject other dialects
-            else {
-                return assertNever(dialect);
-            }
-        },
+        decode: (value, dialect) => storedJson(validator, value, dialect),
     });
+}
+
+/** Read a JSON column's stored value, which the column's validator checked on write. */
+function storedJson<Value extends JsonValue>(
+    validator: schema.Schema<Value>,
+    value: unknown,
+    dialect: Dialect,
+): Value;
+/**
+ * Read a JSON column's stored value as the driver returns it.
+ *
+ * @construct the column's encoder parsed the value by the validator before the database stored it.
+ */
+function storedJson(_validator: schema.Schema, value: unknown, dialect: Dialect): unknown {
+    // parse SQLite JSON text
+    if (dialect === "sqlite") {
+        const parsed: unknown = JSON.parse(TEXT.parse(value));
+
+        return parsed;
+    }
+    // take parsed PostgreSQL JSON
+    else if (dialect === "postgresql") {
+        return value;
+    }
+    // reject other dialects
+    else {
+        return assertNever(dialect);
+    }
 }
 
 /** Define a prefixed UUIDv7 identifier, whose JSON form is its text. */

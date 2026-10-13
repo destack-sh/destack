@@ -102,27 +102,100 @@ export class TestDatabase<
         return TestDatabase.#sqliteFile(declared, tables, options);
     }
 
+    /** Create an isolated migrated database copied from a seed's template, with its value. */
+    static async seeded<Models extends Readonly<Record<string, Model>>, Value>(
+        dialect: Dialect,
+        tables: declaration.Database<Models> | readonly Table[],
+        seed: TestSeed<Value>,
+    ): Promise<{ readonly storage: TestDatabase<Models>; readonly value: Value }> {
+        // write the seed's template once per process for the dialect and the declared state
+        const declared = "tables" in tables ? tables.tables : tables;
+        const state = declareState(declared, dialect, {
+            isReplica: false,
+            copies: copiesOf(tables),
+        });
+        const key = JSON.stringify([dialect, state]);
+        const written =
+            seed.templates.get(key) ?? TestDatabase.#template(dialect, tables, state, seed);
+        seed.templates.set(key, written);
+        const { source, value } = await written;
+
+        // copy the template into a claimed schema or a temporary file
+        const storage =
+            source.dialect === "postgresql"
+                ? await TestDatabase.#postgres(declared, tables, { isMigrated: true }, source)
+                : await TestDatabase.#sqliteFile(declared, tables, {}, source.file);
+
+        return { storage, value };
+    }
+
+    /** Write a seed into a migrated database the process keeps as the seed's template. */
+    static async #template<Value>(
+        dialect: Dialect,
+        tables: declaration.Database | readonly Table[],
+        state: readonly TableState[],
+        seed: TestSeed<Value>,
+    ): Promise<TestTemplate<Value>> {
+        // claim a migrated schema this process keeps for the template
+        if (dialect === "postgresql") {
+            const cluster = await TestCluster.current();
+            const schema = await cluster.claim(state, tables);
+            const open: TestConnector = (connected) => schema.connect(connected);
+            const value = await TestDatabase.#write(
+                seed,
+                new TestDatabase(await open(tables), open, async () => {}),
+            );
+
+            return {
+                source: {
+                    dialect,
+                    schema: schema.name,
+                    columns: await cluster.columns(schema.name),
+                },
+                value,
+            };
+        }
+
+        // write a migrated file the template keeps, and checkpoint its WAL into it
+        const declared = "tables" in tables ? tables.tables : tables;
+        const directory = await mkdtemp(join(tmpdir(), "destack-seed-"));
+        const file = join(directory, "seed.db");
+        await copyFile(await sqliteTemplate(declared, false, copiesOf(tables)), file);
+        const value = await TestDatabase.#write(
+            seed,
+            await TestDatabase.#sqliteAt(file, tables, async () => {}),
+        );
+        const database = await sqlite.connectBunSqlite(file, tables);
+        await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
+        await database.close();
+
+        return { source: { dialect, file }, value };
+    }
+
+    /** Write a seed into a database, closing it once written. */
+    static async #write<Value>(seed: TestSeed<Value>, storage: TestDatabase): Promise<Value> {
+        try {
+            return await seed.write(storage);
+        } finally {
+            await storage.close();
+        }
+    }
+
     /** Claim a migrated PostgreSQL schema this process keeps across tests, or create one. */
     static async #postgres<Models extends Readonly<Record<string, Model>>>(
         declared: readonly Table[],
         tables: declaration.Database<Models> | readonly Table[],
         options: TestDatabaseOptions,
+        template?: PostgresTemplate,
     ): Promise<TestDatabase<Models>> {
-        // reach the server
-        const address = process.env["DESTACK_TEST_POSTGRES"];
-        if (address === undefined || address === "") {
-            throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
-        }
-        testCluster ??= TestCluster.open(address);
-        const cluster = await testCluster;
-
-        // claim a migrated schema, kept by this process across tests
+        // claim a migrated schema, kept by this process across tests, with the template's rows
+        const cluster = await TestCluster.current();
         if (options.isMigrated === true) {
             const state = declareState(declared, "postgresql", {
                 isReplica: options.isReplica ?? false,
                 copies: copiesOf(tables),
             });
-            const schema = await cluster.claim(state, tables);
+            const schema = await cluster.claim(state, tables, template);
             const open: TestConnector = (connected) => schema.connect(connected);
 
             return new TestDatabase(await open(tables), open, async () => {
@@ -141,22 +214,34 @@ export class TestDatabase<
         });
     }
 
-    /** Keep SQLite in a temporary file, copied from the migrated template, sharing one hub. */
+    /** Keep SQLite in a temporary file, copied from a seed's or the migrated template. */
     static async #sqliteFile<Models extends Readonly<Record<string, Model>>>(
         declared: readonly Table[],
         tables: declaration.Database<Models> | readonly Table[],
         options: TestDatabaseOptions,
+        template?: string,
     ): Promise<TestDatabase<Models>> {
-        // copy the migrated template into a temporary file
+        // copy the seed's or the migrated template into a temporary file
         const directory = await mkdtemp(join(tmpdir(), "destack-test-"));
         const file = join(directory, "test.db");
-        if (options.isMigrated === true) {
-            await copyFile(
-                await sqliteTemplate(declared, options.isReplica ?? false, copiesOf(tables)),
-                file,
-            );
+        const source =
+            template ??
+            (options.isMigrated === true
+                ? await sqliteTemplate(declared, options.isReplica ?? false, copiesOf(tables))
+                : undefined);
+        if (source !== undefined) {
+            await copyFile(source, file);
         }
 
+        return TestDatabase.#sqliteAt(file, tables, () => rm(directory, { recursive: true }));
+    }
+
+    /** Keep SQLite in a file, sharing one hub, removed as given once closed. */
+    static async #sqliteAt<Models extends Readonly<Record<string, Model>>>(
+        file: string,
+        tables: declaration.Database<Models> | readonly Table[],
+        remove: () => Promise<void>,
+    ): Promise<TestDatabase<Models>> {
         // share each named channel through one hub
         const hubs = new Map<string, () => Channel<unknown>>();
         const openChannel = (name: string) => {
@@ -177,7 +262,7 @@ export class TestDatabase<
             await database.log.renew();
         }
 
-        return new TestDatabase(database, open, () => rm(directory, { recursive: true }));
+        return new TestDatabase(database, open, remove);
     }
 
     /** Open another connection to the same database. */
@@ -214,6 +299,37 @@ export interface TestDatabaseOptions {
     readonly isReplica?: boolean;
 }
 
+/** The rows test databases start with, written into a template once per process and copied. */
+export class TestSeed<Value> {
+    /** Write the rows into the template's database, returning what each copy shares. */
+    readonly write: (storage: TestDatabase) => Promise<Value>;
+    /** The written templates with what writing them returned, by dialect and declared state. */
+    readonly templates = new Map<string, Promise<TestTemplate<Value>>>();
+
+    /** Write a seed's rows as given. */
+    constructor(write: (storage: TestDatabase) => Promise<Value>) {
+        this.write = write;
+    }
+}
+
+/** A seed's written template: a SQLite file or a PostgreSQL schema, with what the seed returned. */
+interface TestTemplate<Value> {
+    /** Where the rows are. */
+    readonly source: { readonly dialect: "sqlite"; readonly file: string } | PostgresTemplate;
+    /** What writing the rows returned. */
+    readonly value: Value;
+}
+
+/** A PostgreSQL schema whose rows claimed schemas copy. */
+interface PostgresTemplate {
+    /** The dialect. */
+    readonly dialect: "postgresql";
+    /** The schema's name. */
+    readonly schema: string;
+    /** The written columns of each table, quoted and listed in declared order. */
+    readonly columns: ReadonlyMap<string, string>;
+}
+
 /** The PostgreSQL cluster of one test process, keeping its claimed schemas until exit. */
 class TestCluster {
     /** The server address. */
@@ -229,6 +345,18 @@ class TestCluster {
     private constructor(address: string, administration: postgres.Sql) {
         this.address = address;
         this.administration = administration;
+    }
+
+    /** Reach the cluster of this process's tests at DESTACK_TEST_POSTGRES, opened once. */
+    static current(): Promise<TestCluster> {
+        // require a server address
+        const address = process.env["DESTACK_TEST_POSTGRES"];
+        if (address === undefined || address === "") {
+            throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
+        }
+        testCluster ??= TestCluster.open(address);
+
+        return testCluster;
     }
 
     /** Connect to the server, dropping a few stale unclaimed schemas. */
@@ -265,10 +393,11 @@ class TestCluster {
         });
     }
 
-    /** Claim a reset migrated schema: an idle one of this process, a free one, or a new one. */
+    /** Claim a migrated schema reset to a template's rows: an idle, a free or a new one. */
     async claim(
         state: readonly TableState[],
         tables: declaration.Database | readonly Table[],
+        template?: PostgresTemplate,
     ): Promise<TestSchema> {
         // derive the schema names from the digest of the state and the log it migrates beside
         const layout = JSON.stringify([state, createLog("postgresql", "")]);
@@ -283,7 +412,7 @@ class TestCluster {
                 schema.isIdle = false;
                 const shape = await this.#readShape(schema.name);
                 if (shape.fingerprint === schema.shape.fingerprint) {
-                    await this.#reset(schema);
+                    await this.#reset(schema, template);
 
                     return schema;
                 }
@@ -299,7 +428,7 @@ class TestCluster {
             if (!this.#locked.has(name) && (await this.#lockListed(name))) {
                 const schema = await this.#verify(name, state, tables);
                 if (schema !== undefined) {
-                    await this.#reset(schema);
+                    await this.#reset(schema, template);
 
                     return schema;
                 }
@@ -318,8 +447,23 @@ class TestCluster {
         const database = new PoolDatabase(this.connect(name), tables, pools);
         await database.apply(await database.plan({ declared: state }));
         await database.close();
+        const schema = await this.#adopt(name, pools);
+        if (template !== undefined) {
+            await this.#reset(schema, template);
+        }
 
-        return this.#adopt(name, pools);
+        return schema;
+    }
+
+    /** Read the written columns of a schema's tables, quoted and listed in declared order. */
+    async columns(schema: string): Promise<ReadonlyMap<string, string>> {
+        const rows = await this.administration<{ table: string; columns: string }[]>`
+            SELECT table_name AS table, string_agg(quote_ident(column_name::text), ', ' ORDER BY ordinal_position) AS columns
+            FROM information_schema.columns
+            WHERE table_schema = ${schema} AND is_generated = 'NEVER'
+            GROUP BY table_name`;
+
+        return new Map(rows.map((row) => [row.table, row.columns]));
     }
 
     /** Take a schema's advisory lock, registered before awaiting, reporting whether it was free. */
@@ -403,8 +547,8 @@ class TestCluster {
         return schema;
     }
 
-    /** Delete the rows, restart the sequences and start a new epoch, in one statement batch. */
-    async #reset(schema: TestSchema): Promise<void> {
+    /** Replace the rows with a template's and start a new epoch, in one statement batch. */
+    async #reset(schema: TestSchema, template?: PostgresTemplate): Promise<void> {
         // pick the tables to empty and the sequences to restart
         const quoted = (name: string) => `"${schema.name}"."${name}"`;
         const emptied = schema.shape.relations.filter(
@@ -416,12 +560,40 @@ class TestCluster {
         );
         const sequences = schema.shape.relations.filter((relation) => relation.kind === "S");
 
-        // run the batch as one implicit transaction without triggers
+        // empty the tables and restart the sequences and the horizon, then copy the template's
+        const copied = template === undefined ? [] : TestCluster.#copy(schema, template);
+
+        // run the batch as one implicit transaction without triggers, in a new epoch
         await this.administration.unsafe(`SET LOCAL session_replication_role = replica;
             ${emptied.map((table) => `DELETE FROM ${quoted(table.name)};`).join("\n")}
             ${sequences.map((sequence) => `ALTER SEQUENCE ${quoted(sequence.name)} RESTART;`).join("\n")}
-            UPDATE ${quoted(LOG_EPOCH)} SET epoch = '${v7()}' WHERE slot = 1;
-            UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;`);
+            UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;
+            ${copied.join("\n")}
+            UPDATE ${quoted(LOG_EPOCH)} SET epoch = '${v7()}' WHERE slot = 1;`);
+    }
+
+    /** Write the statements copying a template's rows, sequences and horizon into a schema. */
+    static #copy(schema: TestSchema, template: PostgresTemplate): string[] {
+        // copy the written columns of each table but the state and the epoch
+        const quoted = (name: string) => `"${schema.name}"."${name}"`;
+        const source = (name: string) => `"${template.schema}"."${name}"`;
+        const rows = [...template.columns]
+            .filter(([table]) => table !== STATE && table !== LOG_EPOCH && table !== LOG_HORIZON)
+            .map(
+                ([table, columns]) =>
+                    `INSERT INTO ${quoted(table)} (${columns}) OVERRIDING SYSTEM VALUE SELECT ${columns} FROM ${source(table)};`,
+            );
+
+        // copy the sequences' positions and the horizon
+        const sequences = schema.shape.relations
+            .filter((relation) => relation.kind === "S")
+            .map(
+                (sequence) =>
+                    `SELECT setval('${quoted(sequence.name)}', last_value, is_called) FROM ${source(sequence.name)};`,
+            );
+        const horizon = `UPDATE ${quoted(LOG_HORIZON)} SET sequence = (SELECT sequence FROM ${source(LOG_HORIZON)} WHERE slot = 1) WHERE slot = 1;`;
+
+        return [...rows, ...sequences, horizon];
     }
 
     /** Read a schema's tables, sequences and applied state for the migration plan to compare. */

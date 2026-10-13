@@ -436,6 +436,34 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
 });
 
 test.each(TEST_DIALECTS)(
+    "refuse a write sharing a stored row's unique JSON key in another key order, on %s",
+    async (dialect) => {
+        // store a pinned place as the database keeps its JSON
+        const storage = await TestDatabase.create(dialect, [pin], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        await storage.database.insert(pin).values({
+            id: "a",
+            scope: "board",
+            person: "ada",
+            place: { x: 1, y: 2 },
+        });
+
+        // pin the same place with its keys in the other order
+        const transaction = await Transaction.open(storage.database);
+        const written = transaction.write({
+            table: pin,
+            before: null,
+            after: { id: "b", scope: "board", person: "ada", place: { y: 2, x: 1 } },
+        });
+
+        expect(await refusal(written)).toEqual([
+            "DUPLICATE",
+            "a record with the same unique key exists",
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
     "refuse a unique key a commit after the transaction's base took as a lost race, which a run repeats to see the key taken, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, [label], { isMigrated: true });

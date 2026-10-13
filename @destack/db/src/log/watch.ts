@@ -67,6 +67,11 @@ export class CommitWatch {
         this.#committed.add(committed);
         try {
             while (!signal.aborted) {
+                // refuse waiting on a channel that failed
+                if (this.#failure) {
+                    throw this.#failure.error;
+                }
+
                 // register before checking, and hand the check the tables committed since the last one
                 const checked = new AbortController();
                 const next = this.#next(AbortSignal.any([signal, checked.signal]));
@@ -118,10 +123,7 @@ export class CommitWatch {
 
     /** Wait for the next commit or the abort. */
     #next(signal: AbortSignal): Promise<void> {
-        // report a failure and start listening
-        if (this.#failure) {
-            return Promise.reject(this.#failure.error);
-        }
+        // start listening
         this.#stop ??= this.#listen();
 
         return new Promise((resolve, reject) => {

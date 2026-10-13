@@ -1,7 +1,6 @@
-import { aligned } from "@destack/schema";
+import { aligned, canonicalize } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { retried } from "../database/retry.ts";
-import { DatabaseError } from "../error/error.ts";
+import { classifyError, DatabaseError } from "../error/error.ts";
 import { Condition, Scalar } from "../query/condition.ts";
 import { Key } from "../query/key.ts";
 import { Namespace } from "../query/namespace.ts";
@@ -12,6 +11,12 @@ import type { Row } from "../table/row.ts";
 import type { Change } from "./log.ts";
 import type { LogPosition } from "./position.ts";
 import { type Overlay, Snapshot } from "./snapshot.ts";
+
+/** How often a transaction runs at most before a lost serialization race answers as unavailable. */
+const TRANSACTION_ATTEMPTS = 5;
+
+/** The backoff before the second attempt in milliseconds, doubled per later one and jittered. */
+const BACKOFF_MILLISECONDS = 10;
 
 /** One row a change set writes: its image before the first and after the last write, or null. */
 export interface RowChange {
@@ -84,7 +89,7 @@ export class ReadSet {
         // let an update of unlogged columns alone pass reads of logged images
         const name = change.table[TABLE].sqlName;
         const encoded = (image: Row | null) =>
-            JSON.stringify(image === null ? null : change.table[TABLE].encode(image));
+            canonicalize(image === null ? null : change.table[TABLE].encode(image));
         const isUnseen =
             change.operation === "update" && encoded(change.before) === encoded(change.after);
         const isSeen = (kind: ReadKind) => kind === "row" || !isUnseen;
@@ -334,7 +339,7 @@ export class Transaction {
         attempt: (transaction: Transaction) => Promise<Value>,
         signal?: AbortSignal,
     ): Promise<Value> {
-        return retried(async () => {
+        return Transaction.retry(async () => {
             // run the attempt from the log's current position and commit it
             const transaction = await Transaction.open(database);
             const value = await attempt(transaction);
@@ -342,6 +347,28 @@ export class Transaction {
 
             return value;
         }, signal);
+    }
+
+    /** Run an attempt opening and committing its own transaction again while it loses a race. */
+    static async retry<Value>(run: () => Promise<Value>, signal?: AbortSignal): Promise<Value> {
+        for (let attempt = 1; ; attempt++) {
+            try {
+                return await run();
+            } catch (error) {
+                // rethrow any other failure, and a lost race once the attempts run out
+                const classified = classifyError(error);
+                if (!isLostRace(classified) || attempt >= TRANSACTION_ATTEMPTS) {
+                    throw classified;
+                }
+
+                // wait a jittered, doubling while before the next attempt
+                const ceiling = BACKOFF_MILLISECONDS * 2 ** (attempt - 1);
+                await new Promise((resolve) => {
+                    setTimeout(resolve, Math.random() * ceiling);
+                });
+                signal?.throwIfAborted();
+            }
+        }
     }
 
     /** Start a transaction that only reads, such as a query's, which never commits. */
@@ -677,7 +704,7 @@ function isChanged(change: RowChange): boolean {
     );
 }
 
-/** List the columns whose values differ between a row's images, comparing their JSON forms. */
+/** List the columns whose values differ between a row's images, comparing their canonical JSON. */
 function changedColumns({ table, before, after }: RowChange): string[] {
     // encode both images and compare each column either has
     const left = before === null ? {} : table[TABLE].encode(before);
@@ -685,18 +712,28 @@ function changedColumns({ table, before, after }: RowChange): string[] {
     const columns = new Set([...Object.keys(left), ...Object.keys(right)]);
 
     return [...columns].filter(
-        (column) => JSON.stringify(left[column]) !== JSON.stringify(right[column]),
+        (column) => canonicalColumn(left[column]) !== canonicalColumn(right[column]),
     );
 }
 
-/** Decide whether two rows have equal unique key values, comparing their JSON forms. */
+/** Write a column's JSON value canonically, absent for a column the image lacks. */
+function canonicalColumn(value: unknown): string | undefined {
+    return value === undefined ? undefined : canonicalize(value);
+}
+
+/** Decide whether two rows have equal unique key values, comparing their canonical JSON. */
 function sameKey(table: Table, key: UniqueKey, left: Row, right: Row): boolean {
     const encoded = (row: Row) =>
-        JSON.stringify(
+        canonicalize(
             table[TABLE].encode(
                 Object.fromEntries(key.columns.map((column) => [column, row[column] ?? null])),
             ),
         );
 
     return encoded(left) === encoded(right);
+}
+
+/** Report whether a failure lost a race: a serialization failure, deadlock or busy database. */
+function isLostRace(error: unknown): boolean {
+    return error instanceof DatabaseError && error.code === "CONCURRENT_UPDATE";
 }

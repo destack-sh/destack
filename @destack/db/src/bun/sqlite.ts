@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { type ResourceBinding, type ResourceRecord } from "@destack/resource";
+import { type ResourceBinding, ResourceRecord } from "@destack/resource";
 import type { Database, DatabaseConnector } from "../declare/database.ts";
 import type { Model } from "../query/model.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -7,7 +7,6 @@ import type { Table } from "../table/table.ts";
 import { socketChannel } from "../channel/socket.ts";
 import { LOG_TOPIC } from "../log/schema.ts";
 import { connectBunSqlite } from "./connection.ts";
-import { requireReference } from "../provider/provider.ts";
 import type { SqliteDatabase } from "../sqlite/database.ts";
 import type { BunClient } from "./client.ts";
 
@@ -35,7 +34,7 @@ export function openBunSqlite<Models extends Readonly<Record<string, Model>>>(
     resource: Pick<ResourceRecord | ResourceBinding, "reference">,
     tables: Database<Models> | readonly Table[],
 ): Promise<SqliteDatabase<BunClient, Models>> {
-    const path = fileURLToPath(requireReference(resource.reference));
+    const path = fileURLToPath(ResourceRecord.reference(resource));
 
     return connectBunSqlite(path, tables, {
         openChannel: (topic) => socketChannel(channelOf(path, topic)),

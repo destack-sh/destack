@@ -1,6 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Change, defineTable, index, integer, json, sql, text, uniqueIndex } from "../index.ts";
-import { schema } from "@destack/schema";
+import { Package } from "@destack/package";
+import { present, schema } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
 import { qualify } from "../table/namespace.ts";
 import { defineDatabase } from "../declare/database.ts";
@@ -8,7 +9,7 @@ import { mergeStates } from "./merge.ts";
 import { applyPlan } from "./apply.ts";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import { declareState } from "./state.ts";
+import { declareState, STATE } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
 import { Expression } from "../expression/expression.ts";
 import { PlanError } from "@destack/resource/error";
@@ -31,6 +32,28 @@ const document = defineTable("document", {
         .notNull()
         .references(() => folderTwo.id),
 });
+
+/** Another package's release, declaring its own documents' attachments. */
+const ATTACHMENT_RELEASE = {
+    package: Package.parse({
+        id: "package-01996ab0-0000-7000-8000-0000000000f1",
+        name: "@acme/attachment",
+        version: "2026.10.0",
+    }),
+};
+
+/** Attachments of another package, referencing their document. */
+const attachment = defineTable(
+    "attachment",
+    {
+        id: text("id").primaryKey(),
+        documentId: text("document_id")
+            .notNull()
+            .references(() => document.id),
+    },
+    {},
+    ATTACHMENT_RELEASE,
+);
 
 /** Labels whose codes may repeat. */
 const labelPlain = defineTable("label", {
@@ -249,9 +272,12 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskUnfilled]);
         await database.migrate([taskOne]);
+        await database.execute(
+            sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent) VALUES ('t', 's', 'Plan', 0)`,
+        );
         await database.execute(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
 
-        // name the unfillable column and the unmanaged table
+        // name the column no task row fills and the unmanaged table
         await expect(
             database.plan({ declared: declareState([taskUnfilled, labelPlain], dialect) }),
         ).rejects.toMatchObject({
@@ -348,6 +374,100 @@ test.for(TEST_DIALECTS)(
             { id: "a", mode: "standard" },
             { id: "b", mode: "vim" },
         ]);
+    },
+);
+
+/** Preferences rebuilt within the first release, converting the emacs mode it drops. */
+const preferenceRebuilt = defineTable(
+    "preference",
+    { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
+    {
+        convert: {
+            [preferenceOne[TABLE].package.version]: {
+                mode: Expression.case(
+                    Expression.scalar(Expression.column("mode"), "text"),
+                    [{ when: "emacs", then: Expression.json("standard") }],
+                    Expression.column("mode"),
+                ),
+            },
+        },
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "convert rows by the conversion a rebuilt release adds, once, on %s",
+    async (dialect) => {
+        const database = await open(dialect, [preferenceRebuilt]);
+        await database.migrate([preferenceOne]);
+        await database.execute(
+            sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
+        );
+
+        // convert the rows the earlier build wrote, then find the database current
+        const converted = await database.migrate([preferenceRebuilt]);
+        const again = await database.migrate([preferenceRebuilt]);
+        expect({ converted: review(converted), again: review(again) }).toEqual({
+            converted: [
+                `fallible convert table/${table(preferenceRebuilt)}: convert rows to ${preferenceOne[TABLE].package.version}`,
+            ],
+            again: [],
+        });
+        expect(
+            await database.select().from(preferenceRebuilt).orderBy(preferenceRebuilt.id),
+        ).toEqual([
+            { id: "a", mode: "standard" },
+            { id: "b", mode: "vim" },
+        ]);
+    },
+);
+
+/** Preferences in the next release, narrowing the mode and requiring a theme without a default. */
+const preferenceStrict = defineTable(
+    "preference",
+    {
+        id: text("id").primaryKey(),
+        mode: json("mode", schema.enum(["standard", "vim"])),
+        theme: text("theme").notNull(),
+    },
+    {},
+    NEXT_RELEASE,
+);
+
+test.for(TEST_DIALECTS)(
+    "narrow values and require a new column without a default only over a table without rows, on %s",
+    async (dialect) => {
+        // change an empty table freely
+        const empty = await open(dialect, [preferenceStrict]);
+        await empty.migrate([preferenceOne]);
+        const changed = await empty.migrate([preferenceStrict]);
+
+        // refuse the same change over a row
+        const filled = await open(dialect, [preferenceStrict]);
+        await filled.migrate([preferenceOne]);
+        await filled.execute(
+            sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
+        );
+        const refused = await filled.migrate([preferenceStrict]).then(
+            () => [],
+            (error: PlanError) => error.problems,
+        );
+        expect({ changed: review(changed), refused }).toEqual({
+            changed: [
+                dialect === "sqlite"
+                    ? `safe replace table/${table(preferenceStrict)}: rebuild table: add theme`
+                    : `safe create table/${table(preferenceStrict)}/column/theme: add column theme`,
+            ],
+            refused: [
+                {
+                    target: `table/${table(preferenceStrict)}`,
+                    detail: "declare a default for the required column theme",
+                },
+                {
+                    target: `table/${table(preferenceStrict)}/column/mode`,
+                    detail: "declare a conversion for 2026.10.0",
+                },
+            ],
+        });
     },
 );
 
@@ -708,5 +828,51 @@ test.each(TEST_DIALECTS)(
                 [items, ["primaryKey", ...checks], []],
             ],
         ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "refuse an applied state in a format this release no longer reads, naming its table and database on %s",
+    async (dialect) => {
+        // apply the tasks, then store their state with columns no release reads
+        const database = await open(dialect, [taskOne]);
+        await database.migrate([taskOne]);
+        const [stored] = await database.execute(
+            sql`SELECT state FROM ${sql.relation(STATE)}`,
+            schema.object({ state: schema.string() }),
+        );
+        const state = schema
+            .looseObject({ table: schema.looseObject({}) })
+            .parse(JSON.parse(present(stored, "the stored state").state));
+        const old = { ...state, table: { ...state.table, columns: "restrict" } };
+        await database.run(sql`UPDATE ${sql.relation(STATE)} SET state = ${JSON.stringify(old)}`);
+
+        // read the server's database and schema the state lives in
+        const [server] =
+            dialect === "sqlite"
+                ? [{ name: "sqlite" }]
+                : await database.execute(
+                      sql`SELECT current_database() || '.' || current_schema() AS name`,
+                      schema.object({ name: schema.string() }),
+                  );
+
+        // name the table and the database
+        await expect(database.unapplied([taskOne])).rejects.toMatchObject({
+            code: "INVALID_MIGRATION",
+            message: `the applied state of table ${table(taskOne)} in database ${present(server, "the database").name} has an unknown format: ✖ Invalid input: expected array, received string\n  → at table.columns`,
+        });
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "describe one package's tables as the whole database describes them on %s",
+    async (dialect) => {
+        // describe the attachments placed beside the documents they reference
+        const tables = [folderTwo, document, attachment];
+        const owner = attachment[TABLE].package.id;
+        const whole = declareState(tables, dialect);
+        expect(declareState(tables, dialect, { package: owner })).toEqual(
+            whole.filter((state) => state.package.id === owner),
+        );
     },
 );

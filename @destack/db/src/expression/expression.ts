@@ -71,7 +71,8 @@ export type Expression =
           }[];
           readonly otherwise: Expression;
       }
-    | { readonly kind: "scalar"; readonly of: Expression; readonly as: ScalarKind };
+    | { readonly kind: "scalar"; readonly of: Expression; readonly as: ScalarKind }
+    | { readonly kind: "before"; readonly of: Expression; readonly separator: string };
 
 /** How a rollup measures related rows. */
 export const Rollup = schema.enum(["count", "sum", "min", "max"]);
@@ -182,6 +183,14 @@ const expressionSchema: schema.Schema<Expression> = schema.lazy(() =>
             /** The kind read. */
             as: ScalarKind,
         }),
+        schema.object({
+            /** Read the text before a separator. */
+            kind: schema.literal("before"),
+            /** The text. */
+            of: expressionSchema,
+            /** The separator. */
+            separator: schema.string().min(1),
+        }),
     ]),
 );
 
@@ -255,6 +264,12 @@ export const Expression = {
     ): Expression => ({ kind: "case", of, cases, otherwise }),
     /** Read a JSON scalar as a number or text. */
     scalar: (of: Expression, as: ScalarKind): Expression => ({ kind: "scalar", of, as }),
+    /** Read the text before a separator's first occurrence, all of it without one. */
+    before: (of: Expression, separator: string): Expression => ({
+        kind: "before",
+        of,
+        separator,
+    }),
 
     /** Count an expression's terms. */
     terms(expression: Expression): number {
@@ -355,6 +370,8 @@ export const Expression = {
             }
             case "scalar":
                 return evaluateScalar(expression, row, related);
+            case "before":
+                return evaluateBefore(expression, row, related);
             case "column":
                 return jsonOf(row[expression.name], expression.name);
             case "literal":
@@ -441,7 +458,11 @@ function visit(expression: Expression, visitor: (entry: Expression) => void): vo
         for (const value of expression.values) {
             visit(value, visitor);
         }
-    } else if (expression.kind === "path" || expression.kind === "scalar") {
+    } else if (
+        expression.kind === "path" ||
+        expression.kind === "scalar" ||
+        expression.kind === "before"
+    ) {
         visit(expression.of, visitor);
     } else if (expression.kind === "object") {
         for (const value of Object.values(expression.fields)) {
@@ -469,6 +490,8 @@ function renderAs(expression: Expression, kind: Kind, table: Table, namespace: N
             return renderCase(expression, kind, table, namespace);
         case "scalar":
             return renderScalar(expression, table, namespace);
+        case "before":
+            return renderBefore(expression, table, namespace);
         case "column":
             return renderColumn(expression, kind, table);
         case "literal":
@@ -530,6 +553,16 @@ function kindOf(
             }
 
             return expression.kind === "path" ? "json" : expression.as;
+        case "before":
+            // read text only
+            if (kindOf(expression.of, table, namespace) !== "text") {
+                throw new DatabaseError(
+                    "INVALID_QUERY",
+                    "expression reads the text before a separator of a value that is not text",
+                );
+            }
+
+            return "text";
         case "object": {
             // require every field of a known kind
             const kinds = Object.values(expression.fields).map((value) =>
@@ -590,6 +623,22 @@ function evaluateScalar(
     const isRead = expression.as === "text" ? typeof value === "string" : typeof value === "number";
 
     return isRead ? value : null;
+}
+
+/** Read the text before a separator's first occurrence. */
+function evaluateBefore(
+    expression: ExpressionOf<"before">,
+    row: Readonly<Record<string, ColumnValue>>,
+    related: RelationReader | undefined,
+): JsonValue {
+    // yield a missing value from anything but text
+    const value = Expression.evaluate(expression.of, row, related);
+    if (typeof value !== "string") {
+        return null;
+    }
+    const index = value.indexOf(expression.separator);
+
+    return index === -1 ? value : value.slice(0, index);
 }
 
 /** Compute an arithmetic expression. */
@@ -701,6 +750,17 @@ function renderScalar(expression: ExpressionOf<"scalar">, table: Table, namespac
     });
 
     return isText ? value : float(value);
+}
+
+/** Render the text before a separator's first occurrence. */
+function renderBefore(expression: ExpressionOf<"before">, table: Table, namespace: Namespace): SQL {
+    const of = renderAs(expression.of, "text", table, namespace);
+    const separator = sql`CAST(${expression.separator} AS TEXT)`;
+
+    return dialectSQL({
+        sqlite: sql`substr(${of}, 1, instr(${of} || ${separator}, ${separator}) - 1)`,
+        postgresql: sql`split_part(${of}, ${separator}, 1)`,
+    });
 }
 
 /** Render a column read by the kind. */

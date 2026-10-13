@@ -54,6 +54,8 @@ export class Database<
     readonly relations: Relations<Models>;
     /** The SQL names of the tables the database copies from their owning service. */
     readonly copied: ReadonlySet<string>;
+    /** The required tables' description, described on first read. */
+    #state: DatabaseState | undefined;
 
     /** Create the declaration. */
     constructor(
@@ -81,9 +83,11 @@ export class Database<
         return this.copied.has(table[TABLE].sqlName);
     }
 
-    /** Describe the required tables. */
+    /** Describe the required tables once, since the declaration never changes. */
     override state(): DatabaseState {
-        return DatabaseState.of(this.tables, { copies: this.copied });
+        this.#state ??= DatabaseState.of(this.tables, { copies: this.copied });
+
+        return this.#state;
     }
 
     /** Read the connection. */

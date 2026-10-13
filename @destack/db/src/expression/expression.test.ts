@@ -125,6 +125,30 @@ test.for(TEST_DIALECTS)("take the first present text on %s", async (dialect) => 
     expect(selected).toEqual([{ value: "a" }, { value: "none" }]);
 });
 
+test.for(TEST_DIALECTS)(
+    "read the text before a separator alike in SQL and in memory on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const names = ["ada@example.com", "a@b@c", "@example.com", "ada", "", null];
+        const rows = names.map((name, id) => ({ id, name }));
+        await storage.database.insert(sample).values(rows);
+
+        // cut at the first separator, keeping text without one whole
+        const expression = Expression.before(Expression.column("name"), "@");
+        Expression.require(expression, sample);
+        const selected = await storage.database
+            .select({ value: Expression.render(expression, sample) })
+            .from(sample)
+            .orderBy(asc(sample.id));
+        const computed = rows.map((row) => Expression.evaluate(expression, row));
+        expect([selected.map((row) => row.value), computed]).toEqual([
+            ["ada", "a", "", "ada", "", null],
+            ["ada", "a", "", "ada", "", null],
+        ]);
+    },
+);
+
 /** JSON documents covering objects, arrays, scalars, nesting and absence. */
 const DOCUMENTS: readonly { readonly data: JsonValue; readonly mode: string | null }[] = [
     { data: { editor: { mode: "emacs", size: 12 }, tags: ["a"] }, mode: "emacs" },

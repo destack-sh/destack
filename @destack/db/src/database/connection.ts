@@ -1,7 +1,6 @@
-import { schema } from "@destack/schema";
+import { canonicalize, schema } from "@destack/schema";
 import { CHAIN_TERMS, exists, fill, or, render, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
-import { retried } from "./retry.ts";
 import { DatabaseDriver } from "./driver.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
@@ -11,6 +10,7 @@ import {
     declareState,
     localState,
     namespaceState,
+    readEmpty,
     readState,
     readTables,
     unappliedTables,
@@ -24,6 +24,7 @@ import type { Selection } from "../query/selection.ts";
 import { type TransactionOptions, TransactionState } from "./transaction.ts";
 import { closeTransaction, openTransaction } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
+import { Transaction } from "../log/commit.ts";
 import { type Announcer, CommitWatch } from "../log/watch.ts";
 import { LOG_TOPIC } from "../log/schema.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
@@ -291,12 +292,26 @@ export class DatabaseConnection<
 
     /** Plan the migration from applied to declared tables, within the database's namespace. */
     async plan(state: Pick<Merge, "declared"> & Partial<Merge>): Promise<TablePlan> {
+        // read the applied tables a declaration changes that hold no rows
         const { namespace } = this.state;
+        const applied = await readState(this);
+        const declared = state.declared.map((entry) => namespaceState(entry, namespace));
+        const changing = declared.flatMap((entry) => {
+            const previous = applied.find(
+                (each) =>
+                    each.table.name === entry.table.name || each.table.name === entry.moved?.table,
+            );
+
+            return previous !== undefined && canonicalize(previous) !== canonicalize(entry)
+                ? [previous.table.name]
+                : [];
+        });
 
         return planTables({
-            applied: await readState(this),
+            applied,
             existing: await readTables(this),
-            declared: state.declared.map((entry) => namespaceState(entry, namespace)),
+            declared,
+            empty: await readEmpty(this, changing),
             conflicts: (state.conflicts ?? []).map((conflict) => ({
                 ...conflict,
                 table: relation(conflict.table, namespace),
@@ -370,7 +385,7 @@ export class DatabaseConnection<
         }
 
         // forget the writes of an attempt that lost, then announce the written tables once committed
-        return retried(() => {
+        return Transaction.retry(() => {
             written.clear();
 
             return this.driver.commit(execute, written);

@@ -135,3 +135,10 @@ test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {
     onTestFinished(() => storage.close());
 });
 ```
+
+`TestDatabase.seeded` copies a template a `TestSeed` writes once per process.
+
+```ts
+const seed = new TestSeed(async (storage) => keepFixture(storage.database));
+const { storage, value } = await TestDatabase.seeded(dialect, [note], seed);
+```

@@ -1,10 +1,10 @@
 import type { Digest } from "@destack/schema";
 import { schema } from "@destack/schema";
-import { type KindState, Plan, type ResourceRecord } from "@destack/resource";
+import { type KindState, Plan, ResourceRecord } from "@destack/resource";
 import { DatabaseHandle } from "../database/handle.ts";
 import type { DatabaseKind } from "../declare/database.ts";
 import { quote } from "../dialect/quote.ts";
-import { type DatabaseHost, requireReference } from "../provider/provider.ts";
+import type { DatabaseHost } from "../provider/provider.ts";
 import { sql } from "../sql/index.ts";
 import { Table } from "../table/table.ts";
 import { connectPostgres } from "./connection.ts";
@@ -57,7 +57,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
 
     /** Drop the database's schema with its contents. */
     async destroy(record: ResourceRecord<typeof DatabaseKind>): Promise<void> {
-        const reference = requireReference(record.reference);
+        const reference = ResourceRecord.reference(record);
         await using connection = await this.#connect(reference);
         await connection.executeScript(`DROP SCHEMA ${quote(reference)} CASCADE`);
     }
@@ -68,7 +68,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
         const connect = (tables: readonly Table[]) =>
-            connectPostgres(this.connector.url(requireReference(record.reference)), tables);
+            connectPostgres(this.connector.url(ResourceRecord.reference(record)), tables);
 
         return DatabaseHandle.plan(
             connect,
@@ -83,7 +83,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         digest: Digest,
     ): Promise<void> {
         const connect = (tables: readonly Table[]) =>
-            connectPostgres(this.connector.url(requireReference(record.reference)), tables);
+            connectPostgres(this.connector.url(ResourceRecord.reference(record)), tables);
         const states = desired.map((state) => state.tables.postgresql);
 
         return DatabaseHandle.apply(connect, states, digest, record.id);
@@ -95,7 +95,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<DatabaseHandle> {
         const connect = (tables: readonly Table[]) =>
-            connectPostgres(this.connector.url(requireReference(record.reference)), tables);
+            connectPostgres(this.connector.url(ResourceRecord.reference(record)), tables);
 
         return DatabaseHandle.open(
             connect,

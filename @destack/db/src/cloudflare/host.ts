@@ -1,10 +1,10 @@
 import { defineSchema, Digest, schema } from "@destack/schema";
-import { type KindState, Plan, ResourceId, type ResourceRecord } from "@destack/resource";
+import { type KindState, Plan, ResourceId, ResourceRecord } from "@destack/resource";
 import { DatabaseHandle } from "../database/handle.ts";
 import { type DatabaseKind, DatabaseSpec } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
 import { DatabaseState } from "../migration/state.ts";
-import { type DatabaseHost, requireReference } from "../provider/provider.ts";
+import type { DatabaseHost } from "../provider/provider.ts";
 import { relation } from "../table/namespace.ts";
 import { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
@@ -229,7 +229,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
 
     /** Drop every relation of the database's namespace. */
     async destroy(record: ResourceRecord<typeof DatabaseKind>): Promise<void> {
-        await this.drop(DurableObjectDatabaseHost.namespace(requireReference(record.reference)));
+        await this.drop(DurableObjectDatabaseHost.namespace(ResourceRecord.reference(record)));
     }
 
     /** Drop every relation of a namespace, such as a database kept only while an instance runs. */
@@ -247,7 +247,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
-        const namespace = DurableObjectDatabaseHost.namespace(requireReference(record.reference));
+        const namespace = DurableObjectDatabaseHost.namespace(ResourceRecord.reference(record));
         const connect = (tables: readonly Table[]) => this.connect(tables, { namespace });
 
         return DatabaseHandle.plan(
@@ -263,7 +263,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         digest: Digest,
     ): Promise<void> {
         // apply the plan in the database's namespace
-        const namespace = DurableObjectDatabaseHost.namespace(requireReference(record.reference));
+        const namespace = DurableObjectDatabaseHost.namespace(ResourceRecord.reference(record));
         const connect = (tables: readonly Table[]) => this.connect(tables, { namespace });
         const states = desired.map((state) => state.tables.sqlite);
 
@@ -275,7 +275,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<DatabaseHandle> {
-        const namespace = DurableObjectDatabaseHost.namespace(requireReference(record.reference));
+        const namespace = DurableObjectDatabaseHost.namespace(ResourceRecord.reference(record));
         const connect = (tables: readonly Table[]) => this.connect(tables, { namespace });
 
         return DatabaseHandle.open(
