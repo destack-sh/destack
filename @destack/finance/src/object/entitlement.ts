@@ -622,7 +622,7 @@ async function allowances(
     granted: readonly Entitlement[],
     catalog: (packageId: PackageId) => Promise<Catalog>,
 ): Promise<Map<AllowanceResource, Derived>> {
-    // name each granted feature once
+    // list each granted feature once
     const features = new Map(
         granted.map((row) => {
             const reference = { packageId: row.packageId, name: row.feature };

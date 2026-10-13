@@ -148,7 +148,7 @@ export function serveFinance(
             },
             declaration: {
                 after: [product],
-                // name each price by its terms, so new terms make a new price and archive the old
+                // key each price by its terms, so new terms make a new price and archive the old
                 collect: async (document) => {
                     const named = Stack.nested(price, product, document).map(
                         async ([name, value]): Promise<[string, JsonObject]> => {

@@ -638,7 +638,7 @@ async function draw(snapshot: Snapshot, row: Subscription, periodStart: number) 
 
 /** Describe a usage line as its invoice line reads: the service, the quantity and the resource. */
 function describe(line: Charge): string {
-    // name the service, the quantity in its unit and the resource when one used it
+    // describe the service, the quantity in its unit and the resource when one used it
     const quantity = present(line.pricingQuantity, "a usage line's quantity");
     const unit = present(line.pricingUnit, "a usage line's unit");
     const resource = line.resourceId === null ? "" : ` for ${line.resourceId}`;
