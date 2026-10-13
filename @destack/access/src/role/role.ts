@@ -1,5 +1,5 @@
 import type { ObjectReference, Subject } from "@destack/sync";
-import { TABLE, type Transaction, type Select } from "@destack/db";
+import { TABLE, type RowImage, type Select, type Snapshot, type Transaction } from "@destack/db";
 import { defineSchema, schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
@@ -57,6 +57,7 @@ export const Role = {
     /** The schema of a role. */
     schema: roleSchema,
     read,
+    find,
     permissions,
     describe,
     close,
@@ -76,6 +77,17 @@ async function read(
     }
 
     return record;
+}
+
+/** Find a scope's role by its name as a snapshot shows it, null for none. */
+async function find(
+    snapshot: Snapshot,
+    scope: string,
+    name: string,
+): Promise<RowImage<typeof accessRole> | null> {
+    const [found = null] = await snapshot.rows(accessRole, { scope, name });
+
+    return found;
 }
 
 /** Read the permissions a role grants itself as a transaction sees them. */

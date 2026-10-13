@@ -6,7 +6,7 @@ import { found, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { CONTAINED, type AccessExpression } from "../declare/expression.ts";
 import { type PermissionReference } from "../declare/policy.ts";
-import { accepts, type RelationDefinition } from "../declare/subject.ts";
+import { accepts, type RelationDescription } from "../declare/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { RelationshipRow, RoleBinding } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
@@ -596,7 +596,7 @@ export class GrantReader {
     /** Collect the trees of one relationship's object, none for a type the relation refuses. */
     async #throughRelationship(
         expression: Extract<AccessExpression, { kind: "through" }>,
-        relation: RelationDefinition,
+        relation: RelationDescription,
         entry: RelationshipRow,
         scope: string,
         trail: Trail,

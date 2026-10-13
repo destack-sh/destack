@@ -11,6 +11,7 @@ import {
     Authorizer,
     principal,
     invitation,
+    Invitation,
     Manager,
     relationship,
     type AccessContext,
@@ -156,6 +157,41 @@ test.for(TEST_DIALECTS)(
         expect(await visible(as("carol"))).toEqual([`${carol}>${carol}`]);
         expect(await visible(as("dave"))).toEqual([`${alice}>${dave}`]);
         expect(await visible(fixture.bob)).toEqual([]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "read the invitations on an object to one addressee, leaving out other addressees and objects, on %s",
+    async (dialect) => {
+        // let alice offer dave viewing node b
+        const fixture = await openFixture(dialect);
+        onTestFinished(() => fixture.close());
+        const object = node.reference("personal", "b");
+        const dave = principal.user.reference("universe", "dave");
+        await Authorization.run(
+            fixture.authorizer,
+            fixture.database,
+            () => fixture.alice,
+            (authorization) =>
+                authorization.invite({
+                    relationship: { object, relation: "viewer", subject: dave },
+                }),
+        );
+
+        // read the offer to dave alone, none to bob and none to dave on node a
+        const snapshot = Snapshot.live(fixture.database);
+        const read = async (on: ObjectReference, addressee: Subject) =>
+            (await Invitation.readOn(snapshot, on, addressee)).map((offer) => [
+                offer.status,
+                offer.relationship.object.id,
+                offer.relationship.subject.id,
+                offer.inviter?.id,
+            ]);
+        expect([
+            await read(object, dave),
+            await read(object, principal.user.reference("universe", "bob")),
+            await read(node.reference("personal", "a"), dave),
+        ]).toEqual([[["pending", "b", "dave", "alice"]], [], []]);
     },
 );
 

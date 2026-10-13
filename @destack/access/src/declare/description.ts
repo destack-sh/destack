@@ -1,10 +1,9 @@
-import type { Policy } from "../declare/policy.ts";
 import { AccessName, ObjectTypeReference } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Condition } from "@destack/db";
-import { AttributeType, type AccessExpression } from "../declare/expression.ts";
-import { SubjectType } from "../declare/subject.ts";
+import { AttributeType, type AccessExpression } from "./expression.ts";
+import { SubjectType } from "./subject.ts";
 import { Elevation } from "../context/elevation.ts";
 
 /** Serialized permission expressions with no executable callbacks. */
@@ -109,8 +108,3 @@ export const PolicyDescription = defineSchema(
 );
 /** A type's relations and permissions in JSON form. */
 export type PolicyDescription = schema.Infer<typeof PolicyDescription>;
-
-/** Describe a policy for inspection. */
-export function describePolicy(policy: Policy): PolicyDescription {
-    return PolicyDescription.parse(policy.definition);
-}

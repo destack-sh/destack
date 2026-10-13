@@ -8,6 +8,7 @@ import {
     type DatabaseConnection,
     type Transaction,
     type Select,
+    type Snapshot,
 } from "@destack/db";
 import { defineSchema, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
@@ -76,6 +77,7 @@ export const Invitation = {
     schema: invitationSchema,
     id: invitationId,
     read,
+    readOn,
     on,
     pending,
     encode,
@@ -139,6 +141,20 @@ async function read(
     }
 
     return decode(row);
+}
+
+/** Read the invitations on an object to one principal or contact, in any status. */
+async function readOn(
+    snapshot: Snapshot,
+    object: ObjectReference,
+    addressee: Subject,
+): Promise<Invitation[]> {
+    const rows = await snapshot.rows(accessInvitation, {
+        ...Relationship.objectColumns(object),
+        addressee: Subject.key(addressee),
+    });
+
+    return rows.map(decode);
 }
 
 /** Read a page of the pending invitations to some principals or contacts, oldest first. */

@@ -38,7 +38,7 @@ import type {
     AttributeType,
     ConditionExpression,
 } from "../declare/expression.ts";
-import { accepts, type RelationDefinition, type SubjectType } from "../declare/subject.ts";
+import { accepts, type RelationDescription, type SubjectType } from "../declare/subject.ts";
 import { ACCESS_PACKAGE_ID, INTRINSIC_POLICIES } from "../declare/principal.ts";
 import { ACCESS_MAPPINGS } from "../replica/replica.ts";
 import { type AccessContext } from "../context/context.ts";
@@ -593,7 +593,7 @@ export class Authorizer {
     }
 
     /** Resolve a declared relation without accepting inherited JavaScript properties. */
-    relation(type: Policy, name: string): RelationDefinition {
+    relation(type: Policy, name: string): RelationDescription {
         // read the relation's own declaration
         const relation = Object.hasOwn(type.definition.relations, name)
             ? type.definition.relations[name]
@@ -804,7 +804,12 @@ export class Authorizer {
     /** Request the one copy of the scope chains above a follower's replicated scopes. */
     async chainVia(
         database: DatabaseConnection,
-        follower: string,
+        copy: {
+            /** The copy's name, one record per follower. */
+            readonly name: string;
+            /** The scope the copy is kept for, the follower or the scope it lives in. */
+            readonly below: string;
+        },
         via: readonly { readonly id: string; readonly scope: string | null }[],
         scoped: readonly ObjectTypeReference[] = this.scoped,
         elsewhere: readonly ObjectTypeReference[] = [],
@@ -830,9 +835,9 @@ export class Authorizer {
 
         // copy the chains up to the universe and the inherited rows in them
         return this.chainShape.subscription({
-            name: Authorizer.chainCopy(follower),
+            name: copy.name,
             scope: Scope.universe.id,
-            below: follower,
+            below: copy.below,
             parameters: {
                 local: [...this.local],
                 // take the scopes' own rows from the follower's copy of the universe
@@ -1627,7 +1632,7 @@ export class Authorizer {
     }
 
     /** Require a relation to each object's scope to accept one scope type, kept by the chain. */
-    #validateScopeRelation(type: Policy, name: string, relation: RelationDefinition): void {
+    #validateScopeRelation(type: Policy, name: string, relation: RelationDescription): void {
         // require one scope type, kept by the scope chain, or none for the scope of whichever type holds each object
         const [scope, ...others] = relation.subjects;
         if (scope === undefined) {

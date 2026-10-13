@@ -7,48 +7,10 @@ import {
     type AttributeType,
     type ConditionExpression,
 } from "./expression.ts";
-import { type RelationDefinition, SubjectType } from "./subject.ts";
+import { type RelationDescription, SubjectType } from "./subject.ts";
 import { AccessError } from "../error/index.ts";
-import { PolicyDescription } from "../inspect/policy.ts";
+import { PolicyDescription } from "./description.ts";
 import type { Elevation } from "../context/elevation.ts";
-
-/** The relations and permissions of one type of object, as access evaluates them. */
-export interface PolicyDefinition {
-    /** The stable declaring package identity. */
-    readonly packageId: PackageId;
-    /** The declaration-local object type name. */
-    readonly name: string;
-    /** Required object attributes used by permission expressions. */
-    readonly attributes: Readonly<Record<string, AttributeType>>;
-    /** Required request attributes used by permission expressions. */
-    readonly context: Readonly<Record<string, AttributeType>>;
-    /** Relations to subjects and to other objects. */
-    readonly relations: Readonly<Record<string, RelationDefinition>>;
-    /** Named permission expressions, each also granted by the roles bound on the object. */
-    readonly permissions: Readonly<Record<string, AccessExpression>>;
-    /** The permission whose holders bind roles on an object. */
-    readonly grantedBy?: string;
-    /** The permission whose holders see the objects' relationships, `read` by default. */
-    readonly relationships?: { readonly read: string };
-    /** Permissions owner roles leave out, granted only by their expressions and listing roles. */
-    readonly reserved?: readonly string[];
-    /** Sensitive permissions that apply only after their required authentication. */
-    readonly elevated?: Readonly<Record<string, Elevation>>;
-    /** Permissions available while the scope is suspended, such as reading and resuming it. */
-    readonly administration?: readonly string[];
-    /** Whether the type's objects are scopes that contain other objects. */
-    readonly scope?: true;
-    /** Whether each object is a partition, whose contents live and run apart from its parent's. */
-    readonly partition?: true;
-    /** Whether the type's objects live in the universe, like users. */
-    readonly isGlobal?: true;
-    /** The open relations of other types this type's objects may be subjects of. */
-    readonly contributes?: readonly {
-        readonly packageId: PackageId;
-        readonly type: string;
-        readonly relation: string;
-    }[];
-}
 
 /** The policy of one type of object, with typed references to its permissions and relations. */
 export class Policy<Name extends string = string> {
@@ -57,7 +19,7 @@ export class Policy<Name extends string = string> {
     /** The package-local object type name. */
     readonly name: string;
     /** The immutable serializable definition. */
-    readonly definition: PolicyDefinition;
+    readonly definition: PolicyDescription;
     /** The other policies the relations name as subjects. */
     readonly references: readonly Policy[];
     /** The names of the object attributes conditions read. */
@@ -310,7 +272,7 @@ interface PolicyFields<Name extends string> {
 function qualifyRelations<Name extends string>(
     owner: Package,
     input: PolicyInput<Name>,
-): Record<string, RelationDefinition> {
+): Record<string, RelationDescription> {
     return Object.fromEntries(
         Object.entries(input.relations ?? {}).map(([name, relation]) => {
             const grantedBy =
@@ -333,7 +295,7 @@ function qualifyRelations<Name extends string>(
 }
 
 /** Require every row relation to accept a subject type unless other types add themselves. */
-function requireSubjectTypes(relations: Readonly<Record<string, RelationDefinition>>): void {
+function requireSubjectTypes(relations: Readonly<Record<string, RelationDescription>>): void {
     for (const [name, relation] of Object.entries(relations)) {
         if (relation.subjects.length === 0 && relation.open !== true && relation.isScope !== true) {
             throw new AccessError(
@@ -348,7 +310,7 @@ function requireSubjectTypes(relations: Readonly<Record<string, RelationDefiniti
 function describe<Name extends string>(
     owner: Package,
     input: PolicyInput<Name>,
-    relations: Readonly<Record<string, RelationDefinition>>,
+    relations: Readonly<Record<string, RelationDescription>>,
 ): JsonValue {
     return JsonValue.of({
         packageId: owner.id,

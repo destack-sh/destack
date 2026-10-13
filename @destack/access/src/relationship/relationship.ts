@@ -3,6 +3,7 @@ import {
     sql,
     type Comparable,
     type Condition,
+    type DatabaseConnection,
     type Transaction,
     type OpenCondition,
     type Select,
@@ -92,8 +93,11 @@ export const Relationship = {
     schema: relationshipSchema,
     encode,
     decode,
+    objectOf,
+    insert,
     on,
     readByObject,
+    readOn,
     readBySubject,
     isBinding,
     heldBy,
@@ -143,6 +147,15 @@ function encode(relationship: Relationship, scope: string) {
     };
 }
 
+/** Insert a relationship as a row in the scope it decides access for. */
+async function insert(
+    database: DatabaseConnection,
+    relationship: Relationship,
+    scope: string,
+): Promise<void> {
+    await database.insert(accessRelationship).values(encode(relationship, scope));
+}
+
 /** Write a relationship's object as its columns, which also match the rows on the object. */
 function objectColumns(object: ObjectReference) {
     return {
@@ -151,6 +164,16 @@ function objectColumns(object: ObjectReference) {
         type: object.type,
         objectId: object.id,
     };
+}
+
+/** Read the object a relationship or role binding row is on, as a logged change shows it. */
+function objectOf(row: Readonly<Record<string, unknown>>): ObjectReference {
+    return ObjectReference.parse({
+        packageId: row["packageId"],
+        type: row["type"],
+        scope: row["objectScope"],
+        id: row["objectId"],
+    });
 }
 
 /** Write a relationship's subject as its columns. */
@@ -207,6 +230,35 @@ async function readByObject(
         ["objectScope", "packageId", "type", "objectId"],
         objects.map((object) => [object.scope, object.packageId, object.type, object.id]),
     );
+}
+
+/** Read an object's relationships through a relation or role, held by one subject, or both. */
+async function readOn(
+    snapshot: Snapshot,
+    object: ObjectReference,
+    match: {
+        /** The declared relation, any by default. */
+        readonly relation?: string;
+        /** The bound role, any by default. */
+        readonly role?: string;
+        /** The one subject, subject set or wildcard holding them, any by default. */
+        readonly subject?: Subject;
+    },
+): Promise<RelationshipRow[]> {
+    // match the object, then each given part exactly
+    const { relation, role, subject } = match;
+
+    return snapshot.rows(accessRelationship, {
+        ...objectColumns(object),
+        ...(relation === undefined ? {} : { relation }),
+        ...(role === undefined ? {} : { roleId: schema.identifier("role").parse(role) }),
+        ...(subject === undefined
+            ? {}
+            : {
+                  ...subjectColumns(subject),
+                  subjectRelation: nullable(subject.relation ?? null),
+              }),
+    });
 }
 
 /** Read some subjects' relationships in a snapshot: plain ones also by wildcard, sets exactly. */

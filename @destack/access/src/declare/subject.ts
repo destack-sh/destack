@@ -1,6 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { AccessName, Subject } from "@destack/sync";
+import type { PolicyDescription } from "./description.ts";
 
 /** A type a relation accepts as subject: its objects, a subject set of them, or all of them. */
 export const SubjectType = defineSchema(
@@ -18,22 +19,11 @@ export const SubjectType = defineSchema(
 /** A type a relation accepts as subject: its objects, a subject set of them, or all of them. */
 export type SubjectType = schema.Infer<typeof SubjectType>;
 
-/** A typed relationship between an object and its subjects, kept in a field or in relationships. */
-export interface RelationDefinition {
-    /** The subject types the relation accepts. */
-    readonly subjects: readonly SubjectType[];
-    /** The permission to grant and revoke the relation, absent when only the system relates it. */
-    readonly grantedBy?: string;
-    /** Whether other types add themselves as subject types, as an attachment's hosts do. */
-    readonly open?: true;
-    /** Whether the relation is to each object's containing scope, decided by the scope chain. */
-    readonly isScope?: true;
-    /** Whether the relation's relationships show only to holders of the permission granting it. */
-    readonly concealed?: true;
-}
+/** A relation of a type, as its policy describes it. */
+export type RelationDescription = PolicyDescription["relations"][string];
 
 /** Report whether a relation accepts a subject's type, subject set and wildcard form. */
-export function accepts(relation: RelationDefinition, subject: Subject): boolean {
+export function accepts(relation: RelationDescription, subject: Subject): boolean {
     return relation.subjects.some(
         (type) =>
             type.packageId === subject.packageId &&

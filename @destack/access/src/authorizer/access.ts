@@ -630,6 +630,67 @@ export class Access {
         return elevation === undefined || Elevation.admits(elevation, this.context);
     }
 
+    /** The state of the scope chain: its scopes, suspension, cap, fence and partition, as a key. */
+    get chainKey(): string {
+        return JSON.stringify([
+            this.scopes.map((scope) => scope.id),
+            this.isSuspended,
+            this.isCapped,
+            this.moved ?? null,
+            this.partition ?? null,
+        ]);
+    }
+
+    /** The subjects of the caller's authorities, by key. */
+    get subjects(): ReadonlyMap<string, Subject> {
+        return new Map(
+            this.authorities
+                .flatMap((authority) => authority.subjects)
+                .map((subject) => [Subject.key(subject), subject]),
+        );
+    }
+
+    /** List the subjects this access has and an earlier one lacks, or the other way around. */
+    changedSubjects(earlier: Access): Subject[] {
+        const [before, after] = [earlier.subjects, this.subjects];
+
+        return [
+            ...[...before].filter(([key]) => !after.has(key)),
+            ...[...after].filter(([key]) => !before.has(key)),
+        ].map(([, subject]) => subject);
+    }
+
+    /** List the role bindings of a role this access grants otherwise than an earlier one. */
+    regranted(earlier: Access): RoleBinding[] {
+        // find the roles granting otherwise
+        const roles = new Set(
+            [...earlier.grants.keys(), ...this.grants.keys()].filter(
+                (role) => earlier.#grantKey(role) !== this.#grantKey(role),
+            ),
+        );
+
+        // take each binding of those roles once
+        const bindings = [...earlier.bindings, ...this.bindings].filter((binding) =>
+            roles.has(binding.roleId),
+        );
+
+        return [...new Map(bindings.map((binding) => [binding.id, binding])).values()];
+    }
+
+    /** Write what a role grants as a key, null for a role the access lacks. */
+    #grantKey(role: string): string | null {
+        const granted = this.grants.get(role);
+
+        return granted === undefined
+            ? null
+            : JSON.stringify([
+                  granted.isUniversal,
+                  granted.permissions
+                      .map((permission) => PermissionReference.key(permission))
+                      .toSorted(),
+              ]);
+    }
+
     /** Read the scope's own object from its containing scope, when a mapping has its type. */
     scopeObject(mapping: TableMapping): ObjectReference | undefined {
         // match the containing scope's object by the mapped type

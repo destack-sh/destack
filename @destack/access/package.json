@@ -7,7 +7,6 @@
     "exports": {
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
-        "./inspect": "./src/inspect/index.ts",
         "./error": "./src/error/index.ts",
         "./test": "./src/test/index.ts"
     },

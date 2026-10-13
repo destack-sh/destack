@@ -24,6 +24,9 @@ import {
 } from "../test/fixture.ts";
 import { openFixture, userSubject } from "../test/database.ts";
 
+/** The copy of the accounts' chains kept for the placement follower. */
+const PLACEMENT_COPY = { name: Authorizer.chainCopy("placement"), below: "placement" };
+
 test("copy a space's chain up to the universe from a relay, with the policies each scope hands down, and follow a grant", async () => {
     // insert an account and its space, both owned by alice, in the home database
     const home = await openFixture();
@@ -192,7 +195,7 @@ test("copy the chains of the accounts a follower outside them replicates in one 
 
     // request one copy of both chains for the follower, recorded at the universe
     const both = present(
-        await app.authorizer.chainVia(app.database, "placement", [
+        await app.authorizer.chainVia(app.database, PLACEMENT_COPY, [
             account.reference("universe", "account-2"),
             account.reference("universe", "account-1"),
         ]),
@@ -215,7 +218,7 @@ test("copy the chains of the accounts a follower outside them replicates in one 
     const policyType = { packageId: policy.definition.packageId, type: policy.definition.name };
     const elsewhere = await app.authorizer.chainVia(
         app.database,
-        "placement",
+        PLACEMENT_COPY,
         [account.reference("universe", "account-1")],
         app.authorizer.scoped,
         [policyType],
@@ -240,7 +243,7 @@ test("copy the chains of the accounts a follower outside them replicates in one 
 
     // reshape the copy once the follower replicates the first account alone, letting go of the second's rows
     const first = present(
-        await app.authorizer.chainVia(app.database, "placement", [
+        await app.authorizer.chainVia(app.database, PLACEMENT_COPY, [
             account.reference("universe", "account-1"),
         ]),
         "the chain's request",

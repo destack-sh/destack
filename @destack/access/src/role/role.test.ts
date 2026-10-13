@@ -111,16 +111,10 @@ async function openRoleFixture() {
     let next = 0;
     const relate = async (relationship: RelationshipRequest) => {
         const id = `relationship-01996ab0-0000-7000-8000-0000000003${String(next++).padStart(2, "0")}`;
-        await database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    ...relationship,
-                    id,
-                    createdAt: 1,
-                    expiresAt: relationship.expiresAt ?? null,
-                },
-                query.governingScope(relationship.object),
-            ),
+        await Relationship.insert(
+            database,
+            { ...relationship, id, createdAt: 1, expiresAt: relationship.expiresAt ?? null },
+            query.governingScope(relationship.object),
         );
 
         return id;
@@ -147,6 +141,38 @@ test("bind roles on an ancestor, covering its descendants until the binding expi
     // grant nothing once the binding is deleted
     await database.delete(accessRelationship);
     expect(await readable(carol)).toEqual([]);
+});
+
+test("find a scope's role by name, and read an object's relationships through a relation, a role or one subject", async () => {
+    // bind a reader role on note a to carol's membership, and let dave view it
+    const { database, defineRole, relate } = await openRoleFixture();
+    const reader = await defineRole(1, [node.permission("read")]);
+    const object = node.reference("personal", "a");
+    const dave = principal.user.reference("universe", "dave");
+    const bound = await relate({ object, role: reader, subject: carolMembership });
+    const viewing = await relate({ object, relation: "viewer", subject: dave });
+
+    // read the role and each selection of the note's relationships
+    const snapshot = Snapshot.live(database);
+    const read = async (match: Parameters<typeof Relationship.readOn>[2]) =>
+        (await Relationship.readOn(snapshot, object, match)).map((row) => row.id).toSorted();
+    expect({
+        role: (await Role.find(snapshot, "personal", "role-1"))?.id,
+        elsewhere: await Role.find(snapshot, "elsewhere", "role-1"),
+        all: await read({}),
+        bound: await read({ role: reader }),
+        viewing: await read({ relation: "viewer" }),
+        held: await read({ subject: dave }),
+        unheld: await read({ relation: "viewer", subject: carolMembership }),
+    }).toEqual({
+        role: reader,
+        elsewhere: null,
+        all: [bound, viewing],
+        bound: [bound],
+        viewing: [viewing],
+        held: [viewing],
+        unheld: [],
+    });
 });
 
 test("ignore roles defined outside the object's scope chain", async () => {

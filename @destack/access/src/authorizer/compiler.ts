@@ -22,7 +22,7 @@ import {
     type AccessExpression,
     type ConditionExpression,
 } from "../declare/expression.ts";
-import { accepts, type RelationDefinition, type SubjectType } from "../declare/subject.ts";
+import { accepts, type RelationDescription, type SubjectType } from "../declare/subject.ts";
 import { AccessContext } from "../context/context.ts";
 import { Restriction } from "../context/restriction.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -640,7 +640,7 @@ export class Compiler {
     #field(
         name: string,
         field: Field,
-        relation: RelationDefinition,
+        relation: RelationDescription,
         mapping: TableMapping,
         source: Table,
         authority: Authority,
@@ -910,7 +910,7 @@ function matchBinding(
 }
 
 /** Require a relationship's subject to be of a type its relation accepts. */
-function accepted(relationship: RelationshipColumnMap, relation: RelationDefinition): SQL {
+function accepted(relationship: RelationshipColumnMap, relation: RelationDescription): SQL {
     const types = relation.subjects.map((type) => {
         // match the subject set's relation, or none, and a wildcard only where the type accepts one
         const set =
