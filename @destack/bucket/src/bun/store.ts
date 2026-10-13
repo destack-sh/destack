@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { closeSync, openSync, readSync } from "node:fs";
 import { mkdir, open, opendir, rename, stat, unlink, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import type { ContentStore } from "@destack/resource";
@@ -6,7 +7,7 @@ import { Digest } from "@destack/schema";
 import type { BlobStore } from "../catalogue/store.ts";
 import { BucketError } from "../error/index.ts";
 
-/** The bytes one read of a blob file takes: 64 KiB, as a bucket's readers stream them. */
+/** The bytes one read of a blob file takes: 64 KiB, about 10 µs from the page cache. */
 const READ_BYTES = 64 * 1024;
 
 /** A bucket's blobs as files in a directory, each keyed by its digest. */
@@ -47,19 +48,23 @@ export class LocalBlobStore implements BlobStore {
         return this.slice(digest, 0, Number.POSITIVE_INFINITY);
     }
 
-    /** Read a range of a blob's bytes from its file. */
+    /** Read a range of a blob's bytes from its file, each chunk in place as the catalogue reads. */
     async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
-        await using file = await open(this.path(digest), "r");
-        for (let position = offset; position < offset + length;) {
-            // read the next chunk within the range
-            const size = Math.min(READ_BYTES, offset + length - position);
-            const buffer = new Uint8Array(size);
-            const { bytesRead } = await file.read(buffer, 0, size, position);
-            if (bytesRead === 0) {
-                return;
+        const file = openSync(this.path(digest), "r");
+        try {
+            for (let position = offset; position < offset + length;) {
+                // read the next chunk within the range
+                const size = Math.min(READ_BYTES, offset + length - position);
+                const buffer = new Uint8Array(size);
+                const bytesRead = readSync(file, buffer, 0, size, position);
+                if (bytesRead === 0) {
+                    return;
+                }
+                yield buffer.subarray(0, bytesRead);
+                position += bytesRead;
             }
-            yield buffer.subarray(0, bytesRead);
-            position += bytesRead;
+        } finally {
+            closeSync(file);
         }
     }
 
