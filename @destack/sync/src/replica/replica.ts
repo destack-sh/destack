@@ -879,14 +879,10 @@ export class Replica {
         await database.transaction(
             async (transaction) => {
                 await transaction.log.asReplica(async () => {
-                    // take every included row out of the copy with children first
-                    for (const table of this.tables.toReversed()) {
-                        let keys = await this.#keys(transaction, table);
-                        while (keys.length > 0) {
-                            await this.#exclude(transaction, table, keys);
-                            keys = await this.#keys(transaction, table);
-                        }
-                    }
+                    // take every included row out of the copy, those of tables it stopped copying first
+                    const record = await this.#record(transaction);
+                    await this.#excludeAll(transaction, this.#retired(transaction, record));
+                    await this.#excludeAll(transaction, this.tables);
 
                     // retract every projected row of the copied scope
                     for (const projector of this.#projectors.values()) {
@@ -1031,10 +1027,11 @@ export class Replica {
         record: ReplicaRecord | undefined,
         options: ApplyOptions,
     ): Promise<void> {
-        // let go of every group on a snapshot
+        // let go of every group on a snapshot, and of the rows of tables the copy stopped copying
         if (run.isSnapshot) {
             await transaction.delete(replicaResult).where(this.#match(replicaResult));
         }
+        await this.#excludeAll(transaction, this.#retired(transaction, record));
 
         // write the staged and completing pages and prune what a snapshot left out
         const delivered = run.isSnapshot ? this.#deliveries() : undefined;
@@ -1084,6 +1081,34 @@ export class Replica {
                 set: position,
             });
         await transaction.delete(replicaPage).where(this.#match(replicaPage));
+    }
+
+    /** Resolve the tables the copy recorded but no longer copies, as the database declares them. */
+    #retired(database: DatabaseConnection, record: ReplicaRecord | undefined): Table[] {
+        // find the recorded tables the copy dropped
+        const names = (record?.tables ?? []).filter((name) => !this.#copied.has(name));
+        const tables = database.tables.filter((table) => names.includes(table[TABLE].sqlName));
+        const undeclared = names.filter((name) =>
+            tables.every((table) => table[TABLE].sqlName !== name),
+        );
+        if (undeclared.length > 0) {
+            throw new TypeError(
+                `copy ${this.name} of ${this.scope} kept rows in ${undeclared.join(", ")}, which the database no longer declares`,
+            );
+        }
+
+        return tables;
+    }
+
+    /** Take every row the copy includes out of some tables, children first. */
+    async #excludeAll(database: DatabaseConnection, tables: readonly Table[]): Promise<void> {
+        for (const table of tables.toReversed()) {
+            let keys = await this.#keys(database, table);
+            while (keys.length > 0) {
+                await this.#exclude(database, table, keys);
+                keys = await this.#keys(database, table);
+            }
+        }
     }
 
     /** Start collecting the keys a snapshot delivers, by copied and projected table. */

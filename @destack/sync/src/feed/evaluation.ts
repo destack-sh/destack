@@ -132,20 +132,20 @@ export class Evaluation {
     async moveFrom(previous: Evaluation, position: LogPosition): Promise<Page> {
         // collect both and send the difference
         const view = this.#view(position);
-        const before = await previous.collect(view);
+        await previous.collect(view);
+        const before = previous.#dataflow.sink.rows();
         const after = await this.collect(view);
         const patch = Patch.difference(before, after, previous.#dataflow.nodes, () => false);
 
         return patch.page(position, this.#audience, this.#feed, { reset: false, complete: false });
     }
 
-    /** Decide the subscriber's rows again as of now at the current position. */
-    async refresh(position: LogPosition): Promise<Page> {
-        // collect before and after refreshing the audience
-        const view = this.#view(position);
-        const before = await this.collect(view);
+    /** Decide the subscriber's rows again at a position, sending the difference to what it has. */
+    async redecide(position: LogPosition, isComplete: boolean): Promise<Page> {
+        // keep what the subscriber has, decide again, and collect what the new decisions admit
+        const before = this.#dataflow.sink.rows();
         await this.#audience.refresh();
-        const after = await this.collect(view);
+        const after = await this.collect(this.#view(position));
 
         // send the difference and rows with possibly changed readable columns
         const patch = Patch.difference(
@@ -155,7 +155,10 @@ export class Evaluation {
             (table) => this.#audience.concealable(table).length > 0,
         );
 
-        return patch.page(position, this.#audience, this.#feed, { reset: false, complete: true });
+        return patch.page(position, this.#audience, this.#feed, {
+            reset: false,
+            complete: isComplete,
+        });
     }
 
     /** Send the pages of the changes after a sequence, returning the sequence read up to. */
@@ -182,17 +185,23 @@ export class Evaluation {
             }
             const position = { epoch, sequence: aligned(changes, changes.length - 1).sequence };
             await nextTask();
-            const run = new Run(this.#view(position), this.#audience, undefined, changes);
-            const isFollowed = await this.#dataflow.step(run);
-            from = position.sequence;
-            if (!isFollowed) {
-                throw new Restart("access changed beyond what a page follows");
-            } else if (run.patch.size > 0) {
-                yield await run.patch.page(position, this.#audience, this.#feed, {
-                    reset: false,
-                    complete: isComplete,
-                });
+
+            // decide every row again across a change of access, sending the difference
+            if (await this.#decides(changes)) {
+                yield await this.redecide(position, isComplete);
             }
+            // step the changed rows
+            else {
+                const run = new Run(this.#view(position), this.#audience, undefined, changes);
+                await this.#dataflow.step(run);
+                if (run.patch.size > 0) {
+                    yield await run.patch.page(position, this.#audience, this.#feed, {
+                        reset: false,
+                        complete: isComplete,
+                    });
+                }
+            }
+            from = position.sequence;
         }
 
         // keep the reached position
@@ -275,10 +284,22 @@ export class Evaluation {
         // refresh once the decisions expired
         const until = await this.#audience.until();
         if (until !== undefined && until <= this.#feed.clock.now()) {
-            pages.push(await this.refresh({ epoch: position.epoch, sequence: next.value }));
+            const reached = { epoch: position.epoch, sequence: next.value };
+            pages.push(await this.redecide(reached, true));
         }
 
         return { pages, sequence: next.value, until: await this.#audience.until() };
+    }
+
+    /** Report whether any of some changes may decide the visibility of other rows. */
+    async #decides(changes: readonly Change[]): Promise<boolean> {
+        for (const change of changes) {
+            if (await this.#audience.decides(change)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Show the feed's database as of a position. */
@@ -296,9 +317,6 @@ export interface Advance {
     /** When the audience's decisions expire. */
     readonly until: number | undefined;
 }
-
-/** A restart of a stream from a snapshot. */
-export class Restart extends Error {}
 
 /** Let other work run before deciding more. */
 export function nextTask(): Promise<void> {

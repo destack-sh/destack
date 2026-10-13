@@ -149,8 +149,7 @@ test.for(TEST_DIALECTS)(
             where: (table) =>
                 table === task ? sql`${task.id} IN (SELECT ${note.id} FROM ${note})` : sql`true`,
             key: "granted",
-            dependents: async (change: Change) =>
-                change.table === note ? [{ table: task, key: change.key }] : [],
+            decides: async (change: Change) => change.table === note,
         };
         const grant = {
             title: "grant",
@@ -177,49 +176,12 @@ test.for(TEST_DIALECTS)(
         const revoked = until(pages, (sent) => sent.changes.length > 0);
         await database.delete(note).where(eq(note.id, "t1"));
         const left = aligned(await revoked, 0);
+        // send each access change as the difference to what the subscriber has, never a reset
         expect([
             snapshot.changes,
-            entered.changes.map((change) => [change.operation, change.row["id"]]),
-            left.changes.map((change) => [change.operation, change.row["id"]]),
-        ]).toEqual([[], [["insert", "t1"]], [["delete", "t1"]]]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "start over with a snapshot when access changes beyond a page on %s",
-    async (dialect) => {
-        const database = await open(dialect);
-        const feed = new Feed(database, [...TABLES, note], { clock: Clock.system });
-        await database.insert(task).values(TASK);
-        const audience: Audience = {
-            ...EVERYONE,
-            watches: [{ table: note, scopes: ["grants"] }],
-            dependents: async (change: Change) => (change.table === note ? "everything" : []),
-        };
-        const pages = feed.subscribe(
-            { tasks: { table: task, scopes: ["inbox"] } },
-            undefined,
-            AbortSignal.timeout(5000),
-            { audience },
-        );
-
-        // start over after access changes everything
-        await until(pages, (sent) => sent.complete);
-        const again = until(pages, (sent) => sent.reset);
-        await database.insert(note).values({
-            id: "n",
-            title: "grant",
-            scope: "grants",
-            summary: null,
-            views: 0n,
-            labels: [],
-            editedAt: 0,
-        });
-        const snapshot = aligned(await again, 0);
-        expect([snapshot.reset, snapshot.changes.map((change) => change.row["id"])]).toEqual([
-            true,
-            ["t1"],
-        ]);
+            [entered.reset, entered.changes.map((change) => [change.operation, change.row["id"]])],
+            [left.reset, left.changes.map((change) => [change.operation, change.row["id"]])],
+        ]).toEqual([[], [false, [["insert", "t1"]]], [false, [["delete", "t1"]]]]);
     },
 );
 

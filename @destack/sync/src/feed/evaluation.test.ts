@@ -4,7 +4,7 @@ import { TEST_DIALECTS } from "@destack/db/test";
 import type { Change, Row, Table } from "@destack/db";
 import { View } from "../dataflow/view.ts";
 import { first, note, open } from "../test/fixture.ts";
-import type { Audience, RowKey } from "./audience.ts";
+import type { Audience } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Feed } from "./feed.ts";
 import { ConditionAudience } from "./test/audience.ts";
@@ -60,8 +60,8 @@ class SwitchingAudience implements Audience {
     }
 
     /** Decide nothing beyond rows themselves. */
-    async dependents(_change: Change): Promise<readonly RowKey[]> {
-        return [];
+    async decides(_change: Change): Promise<boolean> {
+        return false;
     }
 }
 
@@ -120,8 +120,8 @@ class TimedAudience implements Audience {
     }
 
     /** Decide nothing beyond rows themselves. */
-    async dependents(_change: Change): Promise<readonly RowKey[]> {
-        return [];
+    async decides(_change: Change): Promise<boolean> {
+        return false;
     }
 
     /** Read the conditions deciding as of now. */
@@ -154,7 +154,7 @@ test.for(TEST_DIALECTS)(
         await evaluation.collect(new View(database, position, feed));
 
         // swap the open note for the done note once the audience decides again
-        const page = await evaluation.refresh(position);
+        const page = await evaluation.redecide(position, true);
         expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
             ["insert", "b"],
             ["delete", "a"],
@@ -184,7 +184,7 @@ test.for(TEST_DIALECTS)(
 
         // swap the open note for the done note once the moment passed
         clock.set(2000);
-        const page = await evaluation.refresh(position);
+        const page = await evaluation.redecide(position, true);
         expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
             ["insert", "b"],
             ["delete", "a"],

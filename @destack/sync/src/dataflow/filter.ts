@@ -145,11 +145,11 @@ export class Filter {
     }
 }
 
-/** The groups of a query's relations, by the parent value naming them. */
+/** The groups of a query's relations, by their parent value. */
 export interface Arrangement {
     /** Read the relation measures of some rows at once. */
     prepare(node: Node, rows: readonly Row[], run: Run): Promise<void>;
-    /** Read a relation's measures of the rows naming a parent value. */
+    /** Read a relation's measures of the rows with a parent value. */
     measured(
         relation: Node,
         value: ColumnValue | undefined,

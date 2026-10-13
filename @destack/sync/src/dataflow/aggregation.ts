@@ -557,7 +557,7 @@ export class Relation extends Aggregation {
         this.settleHydration();
     }
 
-    /** Apply a run's changes to every group, deciding the parent's naming rows again. */
+    /** Apply a run's changes to every group, deciding the parent's referencing rows again. */
     override async step(work: Work, run: Run): Promise<void> {
         // count the changes, or decide the touched rows again
         if (this.isTracked) {
@@ -568,7 +568,7 @@ export class Relation extends Aggregation {
             await this.countImages(run, () => this.#sequence);
         }
 
-        // decide the parent's rows naming each moved group again
+        // decide the parent's rows that reference each moved group again
         const node = this.node;
         const link = node.link();
         const values = (await this.regroup(run))

@@ -76,7 +76,7 @@ export class View {
 
     /** Read the rows of a table matching each match's values, aligned with the matches. */
     async lookup(table: Table, matches: readonly Row[]): Promise<(readonly Row[])[]> {
-        // name each complete match's read
+        // key each complete match's read
         const [first] = matches;
         if (first === undefined) {
             return [];
@@ -283,7 +283,7 @@ export class View {
 
     /** Read a node's rows before and after their related rows changed between two sequences. */
     async dependents(node: Node, after: number, upto: number): Promise<Row[]> {
-        // name the values of the changed related and join rows
+        // list the values of the changed related and join rows
         const rows = new Map<string, Row>();
         for (const relation of node.relations) {
             const path = relation.path;
@@ -497,7 +497,7 @@ export interface Window {
 
 /** One partition an ordered read reads. */
 export interface Segment {
-    /** The parent value naming the partition, null for a root. */
+    /** The parent value keying the partition, null for a root. */
     readonly value: ColumnValue;
     /** The row the read continues after. */
     readonly after?: Row;
@@ -562,7 +562,7 @@ function presentValues(values: readonly (ColumnValue | undefined)[]): Exclude<Co
     );
 }
 
-/** Name the shared read of a tuple. */
+/** Key the shared read of a tuple. */
 function rowsKey(table: Table, columns: readonly string[], tuple: Tuple): string {
     return `rows:${table[TABLE].sqlName}.${columns.join(",")}=${JSON.stringify(tuple)}`;
 }

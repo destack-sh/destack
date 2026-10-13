@@ -3,7 +3,7 @@ import type { Page, ResultChange, RowChange } from "../query/page.ts";
 import { canonicalize, type Clock } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Audience } from "./audience.ts";
-import { Evaluation, nextTask, Restart } from "./evaluation.ts";
+import { Evaluation, nextTask } from "./evaluation.ts";
 import type { Feed } from "./feed.ts";
 import { View } from "../dataflow/view.ts";
 
@@ -74,9 +74,8 @@ export class Stream {
                         : coalesce(following, this.#every, this.#feed.tables, this.#feed.clock);
                     return;
                 } catch (error) {
-                    // start over after a lost position, epoch or access change
+                    // start over after a lost position or epoch
                     if (
-                        !(error instanceof Restart) &&
                         !(
                             error instanceof DatabaseError &&
                             (error.code === "CHANGES_COMPACTED" || error.code === "STALE_EPOCH")
@@ -254,61 +253,74 @@ export class Stream {
     }
 }
 
-/** Publish pages at most once per interval, merging those within it. */
+/** Publish pages at most once per interval, merging those within it, and stop the pages after. */
 export async function* coalesce(
     pages: AsyncGenerator<Page>,
     every: number,
     tables: readonly Table[],
     clock: Clock,
 ): AsyncGenerator<Page> {
-    // race the next page with the interval's end
+    // read the next page ahead, keeping its failure for the next take
     let pending: Page | undefined;
     let published = Number.NEGATIVE_INFINITY;
-    let next = pages.next();
-    for (;;) {
-        const due = published + every;
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        const arrived =
-            pending === undefined
-                ? await next
-                : await Promise.race([
-                      next,
-                      new Promise<undefined>((resolve) => {
-                          timer = setTimeout(
-                              () => resolve(undefined),
-                              Math.max(0, due - clock.now()),
-                          );
-                      }),
-                  ]);
-        clearTimeout(timer);
+    let next = settle(pages.next());
+    try {
+        for (;;) {
+            // race the next page with the interval's end
+            const due = published + every;
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const arrived =
+                pending === undefined
+                    ? await next
+                    : await Promise.race([
+                          next,
+                          new Promise<undefined>((resolve) => {
+                              timer = setTimeout(
+                                  () => resolve(undefined),
+                                  Math.max(0, due - clock.now()),
+                              );
+                          }),
+                      ]);
+            clearTimeout(timer);
 
-        // publish the merged page at the interval's end
-        if (arrived === undefined) {
-            if (pending === undefined) {
-                throw new TypeError("an interval ended without a pending page");
-            }
-            yield pending;
-            pending = undefined;
-            published = clock.now();
-        }
-        // publish what remains at the end
-        else if (arrived.done === true) {
-            if (pending !== undefined) {
-                yield pending;
-            }
-
-            return;
-        }
-        // merge each page, or publish at once after a quiet interval
-        else {
-            next = pages.next();
-            pending = pending === undefined ? arrived.value : merge(pending, arrived.value, tables);
-            if (clock.now() >= due) {
+            // publish the merged page at the interval's end
+            if (arrived === undefined) {
+                if (pending === undefined) {
+                    throw new TypeError("an interval ended without a pending page");
+                }
                 yield pending;
                 pending = undefined;
                 published = clock.now();
             }
+            // rethrow the failure of the pages
+            else if (arrived.status === "rejected") {
+                throw arrived.reason;
+            }
+            // publish what remains at the end
+            else if (arrived.value.done === true) {
+                if (pending !== undefined) {
+                    yield pending;
+                }
+
+                return;
+            }
+            // merge each page, or publish at once after a quiet interval
+            else {
+                next = settle(pages.next());
+                pending =
+                    pending === undefined
+                        ? arrived.value.value
+                        : merge(pending, arrived.value.value, tables);
+                if (clock.now() >= due) {
+                    yield pending;
+                    pending = undefined;
+                    published = clock.now();
+                }
+            }
         }
+    } finally {
+        // stop the pages once the consumer stops, after the read ahead
+        await pages.return(undefined);
     }
 }
 
@@ -372,4 +384,12 @@ function netChange(earlier: RowChange, later: RowChange): RowChange | undefined 
     }
 
     return { ...later, operation };
+}
+
+/** Settle a read into its outcome, so a failure waits for its take. */
+function settle<Value>(read: Promise<Value>): Promise<PromiseSettledResult<Value>> {
+    return read.then(
+        (value) => ({ status: "fulfilled", value }),
+        (reason: unknown) => ({ status: "rejected", reason }),
+    );
 }

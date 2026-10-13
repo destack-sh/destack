@@ -24,7 +24,7 @@ import { TestDatabase } from "@destack/db/test";
 import { setTimeout } from "node:timers/promises";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
-import { schema, Clock } from "@destack/schema";
+import { aligned, schema, Clock } from "@destack/schema";
 import { replicaTables, Replica, replicaPosition, replicaRow, type Projector } from "./replica.ts";
 import { type Resumption, Uplink } from "./shape.ts";
 import {
@@ -101,6 +101,53 @@ test.for(TEST_DIALECTS)(
             await Replica.isCopied(Snapshot.live(copy), "inbox"),
             (await copy.select().from(note)).map((row) => row.id),
         ]).toEqual([false, ["a"]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "delete the rows of a table a reshaped copy stopped copying, keeping its other tables' rows, on %s",
+    async (dialect) => {
+        // keep a note and a task in the inbox
+        const source = await open(dialect);
+        const copy = await openCopy(dialect);
+        const feed = new Feed(source, [note, task, replicaPosition], { clock: Clock.system });
+        await source.insert(note).values(first);
+        await source
+            .insert(task)
+            .values({ id: "t1", scope: "inbox", state: "open", rank: 1, isSecret: false });
+        const follow = async (replica: Replica) => {
+            const controller = new AbortController();
+            const following = replica.follow(
+                copy,
+                (from, signal) => feed.subscribe(replica.queries, from.after, signal),
+                controller.signal,
+                { clock: Clock.system },
+            );
+            const signal = AbortSignal.timeout(5000);
+            expect(await Replica.wait(copy, "inbox", await source.log.position(), signal)).toBe(
+                true,
+            );
+            controller.abort();
+            await following;
+
+            return [
+                (await copy.select().from(note)).map((row) => row.id),
+                (await copy.select().from(task)).map((row) => row.id),
+            ];
+        };
+
+        // copy both tables, then only the notes under the same name once another note arrived
+        const both = await follow(
+            new Replica({ name: "work", scope: "inbox", tables: [note, task] }),
+        );
+        await source.insert(note).values({ ...first, id: "b" });
+        const notes = await follow(new Replica({ name: "work", scope: "inbox", tables: [note] }));
+
+        // keep the task while copied, and delete it once the reshaped copy stopped copying tasks
+        expect([both, notes]).toEqual([
+            [["a"], ["t1"]],
+            [["a", "b"], []],
+        ]);
     },
 );
 
@@ -340,6 +387,77 @@ test.for(TEST_DIALECTS)(
             [{ id: "k", scope: "inbox", wrapped: "target:k" }],
         ]);
         expect(await Replica.isCopied(Snapshot.live(target), "database")).toBe(false);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "capture a space's few dozen rows across many tables as one page applied in one transaction, and a larger one in pages of rows staged before the last, on %s",
+    async (dialect) => {
+        // keep a space's rows in many tables, most of them empty
+        const tables = SPACE_TABLES;
+        const source = (
+            await TestDatabase.create(dialect, [...tables, ...replicaTables], { isMigrated: true })
+        ).database;
+        const target = (
+            await TestDatabase.create(dialect, [...tables, ...replicaTables], {
+                isMigrated: true,
+                isReplica: true,
+            })
+        ).database;
+        onTestFinished(async () => {
+            await source.close();
+            await target.close();
+        });
+        const copy = new Replica({ name: "transfer", scope: "space", tables });
+        const feed = new Feed(source, [...tables, replicaPosition], { clock: Clock.system });
+        const signal = AbortSignal.timeout(5000);
+
+        // capture and apply the space's rows, counting pages and statements
+        const capture = async () => {
+            const read = source.driver.state.statements;
+            const written = target.driver.state.statements;
+            const pages: Page[] = [];
+            const applied = copy.apply(target, feed.capture(copy.captured, signal), {
+                clock: Clock.system,
+            });
+            for await (const page of applied) {
+                pages.push(page);
+            }
+            const staged = pages.filter((page) => !page.complete).length;
+
+            return {
+                pages: pages.map((page) => [page.reset, page.complete, page.changes.length]),
+                staged,
+                read: source.driver.state.statements - read,
+                written: target.driver.state.statements - written,
+            };
+        };
+
+        // capture a few dozen rows in a tenth of the tables as one page
+        for (const table of tables.slice(0, SPACE_TABLES.length / 10)) {
+            await source.insert(table).values(rowsOf(table, 6));
+        }
+        const small = await capture();
+
+        // capture more rows than a page across two tables as two pages, the first staged
+        const head = aligned(tables, 0);
+        await source.insert(head).values(rowsOf(head, INSERT_BATCH).slice(6));
+        const large = await capture();
+
+        // read each table once per page of its rows, write each table's rows once, prune each table once
+        expect({ small, large }).toEqual({
+            small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 61 },
+            large: {
+                pages: [
+                    [true, false, 500],
+                    [false, true, 18],
+                ],
+                staged: 1,
+                read: 43,
+                written: 63,
+            },
+        });
+        expect(await target.select().from(head)).toHaveLength(INSERT_BATCH);
     },
 );
 
@@ -1044,6 +1162,19 @@ const entry = defineTable(
     { log: {} },
 );
 
+/** The tables of a space a capture reads, as many as a stack's space keeps. */
+const SPACE_TABLES: readonly Table[] = Array.from({ length: 40 }, (_, index) =>
+    defineTable(
+        `space_${index}`,
+        {
+            id: text("id").primaryKey(),
+            scope: text("scope").notNull(),
+            title: text("title").notNull(),
+        },
+        { log: {} },
+    ),
+);
+
 /** An unlogged cache, which only a capture copies. */
 const cache = defineTable("cache", {
     id: text("id").primaryKey(),
@@ -1060,6 +1191,15 @@ const machineKey = defineTable(
     },
     { log: {} },
 );
+
+/** Build some rows of a space's table. */
+function rowsOf(table: Table, count: number) {
+    return Array.from({ length: count }, (_, index) => ({
+        id: `${table[TABLE].sqlName}-${index}`,
+        scope: "space",
+        title: "Row",
+    }));
+}
 
 /** Rewrap a machine key row's wrapped value from one machine to another. */
 function rewrapped(table: Table, row: Row, from: string, to: string): Row {
@@ -1400,7 +1540,19 @@ test("stream through a client's replica procedures as the follower, and send a f
     await uplink.receive(
         {
             id: "019f5530-8000-7000-8000-000000000001",
-            calls: [{ method: "note.create", release: "1.0.0", input: { id: "a" } }],
+            calls: [
+                {
+                    type: {
+                        packageId: schema
+                            .identifier("package")
+                            .parse("package-01996ab0-0000-7000-8000-000000000001"),
+                        type: "note",
+                    },
+                    method: "create",
+                    release: "1.0.0",
+                    input: { id: "a" },
+                },
+            ],
         },
         {
             packageId: schema

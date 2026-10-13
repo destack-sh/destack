@@ -5,12 +5,18 @@ import { Replica, replicaTables } from "../replica/replica.ts";
 import type { Page } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
 import { first, note, open, replicate, tag } from "../test/fixture.ts";
-import type { Call, Mutation } from "../call/index.ts";
+import { type Call, type Mutation } from "../call/index.ts";
 import { mutation, Prediction, predictionTables } from "./prediction.ts";
 import { schema, found, zip } from "@destack/schema";
 
 /** The release the calls were made against. */
 const RELEASE = "2026.9.0";
+
+/** The package-qualified note type the calls call. */
+const NOTE_TYPE = {
+    packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000001"),
+    type: "note",
+};
 
 /** The source log's epoch. */
 const EPOCH = "01996ab0-0000-7000-8000-000000000001";
@@ -90,7 +96,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
     for (const [id, created] of zip(IDS, NOTES)) {
         const input = { id: created, title: "Local" };
         await prediction.add(client, id, "tab-1", async (transaction) => {
-            const calls = [{ method: "note.create", release: RELEASE, input }];
+            const calls = [{ type: NOTE_TYPE, method: "create", release: RELEASE, input }];
             await predict(transaction, { id, calls });
 
             return { calls, result: undefined };
@@ -174,7 +180,7 @@ test("drop a group every predicted row left, without a count measuring it", asyn
         await transaction.update(note).set({ title: "Local" }).where(eq(note.id, "a"));
 
         return {
-            calls: [{ method: "note.update", release: RELEASE, input: { id: "a" } }],
+            calls: [{ type: NOTE_TYPE, method: "update", release: RELEASE, input: { id: "a" } }],
             result: undefined,
         };
     });
@@ -208,7 +214,12 @@ test("read pending mutations up to a limit, and count each state with branch edi
     const add = (id: string, key: string) =>
         prediction.add(client, id, "tab-1", async (transaction) => {
             const calls = [
-                { method: "note.create", release: RELEASE, input: { id: key, title: "Local" } },
+                {
+                    type: NOTE_TYPE,
+                    method: "create",
+                    release: RELEASE,
+                    input: { id: key, title: "Local" },
+                },
             ];
             await predict(transaction, { id, calls });
 
@@ -253,7 +264,8 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note, tag] });
     await replicate(notes, client, [page(1, [], { reset: true })], prediction);
     const call = (key: string): Call => ({
-        method: "note.create",
+        type: NOTE_TYPE,
+        method: "create",
         release: RELEASE,
         input: { id: key, title: key },
     });

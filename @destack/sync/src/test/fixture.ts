@@ -252,11 +252,11 @@ export const relations = Relations.merge(
 /** The tables of each test database. */
 export const TABLES = [note, project, task, comment, tag, taskTag, page, ...replicaTables];
 
-/** Open a migrated test database. */
+/** Open a migrated test database, closed after the test or on close. */
 export async function open(
     dialect: (typeof TEST_DIALECTS)[number],
     tables: readonly Table[] = TABLES,
-): Promise<DatabaseConnection> {
+): Promise<TestDatabase["database"]> {
     const test = await TestDatabase.create(dialect, tables, { isMigrated: true });
     onTestFinished(() => test.close());
 

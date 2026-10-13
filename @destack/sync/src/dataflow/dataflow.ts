@@ -290,8 +290,8 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Apply a run of committed changes, returning false when access changed too far to follow. */
-    async step(run: Run): Promise<boolean> {
+    /** Apply a run of committed changes. */
+    async step(run: Run): Promise<void> {
         // take each changed row's first and last image
         const cost = this.#measure(run);
         const transitions = new Map<Table, Map<string, Transition>>();
@@ -315,11 +315,6 @@ export class Dataflow implements Arrangement {
             }
         }
 
-        // decide again the rows the audience decides again
-        if (!(await this.#redecide(run))) {
-            return false;
-        }
-
         // measure the relations the source measured and those the copy measures itself
         await this.#trace?.relate(
             this.#traced,
@@ -340,40 +335,6 @@ export class Dataflow implements Arrangement {
         this.#position = run.view.position;
         cost();
         this.#requireCapacity();
-
-        return true;
-    }
-
-    /** Decide again the rows the audience's changed access rows cover, false if they cover all. */
-    async #redecide(run: Run): Promise<boolean> {
-        // collect the rows each change names
-        const affected = new Map<Table, Row[]>();
-        for (const change of run.changes) {
-            const entries = await this.#context.audience.dependents(change);
-            if (entries === "everything") {
-                return false;
-            }
-            for (const entry of entries) {
-                affected.set(entry.table, [...(affected.get(entry.table) ?? []), entry.key]);
-            }
-        }
-
-        // read each named row and decide it again where it is
-        for (const [table, keys] of affected) {
-            const byKey = run.affected.get(table) ?? new Map<string, Row>();
-            run.affected.set(table, byKey);
-            for (const [key, row] of zip(keys, await run.view.keyed(table, keys))) {
-                const name = Key.name(table, key);
-                if (row !== null) {
-                    byKey.set(name, row);
-                }
-                run.changed.add(name);
-                this.#mark(run, table, name, row);
-                await this.#moved(run, table, row, row, true);
-            }
-        }
-
-        return true;
     }
 
     /** Read again the groups of each mirror whose table or source groups a run changed. */

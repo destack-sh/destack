@@ -1,8 +1,9 @@
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { aligned, schema, Clock } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
+import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
+import { nextTask } from "./evaluation.ts";
 import type { Page } from "../query/page.ts";
 import {
     first,
@@ -220,6 +221,43 @@ test.for(TEST_DIALECTS)(
             await database.insert(note).values({ ...first, id: `n${index}` });
             expect((await busy.next()).done).toBe(false);
         }
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "end every subscriber with the failure once the database closes on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const feed = new Feed(database, [note], { clock: Clock.system });
+        const query = { table: note, scopes: ["inbox"] };
+        const signal = AbortSignal.timeout(5000);
+        const closed = ["CONNECTION_CLOSED", "the connection is closing or closed"];
+
+        // count the rejections nothing handles during the test
+        const unhandled: unknown[] = [];
+        const count = (reason: unknown) => unhandled.push(reason);
+        process.on("unhandledRejection", count);
+        onTestFinished(() => {
+            process.off("unhandledRejection", count);
+        });
+
+        // follow the head with one subscriber page by page and one through merged pages
+        const plain = feed.subscribe({ query }, undefined, signal);
+        await until(plain, (page) => page.complete);
+        const merged = feed.subscribe({ query }, undefined, signal, { every: 10 });
+        await until(merged, (page) => page.complete);
+        await database.insert(note).values(first);
+        await until(plain, (page) => page.changes.length > 0);
+        await until(merged, (page) => page.changes.length > 0);
+
+        // close the database under both, wait for the feed to fail, and let rejections surface
+        await database.close();
+        const failure = await failureOf(feed.next(feed.sequence, signal));
+        await nextTask();
+
+        // end both subscribers with the closed connection, leaving no rejection unhandled
+        const ended = await Promise.all([plain, merged].map((pages) => failureOf(pages.next())));
+        expect([failure, ended, unhandled]).toEqual([closed, [closed, closed], []]);
     },
 );
 
@@ -443,4 +481,12 @@ function taskOf(id: string, projectId: string, rank: number) {
 /** Read the included tasks of a project item. */
 function tasksOf(item: Item): readonly Item[] {
     return item.with["tasks"] ?? [];
+}
+
+/** Read the code and message of a read's database failure, absent once it succeeds. */
+function failureOf(read: Promise<unknown>): Promise<unknown> {
+    return read.then(
+        () => undefined,
+        (error: unknown) => (error instanceof DatabaseError ? [error.code, error.message] : error),
+    );
 }

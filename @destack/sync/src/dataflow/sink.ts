@@ -7,10 +7,10 @@ import type { Cache } from "./view.ts";
 import type { Run, Touch } from "./run.ts";
 import type { Result } from "./tally.ts";
 
-/** What the subscriber has: each row by its holder count, and each shown group. */
+/** What the subscriber has: each row with its table and count, and each shown group. */
 export class Sink {
-    /** How many members and chains keep each row, by key. */
-    readonly #rows = new Map<string, number>();
+    /** Each row's table and how many members and chains keep it, by key. */
+    readonly #rows = new Map<string, { readonly table: Table; readonly count: number }>();
     /** The aggregate groups the subscriber has, by query and group. */
     readonly #groups = new Set<string>();
 
@@ -29,15 +29,20 @@ export class Sink {
         }
     }
 
-    /** Count a row's holders up or down. */
+    /** Count up or down how many members and chains keep a row. */
     retain(run: Run, table: Table, key: string, row: Row | null, step: 1 | -1): void {
         this.touch(run, table, key, row);
-        const count = (this.#rows.get(key) ?? 0) + step;
+        const count = (this.#rows.get(key)?.count ?? 0) + step;
         if (count === 0) {
             this.#rows.delete(key);
         } else {
-            this.#rows.set(key, count);
+            this.#rows.set(key, { table, count });
         }
+    }
+
+    /** List the rows the subscriber has, each key with its table. */
+    rows(): Map<string, Table> {
+        return new Map([...this.#rows].map(([key, { table }]) => [key, table]));
     }
 
     /** Record a shown group's values while it has rows, or its leaving. */
@@ -60,7 +65,7 @@ export class Sink {
 
     /** Send the rows a run moved into, out of or within the subscriber's set. */
     async emit(run: Run): Promise<void> {
-        // read the present rows no holder passed at the run's position
+        // read the present rows no member or chain passed at the run's position
         const unread = new Map<Table, [string, Touch][]>();
         for (const entry of run.touched) {
             const [key, touched] = entry;
@@ -226,9 +231,9 @@ export class Patch {
         };
     }
 
-    /** Build the patch from one collection to another at one position. */
+    /** Build the patch from the rows a subscriber has to a collection at one position. */
     static difference(
-        before: Patch,
+        before: ReadonlyMap<string, Table>,
         after: Patch,
         nodes: readonly Node[],
         isResent: (table: Table) => boolean,
@@ -236,17 +241,17 @@ export class Patch {
         // send what only the new collection has or may read differently
         const patch = new Patch();
         for (const [key, decision] of after.rows) {
-            if (!before.rows.has(key)) {
+            if (!before.has(key)) {
                 patch.rows.set(key, decision);
             } else if (isResent(decision.table)) {
                 patch.rows.set(key, { ...decision, operation: "update" });
             }
         }
 
-        // let go of what only the old collection had
-        for (const [key, decision] of before.rows) {
+        // let go of what only the subscriber had
+        for (const [key, table] of before) {
             if (!after.rows.has(key)) {
-                patch.rows.set(key, { ...decision, operation: "delete" });
+                patch.rows.set(key, { table, row: Key.parse(table, key), operation: "delete" });
             }
         }
 

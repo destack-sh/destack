@@ -68,6 +68,24 @@ test("publish the buffered page once the pages end", async () => {
     expect(await published.next()).toEqual({ done: true, value: undefined });
 });
 
+test("stop the pages once the consumer stops, after the page read ahead", async () => {
+    const source = pages();
+    const published = coalesce(source.pages, EVERY, [note], Clock.system);
+
+    // publish the first page and stop while reading the second ahead
+    source.push(page(1, [change("insert", "a")]));
+    await published.next();
+    const stopped = published.return(undefined);
+    source.push(page(2, [change("update", "a", "Renamed")]));
+
+    // end the consumer and the pages, leaving later pages unread
+    source.push(page(3, [change("delete", "a")]));
+    expect([await stopped, await source.pages.next()]).toEqual([
+        { done: true, value: undefined },
+        { done: true, value: undefined },
+    ]);
+});
+
 /** Build a page completing at a sequence. */
 function page(sequence: number, changes: RowChange[]): Page {
     return { reset: false, complete: true, changes, position: { epoch: "e", sequence } };

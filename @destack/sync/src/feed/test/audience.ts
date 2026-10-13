@@ -86,8 +86,8 @@ export class ConditionAudience implements Audience {
     async refresh() {}
 
     /** Decide nothing beyond rows themselves. */
-    async dependents() {
-        return [];
+    async decides() {
+        return false;
     }
 
     /** Decide whether a row is visible, in memory. */

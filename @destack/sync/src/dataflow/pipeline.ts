@@ -63,7 +63,7 @@ export abstract class Pipeline {
 
     /** Count a parent value's holders up or down, opening or closing its partition. */
     retain(value: ColumnValue, step: 1 | -1, run: Run): void {
-        // name the partition and the run's work
+        // key the partition and the run's work
         const name = this.node.partition(value);
         const partition = this.partitions.get(name);
         const work = run.workOf(this);
@@ -208,7 +208,7 @@ export abstract class Pipeline {
 
         return {
             decide: async (via, where, row) => {
-                // answer by the relation's count of rows naming the row
+                // answer by the relation's count of rows that reference the row
                 const relation = node.relation(via, where);
                 await arrangement.prepare(node, [row], run);
                 const count = arrangement.measured(relation, relation.valueOf(row), run)["count"];
@@ -249,9 +249,9 @@ export interface Context {
 
 /** A partition of a node that selected parent rows opened. */
 export interface Partition {
-    /** The selected parent rows' value naming it, null for a root. */
+    /** The selected parent rows' value that references it, null for a root. */
     readonly value: ColumnValue;
-    /** How many selected parent rows name it. */
+    /** How many selected parent rows reference it. */
     holders: number;
     /** The keys of the rows it has. */
     readonly members: Set<string>;
@@ -267,7 +267,7 @@ export interface Partition {
 export interface Member {
     /** The partitions with the row. */
     partitions: ReadonlySet<string>;
-    /** The value naming each child's partition, in child order. */
+    /** The value keying each child's partition, in child order. */
     joins: readonly ColumnValue[];
     /** The row with its computed values, kept when the dataflow materializes. */
     row?: Row;

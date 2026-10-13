@@ -20,7 +20,7 @@ export const EVERYONE: Audience = {
     admits: async (_table, rows) => new Set(rows.keys()),
     concealable: () => [],
     conceals: async (_table, rows) => rows.map(() => []),
-    dependents: async () => [],
+    decides: async () => false,
     until: async () => undefined,
     refresh: async () => {},
 };
@@ -47,8 +47,8 @@ export interface Audience {
     until(): Promise<number | undefined>;
     /** Decide as of now once the `until` moment passed. */
     refresh(): Promise<void>;
-    /** List the rows a change decides visibility of beyond itself. */
-    dependents(change: Change): Promise<readonly RowKey[] | "everything">;
+    /** Report whether a change may decide the visibility of rows beyond its own. */
+    decides(change: Change): Promise<boolean>;
 }
 
 /** The tables and scopes whose changes decide what a subscriber has. */
@@ -107,12 +107,4 @@ export function watchedScopes(watches: readonly Watch[]): string[] | undefined {
     }
 
     return [...scopes];
-}
-
-/** A row whose visibility a change decided. */
-export interface RowKey {
-    /** The row's table. */
-    readonly table: Table;
-    /** The row's key, by column property. */
-    readonly key: Row;
 }

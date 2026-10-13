@@ -40,7 +40,7 @@ const MEMO_SEQUENCES = 8;
 /** The default wait before a caught-up stream repeats its position, in milliseconds. */
 const HEARTBEAT_MILLISECONDS = 10_000;
 
-/** The rows of one page of a capture. */
+/** The rows of one capture page across tables: 500 rows of about 500 B keep a page near 250 KB. */
 const CAPTURE_ROWS = 500;
 
 /** One database's log, read once per commit and served to every subscriber. */
@@ -201,39 +201,51 @@ export class Feed implements Cache {
         }
     }
 
-    /** Read every column of some queries' rows as pages of one snapshot run at a position. */
+    /** Read every column of some queries' rows as one snapshot run of pages across tables. */
     static async *#pages(
         database: DatabaseConnection,
         queries: Readonly<Record<string, Query>>,
         seal: ((table: Table, row: Row) => Promise<Row>) | undefined,
     ): AsyncGenerator<Page> {
-        // read every query's rows page by page in key order
+        // read the queries in order into pages of rows across tables
         const position = await database.log.position();
-        const entries = Object.values(queries);
+        let changes: RowChange[] = [];
         let isFirst = true;
-        for (const [index, query] of entries.entries()) {
-            // send each page sealed and complete the run with the last page
-            for await (const { rows, isLast } of Feed.#tablePages(database, query)) {
+        for (const query of Object.values(queries)) {
+            for await (const rows of Feed.#rows(database, query)) {
+                // seal the rows
                 const sealed =
                     seal === undefined
                         ? rows
                         : await Promise.all(rows.map((row) => seal(query.table, row)));
-                yield {
-                    reset: isFirst,
-                    complete: isLast && index === entries.length - 1,
-                    changes: sealed.map((row) => captured(query.table, row)),
-                    position,
-                };
-                isFirst = false;
+                let rest = sealed.map((row) => captured(query.table, row));
+
+                // fill the page, sending a full one once more rows follow it
+                while (rest.length > 0) {
+                    // send the full page
+                    if (changes.length === CAPTURE_ROWS) {
+                        yield { reset: isFirst, complete: false, changes, position };
+                        isFirst = false;
+                        changes = [];
+                    }
+
+                    // take the rows the page has room for
+                    const room = CAPTURE_ROWS - changes.length;
+                    changes.push(...rest.slice(0, room));
+                    rest = rest.slice(room);
+                }
             }
         }
+
+        // complete the run with the last page
+        yield { reset: isFirst, complete: true, changes, position };
     }
 
     /** Read one query's rows in key order a page at a time. */
-    static async *#tablePages(
+    static async *#rows(
         database: DatabaseConnection,
         query: Query,
-    ): AsyncGenerator<{ readonly rows: readonly Row[]; readonly isLast: boolean }> {
+    ): AsyncGenerator<readonly Row[]> {
         // refuse a query the capture cannot read whole
         if (query.with !== undefined) {
             throw new SyncError(
@@ -257,7 +269,7 @@ export class Feed implements Cache {
                 .orderBy(...Order.render(order, table))
                 .limit(CAPTURE_ROWS);
             last = rows.length === CAPTURE_ROWS ? rows.at(-1) : undefined;
-            yield { rows, isLast: last === undefined };
+            yield rows;
         } while (last !== undefined);
     }
 
@@ -352,10 +364,10 @@ export class Feed implements Cache {
             );
 
             // yield again only when the step changed the selected rows or groups
-            const stepped = (await dataflow.step(run)) ? reached : undefined;
+            await dataflow.step(run);
             const isChanged = run.patch.rows.size > 0 || run.patch.results.size > 0;
 
-            return { position: stepped, isChanged: stepped !== undefined && isChanged };
+            return { position: reached, isChanged };
         }
     }
 
