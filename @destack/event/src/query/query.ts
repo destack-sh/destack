@@ -103,7 +103,7 @@ export const EventFilter = {
         const maps = new Set(kind.mapKeys);
         const scalars = kind.keys.filter((name) => !maps.has(name));
 
-        return new Set(["id", "time", ...scalars, ...EventFilter.entries(kind, filter)]);
+        return new Set(["scope", "id", "time", ...scalars, ...EventFilter.entries(kind, filter)]);
     },
 
     /** List the map key entries a filter's condition names, as `<key>.<entry>`. */
@@ -158,9 +158,13 @@ export const EventFilter = {
     /** Read an event's fields as conditions see them. */
     flatten(
         kind: EventKind,
-        event: Pick<Event, "id" | "time" | "keys">,
+        event: Pick<Event, "scope" | "id" | "time" | "keys">,
     ): Record<string, JsonValue> {
-        const flat: Record<string, JsonValue> = { id: event.id, time: event.time };
+        const flat: Record<string, JsonValue> = {
+            scope: event.scope,
+            id: event.id,
+            time: event.time,
+        };
         for (const [name, value] of Object.entries(kind.keyValues(event.keys))) {
             if (value !== null && typeof value === "object") {
                 for (const [entry, held] of Object.entries(value)) {
@@ -199,7 +203,7 @@ export const EventFilter = {
     match(
         kind: EventKind,
         filter: EventFilter,
-    ): (event: Pick<Event, "id" | "time" | "keys">) => boolean {
+    ): (event: Pick<Event, "scope" | "id" | "time" | "keys">) => boolean {
         // compile the condition over the event's fields and keys
         const where = filter.where;
         if (where === undefined) {

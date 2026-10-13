@@ -11,6 +11,8 @@ import {
     lte,
     min,
     type DatabaseConnection,
+    listed,
+    sql,
 } from "@destack/db";
 import { present } from "@destack/schema";
 import { SearchText, TABLE } from "@destack/db";
@@ -268,7 +270,7 @@ export class EventArchive {
             .where(
                 and(
                     eq(eventSegment.kind, kind.key),
-                    inArray(eventSegment.scope, filter.scopes),
+                    listed(eventSegment.scope, sql.param(JSON.stringify(filter.scopes))),
                     range.before === undefined ? undefined : lt(eventSegment.from, range.before),
                     gte(
                         eventSegment.to,

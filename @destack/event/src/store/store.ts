@@ -19,6 +19,7 @@ import {
     type SQL,
     type SQLWrapper,
     TABLE,
+    listed,
 } from "@destack/db";
 import { canonicalize, Clock, type JsonValue, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
@@ -545,7 +546,7 @@ export class EventStore {
         const table = kind.table;
 
         return and(
-            inArray(table.scope, filter.scopes),
+            listed(table.scope, sql.param(JSON.stringify(filter.scopes))),
             filter.where === undefined
                 ? undefined
                 : Condition.render(filter.where, table, EventFilter.namespace(kind, filter)),

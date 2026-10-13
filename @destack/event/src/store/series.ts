@@ -36,7 +36,7 @@ export const Fold = {
 export type SeriesField<Shape extends EventKeyShape> =
     | (keyof Shape & string)
     | `${keyof Shape & string}.${string}`
-    | "source";
+    | "scope";
 
 /** How a series folds a kind's events: measured key, fold, grouping keys and step. */
 export interface SeriesRequest<Shape extends EventKeyShape> {

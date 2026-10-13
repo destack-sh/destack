@@ -350,6 +350,16 @@ test.for(TEST_DIALECTS)(
             { scopes: ["space-1"], where: { time: { gte: at(0) } } },
             { fold: "count" },
         );
+        const byScope = await store.series(
+            reading,
+            { scopes: ["space-1"] },
+            { fold: "count", group: ["scope"] },
+        );
+
+        // count every event of the scope in one group, hot and flushed alike
+        expect(byScope).toEqual([
+            { group: { scope: "space-1" }, steps: [{ start: 0, value: 6, events: 6 }] },
+        ]);
         expect([
             await fold("sum"),
             await fold("average"),
@@ -700,7 +710,7 @@ test("refuse an event kind whose subject is not a text key or whose distribution
     );
 });
 
-/** Timings of a space's operations, each recording a distribution of durations, flushed every two. */
+/** Timings of a space's operations, each recording a distribution of durations. */
 const timing = testKind({
     package: meters,
     name: "timing",
@@ -723,7 +733,7 @@ function timed(id: string, minute: number, operation: string, histogram?: Histog
 }
 
 /** A histogram at scale 0 of values in one bucket, where bucket i counts (2^i, 2^(i+1)]. */
-function bucket(index: number, value: number, count = 1): Histogram {
+function oneBucket(index: number, value: number, count = 1): Histogram {
     return {
         count,
         sum: value * count,
@@ -742,14 +752,14 @@ test.for(TEST_DIALECTS)(
         // flush the saves of 3 and twice 12 and a load of 0, then keep a save of 5 and one without values hot
         const fixture = await open(dialect, [timing, reading]);
         const { store } = fixture;
-        const zero = { ...bucket(0, 0), zeroCount: 1, positive: { offset: 0, counts: [] } };
+        const zero = { ...oneBucket(0, 0), zeroCount: 1, positive: { offset: 0, counts: [] } };
         await store.append(timing, [
-            timed("a", 1, "save", bucket(1, 3)),
-            timed("b", 2, "save", bucket(3, 12, 2)),
+            timed("a", 1, "save", oneBucket(1, 3)),
+            timed("b", 2, "save", oneBucket(3, 12, 2)),
             timed("d", 3, "load", zero),
         ]);
         await fixture.settle();
-        await store.append(timing, [timed("c", 4, "save", bucket(2, 5)), timed("e", 5, "save")]);
+        await store.append(timing, [timed("c", 4, "save", oneBucket(2, 5)), timed("e", 5, "save")]);
 
         // fold the median and the 99th percentile per operation over one step
         const fold = async (name: "p50" | "p99") =>
@@ -773,12 +783,12 @@ test.for(TEST_DIALECTS)(
         const unrecorded = store
             .series(reading, quantile, { fold: "p50" })
             .catch((error: unknown) => String(error));
-        const measured = store
+        const keyed = store
             .series(timing, quantile, { fold: "p50", measure: "operation" })
             .catch((error: unknown) => String(error));
 
         // read each quantile as the geometric middle of its bucket: 2^2.5 at rank 1.5, 2^3.5 at rank 2.97
-        expect([await fold("p50"), await fold("p99"), await unrecorded, await measured]).toEqual([
+        expect([await fold("p50"), await fold("p99"), await unrecorded, await keyed]).toEqual([
             [
                 ["load", [[at(0), 0, 1]]],
                 ["save", [[at(0), 2 ** 2.5, 3]]],
