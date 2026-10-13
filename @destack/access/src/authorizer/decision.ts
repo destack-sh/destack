@@ -14,16 +14,15 @@ export const Decision = defineSchema(
 /** Whether a caller has a permission on one object, and until when by time alone. */
 export type Decision = schema.Infer<typeof Decision>;
 
-/** The gate that refuses a request before any grant: credential, elevation, suspension or scope. */
-export const Gate = defineSchema(schema.enum(["restricted", "elevation", "suspended", "outside"]));
-/** Why a caller's request cannot have a permission on a row at all, before any grant. */
+/** The gate that refuses a request before any tuple: grant, elevation, suspension or scope. */
+export const Gate = defineSchema(schema.enum(["grant", "elevation", "suspended", "outside"]));
+/** Why a caller's request cannot have a permission on a row at all, before any tuple. */
 export type Gate = schema.Infer<typeof Gate>;
 
-/** Why one grant fails to admit an authority. */
-export const GrantFailure = defineSchema(
+/** Why one tuple fails to admit the caller. */
+export const TupleFailure = defineSchema(
     schema.enum([
         "subject",
-        "field",
         "role",
         "pending",
         "expired",
@@ -32,12 +31,11 @@ export const GrantFailure = defineSchema(
         "linkSecret",
         "assurance",
         "age",
-        "delegation",
         "arrow",
     ]),
 );
-/** Why one grant fails to admit an authority. */
-export type GrantFailure = schema.Infer<typeof GrantFailure>;
+/** Why one tuple fails to admit the caller. */
+export type TupleFailure = schema.Infer<typeof TupleFailure>;
 
 /** Whether and why a caller has a permission on one object. */
 export const Explanation = defineSchema(
@@ -48,32 +46,21 @@ export const Explanation = defineSchema(
         object: ObjectReference,
         /** Whether the caller has the permission. */
         isAllowed: schema.boolean(),
-        /** The gate the request fails before any grant. */
+        /** The gate the request fails before any tuple. */
         gate: Gate.exactOptional(),
-        /** The represented subject and each delegate, all of which must be admitted. */
-        authorities: schema.array(
+        /** Every tuple of the permission on the object, with why it fails when it does. */
+        tuples: schema.array(
             schema.object({
-                /** The delegate, absent for the represented subject. */
-                delegate: Subject.exactOptional(),
-                /** The principal the delegate acts for. */
-                delegator: Subject.exactOptional(),
-                /** Whether a grant admits the authority. */
-                isAllowed: schema.boolean(),
-                /** Every grant of the permission on the object, with why it fails when it does. */
-                grants: schema.array(
-                    schema.object({
-                        /** How the permission reaches the grant, in order. */
-                        path: schema.array(schema.string()),
-                        /** The object the relationship, field or role binding sits on. */
-                        object: ObjectReference,
-                        /** The subject the grant admits. */
-                        subject: Subject,
-                        /** The bound role, for role bindings. */
-                        role: schema.string().exactOptional(),
-                        /** Why the grant fails to admit the authority, absent when it admits it. */
-                        failure: GrantFailure.exactOptional(),
-                    }),
-                ),
+                /** How the permission reaches the tuple, in order. */
+                path: schema.array(schema.string()),
+                /** The object the relationship, field or role binding sits on. */
+                object: ObjectReference,
+                /** The subject the tuple admits. */
+                subject: Subject,
+                /** The bound role, for role bindings. */
+                role: schema.string().exactOptional(),
+                /** Why the tuple fails to admit the caller, absent when it admits it. */
+                failure: TupleFailure.exactOptional(),
             }),
         ),
     }),

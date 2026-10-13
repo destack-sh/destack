@@ -9,7 +9,8 @@ import { ACCESS_PACKAGE_ID } from "../declare/principal.ts";
 import * as principal from "../declare/principal.ts";
 import { AccessContext, Caller, Contact } from "../context/context.ts";
 import { Elevation } from "../context/elevation.ts";
-import { Restriction } from "../context/restriction.ts";
+import { GrantPermission } from "../grant/permission.ts";
+import { Grant } from "../grant/grant.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { RelationshipRow, RoleBinding } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
@@ -17,7 +18,7 @@ import { Role } from "../role/role.ts";
 import type { RoleGrant } from "../role/closure.ts";
 import { CHAIN_SHAPE } from "../replica/replica.ts";
 import { Authority } from "./authority.ts";
-import { GrantCondition, type ConditionContext } from "./condition.ts";
+import { TupleCondition, type ConditionContext } from "./condition.ts";
 import type { Gate } from "./decision.ts";
 import { Authorizer } from "./authorizer.ts";
 import { type FieldRelation, TableMapping } from "./mapping.ts";
@@ -25,14 +26,14 @@ import { type FieldRelation, TableMapping } from "./mapping.ts";
 /** The permission key the roles granting every permission but reserved ones are listed under. */
 export const UNIVERSAL = "*";
 
-/** A caller's access in one scope: authorities, scope chain, roles along it and validity time. */
+/** A caller's access in one scope: authority, scope chain, roles along it and validity time. */
 export class Access {
     /** The scope every protected row of a query belongs to. */
     readonly scope: string;
     /** The caller. */
     readonly context: AccessContext;
-    /** The represented subject and each delegate with its lent authority, all admitted. */
-    readonly authorities: readonly Authority[];
+    /** The represented subject's identities and subject sets. */
+    readonly authority: Authority;
     /** The objects of the scope and every scope enclosing it, nearest first. */
     readonly scopes: readonly ObjectReference[];
     /** What each role along the scope chain grants, directly or through included roles. */
@@ -49,7 +50,7 @@ export class Access {
     readonly until: number | undefined;
     /** The chain's and the caller's roles by permission, as one JSON list of `[permission. */
     readonly grantedRoles: string;
-    /** The role bindings of the caller's authorities, wherever the objects they bind on live. */
+    /** The role bindings of the caller's authority, wherever the objects they bind on live. */
     readonly bindings: readonly RoleBinding[];
     /** The chain's and the caller's roles granting each permission, by permission key. */
     readonly #roles: ReadonlyMap<string, readonly string[]>;
@@ -68,7 +69,7 @@ export class Access {
         resolved: {
             readonly scope: string;
             readonly context: AccessContext;
-            readonly authorities: readonly Authority[];
+            readonly authority: Authority;
             readonly links: readonly ScopeLink[];
             readonly grants: ReadonlyMap<string, RoleGrant>;
             readonly confined: ReadonlyMap<string, ReadonlySet<string>>;
@@ -80,7 +81,7 @@ export class Access {
         this.#authorizer = authorizer;
         this.scope = resolved.scope;
         this.context = resolved.context;
-        this.authorities = resolved.authorities;
+        this.authority = resolved.authority;
         this.#links = resolved.links;
         this.scopes = resolved.links.map((link) => link.object);
         this.grants = resolved.grants;
@@ -158,8 +159,23 @@ export class Access {
             );
         }
 
-        // read the subject sets of the caller and every lent delegate with their containing scopes
-        const [, represented, delegates] = await Promise.all([
+        // refuse delegates acting under a grant this database keeps and no longer has live
+        Caller.requireChain(context);
+        const { subject, grant } = context;
+        const sender = Caller.sender(context);
+        if (
+            Caller.isDelegated(context) &&
+            subject !== undefined &&
+            sender !== undefined &&
+            grant !== undefined &&
+            (await authorizer.keeps(snapshot, grant.scope))
+        ) {
+            const kept = await Grant.read(snapshot, grant.id);
+            Grant.require(kept, grant.id, { delegator: subject, delegate: sender }, context.now);
+        }
+
+        // read the subject sets of the caller with their containing scopes
+        const [, represented] = await Promise.all([
             snapshot.position === undefined
                 ? requireConfirmed(snapshot.database, chain, authorizer.lag, context.now)
                 : undefined,
@@ -170,19 +186,16 @@ export class Access {
                 authorizer,
                 scopes,
             ),
-            Access.#expandDelegates(snapshot, context, authorizer, scopes),
         ]);
 
         // read the chain's roles and the roles bound to the caller
-        const expansions = [represented, ...delegates.map((delegate) => delegate.expanded)];
-        const bindings = expansions.flatMap((expanded) => expanded.bindings);
+        const bindings = represented.bindings;
         const roles = await readRoles(snapshot, chain, bindings, context);
 
         // take the earliest moment a subject set, an inclusion or an elevation the caller has changes by time
         const until = earliest([
             roles.until,
             represented.until,
-            ...delegates.map((delegate) => delegate.expanded.until),
             ...[...authorizer.elevated.values()].map((elevation) =>
                 Elevation.until(elevation, context),
             ),
@@ -191,12 +204,7 @@ export class Access {
         return new Access(authorizer, {
             scope,
             context,
-            authorities: [
-                new Authority(represented.subjects),
-                ...delegates.map(
-                    (delegate) => new Authority(delegate.expanded.subjects, delegate.delegation),
-                ),
-            ],
+            authority: new Authority(represented.subjects),
             links,
             grants: roles.grants,
             confined: roles.confined,
@@ -216,29 +224,6 @@ export class Access {
             ...Caller.contacts(context).map((contact) => Contact.subject(contact)),
             ...(await Access.#contained(snapshot, context.subjects, scopes)),
         ];
-    }
-
-    /** Expand the subject sets of each delegate lent to the caller, with the lending delegation. */
-    static async #expandDelegates(
-        snapshot: Snapshot,
-        context: AccessContext,
-        authorizer: Authorizer,
-        scopes: readonly ObjectReference[],
-    ) {
-        const lent = Caller.delegation(context).filter((link) => link.authority === "lent");
-
-        return Promise.all(
-            lent.map(async ({ delegate, delegator }) => ({
-                expanded: await Access.expand(
-                    snapshot,
-                    [delegate, ...(await Access.#contained(snapshot, [delegate], scopes))],
-                    context,
-                    authorizer,
-                    scopes,
-                ),
-                delegation: { delegate, delegator },
-            })),
-        );
     }
 
     /** Resolve the caller in scopes this one encloses, in reads shared by all of them. */
@@ -333,34 +318,21 @@ export class Access {
         links: readonly ScopeLink[],
         defined: ReadonlySet<string>,
     ): Promise<Access> {
-        // expand the authorities again for a chain whose scopes take sets from the scopes enclosing them
+        // expand the authority again for a chain whose scopes take sets from the scopes enclosing them
         const chain = [...links, ...this.#links];
         const isEnclosed = links.some((link) => this.#authorizer.isEnclosed(link.object));
-        const expansions = isEnclosed
-            ? await Promise.all(
-                  this.authorities.map(async (authority) => ({
-                      authority,
-                      expanded: await Access.expand(
-                          snapshot,
-                          authority.subjects,
-                          this.context,
-                          this.#authorizer,
-                          chain.map((link) => link.object),
-                      ),
-                  })),
+        const expanded = isEnclosed
+            ? await Access.expand(
+                  snapshot,
+                  this.authority.subjects,
+                  this.context,
+                  this.#authorizer,
+                  chain.map((link) => link.object),
               )
-            : [];
-        const authorities =
-            expansions.length === 0
-                ? this.authorities
-                : expansions.map(
-                      ({ authority, expanded }) =>
-                          new Authority(expanded.subjects, authority.delegation),
-                  );
-        const bindings =
-            expansions.length === 0
-                ? this.bindings
-                : expansions.flatMap(({ expanded }) => expanded.bindings);
+            : undefined;
+        const authority =
+            expanded === undefined ? this.authority : new Authority(expanded.subjects);
+        const bindings = expanded === undefined ? this.bindings : expanded.bindings;
 
         // read the roles of a chain that defines more, or of new bindings
         const isDefining =
@@ -378,16 +350,12 @@ export class Access {
         return new Access(this.#authorizer, {
             scope,
             context: this.context,
-            authorities,
+            authority,
             links: chain,
             grants: roles.grants,
             confined: roles.confined,
             bindings,
-            until: earliest([
-                this.until,
-                roles.until,
-                ...expansions.map(({ expanded }) => expanded.until),
-            ]),
+            until: earliest([this.until, roles.until, expanded?.until]),
         });
     }
 
@@ -418,8 +386,7 @@ export class Access {
 
             // split the relationships the request's conditions admit into memberships and bindings
             const current = held.filter(
-                (row) =>
-                    new GrantCondition(row).failure(context, undefined, undefined) === undefined,
+                (row) => new TupleCondition(row).failure(context) === undefined,
             );
             const related = current.filter((row) => isMembership(row, authorizer.memberships));
             const bound = current.filter(Relationship.isBinding);
@@ -430,7 +397,7 @@ export class Access {
             }
 
             // note when each relationship of the frontier subjects next starts or stops applying
-            moments.push(...held.map((row) => GrantCondition.until(row, context)));
+            moments.push(...held.map((row) => TupleCondition.until(row, context)));
 
             // continue from each relationship's set and the permissions accepted as subject sets it decides
             const reached = [
@@ -569,7 +536,7 @@ export class Access {
     gate(permission: PermissionReference, mapping: TableMapping, row: Row): Gate | undefined {
         return this.admits(permission, TableMapping.text(row, mapping.id), { mapping, row })
             ? this.blocked(permission)
-            : "restricted";
+            : "grant";
     }
 
     /** Decide whether the credential allows a permission on an object, directly or by source. */
@@ -582,7 +549,13 @@ export class Access {
         },
     ): boolean {
         // allow a permission the credential names
-        if (Restriction.allows(permission, { scope: this.scope, id }, this.context)) {
+        if (
+            GrantPermission.allows(
+                permission,
+                { scope: this.scope, id },
+                this.context.grant?.permissions,
+            )
+        ) {
             return true;
         }
 
@@ -639,56 +612,6 @@ export class Access {
             this.moved ?? null,
             this.partition ?? null,
         ]);
-    }
-
-    /** The subjects of the caller's authorities, by key. */
-    get subjects(): ReadonlyMap<string, Subject> {
-        return new Map(
-            this.authorities
-                .flatMap((authority) => authority.subjects)
-                .map((subject) => [Subject.key(subject), subject]),
-        );
-    }
-
-    /** List the subjects this access has and an earlier one lacks, or the other way around. */
-    changedSubjects(earlier: Access): Subject[] {
-        const [before, after] = [earlier.subjects, this.subjects];
-
-        return [
-            ...[...before].filter(([key]) => !after.has(key)),
-            ...[...after].filter(([key]) => !before.has(key)),
-        ].map(([, subject]) => subject);
-    }
-
-    /** List the role bindings of a role this access grants otherwise than an earlier one. */
-    regranted(earlier: Access): RoleBinding[] {
-        // find the roles granting otherwise
-        const roles = new Set(
-            [...earlier.grants.keys(), ...this.grants.keys()].filter(
-                (role) => earlier.#grantKey(role) !== this.#grantKey(role),
-            ),
-        );
-
-        // take each binding of those roles once
-        const bindings = [...earlier.bindings, ...this.bindings].filter((binding) =>
-            roles.has(binding.roleId),
-        );
-
-        return [...new Map(bindings.map((binding) => [binding.id, binding])).values()];
-    }
-
-    /** Write what a role grants as a key, null for a role the access lacks. */
-    #grantKey(role: string): string | null {
-        const granted = this.grants.get(role);
-
-        return granted === undefined
-            ? null
-            : JSON.stringify([
-                  granted.isUniversal,
-                  granted.permissions
-                      .map((permission) => PermissionReference.key(permission))
-                      .toSorted(),
-              ]);
     }
 
     /** Read the scope's own object from its containing scope, when a mapping has its type. */
@@ -783,7 +706,7 @@ async function readRoles(
             row.subjectPackageId === ACCESS_PACKAGE_ID &&
             row.subjectType === principal.role.name &&
             row.subjectRelation === null &&
-            new GrantCondition(row).failure(context, undefined, undefined) === undefined,
+            new TupleCondition(row).failure(context) === undefined,
     );
 
     // close the roles over their inclusions
@@ -806,7 +729,7 @@ async function readRoles(
                 included: include.subjectId,
             })),
         ),
-        until: earliest(includes.map((include) => GrantCondition.until(include, context))),
+        until: earliest(includes.map((include) => TupleCondition.until(include, context))),
     };
 }
 

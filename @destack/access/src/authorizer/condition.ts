@@ -1,9 +1,7 @@
 import { jsonElements, sql, type SQL, type SQLWrapper } from "@destack/db";
-import { Subject } from "@destack/sync";
-import { ACCESS_PACKAGE_ID, anyone } from "../declare/principal.ts";
 import { type AccessContext, Caller } from "../context/context.ts";
 import type { RelationshipColumnMap, RelationshipRow } from "../relationship/table.ts";
-import type { GrantFailure } from "./decision.ts";
+import type { TupleFailure } from "./decision.ts";
 
 /** The request values a relationship's conditions compare against. */
 export type ConditionContext = Pick<
@@ -25,12 +23,10 @@ export interface ConditionValues {
     readonly level: SQLWrapper;
     /** When the request's caller authenticated. */
     readonly authenticatedAt: SQLWrapper;
-    /** The key of the principal a compiled delegate acts for. */
-    readonly delegator: SQLWrapper;
 }
 
 /** A relationship's conditions on its requests, decided in memory and in SQL alike. */
-export class GrantCondition {
+export class TupleCondition {
     /** The relationship's creation time. */
     readonly createdAt: number;
     /** The relationship's expiry, null when it never expires. */
@@ -45,8 +41,6 @@ export class GrantCondition {
     readonly assurance: number | null;
     /** The longest time since authentication, in milliseconds. */
     readonly maxAge: number | null;
-    /** The key of the principal a delegate must act for. */
-    readonly onBehalfOf: string | null;
 
     /** Read a relationship's conditions from its row. */
     constructor(row: RelationshipRow) {
@@ -58,15 +52,10 @@ export class GrantCondition {
         this.linkSecret = row.linkSecret;
         this.assurance = row.assurance;
         this.maxAge = row.maxAge;
-        this.onBehalfOf = row.onBehalfOf;
     }
 
-    /** Read why the conditions fail a request for a delegator's authority, absent if they pass. */
-    failure(
-        context: ConditionContext,
-        delegator: Subject | undefined,
-        subject: Subject | undefined,
-    ): GrantFailure | undefined {
+    /** Read why the conditions fail a request, absent if they pass. */
+    failure(context: ConditionContext): TupleFailure | undefined {
         // require a started, unexpired relationship
         const now = context.now;
         if (this.createdAt > now) {
@@ -101,19 +90,12 @@ export class GrantCondition {
             return "age";
         }
 
-        // admit delegations only for a delegate acting for their principal, and besides them only grants to anyone
-        const isLent =
-            delegator === undefined
-                ? this.onBehalfOf === null
-                : this.onBehalfOf === Subject.key(delegator) ||
-                  (this.onBehalfOf === null && subject !== undefined && anyone.is(subject));
-
-        return isLent ? undefined : "delegation";
+        return undefined;
     }
 
     /** Read the next moment time alone changes whether the conditions pass, absent if never. */
     until(context: ConditionContext): number | undefined {
-        return GrantCondition.until(this, context);
+        return TupleCondition.until(this, context);
     }
 
     /** Read the next moment a relationship's times start or stop applying. */
@@ -161,31 +143,11 @@ export class GrantCondition {
             sql`(${relationship.maxAge} IS NULL OR ${relationship.maxAge} >= ${now} - ${castInteger(values.authenticatedAt)})`,
         );
 
-        // admit delegations only for a delegate acting for their principal, and besides them only grants to anyone
-        conditions.push(
-            sql`(
-                ${relationship.onBehalfOf} = ${castText(values.delegator)}
-                OR (
-                    ${relationship.onBehalfOf} IS NULL
-                    AND (
-                        ${castText(values.delegator)} IS NULL
-                        OR (
-                            ${relationship.subjectPackageId} = ${ACCESS_PACKAGE_ID}
-                            AND ${relationship.subjectType} = ${anyone.name}
-                        )
-                    )
-                )
-            )`,
-        );
-
         return sql`(${sql.join(conditions, sql` AND `)})`;
     }
 
     /** Bind a request's values as its conditions compare against them. */
-    static bindings(
-        context: ConditionContext,
-        delegator?: Subject,
-    ): Record<keyof ConditionValues, unknown> {
+    static bindings(context: ConditionContext): Record<keyof ConditionValues, unknown> {
         return {
             now: context.now,
             request: context.request ?? null,
@@ -193,15 +155,14 @@ export class GrantCondition {
             linkSecrets: JSON.stringify((context.linkSecrets ?? []).map((digest) => [digest])),
             level: context.assurance?.level ?? null,
             authenticatedAt: context.assurance?.authenticatedAt ?? null,
-            delegator: delegator === undefined ? null : Subject.key(delegator),
         };
     }
 
     /** Embed a request's values in a statement. */
-    static values(context: ConditionContext, delegator?: Subject): ConditionValues {
-        const bindings = GrantCondition.bindings(context, delegator);
+    static values(context: ConditionContext): ConditionValues {
+        const bindings = TupleCondition.bindings(context);
 
-        return GrantCondition.parameters((name) => sql`${bindings[name]}`);
+        return TupleCondition.parameters((name) => sql`${bindings[name]}`);
     }
 
     /** List a request's values as `bindings` supplies them to a prepared statement on each run. */
@@ -213,7 +174,6 @@ export class GrantCondition {
             linkSecrets: value("linkSecrets"),
             level: value("level"),
             authenticatedAt: value("authenticatedAt"),
-            delegator: value("delegator"),
         };
     }
 }

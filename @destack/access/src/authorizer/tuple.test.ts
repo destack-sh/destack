@@ -1,4 +1,4 @@
-import { aligned, schema } from "@destack/schema";
+import { aligned, Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Subject } from "@destack/sync";
 import { Snapshot, and, asc, eq, sql } from "@destack/db";
@@ -27,7 +27,7 @@ import {
     teamTable,
 } from "../test/fixture.ts";
 import { openFixture, sessionCredential } from "../test/database.ts";
-import { GrantTree } from "./grant.ts";
+import { TupleTree } from "./tuple.ts";
 import { relationship } from "../declare/principal.ts";
 
 /** The number of random access models each dialect checks. */
@@ -121,7 +121,6 @@ test.for(TEST_DIALECTS)(
             { maxAge: 100 },
             { request: "request-1" },
             { credential: "session:1" },
-            { onBehalfOf: user("bob") },
         ];
 
         // call with the request attributes the policies' conditions read
@@ -134,7 +133,7 @@ test.for(TEST_DIALECTS)(
             phase: "edit",
         };
 
-        // call as users, members, anonymous callers, presenters of link secrets and delegates
+        // call as users, members, anonymous callers, presenters of link secrets and delegates under grants
         const agent = principal.installation.reference("personal", "agent");
         const contexts: AccessContext[] = [
             { subjects: [user("alice")], now: NOW, attributes },
@@ -153,15 +152,26 @@ test.for(TEST_DIALECTS)(
             {
                 subjects: [user("bob")],
                 subject: user("bob"),
-                delegates: [{ subject: agent, authority: "lent" }],
+                delegates: [agent],
+                grant: {
+                    id: Identifier.create("grant"),
+                    scope: "bob",
+                    permissions: [{ ...node.permission("edit"), scope: "personal" }],
+                },
                 now: NOW,
                 attributes,
             },
             {
                 subjects: [user("bob")],
+                subject: user("bob"),
+                delegates: [principal.personalAccessToken.reference("bob", "token-bob")],
                 now: NOW,
                 attributes,
-                permissions: [{ ...node.permission("read"), scope: "personal", objectId: "b" }],
+                grant: {
+                    id: Identifier.create("grant"),
+                    scope: "bob",
+                    permissions: [{ ...node.permission("read"), scope: "personal", objectId: "b" }],
+                },
             },
         ];
         const permissions: PermissionReference[] = [
@@ -398,7 +408,7 @@ test("read an intersection's grants as the superset its decisions change with", 
     const trees = await authorizer
         .reader(Snapshot.live(database), [])
         .trees(cell.permission("edit"), rows);
-    expect(trees.map((tree) => GrantTree.flatten(tree).map((grant) => grant.subject.id))).toEqual([
+    expect(trees.map((tree) => TupleTree.flatten(tree).map((grant) => grant.subject.id))).toEqual([
         ["alice"],
         ["alice"],
         ["alice"],
@@ -440,30 +450,23 @@ test("explain which grants admit a caller and why the others fail", async () => 
 
         return [
             explanation.isAllowed,
-            explanation.authorities.map((authority) =>
-                authority.grants.map((grant) => [
-                    grant.path.join(" / "),
-                    grant.failure ?? "permits",
-                ]),
-            ),
+            explanation.tuples.map((tuple) => [tuple.path.join(" / "), tuple.failure ?? "permits"]),
         ];
     };
     const visitor: AccessContext = { subjects: [], now: NOW, attributes: {} };
     expect(await explain(visitor)).toEqual([
         false,
         [
+            ["node read / node edit / field owner holding relation owner", "subject"],
             [
-                ["node read / node edit / field owner holding relation owner", "subject"],
-                [
-                    "node read / node edit / through parent to node b / node edit-descendant / field owner holding relation owner",
-                    "subject",
-                ],
-                [
-                    "node read / node edit / through parent to node a / node edit-descendant / field owner holding relation owner",
-                    "subject",
-                ],
-                ["node read / relation viewer", "linkSecret"],
+                "node read / node edit / through parent to node b / node edit-descendant / field owner holding relation owner",
+                "subject",
             ],
+            [
+                "node read / node edit / through parent to node a / node edit-descendant / field owner holding relation owner",
+                "subject",
+            ],
+            ["node read / relation viewer", "linkSecret"],
         ],
     ]);
     expect((await explain({ ...visitor, linkSecrets: [linkSecret] }))[0]).toBe(true);

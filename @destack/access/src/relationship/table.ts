@@ -70,8 +70,6 @@ export const accessRelationship = defineTable(
         assurance: integer("assurance"),
         /** The longest time since authentication, in milliseconds. */
         maxAge: integer("max_age"),
-        /** The key of the principal a delegate acts for, making it a delegation. */
-        onBehalfOf: text("on_behalf_of"),
     },
     {
         log: { retention: "history" },
@@ -79,7 +77,6 @@ export const accessRelationship = defineTable(
             index("relationship_request").on(relationship.requestId),
             index("relationship_expiry").on(relationship.expiresAt),
             index("relationship_max_age").on(relationship.maxAge),
-            index("relationship_delegation").on(relationship.onBehalfOf),
             check("relationship_assurance", {
                 assurance: { OR: [{ isNull: true }, { gte: 1, lte: 3 }] },
             }),
@@ -98,7 +95,6 @@ export const accessRelationship = defineTable(
                     relationship.subjectScope,
                     relationship.subjectId,
                     relationship.subjectRelation,
-                    relationship.onBehalfOf,
                     relationship.requestId,
                     relationship.credential,
                     relationship.linkSecret,
@@ -163,8 +159,7 @@ export type RelationshipColumnMap = Readonly<
         | "credential"
         | "linkSecret"
         | "assurance"
-        | "maxAge"
-        | "onBehalfOf",
+        | "maxAge",
         SQLWrapper
     >
 >;

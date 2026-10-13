@@ -9,6 +9,7 @@ import {
     Snapshot,
 } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { Identifier } from "@destack/schema";
 import {
     accessTables,
     Authorizer,
@@ -18,8 +19,8 @@ import {
     relation,
     through,
     type AccessContext,
+    GrantPermission,
     type PermissionReference,
-    Restriction,
     type TableMapping,
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
@@ -99,21 +100,29 @@ const mappings: TableMapping[] = [
     },
 ];
 
-/** Restrict alice to one permission, on one object or a whole scope. */
+/** Grant alice's token one permission, on one object or a whole scope. */
 function restricted(
     source: PermissionReference,
-    restriction: Omit<Restriction, keyof PermissionReference>,
+    entry: Omit<GrantPermission, keyof PermissionReference>,
 ): AccessContext {
+    const alice = principal.user.reference("universe", "alice");
+
     return {
-        subjects: [principal.user.reference("universe", "alice")],
+        subject: alice,
+        subjects: [alice],
+        delegates: [principal.personalAccessToken.reference("alice", "token-alice")],
         attributes: {},
         now: 1000,
-        permissions: [{ ...source, ...restriction }],
+        grant: {
+            id: Identifier.create("grant"),
+            scope: "alice",
+            permissions: [{ ...source, ...entry }],
+        },
     };
 }
 
 test.each(TEST_DIALECTS)(
-    "allow a derived permission exactly where a credential allows its source, in memory and in SQL, on %s",
+    "allow a derived permission exactly where a grant allows its source, in memory and in SQL, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(
             dialect,
@@ -138,7 +147,7 @@ test.each(TEST_DIALECTS)(
             ].map((row) => ({ ...row, scope: "personal", parentPackageId: module1.package.id })),
         );
 
-        // restrict alice to one permission, on one object or the whole scope
+        // grant alice's token one permission, on one object or the whole scope
         const everyPage = restricted(page.permission("read"), { scope: "personal" });
         const onePage = restricted(page.permission("read"), { scope: "personal", objectId: "one" });
         const editing = restricted(page.permission("edit"), { scope: "personal" });
@@ -217,16 +226,41 @@ async function decided(
     return { listed: listed.map((row) => row.id), permitted, checked };
 }
 
-test("intersect two credentials' restrictions on the narrower object, keeping either side alone when the other is unrestricted", () => {
+test("intersect two grants on the narrower object and method, keeping either side alone when the other gives everything", () => {
     const read = { packageId: module1.package.id, type: "page", name: "read", scope: "space-1" };
     const write = { ...read, name: "write" };
-    const one: Restriction[] = [{ ...read, objectId: "page-1" }, write];
-    const every: Restriction[] = [read];
+    const one: GrantPermission[] = [{ ...read, objectId: "page-1" }, write];
+    const every: GrantPermission[] = [read];
 
     expect([
-        Restriction.intersect(one, every),
-        Restriction.intersect(undefined, every),
-        Restriction.intersect(undefined, undefined),
-        Restriction.intersect([write], [{ ...write, scope: "space-2" }]),
-    ]).toEqual([[{ ...read, objectId: "page-1" }], every, undefined, []]);
+        GrantPermission.intersect(one, every),
+        GrantPermission.intersect(undefined, every),
+        GrantPermission.intersect(undefined, undefined),
+        GrantPermission.intersect([write], [{ ...write, scope: "space-2" }]),
+        GrantPermission.intersect([{ ...read, method: "get" }], [{ ...read, method: "list" }]),
+        GrantPermission.intersect([{ ...read, method: "get" }], every),
+    ]).toEqual([
+        [{ ...read, objectId: "page-1" }],
+        every,
+        undefined,
+        [],
+        [],
+        [{ ...read, method: "get" }],
+    ]);
+});
+
+test("reach every method of a type a grant binds no method of, else only its bound methods", () => {
+    const read = { packageId: module1.package.id, type: "page", name: "read", scope: "space-1" };
+    const pages = { packageId: module1.package.id, type: "page" };
+    const sheets = { packageId: module1.package.id, type: "sheet" };
+    const loan: GrantPermission[] = [{ ...read, method: "get" }];
+
+    expect([
+        GrantPermission.reaches(pages, "space-1", "get", loan),
+        GrantPermission.reaches(pages, "space-1", "list", loan),
+        GrantPermission.reaches(pages, "space-2", "get", loan),
+        GrantPermission.reaches(sheets, "space-1", "get", loan),
+        GrantPermission.reaches(pages, "space-1", "list", [read]),
+        GrantPermission.reaches(pages, "space-1", "list", undefined),
+    ]).toEqual([true, false, true, true, true, true]);
 });

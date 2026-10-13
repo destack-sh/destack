@@ -3,6 +3,7 @@ export * from "./context/index.ts";
 export * from "./authorizer/index.ts";
 export * from "./relationship/index.ts";
 export * from "./invitation/index.ts";
+export * from "./grant/index.ts";
 export * from "./role/index.ts";
 export * from "./manager/index.ts";
 export * from "./replica/index.ts";

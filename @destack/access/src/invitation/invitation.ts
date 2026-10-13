@@ -190,17 +190,16 @@ function asksForItself(invitation: Invitation): boolean {
     );
 }
 
-/** Determine whether an offer names a principal, directly or through a contact it proved. */
+/** Report whether an offer is addressed to a principal, directly or through a contact it proved. */
 function addresses(invitation: Invitation, principal: Subject, context: AccessContext): boolean {
     return [principal, ...Caller.contacts(context).map((contact) => Contact.subject(contact))].some(
         (subject) => Subject.same(subject, invitation.relationship.subject),
     );
 }
 
-/** Write an invitation as its row, keyed for listing by inviter, addressee and lender. */
+/** Write an invitation as its row, keyed for listing by inviter and addressee. */
 function encode(invitation: Invitation, scope: string) {
     const invited = invitation.relationship;
-    const lender = invited.conditions?.onBehalfOf;
 
     return {
         id: invitationId(invitation.id),
@@ -213,7 +212,6 @@ function encode(invitation: Invitation, scope: string) {
         inviter: invitation.inviter,
         inviterKey: invitation.inviter === null ? null : Subject.key(invitation.inviter),
         addressee: Subject.key(invited.subject),
-        lender: lender === undefined ? null : Subject.key(lender),
         purpose: invitation.purpose ?? null,
         expiresAt: invitation.expiresAt,
         status: invitation.status,

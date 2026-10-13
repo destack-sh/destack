@@ -1,9 +1,12 @@
 import { expect, test } from "@destack/test";
-import { Snapshot, eq, type DatabaseConnection } from "@destack/db";
-import { aligned, schema } from "@destack/schema";
+import { Snapshot, TABLE, eq, type DatabaseConnection } from "@destack/db";
+import { aligned, Identifier, present, schema } from "@destack/schema";
+import { Scope, type Subject } from "@destack/sync";
 import {
     AccessError,
+    ACCESS_PACKAGE_ID,
     accessRelationship,
+    Grant,
     Contact,
     Authorizer,
     LinkSecret,
@@ -432,7 +435,8 @@ databaseTest(
                 () => ({
                     ...carol,
                     subject: userSubject("carol"),
-                    delegates: [{ subject: agent, authority: "lent" }],
+                    delegates: [agent],
+                    grant: { id: Identifier.create("grant"), scope: "carol", permissions: [] },
                 }),
                 (authorization) => authorization.accept(offered.relationship.object, offered.id),
             ),
@@ -591,168 +595,122 @@ databaseTest(
     },
 );
 
-databaseTest("constrain delegated access and credential selections", async ({ fixture }) => {
-    const { database, authorizer, alice, bob } = fixture;
-    // constrain an agent to the intersection of its user's rights and what the user lent it
-    const assistant = principal.installation.reference("personal", "assistant");
-    const delegated = {
-        ...alice,
-        subject: userSubject("alice"),
-        delegates: [{ subject: assistant, authority: "lent" }],
-    } satisfies AccessContext;
+databaseTest(
+    "narrow a delegate to what its subject may and its grant gives, until the grant is revoked or lapses",
+    async ({ fixture }) => {
+        const { database, authorizer, alice, bob } = fixture;
+        const assistant = principal.installation.reference("personal", "assistant");
 
-    // ignore the agent's own grants while it acts for someone else
-    await Authorization.run(
-        authorizer,
-        database,
-        () => alice,
-        (authorization) =>
-            authorization.grant({
-                object: node.reference("personal", "b"),
-                relation: "editor",
-                subject: assistant,
-            }),
-    );
-    await expectEditable(database, authorizer, node, delegated, []);
+        // keep alice's and bob's own scopes, where their grants live
+        await database.insert(Scope.table).values(
+            ["alice", "bob"].map((id) =>
+                Scope.table[TABLE].complete({
+                    scope: id,
+                    parent: Scope.universe.id,
+                    partition: Scope.universe.id,
+                    packageId: ACCESS_PACKAGE_ID,
+                    type: principal.user.name,
+                    ancestors: [],
+                }),
+            ),
+        );
 
-    // let only the lending principal lend what it may grant, and only to one principal
-    const lending = {
-        object: node.reference("personal", "b"),
-        relation: "editor",
-        subject: assistant,
-        expiresAt: 2000,
-        conditions: { onBehalfOf: userSubject("alice") },
-    };
-    await expect(
-        Authorization.run(
-            authorizer,
+        // grant the assistant editing a and b for each of them until 2000, refusing others' authority and sets
+        const grant = (context: AccessContext, scope: string, delegate: Subject = assistant) =>
+            Authorization.run(
+                authorizer,
+                database,
+                () => context,
+                (authorization) =>
+                    authorization.createGrant(scopeOf(scope), {
+                        delegate,
+                        permissions: [editing("a"), editing("b")],
+                        approval: "once",
+                        expiresAt: 2000,
+                    }),
+            );
+        const [forAlice, forBob] = [await grant(alice, "alice"), await grant(bob, "bob")];
+        const refusals = await Promise.all([
+            outcome(grant(bob, "alice")),
+            outcome(grant(alice, "alice", { ...userSubject("carol"), relation: "member" })),
+        ]);
+
+        // allow the assistant what its subject may and the grant gives, and its subject's whole authority when impersonated
+        const delegated = (context: AccessContext, granted: typeof forAlice) => ({
+            ...context,
+            subject: present(context.subjects[0], "the delegator"),
+            delegates: [assistant],
+            grant: Grant.claim(granted),
+        });
+        await expectEditable(database, authorizer, node, delegated(alice, forAlice), ["a", "b"]);
+        await expectEditable(database, authorizer, node, delegated(bob, forBob), ["b"]);
+        await expectEditable(
             database,
-            () => bob,
-            (authorization) => authorization.grant(lending),
-        ),
-    ).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "only a principal may lend its own authority",
-    });
-    await expect(
-        Authorization.run(
+            authorizer,
+            node,
+            { ...alice, subject: userSubject("alice"), delegates: [userSubject("support")] },
+            ["a", "b", "c"],
+        );
+
+        // refuse the grant to another delegate, once lapsed, and once revoked
+        const resolve = (context: AccessContext) =>
+            outcome(authorizer.resolve(Snapshot.live(database), "personal", context));
+        const elsewhere = await resolve({
+            ...delegated(alice, forAlice),
+            grant: Grant.claim(forBob),
+        });
+        const lapsed = await resolve({ ...delegated(alice, forAlice), now: 2000 });
+        await Authorization.run(
             authorizer,
             database,
             () => alice,
-            (authorization) =>
-                authorization.grant({
-                    ...lending,
-                    subject: { ...userSubject("carol"), relation: "member" },
-                }),
-        ),
-    ).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "a delegate must be one principal",
-    });
-    await expect(
-        Authorization.run(
-            authorizer,
-            database,
-            () => bob,
-            (authorization) =>
-                authorization.grant({
-                    ...lending,
-                    object: node.reference("personal", "b"),
-                    conditions: { onBehalfOf: userSubject("bob") },
-                }),
-        ),
-    ).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "permission denied: share",
-    });
-    await Authorization.run(
-        authorizer,
-        database,
-        () => alice,
-        (authorization) => authorization.grant(lending),
-    );
-    await expectEditable(database, authorizer, node, delegated, ["b"]);
-
-    // act with alice's whole authority while impersonating her, and through what she lent her agent
-    const impersonated = {
-        ...alice,
-        subject: userSubject("alice"),
-        delegates: [{ subject: userSubject("support"), authority: "full" }],
-    } satisfies AccessContext;
-    await expectEditable(database, authorizer, node, alice, ["a", "b", "c"]);
-    await expectEditable(database, authorizer, node, impersonated, ["a", "b", "c"]);
-    await expectEditable(
-        database,
-        authorizer,
-        node,
-        {
-            ...impersonated,
-            delegates: [...impersonated.delegates, ...delegated.delegates],
-        },
-        ["b"],
-    );
-    await expectEditable(database, authorizer, node, { ...delegated, now: 2000 }, []);
-    expect(
-        await database
-            .select({ id: item.id })
-            .from(item)
-            .where(
-                authorizer.where(
-                    node.permission("edit"),
-                    await authorizer.resolve(Snapshot.live(database), "personal", delegated),
-                ),
-            ),
-    ).toEqual([{ id: "b" }]);
-    expect(
-        await database
-            .select({ id: item.id })
-            .from(item)
-            .where(
-                authorizer.where(
-                    node.permission("share"),
-                    await authorizer.resolve(Snapshot.live(database), "personal", delegated),
-                ),
-            ),
-    ).toEqual([]);
-    expect(
-        await database
-            .select({ id: item.id })
-            .from(item)
-            .where(
-                authorizer.where(
-                    node.permission("edit"),
-                    await authorizer.resolve(Snapshot.live(database), "personal", {
-                        ...delegated,
-                        now: 2000,
-                    }),
-                ),
-            ),
-    ).toEqual([]);
-
-    // restrict delegated access to the objects a credential selects
-    const selected = {
-        ...delegated,
-        permissions: [{ ...node.permission("edit"), scope: "personal", objectId: "b" }],
-    };
-    await expectEditable(database, authorizer, node, selected, ["b"]);
-    await expectEditable(database, authorizer, node, { ...selected, permissions: [] }, []);
-    await expectEditable(
-        database,
-        authorizer,
-        node,
-        {
-            ...selected,
-            permissions: [
-                {
-                    ...node.permission("edit"),
-                    scope: "other",
-                    objectId: "b",
-                },
+            (authorization) => authorization.revokeGrant(scopeOf("alice"), forAlice.id),
+        );
+        expect({
+            delegateScopes: [forAlice.delegateScope, forBob.delegateScope],
+            refusals,
+            elsewhere,
+            lapsed,
+            revoked: await resolve(delegated(alice, forAlice)),
+            kept: await resolve(delegated(bob, forBob)),
+        }).toEqual({
+            delegateScopes: ["personal", "personal"],
+            refusals: [
+                "FORBIDDEN: only a principal grants its own authority",
+                "FORBIDDEN: a grant's delegate is one other principal",
             ],
-        },
-        [],
-    );
-});
+            elsewhere: `UNAUTHORIZED: grant ${forBob.id} is another delegate's`,
+            lapsed: `UNAUTHORIZED: grant ${forAlice.id} expired`,
+            revoked: `UNAUTHORIZED: grant ${forAlice.id} is revoked`,
+            kept: "resolved",
+        });
+    },
+);
+
+/** Give editing one node of the personal scope. */
+function editing(objectId: string) {
+    return { ...node.permission("edit"), scope: "personal", objectId };
+}
+
+/** Reference a user's own scope. */
+function scopeOf(id: string) {
+    return principal.user.reference(Scope.universe.id, id);
+}
+
+/** Read how a promise settles: resolved, or its access error's code and message. */
+async function outcome(promise: Promise<unknown>): Promise<string> {
+    try {
+        await promise;
+
+        return "resolved";
+    } catch (error) {
+        if (!(error instanceof AccessError)) {
+            throw error;
+        }
+
+        return `${error.code}: ${error.message}`;
+    }
+}
 
 databaseTest("update inherited permissions when notes move or disappear", async ({ fixture }) => {
     const { database, authorizer, alice, bob } = fixture;

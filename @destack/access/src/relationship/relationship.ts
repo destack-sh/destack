@@ -36,8 +36,6 @@ export const RelationshipCondition = defineSchema(
         assurance: schema.number().int().min(1).max(3).exactOptional(),
         /** Apply only within this many milliseconds of the caller's authentication. */
         maxAge: schema.number().int().positive().exactOptional(),
-        /** Apply only to a delegate acting for this principal, with its lent authority. */
-        onBehalfOf: Subject.exactOptional(),
     }),
 );
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
@@ -93,7 +91,6 @@ export const Relationship = {
     schema: relationshipSchema,
     encode,
     decode,
-    objectOf,
     insert,
     on,
     readByObject,
@@ -140,10 +137,6 @@ function encode(relationship: Relationship, scope: string) {
         linkSecret: relationship.conditions?.linkSecret ?? null,
         assurance: relationship.conditions?.assurance ?? null,
         maxAge: relationship.conditions?.maxAge ?? null,
-        onBehalfOf:
-            relationship.conditions?.onBehalfOf === undefined
-                ? null
-                : Subject.key(relationship.conditions.onBehalfOf),
     };
 }
 
@@ -166,16 +159,6 @@ function objectColumns(object: ObjectReference) {
     };
 }
 
-/** Read the object a relationship or role binding row is on, as a logged change shows it. */
-function objectOf(row: Readonly<Record<string, unknown>>): ObjectReference {
-    return ObjectReference.parse({
-        packageId: row["packageId"],
-        type: row["type"],
-        scope: row["objectScope"],
-        id: row["objectId"],
-    });
-}
-
 /** Write a relationship's subject as its columns. */
 function subjectColumns(subject: Subject) {
     return {
@@ -195,7 +178,6 @@ function decode(row: Select<typeof accessRelationship>): Relationship {
         ...(row.linkSecret === null ? {} : { linkSecret: row.linkSecret }),
         ...(row.assurance === null ? {} : { assurance: row.assurance }),
         ...(row.maxAge === null ? {} : { maxAge: row.maxAge }),
-        ...(row.onBehalfOf === null ? {} : { onBehalfOf: Subject.read(row.onBehalfOf) }),
     };
 
     return {
@@ -353,7 +335,6 @@ function equal(row: ReturnType<typeof encode>): Condition<RelationshipRow> {
         subjectScope: row.subjectScope,
         subjectId: row.subjectId,
         subjectRelation: nullable(row.subjectRelation),
-        onBehalfOf: nullable(row.onBehalfOf),
         requestId: nullable(row.requestId),
         credential: nullable(row.credential),
         linkSecret: nullable(row.linkSecret),

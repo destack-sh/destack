@@ -51,7 +51,7 @@ import { accessTables, CHAIN_SHAPE, decisionTables } from "../replica/replica.ts
 import { earliest, Access } from "./access.ts";
 import { Compiler } from "./compiler.ts";
 import type { Decision, Explanation } from "./decision.ts";
-import { GrantReader, GrantTree, type Grant, type Lookup } from "./grant.ts";
+import { TupleReader, TupleTree, type Tuple, type Lookup } from "./tuple.ts";
 import { column, TableMapping, type FieldRelation } from "./mapping.ts";
 
 /** The identifier of a wildcard subject, which relates every identity of its type. */
@@ -152,6 +152,8 @@ export class Authorizer {
     readonly #inherited = new Map<string, readonly ChainStep[]>();
     /** How long an access copy may go without its home before refusal, in milliseconds. */
     readonly lag: number;
+    /** The one partition whose scopes' access this database keeps, every partition when absent. */
+    readonly partition: string | undefined;
     /** The object types whose access rows live in this database, rather than as copies. */
     readonly local: readonly ObjectTypeReference[];
     /** The object types copied from scopes above: inherited rows, and kept scope types' rows. */
@@ -178,6 +180,8 @@ export class Authorizer {
             readonly lag?: number;
             /** Decide whether the database copies a table's rows from their home. */
             readonly copies?: (table: Table) => boolean;
+            /** The one partition whose scopes' access the database keeps, every one when absent. */
+            readonly partition?: string;
         } = {},
     ) {
         // register every policy the declared policies name under its type
@@ -199,6 +203,7 @@ export class Authorizer {
         this.elevated = elevatedPermissions(types);
         this.administration = listedPermissions(types, "administration");
         this.lag = options.lag ?? LAG_MILLISECONDS;
+        this.partition = options.partition;
         this.#compiler = new Compiler(this);
 
         // register the declared mappings and the mappings every database has
@@ -415,7 +420,7 @@ export class Authorizer {
                 .flatMap((policy) => Object.values(policy.definition.relations))
                 .flatMap((relation) => relation.subjects)
                 .flatMap((subject): [string, PermissionReference][] => {
-                    // keep the subjects naming a set
+                    // keep the subject sets
                     if (subject.relation === undefined) {
                         return [];
                     }
@@ -747,9 +752,13 @@ export class Authorizer {
 
             return this.isLocal(transaction, scope);
         }
-        // keep a scope's access where no copy brings it
+        // keep a scope's access where no copy brings it, a born scope's only in its partition's database
         else if (this.policy(object).definition.scope === true) {
-            return !(await Replica.isCopied(transaction.view(), object.id, accessRelationship));
+            const view = transaction.view();
+            const isCopied = await Replica.isCopied(view, object.id, accessRelationship);
+            const [row] = await Scope.read(view, [object.id]);
+
+            return !isCopied && !this.#isElsewhere(row);
         }
         // keep another type's access where its rows are local
         else {
@@ -757,6 +766,24 @@ export class Authorizer {
                 (type) => type.packageId === object.packageId && type.type === object.type,
             );
         }
+    }
+
+    /** Decide whether a snapshot's database keeps a scope's access rows, which no copy brings. */
+    async keeps(snapshot: Snapshot, scope: string): Promise<boolean> {
+        const [row] = await Scope.read(snapshot, [scope]);
+
+        return (
+            row !== undefined &&
+            !this.#isElsewhere(row) &&
+            !(await Replica.isCopied(snapshot, scope, accessRelationship))
+        );
+    }
+
+    /** Decide whether a scope's row was born in another partition than this database keeps. */
+    #isElsewhere(row: { readonly partition: string } | undefined): boolean {
+        return (
+            this.partition !== undefined && row !== undefined && row.partition !== this.partition
+        );
     }
 
     /** Refuse writing the access rows of an object another database keeps. */
@@ -1215,8 +1242,8 @@ export class Authorizer {
     }
 
     /** Start reading the grants of rows in a scope chain from a snapshot, shared by all callers. */
-    reader(snapshot: Snapshot, scopes: readonly ObjectReference[]): GrantReader {
-        return new GrantReader(this, snapshot, scopes);
+    reader(snapshot: Snapshot, scopes: readonly ObjectReference[]): TupleReader {
+        return new TupleReader(this, snapshot, scopes);
     }
 
     /** Decide whether a caller has a permission on one object, and until when by time alone. */
@@ -1225,7 +1252,7 @@ export class Authorizer {
         permission: PermissionReference,
         target: ObjectReference,
         access: Access,
-        reader?: GrantReader,
+        reader?: TupleReader,
     ): Promise<Decision> {
         // deny a missing object
         const mapping = this.mapping(target);
@@ -1237,23 +1264,23 @@ export class Authorizer {
 
         // read the tree the permission reaches on the object
         const tree = await reading.tree(permission, row, mapping);
-        const until = earliest([access.until, grantsUntil(GrantTree.flatten(tree), access)]);
+        const until = earliest([access.until, grantsUntil(TupleTree.flatten(tree), access)]);
 
-        // admit the caller when every authority has the permission, past its gate for one object
+        // admit the caller when its authority has the permission, past its gate for one object
         const isAllowed =
             this.#gate(permission, mapping, row, access, "object") === undefined &&
-            access.authorities.every((authority) => GrantTree.permits(tree, authority, access));
+            TupleTree.permits(tree, access);
 
         return { isAllowed, ...(until === undefined ? {} : { until }) };
     }
 
-    /** Require the caller to have every permission on one object, naming the first it lacks. */
+    /** Require the caller to have every permission on one object, reporting the first it lacks. */
     async require(
         snapshot: Snapshot,
         permissions: readonly PermissionReference[],
         target: ObjectReference,
         access: Access,
-        reader?: GrantReader,
+        reader?: TupleReader,
     ): Promise<void> {
         // decide in memory where reads are cheap, the snapshot is past, layered or recorded, or the target is the universe no table keeps
         const database = snapshot.database;
@@ -1347,7 +1374,7 @@ export class Authorizer {
         const candidates = new Map<string, Subject>();
         const seen = new Set<string>();
         for (
-            let frontier = GrantTree.flatten(tree).map((grant) => grant.subject);
+            let frontier = TupleTree.flatten(tree).map((grant) => grant.subject);
             frontier.length > 0;
         ) {
             const sets: Subject[] = [];
@@ -1384,7 +1411,7 @@ export class Authorizer {
         return permitted;
     }
 
-    /** Decide whether every authority of the caller is an owner of one object. */
+    /** Decide whether the caller is an owner of one object. */
     async isOwner(snapshot: Snapshot, target: ObjectReference, access: Access): Promise<boolean> {
         // own no missing object
         const mapping = this.mapping(target);
@@ -1397,7 +1424,7 @@ export class Authorizer {
         // read the owner bindings on or above the object
         const tree = await reader.ownership(row, mapping);
 
-        return access.authorities.every((authority) => GrantTree.permits(tree, authority, access));
+        return TupleTree.permits(tree, access);
     }
 
     /** Check a permission on each row, returning the caller's permitted positions and expiry. */
@@ -1422,16 +1449,14 @@ export class Authorizer {
         const until = earliest([
             access.until,
             ...decided.map(([[, evaluated], tree]) =>
-                earliest([evaluated.until, grantsUntil(GrantTree.flatten(tree), evaluated)]),
+                earliest([evaluated.until, grantsUntil(TupleTree.flatten(tree), evaluated)]),
             ),
         ]);
 
-        // admit the rows with a tree that admits every authority of the caller
+        // admit the rows with a tree that admits the caller
         const permitted = decided.flatMap(([[row, evaluated], tree], position) =>
             this.#gate(permission, mapping, row, evaluated, lookup) === undefined &&
-            evaluated.authorities.every((authority) =>
-                GrantTree.permits(tree, authority, evaluated),
-            )
+            TupleTree.permits(tree, evaluated)
                 ? [position]
                 : [],
         );
@@ -1439,7 +1464,7 @@ export class Authorizer {
         return { permitted: new Set(permitted), ...(until === undefined ? {} : { until }) };
     }
 
-    /** Explain a caller's permission on one object: the gate and grant failures, per authority. */
+    /** Explain a caller's permission on one object: the gate and each tuple's failure. */
     async explain(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1460,32 +1485,27 @@ export class Authorizer {
             throw new AccessError("NOT_FOUND", `no ${target.type} ${target.id}`);
         }
 
-        // decide each authority by the permission's tree, and each grant it reaches alone
+        // decide the authority by the permission's tree, and each tuple it reaches alone
         const blocked = this.#gate(permission, mapping, found, access, "object");
         const tree = await reader.tree(permission, found);
-        const grants = GrantTree.flatten(tree);
-        const decided = access.authorities.map((authority) => ({
-            ...authority.delegation,
-            isAllowed: GrantTree.permits(tree, authority, access),
-            grants: grants.map((grant) => {
-                const failed = authority.failure(grant, access);
+        const tuples = TupleTree.flatten(tree).map((tuple) => {
+            const failed = access.authority.failure(tuple, access);
 
-                return {
-                    path: [...grant.path],
-                    object: grant.object,
-                    subject: grant.subject,
-                    ...(grant.role === undefined ? {} : { role: grant.role.id }),
-                    ...(failed === undefined ? {} : { failure: failed }),
-                };
-            }),
-        }));
+            return {
+                path: [...tuple.path],
+                object: tuple.object,
+                subject: tuple.subject,
+                ...(tuple.role === undefined ? {} : { role: tuple.role.id }),
+                ...(failed === undefined ? {} : { failure: failed }),
+            };
+        });
 
         return {
             permission,
             object: target,
-            isAllowed: blocked === undefined && decided.every((entry) => entry.isAllowed),
+            isAllowed: blocked === undefined && TupleTree.permits(tree, access),
             ...(blocked === undefined ? {} : { gate: blocked }),
-            authorities: decided,
+            tuples,
         };
     }
 
@@ -1917,7 +1937,7 @@ export class Authorizer {
 }
 
 /** Take the next moment time alone changes whether any grant passes, absent if never. */
-function grantsUntil(grants: readonly Grant[], access: Access): number | undefined {
+function grantsUntil(grants: readonly Tuple[], access: Access): number | undefined {
     const context = access.context;
 
     return earliest(

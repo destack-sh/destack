@@ -24,20 +24,20 @@ import {
 } from "../declare/expression.ts";
 import { accepts, type RelationDescription, type SubjectType } from "../declare/subject.ts";
 import { AccessContext } from "../context/context.ts";
-import { Restriction } from "../context/restriction.ts";
+import { GrantPermission } from "../grant/permission.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship, type RelationshipColumnMap } from "../relationship/table.ts";
 import { type Access, UNIVERSAL } from "./access.ts";
 import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
-import { GrantCondition } from "./condition.ts";
+import { TupleCondition } from "./condition.ts";
 import { ANY_SCOPE, column, TableMapping } from "./mapping.ts";
 
 /** The resolved caller, the authority compiled and the alias allocation one predicate shares. */
 interface Compilation {
     /** The caller's resolved access in the query's scope. */
     readonly access: Access;
-    /** The authority whose grants the predicate matches: the represented subject or a delegate. */
+    /** The authority whose tuples the predicate matches: the represented subject. */
     readonly authority: Authority;
     /** The next free alias number. */
     readonly aliases: { next: number };
@@ -83,11 +83,11 @@ export class Compiler {
             return sql`false`;
         }
 
-        // evaluate every authority, and constrain restricted credentials to the objects they allow
-        const predicates = this.#authorities(access, (compilation) =>
-            this.#permission(permission, mapping, table, compilation),
-        );
-        if (access.context.permissions !== undefined) {
+        // evaluate the authority, and constrain a grant to the objects it allows
+        const predicates = [
+            this.#permission(permission, mapping, table, Compiler.#compilation(access)),
+        ];
+        if (access.context.grant !== undefined) {
             predicates.push(
                 this.#restricted(permission, column(table, mapping.id), access, { mapping, table }),
             );
@@ -141,13 +141,13 @@ export class Compiler {
         });
     }
 
-    /** Match one object of the resolved scope when every authority meets a row predicate. */
+    /** Match one object of the resolved scope when the authority meets a row predicate. */
     #target(
         target: ObjectReference,
         access: Access,
         evaluate: (mapping: TableMapping, row: Table, compilation: Compilation) => SQL,
     ): SQL {
-        // require the target in the resolved scope or to be the scope, and evaluate each authority on its row
+        // require the target in the resolved scope or to be the scope, and evaluate the authority on its row
         const object = access.scopes[0];
         const isScope =
             object !== undefined && ObjectReference.key(object) === ObjectReference.key(target);
@@ -156,27 +156,29 @@ export class Compiler {
         }
         const mapping = this.#authorizer.mapping(target);
         const row = alias(mapping.table, "access_target");
-        const predicates = this.#authorities(access, (compilation) =>
-            evaluate(mapping, row, compilation),
-        );
+        const predicate = evaluate(mapping, row, Compiler.#compilation(access));
 
         return sql`EXISTS (
             SELECT 1 FROM ${from(row)}
             WHERE ${column(row, mapping.id)} = ${target.id}
                 AND ${TableMapping.scopeColumn(row, mapping)} = ${target.scope}
-                AND ${sql.join(predicates, sql` AND `)}
+                AND ${predicate}
         )`;
     }
 
-    /** Match the objects the credential allows a permission on, directly or through its source. */
+    /** Match the objects the grant allows a permission on, directly or through its source. */
     #restricted(
         permission: PermissionReference,
         id: SQLWrapper,
         access: Access,
         stored?: { readonly mapping: TableMapping; readonly table: Table },
     ): SQL {
-        // match the objects the credential names
-        const selected = Restriction.select(permission, access.scope, access.context);
+        // match the objects the grant names
+        const selected = GrantPermission.select(
+            permission,
+            access.scope,
+            access.context.grant?.permissions,
+        );
         if (selected === "every") {
             return sql`true`;
         }
@@ -214,7 +216,7 @@ export class Compiler {
                     ? allowed
                     : sql`false`;
             }
-            // accept a typed relation naming this type in the caller's scope
+            // accept a typed relation to this type in the caller's scope
             else {
                 const conditions = [
                     sql`${column(table, typed.packageId)} = ${subject.packageId}`,
@@ -230,11 +232,9 @@ export class Compiler {
         return sql`(${sql.join([named, ...arrows], sql` OR `)})`;
     }
 
-    /** Evaluate every authority with one alias allocation, the represented subject first. */
-    #authorities(access: Access, evaluate: (compilation: Compilation) => SQL): SQL[] {
-        const aliases = { next: 0 };
-
-        return access.authorities.map((authority) => evaluate({ access, authority, aliases }));
+    /** Start compiling for a caller's authority with a fresh alias allocation. */
+    static #compilation(access: Access): Compilation {
+        return { access, authority: access.authority, aliases: { next: 0 } };
     }
 
     /** Permit by the expression or a role bound on the row, an ancestor or an enclosing scope. */
@@ -419,7 +419,7 @@ export class Compiler {
         }
     }
 
-    /** Decide whether an authority may have a containment grant, acting for itself. */
+    /** Decide whether an authority may have a containment grant, of the named types when given. */
     static #admits(
         authority: Compilation["authority"],
         principals: readonly ObjectTypeReference[] | undefined,
@@ -428,17 +428,17 @@ export class Compiler {
             principals === undefined ||
             principals.some((type) => authority.isMember({ ...type, scope: "*", id: "*" }));
 
-        return authority.delegator === undefined && isTyped;
+        return isTyped;
     }
 
-    /** Match a row when the authority lives in its scope or the scope it is, not for delegates. */
+    /** Match a row when the authority lives in its scope or the scope it is. */
     static #contained(
         expression: Extract<AccessExpression, { kind: "contained" }>,
         mapping: TableMapping,
         source: Table,
         compilation: Compilation,
     ): SQL {
-        // lend nothing to delegates, and admit only the named principal types when given
+        // admit only the named principal types when given
         const { authority, access } = compilation;
         if (!Compiler.#admits(authority, expression.principals)) {
             return sql`false`;
@@ -479,7 +479,7 @@ export class Compiler {
             compilation.access.scopes,
         );
 
-        // match a chain scope whose containment set holds the authority of an admitted type, lending nothing to delegates
+        // match a chain scope whose containment set holds the authority of an admitted type
         const { authority } = compilation;
         const isContained = steps.some(
             ({ object, contained }) =>
@@ -645,12 +645,8 @@ export class Compiler {
         source: Table,
         authority: Authority,
     ): SQL {
-        // lend nothing in a field to a delegate
-        if (authority.delegator !== undefined) {
-            return sql`false`;
-        }
         // match a subject key in the column against the authority's subjects the relation accepts
-        else if (field.isKey) {
+        if (field.isKey) {
             const keys = authority.subjects
                 .filter((subject) => accepts(relation, subject))
                 .map((subject) => Subject.key(subject));
@@ -696,7 +692,7 @@ export class Compiler {
         const related = this.#related(expression, mapping, compilation);
         const field = mapping.relations[expression.relation];
 
-        // follow relationships to plain objects in the same scope without delegation
+        // follow relationships to plain objects in the same scope
         if (!field) {
             return followRelationships(expression, mapping, source, related, compilation);
         }
@@ -764,7 +760,7 @@ function matchTypedField(
     ), false)`;
 }
 
-/** Follow relationships to plain objects in the same scope without delegation. */
+/** Follow relationships to plain objects in the same scope. */
 function followRelationships(
     expression: ThroughExpression,
     mapping: TableMapping,
@@ -803,7 +799,7 @@ function followRelationships(
             AND ${relationship.relation} = ${expression.relation}
             AND ${relationship.subjectScope} = ${scope}
             AND ${relationship.subjectRelation} IS NULL
-            AND ${GrantCondition.where(relationship, GrantCondition.values(compilation.access.context))}
+            AND ${TupleCondition.where(relationship, TupleCondition.values(compilation.access.context))}
             AND (${sql.join(arrows, sql` OR `)})
     )`;
 }
@@ -888,7 +884,7 @@ function matchBinding(
     compilation: Compilation,
     covers: (relationship: RelationshipColumnMap) => SQL,
 ): SQL {
-    // list the roles naming the permission, or granting every one but reserved ones
+    // list the roles that grant the permission, or every one but reserved ones
     const relationship = alias(accessRelationship, `access_binding_${compilation.aliases.next++}`);
     const granted = sql.identifier(GRANTED);
     const key = sql`${granted}.value ->> 0`;
@@ -956,9 +952,9 @@ function bindAttributes(
 
 /** Read the relationships current for a compiled authority, once per statement. */
 function current(compilation: Compilation): CommonTable {
-    // name the query by everything it reads of the request and the authority
+    // key the query by everything it reads of the request and the authority
     const { access, authority } = compilation;
-    const bindings = GrantCondition.bindings(access.context, authority.delegator);
+    const bindings = TupleCondition.bindings(access.context);
     const name = `access_current_${hashName(JSON.stringify([bindings, authority.subjects]))}`;
 
     // keep the relationships whose conditions pass and whose subject the authority is
@@ -967,7 +963,7 @@ function current(compilation: Compilation): CommonTable {
     return sql.common(
         name,
         sql`SELECT ${relationship}.* FROM ${from(relationship)}
-            WHERE ${GrantCondition.where(relationship, GrantCondition.values(access.context, authority.delegator))}
+            WHERE ${TupleCondition.where(relationship, TupleCondition.values(access.context))}
                 AND ${authority.member(relationship)}`,
     );
 }

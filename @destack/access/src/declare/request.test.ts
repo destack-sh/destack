@@ -5,7 +5,7 @@ import { PermissionRequest } from "./request.ts";
 /** The package declaring the requested types. */
 const NOTES = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
 
-test("grant requested permissions in their scopes, dropping those of an unknown home or account", () => {
+test("grant requested permissions in their scopes, the home's in each home scope, dropping those of an unknown home or account", () => {
     // request a permission in the space, one in the person's home and one in the space's account
     const packageId = NOTES;
     const request = {
@@ -18,13 +18,14 @@ test("grant requested permissions in their scopes, dropping those of an unknown 
     expect([
         PermissionRequest.grant(request, {
             space: "space-a",
-            home: "space-home",
+            home: ["user-a", "space-home"],
             account: "account-a",
         }),
-        PermissionRequest.grant(request, { space: "space-a", home: undefined, account: undefined }),
+        PermissionRequest.grant(request, { space: "space-a", home: [], account: undefined }),
     ]).toEqual([
         [
             { packageId, type: "note", name: "read", scope: "space-a" },
+            { packageId, type: "notification", name: "read", scope: "user-a" },
             { packageId, type: "notification", name: "read", scope: "space-home" },
             { packageId, type: "member", name: "read", scope: "account-a" },
         ],

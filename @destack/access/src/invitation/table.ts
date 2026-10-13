@@ -62,8 +62,6 @@ export const accessInvitation = defineTable(
         inviterKey: text("inviter_key"),
         /** The invited principal or contact's key, listing invitations to a principal. */
         addressee: text("addressee").notNull(),
-        /** The key of an invited delegation's lender, listing what awaits its consent. */
-        lender: text("lender"),
         /** Why the inviting principal offers or asks for the relationship. */
         purpose: text("purpose"),
         /** The exclusive time the invitation lapses, in Unix milliseconds. */
@@ -82,7 +80,6 @@ export const accessInvitation = defineTable(
             ),
             index("invitation_addressee").on(invitation.addressee),
             index("invitation_inviter").on(invitation.inviterKey),
-            index("invitation_lender").on(invitation.lender),
             check("invitation_label", {
                 OR: [
                     { relation: { isNull: true }, roleId: { isNotNull: true } },

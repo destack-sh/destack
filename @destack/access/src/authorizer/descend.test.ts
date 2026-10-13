@@ -13,7 +13,7 @@ function describe(access: Access | undefined) {
         access && {
             scope: access.scope,
             scopes: access.scopes,
-            authorities: access.authorities,
+            authority: access.authority,
             grants: [...access.grants],
             grantedRoles: access.grantedRoles,
             isSuspended: access.isSuspended,

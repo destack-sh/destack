@@ -10,61 +10,60 @@ import { accepts, type RelationDescription } from "../declare/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { RelationshipRow, RoleBinding } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
-import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
-import { GrantCondition } from "./condition.ts";
+import { TupleCondition } from "./condition.ts";
 import { TableMapping } from "./mapping.ts";
 
 /** The most identifiers per bulk read: well within the parameter budget, and a page of rows. */
 const PREFETCH_CHUNK = 500;
 
-/** One way a row admits callers: its subject, the conditions it applies under and how it grants. */
-export interface Grant {
+/** A relation tuple of a row: the subject it admits, its conditions, and the relation or role. */
+export interface Tuple {
     /** The subject: a principal, a wildcard of a type, or a subject set by its relation. */
     readonly subject: Subject;
     /** The relationship's conditions, absent for a subject in a row field. */
-    readonly condition?: GrantCondition;
+    readonly condition?: TupleCondition;
     /** The bound role, its binding, and its required permission, null if it must grant all. */
     readonly role?: {
         readonly id: string;
         readonly binding: string;
         readonly permission: PermissionReference | null;
     };
-    /** The conditions of the arrows to the grant, which must pass without delegation. */
-    readonly arrows: readonly GrantCondition[];
+    /** The conditions of the arrows to the tuple, which must pass. */
+    readonly arrows: readonly TupleCondition[];
     /** The object the relationship, field or role binding sits on. */
     readonly object: ObjectReference;
-    /** How the permission leads to the grant: permissions, arrows, then the relation or role. */
+    /** How the permission leads to the tuple: permissions, arrows, then the relation or role. */
     readonly path: readonly string[];
 }
 
-/** The grants an expression reaches on a row, combined as the expression combines its branches. */
-export type GrantTree =
+/** The tuples an expression reaches on a row, combined as the expression combines its branches. */
+export type TupleTree =
     | {
-          /** Admit a caller any of the grants admits: a relation, a field or a role binding. */
+          /** Admit a caller any of the tuples admits: a relation, a field or a role binding. */
           readonly kind: "any";
-          /** The grants. */
-          readonly grants: readonly Grant[];
+          /** The tuples. */
+          readonly tuples: readonly Tuple[];
       }
     | {
           /** Admit a caller some branch admits: a union, or the objects a relation leads to. */
           readonly kind: "some";
           /** The branches. */
-          readonly trees: readonly GrantTree[];
+          readonly trees: readonly TupleTree[];
       }
     | {
           /** Admit a caller every branch admits: an intersection. */
           readonly kind: "all";
           /** The branches. */
-          readonly trees: readonly GrantTree[];
+          readonly trees: readonly TupleTree[];
       }
     | {
           /** Admit a caller one branch admits and the other does not: an exclusion. */
           readonly kind: "except";
           /** The admitting branch. */
-          readonly include: GrantTree;
+          readonly include: TupleTree;
           /** The refusing branch. */
-          readonly exclude: GrantTree;
+          readonly exclude: TupleTree;
       }
     | {
           /** Admit every caller whose request meets a condition over the row's attributes. */
@@ -84,19 +83,19 @@ export type GrantTree =
 /** How a row reaches a decision: listed in its scope, or read as one object by its key. */
 export type Lookup = "listing" | "object";
 
-/** The arrows followed and the path taken while collecting grants. */
+/** The arrows followed and the path taken while collecting tuples. */
 interface Trail {
     /** The conditions of the arrows followed. */
-    readonly arrows: readonly GrantCondition[];
+    readonly arrows: readonly TupleCondition[];
     /** The steps taken. */
     readonly path: readonly string[];
 }
 
-/** Collect the grant trees of a permission on rows of one mapped type, once for all callers. */
-export class GrantReader {
-    /** The authorizer whose policies define the grants. */
+/** Collect the tuple trees of a permission on rows of one mapped type, once for all callers. */
+export class TupleReader {
+    /** The authorizer whose policies define the tuples. */
     readonly #authorizer: Authorizer;
-    /** The database as the grants are read from it: live, or at a position. */
+    /** The database as the tuples are read from it: live, or at a position. */
     readonly #snapshot: Snapshot;
     /** The objects of the rows' scope and every scope enclosing it, nearest first. */
     readonly #scopes: readonly ObjectReference[];
@@ -111,7 +110,7 @@ export class GrantReader {
     /** The rows read so far, absent where none exists, by type, scope and identifier. */
     readonly #loaded = new Map<string, Promise<Row | undefined>>();
 
-    /** Read grants from a snapshot of a database for rows within a scope chain. */
+    /** Read tuples from a snapshot of a database for rows within a scope chain. */
     constructor(authorizer: Authorizer, snapshot: Snapshot, scopes: readonly ObjectReference[]) {
         this.#authorizer = authorizer;
         this.#snapshot = snapshot;
@@ -139,32 +138,32 @@ export class GrantReader {
     }
 
     /** Collect the tree of the owner role bindings on or above a row. */
-    async ownership(row: Row, mapping: TableMapping): Promise<GrantTree> {
+    async ownership(row: Row, mapping: TableMapping): Promise<TupleTree> {
         await this.#prefetch(mapping, [row]);
 
         return any(await this.#bound(null, mapping, row, { arrows: [], path: ["ownership"] }));
     }
 
-    /** Collect the grant tree of a permission on one row, of the permission's type by default. */
+    /** Collect the tuple tree of a permission on one row, of the permission's type by default. */
     async tree(
         permission: PermissionReference,
         row: Row,
         mapping = this.#authorizer.mapping(permission),
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         const [tree] = await this.trees(permission, [row], mapping);
         if (tree === undefined) {
-            throw new TypeError(`no grant tree of ${permission.name} for its row`);
+            throw new TypeError(`no tuple tree of ${permission.name} for its row`);
         }
 
         return tree;
     }
 
-    /** Collect the grant tree of a permission on each row. */
+    /** Collect the tuple tree of a permission on each row. */
     async trees(
         permission: PermissionReference,
         rows: readonly Row[],
         mapping = this.#authorizer.mapping(permission),
-    ): Promise<GrantTree[]> {
+    ): Promise<TupleTree[]> {
         // read the rows' relationships and ancestry in bulk
         await this.#prefetch(mapping, rows);
 
@@ -238,7 +237,7 @@ export class GrantReader {
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         const expression = this.#authorizer.expression(permission);
         const step = {
             ...trail,
@@ -257,7 +256,7 @@ export class GrantReader {
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         switch (expression.kind) {
             case "none":
                 return some([]);
@@ -324,7 +323,7 @@ export class GrantReader {
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): GrantTree {
+    ): TupleTree {
         // find the scope containing the principals: the row itself for a scope, else the scope it lives in
         const definition = mapping.policy.definition;
         const scope = TableMapping.scope(mapping, row);
@@ -345,7 +344,7 @@ export class GrantReader {
         }
 
         // grant the scope's containment set, to principals of the named types alone when given
-        return GrantReader.#containment(object, expression.principals, {
+        return TupleReader.#containment(object, expression.principals, {
             ...trail,
             path: [...trail.path, CONTAINED],
         });
@@ -356,8 +355,8 @@ export class GrantReader {
         object: ObjectReference,
         principals: readonly ObjectTypeReference[] | undefined,
         trail: Trail,
-    ): GrantTree {
-        const grant = (subject: Subject): Grant => ({
+    ): TupleTree {
+        const grant = (subject: Subject): Tuple => ({
             subject,
             arrows: trail.arrows,
             object,
@@ -376,13 +375,13 @@ export class GrantReader {
               };
     }
 
-    /** Collect the grant permission tree of a row's referenced object, where kept here. */
+    /** Collect the tuple tree of a row's referenced object, where kept here. */
     async #granters(
         reference: string,
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         // read the referenced object where its type grants and lives in this database
         const columns = TableMapping.reference(mapping, reference);
         const referenced = {
@@ -415,7 +414,7 @@ export class GrantReader {
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         // read the referenced object where this database keeps its type, other than the row's own type
         const columns = TableMapping.reference(mapping, expression.reference);
         const referenced = {
@@ -466,7 +465,7 @@ export class GrantReader {
     }
 
     /** Collect the subject in a field, or the subjects of the relation's relationships. */
-    async #relation(name: string, mapping: TableMapping, row: Row, trail: Trail): Promise<Grant[]> {
+    async #relation(name: string, mapping: TableMapping, row: Row, trail: Trail): Promise<Tuple[]> {
         // grant to the subject in a field
         const relation = this.#authorizer.relation(mapping.policy, name);
         const field = mapping.relations[name];
@@ -494,7 +493,7 @@ export class GrantReader {
             .filter((entry) => entry.relation === name && accepts(relation, subjectOf(entry)))
             .map((entry) => ({
                 subject: subjectOf(entry),
-                condition: new GrantCondition(entry),
+                condition: new TupleCondition(entry),
                 object: objectOf(mapping, row),
                 path: [...trail.path, `relation ${name}`],
                 arrows: trail.arrows,
@@ -548,7 +547,7 @@ export class GrantReader {
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         // decide a permission of the enclosing scope by the relationships on the scope chain's objects
         const scope = TableMapping.scope(mapping, row);
         if (mapping.policy.definition.relations[expression.relation]?.isScope === true) {
@@ -572,7 +571,7 @@ export class GrantReader {
         row: Row,
         scope: string,
         trail: Trail,
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         // keep the relationships to plain objects in the row's scope
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
         const relationships = (await this.#relationshipsOf(mapping, row)).filter(
@@ -583,7 +582,7 @@ export class GrantReader {
         );
 
         // collect the trees of each related object in turn
-        const trees: GrantTree[] = [];
+        const trees: TupleTree[] = [];
         for (const entry of relationships) {
             trees.push(
                 ...(await this.#throughRelationship(expression, relation, entry, scope, trail)),
@@ -600,7 +599,7 @@ export class GrantReader {
         entry: RelationshipRow,
         scope: string,
         trail: Trail,
-    ): Promise<GrantTree[]> {
+    ): Promise<TupleTree[]> {
         // find the accepted subject type the relationship names
         const subject = relation.subjects.find(
             (type) => type.packageId === entry.subjectPackageId && type.type === entry.subjectType,
@@ -611,7 +610,7 @@ export class GrantReader {
 
         // decide the permission on the related object under the arrow's conditions
         const target = this.#authorizer.mapping(subject);
-        const trees: GrantTree[] = [];
+        const trees: TupleTree[] = [];
         for (const related of await this.#rows(target, scope, [entry.subjectId])) {
             trees.push(
                 await this.#permission(
@@ -619,7 +618,7 @@ export class GrantReader {
                     target,
                     related,
                     {
-                        arrows: [...trail.arrows, new GrantCondition(entry)],
+                        arrows: [...trail.arrows, new TupleCondition(entry)],
                         path: [
                             ...trail.path,
                             `through relation ${expression.relation} to ${target.policy.definition.name} ${entry.subjectId}`,
@@ -640,7 +639,7 @@ export class GrantReader {
         row: Row,
         scope: string,
         trail: Trail,
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         // find the related type: the relation's one type, or the type the row's columns name
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
         const typed = field.subject;
@@ -664,7 +663,7 @@ export class GrantReader {
             : direct;
 
         // decide the permission on each related object
-        const trees: GrantTree[] = [];
+        const trees: TupleTree[] = [];
         for (const related of await this.#rows(target, field.scope ?? scope, ids)) {
             trees.push(
                 await this.#permission(
@@ -691,7 +690,7 @@ export class GrantReader {
         mapping: TableMapping,
         scope: string,
         trail: Trail,
-    ): Promise<GrantTree> {
+    ): Promise<TupleTree> {
         // find the objects of the chain deciding the enclosing scope's permission
         const steps = this.#authorizer.chainSteps(mapping.policy, expression, this.#chain(scope));
 
@@ -700,7 +699,7 @@ export class GrantReader {
             admitted === undefined
                 ? []
                 : [
-                      GrantReader.#containment(object, admitted.principals, {
+                      TupleReader.#containment(object, admitted.principals, {
                           ...trail,
                           path: [
                               ...trail.path,
@@ -711,7 +710,7 @@ export class GrantReader {
         );
 
         // grant to the subjects of the relationships
-        const grants = await Promise.all(
+        const tuples = await Promise.all(
             steps
                 .filter(({ relations }) => relations.length > 0)
                 .map(async ({ object, relations }) =>
@@ -720,7 +719,7 @@ export class GrantReader {
                             ? [
                                   {
                                       subject: subjectOf(entry),
-                                      condition: new GrantCondition(entry),
+                                      condition: new TupleCondition(entry),
                                       object,
                                       path: [
                                           ...trail.path,
@@ -734,7 +733,7 @@ export class GrantReader {
                 ),
         );
 
-        return some([any(grants.flat()), ...contained]);
+        return some([any(tuples.flat()), ...contained]);
     }
 
     /** Collect the role bindings granting a permission on the row, ancestors, owners or chain. */
@@ -743,7 +742,7 @@ export class GrantReader {
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): Promise<Grant[]> {
+    ): Promise<Tuple[]> {
         const bindings = [
             ...(await this.#covering(mapping, row)),
             ...(await this.#scopeBindings(TableMapping.scope(mapping, row))),
@@ -751,7 +750,7 @@ export class GrantReader {
 
         return bindings.map((entry) => ({
             subject: subjectOf(entry),
-            condition: new GrantCondition(entry),
+            condition: new TupleCondition(entry),
             role: { id: entry.roleId, binding: entry.id, permission },
             object: relatedObject(entry),
             path: [...trail.path, `role ${entry.roleId} bound on ${entry.type} ${entry.objectId}`],
@@ -1009,46 +1008,48 @@ function chunks<Value>(values: readonly Value[]): Value[][] {
 }
 
 /** Combine trees some of which admits. */
-function some(trees: readonly GrantTree[]): GrantTree {
+function some(trees: readonly TupleTree[]): TupleTree {
     return { kind: "some", trees };
 }
 
-/** Admit through any of some grants. */
-function any(grants: readonly Grant[]): GrantTree {
-    return { kind: "any", grants };
+/** Admit through any of some tuples. */
+function any(tuples: readonly Tuple[]): TupleTree {
+    return { kind: "any", tuples };
 }
 
-/** Read and decide grant trees. */
-export const GrantTree = {
+/** Read and decide tuple trees. */
+export const TupleTree = {
     /** List every grant a tree reaches for indexing and expiry. */
-    flatten(tree: GrantTree): Grant[] {
+    flatten(tree: TupleTree): Tuple[] {
         switch (tree.kind) {
             case "any":
-                return [...tree.grants];
+                return [...tree.tuples];
             case "some":
             case "all":
-                return tree.trees.flatMap((branch) => GrantTree.flatten(branch));
+                return tree.trees.flatMap((branch) => TupleTree.flatten(branch));
             case "except":
-                return [...GrantTree.flatten(tree.include), ...GrantTree.flatten(tree.exclude)];
+                return [...TupleTree.flatten(tree.include), ...TupleTree.flatten(tree.exclude)];
             case "resource":
             case "context":
                 return [];
         }
     },
 
-    /** Decide whether a tree admits one caller authority, as the compiled SQL predicate does. */
-    permits(tree: GrantTree, authority: Authority, access: Access): boolean {
+    /** Decide whether a tree admits a caller's authority, as the compiled SQL predicate does. */
+    permits(tree: TupleTree, access: Access): boolean {
         switch (tree.kind) {
             case "any":
-                return tree.grants.some((grant) => authority.failure(grant, access) === undefined);
+                return tree.tuples.some(
+                    (grant) => access.authority.failure(grant, access) === undefined,
+                );
             case "some":
-                return tree.trees.some((branch) => GrantTree.permits(branch, authority, access));
+                return tree.trees.some((branch) => TupleTree.permits(branch, access));
             case "all":
-                return tree.trees.every((branch) => GrantTree.permits(branch, authority, access));
+                return tree.trees.every((branch) => TupleTree.permits(branch, access));
             case "except":
                 return (
-                    GrantTree.permits(tree.include, authority, access) &&
-                    !GrantTree.permits(tree.exclude, authority, access)
+                    TupleTree.permits(tree.include, access) &&
+                    !TupleTree.permits(tree.exclude, access)
                 );
             case "resource":
             case "context": {

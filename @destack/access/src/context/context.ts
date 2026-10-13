@@ -4,7 +4,7 @@ import { Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
 import { isPrincipal, principal } from "../declare/principal.ts";
-import { Restriction } from "./restriction.ts";
+import { GrantPermission } from "../grant/permission.ts";
 import { Attribute } from "../declare/expression.ts";
 
 /** The assurance of a principal proven by its server's key: phishing-resistant, as level 3 is. */
@@ -49,18 +49,6 @@ export const Contact = Object.assign(contactSchema, {
     },
 });
 
-/** One principal acting in a request for the one before it, the first for the subject. */
-export const Delegate = defineSchema(
-    schema.object({
-        /** The acting principal. */
-        subject: Subject,
-        /** The authority it acts with: lent by the one before, or all of the one before's. */
-        authority: schema.enum(["lent", "full"]),
-    }),
-);
-/** One principal acting in a request for the one before it, the first for the subject. */
-export type Delegate = schema.Infer<typeof Delegate>;
-
 /** How strongly and how recently a caller authenticated. */
 export const AuthenticationAssurance = defineSchema(
     schema.object({
@@ -77,30 +65,26 @@ export type AuthenticationAssurance = schema.Infer<typeof AuthenticationAssuranc
 export interface Caller {
     /** The represented subject, required for delegated calls. */
     readonly subject?: Subject;
-    /** The principals acting for the subject in order, the last sending the call. */
-    readonly delegates?: readonly Delegate[];
+    /** The principals acting for the subject in order, the last sending the call (RFC 8693 act). */
+    readonly delegates?: readonly Subject[];
+    /** The grant limiting the call to what the subject gave, absent for its whole authority. */
+    readonly grant?: CallerGrant;
     /** The verified principals and subject sets, empty for an anonymous caller. */
     readonly subjects: readonly Subject[];
     /** How strongly and how recently the caller authenticated. */
     readonly assurance?: AuthenticationAssurance;
     /** The contacts, such as an email address, the caller proved control of. */
     readonly contacts?: readonly Contact[];
-    /** The permissions a restricted credential allows, intersected with every grant. */
-    readonly permissions?: readonly Restriction[];
     /** The procedure paths of the audience the space granted the installation. */
     readonly calls?: readonly string[];
     /** Digests of the link secrets the caller presented. */
     readonly linkSecrets?: readonly string[];
     /** Trusted attributes access policies read. */
     readonly attributes?: Readonly<Record<string, Attribute>>;
-    /** The token a space exchanged for the caller, lending to one installation (RFC 8693). */
-    readonly delegation?: string;
     /** The caller's presented credential, absent if anonymous or running its own code. */
     readonly credential?: CallerCredential;
     /** The deployments the workload identities among the subjects run in. */
     readonly deployments?: readonly CallerDeployment[];
-    /** The Loan the caller's authority came with, absent for any other caller. */
-    readonly loan?: CallerLoan;
 }
 
 /** A caller's credential, verified for one audience until it lapses (RFC 7662). */
@@ -135,17 +119,17 @@ export const CallerDeployment = schema.object({
 /** A workload identity authenticated within one deployment. */
 export type CallerDeployment = schema.Infer<typeof CallerDeployment>;
 
-/** The Loan of a caller's authority: its identifier, signing home space, and lent method. */
-export const CallerLoan = schema.object({
-    /** The Loan's identifier (RFC 7519 4.1.7). */
-    id: schema.string().min(1),
-    /** The home space that signed it. */
-    issuer: schema.string().min(1),
-    /** The one method it lends, as `<package>/<object>.<method>`. */
-    method: schema.string().min(1),
+/** The grant a caller acts under: its identifier, the scope keeping it, and what it gives. */
+export const CallerGrant = schema.object({
+    /** The grant's identifier. */
+    id: schema.identifier("grant"),
+    /** The scope keeping the grant: its delegator's. */
+    scope: schema.string().min(1),
+    /** The permissions the grant gives (RFC 9396 authorization details). */
+    permissions: schema.array(GrantPermission.schema),
 });
-/** The Loan a caller's authority came with. */
-export type CallerLoan = schema.Infer<typeof CallerLoan>;
+/** The grant a caller acts under. */
+export type CallerGrant = schema.Infer<typeof CallerGrant>;
 
 /** A verified caller: its schema, and the principals and contacts it derives. */
 export const Caller = {
@@ -154,29 +138,25 @@ export const Caller = {
         /** The represented subject, required for delegated calls. */
         subject: Subject.exactOptional(),
         /** The principals acting for the subject in order, the last sending the call. */
-        delegates: schema.array(Delegate).exactOptional(),
+        delegates: schema.array(Subject).exactOptional(),
+        /** The grant limiting the call to what the subject gave. */
+        grant: CallerGrant.exactOptional(),
         /** The verified principals and subject sets, empty for an anonymous caller. */
         subjects: schema.array(Subject),
         /** How strongly and how recently the caller authenticated. */
         assurance: AuthenticationAssurance.exactOptional(),
         /** The contacts the caller proved control of. */
         contacts: schema.array(Contact).exactOptional(),
-        /** The permissions a restricted credential allows. */
-        permissions: schema.array(Restriction.schema).exactOptional(),
         /** The procedures of the audience an installation's space granted it. */
         calls: schema.array(schema.string().min(1)).exactOptional(),
         /** Digests of the link secrets the caller presented. */
         linkSecrets: schema.array(schema.string().min(1)).exactOptional(),
         /** Trusted attributes access policies read. */
         attributes: schema.record(schema.string(), Attribute).exactOptional(),
-        /** The token a space exchanged for the caller, lending to one installation (RFC 8693). */
-        delegation: schema.string().min(1).exactOptional(),
         /** The credential the caller presented. */
         credential: CallerCredential.exactOptional(),
         /** The deployments the workload identities among the subjects run in. */
         deployments: schema.array(CallerDeployment).exactOptional(),
-        /** The Loan the caller's authority came with. */
-        loan: CallerLoan.exactOptional(),
     }),
 
     /** Key a caller by represented subject and sending principal, as retries and writers are. */
@@ -204,11 +184,11 @@ export const Caller = {
         };
     },
 
-    /** Read the principal acting for the caller. */
+    /** Read the principal acting for the caller: the sender under a grant, else the subject. */
     principal(caller: Caller): Subject | undefined {
-        const acting = caller.delegates?.findLast((delegate) => delegate.authority === "lent");
+        const acting = Caller.isDelegated(caller) ? caller.delegates?.at(-1) : undefined;
 
-        return acting?.subject ?? caller.subject ?? caller.subjects.find(isPrincipal);
+        return acting ?? caller.subject ?? caller.subjects.find(isPrincipal);
     },
 
     /** Require the principal acting for the caller. */
@@ -223,7 +203,7 @@ export const Caller = {
 
     /** Read the principal sending the call: the last delegate, else the subject. */
     sender(caller: Pick<Caller, "subject" | "delegates">): Subject | undefined {
-        return caller.delegates?.at(-1)?.subject ?? caller.subject;
+        return caller.delegates?.at(-1) ?? caller.subject;
     },
 
     /** Require the principal sending the call, refusing an anonymous caller. */
@@ -236,46 +216,35 @@ export const Caller = {
         return sender;
     },
 
-    /** Pair each delegate with its principal, from the represented subject to the sender. */
-    delegation(
-        caller: Caller,
-    ): { delegate: Subject; delegator: Subject; authority: Delegate["authority"] }[] {
-        // allow direct calls
-        const delegates = caller.delegates ?? [];
-        if (delegates.length === 0) {
-            return [];
+    /** Report whether a caller's delegates act for its subject under a grant. */
+    isDelegated(caller: Pick<Caller, "delegates" | "grant">): boolean {
+        return caller.grant !== undefined && (caller.delegates ?? []).length > 0;
+    },
+
+    /** Require a caller's delegates to act for one of its verified subjects. */
+    requireChain(caller: Caller): void {
+        // refuse a grant without delegates, which a grant only narrows
+        const represented = caller.subject;
+        if (caller.grant !== undefined && (caller.delegates ?? []).length === 0) {
+            throw new AccessError("INVALID_CONTEXT", "a grant needs the delegates acting under it");
         }
 
-        // require the represented subject among the authenticated subjects
-        const represented = caller.subject;
+        // refuse delegates acting for a subject the caller did not verify
         if (
-            !represented ||
-            !caller.subjects.some((subject) => Subject.same(subject, represented))
+            (caller.delegates ?? []).length > 0 &&
+            (represented === undefined ||
+                !caller.subjects.some((subject) => Subject.same(subject, represented)))
         ) {
             throw new AccessError("INVALID_CONTEXT", "delegation chain is inconsistent");
         }
-
-        // pair each delegate with the principal it acts for, whom a full delegate acts as
-        let delegator = represented;
-
-        return delegates.map(({ subject, authority }) => {
-            const link = { delegate: subject, delegator, authority };
-            if (authority === "lent") {
-                delegator = subject;
-            }
-
-            return link;
-        });
     },
 
-    /** Read the contacts the represented subject proved, none under lent authority. */
+    /** Read the contacts the represented subject proved, none for delegates under a grant. */
     contacts(caller: Caller): readonly Contact[] {
-        const isLent = caller.delegates?.some((delegate) => delegate.authority === "lent") ?? false;
-
-        return isLent ? [] : (caller.contacts ?? []);
+        return Caller.isDelegated(caller) ? [] : (caller.contacts ?? []);
     },
 
-    /** Read a caller's credential key, `<kind>:<id>`, matching credential grants, if any. */
+    /** Read a caller's credential key, `<kind>:<id>`, which credential conditions match. */
     credentialKey(caller: Pick<Caller, "credential">): string | undefined {
         const { credential } = caller;
 
@@ -287,22 +256,6 @@ export const Caller = {
         const deployments = caller.deployments ?? [];
 
         return deployments.find((entry) => Subject.same(entry.subject, subject))?.id;
-    },
-
-    /** Report whether a space lent a person's authority to an installation (RFC 8693). */
-    isExchanged(caller: Caller): boolean {
-        const { subject, delegates = [], contacts = [], loan } = caller;
-        const [lent, ...rest] = delegates;
-
-        return (
-            loan === undefined &&
-            subject !== undefined &&
-            principal.user.is(subject) &&
-            contacts.length === 0 &&
-            rest.length === 0 &&
-            lent?.authority === "lent" &&
-            principal.installation.is(lent.subject)
-        );
     },
 
     /** Require the credential a caller presented, refusing a caller without one. */
@@ -383,7 +336,7 @@ export const Caller = {
 
 /** What the authorizer decides on: a verified caller at a time, within a request. */
 export interface AccessContext extends Caller {
-    /** The request's identifier, matched by grants bound to one request. */
+    /** The request's identifier, which conditions bound to one request match. */
     readonly request?: string;
     /** Trusted time of the decision in UTC epoch milliseconds. */
     readonly now: number;

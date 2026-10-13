@@ -13,7 +13,7 @@ export const PermissionRequest = Object.assign(
             .object({
                 /** The permissions in the space it runs in. */
                 space: schema.array(PermissionReference).exactOptional(),
-                /** The permissions in the person's home. */
+                /** The permissions in the person's home: their own scope and their home space. */
                 home: schema.array(PermissionReference).exactOptional(),
                 /** The permissions in the account of its space. */
                 account: schema.array(PermissionReference).exactOptional(),
@@ -26,17 +26,18 @@ export const PermissionRequest = Object.assign(
             request: PermissionRequest,
             scopes: {
                 readonly space: string;
-                readonly home: string | undefined;
+                readonly home: readonly string[];
                 readonly account: string | undefined;
             },
         ): (PermissionReference & { readonly scope: string })[] {
             return PermissionScope.options.flatMap((name) => {
-                // grant the scope's permissions where the context names the scope
-                const scope = scopes[name];
+                // grant the scope's permissions in each scope the context names for it
+                const named = scopes[name];
+                const each = named === undefined ? [] : typeof named === "string" ? [named] : named;
 
-                return scope === undefined
-                    ? []
-                    : (request[name] ?? []).map((permission) => ({ ...permission, scope }));
+                return each.flatMap((scope) =>
+                    (request[name] ?? []).map((permission) => ({ ...permission, scope })),
+                );
             });
         },
     },

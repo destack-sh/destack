@@ -19,6 +19,8 @@ export const principal = {
     client: new Policy(OWNER, { name: "client", permissions: {}, scope: true, isGlobal: true }),
     /** An application installed into a space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
+    /** A bearer token a person issues, acting for them under its grant. */
+    personalAccessToken: new Policy(OWNER, { name: "personal-access-token", permissions: {} }),
     /** A space, which signs with its own key and keeps copies for itself. */
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
     /** A way to contact someone outside Destack with proven control, such as an email. */
@@ -88,15 +90,31 @@ export const invitation = new Policy(OWNER, {
                 principal.contact,
             ],
         },
-        lender: { subjects: [principal.user, principal.machine, principal.installation] },
     },
     permissions: {
-        read: union(
-            relation("inviter"),
-            relation("addressee"),
-            relation("lender"),
-            grantersOf("object"),
-        ),
+        read: union(relation("inviter"), relation("addressee"), grantersOf("object")),
+    },
+});
+
+/** A delegator's grant of permissions to a principal acting for it, revoked by the delegator. */
+export const grant = new Policy(OWNER, {
+    name: "grant",
+    relations: {
+        delegator: { subjects: [principal.user, principal.machine, principal.installation] },
+        delegate: {
+            subjects: [
+                principal.user,
+                principal.machine,
+                principal.client,
+                principal.installation,
+                principal.personalAccessToken,
+            ],
+        },
+    },
+    permissions: {
+        create: none(),
+        read: union(relation("delegator"), relation("delegate")),
+        revoke: relation("delegator"),
     },
 });
 
@@ -107,6 +125,7 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     principal.machine,
     principal.client,
     principal.installation,
+    principal.personalAccessToken,
     principal.space,
     principal.contact,
     principal.group,
@@ -114,6 +133,7 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     role,
     relationship,
     invitation,
+    grant,
 ];
 
 /** Determine whether a subject is one principal rather than a set or another object. */

@@ -1,6 +1,7 @@
 import { expect, refusal, test } from "@destack/test";
 import { ACCESS_PACKAGE_ID, principal } from "../declare/principal.ts";
-import { Caller, CALLER_HEADER } from "./context.ts";
+import { Caller, CALLER_HEADER, type CallerGrant } from "./context.ts";
+import { schema } from "@destack/schema";
 
 /** The time the caller's credential was verified at. */
 const NOW = 1_800_000_000_000;
@@ -76,4 +77,30 @@ function refusedHeader(header: string) {
             ),
         ),
     );
+}
+
+test("require delegates to act for a verified subject, and a grant to have the delegates acting under it", async () => {
+    // build a delegate acting for alice, with and without the grant it acts under
+    const agent = principal.installation.reference("space-1", "installation-agent");
+    const grant: CallerGrant = {
+        id: schema.identifier("grant").parse("grant-019f5530-8000-7000-8000-0000000000c1"),
+        scope: "user-alice",
+        permissions: [],
+    };
+
+    // accept a delegate under its grant, and refuse a grant without delegates or a chain for an unverified subject
+    expect([
+        await chained({ ...alice, delegates: [agent], grant }),
+        await chained({ ...alice, grant }),
+        await chained({ ...alice, subjects: [], delegates: [agent], grant }),
+    ]).toEqual([
+        "done",
+        ["INVALID_CONTEXT", "a grant needs the delegates acting under it"],
+        ["INVALID_CONTEXT", "delegation chain is inconsistent"],
+    ]);
+});
+
+/** Require a caller's delegation chain, reading its refusal. */
+function chained(caller: Caller) {
+    return refusal(Promise.resolve().then(() => Caller.requireChain(caller)));
 }

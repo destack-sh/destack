@@ -83,6 +83,20 @@ const role = await authorization.createRole(space, {
 await authorization.assign(space, role.id, carol);
 ```
 
+## Grants
+
+A `Grant` lets a delegate act for its delegator with what both allow: the delegator's access intersected with the grant's RFC 9396 permissions, carried on a caller as its RFC 8693 actor chain.
+
+```ts
+const grant = await authorization.createGrant(aliceScope, {
+    delegate: installation,
+    permissions: [{ ...note.permission("read"), scope: spaceId, method: "get" }],
+    approval: "once",
+});
+const caller = { subject: alice, subjects: [alice], delegates: [installation], grant: Grant.claim(grant) };
+await authorization.revokeGrant(aliceScope, grant.id);
+```
+
 ## Storage
 
 `accessTables` lists the tables every database with protected objects includes.

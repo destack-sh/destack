@@ -381,11 +381,11 @@ export function relationsOf(expression: AccessExpression): string[] {
 
 /** List the policy a relation's subject type names, none for a plain subject type. */
 function referencedPolicies(subject: SubjectTypeInput): Policy[] {
-    // name a policy itself
+    // key a policy by itself
     if (subject instanceof Policy) {
         return [subject];
     }
-    // name the policy of a subject set
+    // key the policy of a subject set
     else if (subject instanceof PolicySubject) {
         return [subject.policy];
     }

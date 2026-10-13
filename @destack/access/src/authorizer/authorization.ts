@@ -8,7 +8,7 @@ import {
     type Snapshot,
 } from "@destack/db";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
-import { aligned, schema } from "@destack/schema";
+import { aligned, type Identifier, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../declare/policy.ts";
@@ -35,10 +35,12 @@ import { accessInvitation } from "../invitation/table.ts";
 import { Manager } from "../manager/manager.ts";
 import { define, own, replace, Role, type RoleRequest } from "../role/role.ts";
 import { accessRole } from "../role/table.ts";
+import { Grant, type GrantRequest } from "../grant/grant.ts";
+import { accessGrant } from "../grant/table.ts";
 import type { Access } from "./access.ts";
 import type { Admission, Authorizer } from "./authorizer.ts";
 import type { Decision } from "./decision.ts";
-import type { GrantReader, Lookup } from "./grant.ts";
+import type { TupleReader, Lookup } from "./tuple.ts";
 
 /** The relationship fields that authorization reads from a request, invitation or stored row. */
 type RelationshipFields = {
@@ -143,15 +145,15 @@ export class Authorization {
     async check(
         permission: PermissionReference,
         target: ObjectReference,
-        reader?: GrantReader,
+        reader?: TupleReader,
     ): Promise<Decision> {
         const access = await this.in(this.authorizer.governingScope(target));
 
         return this.authorizer.check(this.snapshot, permission, target, access, reader);
     }
 
-    /** Start reading grants for decisions in a scope. */
-    async reader(scope: string): Promise<GrantReader> {
+    /** Start reading tuples for decisions in a scope. */
+    async reader(scope: string): Promise<TupleReader> {
         return this.authorizer.reader(this.snapshot, (await this.in(scope)).scopes);
     }
 
@@ -166,7 +168,7 @@ export class Authorization {
         permission: PermissionReference,
         scope: string,
         rows: readonly Row[],
-        reader?: GrantReader,
+        reader?: TupleReader,
         below?: ReadonlyMap<string, Access>,
         lookup?: Lookup,
     ): Promise<Admission> {
@@ -624,6 +626,75 @@ export class Authorization {
         });
     }
 
+    /** Grant a delegate some of the caller's authority, in the caller's own scope. */
+    async createGrant(scope: ObjectReference, request: GrantRequest): Promise<Grant> {
+        // write only the grants of a scope this database keeps
+        await this.authorizer.requireLocal(this.transaction, scope);
+
+        // grant only a principal's own authority, in its own scope
+        const context = this.context();
+        const delegator = Caller.principal(context);
+        if (delegator === undefined || Caller.isDelegated(context) || delegator.id !== scope.id) {
+            throw new AccessError("FORBIDDEN", "only a principal grants its own authority");
+        }
+
+        // grant to one other principal, until a later time
+        const { delegate } = request;
+        if (
+            !isPrincipal(delegate) ||
+            delegate.id === "*" ||
+            delegate.scope === "*" ||
+            Subject.same(delegate, delegator)
+        ) {
+            throw new AccessError("FORBIDDEN", "a grant's delegate is one other principal");
+        } else if (request.expiresAt !== undefined && request.expiresAt <= context.now) {
+            throw new AccessError("CONFLICT", "a grant lapses after it is created");
+        }
+
+        // write the grant
+        const grant = accessGrant[TABLE].complete({
+            id: schema.identifier("grant").parse(`grant-${v7()}`),
+            createdAt: context.now,
+            scope: scope.id,
+            delegator,
+            delegatorKey: Subject.key(delegator),
+            delegate,
+            delegateKey: Subject.key(delegate),
+            delegateScope: delegate.scope,
+            permissions: [...request.permissions],
+            approval: request.approval,
+            expiresAt: request.expiresAt ?? null,
+        });
+        await this.transaction.write({ table: accessGrant, before: null, after: grant });
+
+        return grant;
+    }
+
+    /** Revoke a grant, as its delegator. */
+    async revokeGrant(scope: ObjectReference, id: Identifier<"grant">): Promise<Grant> {
+        // write only the grants of a scope this database keeps
+        await this.authorizer.requireLocal(this.transaction, scope);
+
+        // require the grant in the scope and its delegator acting as itself
+        const context = this.context();
+        const delegator = Caller.principal(context);
+        const grant = await Grant.read(this.snapshot, id);
+        if (grant === undefined || grant.scope !== scope.id) {
+            throw new AccessError("NOT_FOUND", `no grant ${id}`);
+        } else if (
+            delegator === undefined ||
+            Caller.isDelegated(context) ||
+            !Subject.same(delegator, grant.delegator)
+        ) {
+            throw new AccessError("FORBIDDEN", "only a grant's delegator revokes it");
+        }
+
+        // delete it
+        await this.transaction.write({ table: accessGrant, before: grant, after: null });
+
+        return grant;
+    }
+
     /** Keep a role by name in a scope with exactly the requested purpose and permissions. */
     async keepRole(scope: ObjectReference, request: RoleRequest): Promise<Role> {
         return this.transaction.savepoint(async () => {
@@ -771,7 +842,7 @@ export class Authorization {
             readonly subject: Subject;
             /** The object in the scope the role is bound on, the scope itself when absent. */
             readonly object?: ObjectReference;
-            /** What a request must meet for the binding to apply, such as a delegator. */
+            /** What a request must meet for the binding to apply. */
             readonly conditions?: RelationshipCondition;
         },
     ): Promise<void> {
@@ -819,39 +890,20 @@ export class Authorization {
         await this.authorizer.require(this.snapshot, permissions, scope, access);
     }
 
-    /** Require grant and every granted role permission, or only the lender for a delegation. */
+    /** Require the grant permission and every permission of a bound role. */
     protected async authorizeGrant(request: RelationshipFields): Promise<void> {
         // write only the access of an object this database keeps
         await this.authorizer.requireLocal(this.transaction, request.object);
 
-        // lend only the caller's own authority, and only to one principal
+        // require the relation's grant permission to grant it
         const scope = this.authorizer.governingScope(request.object);
-        const context = this.context();
-        const onBehalfOf = request.conditions?.onBehalfOf;
-        if (onBehalfOf !== undefined) {
-            if (!this.#lends(request)) {
-                throw new AccessError("FORBIDDEN", "only a principal may lend its own authority");
-            }
-            const delegate = request.subject;
-            if (
-                delegate === undefined ||
-                !isPrincipal(delegate) ||
-                delegate.id === "*" ||
-                delegate.scope === "*"
-            ) {
-                throw new AccessError("FORBIDDEN", "a delegate must be one principal");
-            }
-        }
-
-        // require the relation's grant permission to grant or lend it
-        const access = await this.authorizer.resolve(this.snapshot, scope, context);
+        const access = await this.authorizer.resolve(this.snapshot, scope, this.context());
         const role = "role" in request ? request.role : undefined;
-        const required: PermissionReference[] =
-            onBehalfOf === undefined || role === undefined
-                ? [this.#grantPermission(request.object, relationOf(request))]
-                : [];
+        const required: PermissionReference[] = [
+            this.#grantPermission(request.object, relationOf(request)),
+        ];
 
-        // prevent escalation: bind or lend only scope chain roles with permissions the caller has
+        // prevent escalation: bind only scope chain roles with permissions the caller has
         const grants = role === undefined ? undefined : access.grants.get(role);
         if (role !== undefined && grants === undefined) {
             throw new AccessError("NOT_FOUND", "role not found");
@@ -879,10 +931,8 @@ export class Authorization {
             requireChangeable(record, this.#manager);
         }
 
-        // let a lender manage its own delegations
-        if (!this.#lends(request)) {
-            await this.#requireGrant(request.object, relationOf(request));
-        }
+        // require the relation's grant permission
+        await this.#requireGrant(request.object, relationOf(request));
     }
 
     /** Require the permission granting a relation, or binding roles, on an object. */
@@ -931,14 +981,6 @@ export class Authorization {
         });
 
         return relationship;
-    }
-
-    /** Determine whether the caller is the principal a delegation lends authority from. */
-    #lends(request: RelationshipFields): boolean {
-        const onBehalfOf = request.conditions?.onBehalfOf;
-        const caller = Caller.principal(this.context());
-
-        return onBehalfOf !== undefined && caller !== undefined && Subject.same(caller, onBehalfOf);
     }
 
     /** Resolve the permission granting a relation, or binding roles, on an object. */

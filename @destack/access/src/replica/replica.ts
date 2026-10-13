@@ -1,10 +1,11 @@
 import type { Table } from "@destack/db";
 import { replicaTables, Scope } from "@destack/sync";
 import type { TableMapping } from "../authorizer/mapping.ts";
-import { invitation, relationship, role } from "../declare/principal.ts";
+import { grant, invitation, relationship, role } from "../declare/principal.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { accessInvitation } from "../invitation/table.ts";
+import { accessGrant } from "../grant/table.ts";
 
 /** The name of the shape copying a scope's chain. */
 export const CHAIN_SHAPE = "chain";
@@ -21,6 +22,7 @@ export const decisionTables: readonly Table[] = [
 export const accessTables: readonly Table[] = [
     ...decisionTables,
     accessInvitation,
+    accessGrant,
     ...replicaTables,
 ];
 
@@ -57,10 +59,20 @@ export const ACCESS_MAPPINGS: readonly TableMapping[] = [
         relations: {
             inviter: { column: "inviterKey", isKey: true },
             addressee: { column: "addressee", isKey: true },
-            lender: { column: "lender", isKey: true },
         },
         references: {
             object: { packageId: "packageId", type: "type", scope: "objectScope", id: "objectId" },
+        },
+    },
+    {
+        policy: grant,
+        table: accessGrant,
+        id: "id",
+        scope: "scope",
+        attributes: {},
+        relations: {
+            delegator: { column: "delegatorKey", isKey: true },
+            delegate: { column: "delegateKey", isKey: true },
         },
     },
 ];
