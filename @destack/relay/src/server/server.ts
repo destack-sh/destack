@@ -20,13 +20,7 @@ import type { ServiceContext, ServiceImplementation } from "@destack/service/ser
 import { connection, tunnel } from "../object/index.ts";
 import { relayService } from "../service/index.ts";
 import { MachineName } from "../session/index.ts";
-import {
-    DirectoryController,
-    NameController,
-    Relay,
-    RELAY_PACKAGE,
-    type RelayOptions,
-} from "./relay.ts";
+import { NameController, Relay, RELAY_PACKAGE, type RelayOptions } from "./relay.ts";
 import { ADMISSION_HEADER, TUNNELS_PATH } from "./tunnel.ts";
 import { Admission } from "./tunnel.ts";
 import { Tunnels } from "./tunnels.ts";
@@ -70,7 +64,7 @@ export function implementRelay(options: RelayServiceOptions): RelayImplementatio
     const uplink = Uplink.of(() => accounts.replica);
     const objects: ObjectStore = new ObjectStore({
         principal: self,
-        objects: { tunnel, connection },
+        objects: [tunnel, connection],
         policies: [account, machine, key],
         shapes: [directoryShape],
         database,
@@ -118,7 +112,7 @@ export function implementRelay(options: RelayServiceOptions): RelayImplementatio
         ? [
               ...objects.controllers(),
               new NameController(relay),
-              new DirectoryController(relay),
+              relay.directory.controller(),
               relay.journal.controller(options.history),
               tunnels.controller,
           ]

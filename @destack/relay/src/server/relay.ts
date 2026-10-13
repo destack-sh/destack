@@ -26,7 +26,7 @@ import type {} from "@destack/package/import-meta";
 import { type Identifier, present, schema } from "@destack/schema";
 import type { Fetch } from "@destack/service";
 import type { TokenVerifier } from "@destack/service/authentication";
-import type { Controller, Reconciliation } from "@destack/service/control";
+import type { Controller } from "@destack/service/control";
 import { ServiceError } from "@destack/service/error";
 import { type CallKey, RequestId } from "@destack/service/request";
 import { refusal, reportError } from "@destack/service/server";
@@ -104,10 +104,10 @@ export class Relay {
     readonly report: (error: unknown) => void;
     /** The journal recording tunnel openings and closes. */
     readonly journal: Journal;
+    /** The directory over the copied placements, machines and claims of names. */
+    readonly directory: DatabaseDirectory;
     /** The account service's uplink, which publishes the relay's tunnelled machines' endpoints. */
     readonly #publisher: Uplink;
-    /** The directory over the copied placements, machines and claims of names. */
-    readonly #directory: DatabaseDirectory;
     /** The relay installation itself, which reaches each machine's tunnel in its partition. */
     readonly #itself: ReturnType<InstallationContext["at"]>;
     /** The relay installation's store, keeping a row per tunnelled machine and the copies. */
@@ -124,7 +124,7 @@ export class Relay {
         // resolve handles and names through the copies in the store's database
         const { database, clock } = options.store;
         this.#store = options.store;
-        this.#directory = new DatabaseDirectory(options.store);
+        this.directory = new DatabaseDirectory(options.store);
         this.journal = new Journal(database, options.callKey, { clock });
 
         // keep the token verifier and the calls to the account service, tunnels and cloud machines
@@ -168,11 +168,6 @@ export class Relay {
             below,
             parameters: {},
         });
-    }
-
-    /** Keep the reads of the copies until the signal aborts. */
-    async follow(signal: AbortSignal): Promise<void> {
-        await this.#directory.follow(signal);
     }
 
     /** The URL machines open their tunnels at. */
@@ -555,7 +550,7 @@ export class Relay {
     /** Find the machine serving a space by its address through the directory's copy. */
     async #locateSpace(name: string, address: SpaceAddress): Promise<Destination> {
         // find the space's placement through the copied claims
-        const resolver = new HandleResolver(this.#directory);
+        const resolver = new HandleResolver(this.directory);
         const named = await resolver.find(space, address);
         const placed = named === undefined ? undefined : await resolver.directory.locate(named.id);
         if (placed === undefined) {
@@ -586,7 +581,7 @@ export class Relay {
     /** Find a standing machine of any residency by its name within its account. */
     async #locateMachine(name: string, handle: string, machineName: string): Promise<Destination> {
         // find the account by its handle, and its machine by name
-        const accountId = await new HandleResolver(this.#directory).account(handle);
+        const accountId = await new HandleResolver(this.directory).account(handle);
         const machineId =
             accountId === undefined
                 ? undefined
@@ -607,7 +602,7 @@ export class Relay {
         }
 
         // route to a cloud machine, or to the relay another residency's computer is tunnelled to
-        const url = await this.#directory.url(machineId);
+        const url = await this.directory.url(machineId);
         if (url === undefined) {
             throw new ServiceError("SERVICE_UNAVAILABLE", {
                 message: `machine ${machineId} is not connected`,
@@ -615,33 +610,6 @@ export class Relay {
         }
 
         return { endpoint: url };
-    }
-}
-
-/** Keep the reads of a relay's copy of the directory current while the relay runs. */
-export class DirectoryController implements Controller {
-    /** The controller's name in reports. */
-    readonly name = "directory";
-    /** Follow the copy's log until the relay stops. */
-    readonly mode = "follow";
-    /** The relay reading the copy. */
-    readonly #relay: Relay;
-
-    /** Follow the copy a relay reads. */
-    constructor(relay: Relay) {
-        this.#relay = relay;
-    }
-
-    /** List the one copy. */
-    async list(): Promise<readonly string[]> {
-        return ["directory"];
-    }
-
-    /** Follow the copy's log until stopped. */
-    async reconcile(_key: string, reconciliation: Reconciliation): Promise<undefined> {
-        await this.#relay.follow(reconciliation.signal);
-
-        return undefined;
     }
 }
 

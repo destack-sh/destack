@@ -23,7 +23,7 @@ import {
     RELAY_PACKAGE,
     RELAY_TOKEN_LIFETIME_MILLISECONDS,
 } from "../server/index.ts";
-import { relayDatabase } from "../stack/index.ts";
+import { homeDatabase } from "./database.ts";
 import { TunnelClient, type TunnelClientOptions } from "../tunnel/index.ts";
 import { RelayHost } from "./host.ts";
 
@@ -153,7 +153,7 @@ export class RelayFixture implements AsyncDisposable {
         await Claim.replace(accounts.database, await Claimant.of(space, object, row, snapshot));
     }
 
-    /** Start a relay installation, the fixture's unless given, on a port over its own database. */
+    /** Start a relay installation, the fixture's unless given, on a port over a home's database. */
     async relay(
         port: number,
         options: {
@@ -161,9 +161,9 @@ export class RelayFixture implements AsyncDisposable {
             readonly installation?: Subject;
         } = {},
     ): Promise<RelayHost> {
-        // keep the relay's copies in a database of its own
+        // keep the relay's rows and copies in a home's main database
         const { destinations, installation = this.installation } = options;
-        const storage = await TestDatabase.create("sqlite", relayDatabase, { isMigrated: true });
+        const storage = await TestDatabase.create("sqlite", homeDatabase, { isMigrated: true });
         this.#databases.push(storage);
 
         // follow and call the account service as the relay installation of its residency's home space, served as a machine hosts it

@@ -10,9 +10,8 @@
         "./server": "./src/server/index.ts",
         "./service": "./src/service/index.ts",
         "./tunnel": "./src/tunnel/index.ts",
-        "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts",
-        "./workload": "./src/workload/index.ts"
+        "./package": "./src/package.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",

@@ -18,7 +18,7 @@ import { implementRelay } from "@destack/relay/server";
 
 const relay = implementRelay({
     origin: "https://relay.destack.space",
-    database,
+    database, // the residency home's main database
     accounts, // the account service, followed for accounts, machines and the directory
     installation, // its id, scope, partition, and how it reaches itself
     hibernation, // the WebSockets its host keeps open
@@ -29,6 +29,14 @@ const relay = implementRelay({
 });
 await relay.relay.route(request); // a name's request, or a machine's WebSocket upgrade
 await relay.tunnels.fetch(machineId, request); // inside the machine's tunnel partition
+```
+
+A residency home's stack installs it from its package handle.
+
+```ts
+import relayPackage from "@destack/relay/package";
+
+defineStack({ installations: { relay: install(relayPackage, {}, { alias: "relay" }) } });
 ```
 
 ## Tunnels
