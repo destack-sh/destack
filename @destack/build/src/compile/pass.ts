@@ -22,7 +22,7 @@ import type { BuildDescription } from "@destack/package/manifest";
 import type { SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";
 import { BuildError } from "../error/index.ts";
-import { compiledPackage, linkDependencies, type PackageSource } from "../source/index.ts";
+import { linkDependencies, type PackageSource } from "../source/index.ts";
 import type { DirectoryReference } from "../typescript/index.ts";
 import { describeAssets, directoryPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
@@ -107,7 +107,7 @@ export class OutputPass implements Pass {
                 this.destination,
                 this.paths,
             ),
-            modulePlugin(compiledPackage(this.project)),
+            modulePlugin(this.project.versions),
         ];
     }
 

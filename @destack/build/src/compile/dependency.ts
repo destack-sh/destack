@@ -13,7 +13,7 @@ import { modulePackage, relativePath } from "../source/dependency.ts";
 import { isBuiltin } from "node:module";
 import { type OutputBundle, type OutputChunk, RUNTIME_MODULE_ID } from "rolldown";
 import { type ESTree, Visitor } from "rolldown/utils";
-import { found, Text } from "@destack/schema";
+import { found, Text, type Version } from "@destack/schema";
 import { Catalog } from "@destack/locale";
 import { readCatalogs } from "../build/catalog.ts";
 
@@ -57,16 +57,23 @@ type SourceSnapshot = Extract<DependencyResolution, { kind: "source" }>;
 
 /** Package manifests reused by dependency resolution and output inspection. */
 class DependencyResolver {
+    /** The versions the build releases its source packages at, by package name. */
+    readonly #versions: Readonly<Record<string, Version>>;
     /** Package owners indexed by source directory. */
     readonly #packages = new Map<string, Promise<PackageLocation>>();
     /** Destack declarations indexed by package directory. */
     readonly #definitions = new Map<string, Promise<PackageDefinition | undefined>>();
 
+    /** Read packages at the versions a build releases. */
+    constructor(versions: Readonly<Record<string, Version>>) {
+        this.#versions = versions;
+    }
+
     /** Locate the manifest that contains a resolved module. */
     package(directory: string): Promise<PackageLocation> {
         let result = this.#packages.get(directory);
         if (!result) {
-            result = modulePackage(directory);
+            result = modulePackage(directory, this.#versions);
             this.#packages.set(directory, result);
         }
 
@@ -100,7 +107,7 @@ class DependencyRecorder {
     /** The compiled build files, with the catalogs of unpublished dependencies. */
     readonly files: Map<string, Uint8Array<ArrayBuffer>>;
     /** The package manifests read so far. */
-    readonly resolver = new DependencyResolver();
+    readonly resolver: DependencyResolver;
     /** The directory of each unpublished source dependency, by release. */
     readonly #directories = new Map<string, string>();
 
@@ -115,6 +122,7 @@ class DependencyRecorder {
     ) {
         // keep the compiled package, the releases and what the compilation fills
         this.project = project;
+        this.resolver = new DependencyResolver(project.versions);
         this.resolutions = resolutions;
         this.description = description;
         this.locations = locations;
@@ -215,7 +223,7 @@ class DependencyRecorder {
     async asset(root: string, original: string): Promise<void> {
         // attribute assets read by CSS plugins without creating JavaScript modules
         const absolute = resolve(root, original);
-        const owner = await modulePackage(dirname(absolute));
+        const owner = await this.resolver.package(dirname(absolute));
         const path = relativePath(owner.directory, absolute);
         const key = `${owner.name}@${owner.version}`;
         const isExternal = owner.directory !== this.project.directory;
@@ -447,7 +455,7 @@ export function resolutionPlugin(
     dependencies: Readonly<Record<string, DependencyResolution>>,
     runtime?: Runtime,
     runtimes = new Map<string, Runtime[]>(),
-    resolver = new DependencyResolver(),
+    resolver = new DependencyResolver(source.versions),
 ): Plugin {
     return {
         name: "destack-resolution",

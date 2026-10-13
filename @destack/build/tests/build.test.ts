@@ -175,17 +175,20 @@ test.concurrent.for(fixtures)(
     },
 );
 
-test.concurrent("release a build at a prerelease version its manifest, package.json and modules carry", async ({
+test.concurrent("release a build at a given version its manifest, package.json and modules carry", async ({
     expect,
 }) => {
-    // build the service at a dev prerelease newer than its declared version, after removing its source checkout
+    // build the service at a dev version of its declared release, after removing its source checkout
     await using input = await Fixture.open("service");
-    await using build = await input.build({ ...service.request, version: "2026.10.0-dev.3" });
+    await using build = await input.build({
+        ...service.request,
+        versions: { "@destack/build-service-fixture": "2026.9.0-dev.3" },
+    });
     const destination = join(input.directory, "build");
     await build.write(destination);
     await rm(input.source, { recursive: true });
 
-    // call its workload naming the prerelease, which its service refuses unless its modules carry it, and read its package.json
+    // call its workload naming the version, which its service refuses unless its modules carry it, and read its package.json
     const output = build.manifest.outputs["bun"];
     const called = output === undefined ? undefined : await callNotes(build, destination, output);
     const manifest: unknown = JSON.parse(await readFile(join(destination, "package.json"), "utf8"));
@@ -194,8 +197,8 @@ test.concurrent("release a build at a prerelease version its manifest, package.j
         manifest: property(manifest, "version"),
         called,
     }).toEqual({
-        release: "2026.10.0-dev.3",
-        manifest: "2026.10.0-dev.3",
+        release: "2026.9.0-dev.3",
+        manifest: "2026.9.0-dev.3",
         called: [200, { path: "/notes" }],
     });
 });

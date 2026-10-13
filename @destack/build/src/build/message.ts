@@ -1,7 +1,7 @@
 import { PackageInspection } from "@destack/package/code";
 import { deserialize, serialize } from "node:v8";
 import type { Writable } from "node:stream";
-import { DependencyResolution } from "@destack/package";
+import { DependencyResolution, PackageName } from "@destack/package";
 import { OutputRequest } from "@destack/package/build";
 import { PackageManifest } from "@destack/package/manifest";
 import { Runtime } from "@destack/package/runtime";
@@ -72,8 +72,8 @@ export const RequestedBuild = schema.object({
     history: History.exactOptional(),
     /** The commit of the source directory, absent for a working tree with changes. */
     commit: Commit.exactOptional(),
-    /** The release version, such as a prerelease, absent for its package.json version. */
-    version: Version.exactOptional(),
+    /** The versions the build releases its source packages at, by package name. */
+    versions: schema.record(PackageName, Version).readonly().exactOptional(),
 });
 
 /** The options of a build beside its package directory. */

@@ -7,7 +7,7 @@ import { Toolchain } from "@destack/check/toolchain";
 import { BuildError } from "../error/index.ts";
 import { describeProject, type TypeScriptInspection } from "./module.ts";
 import { isAuthored } from "../source/dependency.ts";
-import type { ModulePackage } from "@destack/package/transform";
+import type { PackageSource } from "../source/index.ts";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -47,7 +47,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
     inspect(
         configuration: string,
         entries: readonly string[],
-        compiled: ModulePackage,
+        compiled: Pick<PackageSource, "directory" | "versions">,
     ): Promise<TypeScriptInspection> {
         return this.#read(configuration, async (project) => {
             // check the configuration and the package's modules

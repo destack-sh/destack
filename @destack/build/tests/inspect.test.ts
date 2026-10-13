@@ -8,8 +8,10 @@ import { TestDeclaration } from "@destack/test/inspect";
 import { Compiler } from "../src/build/compiler.ts";
 import { Fixture } from "./fixture.ts";
 
-/** Retain test discovery without collecting the resources constructed by test bodies. */
-test("inspect test bodies without declaring their temporary resources", async ({ expect }) => {
+/** Retain test discovery without collecting test bodies' resources or fixture extensions. */
+test("inspect test bodies and fixture extensions without declaring their resources", async ({
+    expect,
+}) => {
     await using input = await Fixture.open("web");
     await exportApplication(input.source);
     await using compiler = await Compiler.start(input.source);
@@ -20,10 +22,11 @@ test("inspect test bodies without declaring their temporary resources", async ({
     });
     const original = description.parse(before.descriptions);
 
-    // exercise a real declaration constructor inside an ordinary registered test
+    // exercise a real declaration constructor in a registered test beside a fixture extension
     const vault = fileURLToPath(new URL("../../vault/src/declare/index.ts", import.meta.url));
     const source = `import { test } from "@destack/test";
 import { defineSecret } from ${JSON.stringify(vault)};
+export const extended = test.extend<{ name: string }>({ name: "test-only" });
 test("bind a secret", () => {
     const secret = defineSecret({ name: "test-only" });
     void secret;

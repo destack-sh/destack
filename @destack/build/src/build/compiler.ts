@@ -50,7 +50,7 @@ export const CompilerCommand = {
         return {
             executable: compiler,
             arguments: [],
-            read: [compiler, Toolchain.beside(executable)],
+            read: [compiler, Toolchain.of(executable)],
         };
     },
 

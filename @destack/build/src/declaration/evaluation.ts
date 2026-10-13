@@ -13,7 +13,7 @@ import { modulePlugin } from "@destack/package/vite";
 import { BuildError } from "../error/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
 import { runtimeConditions } from "@destack/package/build";
-import { compiledPackage, selectExport } from "../source/source.ts";
+import { selectExport } from "../source/source.ts";
 import { loadExtensions, transformPlugins } from "../compile/extension.ts";
 
 /** The exports of a module. */
@@ -192,7 +192,7 @@ async function evaluateEntry(
             treeshake: { moduleSideEffects: true },
             plugins: [
                 entryPlugin(source),
-                modulePlugin(compiledPackage(project)),
+                modulePlugin(project.versions),
                 ...transformPlugins(
                     (await loadExtensions(project.directory, project.declaration)).map(
                         (loaded) => loaded.extension,

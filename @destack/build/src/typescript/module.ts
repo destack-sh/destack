@@ -31,7 +31,7 @@ import type { TestDeclaration } from "@destack/test/inspect";
 import { inspectErrors } from "@destack/check/inspect";
 import { collectTests } from "./test.ts";
 import { collectDeclarations, ConstructorCatalog } from "./declaration.ts";
-import type { ModulePackage } from "@destack/package/transform";
+import type { PackageSource } from "../source/index.ts";
 import { collectExamples, type ExampleDeclaration } from "./example.ts";
 import { collectScenarios, type ScenarioDeclaration } from "./scenario.ts";
 import type { DeclarationExport } from "../declaration/declaration.ts";
@@ -63,7 +63,7 @@ export interface TypeScriptInspection {
 /** Describe source modules, and collect the declarations of the modules entries import. */
 export async function describeProject(
     project: Project,
-    compiled: ModulePackage,
+    compiled: Pick<PackageSource, "directory" | "versions">,
     entries: readonly string[],
 ): Promise<TypeScriptInspection> {
     // read the authored modules from the compiler file list
@@ -147,11 +147,11 @@ class ProjectInspection {
     readonly #locations = new Map<number, Promise<SymbolReference>>();
 
     /** Start inspecting a project of a compiled package. */
-    constructor(project: Project, compiled: ModulePackage) {
+    constructor(project: Project, compiled: Pick<PackageSource, "directory" | "versions">) {
         // keep the project, the package's directory and its catalog, then inspect its symbols
         this.project = project;
         this.root = compiled.directory;
-        this.catalog = new ConstructorCatalog(compiled);
+        this.catalog = new ConstructorCatalog(compiled.versions);
         this.inspector = new SymbolInspector(
             project,
             (symbol) => this.reference(symbol),

@@ -64,7 +64,12 @@ export const web = defineWorkload({
 });
 
 /** Send the reminders that are due. */
-const remind = { method: "reminder.send", input: {}, release: "2026.9.0" };
+const remind = {
+    type: { packageId: import.meta.destack.package.id, type: "reminder" },
+    method: "send",
+    input: {},
+    release: "2026.9.0",
+};
 
 /** The daily reminder schedule. */
 export const reminders = defineTrigger({

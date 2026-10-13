@@ -3,7 +3,8 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { BuildError, isMissing } from "../error/index.ts";
 import { DependencyName, DependencyResolution } from "@destack/package";
 import { BunLockfile, type LockedPackage } from "@destack/check/bun";
-import { schema } from "@destack/schema";
+import { PackageLocator } from "@destack/package/transform";
+import { schema, type Version } from "@destack/schema";
 
 /** The dependencies a package.json declares. */
 const DependencyManifest = schema.looseObject({
@@ -21,7 +22,10 @@ const InstalledPackage = schema.looseObject({
 type InstalledPackage = schema.Infer<typeof InstalledPackage>;
 
 /** A package.json release, absent from a subpath manifest that only configures modules. */
-const ReleasedPackage = schema.looseObject({ name: schema.string(), version: schema.string() });
+export const ReleasedPackage = schema.looseObject({
+    name: schema.string(),
+    version: schema.string(),
+});
 
 /** The lockfile format version whose package records dependency resolution reads. */
 const LOCKFILE_VERSION = 2;
@@ -39,15 +43,18 @@ export async function linkDependencies(source: string, destination: string): Pro
     }
 }
 
-/** Locate the named package containing a resolved module. */
+/** Locate the named package containing a resolved module, at the version a build releases. */
 export async function modulePackage(
     directory: string,
+    versions: Readonly<Record<string, Version>>,
 ): Promise<{ directory: string; name: string; version: string }> {
     // find the nearest manifest naming a release, passing subpath manifests that configure module scopes
     for (const current of ancestors(directory)) {
         const metadata = ReleasedPackage.safeParse(await readJson(join(current, "package.json")));
         if (metadata.success) {
-            return { directory: current, name: metadata.data.name, version: metadata.data.version };
+            const version = PackageLocator.release(current, metadata.data, versions);
+
+            return { directory: current, name: metadata.data.name, version };
         }
     }
 

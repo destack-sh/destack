@@ -35,12 +35,7 @@ import {
     selectDeclarations,
     type Evaluation,
 } from "../declaration/index.ts";
-import {
-    compiledPackage,
-    type PackageSource,
-    openSource,
-    readPackageDescription,
-} from "../source/index.ts";
+import { type PackageSource, openSource, readPackageDescription } from "../source/index.ts";
 import { OutputCompilation, type CompiledFiles } from "../compile/compilation.ts";
 import { type LoadedExtension, loadExtensions } from "../compile/extension.ts";
 import {
@@ -132,7 +127,7 @@ export class CompilerWorker implements AsyncDisposable {
         const { modules, tests, declarations } = await this.typescript.inspect(
             project.configuration,
             project.entries,
-            compiledPackage(project),
+            project,
         );
 
         // evaluate the collected domain declarations
@@ -192,7 +187,7 @@ export class CompilerWorker implements AsyncDisposable {
                 toolchain,
                 extensions,
                 manifests,
-                version: options.version ?? null,
+                versions: options.versions ?? {},
                 request: present(options.outputs[request], `the requested output ${request}`),
                 configuration: options.configuration ?? null,
                 modules: [...imported].toSorted(),
@@ -209,7 +204,7 @@ export class CompilerWorker implements AsyncDisposable {
             toolchain,
             extensions,
             manifests,
-            version: options.version ?? null,
+            versions: options.versions ?? {},
             catalogs,
             outputs: keys,
             modules: modules.toSorted(),
@@ -330,7 +325,7 @@ export class CompilerWorker implements AsyncDisposable {
             runtime: output.options.runtime,
             ...(output.options.entries === undefined ? {} : { entries: output.options.entries }),
             files: output.files,
-            ...(options.version === undefined ? {} : { version: options.version }),
+            ...(options.versions === undefined ? {} : { versions: options.versions }),
         });
     }
 
@@ -422,7 +417,7 @@ export class CompilerWorker implements AsyncDisposable {
                 inspection = await this.typescript.inspect(
                     project.configuration,
                     project.entries,
-                    compiledPackage(project),
+                    project,
                 );
                 inspections.set(project.configuration, inspection);
             }

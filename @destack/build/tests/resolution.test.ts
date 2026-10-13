@@ -120,6 +120,47 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
     }
 });
 
+test("resolve a dependency the build releases at a given version exactly, refusing any other version", async () => {
+    // build the application importing one dependency the host selects at a version
+    const root = await writeApplication();
+    await writeFile(join(root, "bun.lock"), JSON.stringify({ lockfileVersion: 1, workspaces: {} }));
+    const directory = join(root, "application");
+    await writeFile(join(directory, "src", "index.ts"), 'export { pinned } from "./pinned.ts";\n');
+    const dev = { "@fixture/application": "2026.9.0-dev.4", "@fixture/pinned": "2026.9.0-dev.4" };
+    const build = (version: string, versions?: typeof dev) =>
+        buildPackage({
+            directory,
+            dependencies: {
+                "@fixture/pinned": DependencyResolution.parse({
+                    kind: "source",
+                    package: {
+                        id: "package-01a10a00-0000-7000-8000-000000000002",
+                        name: "@fixture/pinned",
+                        version,
+                    },
+                    files: [],
+                }),
+            },
+            outputs: { browser: { kind: "module", runtime: "browser", bundle: true } },
+            ...(versions === undefined ? {} : { versions }),
+        });
+    try {
+        // release the application and its dependency at the dev version
+        await using built = await build("2026.9.0-dev.4", dev);
+        expect(built.manifest.package.version).toEqual("2026.9.0-dev.4");
+
+        // refuse the declared version in a dev build, and the dev version in a release build
+        const refusal = {
+            code: "BUILD_FAILED",
+            message: "dependency resolution differs from installation: @fixture/pinned",
+        };
+        await expect(build("2026.9.0", dev)).rejects.toMatchObject(refusal);
+        await expect(build("2026.9.0-dev.4")).rejects.toMatchObject(refusal);
+    } finally {
+        await rm(root, { recursive: true });
+    }
+});
+
 test("refuse an unsupported dependency in a build as the development server does", async () => {
     // let the sandboxed compiler read the dependencies beside the application as one workspace
     const root = await writeApplication();

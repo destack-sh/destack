@@ -43,7 +43,7 @@ export function directoryPlugin(
                 if (references === undefined || references.length === 0) {
                     return;
                 }
-                const owner = await modulePackage(dirname(id));
+                const owner = await modulePackage(dirname(id), {});
                 const rewritten = new MagicString(code);
 
                 // bind each directory URL to a relocatable emitted asset

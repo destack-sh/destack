@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve, isAbsolute } from "node:path";
 import { type InspectOptions } from "../inspect/inspection.ts";
 import { runtimeConditions, TYPE_CHECKS, TYPESCRIPT_OPTIONS } from "@destack/package/build";
-import { linkDependencies } from "./dependency.ts";
+import { linkDependencies, ReleasedPackage } from "./dependency.ts";
 import { PackageError } from "@destack/package/error";
 import {
     PackageDefinition,
@@ -11,10 +11,10 @@ import {
     type PackageExport,
     TEST_EXPORT,
 } from "@destack/package";
-import { type JsonValue, schema } from "@destack/schema";
+import { type JsonValue, schema, type Version } from "@destack/schema";
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
-import type { ModulePackage } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/transform";
 import { isMissing } from "../error/index.ts";
 
 /** Source manifests and selected runtime exports for a package build. */
@@ -23,8 +23,10 @@ export interface PackageSource extends AsyncDisposable {
     configuration: string;
     /** The absolute package directory. */
     directory: string;
-    /** Combined authored package declarations. */
+    /** Combined authored package declarations, at the versions the build releases. */
     declaration: PackageDescription;
+    /** The versions the build releases its source packages at, by package name. */
+    versions: Readonly<Record<string, Version>>;
     /** Source files keyed by public export name. */
     exports: Record<string, string>;
     /** Source declarations keyed by public export name. */
@@ -35,13 +37,6 @@ export interface PackageSource extends AsyncDisposable {
     entries: readonly string[];
 }
 
-/** Read the package a source compiles as released, with the metadata its modules receive. */
-export function compiledPackage(
-    source: Pick<PackageSource, "directory" | "declaration">,
-): ModulePackage {
-    return { directory: source.directory, metadata: { package: source.declaration.package } };
-}
-
 /** Open package inputs and prepare one compiler configuration for inspection and compilation. */
 export async function openSource(
     options: InspectOptions & {
@@ -49,8 +44,8 @@ export async function openSource(
         entries?: Readonly<Record<string, string>>;
         /** Framework modules compiled in addition to package exports. */
         files?: readonly string[];
-        /** The release version, absent for its package.json version. */
-        version?: string;
+        /** The versions the build releases its source packages at, by package name. */
+        versions?: Readonly<Record<string, Version>>;
     },
 ): Promise<PackageSource> {
     // read the package declaration
@@ -58,7 +53,7 @@ export async function openSource(
         options.directory,
         options.runtime,
         options.entries,
-        options.version,
+        options.versions ?? {},
     );
     const authored = resolve(definition.directory, options.configuration ?? "tsconfig.json");
 
@@ -142,16 +137,16 @@ function compilerSettings(
     }
 }
 
-/** Read package manifests at the version the build releases, and select exports for one runtime. */
+/** Read package manifests at the versions a build releases, and select exports for one runtime. */
 async function readPackageDeclaration(
     directory: string,
     runtime: Runtime,
     entries: Readonly<Record<string, string>> | undefined,
-    version: string | undefined,
+    versions: Readonly<Record<string, Version>>,
 ): Promise<Omit<PackageSource, "configuration" | "entries" | typeof Symbol.asyncDispose>> {
     // read the package's manifests
     directory = await realpath(directory);
-    const declaration = await readPackageDescription(directory, version);
+    const declaration = await readPackageDescription(directory, versions);
     const definition = declaration.definition;
 
     // select package exports using the runtime's standard conditions
@@ -189,6 +184,7 @@ async function readPackageDeclaration(
     return {
         directory,
         declaration,
+        versions,
         exports,
         types,
         runtime,
@@ -258,10 +254,10 @@ function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): st
     return /\.d\.[cm]?ts$/u.test(path) ? undefined : PackagePath.parse(path.slice(2));
 }
 
-/** Read a package's manifests into its description, at a release version when given. */
+/** Read a package's manifests into its description, at the version a build releases it at. */
 export async function readPackageDescription(
     directory: string,
-    version?: string,
+    versions: Readonly<Record<string, Version>> = {},
 ): Promise<PackageDescription> {
     // read package.json and destack.json
     const metadata = schema
@@ -274,7 +270,7 @@ export async function readPackageDescription(
         package: {
             id: configuration.id,
             name: metadata["name"],
-            version: version ?? metadata["version"],
+            version: PackageLocator.release(directory, ReleasedPackage.parse(metadata), versions),
         },
         definition: configuration,
         ...(metadata["exports"] === undefined ? {} : { exports: metadata["exports"] }),

@@ -23,8 +23,8 @@ import {
     type DeclarationDescription,
 } from "@destack/package";
 import { BuildError, isMissing } from "../error/index.ts";
-import { schema } from "@destack/schema";
-import { type ModulePackage, PackageLocator } from "@destack/package/transform";
+import { schema, type Version } from "@destack/schema";
+import { PackageLocator } from "@destack/package/transform";
 import { modulePackage } from "../source/dependency.ts";
 import type { TestDeclaration } from "@destack/test/inspect";
 
@@ -80,13 +80,13 @@ export class ConstructorCatalog {
     >();
     /** The packages and declared constructors the inspection finds. */
     readonly #packages: PackageLocator;
-    /** The package the inspection's build compiles, as it releases it. */
-    readonly #compiled: ModulePackage;
+    /** The versions the build releases its source packages at, by package name. */
+    readonly #versions: Readonly<Record<string, Version>>;
 
-    /** Inspect the constructors of a build's packages, the compiled one as released. */
-    constructor(compiled: ModulePackage) {
-        this.#compiled = compiled;
-        this.#packages = new PackageLocator(compiled);
+    /** Inspect the constructors of a build's packages, the sources at the versions it releases. */
+    constructor(versions: Readonly<Record<string, Version>>) {
+        this.#versions = versions;
+        this.#packages = new PackageLocator(versions);
     }
 
     /** Resolve a call target to an inspected constructor, or undefined for any other function. */
@@ -136,7 +136,7 @@ export class ConstructorCatalog {
     locate(directory: string): Promise<PackageLocation> {
         let location = this.#locations.get(directory);
         if (location === undefined) {
-            location = modulePackage(directory);
+            location = modulePackage(directory, this.#versions);
             this.#locations.set(directory, location);
         }
 
@@ -147,10 +147,7 @@ export class ConstructorCatalog {
     owner(location: PackageLocation): Promise<Package | DependencyPackage> {
         let owner = this.#owners.get(location.directory);
         if (owner === undefined) {
-            owner =
-                location.directory === this.#compiled.directory
-                    ? Promise.resolve(this.#compiled.metadata.package)
-                    : readOwner(location);
+            owner = readOwner(location);
             this.#owners.set(location.directory, owner);
         }
 

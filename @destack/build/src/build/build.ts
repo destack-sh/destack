@@ -263,8 +263,8 @@ export interface BuildOptions {
     history?: History;
     /** The commit of the source directory, absent for a working tree with changes. */
     commit?: Commit;
-    /** The release version, such as a prerelease, absent for its package.json version. */
-    version?: Version;
+    /** The versions the build releases its source packages at, by package name. */
+    versions?: Readonly<Record<string, Version>>;
     /** The store whose cache the build reuses and fills, absent to build without a cache. */
     store?: PackageStore;
 }

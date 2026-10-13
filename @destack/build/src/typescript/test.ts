@@ -32,6 +32,9 @@ const CONDITIONAL_KINDS = new Set([
     SyntaxKind.BinaryExpression,
 ]);
 
+/** The test function members that return or reconfigure a test function instead of registering. */
+const FIXTURE_MODIFIERS = new Set(["extend", "override", "scoped"]);
+
 /** A call registering a test or suite, with the modifiers between it and the called name. */
 interface TestCall {
     /** The outermost call. */
@@ -155,8 +158,13 @@ function describeTest(
     file: string,
     suites: Map<Node, string[]>,
 ): TestDeclaration | undefined {
-    // leave registrations in other functions to the modules calling them
+    // leave fixture calls to the test functions they return
     const { node, modifiers } = call;
+    if (modifiers.some((modifier) => FIXTURE_MODIFIERS.has(modifier))) {
+        return undefined;
+    }
+
+    // leave registrations in other functions to the modules calling them
     const scopes: Node[] = [];
     for (let parent = node.parent; parent.kind !== SyntaxKind.SourceFile; parent = parent.parent) {
         scopes.push(parent);

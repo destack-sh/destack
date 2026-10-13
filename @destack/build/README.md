@@ -34,7 +34,7 @@ await using build = await buildPackage({
         library: { kind: "module", runtime: "bun", bundle: false },
         backend: { kind: "module", runtime: "workerd", bundle: true },
     },
-    version: "2026.9.0-dev.3", // a prerelease instead of package.json's version
+    versions: { "@example/notes": "2026.10.0-dev.3" }, // listed sources at -dev.3
 });
 await build.write(destination);
 ```
