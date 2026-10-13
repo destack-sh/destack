@@ -56,7 +56,7 @@ export class Storage {
         this.objects = new ObjectStore({
             clock: Clock.system,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
-            objects: serveSettings(this.catalog, []),
+            objects: [serveSettings(this.catalog, [])],
             // decide access in the scopes the values live in
             policies: [user, space, account, organisation, machine].map((type) => type.policy),
             database: test.database,

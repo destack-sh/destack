@@ -20,54 +20,49 @@ export function serveSettings(
     // read each stack release's settings once
     const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
 
-    return {
-        setting: setting.implement({
-            methods: {
-                create: {
-                    authorize: (call) =>
-                        requireDeclared({ ...call.input, scope: call.scope }, declared),
-                },
-                update: {
-                    authorize: (call) =>
-                        requireDeclared(
-                            { ...call.target, ...call.input, scope: call.scope },
-                            declared,
-                        ),
-                },
+    return setting.implement({
+        methods: {
+            create: {
+                authorize: (call) =>
+                    requireDeclared({ ...call.input, scope: call.scope }, declared),
             },
-            declaration: {
-                after,
-                keys: ["settings"],
-                collect: (document) =>
-                    schema.record(schema.string(), StackSetting).parse(document["settings"] ?? {}),
-                resolve: async (_name, desired: StackSetting, stack) => {
-                    // read the release declaring the setting: the stack's own for its package, else the one the space installs
-                    const isOwn = desired.setting.packageId === stack.manager.packageId;
-                    const reader = isOwn
-                        ? await stack.release(stack.manager.packageId, stack.manager.installationId)
-                        : await stack.release(desired.setting.packageId);
-                    const placed = (await catalogs.read(reader)).get(desired.setting);
+            update: {
+                authorize: (call) =>
+                    requireDeclared({ ...call.target, ...call.input, scope: call.scope }, declared),
+            },
+        },
+        declaration: {
+            after,
+            keys: ["settings"],
+            collect: (document) =>
+                schema.record(schema.string(), StackSetting).parse(document["settings"] ?? {}),
+            resolve: async (_name, desired: StackSetting, stack) => {
+                // read the release declaring the setting: the stack's own for its package, else the one the space installs
+                const isOwn = desired.setting.packageId === stack.manager.packageId;
+                const reader = isOwn
+                    ? await stack.release(stack.manager.packageId, stack.manager.installationId)
+                    : await stack.release(desired.setting.packageId);
+                const placed = (await catalogs.read(reader)).get(desired.setting);
 
-                    // require a declared value at a placement the space permits, stamped with its release
-                    const write = {
-                        mode: desired.mode,
-                        value: desired.value,
-                        release: placed.package.version,
-                    };
-                    placed.requireWrite(write, stack.scope);
-
-                    return { ...desired, release: placed.package.version };
-                },
-                values: (_name, desired) => ({
-                    packageId: desired.setting.packageId,
-                    name: desired.setting.name,
+                // require a declared value at a placement the space permits, stamped with its release
+                const write = {
                     mode: desired.mode,
                     value: desired.value,
-                    release: desired.release,
-                }),
+                    release: placed.package.version,
+                };
+                placed.requireWrite(write, stack.scope);
+
+                return { ...desired, release: placed.package.version };
             },
-        }),
-    };
+            values: (_name, desired) => ({
+                packageId: desired.setting.packageId,
+                name: desired.setting.name,
+                mode: desired.mode,
+                value: desired.value,
+                release: desired.release,
+            }),
+        },
+    });
 }
 
 /** Require a written setting value to match its declaration. */
