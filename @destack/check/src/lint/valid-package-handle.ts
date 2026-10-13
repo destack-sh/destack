@@ -1,4 +1,5 @@
 import { isPackageFile } from "./package.ts";
+import { isTestFile } from "./word.ts";
 import type { Rule } from "@oxlint/plugins";
 
 /** Require one package handle, default-exported from src/package.ts. */
@@ -13,8 +14,8 @@ export const validPackageHandle: Rule = {
         },
     },
     create(context) {
-        // apply only to Destack packages
-        if (!isPackageFile(context.filename)) {
+        // apply only to Destack packages, leaving tests their own handles
+        if (isTestFile(context.filename) || !isPackageFile(context.filename)) {
             return {};
         }
 

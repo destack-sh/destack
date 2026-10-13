@@ -15,8 +15,8 @@ const errorConstructors = new Set([
 /** A failure code, such as NOT_FOUND, that coded error constructors take before their message. */
 const CODE = /^[A-Z][A-Z0-9_]*$/u;
 
-/** The service failure constructor whose options carry the message. */
-const SERVICE_ERROR = "ServiceError";
+/** The call failure constructor whose options carry the message. */
+const CALL_ERROR = "CallError";
 
 /** Check error messages without assuming custom constructor signatures. */
 export const errorMessageStyle: Rule = {
@@ -27,7 +27,7 @@ export const errorMessageStyle: Rule = {
         schema: [],
         messages: {
             style: "use a lowercase error message without a final period",
-            missing: "give the service error a message that says what was refused",
+            missing: "give the call error a message that says what was refused",
         },
     },
     create(context) {
@@ -122,7 +122,7 @@ export const errorMessageStyle: Rule = {
                     return;
                 }
                 // check a coded error's message after its code
-                else if (name !== SERVICE_ERROR && name.endsWith("Error")) {
+                else if (name !== CALL_ERROR && name.endsWith("Error")) {
                     const code = node.arguments[0];
                     const isCoded =
                         code?.type === "Literal" &&
@@ -135,11 +135,11 @@ export const errorMessageStyle: Rule = {
                     return;
                 }
                 // leave every other constructor alone
-                else if (name !== SERVICE_ERROR) {
+                else if (name !== CALL_ERROR) {
                     return;
                 }
 
-                // find a service error's message among literal options unless a spread may carry it
+                // find a call error's message among literal options unless a spread may carry it
                 const options = node.arguments[1];
                 const properties = options?.type === "ObjectExpression" ? options.properties : [];
                 const message = properties.find(

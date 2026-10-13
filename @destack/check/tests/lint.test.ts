@@ -15,6 +15,8 @@ const PACKAGE_HANDLE = new URL("../src/package.ts", import.meta.url).pathname;
 const PACKAGE_INDEX = new URL("../src/index.ts", import.meta.url).pathname;
 /** A package source path for rules that depend on the module location. */
 const SOURCE = new URL("../src/note/note.ts", import.meta.url).pathname;
+/** A test module path of a Destack package. */
+const TEST = new URL("../src/note/note.test.ts", import.meta.url).pathname;
 
 tester.run("require-jsdoc", rules["require-jsdoc"], {
     valid: [
@@ -176,12 +178,12 @@ tester.run("error-message-style", rules["error-message-style"], {
         'throw new Error("note not found");',
         'throw new Error("HTTP request failed");',
         {
-            code: 'throw new ServiceError("NOT_FOUND", { message: `no note ${id}` });',
+            code: 'throw new CallError("NOT_FOUND", { message: `no note ${id}` });',
             filename: SOURCE,
         },
-        { code: "const failure = new ServiceError(code, options);", filename: SOURCE },
+        { code: "const failure = new CallError(code, options);", filename: SOURCE },
         {
-            code: 'const failure = new ServiceError("FORBIDDEN", { ...options });',
+            code: 'const failure = new CallError("FORBIDDEN", { ...options });',
             filename: SOURCE,
         },
         'throw new UpdateError("INSTALL", "invalid staged release digest");',
@@ -210,18 +212,18 @@ tester.run("error-message-style", rules["error-message-style"], {
             errors: [{ messageId: "style" }],
         },
         {
-            code: 'throw new ServiceError("NOT_FOUND");',
+            code: 'throw new CallError("NOT_FOUND");',
             filename: SOURCE,
             errors: [{ messageId: "missing" }],
         },
         {
-            code: 'throw new ServiceError("FORBIDDEN", { data: { permission: "read" } });',
+            code: 'throw new CallError("FORBIDDEN", { data: { permission: "read" } });',
             filename: SOURCE,
             errors: [{ messageId: "missing" }],
         },
         {
-            code: 'throw new ServiceError("FORBIDDEN", { message: "Permission denied." });',
-            output: 'throw new ServiceError("FORBIDDEN", { message: "permission denied" });',
+            code: 'throw new CallError("FORBIDDEN", { message: "Permission denied." });',
+            output: 'throw new CallError("FORBIDDEN", { message: "permission denied" });',
             filename: SOURCE,
             errors: [{ messageId: "style" }],
         },
@@ -379,6 +381,10 @@ tester.run("valid-declaration", rules["valid-declaration"], {
         },
         { code: "const main = defineDatabase({});", filename: SOURCE },
         {
+            code: 'import { defineDatabase } from "@destack/db";\nexport default defineDatabase({});',
+            filename: SOURCE,
+        },
+        {
             code: 'import { valueOf } from "@destack/db";\nfunction f() {\n    return valueOf({});\n}',
             filename: SOURCE,
         },
@@ -403,7 +409,10 @@ tester.run("valid-declaration", rules["valid-declaration"], {
 });
 
 tester.run("valid-package-handle", rules["valid-package-handle"], {
-    valid: [{ code: "export default definePackage({});", filename: PACKAGE_HANDLE }],
+    valid: [
+        { code: "export default definePackage({});", filename: PACKAGE_HANDLE },
+        { code: "const notes = definePackage({});", filename: TEST },
+    ],
     invalid: [
         {
             code: "export const notes = definePackage({});",

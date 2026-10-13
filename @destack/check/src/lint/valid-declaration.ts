@@ -15,13 +15,15 @@ const PACKAGE_NAME = /^(?:@[^/]+\/)?[^/]+/u;
 /** The name field of a package.json. */
 const Manifest = schema.looseObject({ name: schema.string().exactOptional() });
 
-/** Require declarations to be exported module constants that inspection can find. */
+/** Require declarations to be a module's default export or exported constants inspection finds. */
 export const validDeclaration: Rule = {
     meta: {
         type: "problem",
         schema: [],
-        docs: { description: "declare as an exported module constant" },
-        messages: { export: "assign '{{name}}(...)' to an exported module-level const" },
+        docs: { description: "declare as the module's default export or an exported constant" },
+        messages: {
+            export: "export '{{name}}(...)' as the default or as an exported module-level const",
+        },
     },
     create(context) {
         // skip test modules and files outside Destack packages
@@ -49,8 +51,8 @@ export const validDeclaration: Rule = {
                     return;
                 }
 
-                // require export const name = constructor(...) at module level
-                if (!isExportedConstant(node)) {
+                // require export const name = constructor(...) at module level, or its default export
+                if (!isExported(node)) {
                     context.report({ node, messageId: "export", data: { name } });
                 }
             },
@@ -133,19 +135,20 @@ function chainEnd(node: ESTree.Node): ESTree.Node {
         : node;
 }
 
-/** Report whether a call, or a chain on its result, initializes an exported const. */
-function isExportedConstant(node: ESTree.Node): boolean {
-    // read the declaration the chain's last call initializes
+/** Report whether a call, or a chain on its result, is the default export or an exported const. */
+function isExported(node: ESTree.Node): boolean {
+    // read the export or the declaration the chain's last call initializes
     const end = chainEnd(node);
     const declarator = end.parent;
     const declaration = declarator?.parent;
 
     return (
-        declarator?.type === "VariableDeclarator" &&
-        declarator.init === end &&
-        declaration?.type === "VariableDeclaration" &&
-        declaration.kind === "const" &&
-        declaration.parent?.type === "ExportNamedDeclaration" &&
-        declaration.parent.parent?.type === "Program"
+        (declarator?.type === "ExportDefaultDeclaration" && declarator.declaration === end) ||
+        (declarator?.type === "VariableDeclarator" &&
+            declarator.init === end &&
+            declaration?.type === "VariableDeclaration" &&
+            declaration.kind === "const" &&
+            declaration.parent?.type === "ExportNamedDeclaration" &&
+            declaration.parent.parent?.type === "Program")
     );
 }

@@ -1,14 +1,14 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The service error code of each check failure. */
-const SERVICE_CODES = {
+/** The call error code of each check failure. */
+const CALL_CODES = {
     TOOL: "INTERNAL_SERVER_ERROR",
     CONFIGURATION: "BAD_REQUEST",
     LANGUAGE: "UNPROCESSABLE_CONTENT",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** A failure category of checks. */
-export type CheckErrorCode = keyof typeof SERVICE_CODES;
+export type CheckErrorCode = keyof typeof CALL_CODES;
 
 /** A failed checker invocation or unsupported package. */
 export class CheckError extends Error implements DomainError {
@@ -22,8 +22,8 @@ export class CheckError extends Error implements DomainError {
         this.code = code;
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }
