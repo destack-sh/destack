@@ -1,13 +1,11 @@
-import { present, schema } from "@destack/schema";
+import { fromJsonSchema, present, schema } from "@destack/schema";
 import { sql } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { rebuildTree } from "../tree/rebuild.ts";
 import { DatabaseError } from "../error/error.ts";
-import { STATE, writeState } from "./state.ts";
+import { STATE, type TableState, writeState } from "./state.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import { TABLE } from "../table/table.ts";
-import { relation } from "../table/namespace.ts";
 import type { TablePlan, TableStep } from "./plan.ts";
 
 /** Apply a plan in one transaction and record the declared state. */
@@ -92,7 +90,7 @@ async function applySteps(
         // require every converted value to pass its column's schema, since reads trust stored values
         for (const step of plan.steps) {
             if (step.converted !== undefined) {
-                await requireConverted(transaction, step.converted, plan.dialect);
+                await requireConverted(transaction, step.converted, plan.state, plan.dialect);
             }
         }
 
@@ -137,36 +135,37 @@ function isLogged(step: TableStep): boolean {
     return step.action === "convert" || step.tree !== undefined;
 }
 
-/** Require a conversion's written values to pass their columns' schemas. */
+/** Require a conversion's written JSON values to pass their columns' recorded schemas. */
 async function requireConverted(
     database: DatabaseConnection,
     converted: NonNullable<TableStep["converted"]>,
+    states: readonly TableState[],
     dialect: Dialect,
 ): Promise<void> {
-    // find the declared columns the conversion wrote
-    const table = database.tables.find(
-        (entry) => relation(entry[TABLE].sqlName, database.state.namespace) === converted.table,
+    // find the converted JSON columns in the state the plan records
+    const state = present(
+        states.find((entry) => entry.table.name === converted.table),
+        `the state of ${converted.table}`,
     );
-    const columns = Object.values(
-        present(table, `the declared table ${converted.table}`)[TABLE].columns,
-    )
-        .map((column) => column.definition)
-        .filter((definition) => converted.columns.includes(definition.name));
+    const columns = state.table.columns.filter(
+        (column) => column.kind === "json" && converted.columns.includes(column.name),
+    );
 
-    // read the converted values and parse each by its column's schema
-    for (const definition of columns) {
+    // read the converted values and parse each by its column's recorded JSON Schema
+    for (const column of columns) {
+        const validator = fromJsonSchema(column.value);
         const rows = await database.execute(
-            sql.raw(`SELECT ${quote(definition.name)} AS value FROM ${quote(converted.table)}`),
+            sql.raw(`SELECT ${quote(column.name)} AS value FROM ${quote(converted.table)}`),
             schema.object({ value: schema.unknown() }),
         );
         for (const { value } of rows) {
-            const parsed = definition.schema.safeParse(
-                value === null ? null : definition.decode(value, dialect),
-            );
-            if (!parsed.success) {
+            const json: unknown =
+                dialect === "sqlite" && typeof value === "string" ? JSON.parse(value) : value;
+            const parsed = json === null && column.nullable ? undefined : validator.safeParse(json);
+            if (parsed !== undefined && !parsed.success) {
                 throw new DatabaseError(
                     "MIGRATION_FAILED",
-                    `conversion writes a value ${converted.table}.${definition.name} refuses: ${schema.prettifyError(parsed.error)}`,
+                    `conversion writes a value ${converted.table}.${column.name} refuses: ${schema.prettifyError(parsed.error)}`,
                     { cause: parsed.error },
                 );
             }
