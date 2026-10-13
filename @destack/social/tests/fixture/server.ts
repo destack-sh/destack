@@ -16,7 +16,7 @@ import {
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Call, type CallableName, type CallOutput, type ObjectType } from "@destack/object";
-import { subscription } from "@destack/notification";
+import { announcement, subscription } from "@destack/notification";
 import { serveActivities } from "@destack/notification/server";
 import { EphemeralStorage, ObjectStore } from "@destack/object/server";
 import { aligned, type Identifier, schema, Clock } from "@destack/schema";
@@ -63,15 +63,7 @@ const ListPage = schema.looseObject({
 const notifications = serveActivities({ notifications: [mention, thread, reply] });
 
 /** Every social type, served beside the articles taking them and the activity types comments write. */
-const objects = {
-    article,
-    comment,
-    reaction,
-    receipt,
-    favourite,
-    presence,
-    ...notifications,
-};
+const objects = [article, comment, reaction, receipt, favourite, presence, ...notifications];
 
 /** Serve articles and their attachments over a new database to one actor at a time, alice until another acts. */
 export async function serveArticles(dialect: Dialect) {
@@ -217,7 +209,7 @@ async function expand(
     spaceId: string,
 ): Promise<void> {
     // read the announcements the controller has not expanded yet
-    const table = notifications.announcement.table;
+    const table = announcement.table;
     const waiting = () =>
         database
             .select()
@@ -233,9 +225,7 @@ async function expand(
     for (let rows = await waiting(); rows.length > 0; rows = await waiting()) {
         await store.mutate(Caller.of(store.principal, Date.now()), {
             id: RequestId.create(Date.now()),
-            calls: rows.map((row) =>
-                notifications.announcement.call("expand", notifications.announcement.target(row)),
-            ),
+            calls: rows.map((row) => announcement.call("expand", announcement.target(row))),
         });
     }
 }
@@ -263,10 +253,7 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
         {
             name: `installation/${INSTALLATION}`,
             description: "What the articles' installation requests in this space",
-            permissions: [
-                notifications.announcement.permission("expand"),
-                article.permission("read"),
-            ],
+            permissions: [announcement.permission("expand"), article.permission("read")],
         },
         principal.installation.reference(spaceId, INSTALLATION),
     );
@@ -283,7 +270,7 @@ async function durable(dialect: Dialect): Promise<TestDatabase> {
             name: "main",
             tables: [
                 journal,
-                ...Object.values(objects)
+                ...objects
                     .filter((object) => object.storage === "durable")
                     .flatMap((object) => object.tables),
             ],
