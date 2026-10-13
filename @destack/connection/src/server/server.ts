@@ -33,8 +33,8 @@ const RETRY_MILLISECONDS = 60_000;
 
 /** Serve connections with credentials kept in vaults as the service. */
 export function serveConnections(tokens: TokenSource) {
-    return {
-        connection: connection.implement({
+    return [
+        connection.implement({
             methods: {
                 create: {
                     authorize: async (call) => {
@@ -77,7 +77,7 @@ export function serveConnections(tokens: TokenSource) {
             },
         }),
         authorizationRequest,
-    };
+    ] as const;
 }
 
 /** Keep the material a connection's kind sends in its vault before the connection is created. */

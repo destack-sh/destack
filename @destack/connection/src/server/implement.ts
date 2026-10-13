@@ -29,10 +29,7 @@ export function implementConnections(options: ConnectionOptions): ConnectionImpl
 
     return {
         service: connectionService,
-        objects:
-            home === undefined
-                ? { ...connections, integration: serveIntegrations(tokens) }
-                : connections,
+        objects: home === undefined ? [...connections, serveIntegrations(tokens)] : connections,
         shapes: [integrationShape, connectionShape],
         watches: [connection.table],
         ...(home === undefined

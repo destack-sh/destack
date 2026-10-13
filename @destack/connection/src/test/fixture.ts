@@ -446,12 +446,12 @@ export class ConnectionFixture {
         return new ObjectStore({
             clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, scope.id),
-            objects: {
+            objects: [
                 ...serveConnections(tokens),
-                vault: serveVaults(keystore),
+                serveVaults(keystore),
                 ...serveSecrets(keystore),
-                ...(home === undefined ? { integration: serveIntegrations(tokens) } : {}),
-            },
+                ...(home === undefined ? [serveIntegrations(tokens)] : []),
+            ],
             policies: [space, placement],
             database,
             callKey: testCallKey,
