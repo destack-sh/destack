@@ -102,7 +102,7 @@ export interface ObservabilityTestOptions {
     readonly measure?: (from: number, to: number) => Promise<readonly Reading[]>;
     /** The SKUs rating each meter, none by default, which appends no usage. */
     readonly skus?: readonly Sku[];
-    /** Name the scopes a route copies a scope's events to, none by default. */
+    /** List the scopes a route copies a scope's events to, none by default. */
     readonly targets?: (route: Route, scope: string) => Promise<readonly string[]>;
     /** Deliver routed copies, nowhere by default. */
     readonly deliver?: (kind: string, events: readonly Event[]) => Promise<void>;

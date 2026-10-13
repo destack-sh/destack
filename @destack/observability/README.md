@@ -58,7 +58,7 @@ const observability = implementObservability({
 
 ## Alert rules
 
-`defineAlertRule` declares an alert rule that each installation of the package keeps in its space, named by its export and shown by its title, and a `call` action runs a method of the installation.
+`defineAlertRule` declares an alert rule that each installation of the package keeps in its space, keyed by its export and shown by its title, and a `call` action runs a method of the installation.
 
 ```ts
 import { defineAlertRule } from "@destack/observability/declare";

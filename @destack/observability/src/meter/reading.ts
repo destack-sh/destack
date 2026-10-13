@@ -154,7 +154,7 @@ export const Reading = {
     },
 };
 
-/** Name the installation owning a resource, none for one its space keeps itself. */
+/** Read the installation owning a resource, none for one its space keeps itself. */
 function ownerOf(owner: string | null): { readonly installation?: Identifier<"installation"> } {
     const subject = owner === null ? undefined : Subject.read(owner);
 
