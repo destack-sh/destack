@@ -4,6 +4,9 @@ import { JsonValue, type JsonObject } from "../json/json.ts";
 /** How a value is sensitive: a secret, or personal data. */
 export type Sensitivity = "secret" | "personal";
 
+/** The text a masked personal value shows. */
+const MASK = "****";
+
 /** The schemas whose values are sensitive and how, as zod metadata. */
 const SENSITIVE = z.registry<{ readonly sensitivity: Sensitivity }>();
 
@@ -42,6 +45,69 @@ export function redact(
     });
 }
 
+/** Report whether a schema marks any of its values personal, at any depth. */
+export function marksPersonal(definition: z.core.$ZodType): boolean {
+    return marksPersonalIn(definition, new Set());
+}
+
+/** Report whether a schema marks a personal value, walking each schema once. */
+function marksPersonalIn(definition: z.core.$ZodType, seen: Set<z.core.$ZodType>): boolean {
+    // stop at a schema already walked, as recursive lazy schemas return
+    if (seen.has(definition)) {
+        return false;
+    }
+    seen.add(definition);
+
+    // read the schema's own mark, then the schemas it contains
+    return (
+        sensitivityOf(definition) === "personal" ||
+        contained(definition).some((child) => marksPersonalIn(child, seen))
+    );
+}
+
+/** List the schemas a schema contains, through wrappers and lazy schemas. */
+function contained(definition: z.core.$ZodType): readonly z.core.$ZodType[] {
+    // list an object's fields, an array's element and a tuple's items
+    if (definition instanceof z.core.$ZodObject) {
+        return Object.values<z.core.$ZodType>(definition._zod.def.shape);
+    } else if (definition instanceof z.core.$ZodArray) {
+        return [definition._zod.def.element];
+    } else if (definition instanceof z.core.$ZodTuple) {
+        const { items, rest } = definition._zod.def;
+
+        return rest === null ? items : [...items, rest];
+    }
+    // list a record's values, a union's options and an intersection's sides
+    else if (definition instanceof z.core.$ZodRecord) {
+        return [definition._zod.def.valueType];
+    } else if (definition instanceof z.core.$ZodUnion) {
+        return definition._zod.def.options;
+    } else if (definition instanceof z.core.$ZodIntersection) {
+        return [definition._zod.def.left, definition._zod.def.right];
+    }
+    // look through wrappers and lazy schemas
+    else if (isWrapper(definition)) {
+        return [definition._zod.def.innerType];
+    } else if (definition instanceof z.core.$ZodLazy) {
+        return [definition._zod.def.getter()];
+    }
+
+    return [];
+}
+
+/** Mask each personal value a schema marks, keeping every other value. */
+export function mask(definition: z.core.$ZodType, value: JsonValue): JsonValue {
+    // mask each personal value, which keeps every value present
+    const masked = mapSensitive(definition, value, (held, sensitivity) =>
+        sensitivity === "personal" ? maskOf(held) : held,
+    );
+    if (masked === undefined) {
+        throw new TypeError("masking left out a value");
+    }
+
+    return masked;
+}
+
 /** Replace each sensitive value by what `map` makes of it, leaving out values mapped to nothing. */
 export function mapSensitive(
     definition: z.core.$ZodType,
@@ -59,22 +125,59 @@ export function mapSensitive(
     }
 
     // map each field of an object
-    if (definition instanceof z.ZodObject && JsonValue.isObject(value)) {
+    if (definition instanceof z.core.$ZodObject && JsonValue.isObject(value)) {
         return mapFields(definition, value, map);
     }
-    // map each element of an array
-    else if (definition instanceof z.ZodArray && JsonValue.isArray(value)) {
-        return value.map((entry) => mapSensitive(definition.element, entry, map) ?? null);
+    // map each element of an array, and each item of a tuple
+    else if (definition instanceof z.core.$ZodArray && JsonValue.isArray(value)) {
+        const element = definition._zod.def.element;
+
+        return value.map((entry) => mapSensitive(element, entry, map) ?? null);
+    } else if (definition instanceof z.core.$ZodTuple && JsonValue.isArray(value)) {
+        const { items, rest } = definition._zod.def;
+
+        return value.map((entry, index) => {
+            const item = items[index] ?? rest;
+
+            return item === null || item === undefined
+                ? entry
+                : (mapSensitive(item, entry, map) ?? null);
+        });
+    }
+    // map each value of a record, leaving out values mapped to nothing
+    else if (definition instanceof z.core.$ZodRecord && JsonValue.isObject(value)) {
+        const values = definition._zod.def.valueType;
+
+        return Object.fromEntries(
+            Object.entries(value).flatMap(([key, entry]) => {
+                const mapped = mapSensitive(values, entry, map);
+
+                return mapped === undefined ? [] : [[key, mapped]];
+            }),
+        );
+    }
+    // map by every union option the value matches, refusing a value matching none
+    else if (definition instanceof z.core.$ZodUnion) {
+        const options = definition._zod.def.options.filter(
+            (each) => z.safeParse(each, value).success,
+        );
+        if (options.length === 0) {
+            throw new TypeError("a value matches no option of its union");
+        }
+
+        return options.reduce<JsonValue | undefined>(
+            (mapped, option) => mapSensitive(option, mapped, map),
+            value,
+        );
+    }
+    // map by both sides of an intersection
+    else if (definition instanceof z.core.$ZodIntersection) {
+        const left = mapSensitive(definition._zod.def.left, value, map);
+
+        return mapSensitive(definition._zod.def.right, left, map);
     }
     // look through optional, nullable, defaulted and read-only wrappers to the schema they wrap
-    else if (
-        definition instanceof z.core.$ZodOptional ||
-        definition instanceof z.core.$ZodNullable ||
-        definition instanceof z.core.$ZodDefault ||
-        definition instanceof z.core.$ZodPrefault ||
-        definition instanceof z.core.$ZodNonOptional ||
-        definition instanceof z.core.$ZodReadonly
-    ) {
+    else if (isWrapper(definition)) {
         return mapSensitive(definition._zod.def.innerType, value, map);
     }
     // look through a lazy schema to the one it returns
@@ -100,11 +203,11 @@ export function redactFields(
 
 /** Replace the sensitive values in the fields of an object by what `map` makes of them. */
 function mapFields(
-    definition: z.ZodObject,
+    definition: z.core.$ZodObject,
     value: JsonObject,
     map: (value: JsonValue, sensitivity: Sensitivity) => JsonValue | undefined,
 ): JsonObject {
-    const shape: Readonly<Record<string, z.core.$ZodType | undefined>> = definition.shape;
+    const shape: Readonly<Record<string, z.core.$ZodType | undefined>> = definition._zod.def.shape;
 
     return Object.fromEntries(
         Object.entries(value).flatMap(([name, field]) => {
@@ -113,5 +216,41 @@ function mapFields(
 
             return kept === undefined ? [] : [[name, kept]];
         }),
+    );
+}
+
+/** Mask a personal value: a list entry by entry, a record's every entry, a scalar whole. */
+function maskOf(value: JsonValue): JsonValue {
+    // mask a list entry by entry
+    if (Array.isArray(value)) {
+        return value.map(maskOf);
+    }
+    // mask each entry of a record
+    else if (typeof value === "object" && value !== null) {
+        return Object.fromEntries(Object.keys(value).map((key) => [key, MASK]));
+    }
+    // mask a scalar
+    else {
+        return MASK;
+    }
+}
+
+/** Report whether a schema wraps another: optional, nullable, defaulted or read-only. */
+function isWrapper(
+    definition: z.core.$ZodType,
+): definition is
+    | z.core.$ZodOptional
+    | z.core.$ZodNullable
+    | z.core.$ZodDefault
+    | z.core.$ZodPrefault
+    | z.core.$ZodNonOptional
+    | z.core.$ZodReadonly {
+    return (
+        definition instanceof z.core.$ZodOptional ||
+        definition instanceof z.core.$ZodNullable ||
+        definition instanceof z.core.$ZodDefault ||
+        definition instanceof z.core.$ZodPrefault ||
+        definition instanceof z.core.$ZodNonOptional ||
+        definition instanceof z.core.$ZodReadonly
     );
 }

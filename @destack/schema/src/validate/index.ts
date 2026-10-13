@@ -74,6 +74,8 @@ export { flattenError, prettifyError, treeifyError } from "zod";
 export {
     isSensitive,
     mapSensitive,
+    marksPersonal,
+    mask,
     redact,
     redactFields,
     sensitive,
