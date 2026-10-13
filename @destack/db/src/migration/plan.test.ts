@@ -277,7 +277,7 @@ test.for(TEST_DIALECTS)(
         );
         await database.execute(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
 
-        // name the column no task row fills and the unmanaged table
+        // report the column no task row fills and the unmanaged table
         await expect(
             database.plan({ declared: declareState([taskUnfilled, labelPlain], dialect) }),
         ).rejects.toMatchObject({
@@ -856,7 +856,7 @@ test.for(TEST_DIALECTS)(
                       schema.object({ name: schema.string() }),
                   );
 
-        // name the table and the database
+        // report the table and the database
         await expect(database.unapplied([taskOne])).rejects.toMatchObject({
             code: "INVALID_MIGRATION",
             message: `the applied state of table ${table(taskOne)} in database ${present(server, "the database").name} has an unknown format: ✖ Invalid input: expected array, received string\n  → at table.columns`,

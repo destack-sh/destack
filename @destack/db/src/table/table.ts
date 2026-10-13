@@ -228,9 +228,9 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return this.#uniqueKeys;
     }
 
-    /** Gather the unique keys, naming each column by its property. */
+    /** Gather the unique keys, each column by its property. */
     #gatherUniqueKeys(): UniqueKey[] {
-        // name each column by its property
+        // map each column to its property
         const properties = new Map(this.entries.map(([property, column]) => [column, property]));
         const named = (columns: readonly Column[]) =>
             columns.map((column) =>

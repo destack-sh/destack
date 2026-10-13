@@ -370,13 +370,13 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
 
 /** Read the database's name: the server's database and schema, or a SQLite store's namespace. */
 async function readName(database: DatabaseConnection): Promise<string> {
-    // name a SQLite database by its namespace in a shared store
+    // read a SQLite database's namespace in a shared store
     const { namespace } = database.state;
     if (database.dialect === "sqlite") {
         return namespace === undefined ? "sqlite" : `sqlite namespace ${namespace}`;
     }
 
-    // name the server's database and schema
+    // read the server's database and schema
     const [row] = await database.execute(
         sql`SELECT current_database() || '.' || current_schema() AS name`,
         schema.object({ name: schema.string() }),

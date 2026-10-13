@@ -68,7 +68,7 @@ export interface PlanInput {
     readonly empty: ReadonlySet<string>;
 }
 
-/** Plan a database's migration, or name every problem to fix. */
+/** Plan a database's migration, or report every problem to fix. */
 export function planTables(input: PlanInput): TablePlan {
     // index applied tables and collect problems
     const { applied, declared, dialect } = input;

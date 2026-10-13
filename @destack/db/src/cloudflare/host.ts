@@ -24,7 +24,7 @@ export const DURABLE_OBJECT_PROVIDER = "durable-object";
 /** The path below which an object answers operations on the databases it keeps. */
 export const DATABASE_PATH = "/.destack/database";
 
-/** A database resource as an operation names it. */
+/** A database resource as an operation refers to it. */
 const DatabaseRecord = schema.object({
     /** The resource. */
     id: ResourceId,
@@ -116,7 +116,7 @@ export interface DurableObjectConnectOptions extends SqliteConnectOptions {
     readonly namespace?: string;
 }
 
-/** The prefix of the references naming databases in an object's storage. */
+/** The prefix of the database references in an object's storage. */
 const REFERENCE_PREFIX = `${DURABLE_OBJECT_PROVIDER}:`;
 
 /** One storage transaction of a host, open while its work runs. */
@@ -197,7 +197,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         this.#rows.rowsWritten += cursor.rowsWritten;
     }
 
-    /** Name a database by its namespace in the object's storage: `durable-object:<namespace>`. */
+    /** Write a database's reference by its storage namespace: `durable-object:<namespace>`. */
     static reference(namespace: string): string {
         return `${REFERENCE_PREFIX}${namespace}`;
     }
@@ -411,7 +411,7 @@ export interface DurableObjectNamespace {
 
 /** The bindings of a database's object: the partition objects keeping its copies' content. */
 export interface DurableObjectDatabaseEnvironment {
-    /** The partitions' objects, a space's own named by its space. */
+    /** The partitions' objects, a space's own keyed by its space. */
     readonly PARTITION: DurableObjectNamespace;
     /** The jurisdiction keeping the partitions' objects. */
     readonly DESTACK_JURISDICTION: Jurisdiction;

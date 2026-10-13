@@ -46,7 +46,7 @@ export function bunSqliteChannels(path: string): readonly string[] {
     return [channelOf(path, LOG_TOPIC)];
 }
 
-/** Name the channel a database file's connections share for one topic. */
+/** Write the channel a database file's connections share for one topic. */
 function channelOf(path: string, topic: string): string {
     return `${path}#${topic}`;
 }
