@@ -2,13 +2,16 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
-import { CLOUDFLARE_COSTS } from "@platform/pricing/cloudflare";
+import { durableObjectDuration, r2Storage } from "@platform/pricing/cloudflare";
 
-/** The markup over the provider's cost the homepage assumes for usage, a typical cloud reseller's 30 to 40 percent. */
+/** The markup over provider cost the homepage assumes, a typical reseller's 30 to 40 percent. */
 const MARKUP = 1.35;
 
 /** The seconds in an hour. */
 const SECONDS_PER_HOUR = 3600;
+
+/** The bytes in a gigabyte. */
+const GIGABYTE = 1_000_000_000;
 
 /** The repository root. */
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -23,9 +26,15 @@ const isCheck = process.argv.includes("--check");
 // price usage at the provider's list prices, in cents, with the markup on top
 /** The usage rates the site shows in US dollars: storage a GB-month and compute a GB-hour. */
 const rates = {
-    storage: roundOf((Number(CLOUDFLARE_COSTS.r2Storage.unitAmount) / 100) * MARKUP),
+    storage: roundOf(
+        (Number(r2Storage.definition.unitAmount) / 100) *
+            (GIGABYTE / r2Storage.definition.unitSize) *
+            MARKUP,
+    ),
     compute: roundOf(
-        (Number(CLOUDFLARE_COSTS.durableObjectDuration.unitAmount) / 100) *
+        (Number(durableObjectDuration.definition.unitAmount) /
+            100 /
+            durableObjectDuration.definition.unitSize) *
             SECONDS_PER_HOUR *
             MARKUP,
     ),
@@ -35,7 +44,7 @@ const rates = {
 /** The generated rates module source. */
 const generatedSource = await formatSource(
     generatedFile,
-    `/** The usage rates the homepage prices a space at in US dollars, storage a GB-month and compute a GB-hour, at the provider's cost with a reseller's markup. */\n` +
+    `/** The homepage's usage rates in US dollars: storage a GB-month and compute a GB-hour. */\n` +
         `export const rates = ${JSON.stringify(rates)} as const;\n`,
 );
 
