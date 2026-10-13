@@ -1,3 +1,4 @@
+import { through } from "@destack/access";
 import { type Select } from "@destack/db";
 import { client, defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
@@ -20,7 +21,8 @@ export const clientSetting = defineObject({
         /** The release of the setting's package the value was written against. */
         release: field.string(Version),
     },
-    permissions: ["read", "write"],
+    // let the people signed in on the client read and write them
+    permissions: { read: through("client", "use"), write: through("client", "use") },
     constraints: {
         name: { kind: "index", on: ["packageId", "name"], unique: true },
     },
