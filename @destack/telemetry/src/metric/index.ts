@@ -33,3 +33,4 @@ export type {
     SumMetricData,
     ViewOptions,
 } from "@opentelemetry/sdk-metrics";
+export * from "./process.ts";
