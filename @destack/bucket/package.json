@@ -23,7 +23,7 @@
         "@destack/resource": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/service": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "uuid": "14.0.2",
         "@destack/error": "workspace:*"
     },

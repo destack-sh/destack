@@ -26,7 +26,7 @@ async function joined(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
     return bytes;
 }
 
-/** Keep blobs by digest below a prefix, staging bodies longer than one part, and read, sweep, copy and delete them. */
+/** Keep blobs by digest below a prefix, and read, sweep, copy and delete them. */
 export async function exerciseBlobStore(bucket: Bucket): Promise<void> {
     // keep a short body under its digest, and a long one staged in two parts
     const store = new R2BlobStore(bucket, "bucket-source/");

@@ -1,7 +1,7 @@
 import type { Connector } from "@destack/resource";
 import { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import { copyRequest } from "@destack/service/request";
+import { CallError } from "@destack/runtime/error";
+import { copyRequest } from "@destack/runtime/request";
 import {
     type Bucket,
     type BucketBody,
@@ -387,7 +387,7 @@ async function refusal(answer: Response): Promise<Error> {
     // read the refusal of the host in front of the bucket
     const refused = Refusal.parse(JSON.parse(text));
 
-    return new ServiceError(refused.code, { status: refused.status, message: refused.message });
+    return new CallError(refused.code, { status: refused.status, message: refused.message });
 }
 
 /** Read the storage failure an S3 error element names, else the S3 error itself. */

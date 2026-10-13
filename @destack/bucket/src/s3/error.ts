@@ -1,4 +1,4 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 import { BucketError, type BucketErrorCode } from "../error/index.ts";
 
 /** The HTTP status of each S3 error code, as the S3 API reference lists them. */
@@ -37,8 +37,8 @@ const S3_ERROR_STATUS = {
     XAmzContentSHA256Mismatch: 400,
 } as const;
 
-/** The service error code of each S3 error status. */
-const SERVICE_CODES = {
+/** The call error code of each S3 error status. */
+const CALL_CODES = {
     400: "BAD_REQUEST",
     403: "FORBIDDEN",
     404: "NOT_FOUND",
@@ -49,7 +49,7 @@ const SERVICE_CODES = {
     501: "NOT_IMPLEMENTED",
     503: "SERVICE_UNAVAILABLE",
 } as const satisfies Readonly<
-    Record<(typeof S3_ERROR_STATUS)[keyof typeof S3_ERROR_STATUS], ServiceErrorCode>
+    Record<(typeof S3_ERROR_STATUS)[keyof typeof S3_ERROR_STATUS], CallErrorCode>
 >;
 
 /** The S3 error code of each storage failure a request causes; the host reports the rest. */
@@ -112,9 +112,9 @@ export class S3Error extends Error implements DomainError {
         return S3_ERROR_STATUS[this.code];
     }
 
-    /** Convert the failure to the service error a caller receives, by the status of its code. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[S3_ERROR_STATUS[this.code]], message: this.message };
+    /** Convert the failure to the call error a caller receives, by the status of its code. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[S3_ERROR_STATUS[this.code]], message: this.message };
     }
 
     /** Read the S3 error an error document names, refusing a code S3 does not define. */

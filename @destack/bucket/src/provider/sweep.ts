@@ -1,4 +1,4 @@
-import type { Controller } from "@destack/service/control";
+import type { Controller } from "@destack/runtime/control";
 import type { CatalogueBucketHost } from "../catalogue/index.ts";
 
 /** How often a host sweeps its open buckets: daily. */

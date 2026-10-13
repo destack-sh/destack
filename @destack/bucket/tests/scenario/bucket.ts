@@ -9,7 +9,7 @@ import {
 } from "../../src/bucket/index.ts";
 import { BucketError, BucketPreconditionError } from "../../src/error/index.ts";
 
-/** Read the file a refused precondition met, null where none exists, failing when the precondition held. */
+/** Read the file a refused precondition met, null where none exists. */
 async function refused(operation: Promise<unknown>): Promise<BucketFile | null> {
     try {
         await operation;
@@ -69,11 +69,7 @@ export async function exerciseContents(bucket: Bucket): Promise<void> {
     await bucket.delete("checksum");
 }
 
-/**
- * Apply conditional updates and ranges while keeping opened content readable.
- *
- * The local R2 simulator reports unsatisfiable ranges without R2's error code 10039, so the hosted test:cloudflare run checks that failure there.
- */
+/** Apply conditional updates and ranges while keeping opened content readable. */
 export async function exerciseConditions(bucket: Bucket, isSimulatedR2 = false): Promise<void> {
     // publish content, then read it under preconditions and ranges while another reader holds it open
     const first = await publishFirst(bucket);
@@ -145,7 +141,7 @@ async function readUnderDates(bucket: Bucket, first: BucketFile): Promise<void> 
     );
 }
 
-/** Read ranges of the file: a slice, a suffix, a prefix, a clamped range, and refuse unsatisfiable ones. */
+/** Read slices, suffixes, prefixes and clamped ranges, refusing unsatisfiable ones. */
 async function readRanges(bucket: Bucket, isSimulatedR2: boolean): Promise<void> {
     // read a slice, a suffix and a prefix
     const sliced = present(
@@ -314,7 +310,7 @@ export async function exerciseGroups(bucket: Bucket): Promise<void> {
     );
 }
 
-/** Page past a folder marker key equal to the prefix, then through the files and groups after it. */
+/** Page past a folder marker key equal to the prefix, then through what follows it. */
 export async function exerciseMarkers(bucket: Bucket): Promise<void> {
     // list the marker, the file beside it and the group below it one page at a time
     for (const key of ["marks/", "marks/b", "marks/c/d"]) {

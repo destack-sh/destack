@@ -6,7 +6,7 @@ import {
     type ResourceRecord,
     type Snapshotter,
 } from "@destack/resource";
-import type { Controller } from "@destack/service/control";
+import type { Controller } from "@destack/runtime/control";
 import { schema } from "@destack/schema";
 import {
     BucketSnapshot,

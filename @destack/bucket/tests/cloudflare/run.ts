@@ -22,7 +22,7 @@ const ManagementResult = schema.looseObject({
     result: schema.unknown(),
 });
 
-/** Send one bounded management request without printing credentials, answering its unchecked result. */
+/** Send one bounded management request without printing credentials. */
 async function request(path: string, method = "GET", body?: RequestInit["body"]): Promise<unknown> {
     const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${account}/${path}`,

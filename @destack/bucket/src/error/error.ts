@@ -1,8 +1,8 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 import type { BucketFile } from "../bucket/file.ts";
 
-/** The service error code of each storage failure. */
-const SERVICE_CODES = {
+/** The call error code of each storage failure. */
+const CALL_CODES = {
     INVALID_KEY: "BAD_REQUEST",
     INVALID_RANGE: "BAD_REQUEST",
     INVALID_CURSOR: "BAD_REQUEST",
@@ -22,10 +22,10 @@ const SERVICE_CODES = {
     CLOSED: "SERVICE_UNAVAILABLE",
     BUSY: "SERVICE_UNAVAILABLE",
     WRITE_FAILED: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** A failure code of file storage. */
-export type BucketErrorCode = keyof typeof SERVICE_CODES;
+export type BucketErrorCode = keyof typeof CALL_CODES;
 
 /** A storage failure with a stable code. */
 export class BucketError extends Error implements DomainError {
@@ -41,7 +41,7 @@ export class BucketError extends Error implements DomainError {
 
     /** Report whether a value names a failure code of file storage. */
     static isCode(value: string): value is BucketErrorCode {
-        return Object.hasOwn(SERVICE_CODES, value);
+        return Object.hasOwn(CALL_CODES, value);
     }
 
     /** Refuse a read or write whose precondition the current file, or its absence, failed. */
@@ -49,9 +49,9 @@ export class BucketError extends Error implements DomainError {
         return new BucketPreconditionError(current);
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }
 
