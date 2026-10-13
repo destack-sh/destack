@@ -38,7 +38,7 @@ export type Subscription = schema.Infer<typeof Subscription>;
 export type Resumption = Pick<Subscription, "after" | "previous" | "origin">;
 
 /** Who a shape's copy is for, which admits its followers and decides its rows. */
-export type ShapeAudience = "contained" | "reader" | "caller" | "recipient";
+export type ShapeAudience = "contained" | "reader" | "caller";
 
 /** A shape a server serves and follows: the copy its parameters build and its audience. */
 export interface Shape {

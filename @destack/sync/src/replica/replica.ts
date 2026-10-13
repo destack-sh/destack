@@ -216,8 +216,6 @@ export class Replica {
     readonly within: ReadonlyMap<Table, readonly Table[]>;
     /** Whether the source may keep a copy itself, which the copy follows to its home. */
     readonly isRelayed: boolean;
-    /** The source tables whose rows the copy projects into rows of its own, by SQL name. */
-    readonly #projectors: ReadonlyMap<string, Projector>;
     /** The copied tables, by SQL name. */
     readonly #copied: ReadonlyMap<string, Table>;
     /** The layout digest of the copied tables' logged columns. */
@@ -241,8 +239,6 @@ export class Replica {
         readonly within?: ReadonlyMap<Table, readonly Table[]>;
         /** Whether the source may keep a copy itself, true by default. */
         readonly isRelayed?: boolean;
-        /** The projections of source tables into the copy's own, none by default. */
-        readonly projectors?: readonly Projector[];
     }) {
         // keep the identity
         this.name = definition.name;
@@ -253,12 +249,6 @@ export class Replica {
         this.everywhere = definition.everywhere ?? new Set();
         this.within = definition.within ?? new Map();
         this.isRelayed = definition.isRelayed ?? true;
-        this.#projectors = new Map(
-            (definition.projectors ?? []).map((projector) => [
-                projector.source[TABLE].sqlName,
-                projector,
-            ]),
-        );
         this.#copied = new Map(this.tables.map((table) => [table[TABLE].sqlName, table]));
         this.#layout = Log.layout(this.tables);
     }
@@ -908,7 +898,7 @@ export class Replica {
         });
     }
 
-    /** Drop the copy: delete its unshared rows, retract its projections and forget its record. */
+    /** Drop the copy: delete its unshared rows and forget its record. */
     async drop(database: DatabaseConnection): Promise<void> {
         await database.transaction(
             async (transaction) => {
@@ -917,11 +907,6 @@ export class Replica {
                     const record = await this.#record(transaction);
                     await this.#excludeAll(transaction, this.#retired(transaction, record));
                     await this.#excludeAll(transaction, this.tables);
-
-                    // retract every projected row of the copied scope
-                    for (const projector of this.#projectors.values()) {
-                        await projector.prune(transaction, this.scope, new Set());
-                    }
 
                     // forget the groups, staged pages and record
                     await transaction.delete(replicaResult).where(this.#match(replicaResult));
@@ -1145,16 +1130,9 @@ export class Replica {
         }
     }
 
-    /** Start collecting the keys a snapshot delivers, by copied and projected table. */
+    /** Start collecting the keys a snapshot delivers, by copied table. */
     #deliveries(): Map<string, Set<string>> {
-        const projected = [...this.#projectors.values()].map((projector) => projector.source);
-
-        return new Map(
-            [...this.tables, ...projected].map((table) => [
-                table[TABLE].sqlName,
-                new Set<string>(),
-            ]),
-        );
+        return new Map(this.tables.map((table) => [table[TABLE].sqlName, new Set<string>()]));
     }
 
     /** Write the staged pages in batches, returning a relaying source's last home position. */
@@ -1188,16 +1166,13 @@ export class Replica {
         return relayed;
     }
 
-    /** Remove the rows a snapshot left out, children first, and retract their projections. */
+    /** Remove the rows a snapshot left out, children first. */
     async #pruneUndelivered(
         transaction: DatabaseConnection,
         delivered: ReadonlyMap<string, Set<string>>,
     ): Promise<void> {
         for (const table of this.tables.toReversed()) {
             await this.#prune(transaction, table, found(delivered, table[TABLE].sqlName));
-        }
-        for (const [name, projector] of this.#projectors) {
-            await projector.prune(transaction, this.scope, found(delivered, name));
         }
     }
 
@@ -1208,8 +1183,8 @@ export class Replica {
         delivered: ReadonlyMap<string, Set<string>> | undefined,
         { open }: ApplyOptions,
     ): Promise<Origin | undefined> {
-        // batch each table's writes and each projected table's rows
-        const { batches, projected, origin } = await this.#collect(page, delivered, open);
+        // batch each table's writes
+        const { batches, origin } = await this.#collect(page, delivered, open);
 
         // take the removed rows out of the copy children first and write the kept rows parents first
         const ordered = this.tables.flatMap((table): [Table, Batch][] => {
@@ -1225,32 +1200,26 @@ export class Replica {
             await this.#writeKept(transaction, table, batch);
         }
 
-        // project the collected rows and keep the groups
-        for (const [projector, rows] of projected) {
-            await projector.write(transaction, this.scope, rows.kept, rows.removed);
-        }
+        // keep the groups
         await this.#keep(transaction, page.results ?? []);
 
         return origin;
     }
 
-    /** Collect a page's changes into table batches and projected rows. */
+    /** Collect a page's changes into table batches. */
     async #collect(
         page: Page,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
         open: ApplyOptions["open"],
     ): Promise<{
         readonly batches: Map<Table, Batch>;
-        readonly projected: Map<Projector, ProjectionPage>;
         readonly origin: Origin | undefined;
     }> {
         // collect each change in commit order
         const batches = new Map<Table, Batch>();
-        const projected = new Map<Projector, ProjectionPage>();
         let origin: Origin | undefined;
         for (const change of page.changes) {
             const table = this.#copied.get(change.table);
-            const projector = this.#projectors.get(change.table);
 
             // take a relaying source's copy position as the home position
             if (change.table === replicaPosition[TABLE].sqlName) {
@@ -1258,16 +1227,8 @@ export class Replica {
                 continue;
             }
 
-            // collect a projected row's change and note its key for a snapshot's retractions
-            if (projector !== undefined) {
-                collectProjected(projected, projector, change, table, delivered);
-            }
-
-            // skip a projected table the copy keeps no rows of and refuse one outside the copy
+            // refuse a table outside the copy
             if (table === undefined) {
-                if (projector !== undefined) {
-                    continue;
-                }
                 throw new SyncError(
                     "INVALID_STREAM",
                     `page names a table outside copy ${this.name}: ${change.table}`,
@@ -1279,7 +1240,7 @@ export class Replica {
             }
         }
 
-        return { batches, projected, origin };
+        return { batches, origin };
     }
 
     /** Read the home position a relaying source's copy record sends. */
@@ -1613,40 +1574,12 @@ interface Batch {
     readonly removed: Row[];
 }
 
-/** A projected table's rows of one page. */
-interface ProjectionPage {
-    /** The rows the projection keeps. */
-    readonly kept: Row[];
-    /** The rows the projection lets go. */
-    readonly removed: Row[];
-}
-
 /** A group's last change in one page. */
 interface GroupWrite {
     /** The group's key. */
     readonly key: Key<typeof replicaResult>;
     /** The group's kept row or null for a let go group. */
     readonly row: Insert<typeof replicaResult> | null;
-}
-
-/** Collect a projected row's change. */
-function collectProjected(
-    projected: Map<Projector, ProjectionPage>,
-    projector: Projector,
-    change: RowChange,
-    table: Table | undefined,
-    delivered: ReadonlyMap<string, Set<string>> | undefined,
-): void {
-    // note the key for a snapshot's retractions
-    const row = projector.source[TABLE].decode(change.row);
-    if (delivered !== undefined && table === undefined) {
-        found(delivered, change.table).add(Key.name(projector.source, row));
-    }
-
-    // add the row to the kept or removed ones
-    const rows = projected.get(projector) ?? { kept: [], removed: [] };
-    projected.set(projector, rows);
-    (change.operation === "delete" ? rows.removed : rows.kept).push(row);
 }
 
 /** Collect a copied row's change into its table's batch. */
@@ -1859,25 +1792,6 @@ export interface ApplyOptions extends RegisterOptions {
     readonly prediction?: Prediction;
     /** Open the machine-bound values a fenced source sealed to this copy. */
     readonly open?: (table: Table, row: Row) => Promise<Row>;
-}
-
-/** How a copy projects a source table's rows into rows of its own, as a read model of them. */
-export interface Projector {
-    /** The source table whose rows the copy projects. */
-    readonly source: Table;
-    /** Write the target rows of a source scope's kept rows, and retract key-only removed ones. */
-    write(
-        transaction: DatabaseConnection,
-        scope: string,
-        kept: readonly Row[],
-        removed: readonly Row[],
-    ): Promise<void>;
-    /** Retract the target rows of source rows a snapshot left out, given its delivered keys. */
-    prune(
-        transaction: DatabaseConnection,
-        scope: string,
-        delivered: ReadonlySet<string>,
-    ): Promise<void>;
 }
 
 /** The home position of a copy's rows. */

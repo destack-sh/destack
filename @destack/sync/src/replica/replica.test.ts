@@ -1,17 +1,13 @@
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
-    and,
     asc,
     binary,
     defineTable,
     eq,
-    inArray,
-    integer,
     Key,
     TABLE,
     text,
-    uniqueIndex,
     type Row,
     type Table,
     type LogPosition,
@@ -25,7 +21,7 @@ import { setTimeout } from "node:timers/promises";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { aligned, schema, Clock } from "@destack/schema";
-import { replicaTables, Replica, replicaPosition, replicaRow, type Projector } from "./replica.ts";
+import { replicaTables, Replica, replicaPosition, replicaRow } from "./replica.ts";
 import { type Resumption, Uplink } from "./shape.ts";
 import {
     asset,
@@ -980,9 +976,9 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "drop a copy: delete the rows no other copy includes, retract its projections and forget its record, on %s",
+    "drop a copy: delete the rows no other copy includes and forget its record, on %s",
     async (dialect) => {
-        const copy = await openCopy(dialect, [...TABLES, reading]);
+        const copy = await openCopy(dialect, TABLES);
         const epoch = "01996ab0-0000-7000-8000-000000000001";
         const snapshot = (ids: readonly string[]): Page[] => [
             {
@@ -992,13 +988,8 @@ test.for(TEST_DIALECTS)(
                 position: { epoch, sequence: 1 },
             },
         ];
-        // keep a shared row in two copies and project the left copy's notes
-        const left = new Replica({
-            name: "left",
-            scope: "inbox",
-            tables: [note],
-            projectors: [projectNotes("reading")],
-        });
+        // keep a shared row in two copies
+        const left = new Replica({ name: "left", scope: "inbox", tables: [note] });
         const right = new Replica({ name: "right", scope: "inbox", tables: [note] });
         await left.register(copy, { subscription: subscriptionOf("left"), clock: Clock.system });
         await right.register(copy, { subscription: subscriptionOf("right"), clock: Clock.system });
@@ -1011,9 +1002,8 @@ test.for(TEST_DIALECTS)(
             (await copy.select({ id: note.id }).from(note).orderBy(asc(note.id))).map(
                 (row) => row.id,
             ),
-            await copy.select({ id: reading.id }).from(reading),
             await Replica.subscriptions(copy),
-        ]).toEqual([["shared", "z"], [], [subscriptionOf("right")]]);
+        ]).toEqual([["shared", "z"], [subscriptionOf("right")]]);
     },
 );
 
@@ -1367,166 +1357,6 @@ function followOf(feed: Feed, copy: Replica) {
             from.origin === undefined ? {} : { origin: from.origin },
         );
 }
-
-/** Each note's entry in a reader's list, its own row projected from the note it names. */
-const reading = defineTable(
-    "reading",
-    {
-        /** The entry's own identity. */
-        id: text("id").primaryKey(),
-        /** The list keeping the reading. */
-        scope: text("scope").notNull(),
-        /** The scope of the projected note. */
-        sourceScope: text("source_scope").notNull(),
-        /** The projected note. */
-        sourceId: text("source_id").notNull(),
-        /** The note's title when last projected. */
-        title: text("title").notNull(),
-        /** When the reader read the note, the entry's own state. */
-        readAt: integer("read_at"),
-    },
-    {
-        constraints: (row) => [
-            uniqueIndex("reading_source").on(row.scope, row.sourceScope, row.sourceId),
-        ],
-    },
-);
-
-/** The note columns a projection reads. */
-const NoteProjection = schema.looseObject({
-    id: schema.string(),
-    scope: schema.string(),
-    title: schema.string(),
-});
-
-/** Project the notes of a scope into a reader's list, keeping each entry's identity and state. */
-function projectNotes(list: string): Projector {
-    // match the entries of the list's projected notes
-    const named = (rows: readonly Row[]) =>
-        and(
-            eq(reading.scope, list),
-            inArray(
-                reading.sourceId,
-                rows.map((row) => schema.string().parse(row["id"])),
-            ),
-        );
-
-    return {
-        source: note,
-        write: async (transaction, _scope, kept, removed) => {
-            for (const row of kept) {
-                const { id, scope, title } = NoteProjection.parse(row);
-                await transaction
-                    .insert(reading)
-                    .values({
-                        id: `entry-${id}`,
-                        scope: list,
-                        sourceScope: scope,
-                        sourceId: id,
-                        title,
-                        readAt: null,
-                    })
-                    .onConflictDoUpdate({
-                        target: [reading.scope, reading.sourceScope, reading.sourceId],
-                        set: { title },
-                    });
-            }
-            if (removed.length > 0) {
-                await transaction.delete(reading).where(named(removed));
-            }
-        },
-        prune: async (transaction, scope, delivered) => {
-            const entries = await transaction
-                .select()
-                .from(reading)
-                .where(and(eq(reading.scope, list), eq(reading.sourceScope, scope)));
-            const stale = entries.filter(
-                (row) => !delivered.has(Key.name(note, { id: row.sourceId })),
-            );
-            if (stale.length > 0) {
-                await transaction.delete(reading).where(
-                    inArray(
-                        reading.id,
-                        stale.map((row) => row.id),
-                    ),
-                );
-            }
-        },
-    };
-}
-
-test.for(TEST_DIALECTS)(
-    "project a scope's notes into a reader's list, keeping each entry's own state, retracting a deleted note's entry and those a later snapshot leaves out, on %s",
-    async (dialect) => {
-        const source = await open(dialect);
-        const copy = await openCopy(dialect, [...TABLES, reading]);
-        const feed = new Feed(source, [note, replicaPosition], { clock: Clock.system });
-        const notes = new Replica({
-            name: "notes",
-            scope: "inbox",
-            tables: [],
-            projectors: [projectNotes("reading")],
-        });
-        await source.insert(note).values([first, { ...first, id: "b", title: "Second" }]);
-        const entries = async () =>
-            (await copy.select().from(reading).orderBy(asc(reading.sourceId))).map((row) => [
-                row.id,
-                row.sourceId,
-                row.title,
-                row.readAt,
-            ]);
-        const follow = (from: (resumed: LogPosition | undefined) => LogPosition | undefined) => {
-            const controller = new AbortController();
-            const following = notes.follow(
-                copy,
-                ({ after }, signal) =>
-                    feed.subscribe(
-                        { ...notes.queries, note: { table: note, scopes: ["inbox"] } },
-                        from(after),
-                        signal,
-                    ),
-                controller.signal,
-                { clock: Clock.system },
-            );
-
-            return { stop: async () => (controller.abort(), await following) };
-        };
-        const reach = async () =>
-            expect(
-                await Replica.wait(
-                    copy,
-                    "inbox",
-                    await source.log.position(),
-                    AbortSignal.timeout(5000),
-                ),
-            ).toBe(true);
-
-        // project both notes and keep the entry's state across a retitle
-        const following = follow((after) => after);
-        await reach();
-        await copy.update(reading).set({ readAt: 7 }).where(eq(reading.sourceId, "a"));
-        await source.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
-        await reach();
-        expect(await entries()).toEqual([
-            ["entry-a", "a", "Renamed", 7],
-            ["entry-b", "b", "Second", null],
-        ]);
-
-        // retract a deleted note's entry
-        await source.delete(note).where(eq(note.id, "b"));
-        await reach();
-        expect(await entries()).toEqual([["entry-a", "a", "Renamed", 7]]);
-        await following.stop();
-
-        // retract the entries a later snapshot leaves out
-        await source.delete(note).where(eq(note.id, "a"));
-        await source.insert(note).values({ ...first, id: "c", title: "Third" });
-        const snapshotting = follow(() => undefined);
-        await reach();
-        expect(await entries()).toEqual([["entry-c", "c", "Third", null]]);
-        await snapshotting.stop();
-    },
-);
 
 test("stream through a client's replica procedures as the follower, and send a forwarded change as its signer", async () => {
     // call a fake client, recording whom each call signs as

@@ -61,7 +61,8 @@ export class Filter {
             this.#match({
                 field: (name) => resolved[name],
                 placeholder: Predicate.unbound,
-                search: (words) => this.node.table[TABLE].requireFullText().matches(resolved, words),
+                search: (words) =>
+                    this.node.table[TABLE].requireFullText().matches(resolved, words),
                 exists: (via, where) => {
                     // count the related rows meeting the condition
                     const relation = this.node.relation(via, where);
