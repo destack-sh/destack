@@ -53,5 +53,5 @@ if (error instanceof FileSystemError && error.code === "EACCES") {
     report(`cannot ${error.operation} ${error.path}`);
 }
 // { code: "INTERNAL_SERVER_ERROR", … }
-new FileSystemError("read", "/notes/today.md", "ENOENT").toServiceError();
+new FileSystemError("read", "/notes/today.md", "ENOENT").toCallError();
 ```
