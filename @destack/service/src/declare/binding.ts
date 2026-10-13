@@ -7,7 +7,7 @@ import {
 import { ModuleMetadata, type Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { defineSchema, schema, Version } from "@destack/schema";
-import { Loan, type LoanContext } from "../authentication/loan.ts";
+import { Exchange, type ExchangeContext } from "../authentication/exchange.ts";
 import { createClient } from "../client/client.ts";
 import type { Client, ServiceRouter } from "../service/service.ts";
 import type { Service } from "./service.ts";
@@ -46,7 +46,7 @@ export type ServiceBindingDescription = schema.Infer<typeof ServiceKind.descript
 /** A dependency on a package's service, bound to a typed client of its endpoint. */
 export class ServiceBinding<
     Router extends ServiceRouter = ServiceRouter,
-> extends ResourceDeclaration<Client<Router, LoanContext>, ServiceBindingDescription> {
+> extends ResourceDeclaration<Client<Router, ExchangeContext>, ServiceBindingDescription> {
     /** The service the client calls. */
     readonly service: Service<Router>;
 
@@ -57,7 +57,7 @@ export class ServiceBinding<
     }
 
     /** The HTTP connector. */
-    override get connectors(): { readonly http: Connector<Client<Router, LoanContext>> } {
+    override get connectors(): { readonly http: Connector<Client<Router, ExchangeContext>> } {
         return {
             http: {
                 code: SERVICE_PROVIDER,
@@ -68,21 +68,13 @@ export class ServiceBinding<
                         throw new TypeError(`service binding ${this.name} holds no credential`);
                     }
 
-                    // ask for a Loan on an object's method for the person a call's context names
-                    const objects = this.service.objects;
-                    const client = createClient<Router, LoanContext>(this.service, {
+                    // ask for an exchange for the subject a call's context names
+                    const client = createClient<Router, ExchangeContext>(this.service, {
                         url: binding.reference,
-                        headers: (options, path) => {
-                            const [route, method] = path;
-                            const object = route === undefined ? undefined : objects[route];
-
-                            return {
-                                authorization: `Bearer ${credential}`,
-                                ...(object === undefined || method === undefined
-                                    ? {}
-                                    : Loan.ask(Loan.method(object, method), options.context)),
-                            };
-                        },
+                        headers: (options) => ({
+                            authorization: `Bearer ${credential}`,
+                            ...Exchange.ask(options.context?.exchange),
+                        }),
                     });
 
                     // dispose nothing

@@ -20,7 +20,7 @@ export const testCallKey: CallKey = () => TEST_KEY;
 /** How a hand-built test caller signs in, and the signal and clock of its requests. */
 export interface SubjectContextOptions extends Pick<
     Caller,
-    "delegates" | "assurance" | "permissions" | "attributes" | "loan"
+    "delegates" | "grant" | "assurance" | "attributes"
 > {
     /** The signal ending the request. */
     readonly signal?: AbortSignal;
@@ -34,7 +34,7 @@ export function subjectContext(
     scope: string | undefined,
     options: SubjectContextOptions = {},
 ): ServiceContext {
-    // sign the subject in for a minute with its delegates, assurance and restrictions
+    // sign the subject in for a minute with its delegates, grant and assurance
     const { signal, clock = Clock.system, ...restrictions } = options;
     const now = clock.now();
     const caller: Caller = {

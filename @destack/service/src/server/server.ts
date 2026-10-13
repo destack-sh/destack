@@ -346,7 +346,7 @@ export class Server implements AsyncDisposable {
         // admit anyone, and leave each row to the object store, refusing a credential that failed
         const permission = call.access.permission;
         if (permission === "anyone" || permission === "rows" || "rows" in permission) {
-            Caller.delegation(call.context.caller());
+            Caller.requireChain(call.context.caller());
         }
         // admit principals of the declared kinds calling as themselves
         else if ("principals" in permission) {
@@ -359,7 +359,7 @@ export class Server implements AsyncDisposable {
                     message: `${sender.type} callers cannot call ${call.path.join(".")}`,
                 });
             }
-            Caller.delegation(call.context.caller());
+            Caller.requireChain(call.context.caller());
         }
         // decide the permission on the call's target
         else {

@@ -70,7 +70,7 @@ export class ServiceContext {
             access &&
             new Authorization(access.authorizer, Transaction.reading(access.database), () => {
                 const authorized = this.caller();
-                Caller.delegation(authorized);
+                Caller.requireChain(authorized);
 
                 return AccessContext.of(authorized, this.clock.now());
             });

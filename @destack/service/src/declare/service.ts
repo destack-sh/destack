@@ -24,7 +24,7 @@ export interface Service<
 export interface ObjectDeclaration {
     /** The package declaring it. */
     readonly package: { readonly name: string };
-    /** Its name, which a Loan identifies its methods by. */
+    /** Its name within its package. */
     readonly name: string;
     /** Its declaring package and name. */
     readonly typeReference: { readonly packageId: string; readonly type: string };

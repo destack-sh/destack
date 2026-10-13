@@ -1,7 +1,7 @@
 import { AccessFixture } from "@destack/access/test";
 import { Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { schema, Clock } from "@destack/schema";
+import { Clock, Identifier, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
@@ -322,12 +322,13 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await client.read({ id: "one" })).toBe("personal note");
     expect(authentications).toBe(3);
 
-    // restrict an owner's credential to one object
+    // limit an owner's token to one object by their grant to it
     const now = Date.now();
     const restricted = await issuer.issue(
         {
             subject: owner,
             subjects: [owner],
+            delegates: [principal.personalAccessToken.reference(owner.id, "restricted-token")],
             credential: {
                 kind: "personal",
                 id: "restricted-token",
@@ -336,7 +337,11 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                 verifiedAt: now,
                 expiresAt: now + 60000,
             },
-            permissions: [{ ...note.permission("read"), scope: spaceId, objectId: "one" }],
+            grant: {
+                id: Identifier.create("grant"),
+                scope: owner.id,
+                permissions: [{ ...note.permission("read"), scope: spaceId, objectId: "one" }],
+            },
         },
         Date.now(),
     );

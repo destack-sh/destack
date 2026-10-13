@@ -1,22 +1,23 @@
 import { expect, test } from "@destack/test";
 import { TokenCache } from "./cache.ts";
-import { EXCHANGE_LIFETIME_MILLISECONDS } from "./token.ts";
 
 test("reuse an exchanged token for its key until 80% of its life passed, and exchange again after a failure", async () => {
-    // exchange under two keys, counting the exchanges
+    // exchange minute-long tokens under two keys, counting the exchanges
     const cache = new TokenCache();
     let issued = 0;
     const token = (key: string, now: number) =>
-        cache.token(key, now, async () => `token-${++issued}`);
-    const window = EXCHANGE_LIFETIME_MILLISECONDS * 0.8;
+        cache.token(key, now, async () => ({
+            accessToken: `token-${++issued}`,
+            expiresAt: now + 60_000,
+        }));
 
     // reuse within the window, and exchange anew past it or for another key
     const reused = [
         await token("first", 0),
         await token("first", 1000),
         await token("second", 1000),
-        await token("first", window - 1),
-        await token("first", window),
+        await token("first", 47_999),
+        await token("first", 48_000),
     ];
 
     // forget a failed exchange, so the next call exchanges again

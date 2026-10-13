@@ -4,11 +4,19 @@ import { isServiceError, ServiceError } from "../error/index.ts";
 /** The shape of an authorization header with one bearer token, per RFC 6750 2.1. */
 const BEARER = /^Bearer (\S+)$/u;
 
+/** A JSON Web Token: three base64url segments. */
+const SIGNED = /^[\w-]+\.[\w-]+\.[\w-]+$/u;
+
 /** The bearer token of an authorization header, per RFC 6750. */
 export const Bearer = {
     /** Read the one bearer token of an authorization header, absent for none or an invalid one. */
     token(authorization: string | null): string | undefined {
         return authorization === null ? undefined : BEARER.exec(authorization)?.[1];
+    },
+
+    /** Report whether a bearer token is signed, a JSON Web Token (RFC 7519 7.2). */
+    isSigned(token: string): boolean {
+        return SIGNED.test(token);
     },
 
     /** Read the one bearer token of a request without cookies. */

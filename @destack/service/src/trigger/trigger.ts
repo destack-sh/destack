@@ -18,6 +18,7 @@ import type {
 import { WebhookOn } from "./webhook.ts";
 import { ScheduleOn } from "./schedule.ts";
 import { RequestId } from "../request/request.ts";
+import { ExchangeAsk } from "../authentication/exchange.ts";
 
 /** The digits a run event's numbers take in its request: every safe integer. */
 const NUMBER_DIGITS = 16;
@@ -221,14 +222,14 @@ export const RunEvent = Object.assign(event, {
     },
 });
 
-/** A call sent to run later, on the lent authority of the caller whose call sent it. */
+/** A call sent to run later, for the subject whose call sent it under its grant. */
 const SENT = schema.object({
     /** The object method call the run makes. */
     call: Call,
     /** When the call runs in UTC epoch milliseconds, at recording when absent. */
     at: Instant.exactOptional(),
-    /** The lending of the sending caller's authority, so the call runs on that caller's behalf. */
-    delegation: schema.string().min(1).exactOptional(),
+    /** The subject the call runs for and its grant, absent for the installation's own call. */
+    exchange: ExchangeAsk.exactOptional(),
 });
 
 /** A call one of the installation's triggers runs for an event, once per event. */

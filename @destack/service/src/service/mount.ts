@@ -9,6 +9,9 @@ const MOUNTED = /^\/service\/([^/]+)(\/.*)?$/u;
 /** The path a machine serves each space under. */
 const SPACE = /^\/spaces\/([^/]+)(\/.*)?$/u;
 
+/** The path where a machine takes calls to its computer's native client. */
+const CLIENT = /^\/clients\/([^/]+)(\/.*)?$/u;
+
 /** The path where a machine takes calls to each installation it serves. */
 const INSTALLED = /^\/spaces\/([^/]+)\/installations\/([^/]+)(\/.*)?$/u;
 
@@ -64,6 +67,21 @@ export const SpaceMount = {
         const [, spaceId, path] = SPACE.exec(pathname) ?? [];
 
         return spaceId === undefined ? undefined : { spaceId, path: path ?? "/" };
+    },
+};
+
+/** The paths where machines take calls to the local objects of their computer's native client. */
+export const ClientMount = {
+    /** Build the path a native client's local objects are served at. */
+    path(clientId: string): `/clients/${string}` {
+        return `/clients/${clientId}`;
+    },
+
+    /** Split a path into the client and the path below its mount, absent outside any client. */
+    parse(pathname: string): { readonly clientId: string; readonly path: string } | undefined {
+        const [, clientId, path] = CLIENT.exec(pathname) ?? [];
+
+        return clientId === undefined ? undefined : { clientId, path: path ?? "/" };
     },
 };
 

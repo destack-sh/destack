@@ -1,6 +1,6 @@
 # @destack/service
 
-`defineProcedure` is oRPC's contract builder `oc` with a permission and an audit per procedure, `/server` is oRPC's `implement` served as OpenAPI, `ServiceError` is `ORPCError`, `defineTrigger` is a Kubernetes CronJob, a Standard Webhooks receiver and a change trigger, `/outbox` is the transactional outbox, `/authentication` is RFC 8693 token exchange, and `Loan` is the AT Protocol's inter-service token for one method (`lxm`).
+`defineProcedure` is oRPC's contract builder `oc` with a permission and an audit per procedure, `/server` is oRPC's `implement` served as OpenAPI, `ServiceError` is `ORPCError`, `defineTrigger` is a Kubernetes CronJob, a Standard Webhooks receiver and a change trigger, `/outbox` is the transactional outbox, and `/authentication` is a JSON Web Token with an RFC 8693 actor chain and an RFC 9396 grant, exchanged for a subject under its grant.
 
 ```ts
 // oc
@@ -17,8 +17,8 @@ await ServiceError.read(response, "MISDIRECTED_REQUEST"); // the 421's declared 
 on: { schedule: { timing, concurrency: "forbid", deadline: 60_000, call } };
 await new StandardSignature().sign(message, secret); // Standard Webhooks' webhook-signature headers
 await outbox.append(inbox, deliveryId, delivery, transaction); // transactional outbox
-await spaceIssuer.exchange(caller, { actor: installation, audience }); // RFC 8693 token exchange
-await Loan.sign(sign, { home, person, space, method: Loan.method(page, "update") }); // AT Protocol lxm
+await issuer.issue({ ...person, delegates: [installation], grant }, now); // RFC 8693 act, RFC 9396 details
+client.notes.list({}, { context: { exchange: Exchange.of(served) } }); // RFC 8693 token exchange at the egress
 ```
 
 ## Services
