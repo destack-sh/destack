@@ -1,10 +1,10 @@
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema, Clock } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
-import { testCallKey } from "@destack/service/test";
+import { RequestId } from "@destack/runtime/request";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, field, FractionalIndex } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
@@ -27,7 +27,6 @@ const item = defineObject({
     },
     permissions: { read: relation("owner"), write: relation("owner") },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
     update: method.update("write"),
 }));
@@ -45,7 +44,6 @@ const card = defineObject({
     },
     permissions: { read: relation("owner"), write: relation("owner") },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
     update: method.update("write"),
 }));
@@ -54,7 +52,7 @@ const card = defineObject({
 async function serve(dialect: (typeof TEST_DIALECTS)[number]) {
     const storage = await TestDatabase.create(
         dialect,
-        defineDatabase({ name: "order", tables: [...item.tables, ...card.tables, journal] }),
+        defineDatabase({ name: "order", tables: [...item.tables, ...card.tables, ...callTables] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -63,10 +61,11 @@ async function serve(dialect: (typeof TEST_DIALECTS)[number]) {
     return new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { item, card },
+        objects: [item, card],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: item.package, service: "test" },
+        events: await testEvents(storage.database),
+        origin: { package: item.package },
     });
 }
 

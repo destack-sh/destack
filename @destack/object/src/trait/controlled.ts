@@ -51,7 +51,7 @@ export function approvalColumns() {
 /** Records a controller reconciles. */
 export const controlled: Trait<ControlledDefinition> = {
     key: "controlled",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.controlled,
     columns: (options) => ({
         ...controlledColumns(),

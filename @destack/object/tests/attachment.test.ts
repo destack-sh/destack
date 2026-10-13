@@ -1,12 +1,11 @@
 import { present, schema, Clock } from "@destack/schema";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { asc, eq, type Dialect, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { v7 } from "uuid";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import {
     defineObject,
     field,
@@ -18,7 +17,8 @@ import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { request } from "./fixture/request.ts";
 
 /** The space containing the objects. */
@@ -34,7 +34,6 @@ const remark = defineObject({
     permissions: { read: through("parent", "read"), write: through("parent", "remark") },
     aggregates: { remarkCount: { function: "count" } },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
     delete: method.delete("write"),
     /** Count the remarks on a parent, checked as on a new remark there. */
@@ -65,8 +64,6 @@ const article = defineObject({
     permissions: { read: relation("owner"), edit: relation("owner") },
     attachments: [remark.attach({ by: "edit" })],
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("edit"),
     delete: method.delete("edit"),
 }));
@@ -80,8 +77,6 @@ const photo = defineObject({
     permissions: { read: relation("owner") },
     attachments: [remark.attach({ by: "read" }), pin.attach({ by: "read" })],
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("read"),
     delete: method.delete("read"),
 }));
@@ -110,7 +105,6 @@ const favourite = defineObject({
         reader: { kind: "unique", on: ["parentPackageId", "parentType", "parentId", "readerId"] },
     },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
     delete: method.delete("write"),
 }));
@@ -295,7 +289,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         dialect,
         defineDatabase({
             name: "main",
-            tables: [journal, ...Object.values(objects).flatMap((object) => object.tables)],
+            tables: [...callTables, ...Object.values(objects).flatMap((object) => object.tables)],
         }),
         { isMigrated: true },
     );
@@ -306,12 +300,12 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects,
+        objects: Object.values(objects),
         database: storage.database,
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         origin: {
             package: present(Object.values(objects)[0], "a served object type").package,
-            service: "test",
         },
     });
     const controller = new AbortController();

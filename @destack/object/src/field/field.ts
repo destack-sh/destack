@@ -17,6 +17,7 @@ import {
     type Select,
     type Table,
 } from "@destack/db";
+import { Message } from "@destack/locale";
 import { canonicalize, schema, type Identifier, type JsonValue } from "@destack/schema";
 import type { BuilderCall } from "../object/description.ts";
 import type { IdentityOf, ObjectStorage, ObjectType } from "../object/object.ts";
@@ -35,6 +36,7 @@ export const FIELD_TYPES = [
     "time",
     "enum",
     "json",
+    "message",
     "reference",
     "subject",
     "fractionalIndex",
@@ -63,6 +65,7 @@ const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     max: "number",
     enum: "enum",
     json: "json",
+    message: "message",
     file: "file",
     subject: "subject",
     state: "state",
@@ -110,6 +113,7 @@ export type FieldSource =
               | "time"
               | "fractionalIndex"
               | "text"
+              | "message"
               | "count"
               | "sum"
               | "min"
@@ -955,15 +959,15 @@ export function idColumn(table: Table): Column {
     return table[TABLE].column("id");
 }
 
-/** Key an identifier column to its type's table, without a foreign key in ephemeral storage. */
+/** Key an identifier column to its type's table, unkeyed in memory and in the event log. */
 function keyed<Definition extends ColumnDefinition>(
     column: ColumnBuilder<Definition>,
     target: () => ObjectType,
     storage: ObjectStorage,
     options: ReferenceOptions,
 ): ColumnBuilder<Definition> {
-    // keep ephemeral references without a foreign key
-    if (storage === "ephemeral") {
+    // leave references in memory and in the event log without a foreign key
+    if (storage === "ephemeral" || storage === "events") {
         return column;
     }
 
@@ -1109,6 +1113,11 @@ export const field = {
         return required({ builder: "json", arguments: [validator] }, (name) =>
             json(name, validator),
         );
+    },
+
+    /** A message the declaring package's catalogs translate, with its identifier and source. */
+    message() {
+        return required({ builder: "message", arguments: [] }, (name) => json(name, Message));
     },
 
     /** A file kept in a bucket the package declares, by its key. */

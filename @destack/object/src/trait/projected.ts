@@ -23,7 +23,7 @@ export interface ProjectedDefinition {
 export interface Residence {
     /** The accounts, each personal one in its user's scope, with a home below it in the chain. */
     readonly account: ObjectType;
-    /** The residences in users' scopes, each with `source`, `installation` and `service`. */
+    /** The residences in users' scopes, each with `sourceId` and `installation`. */
     readonly residence: ObjectType;
 }
 
@@ -39,7 +39,7 @@ export const projected: Trait<ProjectedDefinition> & {
     sourceOf(options: ProjectedDefinition): ObjectType;
 } = {
     key: "projected",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.projected,
     columns: () => ({}),
     constraints: (options, table, columns) => [
@@ -86,7 +86,7 @@ export const projected: Trait<ProjectedDefinition> & {
         const { account, residence } = options.residence;
         const missing = [
             ...(account.fields["kind"] === undefined ? [`${account.name}.kind`] : []),
-            ...["source", "installation"].flatMap((name) =>
+            ...["sourceId", "installation"].flatMap((name) =>
                 residence.fields[name] === undefined ? [`${residence.name}.${name}`] : [],
             ),
         ];

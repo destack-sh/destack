@@ -1,9 +1,11 @@
+import { ObjectTypeReference } from "@destack/sync";
 import { MemoryBuild } from "@destack/package/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { ControlLoop } from "@destack/service/control";
-import { ServiceError } from "@destack/service/error";
-import { testCallKey } from "@destack/service/test";
-import type { InstallationContext } from "@destack/service/workload";
+import { ControlLoop } from "@destack/runtime/control";
+import { CallError } from "@destack/runtime/error";
+import { testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
+import type { InstallationContext } from "@destack/runtime/workload";
 import { asc, defineDatabase, eq, type LogPosition } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, present, schema } from "@destack/schema";
@@ -29,7 +31,7 @@ const memo = defineObject({
     fields: { recipient: field.subject(), title: field.string() },
     permissions: { read: none() },
     projections: (): readonly ObjectType[] => [receipt],
-}).methods((method) => ({ get: method.get("read") }));
+}).methods();
 
 /** A person, whose personal account's home keeps the receipts of the memos they receive. */
 const person = defineObject({
@@ -57,7 +59,7 @@ const sender = defineObject({
     plural: "senders",
     scope: person,
     inherited: {},
-    fields: { source: field.string(), installation: field.string() },
+    fields: { sourceId: field.string(), installation: field.string() },
     permissions: { read: none() },
 }).methods();
 
@@ -81,7 +83,7 @@ const receipt = defineObject({
         residence: { account: holder, residence: sender },
     },
     permissions: { read: none() },
-}).methods((method) => ({ get: method.get("read") }));
+}).methods();
 
 /** Sort projected rows by their title. */
 function byTitle(rows: unknown[][]): unknown[][] {
@@ -263,7 +265,7 @@ test("settle the address of a recipient without a user, and record it again once
             address: async (address) => {
                 recorded.push(address);
                 waiting.get(recorded.length)?.();
-                throw new ServiceError("NOT_FOUND", { message: `no user ${address}` });
+                throw new CallError("NOT_FOUND", { message: `no user ${address}` });
             },
         },
     };
@@ -276,12 +278,15 @@ test("settle the address of a recipient without a user, and record it again once
         });
     const store = new ObjectStore({
         clock: Clock.system,
-        principal: spacePrincipal(MEMOS),
-        objects: { memo },
+        principal: principal.installation.reference(installation.scope, installation.id),
+        objects: [memo],
         database,
         callKey: testCallKey,
-        origin: { package: memo.package, service: "test" },
-        installation,
+        events: await testEvents(database),
+        origin: { package: memo.package },
+        installed: new Map(
+            [memo].map((type) => [ObjectTypeReference.key(type.typeReference), installation]),
+        ),
     });
     const failures: unknown[] = [];
     const loop = new ControlLoop(

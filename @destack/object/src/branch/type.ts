@@ -1,9 +1,9 @@
 import type { Method } from "../method/method.ts";
 import { TABLE, type Row, type Table, Condition } from "@destack/db";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { schema } from "@destack/schema";
-import type * as sync from "@destack/sync";
-import { Call } from "../method/index.ts";
+import * as sync from "@destack/sync";
+import { Call, CallCode } from "../method/index.ts";
 import type { ObjectController } from "../object/controller.ts";
 import { ObjectKey, type ObjectType } from "../object/index.ts";
 
@@ -53,7 +53,7 @@ export class BranchType {
     /** Require a branch to be open, refusing one merged or discarded for good. */
     requireOpen<Target extends { readonly state: string }>(target: Target): Target {
         if (target.state !== "open") {
-            throw new ServiceError("CONFLICT", { message: `branch is ${target.state}` });
+            throw new CallError("CONFLICT", { message: `branch is ${target.state}` });
         }
 
         return target;
@@ -65,21 +65,24 @@ export class BranchType {
         entry: sync.Call,
         scope: string,
     ): ReturnType<typeof Call.resolve> {
-        // resolve the call in the branch's scope, refusing one in another scope
-        const type = objects.find((served) => entry.method.startsWith(`${served.name}.`));
-        const field = type?.route.field;
+        // resolve the call in the branch's scope, refusing one in another scope or of an unknown method
+        const type = Call.typeOf(objects, entry);
+        const field =
+            type !== undefined && Object.hasOwn(type.methods, entry.method)
+                ? type.route.field
+                : undefined;
         const named = field === undefined ? undefined : entry.input[field];
         if (named !== undefined && named !== scope) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `${entry.method} acts in another scope than its branch`,
+            throw new CallError("BAD_REQUEST", {
+                message: `${sync.Call.label(entry)} acts in another scope than its branch`,
             });
         }
         const input = field === undefined ? entry.input : { ...entry.input, [field]: scope };
-        const resolved = Call.resolve(objects, { ...entry, input }, true, true);
+        const resolved = Call.resolve(objects, { ...entry, input }, true, CallCode.client);
 
         // refuse ephemeral objects and branch bookkeeping, whose writes no branch keeps
         if (resolved.object.storage === "ephemeral" || this.keeps(resolved.object)) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `branches keep no calls of ${resolved.object.name}`,
             });
         }

@@ -1,14 +1,15 @@
-import { reconciliation, testCallKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, none, principal, relation, through } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { call } from "../index.ts";
+import { testEvents } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier, Clock } from "@destack/schema";
 
 import { Replica, Scope } from "@destack/sync";
-import { defineObject, field } from "../index.ts";
+import { defineObject, field, Intrinsic } from "../index.ts";
 import { ObjectStore, Subscriber } from "./index.ts";
 
 /** Refuse a change sent over the uplink, as these copies receive none. */
@@ -26,7 +27,7 @@ const person = defineObject({
     fields: { name: field.string() },
     relations: { joined: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("joined") },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
 /** Profiles living in their person's own scope, read by whoever reads the person. */
 const profile = defineObject({
@@ -38,7 +39,7 @@ const profile = defineObject({
         email: field.string().guard({ read: "manage" }),
     },
     permissions: { read: through("person", "read"), manage: none() },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
 /** Teams of the universe, which the space keeps no copies of. */
 const team = defineObject({
@@ -48,7 +49,7 @@ const team = defineObject({
     isScope: true,
     fields: { name: field.string() },
     permissions: { read: none() },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
 /** Badges living in a person's or a team's scope, each listed to the spaces it is shown to. */
 const badge = defineObject({
@@ -58,23 +59,26 @@ const badge = defineObject({
     fields: { label: field.string() },
     relations: { shown: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("shown") },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
+
+/** The relationships of people, listed as objects. */
+const relationship = defineObject(Intrinsic.relationship.definition(person)).methods();
 
 /** Serve people and profiles over a database. */
-function serve(
+async function serve(
     database: DatabaseConnection,
     subscriber?: NonNullable<ConstructorParameters<typeof ObjectStore>[0]["subscriber"]>,
 ) {
     return new ObjectStore({
         clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, spaceId),
-        objects: { person, profile },
+        objects: [person, profile],
         database,
         ...(subscriber === undefined ? {} : { subscriber }),
         callKey: testCallKey,
+        events: await testEvents(database),
         origin: {
             package: person.package,
-            service: "test",
         },
     });
 }
@@ -82,11 +86,11 @@ function serve(
 test.each(TEST_DIALECTS)(
     "copy the profiles in the scopes of the people a space reads, each decided in its person's scope, on %s",
     async (dialect) => {
-        const tables = [...person.tables, ...profile.tables, journal];
+        const tables = [...person.tables, ...profile.tables, ...call.tables];
         const home = await TestDatabase.create(dialect, tables, { isMigrated: true });
         const declared = defineDatabase({
             name: "space",
-            tables: [journal],
+            tables: call.tables,
             copies: [...person.tables, ...profile.tables],
         });
         const space = await TestDatabase.create(dialect, declared, { isMigrated: true });
@@ -127,7 +131,7 @@ test.each(TEST_DIALECTS)(
         await new AccessFixture(home.database).suspendCopy(cy, now);
 
         // let the space read ada and the suspended cy
-        const served = serve(home.database);
+        const served = await serve(home.database);
         const join = (id: string) =>
             new AccessFixture(home.database).copyRelationship(
                 id,
@@ -139,7 +143,7 @@ test.each(TEST_DIALECTS)(
         await join(cy);
 
         // keep the space's copy of the universe in its database, decided at home for the space
-        const copying: ObjectStore = serve(
+        const copying: ObjectStore = await serve(
             space.database,
             Subscriber.of(
                 {
@@ -222,14 +226,14 @@ test.each(TEST_DIALECTS)(
         // keep ada and a team at home, the team's badges and ada's own
         const home = await TestDatabase.create(
             dialect,
-            [...person.tables, ...team.tables, ...badge.tables, journal],
+            [...person.tables, ...team.tables, ...badge.tables, ...call.tables],
             { isMigrated: true },
         );
         const space = await TestDatabase.create(
             dialect,
             defineDatabase({
                 name: "space",
-                tables: [journal],
+                tables: call.tables,
                 copies: [...person.tables, ...badge.tables],
             }),
             { isMigrated: true },
@@ -262,10 +266,11 @@ test.each(TEST_DIALECTS)(
         const served = new ObjectStore({
             clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, spaceId),
-            objects: { person, team, badge },
+            objects: [person, team, badge],
             database: home.database,
             callKey: testCallKey,
-            origin: { package: person.package, service: "test" },
+            events: await testEvents(home.database),
+            origin: { package: person.package },
         });
         const fixture = new AccessFixture(home.database);
         const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
@@ -288,7 +293,7 @@ test.each(TEST_DIALECTS)(
         const copying: ObjectStore = new ObjectStore({
             clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, spaceId),
-            objects: { person, badge },
+            objects: [person, badge],
             database: space.database,
             subscriber: Subscriber.of(
                 {
@@ -308,7 +313,8 @@ test.each(TEST_DIALECTS)(
                 ],
             ),
             callKey: testCallKey,
-            origin: { package: person.package, service: "test" },
+            events: await testEvents(space.database),
+            origin: { package: person.package },
         });
         await follow(copying, home.database, space.database);
 
@@ -318,6 +324,108 @@ test.each(TEST_DIALECTS)(
             [badgeOf(1), crew, "shown in the team"],
             [badgeOf(3), ada, "shown in ada's scope"],
         ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "copy each person once the space may read them at the change's position, though the home lists relationships as objects, on %s",
+    async (dialect) => {
+        const home = await TestDatabase.create(dialect, [...person.tables, ...call.tables], {
+            isMigrated: true,
+        });
+        const space = await TestDatabase.create(
+            dialect,
+            defineDatabase({ name: "space", tables: call.tables, copies: person.tables }),
+            { isMigrated: true },
+        );
+        onTestFinished(async () => {
+            await Promise.all([home.close(), space.close()]);
+        });
+
+        // keep ada, who joined the space, and bob, who did not yet
+        const at = { scope: "universe", createdAt: 1, updatedAt: 1 };
+        const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
+        const [ada, bob, cy] = [personOf(1), personOf(2), personOf(3)];
+        const join = (database: DatabaseConnection, id: string) =>
+            new AccessFixture(database).copyRelationship(
+                id,
+                person.reference(Scope.universe.id, id),
+                "joined",
+                spaceSubject,
+            );
+        for (const id of [ada, bob]) {
+            await new AccessFixture(home.database).copyScope(
+                person.reference(Scope.universe.id, id),
+            );
+            await home.database.insert(person.table).values({ id, name: id, ...at });
+        }
+        const joined = await join(home.database, ada);
+
+        // serve the people and their relationships as objects, and copy what the space reads
+        const served = new ObjectStore({
+            clock: Clock.system,
+            principal: spaceSubject,
+            objects: [person, relationship],
+            database: home.database,
+            callKey: testCallKey,
+            events: await testEvents(home.database),
+            origin: { package: person.package },
+        });
+        const copying: ObjectStore = new ObjectStore({
+            clock: Clock.system,
+            principal: spaceSubject,
+            objects: [person],
+            database: space.database,
+            subscriber: Subscriber.of(
+                {
+                    receive: refuseChanges,
+                    stream: (asked, signal) =>
+                        served.source.replicate(
+                            asked,
+                            asked.after,
+                            {
+                                subject: principal.space.reference(Scope.universe.id, asked.below),
+                            },
+                            signal,
+                        ),
+                },
+                async () => [
+                    present(copying.source.universeSubscription(spaceId), "the universe request"),
+                ],
+            ),
+            callKey: testCallKey,
+            events: await testEvents(space.database),
+            origin: { package: person.package },
+        });
+        await follow(copying, home.database, space.database);
+        const copied = async () => {
+            await Replica.wait(
+                space.database,
+                Scope.universe.id,
+                await home.database.log.position(),
+                AbortSignal.timeout(5000),
+            );
+            const rows = await space.database
+                .select()
+                .from(person.table)
+                .orderBy(asc(person.table.id));
+
+            return rows.map((row) => row.id);
+        };
+        expect(await copied()).toEqual([ada]);
+
+        // let bob join the space, then create cy joining it in one commit
+        await join(home.database, bob);
+        await home.database.transaction(async (transaction) => {
+            await new AccessFixture(transaction).copyScope(person.reference(Scope.universe.id, cy));
+            await transaction.insert(person.table).values({ id: cy, name: cy, ...at });
+            await join(transaction, cy);
+        });
+        expect(await copied()).toEqual([ada, bob, cy]);
+
+        // take ada out once she leaves the space
+        await home.database.delete(accessRelationship).where(eq(accessRelationship.id, joined));
+        expect(await copied()).toEqual([bob, cy]);
     },
 );
 

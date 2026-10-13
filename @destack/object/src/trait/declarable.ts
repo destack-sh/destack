@@ -75,7 +75,7 @@ export type AdoptableMethodMap<Gate> = [Gate] extends [string]
 /** Records that stacks declare, managed by their declaration until detached. */
 export const declarable: Trait<DeclarableDefinition> = {
     key: "declarable",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.declarable,
     columns: () => managedColumns(),
     constraints: (_options, table, columns) =>
@@ -97,7 +97,7 @@ export const adoptable: Trait<Gated> & {
     adopt: typeof adopt;
 } = {
     key: "adoptable",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.adoptable,
     columns: () => ({}),
     constraints: () => [],

@@ -4,9 +4,10 @@ import { principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 
-import { subjectContext, testCallKey } from "@destack/service/test";
-import { RequestId } from "@destack/service/request";
-import type { ServiceContext } from "@destack/service/server";
+import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
+import { RequestId } from "@destack/runtime/request";
+import type { RequestContext } from "@destack/runtime/server";
 import { ObjectStore } from "../src/server/index.ts";
 import { notebook, note, notesDatabase } from "./fixture/note.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
@@ -19,8 +20,8 @@ test.for(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, notesDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        const east = serve(storage.database);
-        const west = serve(await storage.connect(notesDatabase));
+        const east = await serve(storage.database);
+        const west = await serve(await storage.connect(notesDatabase));
 
         // follow the notebooks on the west instance, snapshot first
         const controller = new AbortController();
@@ -63,21 +64,21 @@ test.for(TEST_DIALECTS)(
 );
 
 /** Serve the notes over one connection as alice. */
-function serve(database: DatabaseConnection) {
+async function serve(database: DatabaseConnection) {
     return new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { notebook, note },
+        objects: [notebook, note],
         database,
         callKey: testCallKey,
+        events: await testEvents(database),
         origin: {
             package: notebook.package,
-            service: "test",
         },
     });
 }
 
 /** Build alice's request context in the space, ending with the signal. */
-function context(signal: AbortSignal): ServiceContext {
+function context(signal: AbortSignal): RequestContext {
     return subjectContext(principal.user.reference("universe", "alice"), spaceId, { signal });
 }

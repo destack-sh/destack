@@ -3,17 +3,17 @@ import { present, schema, Clock } from "@destack/schema";
 import { type Dialect, defineDatabase, Expression } from "@destack/db";
 import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import * as sqlite from "@destack/db/bun";
 
-import { subjectContext, testCallKey } from "@destack/service/test";
-import { RequestId } from "@destack/service/request";
+import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
+import { RequestId } from "@destack/runtime/request";
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
 import { EphemeralStorage, ObjectStore } from "../src/server/index.ts";
 import { type LiveQuery, ObjectClient } from "../src/client/index.ts";
-import type { ClientOptions } from "@destack/service/client";
-import { defineService } from "@destack/service/declare";
+import type { ClientOptions } from "@destack/runtime/client";
+import { definePackage } from "@destack/runtime/declare";
 import { serveObjects } from "./fixture/device.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
@@ -28,7 +28,6 @@ const presence = defineObject({
     plural: "presences",
     scope: space,
     storage: "ephemeral",
-    linger: { milliseconds: 50 },
     nested: { in: "any", receive: "present" },
     fields: {
         member: field.reference(principal.user).caller(),
@@ -44,7 +43,6 @@ const presence = defineObject({
         writer: { kind: "unique", on: ["parentId", "writerId"] },
     },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
     update: method.update("write"),
     delete: method.delete("write"),
@@ -64,7 +62,7 @@ const board = defineObject({
     },
     shareable: { by: "manage" },
     attachments: [presence.attach({ by: "read" })],
-}).methods((method) => ({ list: method.list("read"), create: method.create("manage") }));
+}).methods((method) => ({ create: method.create("manage") }));
 
 /** The profiles of a board's members. */
 const profile = defineObject({
@@ -74,10 +72,10 @@ const profile = defineObject({
     nested: { in: board, receive: "manage" },
     fields: { name: field.string() },
     permissions: { read: through("parent", "read"), manage: through("parent", "manage") },
-}).methods((method) => ({ list: method.list("read"), create: method.create("manage") }));
+}).methods((method) => ({ create: method.create("manage") }));
 
-/** The service serving the boards, profiles and presence. */
-const boardsService = defineService("boards", { objects: { presence, board, profile } });
+/** The package serving the boards, profiles and presence. */
+const boardsPackage = definePackage({ objects: { presence, board, profile } });
 
 test.for(TEST_DIALECTS)(
     "share presence on a board across instances, guarded by access, gone after its writer on %s",
@@ -417,7 +415,7 @@ async function serveBoards(dialect: Dialect) {
         dialect,
         defineDatabase({
             name: "main",
-            tables: [journal, ...board.tables, ...profile.tables],
+            tables: [...callTables, ...board.tables, ...profile.tables],
         }),
         { isMigrated: true },
     );
@@ -435,6 +433,7 @@ async function serveBoards(dialect: Dialect) {
                 {
                     clock: Clock.system,
                     heartbeat: 1000,
+                    linger: 50,
                     report: (error) => {
                         throw error;
                     },
@@ -446,18 +445,18 @@ async function serveBoards(dialect: Dialect) {
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { presence, board, profile },
+            objects: [presence, board, profile],
             database: durable,
             ephemeral,
             callKey: testCallKey,
+            events: await testEvents(durable),
             origin: {
                 package: presence.package,
-                service: "test",
             },
         });
 
         const served = serveObjects(
-            store.implement(boardsService, store.routed, store.controllers(), {}),
+            store.implement(boardsPackage, store.routed, store.controllers()),
             spaceId,
         );
 

@@ -8,18 +8,18 @@ import {
     Relationship,
     relation,
 } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { AccessFixture } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier, schema, Clock } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 
 /** A private space nobody reads. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -42,7 +42,7 @@ const desk = defineObject({
     scope: room,
     fields: {},
     permissions: { read: none() },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
 /** Documents shared one at a time with their readers. */
 const document = defineObject({
@@ -53,8 +53,6 @@ const document = defineObject({
     relations: { reader: { subjects: [principal.user] } },
     permissions: { read: relation("reader"), write: none() },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("write"),
     update: method.update("write"),
 }));
@@ -62,7 +60,7 @@ const document = defineObject({
 test.each(TEST_DIALECTS)(
     "show a private space to readers of one object in it, forbid their writes, and hide it from strangers on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...document.tables, journal], {
+        const storage = await TestDatabase.create(dialect, [...document.tables, ...callTables], {
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
@@ -97,12 +95,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { document },
+            objects: [document],
             database,
             callKey: testCallKey,
+            events: await testEvents(database),
             origin: {
                 package: document.package,
-                service: "test",
             },
         });
         let context = userContext("alice", spaceId);
@@ -141,14 +139,14 @@ test.each(TEST_DIALECTS)(
         context = userContext("bob", spaceId);
         expect(await attempts()).toEqual(["NOT_FOUND", "NOT_FOUND", "NOT_FOUND", "NOT_FOUND"]);
 
-        // show a delegate lent nothing what alice sees, asking her for the grant it lacks
+        // show a delegate granted no reading what alice sees, asking her for the grant it lacks
         context = userContext("alice", spaceId, {
-            delegates: [
-                {
-                    subject: principal.installation.reference(spaceId, `installation-${v7()}`),
-                    authority: "lent",
-                },
-            ],
+            delegates: [principal.installation.reference(spaceId, `installation-${v7()}`)],
+            grant: {
+                id: Identifier.create("grant"),
+                scope: "alice",
+                permissions: [{ ...document.permission("write"), scope: spaceId }],
+            },
         });
         expect((await attempts()).slice(0, 3)).toEqual(["INSUFFICIENT_GRANT", [], "NOT_FOUND"]);
     },
@@ -159,7 +157,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await TestDatabase.create(
             dialect,
-            [...document.tables, ...desk.tables, journal],
+            [...document.tables, ...desk.tables, ...callTables],
             { isMigrated: true },
         );
         onTestFinished(() => storage.close());
@@ -187,12 +185,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { document, desk },
+            objects: [document, desk],
             database,
             callKey: testCallKey,
+            events: await testEvents(database),
             origin: {
                 package: document.package,
-                service: "test",
             },
         });
         const context = userContext("alice", undefined);

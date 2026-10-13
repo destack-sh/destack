@@ -5,7 +5,7 @@ import {
     isPrincipal,
     type Access,
     type Creation,
-    type GrantReader,
+    type TupleReader,
 } from "@destack/access";
 import {
     TABLE,
@@ -20,8 +20,8 @@ import {
 } from "@destack/db";
 import { aligned, canonicalize, schema, type JsonObject, type Version } from "@destack/schema";
 import { changesThroughLog, Dataflow, View, type ObjectReference, Subject } from "@destack/sync";
-import { conceal, isServiceError, ServiceError } from "@destack/service/error";
-import { Page, page } from "@destack/service/page";
+import { conceal, isCallError, CallError } from "@destack/runtime/error";
+import { Page } from "./page.ts";
 import { Call } from "./call.ts";
 import { Step } from "./step.ts";
 import type * as sync from "@destack/sync";
@@ -34,6 +34,7 @@ import {
     RevisionShape,
     type CustomSchema,
     type FieldShape,
+    type ColumnShape,
     type WrittenShape,
     type IdSchema,
     type ParentShape,
@@ -44,24 +45,38 @@ import {
     type ScopeShape,
     type TargetShape,
     type VariantSchema,
+    ListPage,
 } from "./procedure.ts";
 import { InputSchema } from "./input.ts";
 import { kebabCase } from "../object/name.ts";
+import { EventListing } from "../query/event.ts";
 import { Listing } from "../query/listing.ts";
 import { nest } from "../query/item.ts";
 import { ListShape, QueryShape, ViewShape } from "../replica/replica.ts";
-import type { ObjectType } from "../object/object.ts";
+import type { ObjectType, WrittenField } from "../object/object.ts";
 import type { ObjectTable, TraitTable } from "../object/table.ts";
 
 import { nextVersion } from "./versioned.ts";
 import { isManaging } from "../trait/declarable.ts";
 
 import type { RecoverableDefinition } from "../trait/recoverable.ts";
-/** The count of objects a bulk update changed. */
+
+/** The most items one bulk creation takes, as many as one list page reads. */
+export const BATCH_LIMIT = 1000;
+
+/** The count of objects a bulk update or deletion changed. */
 export const BatchPayload = schema.object({ count: schema.number().int().nonnegative() });
+
+/** The identifiers of the objects a bulk creation created, in item order. */
+export const BatchIds = schema.object({ ids: schema.array(schema.string()) });
+
+/** The items of a bulk creation, each one creation's fields. */
+export const BatchItems = schema.array(schema.record(schema.string(), schema.json()));
 
 /** The query, page and view of a list's input, beside its scope fields. */
 const LIST_INPUT = schema.looseObject({ ...QueryShape, ...PageShape, ...ViewShape });
+/** The query, page and view of a list's input. */
+export type ListInput = schema.Infer<typeof LIST_INPUT>;
 
 /** The field values a bulk update matches objects by, by field name. */
 const MATCH = schema.record(schema.string(), Scalar);
@@ -109,7 +124,7 @@ export function list<const Permission extends string, Definition extends Table =
         procedure: (_name, shapes) => ({
             route: { method: "POST", path: "/query" },
             input: shapes.scope.extend({ ...QueryShape, ...PageShape, ...ViewShape }),
-            output: page(shapes.row).extend(ListShape),
+            output: ListPage.schema(shapes.row).extend(ListShape),
         }),
         handler: listObjects,
     });
@@ -146,6 +161,16 @@ export interface CreateOptions<
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
 }
 
+/** How a bulk creation creates: its written fields and creator. */
+export interface CreateManyOptions<Fields extends string, Internal extends boolean> {
+    /** Whether the creation stays off public routes, setting the caller fields itself. */
+    readonly isInternal?: Internal;
+    /** The fields the caller writes on each item. */
+    readonly fields: readonly Fields[];
+    /** The relation the calling principal takes to each new object. */
+    readonly creator?: string;
+}
+
 /** How an update method updates: its written fields, input and prediction. */
 export interface UpdateOptions<
     Fields extends string,
@@ -174,6 +199,12 @@ export interface UpdateManyOptions<Fields extends string, Match extends string> 
     readonly match: readonly Match[];
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+}
+
+/** How a bulk deletion matches objects. */
+export interface DeleteManyOptions<Match extends string> {
+    /** The fields the call matches objects by. */
+    readonly match: readonly Match[];
 }
 
 /** How a deletion method deletes. */
@@ -252,8 +283,74 @@ export function create<
             }
 
             // insert under an unused identifier and record its access
-            return insertAuthorized(call, (inserted) => this.handler(inserted));
+            const { row } = await insertAuthorized(call, (inserted) => this.handler(inserted));
+
+            return row;
         },
+    });
+}
+
+/** Create one object per item from the fields the caller writes. */
+export function createMany<
+    const Permission extends string,
+    const Fields extends string = string,
+    const Internal extends boolean = false,
+    Definition extends Table = Table,
+>(
+    this: MethodBuilder<Definition>,
+    permission: Permission,
+    options: CreateManyOptions<Fields, Internal>,
+): Method<{
+    kind: "createMany";
+    permission: Permission;
+    output: typeof BatchIds;
+    mutates: true;
+    fields: NoInfer<Fields>;
+    table: Definition;
+    internal: NoInfer<Internal>;
+}> {
+    // relate the creator a creation names
+    const { creator, ...declared } = options;
+
+    return defineMethod<{
+        kind: "createMany";
+        permission: Permission;
+        output: typeof BatchIds;
+        mutates: true;
+        fields: Fields;
+        table: Definition;
+        internal: Internal;
+    }>({
+        kind: "createMany",
+        source: { builder: "createMany", arguments: [permission, options] },
+        permission,
+        output: BatchIds,
+        mutates: true,
+        ...declared,
+        target: false,
+        result: "value",
+        procedure: (name, shapes) => ({
+            route: { method: "POST", path: `/${kebabCase(name)}` },
+            input: shapes.scope.extend({
+                ...shapes.replay,
+                items: schema
+                    .array(
+                        schema.object({
+                            ...shapes.created,
+                            ...shapes.parent,
+                            ...shapes.written(options.fields, false),
+                            ...(options.isInternal === true ? shapes.callers : {}),
+                        }),
+                    )
+                    .max(BATCH_LIMIT),
+            }),
+            output: BatchIds,
+        }),
+        validate: requireUnrecorded,
+        ...(creator === undefined ? {} : { creation: relateCreator(creator) }),
+        handler: (call: Call<ObjectTable>) => createItems(call),
+        authorize: (call: Call<ObjectTable>) => authorizeItems(call),
+        inverse: deleteCreated,
     });
 }
 
@@ -333,6 +430,7 @@ export function updateMany<
     permission: Permission;
     output: typeof BatchPayload;
     mutates: true;
+    match: NoInfer<Match>;
     fields: NoInfer<Fields>;
     table: Definition;
 }> {
@@ -341,6 +439,7 @@ export function updateMany<
         permission: Permission;
         output: typeof BatchPayload;
         mutates: true;
+        match: Match;
         fields: Fields;
         table: Definition;
     }>({
@@ -352,8 +451,8 @@ export function updateMany<
         ...(options.convert === undefined ? {} : { convert: options.convert }),
         target: false,
         result: "value",
-        procedure: (_name, shapes) => ({
-            route: { method: "PATCH", path: "" },
+        procedure: (name, shapes) => ({
+            route: { method: "PATCH", path: name === "updateMany" ? "" : `/${kebabCase(name)}` },
             input: shapes.scope.extend({
                 ...shapes.replay,
                 where: schema.object(shapes.written(options.match, true)),
@@ -361,7 +460,10 @@ export function updateMany<
             }),
             output: BatchPayload,
         }),
-        validate: (object) => requireUnrecorded(object, options.fields),
+        validate: (object) => {
+            requireUnrecorded(object);
+            requireUnguarded(object, options.fields);
+        },
         handler: (call: Call<ObjectTable>) => updateMatching(call, options.fields),
     });
 }
@@ -422,6 +524,51 @@ export function remove<
     });
 }
 
+/** Delete every matching object the caller may delete, returning the count. */
+export function deleteMany<
+    const Permission extends string,
+    const Match extends string = string,
+    Definition extends Table = Table,
+>(
+    this: MethodBuilder<Definition>,
+    permission: Permission,
+    options: DeleteManyOptions<Match>,
+): Method<{
+    kind: "deleteMany";
+    permission: Permission;
+    output: typeof BatchPayload;
+    mutates: true;
+    match: NoInfer<Match>;
+    table: Definition;
+}> {
+    return defineMethod<{
+        kind: "deleteMany";
+        permission: Permission;
+        output: typeof BatchPayload;
+        mutates: true;
+        match: Match;
+        table: Definition;
+    }>({
+        kind: "deleteMany",
+        source: { builder: "deleteMany", arguments: [permission, options] },
+        permission,
+        output: BatchPayload,
+        mutates: true,
+        target: false,
+        result: "value",
+        procedure: (name, shapes) => ({
+            route: { method: "DELETE", path: name === "deleteMany" ? "" : `/${kebabCase(name)}` },
+            input: shapes.scope.extend({
+                ...shapes.replay,
+                where: schema.object(shapes.written(options.match, true)),
+            }),
+            output: BatchPayload,
+        }),
+        validate: requireUnrecorded,
+        handler: (call: Call<ObjectTable>) => deleteMatching(call),
+    });
+}
+
 /** What a custom method acts on. */
 export type CustomTarget = true | false | "none";
 
@@ -450,6 +597,8 @@ export interface CustomDefinition<
     readonly audit?: { readonly details: schema.Object<Record<string, schema.Schema>> };
     /** What the method acts on: by default its target, loaded under the caller's permission. */
     readonly target?: Target;
+    /** The columns of every object a scoped method acts on, else the input's columns. */
+    readonly selected?: (input: Readonly<Record<string, unknown>>) => Row;
     /** The inverse method name, or a function deriving inverse calls. */
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
     /** The input fields each release computes from earlier input, by introducing release. */
@@ -550,14 +699,17 @@ function custom<
     internal: Internal;
     scoped: Target extends "none" ? true : false;
 }> {
-    const { inverse, target, ...declared } = definition;
+    // act in the scope for a method without a target
+    const { inverse, target, selected, ...declared } = definition;
     const isScoped = target === "none";
 
     return {
         kind: "custom",
         source: { builder: mutates ? "mutation" : "query", arguments: [definition] },
         ...declared,
-        ...(isScoped ? { authorize: authorizeScoped } : {}),
+        ...(isScoped
+            ? { authorize: (call: Call<ObjectTable>) => authorizeScoped(call, selected) }
+            : {}),
         isScoped: isScopedTarget(target),
         ...(inverse === undefined
             ? {}
@@ -571,19 +723,21 @@ function custom<
         isPredicted: false,
         target: target === undefined || target === true,
         result: definition.output === undefined ? "object" : "value",
-        procedure: (name, shapes) => ({
-            route: {
-                method: "POST",
-                path: isScoped ? `/${kebabCase(name)}` : `/{id}/${kebabCase(name)}`,
-            },
-            input: InputSchema.map(definition.input ?? schema.object({}), (input) =>
-                (isScoped ? shapes.scope : shapes.target).extend({
-                    ...(mutates ? shapes.replay : {}),
-                    ...input.shape,
-                }),
-            ),
-            output: definition.output ?? shapes.row,
-        }),
+        procedure: (name, shapes) => {
+            // select the target, else the scope
+            const selection = isScoped ? shapes.scope : shapes.target;
+
+            return {
+                route: {
+                    method: "POST",
+                    path: isScoped ? `/${kebabCase(name)}` : `/{id}/${kebabCase(name)}`,
+                },
+                input: InputSchema.map(definition.input ?? schema.object({}), (input) =>
+                    selection.extend({ ...(mutates ? shapes.replay : {}), ...input.shape }),
+                ),
+                output: definition.output ?? shapes.row,
+            };
+        },
         handler: missingHandler,
     };
 }
@@ -644,10 +798,10 @@ function variantInput(
     return InputSchema.union(field, objects);
 }
 
-/** Require the receiving parent and the create permission of a caller. */
-async function authorizeCreate(call: Call<ObjectTable>): Promise<void> {
+/** Require the receiving parent and the create permission of a caller, over grants read once. */
+async function authorizeCreate(call: Call<ObjectTable>, grants?: TupleReader): Promise<void> {
     // require the receiving parent and the creation
-    const reader = await call.requireAuthorization().reader(call.scope);
+    const reader = grants ?? (await call.requireAuthorization().reader(call.scope));
     const parent = call.object.parent && call.parent();
     if (parent) {
         await call.requireReceiving(parent, reader);
@@ -655,15 +809,138 @@ async function authorizeCreate(call: Call<ObjectTable>): Promise<void> {
     await requireCreatable(call, reader, creationOf(call));
 }
 
+/** Require each item's receiving parent and create permission, reading the grants once. */
+async function authorizeItems(call: Call<ObjectTable>): Promise<void> {
+    const reader = await call.requireAuthorization().reader(call.scope);
+    await eachItem(call, (item) => authorizeCreate(item, reader));
+}
+
 /** Insert a created object under an unused identifier and require guarded writes. */
 async function insertAuthorized(
     call: Call<ObjectTable>,
     insert: (created: Call<ObjectTable>) => Promise<unknown>,
-): Promise<unknown> {
+): Promise<{ readonly id: string; readonly row: unknown }> {
     const { id, created, row } = await insertCreated(call, insert);
     await call.requireAuthorization().requireWritable(created, id);
 
-    return row;
+    return { id, row };
+}
+
+/** Create one object per item as its own creation does, returning their identifiers in order. */
+async function createItems(call: Call<ObjectTable>): Promise<{ ids: string[] }> {
+    // create independent items in one write and require each to be writable
+    const { object } = call;
+    const isSequential =
+        call.isPredicted || object.ordering !== undefined || object.lifecycle.versioned;
+    if (!isSequential) {
+        const ids = await createTogether(call);
+        await eachItem(call, (item, index) =>
+            call.requireAuthorization().requireWritable(item, aligned(ids, index)),
+        );
+
+        return { ids };
+    }
+
+    // create one item at a time otherwise
+    const ids = await eachItem(call, async (item) => {
+        // insert a prediction under the client's identifier
+        if (item.isPredicted) {
+            if (item.id === undefined) {
+                throw new TypeError(`predicted ${item.object.name} creations need an identifier`);
+            }
+            await createObject(item);
+
+            return item.id;
+        }
+        // insert under an unused identifier and record its access
+        else {
+            const { id } = await insertAuthorized(item, createObject);
+
+            return id;
+        }
+    });
+
+    return { ids };
+}
+
+/** Insert every item's row in one write, retrying one item at a time on a conflict. */
+async function createTogether(call: Call<ObjectTable>): Promise<string[]> {
+    // build each item's row under an unused identifier
+    const created = await eachItem(call, async (item) => {
+        const id = await createdId(item);
+        const row = createdRow(call.object.table, await createdValues(item.with({ id })));
+
+        return { item: item.with({ id }), id, row };
+    });
+
+    // write the rows and record each creation's access within one savepoint
+    try {
+        await call.requireTransaction().savepoint(async () => {
+            const table = call.object.table;
+            await call.write(...created.map(({ row }) => ({ table, before: null, after: row })));
+            for (const { item } of created) {
+                await recordCreation(item);
+            }
+        });
+    } catch (error) {
+        // find the failing item of a conflict by creating one at a time
+        const isConflict =
+            (isCallError(error) && error.code === "CONFLICT") ||
+            (error instanceof DatabaseError && error.code === "DUPLICATE");
+        if (!isConflict) {
+            throw error;
+        }
+
+        return eachItem(call, async (item) => (await insertCreated(item, createObject)).id);
+    }
+
+    return created.map(({ id }) => id);
+}
+
+/** Run a call per item of a bulk creation in order, prefixing a failure with its index. */
+async function eachItem<Result>(
+    call: Call<ObjectTable>,
+    run: (item: Call<ObjectTable>, index: number) => Promise<Result>,
+): Promise<Result[]> {
+    const results: Result[] = [];
+    for (const [index, { id, ...written }] of BatchItems.parse(call.input["items"]).entries()) {
+        // run the item as its own creation's call
+        const item = call.with({
+            input: written,
+            ...(id === undefined ? {} : { id: schema.string().parse(id) }),
+        });
+        try {
+            results.push(await run(item, index));
+        } catch (error) {
+            throw itemFailure(call.object, index, error);
+        }
+    }
+
+    return results;
+}
+
+/** Prefix a failing item's call error with its index, mapping a conflict to its fields. */
+function itemFailure(object: ObjectType, index: number, error: unknown): unknown {
+    // keep other failures as they are
+    const failure = object.conflict(error);
+    if (!isCallError(failure)) {
+        return failure;
+    }
+
+    return new CallError(failure.code, {
+        status: failure.status,
+        message: `items.${index}: ${failure.message}`,
+        data: failure.data,
+        cause: failure,
+    });
+}
+
+/** Delete each object a bulk creation created, undoable only by a type with a delete method. */
+function deleteCreated(step: Step): readonly sync.Call[] | undefined {
+    const { ids } = BatchIds.parse(step.result);
+    const calls = ids.flatMap((id) => Step.call(step, "delete", Step.reference(step, id)) ?? []);
+
+    return calls.length === 0 ? undefined : calls;
 }
 
 /** Restore the updated fields a step wrote that stayed unchanged since. */
@@ -693,20 +970,21 @@ function restoreUpdated(step: Step): readonly sync.Call[] | undefined {
     ];
 }
 
-/** Refuse tracked, declarable, versioned objects and guarded fields, which bulk updates skip. */
-function requireUnrecorded(object: ObjectType, written: readonly string[]): void {
-    // refuse objects keeping a record of each change
+/** Refuse tracked, declarable and versioned objects, whose change records bulk calls skip. */
+function requireUnrecorded(object: ObjectType): void {
     if (
         object.lifecycle.tracked !== undefined ||
         object.lifecycle.declarationSchema !== undefined ||
         object.lifecycle.versioned
     ) {
         throw new TypeError(
-            `object ${object.name} keeps a record of each change, which many updates at once skip`,
+            `object ${object.name} keeps a record of each change, which many changes at once skip`,
         );
     }
+}
 
-    // refuse guarded fields
+/** Refuse guarded fields, whose write permission bulk updates skip. */
+function requireUnguarded(object: ObjectType, written: readonly string[]): void {
     const guarded = written.find((name) => object.fields[name]?.access?.write !== undefined);
     if (guarded !== undefined) {
         throw new TypeError(
@@ -720,7 +998,7 @@ async function updateMatching(
     call: Call<ObjectTable>,
     written: readonly string[],
 ): Promise<{ count: number }> {
-    // decode values and matches
+    // decode values
     const table = call.object.table;
     const definition = table[TABLE];
     const input: JsonObject = call.input;
@@ -733,16 +1011,8 @@ async function updateMatching(
             }),
         ),
     );
-    const matched = MATCH.parse(input["where"]);
     const hasGeneration = Object.hasOwn(definition.columns, "generation");
-
-    // read the matches in the call's scope, keeping the permitted ones on the server
-    const where = Condition.equal({ ...matched, scope: call.scope });
-    const rows = call.isPredicted
-        ? await call.read(table).rows(where)
-        : await call
-              .requireAuthorization()
-              .keep(await call.requireTransaction().rows(table, where), call.permission());
+    const rows = await matchingRows(call);
 
     // write each match with the next revision and generation
     for (const row of rows) {
@@ -763,21 +1033,90 @@ async function updateMatching(
     return { count: rows.length };
 }
 
+/** Delete every matching object the caller may delete, each as its deletion does. */
+async function deleteMatching(call: Call<ObjectTable>): Promise<{ count: number }> {
+    // take each match as its target
+    const rows = await matchingRows(call);
+    const targets = rows.map((row) => call.with({ id: row.id, target: row }));
+    for (const target of targets) {
+        requireUnmanaged(target);
+    }
+
+    // delete each match on a device as its own deletion
+    if (call.isPredicted) {
+        for (const target of targets) {
+            await deleteObject(target);
+        }
+    }
+    // delete or trash the read matches in one write
+    else {
+        const table = call.object.table;
+        await call.write(...targets.map((target) => ({ table, ...deletion(target) })));
+    }
+
+    return { count: rows.length };
+}
+
+/** Read a loaded target's deletion: its trashed row where a trash finishes it, else its removal. */
+function deletion(target: Call<ObjectTable>): { readonly before: Row; readonly after: Row | null } {
+    // remove an object deleting at once
+    const before: Row = target.requireTarget();
+    const deleting = deletingCall(target);
+    if (deleting === undefined) {
+        return { before, after: null };
+    }
+
+    // trash it at the next revision, recording who asked
+    const caller = target.caller.subject;
+    const trashed = deleting.revised({
+        deletionRequestedAt: target.now,
+        deletedBy: caller === undefined ? null : Subject.key(caller),
+    });
+
+    return {
+        before,
+        after: target.object.table[TABLE].values(Row.parse({ ...before, ...trashed })),
+    };
+}
+
+/** Read the untrashed objects a bulk call matches in its scope, the permitted ones on a server. */
+async function matchingRows(call: Call<ObjectTable>) {
+    // match the values in the call's scope, leaving out objects whose deletion is requested
+    const table = call.object.table;
+    const matched = MATCH.parse(call.input["where"]);
+    const isDeleting = Object.hasOwn(table[TABLE].columns, "deletionRequestedAt");
+    const where = Condition.equal({
+        ...matched,
+        ...(isDeleting ? { deletionRequestedAt: null } : {}),
+        scope: call.scope,
+    });
+
+    // read the matches, keeping the permitted ones on the server
+    return call.isPredicted
+        ? call.read(table).rows(where)
+        : call
+              .requireAuthorization()
+              .keep(await call.requireTransaction().rows(table, where), call.permission());
+}
+
 /** Insert a created object. */
 async function createObject(call: Call<ObjectTable>): Promise<Select<Table>> {
-    // write the created row
+    // write the created row, then record its access
     const row = createdRow(call.object.table, await createdValues(call));
     await call.write({ table: call.object.table, before: null, after: row });
+    await recordCreation(call);
 
-    // record a new scope's chain and the first relationships with the row
+    return row;
+}
+
+/** Record a created object's access: a new scope's chain and its first relationships. */
+async function recordCreation(call: Call<ObjectTable>): Promise<void> {
     const creating = creationOf(call);
     const isScope = call.object.policy.definition.scope === true;
     if (!call.isPredicted && (isScope || creating !== undefined)) {
         const object = call.object.reference(call.scope, call.requireId());
         await call.requireAuthorization().create(object, (await creating?.(call, object)) ?? {});
     }
-
-    return row;
 }
 
 /** Build the columns a created object is inserted with. */
@@ -796,7 +1135,7 @@ async function createdValues(call: Call<ObjectTable>): Promise<InsertValue<Table
             !(kinds === undefined ? isPrincipal(caller) : kinds.some((kind) => kind.is(caller)))
         ) {
             const named = kinds?.map((kind) => kind.name).join(" or ") ?? "principal";
-            throw new ServiceError("FORBIDDEN", {
+            throw new CallError("FORBIDDEN", {
                 message: `${object.name} is created by a ${named}`,
             });
         }
@@ -866,7 +1205,7 @@ async function insertCreated(
     } catch (error) {
         // report conflicts only to admitted callers
         const isConflict =
-            (isServiceError(error) && error.code === "CONFLICT") ||
+            (isCallError(error) && error.code === "CONFLICT") ||
             (error instanceof DatabaseError &&
                 (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE"));
         if (isConflict) {
@@ -884,7 +1223,7 @@ function createdRow(table: Table, values: InsertValue<Table>): Row {
 /** Require the create permission on the object as written. */
 async function requireCreatable(
     call: Call<ObjectTable>,
-    reader?: GrantReader,
+    reader?: TupleReader,
     creation?: (call: Call, object: ObjectReference) => Creation | Promise<Creation>,
 ): Promise<void> {
     // build the row as it will be written, with column defaults
@@ -917,16 +1256,25 @@ function isScopedTarget(target: CustomTarget | undefined): boolean {
 }
 
 /** Require a scoped method's permission in the call's scope, as on a new object there. */
-async function authorizeScoped(call: Call<ObjectTable>): Promise<void> {
-    // read the owner the input names for an owned type, and the parent for a nested one
-    const column = call.object.ownerColumn;
-    const owned = column === undefined ? {} : { [column]: call.input[column] };
+async function authorizeScoped(
+    call: Call<ObjectTable>,
+    selected: ((input: Readonly<Record<string, unknown>>) => Row) | undefined,
+): Promise<void> {
+    // read the selected columns, else the input's, and a nested type's parent
+    const definition = call.object.table[TABLE];
+    const input: Readonly<Record<string, unknown>> = call.input;
+    const named =
+        selected?.(input) ??
+        Object.fromEntries(
+            Object.keys(definition.columns)
+                .filter((column) => input[column] !== undefined)
+                .map((column) => [column, input[column]]),
+        );
     const parent = call.parentColumns();
 
-    // check the permission on a new object of that owner and parent
-    const definition = call.object.table[TABLE];
-    const id = call.object.generateId();
-    const row = definition.defaults({ id, scope: call.scope, ...owned, ...parent });
+    // check the permission on a new object with those columns, under an unused key for a keyed type
+    const id = call.object.keyed === undefined ? call.object.generateId() : crypto.randomUUID();
+    const row = definition.defaults({ ...named, id, scope: call.scope, ...parent });
     await requirePermitted(call, row, await call.requireAuthorization().reader(call.scope));
 }
 
@@ -934,7 +1282,7 @@ async function authorizeScoped(call: Call<ObjectTable>): Promise<void> {
 async function requirePermitted(
     call: Call<ObjectTable>,
     row: Row,
-    grants: GrantReader,
+    grants: TupleReader,
 ): Promise<void> {
     // check the permission on the row
     const authorization = call.requireAuthorization();
@@ -965,7 +1313,7 @@ async function requirePermitted(
             (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0));
 
     // refuse a reader, and hide the object from others
-    const denial = new ServiceError("FORBIDDEN", {
+    const denial = new CallError("FORBIDDEN", {
         message: `permission denied: ${permission.name}`,
     });
     throw isReadable ? denial : conceal(denial, `${call.object.name} not found`);
@@ -977,7 +1325,7 @@ async function deleteObject(call: Call<ObjectTable>): Promise<Record<string, nev
     const { object } = call;
     const target: Row = call.requireTarget();
     if (target["deletionRequestedAt"] !== undefined && target["deletionRequestedAt"] !== null) {
-        throw new ServiceError("CONFLICT", { message: `${object.name} is already deleted` });
+        throw new CallError("CONFLICT", { message: `${object.name} is already deleted` });
     }
 
     // request deletion when a trash or controller finishes it
@@ -1033,7 +1381,7 @@ async function createdId(call: Call<ObjectTable>): Promise<string> {
 
     // refuse a taken identifier
     if (isTaken) {
-        throw new ServiceError("CONFLICT", { message: `${object.name} identifier is taken` });
+        throw new CallError("CONFLICT", { message: `${object.name} identifier is taken` });
     }
 
     return chosen;
@@ -1041,8 +1389,14 @@ async function createdId(call: Call<ObjectTable>): Promise<string> {
 
 /** Read a page of a query's rows or its aggregate groups. */
 export async function listObjects(call: Call) {
+    // read an events type's rows from the event log on a server, hot and flushed alike
+    const input = LIST_INPUT.parse(call.input);
+    if (call.object.storage === "events" && !call.isPredicted) {
+        return EventListing.page(call, input);
+    }
+
     // bind the cursor to the query
-    const { cursor, limit, at: _at, branch: _branch, ...options } = LIST_INPUT.parse(call.input);
+    const { cursor, limit, at: _at, branch: _branch, ...options } = input;
     const listing = new Page(
         { ...(cursor === undefined ? {} : { cursor }), ...(limit === undefined ? {} : { limit }) },
         [call.object.name, call.scope, canonicalize(options)],
@@ -1063,9 +1417,10 @@ export async function listObjects(call: Call) {
     // read groups at the latest position, or rows
     const position = call.snapshot?.position;
     const after = listing.after === undefined ? undefined : node.table[TABLE].decode(listing.after);
-    await dataflow.load(await View.of(call.database, call.snapshot), after);
+    const view = call.view();
+    await dataflow.load(await View.of(view.database, call.snapshot), after);
     if (node.aggregate !== undefined && position !== undefined) {
-        throw new ServiceError("BAD_REQUEST", {
+        throw new CallError("BAD_REQUEST", {
             message: "aggregates read the latest position, whose access decides them",
         });
     } else if (node.aggregate !== undefined) {
@@ -1087,8 +1442,8 @@ function listingDataflow(call: Call, compiled: sync.Query): Dataflow {
         { list: compiled },
         {
             audience: new Listing(call),
-            database: call.database,
-            changesThrough: changesThroughLog(call.database),
+            database: call.view().database,
+            changesThrough: changesThroughLog(call.view().database),
             isMaterialized: true,
         },
     );
@@ -1158,7 +1513,7 @@ function splitListed(listed: readonly sync.Item[], node: sync.Node, compiled: sy
 /** Refuse standard changes to managed objects. */
 function requireUnmanaged(call: Call): void {
     if (isManaging(call.target)) {
-        throw new ServiceError("MANAGED", {
+        throw new CallError("MANAGED", {
             message: `${call.object.name} is managed by its stack; detach it before changing it`,
         });
     }
@@ -1174,13 +1529,21 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
     get: Procedure<schema.Object<TargetShape<Object> & typeof ViewShape>, RowSchema<Object>>;
     list: Procedure<
         schema.Object<ScopeShape<Object> & typeof QueryShape & typeof PageShape & typeof ViewShape>,
-        schema.Object<ReturnType<typeof page<RowSchema<Object>>>["shape"] & typeof ListShape>
+        schema.Object<
+            ReturnType<typeof ListPage.schema<RowSchema<Object>>>["shape"] & typeof ListShape
+        >
     >;
     create: Procedure<
         IsSum<Declared["variants"]> extends true
             ? VariantSchema<Object, Declared, CreateShape<Object, Declared>>
             : schema.Object<CreateShape<Object, Declared>>,
         RowSchema<Object>
+    >;
+    createMany: Procedure<
+        schema.Object<
+            ScopeShape<Object> & ReplayShape<Object> & { items: ItemsSchema<Object, Declared> }
+        >,
+        schema.Object<{ ids: schema.Schema<string[]> }>
     >;
     update: Procedure<
         schema.Object<
@@ -1195,17 +1558,22 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
     updateMany: Procedure<
         schema.Object<
             ScopeShape<Object> &
-                ReplayShape<Object> & { where: schema.Object<MatchShape<Object>> } & WrittenShape<
-                    Object,
-                    Declared,
-                    true
-                >
+                ReplayShape<Object> & {
+                    where: schema.Object<MatchShape<Object, Declared>>;
+                } & WrittenShape<Object, Declared, true>
         >,
         schema.Object<{ count: schema.Schema<number> }>
     >;
     delete: Procedure<
         schema.Object<TargetShape<Object> & ReplayShape<Object> & RevisionField>,
         schema.Object<{}>
+    >;
+    deleteMany: Procedure<
+        schema.Object<
+            ScopeShape<Object> &
+                ReplayShape<Object> & { where: schema.Object<MatchShape<Object, Declared>> }
+        >,
+        schema.Object<{ count: schema.Schema<number> }>
     >;
     custom: Procedure<
         CustomSchema<
@@ -1229,6 +1597,15 @@ type CreateShape<Object extends ObjectType, Declared extends Method> = ScopeShap
     WrittenShape<Object, Declared, false> &
     FieldShape<Declared>;
 
+/** The items of a bulk creation, each a creation's chosen identifier, parent and fields. */
+type ItemsSchema<
+    Object extends ObjectType,
+    Declared extends Method,
+    Item extends schema.Schema = schema.Object<
+        CreationShape<Object> & ParentShape<Object> & WrittenShape<Object, Declared, false>
+    >,
+> = schema.Schema<schema.Output<Item>[], schema.Input<Item>[]>;
+
 /** Whether a method declares the column sets of a sum type. */
 export type IsSum<Sum> = [NonNullable<Sum>] extends [never]
     ? false
@@ -1237,7 +1614,13 @@ export type IsSum<Sum> = [NonNullable<Sum>] extends [never]
       : true;
 
 /** The written values a call matches objects by, in their JSON form. */
-type MatchShape<Object extends ObjectType> = WrittenShape<Object, Method, true>;
+type MatchShape<Object extends ObjectType, Declared extends Method> = ColumnShape<
+    Object,
+    string extends NonNullable<Declared["match"]>[number]
+        ? WrittenField<Object["fields"]>
+        : NonNullable<Declared["match"]>[number],
+    true
+>;
 
 /** The identifier a caller may choose for a created object. */
 type CreationShape<Object extends ObjectType> = {
@@ -1275,7 +1658,9 @@ export const method: MethodBuilder = {
     get,
     list,
     create,
+    createMany,
     update,
     updateMany,
     delete: remove,
+    deleteMany,
 };

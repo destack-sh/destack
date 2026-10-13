@@ -1,3 +1,4 @@
+import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -6,7 +7,7 @@ import { DynamicObjectClient } from "../src/client/index.ts";
 import { ObjectType } from "../src/index.ts";
 import { space } from "./fixture/space.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook, notesService } from "./fixture/note.ts";
+import { note, notebook, notesPackage } from "./fixture/note.ts";
 
 /** A row's identifier. */
 const Identified = schema.looseObject({ id: schema.string() });
@@ -18,17 +19,12 @@ async function reachNotes(
     // declare the types from their descriptions, as a manifest lists them
     const objects = ObjectType.ofAll([notebook.describe(), note.describe()], [space]);
 
-    // keep watched rows in a local database
-    const local = await TestDatabase.create("sqlite", []);
-    onTestFinished(() => local.close());
-
     return new DynamicObjectClient({
         clock: Clock.system,
-        package: notesService.package,
+        package: Package.of(notesPackage),
         objects,
         scope: spaceId,
         endpoint,
-        database: local.database,
     });
 }
 
@@ -80,12 +76,17 @@ test.for(TEST_DIALECTS)(
         const book = Identified.parse(await client.call("notebook", "create", { name: "Travel" }));
         await client.call("note", "create", { parentId: book.id, title: "Tickets" });
 
+        // keep the watched rows in a local database
+        const local = await TestDatabase.create("sqlite", []);
+        onTestFinished(() => local.close());
+
         // follow the pinned and unpinned notes by title, reading the first rows the copy has
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
         const watched = client.watch(
             "note",
             { where: { parentId: book.id }, orderBy: { title: "asc" }, limit: 2 },
+            local.database,
             controller.signal,
         );
         const titles = async () => {
@@ -104,9 +105,29 @@ test.for(TEST_DIALECTS)(
         // stop on abort and drop the copy's rows
         controller.abort();
         expect(await watched.next()).toEqual({ done: true, value: undefined });
-        expect(await client.options.database.select().from(client.object("note").table)).toEqual(
-            [],
-        );
+        expect(await local.database.select().from(client.object("note").table)).toEqual([]);
         expect(client.object("note").table[TABLE].sqlName).toBe(note.table[TABLE].sqlName);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "describe the served types with the types they refer to, declare them from those descriptions alone, and refuse a type the store does not know on %s",
+    async (dialect) => {
+        const { endpoint } = await serveNotes(dialect);
+        const client = await reachNotes(endpoint("alice"));
+
+        // describe every served type through the store, then declare each from the descriptions
+        const declared = ObjectType.ofAll(await client.describe(), []);
+        const unknown = { packageId: note.package.id, type: "page" };
+
+        expect(declared.map((type) => [type.name, type.table[TABLE].sqlName])).toEqual([
+            ["note", note.table[TABLE].sqlName],
+            ["notebook", notebook.table[TABLE].sqlName],
+            ["space", space.table[TABLE].sqlName],
+        ]);
+        await expect(client.describe([unknown])).rejects.toMatchObject({
+            code: "NOT_FOUND",
+            message: `no object type page of ${note.package.id} is known here`,
+        });
     },
 );

@@ -1,22 +1,23 @@
-import { reconciliation, testCallKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessTables, principal, relation, Caller } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { asc, defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, present, Clock } from "@destack/schema";
+import { Clock, Identifier, present, schema } from "@destack/schema";
 import { defineShape, type Mutation, Replica } from "@destack/sync";
 
-import { outbox } from "@destack/service/outbox";
-import { ServiceError } from "@destack/service/error";
-import { RequestId } from "@destack/service/request";
-import type { RunDelivery, RunRequest } from "@destack/service/trigger";
-import { defineObject, field } from "../src/index.ts";
+import { outbox } from "@destack/runtime/outbox";
+import { CallError } from "@destack/runtime/error";
+import { RequestId } from "@destack/runtime/request";
+import type { RunDelivery, RunRequest } from "@destack/runtime/trigger";
+import { Call, defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { until } from "@destack/service/timer";
+import { until } from "@destack/runtime/timer";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
-import { createRouterClient } from "@destack/service/server";
+import { createRouterClient } from "@destack/runtime/server";
 
 /** The space with the accounts. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");
@@ -63,7 +64,7 @@ const note = defineObject({
 /** The database keeping the notes. */
 const noteDatabase = defineDatabase({
     name: "main",
-    tables: [journal, outbox, ...note.tables],
+    tables: [...callTables, outbox, ...note.tables],
 });
 
 /** A follower's database copying the notes. */
@@ -76,7 +77,7 @@ const followerDatabase = defineDatabase({
 /** The database with the members, the journal and the outbox. */
 const memberDatabase = defineDatabase({
     name: "main",
-    tables: [journal, outbox, ...member.tables],
+    tables: [...callTables, outbox, ...member.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -91,12 +92,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { member },
+            objects: [member],
             database: storage.database,
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             origin: {
                 package: member.package,
-                service: "test",
             },
             report: (error) => {
                 if (!(error instanceof Error)) {
@@ -108,7 +109,7 @@ test.each(TEST_DIALECTS)(
                 // refuse the welcome of the bounced name for good
                 send: async (request, delivery) => {
                     if (request.call.input["name"] === "Bounced") {
-                        throw new ServiceError("BAD_REQUEST", { message: "invalid call" });
+                        throw new CallError("BAD_REQUEST", { message: "invalid call" });
                     }
                     recorded.push([request, delivery]);
                 },
@@ -137,7 +138,7 @@ test.each(TEST_DIALECTS)(
         await sends.reconcile("sends", reconciliation(signal));
         await sends.reconcile("sends", reconciliation(signal));
 
-        // record Ada's welcome past the refused one, reporting the refusal once
+        // record Ada's welcome past the refused one for its sender, reporting the refusal once
         expect([
             recorded.map(([request, delivery]) => [request, typeof delivery?.requestId]),
             reports,
@@ -146,6 +147,7 @@ test.each(TEST_DIALECTS)(
                 [
                     {
                         call: member.calls().welcome({ id: "member-1", name: "Ada" }),
+                        exchange: { subject: principal.user.reference("universe", "user-1") },
                     },
                     "string",
                 ],
@@ -156,7 +158,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "send a follower's change of copied rows over its uplink to the server keeping them, run there as the follower, and let go of one it may not make, on %s",
+    "send a follower's calls on copied rows over its uplink to the server keeping them, run there as the follower, and let go of one it may not make, on %s",
     async (dialect) => {
         // keep the notes in their own database, with ada's note written there
         const storage = await TestDatabase.create(dialect, noteDatabase, { isMigrated: true });
@@ -168,10 +170,11 @@ test.each(TEST_DIALECTS)(
         const home = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { note },
+            objects: [note],
             database: storage.database,
             callKey: testCallKey,
-            origin: { package: note.package, service: "test" },
+            events: await testEvents(storage.database),
+            origin: { package: note.package },
         });
         const written = await home
             .mutate(userContext("ada", spaceId).caller(), {
@@ -185,10 +188,10 @@ test.each(TEST_DIALECTS)(
         const follower = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: {},
+            objects: [],
             policies: [note],
             database: copies.database,
-            origin: { package: note.package, service: "test" },
+            origin: { package: note.package },
             report: (error) => {
                 if (!(error instanceof Error)) {
                     throw error;
@@ -207,20 +210,17 @@ test.each(TEST_DIALECTS)(
             },
         });
 
-        // write a note and rename ada's through the copy, delivering the sends twice to show one delivery
-        const transaction = await Transaction.open(copies.database);
-        await follower.mutate(
-            Caller.of(spacePrincipal(spaceId), Date.now()),
-            {
-                id: RequestId.create(Date.now()),
-                calls: [
-                    note.call("create", { spaceId, title: "Bob's" }),
-                    note.call("rename", { spaceId, id: written.id, title: "Bob's now" }),
-                ],
-            },
-            { transaction },
-        );
-        await transaction.commit();
+        // send a note and a rename of ada's toward their home, delivering the sends twice to show one delivery
+        await Transaction.run(copies.database, async (transaction) => {
+            await follower.send(
+                Call.wire(note.call("create", { spaceId, title: "Bob's" })),
+                transaction,
+            );
+            await follower.send(
+                Call.wire(note.call("rename", { spaceId, id: written.id, title: "Bob's now" })),
+                transaction,
+            );
+        });
         const sends = present(
             follower.controllers().find((controller) => controller.name === "sends"),
             "the sends controller",
@@ -251,7 +251,7 @@ test("refuse a pushed mutation of copied rows, alone or beside kept rows, which 
         "sqlite",
         defineDatabase({
             name: "main",
-            tables: [outbox, ...accessTables, journal, ...member.tables],
+            tables: [outbox, ...accessTables, ...callTables, ...member.tables],
             copies: [note.table],
         }),
         { isMigrated: true },
@@ -264,11 +264,12 @@ test("refuse a pushed mutation of copied rows, alone or beside kept rows, which 
     const follower = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { member },
+        objects: [member],
         policies: [note],
         database: copies.database,
         callKey: testCallKey,
-        origin: { package: note.package, service: "test" },
+        events: await testEvents(copies.database),
+        origin: { package: note.package },
     });
 
     // push a note's creation as bob, then one beside a member's
@@ -309,10 +310,11 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
     const home = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { note },
+        objects: [note],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: note.package, service: "test" },
+        events: await testEvents(storage.database),
+        origin: { package: note.package },
     });
     const noteShape = defineShape({
         name: "notes",
@@ -325,10 +327,10 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
     const follower = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: {},
+        objects: [],
         policies: [note],
         database: copies.database,
-        origin: { package: note.package, service: "test" },
+        origin: { package: note.package },
         shapes: [noteShape],
         subscriber: {
             uplink: {
@@ -364,7 +366,10 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
     // receive bob's note through the follower
     const created = note.calls().create({ title: "Bob's" });
     await follower.receive(
-        { ...created, input: { ...created.input, spaceId } },
+        {
+            id: RequestId.create(Date.now()),
+            calls: [{ ...created, input: { ...created.input, spaceId } }],
+        },
         spacePrincipal(spaceId),
     );
     const notes = await storage.database
@@ -372,4 +377,68 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
         .from(note.table);
 
     expect({ notes, refused }).toEqual({ notes: [{ owner: "bob", title: "Bob's" }], refused: [] });
+});
+
+test("refuse an in-process change of copied rows, and send it toward their home for the caller's subject under its grant", async () => {
+    // serve the notes over a follower's copies of them, whose uplink receives nothing
+    const copies = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({
+            name: "main",
+            tables: [outbox, ...accessTables, ...callTables],
+            copies: [note.table],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => copies.close());
+    const follower = new ObjectStore({
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [note],
+        database: copies.database,
+        callKey: testCallKey,
+        events: await testEvents(copies.database),
+        origin: { package: note.package },
+        subscriber: {
+            uplink: {
+                stream: async function* (_subscription, signal) {
+                    await until(signal);
+                    yield* [];
+                },
+                receive: async () => {},
+            },
+            subscriptions: async () => [],
+        },
+    });
+
+    // refuse writing a note through the copy as an installation acting for a person under a grant
+    const person = principal.user.reference("universe", "user-1");
+    const grant = { id: Identifier.create("grant"), scope: person.id, permissions: [] };
+    const caller: Caller = {
+        ...Caller.of(person, Date.now()),
+        delegates: [principal.installation.reference(spaceId, "installation-notes")],
+        grant,
+    };
+    const call = note.call("create", { spaceId, title: "First" });
+    await expect(
+        follower.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] }),
+    ).rejects.toThrow(
+        new CallError("CONFLICT", {
+            message: `note rows of ${spaceId} are copies here, so send their changes to their home`,
+        }),
+    );
+
+    // send it instead, which the outbox keeps with the exchange for the person
+    await Transaction.run(copies.database, (transaction) =>
+        follower.send(Call.wire(call), transaction, {
+            exchange: { subject: person, grant: grant.id },
+        }),
+    );
+    const sent = await copies.database.select({ message: outbox.message }).from(outbox);
+    expect(sent.map((row) => schema.json().parse(JSON.parse(row.message)))).toEqual([
+        {
+            requestId: expect.any(String),
+            request: { call: Call.wire(call), exchange: { subject: person, grant: grant.id } },
+        },
+    ]);
 });

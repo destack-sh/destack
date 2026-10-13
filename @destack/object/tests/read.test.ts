@@ -18,7 +18,8 @@ test("read through methods that change nothing on the server, and refuse mutatio
     const refused = alice.replica.call({
         scope: spaceId,
         call: {
-            method: "notebook.create",
+            type: notebook.typeReference,
+            method: "create",
             release: notebook.package.version,
             input: { spaceId, name: "Ideas" },
         },

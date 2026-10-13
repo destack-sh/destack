@@ -12,7 +12,14 @@ export const page = defineObject({
     constraints: { title: { kind: "index", on: ["title"] } },
 }).methods((method) => ({ get: method.get("read"), create: method.create("edit") }));
 // serves it over one database
-const store = new ObjectStore({ objects: { page }, principal: space, database, callKey, origin });
+const store = new ObjectStore({
+    objects: [page],
+    principal: space,
+    database,
+    callKey,
+    events,
+    origin,
+});
 const [created] = await store.mutate(caller, {
     id: requestId,
     calls: [page.call("create", { spaceId, title: "Ideas" })],
@@ -125,22 +132,80 @@ const create = page.call("create", { spaceId, title: "Ideas" });
 ```ts
 import { ObjectStore } from "@destack/object/server";
 
-const store = new ObjectStore({ objects: { page }, principal: space, database, callKey, origin });
+const store = new ObjectStore({
+    objects: [page],
+    principal: space,
+    database,
+    callKey,
+    events,
+    origin,
+});
 const row = await store.query(caller, page.call("get", { spaceId, id }));
 const [renamed] = await store.mutate(caller, { id: requestId, calls: [rename] });
 // the store's own principal
 await store.mutate(Caller.of(space, Date.now()), { id: RequestId.create(), calls: [create] });
 ```
 
+## Events
+
+A type kept in the event log takes `storage: { kind: "events", … }`: its rows are appended once, read by the same `get` and `list` hot and flushed alike, and folded by `series`; a guarded field masks the personal values its schema marks.
+
+```ts
+export const call = defineObject({
+    name: "call",
+    plural: "calls",
+    storage: {
+        kind: "events",
+        flush: { maxAge: { hours: 1 }, maxRows: 100_000 },
+        retention: { days: 400 },
+        delivery: "exactly-once",
+        isLocked: true,
+        subject: "actor",
+    },
+    fields: {
+        data: field.json(AuditCall).guard({ read: "unmask" }),
+        actor: field.string(),
+        method: field.string(),
+    },
+    permissions: ["read", "unmask"],
+}).methods();
+const events = new EventStore({
+    database,
+    kinds: [call.eventKind()],
+    files,
+    personal,
+    clock,
+    report,
+});
+const store = new ObjectStore({
+    objects: [call],
+    principal: space,
+    database,
+    callKey,
+    events,
+    origin,
+});
+await store.query(
+    caller,
+    call.call("list", { scope, where: { outcome: "failure" }, orderBy: { time: "desc" } }),
+);
+await store.query(
+    caller,
+    call.call("series", { scope, fold: "count", group: ["method"], from, before }),
+);
+```
+
 ## Unique names
 
-An index declared `across` a scope keeps its names unique across databases: a `ClaimStore` reserves a write's names until it commits, and `lookup` finds the object owning a name.
+An index declared `across` a scope keeps its names unique across databases: a store reserves a write's names before it commits and confirms them after, through the `claimMethods` a claim type declares, and `Claim.lookup` finds the object owning a name.
 
 ```ts
 indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
 
-const store = new ObjectStore({ objects: { profile }, claims, principal: space, database, callKey, origin });
-const owner = await profile.lookup(claims, "handle", ["ada"]); // { scope, type, id }
+const claim = defineObject({ name: "claim", /* … */ }).methods((method) => ({ ...claimMethods }));
+const home = RemoteStore.of(() => accounts.replica, Scope.universe.id);
+const store = new ObjectStore({ objects: [profile], claims: { object: claim, home }, principal: space, database, callKey, events, origin });
+const owner = await Claim.lookup(profile, store.claims, "handle", ["ada"]); // { scope, id }
 ```
 
 ## Partitions
@@ -156,7 +221,7 @@ const room = defineObject({
     partition: true,
 }).methods();
 const store = new ObjectStore({
-    objects: { message },
+    objects: [message],
     partition: roomId,
     database,
     principal,
@@ -169,13 +234,13 @@ request.headers.set(PARTITION_HEADER, roomId);
 
 ## Nested calls
 
-`call.mutate` runs calls inside a handler's transaction, as the same caller or as the service.
+`call.mutate` runs calls inside a handler's transaction, as the same caller or as the store itself (`call.self`).
 
 ```ts
 export const shelf = base.shelf.implement({
     methods: {
         lend: async (call) => {
-            const [slip] = await call.mutate(call.service, [
+            const [slip] = await call.mutate(call.self, [
                 base.slip.call("issue", { shelf: call.target.name }),
             ]);
 
@@ -216,7 +281,7 @@ for await (const rows of client.query.page
     render(rows);
 }
 await client.undo().predicted;
-await client.can(page, id, "edit");
+await client.check(page, id, "edit");
 ```
 
 ## Browser tabs

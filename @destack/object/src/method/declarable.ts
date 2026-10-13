@@ -1,7 +1,7 @@
 import { Manager } from "@destack/access";
 import { type Condition, type Row, TABLE, type Transaction } from "@destack/db";
 import { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { defineMethod, type Method } from "./method.ts";
 import type { Call } from "./call.ts";
 import { RevisionShape } from "./procedure.ts";
@@ -30,7 +30,7 @@ export function detach<const Permission extends string>(
         async execute(call) {
             // require an object its declaration still manages
             if (!isManaging(call.target)) {
-                throw new ServiceError("CONFLICT", {
+                throw new CallError("CONFLICT", {
                     message: `${call.object.name} is not managed by a declaration`,
                 });
             }
@@ -100,15 +100,15 @@ async function requireAdoptable(call: Call): Promise<void> {
 
     // refuse a managed record, a record of another declaration and a declaration with another record
     if (isManaging(target)) {
-        throw new ServiceError("CONFLICT", {
+        throw new CallError("CONFLICT", {
             message: `${call.object.name} is managed by a declaration`,
         });
     } else if (managed !== null && !isSameManager(managed, manager)) {
-        throw new ServiceError("CONFLICT", {
+        throw new CallError("CONFLICT", {
             message: `${call.object.name} is detached from another declaration`,
         });
     } else if (declared !== undefined && declared["id"] !== target?.["id"]) {
-        throw new ServiceError("CONFLICT", {
+        throw new CallError("CONFLICT", {
             message: `declaration ${manager.name} declares another ${call.object.name}`,
         });
     }

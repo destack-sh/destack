@@ -10,9 +10,9 @@ import {
     Snapshot,
     type Table,
 } from "@destack/db";
-import type { Controller, Reconciliation } from "@destack/service/control";
+import type { Controller, Reconciliation } from "@destack/runtime/control";
 import { Caller } from "@destack/access";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { canonicalize, schema, type JsonValue } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
 import { Observation, type ObservationReport, type ObservedRecord } from "./condition.ts";

@@ -1,29 +1,33 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The service error code of each object failure: every declaration failure is the host's. */
-const SERVICE_CODES = {
+/** The call error code of each object failure: a declaration's failures are the host's. */
+const CALL_CODES = {
     INVALID_DECLARATION: "INTERNAL_SERVER_ERROR",
     UNSUPPORTED_DECLARATION: "INTERNAL_SERVER_ERROR",
     CYCLIC_DECLARATION: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+    INVALID_CALL: "BAD_REQUEST",
+    CONFLICT: "CONFLICT",
+    FORBIDDEN: "FORBIDDEN",
+    UNAVAILABLE: "SERVICE_UNAVAILABLE",
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** Stable object failure codes. */
-export type ObjectErrorCode = keyof typeof SERVICE_CODES;
+export type ObjectErrorCode = keyof typeof CALL_CODES;
 
 /** An object failure with a stable code. */
 export class ObjectError extends Error implements DomainError {
     /** The failure code. */
     readonly code: ObjectErrorCode;
 
-    /** Create an object failure. */
-    constructor(code: ObjectErrorCode, message: string) {
-        super(message);
+    /** Create an object failure with its code and cause. */
+    constructor(code: ObjectErrorCode, message: string, options?: ErrorOptions) {
+        super(message, options);
         this.name = "ObjectError";
         this.code = code;
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }

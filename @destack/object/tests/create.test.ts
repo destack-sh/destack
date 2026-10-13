@@ -1,15 +1,15 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { sql } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { Clock, Identifier, schema } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { type CallInput, defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { userContext } from "./fixture/user.ts";
 
 /** The public space containing the handles. */
@@ -35,12 +35,12 @@ const handle = defineObject({
     constraints: {
         name: { kind: "unique", on: ["scope", "name"] },
     },
-}).methods((method) => ({ get: method.get("read"), create: method.create("create") }));
+}).methods((method) => ({ create: method.create("create") }));
 
 test.each(TEST_DIALECTS)(
     "report a create's conflicts only to callers the create permission admits, inside spaces they read, on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...handle.tables, journal], {
+        const storage = await TestDatabase.create(dialect, [...handle.tables, ...callTables], {
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
@@ -52,12 +52,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { handle },
+            objects: [handle],
             database: storage.database,
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             origin: {
                 package: handle.package,
-                service: "test",
             },
         });
         const create = (
@@ -132,12 +132,11 @@ const team = defineObject({
     relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
     permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
 }).methods((method) => ({
-    get: method.get("read"),
     create: method.create("update", { fields: ["name"], creator: "owner" }),
 }));
 
 test("create an object the caller has the permission on only as the creator its creation relates", async () => {
-    const storage = await TestDatabase.create("sqlite", [journal, ...team.tables], {
+    const storage = await TestDatabase.create("sqlite", [...callTables, ...team.tables], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -145,12 +144,12 @@ test("create an object the caller has the permission on only as the creator its 
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { team },
+        objects: [team],
         database: storage.database,
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         origin: {
             package: team.package,
-            service: "test",
         },
     });
     const context = userContext("alice", spaceId);
@@ -166,8 +165,8 @@ test("create an object the caller has the permission on only as the creator its 
     expect(read.name).toBe("Core");
 });
 
-test("run only the one method a Loan lends its caller, refusing every other", async () => {
-    const storage = await TestDatabase.create("sqlite", [journal, ...team.tables], {
+test("run only the one method a one-method grant reaches, refusing every other method of the type", async () => {
+    const storage = await TestDatabase.create("sqlite", [...callTables, ...team.tables], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -175,37 +174,39 @@ test("run only the one method a Loan lends its caller, refusing every other", as
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { team },
+        objects: [team],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: team.package, service: "test" },
+        events: await testEvents(storage.database),
+        origin: { package: team.package },
     });
 
-    // create as a caller lent the create method alone, then read and create again
-    const loaned = (method: string) =>
-        userContext("alice", spaceId, {
-            loan: {
-                id: "loan-1",
-                issuer: privateId,
-                method: `${team.package.name}/team.${method}`,
-            },
-        });
+    // create through a token granted the create method alone, then read
+    const grantId = Identifier.create("grant");
+    const granted = userContext("alice", spaceId, {
+        delegates: [principal.personalAccessToken.reference("alice", "token-alice")],
+        grant: {
+            id: grantId,
+            scope: "alice",
+            permissions: [
+                { ...team.permission("update"), scope: spaceId, method: "create" },
+                { ...team.permission("read"), scope: spaceId, method: "create" },
+            ],
+        },
+    });
     const created = await store
-        .mutate(loaned("create").caller(), {
+        .mutate(granted.caller(), {
             id: RequestId.create(Date.now()),
             calls: [team.call("create", { spaceId, name: "Core" })],
         })
         .then(([written]) => written);
     const read = await refusal(
-        store.query(loaned("create").caller(), team.call("get", { spaceId, id: created.id })),
+        store.query(granted.caller(), team.call("get", { spaceId, id: created.id })),
     );
 
     expect([created.name, read]).toEqual([
         "Core",
-        [
-            "FORBIDDEN",
-            `the loan lends ${team.package.name}/team.create, not ${team.package.name}/team.get`,
-        ],
+        ["FORBIDDEN", `grant ${grantId} reaches no team.get in ${spaceId}`],
     ]);
 });
 
@@ -245,7 +246,6 @@ const contact = defineObject({
         },
     },
 }).methods((method) => ({
-    get: method.get("read"),
     create: method.create("update", {
         fields: ["label"],
         variants: { kind: { email: ["address"], phone: ["number", "region"] } },
@@ -254,7 +254,7 @@ const contact = defineObject({
 }));
 
 test("create each variant of a sum type from its own fields beside the shared ones, refusing another variant's field", async () => {
-    const storage = await TestDatabase.create("sqlite", [journal, ...contact.tables], {
+    const storage = await TestDatabase.create("sqlite", [...callTables, ...contact.tables], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -262,10 +262,11 @@ test("create each variant of a sum type from its own fields beside the shared on
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { contact },
+        objects: [contact],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: contact.package, service: "test" },
+        events: await testEvents(storage.database),
+        origin: { package: contact.package },
     });
     const create = (input: CallInput<typeof contact, "create">) =>
         store
@@ -291,7 +292,8 @@ test("create each variant of a sum type from its own fields beside the shared on
                 id: RequestId.create(Date.now()),
                 calls: [
                     {
-                        method: "contact.create",
+                        type: contact.typeReference,
+                        method: "create",
                         release: contact.package.version,
                         input: {
                             spaceId,

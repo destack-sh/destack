@@ -8,11 +8,11 @@ import {
     type Transaction,
 } from "@destack/db";
 import { Subject } from "@destack/sync";
-import { Replay } from "@destack/audit";
+import { Replay } from "../audit/replay.ts";
 import { found, schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
-import { Call } from "../method/index.ts";
+import { Call, CallCode } from "../method/index.ts";
 
 import type { ObjectType } from "../object/index.ts";
 import { type BranchChange, BranchWrite } from "./write.ts";
@@ -69,7 +69,8 @@ export class Branch {
         return stored
             .map((entry) => STORED_CALL.parse(entry))
             .toSorted((left, right) => Number(left["position"]) - Number(right["position"]))
-            .map(({ method, input, release, author }) => ({
+            .map(({ type, method, input, release, author }) => ({
+                type,
                 method,
                 input,
                 release,
@@ -111,6 +112,7 @@ export class Branch {
                     id: `${this.types.call.identity}-${v7()}`,
                     parentId: this.id,
                     position: last + index + 1,
+                    type: entry.type,
                     method: entry.method,
                     input: entry.input,
                     release: entry.release,
@@ -240,7 +242,7 @@ export class Branch {
                 await transaction.write({ table, before: main, after });
             }
 
-            // run each call apart, skipping refused calls and external work
+            // run each call apart as its author's remote call, skipping refused calls and external work
             for (const entry of calls) {
                 const resolved = this.types.resolve(call.objects, entry, call.scope);
                 const method = resolved.object.method(resolved.name);
@@ -254,6 +256,7 @@ export class Branch {
                             Call.record(resolved.object, resolved.name, resolved.input),
                             Caller.of(entry.author, call.now),
                             true,
+                            CallCode.client,
                         ),
                     );
                 }

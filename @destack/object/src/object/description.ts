@@ -1,6 +1,5 @@
-import { Policy, PolicySubject } from "@destack/access";
-import { PackageId } from "@destack/package";
-import { DeclarationReference } from "@destack/package/declare";
+import { INTRINSIC_POLICIES, Policy, PolicySubject } from "@destack/access";
+import { DeclarationName, Package, PackageId } from "@destack/package";
 import { ResourceDeclaration, ResourceKind } from "@destack/resource";
 import {
     defineSchema,
@@ -48,8 +47,33 @@ export interface BuilderCall {
     readonly arguments: readonly unknown[];
 }
 
-/** A declaration a description may refer to: an object type, policy, resource kind or bucket. */
-export type KnownDeclaration = ObjectType | Policy | ResourceKind | FileBucket;
+/** A declaration a description may refer to: an object type or a policy. */
+export type KnownDeclaration = ObjectType | Policy;
+
+/** A JSON Schema as a description keeps it. */
+const DescribedSchema = schema.record(schema.string(), schema.json());
+
+/** A resource kind as a description keeps it: its package, name and schemas. */
+const DescribedKind = schema.object({
+    /** The declaring package. */
+    package: Package,
+    /** The kind's name. */
+    name: DeclarationName,
+    /** The schema of a declaration's specification. */
+    spec: DescribedSchema,
+    /** The schema of the desired state its providers reconcile, absent for a kind without one. */
+    state: DescribedSchema.exactOptional(),
+});
+
+/** A bucket as a description keeps it: its package, name and specification. */
+const DescribedBucket = schema.object({
+    /** The declaring package. */
+    package: Package,
+    /** The bucket's name. */
+    name: DeclarationName,
+    /** The bucket's specification. */
+    spec: schema.record(schema.string(), schema.json()),
+});
 
 /** An object type as data: its package and its definition as written, its special values tagged. */
 const objectDescription = defineSchema(
@@ -83,27 +107,18 @@ export const ObjectDescription = Object.assign(objectDescription, {
 
     /** List the keys of the types and policies a description needs now that the index lacks. */
     dependencies(description: ObjectDescription, known: DeclarationIndex): string[] {
-        // collect each type and policy reference outside lazy ones the index lacks
-        const keys: string[] = [];
-        const visit = (value: JsonValue): void => {
-            if (value === null || typeof value !== "object") {
-                return;
-            } else if (isList(value)) {
-                value.forEach(visit);
-            } else if ("$object" in value || "$policy" in value) {
-                const object = value["$object"];
-                const key = referenceKey(object ?? value["$policy"]);
-                const declarations = object === undefined ? known.policies : known.objects;
-                if (!declarations.has(key)) {
-                    keys.push(key);
-                }
-            } else if (!("$lazy" in value)) {
-                Object.values(value).forEach(visit);
-            }
-        };
-        visit(description.definition);
+        return missing(description.definition, known, false).map((reference) =>
+            ObjectTypeReference.key(reference),
+        );
+    },
 
-        return keys;
+    /** List the types and policies a description refers to that the index lacks, lazy ones too. */
+    references(description: ObjectDescription, known: DeclarationIndex): ObjectTypeReference[] {
+        const references = missing(description.definition, known, true).map(
+            (reference) => [ObjectTypeReference.key(reference), reference] as const,
+        );
+
+        return [...new Map(references).values()];
     },
 
     /** Decode a description's definition against the known declarations, its methods built. */
@@ -135,21 +150,17 @@ export function encodeType(type: ObjectType): ObjectDescription {
     };
 }
 
-/** The declarations descriptions refer to, by their declaring package and name. */
+/** The types and policies descriptions refer to, by reference key. */
 export class DeclarationIndex {
     /** The object types, by reference key. */
     readonly objects = new Map<string, ObjectType>();
     /** The policies, the object types' own included, by reference key. */
     readonly policies = new Map<string, Policy>();
-    /** The resource kinds, by package and name. */
-    readonly kinds = new Map<string, ResourceKind>();
-    /** The buckets, by package and name. */
-    readonly buckets = new Map<string, FileBucket>();
 
-    /** Index known declarations. */
+    /** Index known declarations beside the intrinsic policies every access model has. */
     static of(known: Iterable<KnownDeclaration>): DeclarationIndex {
         const declarations = new DeclarationIndex();
-        for (const declaration of known) {
+        for (const declaration of [...INTRINSIC_POLICIES, ...known]) {
             declarations.add(declaration);
         }
 
@@ -162,12 +173,8 @@ export class DeclarationIndex {
             const key = ObjectTypeReference.key(declaration.typeReference);
             this.objects.set(key, declaration);
             this.policies.set(key, declaration.policy);
-        } else if (declaration instanceof Policy) {
-            this.policies.set(ObjectTypeReference.key(declaration.typeReference), declaration);
-        } else if (declaration instanceof ResourceKind) {
-            this.kinds.set(keyOf(DeclarationReference.of(declaration)), declaration);
         } else {
-            this.buckets.set(keyOf(DeclarationReference.of(declaration)), declaration);
+            this.policies.set(ObjectTypeReference.key(declaration.typeReference), declaration);
         }
     }
 
@@ -229,7 +236,7 @@ function encode(value: unknown, position: Position): JsonValue {
             encode(entry, entryOf(position, "[]", `${position.path}[${offset}]`)),
         );
     }
-    // tag declarations by reference
+    // tag types and policies by reference, kinds and buckets as data
     else if (value instanceof ObjectType) {
         return { $object: value.typeReference };
     } else if (value instanceof Policy) {
@@ -237,9 +244,9 @@ function encode(value: unknown, position: Position): JsonValue {
     } else if (value instanceof PolicySubject) {
         return encode(value.type(), position);
     } else if (value instanceof ResourceKind) {
-        return { $kind: DeclarationReference.of(value) };
+        return { $kind: encodeKind(value) };
     } else if (value instanceof ResourceDeclaration) {
-        return { $bucket: DeclarationReference.of(value) };
+        return { $bucket: encodeBucket(value) };
     }
     // tag fields, methods and schemas by how they were built
     else if (value instanceof Field) {
@@ -358,17 +365,13 @@ function decodeTag(tag: string, value: JsonValue | undefined, known: Declaration
         case "$policy":
             return known.require(known.policies, referenceKey(value), "policy");
         case "$kind":
-            return known.require(
-                known.kinds,
-                keyOf(DeclarationReference.parse(value)),
-                "resource kind",
-            );
+            return decodeKind(DescribedKind.parse(value));
         case "$bucket":
-            return known.require(known.buckets, keyOf(DeclarationReference.parse(value)), "bucket");
+            return decodeBucket(DescribedBucket.parse(value));
         case "$lazy":
             return () => decode(present(value, "the lazy declaration"), known);
         case "$schema":
-            return fromJsonSchema(schema.record(schema.string(), schema.json()).parse(value));
+            return fromJsonSchema(DescribedSchema.parse(value));
         case "$field":
             return replayed(field, FIELD_MODIFIERS, BuilderCalls.parse(value), known);
         case "$method":
@@ -426,9 +429,91 @@ function invoke(
     );
 }
 
-/** Key a declaration by its declaring package and name. */
-function keyOf(reference: DeclarationReference): string {
-    return JSON.stringify([reference.packageId, reference.name]);
+/** List the type and policy references in a description value that the index lacks. */
+function missing(
+    value: JsonValue,
+    known: DeclarationIndex,
+    isLazyFollowed: boolean,
+): ObjectTypeReference[] {
+    // read nothing from plain values, and each entry of a list
+    if (value === null || typeof value !== "object") {
+        return [];
+    } else if (isList(value)) {
+        return value.flatMap((entry) => missing(entry, known, isLazyFollowed));
+    }
+    // keep a type or policy reference the index lacks
+    else if ("$object" in value || "$policy" in value) {
+        const object = value["$object"];
+        const reference = ObjectTypeReference.parse(object ?? value["$policy"]);
+        const declarations = object === undefined ? known.policies : known.objects;
+
+        return declarations.has(ObjectTypeReference.key(reference)) ? [] : [reference];
+    }
+    // follow a lazy reference only when asked, and every other entry
+    else if ("$lazy" in value && !isLazyFollowed) {
+        return [];
+    }
+
+    return Object.values(value).flatMap((entry) => missing(entry, known, isLazyFollowed));
+}
+
+/** Describe a resource kind as data: its package, name and schemas as JSON Schema. */
+function encodeKind(kind: {
+    readonly package: Package;
+    readonly name: string;
+    readonly spec: schema.Schema;
+    readonly state: schema.Schema | undefined;
+}): JsonObject {
+    return {
+        package: packageOf(kind.package),
+        name: kind.name,
+        spec: toJsonSchema(kind.spec),
+        ...(kind.state === undefined ? {} : { state: toJsonSchema(kind.state) }),
+    };
+}
+
+/** Rebuild a resource kind a description keeps. */
+function decodeKind(described: schema.Infer<typeof DescribedKind>): ResourceKind {
+    const { package: owner, name, spec, state } = described;
+
+    return new ResourceKind(
+        owner,
+        name,
+        specOf(spec),
+        state === undefined ? undefined : fromJsonSchema(state),
+    );
+}
+
+/** Rebuild the schema of a kind's specifications. */
+function specOf(described: schema.Infer<typeof DescribedSchema>): schema.Schema<JsonValue>;
+/**
+ * Rebuild the schema of a kind's specifications from its JSON Schema.
+ *
+ * @construct a kind's specification schema accepts JSON alone, and its JSON Schema keeps that.
+ */
+function specOf(described: schema.Infer<typeof DescribedSchema>): schema.Schema {
+    return fromJsonSchema(described);
+}
+
+/** Describe a bucket as data: its package, name and specification. */
+function encodeBucket(bucket: {
+    readonly package: Package;
+    readonly name: string;
+    readonly spec: Readonly<Record<string, JsonValue>>;
+}): JsonObject {
+    return { package: packageOf(bucket.package), name: bucket.name, spec: bucket.spec };
+}
+
+/** Rebuild a bucket a description keeps. */
+function decodeBucket(described: schema.Infer<typeof DescribedBucket>): FileBucket {
+    const { package: owner, ...bucket } = described;
+
+    return new ResourceDeclaration(owner, { ...bucket, kind: "bucket" });
+}
+
+/** Read a package's identity alone. */
+function packageOf(owner: Package): JsonObject {
+    return { id: owner.id, name: owner.name, version: owner.version };
 }
 
 /** Key an object type or policy reference. */

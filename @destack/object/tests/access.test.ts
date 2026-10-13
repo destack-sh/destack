@@ -1,12 +1,12 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 
-import { subjectContext, testCallKey } from "@destack/service/test";
-import { RequestId } from "@destack/service/request";
+import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
+import { RequestId } from "@destack/runtime/request";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, Intrinsic } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
@@ -17,9 +17,7 @@ const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000
 /** A space's roles. */
 const role = defineObject(Intrinsic.role.definition(space)).methods(Intrinsic.role.methods);
 /** A space's relationships. */
-const relationship = defineObject(Intrinsic.relationship.definition(space)).methods(
-    Intrinsic.relationship.methods,
-);
+const relationship = defineObject(Intrinsic.relationship.definition(space)).methods();
 
 test.for(TEST_DIALECTS)(
     "follow a space's roles and members as the owner defines and binds them on %s",
@@ -28,7 +26,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({
                 name: "main",
-                tables: [...role.tables, space.table, journal],
+                tables: [...role.tables, space.table, ...callTables],
             }),
             { isMigrated: true },
         );
@@ -43,13 +41,13 @@ test.for(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(SPACE_ID),
-            objects: { role, relationship },
+            objects: [role, relationship],
             policies: [space],
             database,
             callKey: testCallKey,
+            events: await testEvents(database),
             origin: {
                 package: role.package,
-                service: "test",
             },
         });
         await database
@@ -143,4 +141,28 @@ test("refuse traits on an object type over a foreign table", () => {
     expect(() => recoverable.methods(Intrinsic.role.methods)).toThrow(
         new TypeError("object role over a foreign table takes no recoverable"),
     );
+});
+
+test("authorize an object type that the objects and the policies list several times", async () => {
+    // serve roles and list them twice among the policies, as composed extensions do
+    const storage = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({ name: "main", tables: [...role.tables, space.table, ...callTables] }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const store = new ObjectStore({
+        clock: Clock.system,
+        principal: spacePrincipal(SPACE_ID),
+        objects: [role, relationship],
+        policies: [space, role, role],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: role.package },
+    });
+
+    // map the role's table once
+    const { packageId, name } = role.policy.definition;
+    expect(store.authorizer.mapping({ packageId, type: name }).table).toBe(role.table);
 });

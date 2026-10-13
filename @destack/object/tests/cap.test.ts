@@ -1,16 +1,19 @@
+import { principal } from "@destack/access";
+import { ObjectTypeReference } from "@destack/sync";
 import { Clock } from "@destack/schema";
 import { Transaction } from "@destack/db";
 import { MemoryBuild } from "@destack/package/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { createClient } from "@destack/service/client";
-import { RequestId } from "@destack/service/request";
-import { testCallKey } from "@destack/service/test";
-import type { InstallationContext } from "@destack/service/workload";
+import { createClient } from "@destack/runtime/client";
+import { RequestId } from "@destack/runtime/request";
+import { testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
+import type { InstallationContext } from "@destack/runtime/workload";
 import { Scope } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { serveObjects, spaceId } from "./fixture/device.ts";
-import { notebook, note, notesDatabase, notesService } from "./fixture/note.ts";
+import { notebook, note, notesDatabase, notesPackage } from "./fixture/note.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 
 /** Build a call's space and a new request. */
@@ -61,19 +64,25 @@ async function serveInstalledNotes() {
     };
     const store = new ObjectStore({
         clock: Clock.system,
-        principal: spacePrincipal(spaceId),
-        objects: { notebook, note },
+        principal: principal.installation.reference(installation.scope, installation.id),
+        objects: [notebook, note],
         database,
         callKey: testCallKey,
-        origin: { package: note.package, service: notesService.name },
-        installation,
+        events: await testEvents(database),
+        origin: { package: note.package },
+        installed: new Map(
+            [notebook, note].map((type) => [
+                ObjectTypeReference.key(type.typeReference),
+                installation,
+            ]),
+        ),
     });
     const served = serveObjects(
-        store.implement(notesService, store.routed, store.controllers(), {}),
+        store.implement(notesPackage, store.routed, store.controllers()),
         spaceId,
     );
 
-    return { database, alice: createClient(notesService, served.endpoint("alice")) };
+    return { database, alice: createClient(notesPackage, served.endpoint("alice")) };
 }
 
 test("refuse an installation's writes in a space whose storage is capped, keeping reads and deletes, until the cap lifts", async () => {

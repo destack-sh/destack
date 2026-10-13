@@ -1,13 +1,14 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { reconciliation, testCallKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { eq, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 import { v7 } from "uuid";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
 import { ExpiringController, ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -36,14 +37,13 @@ const alert = defineObject({
     ],
     permissions: { read: relation("owner"), write: relation("owner") },
 }).methods((method) => ({
-    get: method.get("read"),
     create: method.create("write", { fields: ["title"] }),
 }));
 
 /** The database with the alerts, their access and the journal. */
 const alertDatabase = defineDatabase({
     name: "main",
-    tables: [journal, ...alert.tables],
+    tables: [...callTables, ...alert.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -56,12 +56,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { alert },
+            objects: [alert],
             database,
             callKey: testCallKey,
+            events: await testEvents(database),
             origin: {
                 package: alert.package,
-                service: "test",
             },
         });
         const context = userContext("user-1", spaceId);
@@ -91,7 +91,7 @@ test.each(TEST_DIALECTS)(
 
         // remove the two expired alerts and schedule the third
         const controller = new ExpiringController(store);
-        expect(Object.keys(alert.procedures).toSorted()).toEqual(["create", "get"]);
+        expect(Object.keys(alert.procedures).toSorted()).toEqual(["create", "get", "list"]);
         const delay = await controller.reconcile(
             "expiry",
             reconciliation(AbortSignal.timeout(5000)),
@@ -109,7 +109,7 @@ test("leave the expired rows a database copies to the deletes their home sends",
     // keep the alerts as copies, one long expired
     const copied = defineDatabase({
         name: "main",
-        tables: [journal, ...alert.tables.filter((table) => table !== alert.table)],
+        tables: [...callTables, ...alert.tables.filter((table) => table !== alert.table)],
         copies: [alert.table],
     });
     const storage = await TestDatabase.create("sqlite", copied, { isMigrated: true });
@@ -119,10 +119,11 @@ test("leave the expired rows a database copies to the deletes their home sends",
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { alert },
+        objects: [alert],
         database,
         callKey: testCallKey,
-        origin: { package: alert.package, service: "test" },
+        events: await testEvents(database),
+        origin: { package: alert.package },
     });
     const now = Date.now();
     await database.insert(alert.table).values({

@@ -20,7 +20,7 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
     after<Self extends ObjectType>(object: Self, rules: readonly ExpiryRule[]): Self;
 } = {
     key: "expiring",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.expiring,
     columns: () => ({}),
     constraints: () => [],

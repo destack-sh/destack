@@ -1,16 +1,24 @@
+import type { EventStore } from "@destack/event";
 import {
     Authorizer,
     AccessContext,
     decisionTables,
-    type GrantReader,
+    type TupleReader,
     Policy,
     type Access,
     type TableMapping,
     Caller,
     CONTAINED,
+    GrantPermission,
     principal,
 } from "@destack/access";
-import { type ObjectReference, Scope, type ScopeLink, Subject } from "@destack/sync";
+import {
+    type ObjectReference,
+    ObjectTypeReference,
+    Scope,
+    type ScopeLink,
+    Subject,
+} from "@destack/sync";
 import {
     LogPosition,
     Snapshot,
@@ -21,38 +29,44 @@ import {
     DatabaseError,
     Transaction,
 } from "@destack/db";
-import { eventUnmask, Replay } from "@destack/audit";
-import type { UnmaskedRead } from "@destack/event/server";
+import { objectUnmask } from "../audit/unmask.ts";
+import { Replay } from "../audit/replay.ts";
 import {
     AuditRecorder,
-    Journal,
-    type AuditDestination,
     type AuditOrigin,
     type AuditCalled,
     type CallRequest,
-} from "@destack/audit/server";
-import { Loan } from "@destack/service/authentication";
-import type { CallKey } from "@destack/service/request";
+} from "../audit/recorder.ts";
+import { Journal } from "../audit/journal.ts";
+import type { ExchangeAsk } from "@destack/runtime/authentication";
+import type { CallKey } from "@destack/runtime/request";
 
 import { aligned, Clock, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
-import type { InstallationContext } from "@destack/service/workload";
-import type { Watermark } from "@destack/service/bookmark";
-import { CompactionController } from "@destack/service/database";
-import { refuseInput, ServiceError } from "@destack/service/error";
-import { RequestId, type RequestIdentity } from "@destack/service/request";
+import type { InstallationContext } from "@destack/runtime/workload";
+import type { Watermark } from "@destack/runtime/bookmark";
+import { CompactionController } from "@destack/runtime/database";
+import { refuseInput, CallError } from "@destack/runtime/error";
+import { RequestId, type RequestIdentity } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import {
     implement,
     type Router,
-    type ServiceAccess,
-    type ServiceContext,
-    type ServiceImplementation,
+    type ServerAccess,
+    type RequestContext,
+    type PackageImplementation,
     type ProcedureCall,
-} from "@destack/service/server";
-import { type Service, type ServiceRouter } from "@destack/service";
+} from "@destack/runtime/server";
+import type { PackageHandle, ProcedureRouter } from "@destack/runtime";
 import * as sync from "@destack/sync";
 import { Branch, type BranchCall, type BranchType } from "../branch/index.ts";
-import { Call, OutboxCall, type ObjectCall, type ResultsOf, type Run } from "../method/call.ts";
+import {
+    Call,
+    CallCode,
+    OutboxCall,
+    type ObjectCall,
+    type ResultsOf,
+    type Run,
+} from "../method/call.ts";
 import { Method, type MethodKind } from "../method/method.ts";
 import { callableProcedures } from "../method/procedure.ts";
 import { InputSchema } from "../method/input.ts";
@@ -62,16 +76,21 @@ import {
     type PushResult,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
-import { ObjectType } from "../object/object.ts";
+import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
+import { INTRINSIC } from "../object/intrinsic.ts";
 import { ObjectAccess } from "../object/access.ts";
-import type { KnownDeclaration } from "../object/description.ts";
+import {
+    DeclarationIndex,
+    ObjectDescription,
+    type KnownDeclaration,
+} from "../object/description.ts";
 import { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { Authorization } from "./authorization.ts";
 import { ChangeController } from "./change.ts";
-import { Outbox } from "@destack/service/outbox";
+import { Outbox } from "@destack/runtime/outbox";
 import { ClaimController } from "../claim/controller.ts";
-import { type ClaimStore, Reservation } from "../claim/store.ts";
+import { type Claimer, type ClaimHome, Reservation } from "../claim/reservation.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
@@ -82,8 +101,8 @@ import { ProvisionedController, type ProvisionedOptions } from "./provisioned.ts
 import { ExpiringController } from "./expiring.ts";
 import { RecoverableController } from "./recoverable.ts";
 import { TrackedHistory } from "./tracked.ts";
-import type { Controller } from "@destack/service/control";
-import { Trigger, type ChangeTrigger, type RunClient } from "@destack/service/trigger";
+import type { Controller } from "@destack/runtime/control";
+import { Trigger, type ChangeTrigger, type RunClient } from "@destack/runtime/trigger";
 
 import { Settlement } from "./settlement.ts";
 import { telemetry } from "@destack/telemetry";
@@ -204,6 +223,12 @@ export interface AuthorizeOptions {
     readonly now?: number;
 }
 
+/** How a store admits a caller beyond its authorization. */
+export interface AdmitOptions extends Omit<AuthorizeOptions, "within"> {
+    /** The object types the admitted calls run on, whose owned types need no visible scope. */
+    readonly objects?: readonly ObjectType[];
+}
+
 /** How a mutation runs beyond its caller. */
 export interface MutateOptions {
     /** The running mutation to join without external work, which its owner commits, if any. */
@@ -244,10 +269,10 @@ type CallOptions = {
     readonly component?: string;
 };
 
-/** The options of an object store: its objects over one database, and adjacent services. */
+/** The options of an object store: its objects over one database, and adjacent stores. */
 export interface ObjectStoreOptions {
-    /** The object types served, by name. */
-    readonly objects: Readonly<Record<string, ObjectType>>;
+    /** The object types served. */
+    readonly objects: readonly ObjectType[];
     /** Further policies and table mappings to authorize. */
     readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
     /** The database with the objects. */
@@ -258,16 +283,16 @@ export interface ObjectStoreOptions {
     readonly partition?: string;
     /** The journal's key for fingerprinting sensitive call inputs, set when types serve methods. */
     readonly callKey?: CallKey;
-    /** The package and service recording the calls. */
+    /** The package recording the calls. */
     readonly origin: Omit<AuditOrigin, "scope">;
-    /** The audit history the journal delivers calls to, absent if another store delivers them. */
-    readonly history?: AuditDestination;
-    /** The claims of unique indexes, kept by the account service. */
-    readonly claims?: ClaimStore;
-    /** The installation serving the objects and their projections, absent for a machine. */
-    readonly installation?: InstallationContext;
+    /** The claim type keeping the names of unique indexes, and the store serving it. */
+    readonly claims?: ClaimHome;
+    /** The installations serving objects and their projections, by type reference key. */
+    readonly installed?: ReadonlyMap<string, InstallationContext>;
     /** The memory store with the served ephemeral objects. */
     readonly ephemeral?: EphemeralStorage;
+    /** The event log with the served events types, over the store's database. */
+    readonly events?: EventStore;
     /** The files with the served external objects, each keeping some of their types. */
     readonly external?: readonly ExternalStorage[];
     /** The subscriptions the database follows to keep its copies. */
@@ -291,8 +316,8 @@ export interface ObjectStoreOptions {
 }
 
 /** A store's routes: each served object's procedures by its key, and the replica procedures. */
-export type ObjectRouter = Readonly<Record<string, Router<ServiceRouter, ServiceContext>>> & {
-    readonly replica: Router<ReplicaProcedures, ServiceContext>;
+export type ObjectRouter = Readonly<Record<string, Router<ProcedureRouter, RequestContext>>> & {
+    readonly replica: Router<ReplicaProcedures, RequestContext>;
 };
 
 /** A store serving object types' methods over one database. */
@@ -309,24 +334,26 @@ export class ObjectStore {
     readonly authorizer: Authorizer;
     /** The journal of executed mutations, kept only by a store serving methods. */
     readonly #journal: Journal | undefined;
-    /** The package and service the store serves, as the audit records them. */
+    /** The package the store serves, as the audit records it. */
     readonly origin: Omit<AuditOrigin, "scope">;
     /** The feed serving every sync. */
     readonly feed: sync.Feed;
-    /** The claims of the served objects' unique indexes. */
-    readonly claims: ClaimStore | undefined;
+    /** The claim type keeping the names of the served objects' unique indexes. */
+    readonly claims: ClaimHome | undefined;
     /** The memory store with the served ephemeral objects. */
     readonly ephemeral: EphemeralStorage | undefined;
+    /** The event log with the served events types. */
+    readonly events: EventStore | undefined;
     /** The files with the served external objects. */
     readonly external: readonly ExternalStorage[];
     /** The subscriptions the database follows to keep its copies. */
     readonly subscriber: Subscriber | undefined;
     /** The durable types the store serves or decides, whose rows stand for their principals. */
     readonly decided: readonly ObjectType[];
-    /** The shapes the store serves and follows beside its objects' and its policies' own. */
+    /** The shapes the store serves and follows beside its objects' and policies' shapes. */
     readonly shapes: readonly sync.Shape[];
-    /** The installation serving the objects and their projections, absent for a machine. */
-    readonly installation: InstallationContext | undefined;
+    /** The installations serving objects and their projections, by type reference key. */
+    readonly #installed: ReadonlyMap<string, InstallationContext>;
     /** The copied types of the residents whose rows the served types project, if any. */
     readonly residence: Residence | undefined;
     /** The served or authorized durable types whose rows the database copies from home. */
@@ -337,32 +364,10 @@ export class ObjectStore {
     readonly uplink: sync.Uplink;
     /** The change triggers of the served objects, each change they admit recorded as a run. */
     readonly triggers: readonly ChangeTrigger[];
-    /** The audit history the journal delivers calls to, absent if another store delivers them. */
-    readonly #history: AuditDestination | undefined;
     /** The outbox of sent calls and copied row changes, absent if nothing receives them. */
     readonly #sends?: Outbox;
     /** Open an audit recorder for a scope and caller, with its calls' request and component. */
-    readonly audit: (
-        scope: string,
-        caller: Caller,
-        called?: AuditCalled,
-    ) => AuditRecorder<DatabaseConnection>;
-    /** Record a read that showed a scope's personal event values, as the event service reports. */
-    readonly unmasked = async (context: ServiceContext, read: UnmaskedRead): Promise<void> => {
-        const { scope, object, kind, operation } = read;
-        await this.audit(scope, ObjectStore.#requestCaller(context), {
-            requestId: context.requestId,
-        }).record(
-            undefined,
-            eventUnmask,
-            {
-                target: { type: object.type, id: object.id },
-                details: { kind: kind.name, operation },
-                outcome: { kind: "success" },
-            },
-            "access",
-        );
-    };
+    readonly audit: (scope: string, caller: Caller, called?: AuditCalled) => AuditRecorder;
     /** Report failed settlements. */
     readonly #report: (error: unknown) => void;
     /** The clock calls run and controllers reconcile at. */
@@ -380,31 +385,32 @@ export class ObjectStore {
     /** The copies the objects stream to clients and databases below. */
     readonly source: ObjectSource;
     /** The shared grant readers, by scope and page position. */
-    readonly #readers = new Map<string, GrantReader>();
+    readonly #readers = new Map<string, TupleReader>();
     /** The scopes each caller lives inside, read once per caller and database. */
     readonly #inside = new WeakMap<Caller, Map<DatabaseConnection, Promise<readonly Subject[]>>>();
     /** The object types routed by name, without the chunk types serving them. */
     readonly routed: readonly ObjectType[];
-    /** The wait for the copies gating readiness, shared by every implemented service. */
+    /** The wait for the copies gating readiness, shared by every implemented package. */
     #readiness: Promise<boolean> | undefined;
 
     /** Serve object types over one database. */
     constructor(options: ObjectStoreOptions) {
-        // require each object type under its own name, and the stores its storage needs
-        this.routed = Object.values(options.objects);
+        // require each object type once apart from the shared procedures, and the stores its storage needs
+        this.routed = options.objects;
         this.objects = ObjectType.served(this.routed);
-        ObjectStore.#requireNames(options.objects);
+        ObjectStore.#requireRoutes(options.objects);
         ObjectStore.#requireStores(this.objects, options);
 
         // keep the optional stores and machines
         this.claims = options.claims;
         this.subscriber = options.subscriber;
         this.shapes = options.shapes ?? [];
-        this.installation = options.installation;
+        this.#installed = options.installed ?? new Map();
         this.uplink = this.#uplink();
         this.runs = options.runs;
         this.triggers = ObjectStore.#changeTriggers(options);
         this.ephemeral = options.ephemeral;
+        this.events = options.events;
         this.external = options.external ?? [];
 
         // build the authorizer over the objects, the scope types enclosing them and the residence
@@ -419,8 +425,7 @@ export class ObjectStore {
         this.#journal = ObjectStore.#journalOf(this.routed, options);
         this.origin = options.origin;
         this.audit = (scope, caller, called) =>
-            AuditRecorder.service(this.journal, options.origin)(scope, caller, called);
-        this.#history = options.history;
+            AuditRecorder.scoped(this.journal, options.origin)(scope, caller, called);
         this.isAccessAudited = options.isAccessAudited ?? false;
         this.source = new ObjectSource(this);
         this.clock = options.clock;
@@ -434,15 +439,64 @@ export class ObjectStore {
         this.decided = followed.decided;
         this.copied = followed.copied;
         this.feed = followed.feed;
-        this.known = [
-            ...this.objects,
-            ...this.copied,
-            ...(options.policies ?? []).filter((policy) => policy instanceof Policy),
-            ...this.providers.map((provider) => provider.kind),
-        ];
+        this.known = ObjectStore.known(options.objects, options.policies ?? []);
         if (followed.sends !== undefined) {
             this.#sends = followed.sends;
         }
+    }
+
+    /** List the declarations installed types resolve against: served types, scopes and policies. */
+    static known(
+        objects: readonly ObjectType[],
+        policies: readonly (Policy | ObjectType | TableMapping)[],
+    ): KnownDeclaration[] {
+        // add the scope types enclosing the served types, up to the universe
+        const served = ObjectType.served(objects);
+        const scopes = new Set(served.flatMap((type) => type.scopes));
+        for (const scope of scopes) {
+            scope.scopes.forEach((enclosing) => scopes.add(enclosing));
+        }
+
+        return [
+            ...served,
+            ...[...scopes].filter((scope) => !served.some((type) => type.same(scope))),
+            ...policies.filter(
+                (policy) => policy instanceof Policy || policy instanceof ObjectType,
+            ),
+        ];
+    }
+
+    /** Describe known types and every type they refer to, every served one when given none. */
+    describe(types?: readonly ObjectTypeReference[]): ObjectDescription[] {
+        // index the known types by reference, beside the intrinsic policies every client knows
+        const known = new Map(
+            this.known
+                .filter((declaration) => declaration instanceof ObjectType)
+                .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
+        );
+        const intrinsic = DeclarationIndex.of([]);
+
+        // describe each asked type, then each type a description refers to beyond the intrinsic policies
+        const served = this.routed.filter((type) => !(INTRINSIC in type.source));
+        const pending = [...(types ?? served.map((type) => type.typeReference))];
+        const described = new Map<string, ObjectDescription>();
+        let reference = pending.pop();
+        while (reference !== undefined) {
+            const key = ObjectTypeReference.key(reference);
+            const type = known.get(key);
+            if (type === undefined) {
+                throw new CallError("NOT_FOUND", {
+                    message: `no object type ${reference.type} of ${reference.packageId} is known here`,
+                });
+            } else if (!described.has(key)) {
+                const description = type.describe();
+                described.set(key, description);
+                pending.push(...ObjectDescription.references(description, intrinsic));
+            }
+            reference = pending.pop();
+        }
+
+        return [...described.values()];
     }
 
     /** Follow durable tables and decision tables in one feed, with an outbox for leaving calls. */
@@ -450,7 +504,7 @@ export class ObjectStore {
         objects: readonly ObjectType[],
         options: Pick<
             ObjectStoreOptions,
-            "database" | "policies" | "runs" | "subscriber" | "clock"
+            "database" | "policies" | "runs" | "subscriber" | "clock" | "installed"
         >,
     ): {
         readonly decided: ObjectType[];
@@ -458,9 +512,14 @@ export class ObjectStore {
         readonly feed: sync.Feed;
         readonly sends?: Outbox;
     } {
-        // find the durable and copied object types, and follow their tables
+        // find the durable and copied object types, an installation's types owned where it serves them
         const decided = ObjectStore.#durable(objects, options.policies ?? []);
-        const copied = decided.filter((object) => options.database.copies(object.table));
+        const installed = options.installed ?? new Map();
+        const copied = decided.filter(
+            (object) =>
+                options.database.copies(object.table) &&
+                !installed.has(ObjectTypeReference.key(object.typeReference)),
+        );
         const followed = decided.flatMap((object) => object.tables);
         const feed = new sync.Feed(
             options.database,
@@ -484,13 +543,11 @@ export class ObjectStore {
         return {
             stream: (subscription, signal) => this.source.publish(subscription, signal),
             receive: async (mutation, signer) => {
-                // run each change as the follower's principal
+                // run the changes as the follower's principal
                 if (signer === undefined) {
                     throw new TypeError("a change sent in process names the principal sending it");
                 }
-                for (const call of mutation.calls) {
-                    await this.receive(call, signer);
-                }
+                await this.receive(mutation, signer);
             },
         };
     }
@@ -516,8 +573,13 @@ export class ObjectStore {
         objects: readonly ObjectType[],
         policies: readonly (Policy | ObjectType | TableMapping)[],
     ): ObjectType[] {
-        return [...objects, ...policies.filter((other) => other instanceof ObjectType)].filter(
-            (object) => object.storage === "durable",
+        // list each durable type once, though several extensions name it
+        const durable = [...objects, ...policies.filter((other) => other instanceof ObjectType)];
+
+        return durable.filter(
+            (object, index) =>
+                object.storage === "durable" &&
+                durable.findIndex((each) => each.same(object)) === index,
         );
     }
 
@@ -539,7 +601,7 @@ export class ObjectStore {
     static #authorizer(
         objects: readonly ObjectType[],
         residence: Residence | undefined,
-        options: Pick<ObjectStoreOptions, "database" | "policies" | "clock">,
+        options: Pick<ObjectStoreOptions, "database" | "policies" | "clock" | "partition">,
     ): Authorizer {
         // add the residence's types the store does not serve
         const residents = (
@@ -550,26 +612,31 @@ export class ObjectStore {
             objects,
             [...(options.policies ?? []), ...residents],
             (table) => options.database.copies(table),
+            options.partition,
         );
     }
 
     /** Keep a method store's journal with its call key, refusing a call key without methods. */
     static #journalOf(
         routed: readonly ObjectType[],
-        options: Pick<ObjectStoreOptions, "database" | "callKey" | "clock">,
+        options: Pick<ObjectStoreOptions, "database" | "callKey" | "clock" | "events">,
     ): Journal | undefined {
+        // require the call key and the event log keeping the calls of a store serving methods
         const isServing = routed.length > 0;
-        if (isServing && options.callKey === undefined) {
+        const { callKey, events } = options;
+        if (isServing && callKey === undefined) {
             throw new TypeError("a store serving methods needs the call key of their journal");
-        } else if (!isServing && options.callKey !== undefined) {
+        } else if (isServing && (events === undefined || !events.keeps(Journal.kind))) {
+            throw new TypeError("a store serving methods needs an event log keeping its calls");
+        } else if (!isServing && callKey !== undefined) {
             throw new TypeError(
                 "a store serving no methods keeps no journal and takes no call key",
             );
         }
 
-        return options.callKey === undefined
+        return callKey === undefined || events === undefined
             ? undefined
-            : new Journal(options.database, options.callKey, { clock: options.clock });
+            : new Journal(options.database, callKey, { events, clock: options.clock });
     }
 
     /** Read the journal of executed mutations, failing for a store serving no methods. */
@@ -581,40 +648,48 @@ export class ObjectStore {
         return this.#journal;
     }
 
-    /** Require each object type under its own key, apart from the shared procedures. */
-    static #requireNames(objects: Readonly<Record<string, ObjectType>>): void {
-        for (const [key, object] of Object.entries(objects)) {
-            // refuse a type under another key
-            if (key !== object.key) {
-                throw new TypeError(`object ${object.name} is served under ${key}`);
-            }
-            // refuse a type under a shared procedure's name
-            else if (Object.hasOwn(object.shared, key)) {
+    /** Require each object type once, apart from the shared procedures. */
+    static #requireRoutes(objects: readonly ObjectType[]): void {
+        const routed = new Set<string>();
+        for (const object of objects) {
+            // refuse a type served twice, and one under the shared replica procedures' name
+            const key = ObjectTypeReference.key(object.typeReference);
+            if (routed.has(key)) {
                 throw new TypeError(
-                    `object ${object.name} takes the name of the shared ${key} procedures`,
+                    `object ${object.name} of ${object.package.id} is served twice`,
+                );
+            } else if (Object.hasOwn(object.shared, object.key)) {
+                throw new TypeError(
+                    `object ${object.name} takes the name of the shared ${object.key} procedures`,
                 );
             }
+            routed.add(key);
         }
     }
 
-    /** Refuse local types, and require claims, memory stores and files for their types. */
+    /** Refuse another principal's local types, and require claims, memory stores and files. */
     static #requireStores(
         objects: readonly ObjectType[],
-        options: Pick<ObjectStoreOptions, "database" | "claims" | "ephemeral" | "external">,
+        options: Pick<
+            ObjectStoreOptions,
+            "database" | "claims" | "ephemeral" | "events" | "external" | "principal"
+        >,
     ): void {
-        // refuse local objects, which live on their client alone
-        const local = objects.find((object) => object.storage === "local");
+        // refuse local objects outside the scope of the store's principal
+        const local = objects.find(
+            (object) =>
+                object.storage === "local" &&
+                !object.scopes.some((scope) => scope.policy.is(options.principal)),
+        );
         if (local !== undefined) {
-            throw new TypeError(
-                `local object ${local.name} lives on its client, and no server serves it`,
-            );
+            throw new TypeError(`local object ${local.name} lives in its scope's own store alone`);
         }
 
         // require claims for indexed objects
         const indexed = objects.find((object) => Object.keys(object.indexes).length > 0);
         if (indexed !== undefined && options.claims === undefined) {
             throw new TypeError(
-                `object ${indexed.name} declares indexes but no claim store keeps their names`,
+                `object ${indexed.name} declares indexes but no claim type keeps their names`,
             );
         }
 
@@ -626,6 +701,19 @@ export class ObjectStore {
         );
         if (unstored !== undefined) {
             throw new TypeError(`ephemeral object ${unstored.name} needs a store keeping it`);
+        }
+
+        // require the event log over the store's database for events types
+        const unlogged = objects.find(
+            (object) =>
+                object.storage === "events" &&
+                (options.events?.keeps(object.eventKind()) !== true ||
+                    options.events.database !== options.database),
+        );
+        if (unlogged !== undefined) {
+            throw new TypeError(
+                `events object ${unlogged.name} needs the store's event log keeping it`,
+            );
         }
 
         // require files for external objects
@@ -658,27 +746,21 @@ export class ObjectStore {
         return first;
     }
 
-    /** Read the object type of a call's method, as `<object>.<method>` writes it. */
-    static #typeOf(call: Pick<ObjectCall, "method">): string {
-        return call.method.slice(0, call.method.lastIndexOf("."));
-    }
-
-    /** Implement a service routing some served objects beside its own procedures. */
+    /** Implement a package's served objects. */
     implement(
-        service: Service,
+        handle: PackageHandle,
         routed: readonly ObjectType[],
         controllers: readonly Controller[],
-        procedures: Readonly<Record<string, Router<ServiceRouter, ServiceContext>>>,
-    ): ServiceImplementation & { readonly objects: ObjectStore } {
+    ): PackageImplementation & { readonly objects: ObjectStore } {
         const { subscriber } = this;
 
         return {
             objects: this,
-            service,
+            package: handle,
             access: this.access,
             audit: AuditRecorder.procedure((call) =>
                 this.audit(
-                    this.#procedureScope(call) ?? Scope.universe.id,
+                    this.#procedureScope(call, routed) ?? Scope.universe.id,
                     ObjectStore.#requestCaller(call.context),
                     { requestId: call.context.requestId },
                 ),
@@ -687,13 +769,13 @@ export class ObjectStore {
             ...(subscriber === undefined
                 ? {}
                 : { ready: (signal) => this.#awaitReady(subscriber, signal) }),
-            router: { ...this.router(routed), ...procedures },
+            router: this.router(routed),
         };
     }
 
-    /** Wait for the copies gating readiness, checked once for all services, or until stopped. */
+    /** Wait for the copies gating readiness, checked once for all packages, or until stopped. */
     async #awaitReady(subscriber: Subscriber, signal: AbortSignal): Promise<void> {
-        // share one check of the copies, checking again after the checking service stopped first
+        // share one check of the copies, checking again after the checking server stopped first
         const stopped = new Promise<boolean>((resolve) => {
             signal.addEventListener("abort", () => resolve(false), { once: true });
         });
@@ -727,8 +809,8 @@ export class ObjectStore {
         }, signal);
     }
 
-    /** The service access deciding the served objects. */
-    get access(): ServiceAccess {
+    /** The server access deciding the served objects. */
+    get access(): ServerAccess {
         return {
             authorizer: this.authorizer,
             database: this.database,
@@ -737,7 +819,8 @@ export class ObjectStore {
 
     /** Route the served objects' methods, or some of them, and the replica procedures. */
     router(routed: readonly ObjectType[] = this.routed): ObjectRouter {
-        const routers: Record<string, Router<ServiceRouter, ServiceContext>> = {};
+        // route each object under its key, which its package's handle keeps unique
+        const routers: Record<string, Router<ProcedureRouter, RequestContext>> = {};
         for (const object of routed) {
             routers[object.key] = this.#route(object);
         }
@@ -746,12 +829,12 @@ export class ObjectStore {
     }
 
     /** Route an object's methods to the call pipeline. */
-    #route(object: ObjectType): Record<string, Router<ServiceRouter, ServiceContext>> {
+    #route(object: ObjectType): Record<string, Router<ProcedureRouter, RequestContext>> {
         // bind each method's procedure to the call pipeline
-        const routes: Record<string, Router<ServiceRouter, ServiceContext>> = {};
+        const routes: Record<string, Router<ProcedureRouter, RequestContext>> = {};
         for (const [name, procedure] of Object.entries(callableProcedures(object))) {
             routes[name] = implement(procedure)
-                .$context<ServiceContext>()
+                .$context<RequestContext>()
                 .handler(({ input, context }) => this.#answer(object, name, input, context));
         }
 
@@ -759,13 +842,20 @@ export class ObjectStore {
     }
 
     /** Route the replica procedures. */
-    #replica(): Router<ReplicaProcedures, ServiceContext> {
-        const replica = implement(replicaProcedures).$context<ServiceContext>();
+    #replica(): Router<ReplicaProcedures, RequestContext> {
+        const replica = implement(replicaProcedures).$context<RequestContext>();
 
         return replica.router({
             push: replica.push.handler(({ input, context }) =>
                 this.#push(input.scope, input.mutations, context, input.writerId),
             ),
+            watermark: replica.watermark.handler(async ({ input, context }) => {
+                // read the scope's watermark once its copies have the homes' commits
+                await this.enter(context, input.scope);
+                await this.#reachHomes(context, input.scope, input.homes);
+
+                return this.watermark(input.scope);
+            }),
             call: replica.call.handler(async ({ input, context }) => {
                 // read in the given scope
                 const {
@@ -773,8 +863,8 @@ export class ObjectStore {
                     name,
                     input: called,
                 } = this.#resolve(input.call, false, context.caller(input.scope));
-                if (this.#scope(object, called) !== input.scope) {
-                    throw new ServiceError("BAD_REQUEST", {
+                if (object.scopeOf(name, called) !== input.scope) {
+                    throw new CallError("BAD_REQUEST", {
                         message: `${object.name}.${name} reads another scope than ${input.scope}`,
                     });
                 }
@@ -800,11 +890,25 @@ export class ObjectStore {
                     context,
                 );
             }),
+            describe: replica.describe.handler(({ input }) => ({
+                objects: this.describe(input.types),
+            })),
         });
     }
 
+    /** Refuse a method of a type in a scope that the caller's grant binds to other methods. */
+    static #requireReached(caller: Caller, object: ObjectType, scope: string, name: string): void {
+        const { grant } = caller;
+        const type = { packageId: object.policy.definition.packageId, type: object.policy.name };
+        if (grant !== undefined && !GrantPermission.reaches(type, scope, name, grant.permissions)) {
+            throw new CallError("FORBIDDEN", {
+                message: `grant ${grant.id} reaches no ${object.name}.${name} in ${scope}`,
+            });
+        }
+    }
+
     /** Read a request's caller for its audit: anonymous when its credential failed. */
-    static #requestCaller(context: ServiceContext): Caller {
+    static #requestCaller(context: RequestContext): Caller {
         return context.authenticationError === undefined ? context.caller() : { subjects: [] };
     }
 
@@ -813,13 +917,13 @@ export class ObjectStore {
         object: ObjectType,
         name: string,
         input: JsonObject,
-        context: ServiceContext,
+        context: RequestContext,
     ): Promise<unknown> {
         // split off the request's identifier or the writer, and enter the call's scope as the request's caller
         const method = object.method(name);
         const isEphemeral = object.storage === "ephemeral";
         const { [isEphemeral ? "writerId" : "requestId"]: named, ...rest } = input;
-        const scope = this.#scope(object, rest);
+        const scope = object.scopeOf(name, rest);
         await this.enter(context, scope);
         const caller = context.caller(scope);
 
@@ -846,7 +950,7 @@ export class ObjectStore {
         const output = schema.standard().parse(object.procedure(name).output);
         const validated = await output["~standard"].validate(result);
         if (validated.issues !== undefined) {
-            throw new ServiceError("INTERNAL_SERVER_ERROR", {
+            throw new CallError("INTERNAL_SERVER_ERROR", {
                 message: `invalid output of ${object.name}.${name}`,
                 data: { issues: validated.issues },
             });
@@ -863,11 +967,11 @@ export class ObjectStore {
      * @construct the result is the call method's answer, which ObjectCall keeps from type.call.
      */
     async query(caller: Caller, call: ObjectCall): Promise<unknown> {
-        // resolve the call, reading only the one method a Loan lends
+        // resolve the call, reading only a method the caller's grant reaches
         const { object, name, input } = this.#resolve(call, false, caller);
         const method = object.method(name);
-        Loan.require(caller, Loan.method(object, name));
-        const scope = this.#scope(object, input);
+        const scope = object.scopeOf(name, input);
+        ObjectStore.#requireReached(caller, object, scope, name);
         const database = await this.#databaseOf(object, scope);
         const read = async () => {
             // prepare on the served type, then read, commit and settle
@@ -891,7 +995,9 @@ export class ObjectStore {
             const reading = Transaction.reading(database);
             const admitting =
                 object.storage === "durable" ? reading : Transaction.reading(this.database);
-            const authorization = await this.admit(admitting, scope, caller);
+            const authorization = await this.admit(admitting, scope, caller, {
+                objects: [object],
+            });
 
             return this.#execute(reading, authorization, object, name, input, caller, { prepared });
         };
@@ -965,19 +1071,19 @@ export class ObjectStore {
             return this.#mutateInside(options.transaction, mutation, caller, options);
         }
 
-        // resolve each call in one scope, as the one method a Loan lends when the caller came with one
+        // resolve each call in one scope, of methods the caller's grant reaches
         const originals = mutation.calls.map((entry) => this.#resolve(entry, true, caller));
-        for (const { object, name } of originals) {
-            Loan.require(caller, Loan.method(object, name));
-        }
         const scope = this.#mutationScope(originals);
+        for (const { object, name } of originals) {
+            ObjectStore.#requireReached(caller, object, scope, name);
+        }
 
         // write ephemeral objects apart
         const ephemeral = originals.filter((call) => call.object.storage === "ephemeral").length;
         if (ephemeral === originals.length) {
             return this.#mutateEphemeral(originals, scope, caller, mutation.id, options.writerId);
         } else if (ephemeral > 0) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: "a mutation writes durable or ephemeral objects, not both",
             });
         }
@@ -1013,10 +1119,12 @@ export class ObjectStore {
 
     /** Place a call without a scope in one, by its served or copied type's route field. */
     #place(entry: ObjectCall, scope: string): ObjectCall {
-        // find the route field of the call's served or copied type
-        const typeName = ObjectStore.#typeOf(entry);
-        const type = [...this.objects, ...this.copied].find((known) => known.name === typeName);
-        const field = type?.route.field;
+        // find the route field of the call's method, which resolution refuses when unknown
+        const type = Call.typeOf([...this.objects, ...this.copied], entry);
+        const field =
+            type !== undefined && Object.hasOwn(type.methods, entry.method)
+                ? type.route.field
+                : undefined;
 
         return field === undefined || Object.hasOwn(entry.input, field)
             ? entry
@@ -1038,19 +1146,28 @@ export class ObjectStore {
         const results: unknown[] = [];
         for (const entry of mutation.calls) {
             results.push(
-                await this.#runInside(transaction, entry, caller, true, undefined, recorded),
+                await this.#runInside(
+                    transaction,
+                    entry,
+                    caller,
+                    true,
+                    CallCode.store,
+                    undefined,
+                    recorded,
+                ),
             );
         }
 
         return results;
     }
 
-    /** Run one platform call inside a running mutation. */
+    /** Run one platform call inside a running mutation, remote code's without internal methods. */
     async #runInside(
         transaction: Transaction,
         entry: ObjectCall,
         caller: Caller,
         mutates: boolean,
+        code: CallCode,
         parent: Call | undefined,
         options: CallOptions,
     ): Promise<unknown> {
@@ -1058,23 +1175,19 @@ export class ObjectStore {
         const placed = parent === undefined ? entry : this.#place(entry, parent.scope);
 
         // read whether the call's type is served here or only copied from its home
-        const typeName = ObjectStore.#typeOf(placed);
-        const copied = this.copied.find((type) => type.name === typeName);
-        const isServed = this.objects.some((served) => served.name === typeName);
+        const copied = Call.typeOf(this.copied, placed);
+        const isServed = Call.typeOf(this.objects, placed) !== undefined;
         const served = parent?.location.kind === "server" ? parent.location : undefined;
-        const sending = served?.authorization.delegation;
-        const send = (call: sync.Call) =>
-            this.send(call, transaction, sending === undefined ? {} : { delegation: sending });
 
-        // send a change of a type only copied here toward its home
+        // refuse a change of a type only copied here, which its home changes
         if (mutates && !isServed && copied !== undefined) {
-            await send(Call.record(copied, placed.method.slice(typeName.length + 1), placed.input));
-
-            return undefined;
+            throw new CallError("CONFLICT", {
+                message: `${copied.name} rows are copies here, so send their changes to their home`,
+            });
         }
 
-        // resolve the call, internal methods included, refusing external work and another storage
-        const { object, name, input } = Call.resolve(this.objects, placed, mutates, false);
+        // resolve the call and refuse external work or another storage inside the transaction
+        const { object, name, input } = Call.resolve(this.objects, placed, mutates, code);
         if (this.served(object).method(name).prepare !== undefined) {
             throw new TypeError(
                 `${object.name}.${name} does external work, which a call inside a transaction cannot`,
@@ -1083,15 +1196,8 @@ export class ObjectStore {
             throw new TypeError(`${object.name} is stored apart from the transaction`);
         }
 
-        // send a change of rows kept here as copies toward their home
-        const scope = this.#scope(object, input);
-        if (mutates && (await object.isCopy(transaction.view(), scope))) {
-            await send(Call.record(object, name, input));
-
-            return undefined;
-        }
-
-        // run it under the calling method's authorization for its own caller in its scope, else admit the caller there, guarding the chain once outside a method
+        // run it under the calling method's authorization, else admit the caller in its scope
+        const scope = object.scopeOf(name, input);
         const authorization =
             served !== undefined && parent?.caller === caller && parent.scope === scope
                 ? served.authorization
@@ -1100,8 +1206,11 @@ export class ObjectStore {
                       scope,
                       caller,
                       parent === undefined
-                          ? { links: await Scope.chain(transaction.view(), scope) }
-                          : { now: parent.now },
+                          ? {
+                                links: await Scope.chain(transaction.view(), scope),
+                                objects: [object],
+                            }
+                          : { now: parent.now, objects: [object] },
                   );
 
         return this.#execute(transaction, authorization, object, name, input, caller, options);
@@ -1111,9 +1220,9 @@ export class ObjectStore {
     #mutationScope(originals: readonly ReturnType<typeof Call.resolve>[]): string {
         // require every call to act in the first call's scope
         const first = aligned(originals, 0);
-        const scope = this.#scope(first.object, first.input);
-        if (originals.some((call) => this.#scope(call.object, call.input) !== scope)) {
-            throw new ServiceError("BAD_REQUEST", {
+        const scope = first.object.scopeOf(first.name, first.input);
+        if (originals.some((call) => call.object.scopeOf(call.name, call.input) !== scope)) {
+            throw new CallError("BAD_REQUEST", {
                 message: "a mutation's calls act in one scope",
             });
         }
@@ -1132,7 +1241,7 @@ export class ObjectStore {
     ): Promise<MutationRun> {
         // require an authenticated caller the journal keys the mutation by
         if (caller.subject === undefined) {
-            throw new ServiceError("UNAUTHORIZED", {
+            throw new CallError("UNAUTHORIZED", {
                 message: "a mutation needs an authenticated caller",
             });
         }
@@ -1174,12 +1283,12 @@ export class ObjectStore {
                 return committed;
             }
 
-            // roll back prepared work and release keys
+            // roll back prepared work and release the reserved names
             await this.#settle(settlementsOf(planned.prepared));
-            await this.claims?.release(planned.id).catch((failure: unknown) => {
+            await progress.reservation?.release().catch((failure: unknown) => {
                 throw new AggregateError(
                     [error, failure],
-                    "transaction and its key release failed",
+                    "transaction and its name release failed",
                     {
                         cause: error,
                     },
@@ -1201,10 +1310,11 @@ export class ObjectStore {
         const authorization = await this.admit(transaction, planned.scope, planned.caller, {
             request: planned.id,
             links: chain,
+            objects: planned.calls.map((call) => call.object),
         });
 
         // refuse an installation's writes to a space whose storage is capped, the submitted calls deciding
-        if (this.installation !== undefined) {
+        if (principal.installation.is(this.principal)) {
             authorization.requireUncapped(planned.calls.filter((call) => call.as === undefined));
         }
 
@@ -1222,6 +1332,7 @@ export class ObjectStore {
             const fields = InputSchema.fields(object.input(name));
 
             return {
+                type: entry.type,
                 method: entry.method,
                 input: schema.redact(fields, input, (found) => sensitive.push(found)),
             };
@@ -1266,21 +1377,27 @@ export class ObjectStore {
             );
         }
 
-        // commit prepared work, release request-bound relationships and reserve the claimed names with the mutation
+        // release the names a lost attempt reserved
         progress.running = undefined;
+        await progress.reservation?.release();
+        progress.reservation = undefined;
+
+        // reserve the claimed names before the commit
         const claimants = await Claimant.written(transaction, this.objects);
+        const reservation =
+            this.claims &&
+            (await Reservation.reserve(this.claims, claimants, this.objects, {
+                id: run.id,
+                now: this.clock.now(),
+                claimer: this.claimer(transaction),
+            }));
+        progress.reservation = reservation;
+
+        // commit prepared work and claims with the mutation, releasing request-bound relationships
         transaction.record(async (committing) => {
             await this.#commit(committing, run.prepared);
             await this.authorizer.release(committing, run.id);
-            progress.reservation =
-                this.claims &&
-                (await Reservation.reserve(
-                    this.claims,
-                    committing,
-                    claimants,
-                    this.objects,
-                    run.id,
-                ));
+            await reservation?.commit(committing);
         });
 
         return executed;
@@ -1335,7 +1452,8 @@ export class ObjectStore {
 
         // list each expanding call's calls before it, as the caller reads them now over a mutation that never commits
         const reading = Transaction.reading(this.database);
-        const authorization = await this.admit(reading, scope, caller);
+        const objects = calls.map((call) => call.object);
+        const authorization = await this.admit(reading, scope, caller, { objects });
         const expanded: Expansion[] = [];
         for (const [index, call] of calls.entries()) {
             // keep a call that expands into nothing
@@ -1371,7 +1489,7 @@ export class ObjectStore {
     async #push(
         scope: string,
         mutations: readonly sync.Mutation[],
-        context: ServiceContext,
+        context: RequestContext,
         writerId?: string,
     ): Promise<PushResult> {
         // enter the pushed scope as the request's caller
@@ -1389,10 +1507,10 @@ export class ObjectStore {
                 // refuse a mutation of copied rows, which only their home writes
                 this.#requireServed(mutation);
 
-                // require the pushed scope
+                // require the pushed scope to be the home running the mutation
                 const first = this.#resolve(aligned(mutation.calls, 0), true, caller);
-                if (this.#scope(first.object, first.input) !== scope) {
-                    throw new ServiceError("BAD_REQUEST", {
+                if (first.object.homeOf(first.name, first.input) !== scope) {
+                    throw new CallError("BAD_REQUEST", {
                         message: `a mutation pushed to ${scope} acts in another scope`,
                     });
                 }
@@ -1434,15 +1552,29 @@ export class ObjectStore {
         return found;
     }
 
-    /** Send a call to run after this database's transaction commits. */
+    /** Decide whether a scope's rows of a type are copies here, which their home alone writes. */
+    async isCopy(object: ObjectType, snapshot: Snapshot, scope: string): Promise<boolean> {
+        // keep the rows of a type an installation serves here, though the database copies its table elsewhere
+        const isInstalled = this.#installed.has(ObjectTypeReference.key(object.typeReference));
+
+        return (
+            object.storage === "durable" &&
+            ((snapshot.database.copies(object.table) && !isInstalled) ||
+                (await sync.Replica.isCopied(snapshot, scope, object.table)))
+        );
+    }
+
+    /** Send a call to run at its rows' home after this database's transaction commits. */
     async send(
         call: sync.Call,
         transaction: Transaction,
-        sending: { readonly at?: number; readonly delegation?: string } = {},
+        sending: { readonly at?: number; readonly exchange?: ExchangeAsk } = {},
     ): Promise<void> {
         // require an outbox delivering the store's sends
         if (this.#sends === undefined) {
-            throw new TypeError(`the store sends ${call.method}, but nothing receives its sends`);
+            throw new TypeError(
+                `the store sends ${sync.Call.label(call)}, but nothing receives its sends`,
+            );
         }
 
         // record the send once the mutation commits
@@ -1458,48 +1590,16 @@ export class ObjectStore {
         });
     }
 
-    /** Run a call another in-process store sent to the served rows, as its principal. */
-    async receive(call: sync.Call, as: Subject): Promise<void> {
-        // pass a change of copied rows to the store keeping them
-        if (await this.#forward(call, RequestId.create(this.clock.now()))) {
-            return;
+    /** Run a mutation another in-process store sent once, as its principal. */
+    async receive(mutation: sync.Mutation, as: Subject): Promise<void> {
+        // pass changes of copied rows to their home, else run them here under the sent request, which replays a redelivery
+        if (!(await this.#forward(mutation))) {
+            await this.mutate(Caller.of(as, this.clock.now()), mutation);
         }
-
-        // resolve the served object and method, those not routed to people included
-        const separator = call.method.lastIndexOf(".");
-        const object = this.objects.find(
-            (served) => served.name === call.method.slice(0, separator),
-        );
-        const name = call.method.slice(separator + 1);
-        const method = object?.methods[name];
-        if (object === undefined || method === undefined || !method.mutates) {
-            throw new ServiceError("BAD_REQUEST", { message: `no mutating method ${call.method}` });
-        }
-
-        // read the target or the chosen identifier
-        const id = typeof call.input["id"] === "string" ? call.input["id"] : undefined;
-        const [target] =
-            id === undefined
-                ? []
-                : await this.database
-                      .select()
-                      .from(object.table)
-                      .where(object.withIds([id]));
-
-        // pass a creation delivered before, and refuse a missing target
-        if (!method.target && method.kind === "create" && target !== undefined) {
-            return;
-        } else if (method.target && target === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${id ?? ""}` });
-        }
-
-        // run it as the sending principal
-        const now = this.clock.now();
-        await this.mutate(Caller.of(as, now), { id: RequestId.create(now), calls: [call] });
     }
 
     /** Run a follower's mutation of the served rows as the caller. */
-    async receiveFrom(transaction: sync.Mutation, context: ServiceContext): Promise<void> {
+    async receiveFrom(transaction: sync.Mutation, context: RequestContext): Promise<void> {
         // pass an installation's change of copied rows toward their home, which the space's key signs only for its own
         const caller = context.caller();
         const { subject } = context.requireCaller();
@@ -1517,24 +1617,28 @@ export class ObjectStore {
     #isForwarded(transaction: sync.Mutation): boolean {
         return (
             this.subscriber !== undefined &&
-            transaction.calls.every((call) => this.#isUplinked(ObjectStore.#typeOf(call)))
+            transaction.calls.every((call) => this.#isUplinked(call))
         );
     }
 
-    /** Report whether an object type's rows are copied over the uplink rather than kept here. */
-    #isUplinked(type: string): boolean {
-        const object = this.copied.find((copied) => copied.name === type);
+    /** Report whether a call's type's rows are copied over the uplink rather than kept here. */
+    #isUplinked(call: sync.Call): boolean {
+        const object = Call.typeOf(this.copied, call);
 
         return object !== undefined && !this.objects.some((served) => served.same(object));
     }
 
     /** Find the one publisher receiving a copied rows mutation, refusing one spanning homes. */
     async #homeOfAll(transaction: sync.Mutation): Promise<sync.Uplink> {
-        // require one home for every call
+        // require one home for every call, refusing calls nothing here receives
         const homes = await Promise.all(transaction.calls.map((call) => this.#homeOf(call)));
         const [home] = homes;
-        if (home === undefined || homes.some((each) => each !== home)) {
-            throw new ServiceError("BAD_REQUEST", {
+        if (homes.includes(undefined)) {
+            throw new CallError("BAD_REQUEST", {
+                message: "nothing here receives changes of the copied rows",
+            });
+        } else if (home === undefined || homes.some((each) => each !== home)) {
+            throw new CallError("BAD_REQUEST", {
                 message: "a mutation of copied rows changes rows of one home",
             });
         }
@@ -1546,13 +1650,13 @@ export class ObjectStore {
     #requireServed(transaction: { readonly calls: readonly ObjectCall[] }): void {
         // find each call's type that no served object keeps
         const copies = transaction.calls
-            .map((call) => ObjectStore.#typeOf(call))
-            .filter((type) => !this.objects.some((object) => object.name === type));
+            .filter((call) => Call.typeOf(this.objects, call) === undefined)
+            .map((call) => call.type.type);
         if (copies.length === 0) {
             return;
         }
 
-        throw new ServiceError("BAD_REQUEST", {
+        throw new CallError("BAD_REQUEST", {
             message: `the rows ${[...new Set(copies)].join(", ")} change are copies here, written only at their home`,
         });
     }
@@ -1560,9 +1664,8 @@ export class ObjectStore {
     /** Find the publisher receiving a change of copied rows. */
     async #homeOf(call: sync.Call): Promise<sync.Uplink | undefined> {
         // find the copy of the call's table in its scope whose publisher receives changes
-        const type = ObjectStore.#typeOf(call);
-        const object = this.copied.find((copied) => copied.name === type);
-        const scope = object === undefined ? undefined : this.#scope(object, call.input);
+        const object = Call.typeOf(this.copied, call);
+        const scope = object?.scopeOf(call.method, call.input);
         const entries = (await this.subscriber?.subscriptions()) ?? [];
         const copy = entries.find(({ subscription, publisher }) => {
             const replica = this.source.replicaOf(subscription);
@@ -1581,26 +1684,30 @@ export class ObjectStore {
         return publisher !== undefined && isUplink(publisher) ? publisher : this.subscriber?.uplink;
     }
 
-    /** Pass a copied rows change toward their store over the copies' uplink, returning success. */
-    async #forward(call: sync.Call, requestId: string): Promise<boolean> {
-        // leave a change of rows the database keeps itself
-        const type = ObjectStore.#typeOf(call);
-        const object = this.copied.find((copied) => copied.name === type);
-        if (object === undefined || this.objects.some((served) => served.same(object))) {
-            return false;
-        }
+    /** Pass a mutation of copied rows to their one home once per request, returning success. */
+    async #forward(mutation: sync.Mutation): Promise<boolean> {
+        // leave a mutation of rows the database keeps itself, and refuse one mixing both
+        const view = Snapshot.live(this.database);
+        const copied = await Promise.all(
+            mutation.calls.map(async (call) => {
+                const object = Call.typeOf(this.copied, call);
 
-        // pass it to the publisher the copy keeping its rows follows, once per request, signed as this store's principal
-        const uplink = await this.#homeOf(call);
-        if (uplink !== undefined) {
-            await uplink.receive({ id: requestId, calls: [call] }, this.principal);
-        }
-        // refuse a change nothing here receives
-        else {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `nothing here receives changes of copied ${object.name} rows`,
+                return (
+                    object !== undefined &&
+                    (await this.isCopy(object, view, object.scopeOf(call.method, call.input)))
+                );
+            }),
+        );
+        if (copied.every((isCopied) => !isCopied)) {
+            return false;
+        } else if (copied.some((isCopied) => !isCopied)) {
+            throw new CallError("BAD_REQUEST", {
+                message: "a mutation changes rows of one home, kept here or copied",
             });
         }
+
+        // pass it to the publisher the copies follow, signed as this store's principal
+        await (await this.#homeOfAll(mutation)).receive(mutation, this.principal);
 
         return true;
     }
@@ -1609,7 +1716,7 @@ export class ObjectStore {
     async #deliver(sent: OutboxCall, signal: AbortSignal): Promise<void> {
         // deliver a change of copied rows toward their home
         const { call } = sent.request;
-        if (await this.#forward(call, sent.requestId)) {
+        if (await this.#forward({ id: sent.requestId, calls: [call] })) {
             return;
         }
         // record any other sent call's run at the machine
@@ -1618,8 +1725,8 @@ export class ObjectStore {
         }
         // refuse a call nothing receives
         else {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `nothing receives the sent call ${call.method}`,
+            throw new CallError("BAD_REQUEST", {
+                message: `nothing receives the sent call ${sync.Call.label(call)}`,
             });
         }
     }
@@ -1637,10 +1744,16 @@ export class ObjectStore {
 
         return [
             new CompactionController(this.database, this.clock),
-            ...(this.#journal === undefined ? [] : [this.#journal.controller(this.#history)]),
+            ...(this.#journal === undefined ? [] : [this.#journal.controller()]),
+            ...(this.events?.controllers ?? []),
             ...(this.claims === undefined
                 ? []
-                : [new ClaimController(this.claims, this.database, this.objects, this.clock)]),
+                : [
+                      new ClaimController(this.claims, this.database, this.objects, {
+                          clock: this.clock,
+                          claimer: (object) => this.claimerOf(object),
+                      }),
+                  ]),
             ...(isRecoverable ? [new RecoverableController(this)] : []),
             ...(isExpiring ? [new ExpiringController(this)] : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
@@ -1677,7 +1790,7 @@ export class ObjectStore {
     }
 
     /** Share one grant reader per scope and page position. */
-    reader(access: Access, position: LogPosition): GrantReader {
+    reader(access: Access, position: LogPosition): TupleReader {
         // reuse a known reader
         const key = JSON.stringify([access.scope, position.epoch, position.sequence]);
         const known = this.#readers.get(key);
@@ -1738,7 +1851,7 @@ export class ObjectStore {
         // resolve its access
         const access = await this.authorizer.resolve(transaction.view(), scope, bind(), links);
 
-        return new Authorization(this.authorizer, transaction, bind, access, caller.delegation);
+        return new Authorization(this.authorizer, transaction, bind, access);
     }
 
     /** Admit a caller in a scope, requiring an unmoved scope that a remote caller also sees. */
@@ -1746,13 +1859,20 @@ export class ObjectStore {
         transaction: Transaction,
         scope: string,
         caller: Caller,
-        options: Omit<AuthorizeOptions, "within"> = {},
+        options: AdmitOptions = {},
     ): Promise<Authorization> {
-        // resolve its access, then require an unmoved scope a remote caller also sees
-        const authorization = await this.authorize(transaction, scope, caller, options);
+        // resolve its access, then require an unmoved scope
+        const { objects, ...authorizing } = options;
+        const authorization = await this.authorize(transaction, scope, caller, authorizing);
         authorization.requireUnmoved();
         authorization.requirePartition(this.#partition);
-        if (Caller.isRemote(caller)) {
+
+        // require a remote caller to see the scope, except for calls on owned types, whose owners need no view of the home
+        const isOwned =
+            objects !== undefined &&
+            objects.length > 0 &&
+            objects.every((object) => object.owner !== undefined);
+        if (Caller.isRemote(caller) && !isOwned) {
             await authorization.requireVisible(this.objects);
         }
 
@@ -1760,10 +1880,10 @@ export class ObjectStore {
     }
 
     /** Enter a scope: require the pinned scope and wait for observed writes. */
-    async enter(context: ServiceContext, scope: string): Promise<void> {
+    async enter(context: RequestContext, scope: string): Promise<void> {
         // require the pinned scope
         if (context.scope !== undefined && context.scope !== scope) {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: `scope ${scope} is outside the pinned scope`,
             });
         }
@@ -1773,28 +1893,60 @@ export class ObjectStore {
     }
 
     /** Wait until the database has the caller's watermarks in the scope chain. */
-    async reach(context: ServiceContext, scope: string): Promise<void> {
-        // collect the scope chain
+    async reach(context: RequestContext, scope: string): Promise<void> {
+        // wait for the watermarks of the scope chain
         const watermarks = context.bookmark.watermarks;
         if (watermarks.length === 0) {
             return;
         }
-        const chain = new Set([
+        const chain = await this.#chainIds(scope);
+        await this.#reachAll(
+            context,
             scope,
-            ...(await Scope.chain(Snapshot.live(this.database), scope)).map(
-                (entry) => entry.object.id,
-            ),
-        ]);
+            watermarks.filter((entry) => chain.has(entry.scope)),
+        );
+    }
 
-        // wait for each watermark
-        for (const watermark of watermarks.filter((entry) => chain.has(entry.scope))) {
+    /** Wait until a scope's chain copies have their homes' commits, refusing a home outside it. */
+    async #reachHomes(
+        context: RequestContext,
+        scope: string,
+        homes: readonly Watermark[],
+    ): Promise<void> {
+        // require homes along the scope's chain
+        const chain = await this.#chainIds(scope);
+        const outside = homes.find((home) => !chain.has(home.scope));
+        if (outside !== undefined) {
+            throw new CallError("BAD_REQUEST", {
+                message: `${outside.scope} is outside the chain of ${scope}, so no copy here follows it`,
+            });
+        }
+
+        // wait for each home's commit
+        await this.#reachAll(context, scope, homes);
+    }
+
+    /** Read a scope and the scopes enclosing it, by identifier. */
+    async #chainIds(scope: string): Promise<Set<string>> {
+        const chain = await Scope.chain(Snapshot.live(this.database), scope);
+
+        return new Set([scope, ...chain.map((link) => link.object.id)]);
+    }
+
+    /** Wait until the scope's log or its copies reach each watermark, in a bounded wait each. */
+    async #reachAll(
+        context: RequestContext,
+        scope: string,
+        watermarks: readonly Watermark[],
+    ): Promise<void> {
+        for (const watermark of watermarks) {
             const signal = AbortSignal.any([
                 context.signal,
                 AbortSignal.timeout(BOOKMARK_TIMEOUT_MILLISECONDS),
             ]);
             const isReached = await this.#reach(scope, watermark, signal);
             if (!isReached) {
-                throw new ServiceError("SERVICE_UNAVAILABLE", {
+                throw new CallError("SERVICE_UNAVAILABLE", {
                     message: `${watermark.scope} has not reached the required sequence`,
                 });
             }
@@ -1829,10 +1981,68 @@ export class ObjectStore {
         return this.objects.filter((object) => object.storage === "durable");
     }
 
+    /** Read the principal claiming a type's names: the installation serving it, else the store. */
+    claimerOf(object: ObjectType): Claimer {
+        // claim as the store for a type no installation serves
+        const serving = this.#installed.get(ObjectTypeReference.key(object.typeReference));
+        if (serving === undefined) {
+            return { kind: "store" };
+        }
+
+        // claim as the installation serving it
+        const subject = principal.installation.reference(serving.scope, serving.id);
+
+        return { kind: "installation", signer: { subject, database: this.database } };
+    }
+
+    /** Read the principal claiming the names a transaction writes, the store for none. */
+    claimer(transaction: Transaction): Claimer {
+        // find the claimers of the written indexed types
+        const tables = new Set(transaction.changes.changes.map((change) => change.table));
+        const written = this.objects.filter(
+            (object) => Object.keys(object.indexes).length > 0 && tables.has(object.table),
+        );
+        const claimers = new Map(
+            written.map((object) => {
+                const claimer = this.claimerOf(object);
+                const key =
+                    claimer.kind === "store" ? "the store" : Subject.key(claimer.signer.subject);
+
+                return [key, claimer];
+            }),
+        );
+
+        // claim as the store for no written names, and refuse names claimed by several principals at once
+        const [first, ...others] = claimers.values();
+        if (first === undefined) {
+            return { kind: "store" };
+        } else if (others.length > 0) {
+            throw new TypeError(
+                `a mutation claims names as ${[...claimers.keys()].join(" and ")} at once`,
+            );
+        }
+
+        return first;
+    }
+
+    /** Read the installation serving a type inside the store, absent for a type it serves. */
+    installationOf(object: ObjectType): InstallationContext | undefined {
+        return this.#installed.get(ObjectTypeReference.key(object.typeReference));
+    }
+
+    /** Read the event log with the events types, failing without one. */
+    requireEvents(): EventStore {
+        if (this.events === undefined) {
+            throw new CallError("NOT_FOUND", { message: "no events types are served here" });
+        }
+
+        return this.events;
+    }
+
     /** Read the memory store with the ephemeral objects, failing without one. */
     requireEphemeral(): EphemeralStorage {
         if (this.ephemeral === undefined) {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: "no ephemeral objects are served here",
             });
         }
@@ -1850,7 +2060,7 @@ export class ObjectStore {
     ): Promise<unknown[]> {
         // require the writer owning the rows
         if (writerId === undefined) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: "ephemeral objects are written by a writer",
             });
         }
@@ -1888,13 +2098,16 @@ export class ObjectStore {
 
     /** Resolve a recorded call against the served types. */
     #resolve(entry: ObjectCall, mutates: boolean, caller: Caller): ReturnType<typeof Call.resolve> {
-        return Call.resolve(this.objects, entry, mutates, Caller.isRemote(caller));
+        return Call.resolve(this.objects, entry, mutates, CallCode.of(caller));
     }
 
     /** Read a procedure call's scope: a method's own, else the decided target's or context's. */
-    #procedureScope(call: ProcedureCall<ServiceContext>): string | undefined {
-        // read the routed object's scope field from the input
-        const object = this.routed.find((each) => each.key === call.path[0]);
+    #procedureScope(
+        call: ProcedureCall<RequestContext>,
+        routed: readonly ObjectType[],
+    ): string | undefined {
+        // read the scope field of the object the package routes the call to
+        const object = routed.find((each) => each.key === call.path[0]);
         const input = call.input === undefined ? undefined : PROCEDURE_INPUT.parse(call.input);
         const field = object?.route.field;
         const named = field === undefined ? undefined : input?.[field];
@@ -1902,18 +2115,6 @@ export class ObjectStore {
         return typeof named === "string"
             ? named
             : (call.context.target?.scope ?? call.context.scope);
-    }
-
-    /** Read the scope a call carries in its route field. */
-    #scope(object: ObjectType, input: JsonObject): string {
-        // read the field, or the universe
-        const { field } = object.route;
-        const named = field === undefined ? Scope.universe.id : input[field];
-        if (typeof named !== "string") {
-            throw new ServiceError("BAD_REQUEST", { message: `call names no ${field}` });
-        }
-
-        return named;
     }
 
     /** Build one call with its permitted target at the given revision. */
@@ -1926,17 +2127,19 @@ export class ObjectStore {
         caller: Caller,
         options: Pick<CallOptions, "as" | "expansion"> = {},
     ): Promise<{ call: Call; method: Method; scope: string; targetId: string | undefined }> {
-        // refuse changing rows kept here as copies from their home
+        // refuse row changes to copies from their home, leaving access writes to the authorization
         const method = object.method(name);
-        const scope = this.#scope(object, input);
-        if (method.mutates && (await object.isCopy(transaction.view(), scope))) {
-            throw new ServiceError("CONFLICT", {
-                message: `${object.name} rows of ${scope} are copies, which change at their home`,
+        const scope = object.scopeOf(name, input);
+        const isRowChange = method.mutates && !ACCESS_KINDS.has(method.kind);
+        if (isRowChange && (await this.isCopy(object, transaction.view(), scope))) {
+            throw new CallError("CONFLICT", {
+                message: `${object.name} rows of ${scope} are copies here, so send their changes to their home`,
             });
         }
 
-        // parse the input and build the call in its scope through the view a read asks for
+        // parse the input and build the call in its scope as the installation serving its type
         const { database } = transaction;
+        const installation = this.installationOf(object);
         const { fields, id, revision, at, branch } = ObjectStore.#fields(object, name, input);
         authorization.requireScopeOf(object);
         const targetId = id === undefined ? undefined : schema.string().parse(id);
@@ -1949,7 +2152,6 @@ export class ObjectStore {
             chain: authorization.chain,
             input: fields,
             ...(targetId === undefined ? {} : { id: targetId }),
-            database,
             caller:
                 options.as === undefined
                     ? caller
@@ -1962,7 +2164,7 @@ export class ObjectStore {
                 store: this,
                 transaction,
                 ...(snapshot === undefined ? {} : { snapshot }),
-                ...(this.installation === undefined ? {} : { installation: this.installation }),
+                ...(installation === undefined ? {} : { installation }),
             },
             objects: this.objects,
         });
@@ -1970,7 +2172,7 @@ export class ObjectStore {
         // load the permitted target at the given revision
         const target = await ObjectStore.#target(call, targetId, snapshot, authorization);
         if (revision !== undefined && target?.["revision"] !== revision) {
-            throw new ServiceError("CONFLICT", { message: `${object.name} revision has changed` });
+            throw new CallError("CONFLICT", { message: `${object.name} revision has changed` });
         }
 
         // refuse callers' other methods on a trashed object
@@ -1979,7 +2181,7 @@ export class ObjectStore {
             target !== undefined &&
             target["deletionRequestedAt"] !== null;
         if (isTrashed && !TRASH_METHODS.has(method.kind) && method.isInternal !== true) {
-            throw new ServiceError("CONFLICT", { message: `${object.name} is in the trash` });
+            throw new CallError("CONFLICT", { message: `${object.name} is in the trash` });
         }
 
         return {
@@ -2010,7 +2212,7 @@ export class ObjectStore {
         }
 
         // split off the identifier, the revision, the scope and the view of a read
-        const { field } = object.route;
+        const field = object.route.field;
         const isViewed = method.kind === "get" || method.kind === "list";
         const { id, revision, ...named } = parsed.data;
         const { at, branch, ...viewed } = named;
@@ -2063,7 +2265,7 @@ export class ObjectStore {
         // require the served branch types and the caller's read of the branch
         const types = this.branch;
         if (types === undefined) {
-            throw new ServiceError("BAD_REQUEST", { message: "this service serves no branches" });
+            throw new CallError("BAD_REQUEST", { message: "this store serves no branches" });
         }
         const id = schema.string().parse(branch);
         const row = await Snapshot.live(database).row(types.object.table, { id });
@@ -2073,7 +2275,7 @@ export class ObjectStore {
                 ? undefined
                 : await authorization.admitRows(types.object, permission, scope, [row]);
         if (admitted?.permitted.has(0) !== true) {
-            throw new ServiceError("NOT_FOUND", { message: `no branch ${id}` });
+            throw new CallError("NOT_FOUND", { message: `no branch ${id}` });
         }
 
         return base.layer(await new Branch(types, base, id).overlay(base, this.objects));
@@ -2108,11 +2310,12 @@ export class ObjectStore {
 
         // build and authorize each preparing call as the caller over a mutation that never commits
         const reading = Transaction.reading(this.database);
+        const objects = calls.map((call) => call.object);
         const authorization = await this.admit(
             reading,
             scope,
             caller,
-            request === undefined ? {} : { request: request.requestId },
+            request === undefined ? { objects } : { request: request.requestId, objects },
         );
 
         return this.#prepareEach(
@@ -2324,8 +2527,30 @@ export class ObjectStore {
             ...(component === undefined ? {} : { component }),
         };
 
-        return (entry, caller, mutates) =>
-            this.#runInside(transaction, entry, caller, mutates, parent, recorded);
+        return (entry, caller, mutates, code) =>
+            this.#runInside(transaction, entry, caller, mutates, code, parent, recorded);
+    }
+
+    /** Record a read that showed guarded personal values unmasked, of one object or a scope's. */
+    async recordUnmask(read: {
+        readonly scope: string;
+        readonly caller: Caller;
+        readonly object: ObjectType;
+        readonly operation: string;
+        readonly id?: string;
+        readonly requestId?: string;
+    }): Promise<void> {
+        const { scope, caller, object, operation, id, requestId } = read;
+        await this.audit(scope, caller, requestId === undefined ? {} : { requestId }).record(
+            undefined,
+            objectUnmask,
+            {
+                target: { type: object.name, id: id ?? scope },
+                details: { operation },
+                outcome: { kind: "success" },
+            },
+            "access",
+        );
     }
 
     /** Redact and encode a call's result: its value, its object page, or its object with texts. */
@@ -2348,11 +2573,20 @@ export class ObjectStore {
             const { items, included, ...page } = LISTED_PAGE.parse(executed);
             const { [CHUNKS]: chunks, ...rest } = included ?? {};
             const redacted = await authorization.redact(object, items);
+            if (redacted.isRevealing) {
+                await this.recordUnmask({
+                    scope,
+                    caller: call.caller,
+                    object,
+                    operation: call.name,
+                    ...(call.requestId === undefined ? {} : { requestId: call.requestId }),
+                });
+            }
 
             return {
                 ...page,
                 ...(included === undefined ? {} : { included: rest }),
-                items: redacted.map((row) => ({
+                items: redacted.rows.map((row) => ({
                     ...table[TABLE].encode(row),
                     ...(chunks === undefined
                         ? {}
@@ -2362,8 +2596,19 @@ export class ObjectStore {
         }
         // answer one object with its texts
         else {
-            const row = aligned(await authorization.redact(object, [Row.parse(executed)]), 0);
+            const redacted = await authorization.redact(object, [Row.parse(executed)]);
+            const row = aligned(redacted.rows, 0);
             const id = IDENTIFIER.parse(row["id"]);
+            if (redacted.isRevealing) {
+                await this.recordUnmask({
+                    scope,
+                    caller: call.caller,
+                    object,
+                    operation: call.name,
+                    ...(call.requestId === undefined ? {} : { requestId: call.requestId }),
+                    id,
+                });
+            }
             const texts =
                 object.text.length === 0
                     ? undefined
@@ -2462,7 +2707,7 @@ function resumed(
         const [epoch, sequence] = lastEventId.split("/");
         const position = LogPosition.safeParse({ epoch, sequence: Number(sequence) });
         if (!position.success) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `no page carries event ${lastEventId}`,
             });
         }

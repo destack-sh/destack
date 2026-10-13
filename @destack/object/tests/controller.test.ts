@@ -1,18 +1,19 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { reconciliation, testCallKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { none, principal, relation, Caller } from "@destack/access";
-import { journal } from "@destack/audit/stack";
-import { Journal } from "@destack/audit/server";
+import { journal } from "../src/index.ts";
 import { Scope } from "@destack/sync";
 import { asc, eq, defineDatabase, type Change } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, Clock } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
+import { auditedCalls } from "./fixture/audit.ts";
 
 /** The space with the reminders. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -31,7 +32,6 @@ const reminder = defineObject({
     permissions: { read: relation("owner"), write: relation("owner"), send: none() },
 })
     .methods((method) => ({
-        get: method.get("read"),
         create: method.create("write", { fields: ["topic", "dueAt"] }),
         send: method.mutation({ permission: "send", isInternal: true }),
     }))
@@ -59,7 +59,7 @@ const reminder = defineObject({
 /** The database with the reminders, their access and the journal. */
 const reminderDatabase = defineDatabase({
     name: "main",
-    tables: [journal, ...reminder.tables],
+    tables: [...callTables, ...reminder.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -72,12 +72,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { reminder },
+            objects: [reminder],
             database,
             callKey: testCallKey,
+            events: await testEvents(database),
             origin: {
                 package: reminder.package,
-                service: "test",
             },
         });
         const controller = present(
@@ -158,10 +158,11 @@ test("select a changed pending object's own key beside the keys a watch of its o
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { reminder: queued },
+        objects: [queued],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: reminder.package, service: "test" },
+        events: await testEvents(storage.database),
+        origin: { package: reminder.package },
     });
     const controller = present(
         store.controllers().find((each) => each.name === "reminder"),
@@ -201,10 +202,11 @@ test("run a controller's calls as the space, audited as the space with the contr
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { reminder },
+        objects: [reminder],
         database,
         callKey: testCallKey,
-        origin: { package: reminder.package, service: "test" },
+        events: await testEvents(database),
+        origin: { package: reminder.package },
     });
     const controller = present(
         store.controllers().find((each) => each.name === "reminder"),
@@ -219,9 +221,7 @@ test("run a controller's calls as the space, audited as the space with the contr
         })
         .then(([written]) => written);
     await controller.reconcile('{"topic":"tea"}', reconciliation(AbortSignal.timeout(5000)));
-    const sends = (
-        await new Journal(database, testCallKey, { clock: Clock.system }).read({ limit: 10 })
-    ).filter((call) => call.method === "reminder.send");
+    const sends = (await auditedCalls(database)).filter((call) => call.method === "reminder.send");
 
     // refuse the send to its owner, who reads it, and conceal it from another user
     const [row] = await database.select().from(reminder.table);

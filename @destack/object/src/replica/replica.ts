@@ -9,10 +9,18 @@ import {
     Scalar,
     type Extras,
 } from "@destack/db";
-import { eventIterator } from "@destack/service";
-import { Watermark } from "@destack/service/bookmark";
-import { defineProcedure } from "@destack/service/procedure";
-import { Call, Failure, Mutation, ObjectReference, Page, Subscription } from "@destack/sync";
+import { eventIterator } from "@destack/runtime";
+import { Watermark } from "@destack/runtime/bookmark";
+import { defineProcedure } from "@destack/runtime/procedure";
+import {
+    Call,
+    Failure,
+    Mutation,
+    ObjectReference,
+    ObjectTypeReference,
+    Page,
+    Subscription,
+} from "@destack/sync";
 
 /** A relational query of a runtime type's rows, the open form of `QueryOptions` callers send. */
 export type OpenQueryOptions = {
@@ -100,6 +108,9 @@ export const ListShape = {
 /** The most mutations one push sends: at 1 to 5 ms each, about half a second. */
 export const PUSH_MUTATIONS = 100;
 
+/** The most object types one description request names: every type of a large platform. */
+export const DESCRIBED_TYPES = 1000;
+
 /** The identifier an object client generates for itself as the writer of its ephemeral objects. */
 export const WriterId = schema.string().min(1).max(64);
 
@@ -135,9 +146,7 @@ export const ProjectionParameters = defineSchema(
     schema.object({
         /** The installation in the scope keeping the rows. */
         installation: schema.identifier("installation"),
-        /** The package of the installation, whose service streams the rows. */
-        service: PackageId,
-        /** The package declaring the type. */
+        /** The package declaring the type, whose installation streams the rows. */
         packageId: PackageId,
         /** The type's name. */
         type: schema.string().min(1),
@@ -206,6 +215,17 @@ export const replicaProcedures = {
             }),
         )
         .output(PushResult),
+    watermark: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
+        .route({ method: "POST", path: "/replica/watermark" })
+        .input(
+            schema.object({
+                /** The scope whose watermark to read. */
+                scope: schema.string().min(1),
+                /** The watermarks of enclosing scopes' homes the copy waits for. */
+                homes: schema.array(Watermark),
+            }),
+        )
+        .output(Watermark),
     call: defineProcedure({ authentication: "public", permission: "rows", audit: false })
         .route({ method: "POST", path: "/replica/call" })
         .input(
@@ -243,6 +263,20 @@ export const replicaProcedures = {
         .route({ method: "POST", path: "/replica/stream" })
         .input(Subscription)
         .output(eventIterator(Page)),
+    describe: defineProcedure({ authentication: "public", permission: "rows", audit: false })
+        .route({ method: "POST", path: "/replica/describe" })
+        .input(
+            schema.object({
+                /** The object types to describe, every served one when absent. */
+                types: schema.array(ObjectTypeReference).max(DESCRIBED_TYPES).exactOptional(),
+            }),
+        )
+        .output(
+            schema.object({
+                /** The descriptions, each type once, as `ObjectDescription` reads them. */
+                objects: schema.array(schema.record(schema.string(), schema.json())),
+            }),
+        ),
 };
 
 /** The procedures a client replica or a database copying the served one uses. */

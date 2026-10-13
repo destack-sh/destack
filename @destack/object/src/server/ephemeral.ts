@@ -7,6 +7,17 @@ import type { ObjectType } from "../object/object.ts";
 /** The channel name of the ephemeral objects' changes on their durable database. */
 const EPHEMERAL_CHANNEL = "ephemeral";
 
+/** How long an untracked owner's rows stay, in milliseconds: 10 s spans two 1–3 s reconnects. */
+const LINGER_MILLISECONDS = 10_000;
+
+/** How ephemeral storage replicates: the tracker's options, its failure report and the linger. */
+export interface EphemeralStorageOptions extends sync.TrackerOptions {
+    /** Report a failure no call answers. */
+    readonly report: (error: unknown) => void;
+    /** How long an untracked owner's rows stay, in milliseconds, 10 s by default. */
+    readonly linger?: number;
+}
+
 /** The ephemeral objects one instance serves from a replicated memory database. */
 export class EphemeralStorage implements AsyncDisposable {
     /** The memory database with the ephemeral objects' tables. */
@@ -21,14 +32,14 @@ export class EphemeralStorage implements AsyncDisposable {
     readonly #streams = new Map<string, number>();
     /** The ephemeral object types by table. */
     readonly #byTable: ReadonlyMap<Table, ObjectType>;
-    /** The ephemeral object types by type key. */
-    readonly #byType: ReadonlyMap<string, ObjectType>;
     /** Report a failure to end an owner's rows. */
     readonly #report: (error: unknown) => void;
     /** The pending ends of owners no instance tracks, by owner. */
     readonly #leaving = new Map<string, ReturnType<typeof setTimeout>>();
     /** Stop watching which owners any instance tracks. */
     readonly #unwatch: () => void;
+    /** How long an untracked owner's rows stay, in milliseconds. */
+    readonly #linger: number;
     /** The memory database this store opened and closes, absent if its caller keeps one. */
     #owned: { close(): Promise<void> } | undefined;
 
@@ -37,7 +48,7 @@ export class EphemeralStorage implements AsyncDisposable {
         database: DatabaseConnection,
         objects: readonly ObjectType[],
         channel: Channel<unknown>,
-        options: sync.TrackerOptions & { readonly report: (error: unknown) => void },
+        options: EphemeralStorageOptions,
     ) {
         // require ephemeral objects referencing only each other
         const names = new Set(objects.map((object) => object.table[TABLE].sqlName));
@@ -60,8 +71,8 @@ export class EphemeralStorage implements AsyncDisposable {
         this.database = database;
         this.objects = objects;
         this.#byTable = new Map(objects.map((object) => [object.table, object]));
-        this.#byType = new Map(objects.map((object) => [typeKey(object), object]));
         this.#report = options.report;
+        this.#linger = options.linger ?? LINGER_MILLISECONDS;
         this.tracker = new sync.Tracker(database, tables, channel, options);
         this.feed = new sync.Feed(database, tables, { clock: options.clock });
 
@@ -78,7 +89,7 @@ export class EphemeralStorage implements AsyncDisposable {
         open: (
             tables: readonly Table[],
         ) => Promise<DatabaseConnection & { close(): Promise<void> }>,
-        options: sync.TrackerOptions & { readonly report: (error: unknown) => void },
+        options: EphemeralStorageOptions,
     ): Promise<EphemeralStorage | undefined> {
         // keep nothing for objects without ephemeral types
         const ephemeral = objects.filter((object) => object.storage === "ephemeral");
@@ -182,14 +193,8 @@ export class EphemeralStorage implements AsyncDisposable {
         await this.#owned?.close();
     }
 
-    /** End an untracked owner's rows after its type's linger. */
+    /** End an untracked owner's rows after the linger. */
     #leave(owner: string): void {
-        // find the owner's type
-        const object = found(
-            this.#byType,
-            owner.slice(0, owner.indexOf("/", owner.indexOf("/") + 1)),
-        );
-
         // schedule the end
         clearTimeout(this.#leaving.get(owner));
         this.#leaving.set(
@@ -199,7 +204,7 @@ export class EphemeralStorage implements AsyncDisposable {
                 if (!this.tracker.isTracked(owner)) {
                     this.tracker.end(owner).catch(this.#report);
                 }
-            }, object.linger),
+            }, this.#linger),
         );
     }
 

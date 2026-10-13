@@ -1,8 +1,8 @@
+import { callTables } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
-import { journal } from "@destack/audit/stack";
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
-import { defineService } from "@destack/service";
+import { definePackage } from "@destack/runtime";
 import { defineObject, field } from "../../src/index.ts";
 import { user } from "../schema.ts";
 import { space } from "./space.ts";
@@ -32,8 +32,6 @@ export const project = defineObject({
     },
     shareable: { by: "manage" },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("manage"),
     update: method.update("manage"),
 }));
@@ -69,8 +67,6 @@ export const task = defineObject({
         manage: through("parent", "manage"),
     },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("plan"),
     update: method.update("plan"),
     delete: method.delete("plan"),
@@ -88,17 +84,16 @@ export const comment = defineObject({
     },
     permissions: { read: through("parent", "read"), edit: relation("author") },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("read"),
     update: method.update("edit"),
     delete: method.delete("edit"),
 }));
 
 /** Projects, tasks and comments, with their sharing and sync. */
-export const tasksService = defineService("tasks", { objects: { project, task, comment } });
+export const tasksPackage = definePackage({ objects: { project, task, comment } });
 
 /** The database of one space's projects, tasks and comments. */
 export const tasksDatabase = defineDatabase({
     name: "main",
-    tables: [...project.tables, ...task.tables, ...comment.tables, journal],
+    tables: [...project.tables, ...task.tables, ...comment.tables, ...callTables],
 });

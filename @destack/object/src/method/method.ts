@@ -7,10 +7,13 @@ import type { Call, Handler, PhasedHandler } from "./call.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Empty, MethodProcedure, ObjectSchema } from "./procedure.ts";
 import type {
+    BatchIds,
     BatchPayload,
+    CreateManyOptions,
     CreateOptions,
     CustomDefinition,
     CustomTarget,
+    DeleteManyOptions,
     RemoveOptions,
     UpdateManyOptions,
     UpdateOptions,
@@ -26,15 +29,11 @@ export { METHOD_KINDS, type MethodKind } from "./kind.ts";
 /** The brand every declared method keeps, through copies too. */
 const METHOD: unique symbol = Symbol("method");
 
-/** The phases a method's handler may name. */
-const HANDLER_PHASES: ReadonlySet<string> = new Set([
-    "authorize",
-    "creation",
-    "expand",
-    "prepare",
-    "handle",
-    "settle",
-]);
+/** The phases a method's handler may name, in the order a call runs them. */
+export const PHASES = ["authorize", "creation", "expand", "prepare", "handle", "settle"] as const;
+
+/** A phase of a method's handler. */
+export type Phase = (typeof PHASES)[number];
 
 /** A method's signature: kind, permission, schemas and table, typing its calls and handlers. */
 export interface MethodConfiguration {
@@ -52,6 +51,8 @@ export interface MethodConfiguration {
     readonly mutates: boolean;
     /** The columns a creation or update writes. */
     readonly fields: string;
+    /** The columns a bulk update or deletion matches objects by. */
+    readonly match: string;
     /** The column sets of a sum type creation, by discriminating field and value. */
     readonly variants: object;
     /** The table of the method's object type. */
@@ -80,6 +81,13 @@ export type MethodSource =
           ];
       }
     | {
+          readonly builder: "createMany";
+          readonly arguments: readonly [
+              permission: string,
+              options: CreateManyOptions<string, boolean>,
+          ];
+      }
+    | {
           readonly builder: "update";
           readonly arguments: readonly [
               permission: string,
@@ -96,6 +104,10 @@ export type MethodSource =
     | {
           readonly builder: "delete";
           readonly arguments: readonly [permission: string, options: RemoveOptions<schema.Schema>];
+      }
+    | {
+          readonly builder: "deleteMany";
+          readonly arguments: readonly [permission: string, options: DeleteManyOptions<string>];
       }
     | {
           readonly builder: "query" | "mutation";
@@ -125,6 +137,8 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     readonly audited?: true;
     /** The columns a creation or update writes, every written field when absent. */
     readonly fields?: readonly OptionOf<Configuration, "fields", string>[];
+    /** The columns a bulk update or deletion matches objects by. */
+    readonly match?: readonly OptionOf<Configuration, "match", string>[];
     /** The column sets of a sum type a creation writes, one beside the shared fields. */
     readonly variants?: OptionOf<Configuration, "variants", never>;
     /** The caller-supplied values beyond columns. */
@@ -175,6 +189,8 @@ export interface Method<Configuration extends Partial<MethodConfiguration> = Met
     validate?(object: ObjectType): void;
     /** Derive the calls undoing a step. */
     inverse?(step: Step): readonly sync.Call[] | undefined;
+    /** The code an implementation attaches by phase, without the declared behaviour it wraps. */
+    readonly hooks?: PhasedHandler;
     /** Wrap the method in an object's own handler or phases, leaving it no builder call source. */
     handle(handler: Handler<Configuration>): Method<Configuration>;
 }
@@ -257,6 +273,23 @@ export interface MethodBuilder<
         table: Definition;
         internal: NoInfer<Internal>;
     }>;
+    /** Create one object per item from the fields the caller writes. */
+    createMany<
+        const Permission extends Granted,
+        const Fields extends Written = Written,
+        const Internal extends boolean = false,
+    >(
+        permission: Permission,
+        options: CreateManyOptions<Fields, Internal>,
+    ): Method<{
+        kind: "createMany";
+        permission: Permission;
+        output: typeof BatchIds;
+        mutates: true;
+        fields: NoInfer<Fields>;
+        table: Definition;
+        internal: NoInfer<Internal>;
+    }>;
     /** Update an object's written fields. */
     update<
         const Permission extends Granted,
@@ -289,6 +322,7 @@ export interface MethodBuilder<
         output: typeof BatchPayload;
         mutates: true;
         fields: NoInfer<Fields>;
+        match: NoInfer<Match>;
         table: Definition;
     }>;
     /** Delete an object. */
@@ -301,6 +335,18 @@ export interface MethodBuilder<
         output: typeof Empty;
         prepared: NoInfer<Prepared>;
         mutates: true;
+        table: Definition;
+    }>;
+    /** Delete every matching object the caller may delete, returning the count. */
+    deleteMany<const Permission extends Granted, const Match extends string = string>(
+        permission: Permission,
+        options: DeleteManyOptions<Match>,
+    ): Method<{
+        kind: "deleteMany";
+        permission: Permission;
+        output: typeof BatchPayload;
+        mutates: true;
+        match: NoInfer<Match>;
         table: Definition;
     }>;
 }
@@ -330,6 +376,26 @@ export const Method = {
     settles(declared: Method): boolean {
         return declared.settle !== undefined;
     },
+
+    /** List the phases an implementation attaches to a method, in the order a call runs them. */
+    phases(declared: Method): Phase[] {
+        const { hooks } = declared;
+
+        return hooks === undefined ? [] : PHASES.filter((phase) => hooks[phase] !== undefined);
+    },
+
+    /** Keep a trait's method code as declared behaviour, which every store runs itself. */
+    declared<Configuration extends Partial<MethodConfiguration>>(
+        method: Method<Configuration>,
+    ): Method<Configuration> {
+        const { hooks: _hooks, ...declared } = method;
+        const kept: Method<Configuration> = {
+            ...declared,
+            handle: (handler) => handled(kept, handler),
+        };
+
+        return kept;
+    },
 };
 
 /** Complete a method a trait declares. */
@@ -358,7 +424,7 @@ function handled<Configuration extends Partial<MethodConfiguration>>(
 ): Method<Configuration> {
     // normalize the handler, refusing a key that is no phase
     const handling: PhasedHandler = typeof handler === "function" ? { handle: handler } : handler;
-    const unknown = Object.keys(handling).find((key) => !HANDLER_PHASES.has(key));
+    const unknown = Object.keys(handling).find((key) => !PHASES.some((phase) => phase === key));
     if (unknown !== undefined) {
         throw new TypeError(`a method's handler has no phase ${unknown}`);
     }
@@ -370,12 +436,22 @@ function handled<Configuration extends Partial<MethodConfiguration>>(
         throw new TypeError("a creation names a creator relation or a creation, not both");
     }
 
-    // wrap the current handler, and run the declared authorization before the handler's
+    // layer the handler's phases over the method's own authorization and over the code it had
     const wrapped = handling.handle;
-    const authorize = handling.authorize;
+    const { authorize } = layered(
+        declared.authorize === undefined
+            ? {}
+            : {
+                  authorize: async (call: Call) => {
+                      await declared.authorize?.(call);
+                  },
+              },
+        handling,
+    );
     const { source: _source, ...unsourced } = declared;
     const wrapping: Method<Configuration> = {
         ...unsourced,
+        hooks: declared.hooks === undefined ? handling : layered(declared.hooks, handling),
         ...(wrapped === undefined
             ? {}
             : {
@@ -390,16 +466,36 @@ function handled<Configuration extends Partial<MethodConfiguration>>(
         ...(handling.settle === undefined ? {} : { settle: handling.settle }),
         ...(handling.expand === undefined ? {} : { expand: handling.expand }),
         ...(handling.creation === undefined ? {} : { creation: handling.creation }),
-        ...(authorize === undefined
-            ? {}
-            : {
-                  authorize: async (call: Call) => {
-                      await declared.authorize?.(call);
-                      await authorize(call);
-                  },
-              }),
+        ...(authorize === undefined ? {} : { authorize }),
         handle: (next) => handled(wrapping, next),
     };
 
     return wrapping;
+}
+
+/** Layer outer phases over inner ones: handle wraps, authorize runs inner first, others replace. */
+function layered(inner: PhasedHandler, outer: PhasedHandler): PhasedHandler {
+    // wrap the inner handle and authorize, and let the outer phases replace the others
+    const handle = outer.handle;
+    const authorize = outer.authorize;
+    const wrapped = inner.handle;
+
+    return {
+        ...inner,
+        ...outer,
+        ...(handle === undefined || wrapped === undefined
+            ? {}
+            : {
+                  handle: (call: Call, next: (call?: Call) => Promise<unknown>) =>
+                      handle(call, (changed = call) => wrapped(changed, next)),
+              }),
+        ...(authorize === undefined || inner.authorize === undefined
+            ? {}
+            : {
+                  authorize: async (call: Call) => {
+                      await inner.authorize?.(call);
+                      await authorize(call);
+                  },
+              }),
+    };
 }

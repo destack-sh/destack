@@ -1,20 +1,21 @@
 import type { CallableName } from "../src/index.ts";
 import { Subject } from "@destack/sync";
-import { reconciliation, testCallKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { aligned, present, schema, toJsonSchema, Clock } from "@destack/schema";
-import { AuditTarget } from "@destack/audit";
+import { AuditTarget } from "../src/index.ts";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import { ObjectStore, RecoverableController, Settlement } from "../src/server/index.ts";
 import { Call, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
-import { describeAuditAction } from "@destack/audit/inspect";
+import { describeAuditAction } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
-import { none, principal, Caller } from "@destack/access";
+import { none, principal, Caller, type GrantPermission } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
@@ -23,6 +24,9 @@ import { request } from "./fixture/request.ts";
 
 /** The space containing the tasks. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
+
+/** The grant a delegate acts under for the current user. */
+const grantId = schema.identifier("grant").parse("grant-01996ab0-0000-7000-8000-000000000002");
 
 /** The routes derived procedures keep, by method name. */
 const PROCEDURES = schema.record(
@@ -237,7 +241,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "share an object, challenge for stronger authentication, accept invitations and lend authority to agents on %s",
+    "share an object, challenge for stronger authentication, accept invitations and narrow agents to their grants on %s",
     async (dialect) => {
         const { execute, events, act, step, delegate } = await serveTasks(dialect);
         const created = await execute("create", {
@@ -365,43 +369,15 @@ test.each(TEST_DIALECTS)(
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
         act("user-1");
 
-        // challenge a lent agent for a missing grant and admit it after
+        // challenge an agent whose grant gives too little, and admit what it gives
         const agent = principal.installation.reference(spaceId, "assistant");
-        delegate(agent);
+        delegate(agent, [{ ...task.permission("write"), scope: spaceId }]);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "INSUFFICIENT_GRANT",
-            message: "invite the principal the delegate acts for to the missing delegation",
-            data: { delegate: agent, onBehalfOf: principal.user.reference("universe", "user-1") },
+            message: `grant ${grantId} gives no read on task ${created.id}`,
+            data: { grant: grantId, object: task.reference(spaceId, created.id) },
         });
-        const owner = principal.user.reference("universe", "user-1");
-        const lending = await execute("invite", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            relationship: {
-                relation: "viewer",
-                subject: principal.installation.reference(spaceId, "assistant"),
-                conditions: { onBehalfOf: owner },
-            },
-            purpose: "summarize the plan",
-        });
-        expect(lending.inviter).toEqual(agent);
-        await expect(
-            execute("accept", {
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                invitationId: lending.id,
-            }),
-        ).rejects.toMatchObject({
-            code: "FORBIDDEN",
-            message: "only a principal may lend its own authority",
-        });
-        delegate(undefined);
-        await execute("accept", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            invitationId: lending.id,
-        });
-        delegate(agent);
+        delegate(agent, [{ ...task.permission("read"), scope: spaceId }]);
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
         await expect(
             execute("update", {
@@ -412,9 +388,9 @@ test.each(TEST_DIALECTS)(
             }),
         ).rejects.toMatchObject({
             code: "INSUFFICIENT_GRANT",
-            message: "invite the principal the delegate acts for to the missing delegation",
+            message: `grant ${grantId} gives no write on task ${created.id}`,
         });
-        delegate(undefined);
+        delegate(undefined, []);
 
         // audit each change once
         expect(await events()).toEqual([
@@ -422,8 +398,6 @@ test.each(TEST_DIALECTS)(
             "task.grant",
             "task.revoke",
             "task.grant",
-            "task.invite",
-            "task.accept",
             "task.invite",
             "task.accept",
         ]);
@@ -666,12 +640,12 @@ test("prepare external work after the access check, settle it after commit, comp
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task: handled, comment, taskVersion, folder },
+        objects: [handled, comment, taskVersion, folder],
         database: storage.database,
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         origin: {
             package: task.package,
-            service: "test",
         },
     });
     let context = userContext("user-1", spaceId);
@@ -816,12 +790,12 @@ test("authorize a creation before its external work, and settle committed work t
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task, comment, taskVersion, taskCopy: copies, folder },
+        objects: [task, comment, taskVersion, copies, folder],
         database: storage.database,
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         origin: {
             package: task.package,
-            service: "test",
         },
         report: (error) => reported.push(error),
     });
@@ -898,10 +872,11 @@ test("name a system creation's prepared work by the fresh identifier it creates 
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task, comment, taskVersion, taskCopy: copies, folder },
+        objects: [task, comment, taskVersion, copies, folder],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: task.package, service: "test" },
+        events: await testEvents(storage.database),
+        origin: { package: task.package },
     });
     const created = await store
         .mutate(userContext("user-1", spaceId).caller(), {
@@ -961,12 +936,12 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task, comment, taskVersion, taskCopy: copies, folder },
+        objects: [task, comment, taskVersion, copies, folder],
         database: storage.database,
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         origin: {
             package: task.package,
-            service: "test",
         },
     });
     const context = userContext("user-1", spaceId);
@@ -1035,7 +1010,7 @@ test.each(TEST_DIALECTS)(
         });
         const left = await execute("list", { where: { archived: false } });
         expect([refused, archived, left.items]).toEqual([
-            new ServiceError("FORBIDDEN", { defined: true, message: "permission denied: tidy" }),
+            new CallError("FORBIDDEN", { defined: true, message: "permission denied: tidy" }),
             { archived: 1 },
             [],
         ]);
@@ -1080,6 +1055,19 @@ test("create the same identifiers and draw the same numbers from the same reques
     }).toEqual({ isRepeated: true, distinct: 5, isUnit: true });
 });
 
+test("share an implemented type's procedures with its declaration, and build a changed type's afresh", () => {
+    // implement the task type twice and change it once
+    const implemented = [task.implement({}), task.implement({})];
+    const changed = task.with({ methods: { ...task.methods } });
+
+    // reuse the declared procedure in each implementation, and build the changed type's anew
+    const declared = task.procedure("get");
+    expect([
+        ...implemented.map((type) => type.procedure("get") === declared),
+        changed.procedure("get") === declared,
+    ]).toEqual([true, true, false]);
+});
+
 test("predict custom methods only where their handler is, and never a scope's suspension", () => {
     // predict only methods with a handler on the client
     const unhandled = method.mutation({ permission: "archive" });
@@ -1102,7 +1090,7 @@ test("add suspending and handing over through their traits", () => {
         fields: {},
         permissions: ["read", "update"],
         suspendable: { by: "update" },
-    }).methods((builder) => ({ get: builder.get("read") }));
+    }).methods();
     const card = defineObject({
         name: "card",
         plural: "cards",
@@ -1111,10 +1099,10 @@ test("add suspending and handing over through their traits", () => {
         fields: {},
         permissions: ["read", "write"],
         adoptable: { by: "write" },
-    }).methods((builder) => ({ get: builder.get("read") }));
+    }).methods();
     expect([Object.keys(room.methods).toSorted(), Object.keys(card.methods).toSorted()]).toEqual([
-        ["get", "resume", "suspend"],
-        ["adopt", "apply", "detach", "get"],
+        ["get", "list", "resume", "suspend"],
+        ["adopt", "apply", "detach", "get", "list"],
     ]);
 });
 
@@ -1130,10 +1118,16 @@ async function serveTasks(dialect: Dialect) {
     let current = "user-1";
     let level = 1;
     let agent: Subject | undefined;
+    let granted: GrantPermission[] = [];
     const sign = () =>
         userContext(current, spaceId, {
             assurance: { level, authenticatedAt: Date.now() },
-            ...(agent === undefined ? {} : { delegates: [{ subject: agent, authority: "lent" }] }),
+            ...(agent === undefined
+                ? {}
+                : {
+                      delegates: [agent],
+                      grant: { id: grantId, scope: current, permissions: granted },
+                  }),
         });
     let context = sign();
 
@@ -1141,12 +1135,12 @@ async function serveTasks(dialect: Dialect) {
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task: handled, comment, taskVersion, folder: handleDraw() },
+        objects: [handled, comment, taskVersion, handleDraw()],
         database,
         callKey: testCallKey,
+        events: await testEvents(database),
         origin: {
             package: task.package,
-            service: "test",
         },
     });
 
@@ -1174,9 +1168,10 @@ async function serveTasks(dialect: Dialect) {
             level = assurance;
             context = sign();
         },
-        /** Act through a delegate, or directly. */
-        delegate: (delegate: Subject | undefined) => {
+        /** Act through a delegate under a grant of some permissions, or directly. */
+        delegate: (delegate: Subject | undefined, permissions: GrantPermission[]) => {
             agent = delegate;
+            granted = permissions;
             context = sign();
         },
     };
@@ -1204,7 +1199,7 @@ test("carry a key of the call's place in its request, the same for every retry o
                     keys.push(key);
                     if (isFailing) {
                         isFailing = false;
-                        throw new ServiceError("SERVICE_UNAVAILABLE", { message: "copy failed" });
+                        throw new CallError("SERVICE_UNAVAILABLE", { message: "copy failed" });
                     }
 
                     return key;
@@ -1216,12 +1211,12 @@ test("carry a key of the call's place in its request, the same for every retry o
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task, comment, taskVersion, taskCopy: copies, folder },
+        objects: [task, comment, taskVersion, copies, folder],
         database: storage.database,
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         origin: {
             package: task.package,
-            service: "test",
         },
     });
     const context = userContext("user-1", spaceId);
@@ -1284,12 +1279,12 @@ test("settle each call's prepared work once under its own key in its request", a
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task, comment, taskVersion, taskCopy: copies, folder },
+        objects: [task, comment, taskVersion, copies, folder],
         database: storage.database,
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         origin: {
             package: task.package,
-            service: "test",
         },
     });
     const context = userContext("user-1", spaceId);

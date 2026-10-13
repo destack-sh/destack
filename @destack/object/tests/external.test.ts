@@ -1,15 +1,17 @@
+import { Package } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { principal, through } from "@destack/access";
+import { none, principal, through } from "@destack/access";
 import { schema, Clock } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
-import { subjectContext, testCallKey } from "@destack/service/test";
+import { RequestId } from "@destack/runtime/request";
+import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
-import { defineService } from "@destack/service";
+import { definePackage } from "@destack/runtime";
 import { serveObjects } from "./fixture/device.ts";
 import { notebook, notesDatabase } from "./fixture/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
@@ -27,7 +29,7 @@ const entry = defineObject({
     nested: { in: notebook, receive: "read" },
     fields: { term: field.string() },
     permissions: { read: through("parent", "read") },
-}).methods((method) => ({ get: method.get("read"), list: method.list("read") }));
+}).methods();
 
 test("read external objects named by their key from the database their files open per scope, admitting callers by the durable database", async () => {
     // keep a public space's notebook in the durable database
@@ -49,7 +51,7 @@ test("read external objects named by their key from the database their files ope
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { notebook, entry },
+        objects: [notebook, entry],
         database: durable.database,
         external: [
             {
@@ -62,7 +64,8 @@ test("read external objects named by their key from the database their files ope
             },
         ],
         callKey: testCallKey,
-        origin: { package: entry.package, service: "test" },
+        events: await testEvents(durable.database),
+        origin: { package: entry.package },
     });
     const travel = await store
         .mutate(context("alice").caller(), {
@@ -90,23 +93,24 @@ test("read external objects named by their key from the database their files ope
     ]);
 
     // follow the entries in a client's live query, through the external copy
-    const service = defineService("index", { objects: { notebook, entry } });
+    const notebooks = definePackage({ objects: { notebook, entry } });
     const served = serveObjects(
         ObjectExtension.compose(
             [
                 {
-                    ...ObjectExtension.of(service, []),
+                    ...ObjectExtension.of(notebooks, []),
                     external: { objects: [entry], open: async () => files.database },
                 },
             ],
             {
                 clock: Clock.system,
-                origin: { package: service.package, service: service.name },
+                origin: { package: Package.of(notebooks) },
                 principal: spacePrincipal(spaceId),
                 database: durable.database,
                 callKey: testCallKey,
+                events: await testEvents(durable.database),
             },
-        ).services[0],
+        ).packages[0],
         spaceId,
     );
     const local = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, entry }));
@@ -137,4 +141,22 @@ test("read external objects named by their key from the database their files ope
 
     // refuse an identifier outside the key
     expect([entry.identifies(id), entry.identifies(`entry-${v7()}`)]).toEqual([true, false]);
+});
+
+test("refuse public writes on external objects, taking internal writes their store code runs", () => {
+    // declare an external type with an internal write, and one with a public write
+    const declare = (isInternal: boolean) => () =>
+        defineObject({
+            name: "mark",
+            plural: "marks",
+            scope: space,
+            storage: "external",
+            fields: { term: field.string() },
+            permissions: { receive: none() },
+        }).methods((method) => ({
+            receive: method.mutation({ permission: "receive", target: "none", isInternal }),
+        }));
+
+    expect(declare(true)().storage).toBe("external");
+    expect(declare(false)).toThrow(new TypeError("external object mark writes in method receive"));
 });

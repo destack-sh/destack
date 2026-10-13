@@ -1,4 +1,5 @@
 import * as access from "@destack/access";
+import { CallError } from "@destack/runtime/error";
 import {
     Authorizer,
     Policy,
@@ -12,11 +13,13 @@ import type { Field } from "../field/field.ts";
 import { Roles } from "../trait/shareable.ts";
 import type { TraitObject, TraitPolicy } from "../trait/trait.ts";
 import { camelCase, kebabCase } from "./name.ts";
-import { Scope, type ObjectReference } from "@destack/sync";
+import { AccessName, ObjectReference, Scope, Subject } from "@destack/sync";
 import { TABLE, type Select, type Table } from "@destack/db";
 import {
     ACCESS_MAPPINGS,
+    accessGrant,
     accessInvitation,
+    GrantRequest,
     accessRelationship,
     accessRole,
     RoleRequest,
@@ -24,7 +27,7 @@ import {
 } from "@destack/access";
 import { present, schema } from "@destack/schema";
 import { type Call } from "../method/call.ts";
-import type { Method, MethodBuilder } from "../method/method.ts";
+import { defineMethod, type Method, type MethodBuilder } from "../method/method.ts";
 import { INTRINSIC } from "./intrinsic.ts";
 import {
     ObjectPermissions,
@@ -119,9 +122,15 @@ export const ObjectAccess = {
         objects: readonly ObjectType[],
         others: readonly (Policy | ObjectType | TableMapping)[],
         copies: (table: Table) => boolean,
+        partition?: string,
     ): Authorizer {
-        // collect the object types and the types they relate to
-        const types = [...objects, ...others.filter((other) => other instanceof ObjectType)];
+        // collect each object type once and the types they relate to
+        const types: ObjectType[] = [];
+        for (const type of [...objects, ...others.filter((other) => other instanceof ObjectType)]) {
+            if (!types.some((each) => each.same(type))) {
+                types.push(type);
+            }
+        }
         const related = [
             ...new Set(
                 types
@@ -147,7 +156,7 @@ export const ObjectAccess = {
                     other instanceof Policy || other instanceof ObjectType ? [] : [other],
                 ),
             ],
-            { copies },
+            { copies, ...(partition === undefined ? {} : { partition }) },
         );
     },
 };
@@ -168,8 +177,6 @@ export const role = {
 
     /** Declare the roles' methods, which change roles through the access role API. */
     methods: (method: MethodBuilder<typeof accessRole>) => ({
-        get: method.get("read"),
-        list: method.list("read"),
         create: unpredicted(
             method.create("create", {
                 fields: ["name", "description"],
@@ -228,10 +235,34 @@ export const relationship = {
         } as const;
     },
 
-    /** Declare the relationships' read methods. */
-    methods: (method: MethodBuilder<typeof accessRelationship>) => ({
-        get: method.get("read"),
-        list: method.list("read"),
+    /** Declare the relationships' methods: decide a subject's permission on an object. */
+    // decide in the handler, which asks for other subjects too, instead of a scoped query's stub check
+    methods: (_method: MethodBuilder<typeof accessRelationship>) => ({
+        check: defineMethod<{
+            kind: "custom";
+            permission: "read";
+            input: typeof CheckInput;
+            output: typeof CheckResult;
+            mutates: false;
+            scoped: true;
+            table: typeof accessRelationship;
+        }>({
+            kind: "custom",
+            permission: "read",
+            input: CheckInput,
+            output: CheckResult,
+            mutates: false,
+            isScoped: true,
+            target: false,
+            result: "value",
+            isPredicted: false,
+            procedure: (_name, shapes) => ({
+                route: { method: "POST", path: "/check" },
+                input: shapes.scope.extend(CheckInput.shape),
+                output: CheckResult,
+            }),
+            handler: check,
+        }),
     }),
 };
 
@@ -248,13 +279,107 @@ export const invitation = {
             permissions: access.invitation.definition.permissions,
         } as const;
     },
+};
 
-    /** Declare the invitations' read methods. */
-    methods: (method: MethodBuilder<typeof accessInvitation>) => ({
-        get: method.get("read"),
-        list: method.list("read"),
+/** A scope type's grants as objects: what its principal lets delegates do for it. */
+export const grant = {
+    /** Define a scope type's grants over the access grant table. */
+    definition<const Scope extends ObjectScope>(scope: Scope) {
+        return {
+            name: "grant",
+            plural: "grants",
+            [INTRINSIC]: { table: accessGrant, mapping: mappingOf(accessGrant) },
+            scope,
+            represents: access.grant,
+            permissions: access.grant.definition.permissions,
+        } as const;
+    },
+
+    /** Declare the grants' methods, which create and revoke grants through the access grant API. */
+    methods: (method: MethodBuilder<typeof accessGrant>) => ({
+        create: unpredicted(method.create("create", { fields: [], input: GrantRequest })).handle(
+            async (call) =>
+                call.requireAuthorization().createGrant(await scopeObject(call), call.input),
+        ),
+        revoke: unpredicted(method.delete("revoke")).handle(async (call) => {
+            // refuse a personal access token's grant, which revoking the token revokes
+            const { delegate, id } = call.target;
+            if (access.principal.personalAccessToken.is(delegate)) {
+                throw new CallError("CONFLICT", {
+                    message: `grant ${id} is personal access token ${delegate.id}'s: revoke the token`,
+                });
+            }
+
+            // revoke the grant as its delegator
+            await call.requireAuthorization().revokeGrant(await scopeObject(call), id);
+
+            return {};
+        }),
     }),
 };
+
+/** What a check decides: a subject's permission on an object (Zanzibar Check). */
+export const CheckInput = schema.object({
+    /** The subject whose access the check decides. */
+    subject: Subject,
+    /** The permission of the object's type. */
+    permission: AccessName,
+    /** The object, which the call's scope decides the access of. */
+    object: ObjectReference,
+});
+
+/** The answer of a check. */
+export const CheckResult = schema.object({
+    /** Whether the subject has the permission on the object. */
+    isAllowed: schema.boolean(),
+});
+
+/** Decide a subject's permission on an object the call's scope decides, as Zanzibar's Check. */
+async function check(call: Call): Promise<schema.Infer<typeof CheckResult>> {
+    // require an object the call's scope decides, and a permission its type declares
+    const { subject, permission, object } = CheckInput.parse(call.input);
+    const authorization = call.requireAuthorization();
+    const { authorizer, snapshot } = authorization;
+    const policy = authorizer.policy(object);
+    const scope = authorizer.governingScope(object);
+    if (scope !== call.scope) {
+        throw new CallError("BAD_REQUEST", {
+            message: `${object.type} ${object.id} is decided in ${scope}, not ${call.scope}`,
+        });
+    } else if (!Object.hasOwn(policy.definition.permissions, permission)) {
+        throw new CallError("BAD_REQUEST", {
+            message: `${object.type} has no permission ${permission}`,
+        });
+    }
+    const asked = { packageId: object.packageId, type: object.type, name: permission };
+    const asking = await authorization.in(scope);
+
+    // decide the caller's own access under its delegates and grant
+    const own = call.caller.subject;
+    if (own !== undefined && Subject.same(own, subject)) {
+        return { isAllowed: (await authorizer.check(snapshot, asked, object, asking)).isAllowed };
+    }
+
+    // decide another subject's access for the object's grantors alone, as explanations do
+    const gate = policy.definition.grantedBy;
+    const granting =
+        gate === undefined
+            ? undefined
+            : await authorizer.check(snapshot, { ...asked, name: gate }, object, asking);
+    if (granting?.isAllowed !== true) {
+        throw new CallError("FORBIDDEN", {
+            message: `checking another subject's access to ${object.type} needs ${gate ?? "a grant permission"}`,
+        });
+    }
+    const checked = await authorizer.resolve(snapshot, scope, {
+        subject,
+        subjects: [subject],
+        now: call.now,
+        attributes: {},
+    });
+
+    return { isAllowed: (await authorizer.check(snapshot, asked, object, checked)).isAllowed };
+}
 
 /** Keep a method on the server. */
 function unpredicted<Declared extends Method>(declared: Declared): Declared {

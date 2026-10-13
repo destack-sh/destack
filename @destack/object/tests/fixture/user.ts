@@ -1,14 +1,14 @@
 import { type Caller, principal } from "@destack/access";
 import type { PackageId } from "@destack/package";
-import type { ServiceContext } from "@destack/service/server";
-import { subjectContext, type SubjectContextOptions } from "@destack/service/test";
+import type { RequestContext } from "@destack/runtime/server";
+import { subjectContext, type SubjectContextOptions } from "@destack/runtime/test";
 
 /** Build the request context of a signed-in user calling in a scope or in none. */
 export function userContext(
     user: string,
     scope: string | undefined,
     options: SubjectContextOptions = {},
-): ServiceContext {
+): RequestContext {
     return subjectContext(principal.user.reference("universe", user), scope, options);
 }
 

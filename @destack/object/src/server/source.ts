@@ -2,7 +2,9 @@ import {
     accessRelationship,
     accessRole,
     accessRolePermission,
+    Authorizer,
     CHAIN_SHAPE,
+    type ChainOptions,
     ChainParameters,
     decisionTables,
     CONTAINED,
@@ -26,13 +28,12 @@ import {
     Transaction,
 } from "@destack/db";
 
-import { PackageId } from "@destack/package";
-import { aligned, Digest, Duration, found, schema } from "@destack/schema";
+import { aligned, Digest, Duration, found, present, schema } from "@destack/schema";
 
-import { isServiceError, ServiceError } from "@destack/service/error";
+import { isCallError, CallError } from "@destack/runtime/error";
 
-import { type ServiceContext } from "@destack/service/server";
-import { withEventMeta } from "@destack/service";
+import { type RequestContext } from "@destack/runtime/server";
+import { withEventMeta } from "@destack/runtime";
 import * as sync from "@destack/sync";
 
 import {
@@ -54,9 +55,9 @@ import { Authorization } from "./authorization.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ObjectAudience, RecipientAudience } from "./audience.ts";
 
-import type { Controller } from "@destack/service/control";
+import type { Controller } from "@destack/runtime/control";
 
-import { until } from "@destack/service/timer";
+import { until } from "@destack/runtime/timer";
 
 import type { ObjectStore, Subscriber } from "./store.ts";
 
@@ -65,6 +66,9 @@ const BROADCAST_BYTES = 16 * 1024;
 
 /** An event an object sends, with the object it is about. */
 const SENT_EVENT = ObjectReference.extend({ event: schema.json() });
+
+/** The key of an address to record: the keeping installation and the recipient. */
+const AddressKey = schema.tuple([schema.string(), schema.string()]);
 
 /** The copies a store streams: client feeds of scope queries, and replicas for databases below. */
 export class ObjectSource {
@@ -86,7 +90,7 @@ export class ObjectSource {
     /** Stream a shape's copy to the caller its audience admits. */
     async *relayed(
         subscription: sync.Subscription,
-        context: ServiceContext,
+        context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // admit the caller by the shape's audience, counting its copy while it streams
         const shape = this.#shape(subscription);
@@ -110,7 +114,7 @@ export class ObjectSource {
         shape: sync.Shape,
         subscription: sync.Subscription,
         follower: ReplicaFollower,
-        context: ServiceContext,
+        context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // follow a scope's durable objects
         if (shape === this.queriesShape) {
@@ -143,7 +147,7 @@ export class ObjectSource {
     async #admit(
         shape: sync.Shape,
         subscription: sync.Subscription,
-        context: ServiceContext,
+        context: RequestContext,
     ): Promise<ReplicaFollower> {
         switch (shape.audience) {
             case "caller":
@@ -164,7 +168,7 @@ export class ObjectSource {
     }
 
     /** Require the caller to be the home a projection follows, or one of its installations. */
-    static #requireHome(subscription: sync.Subscription, context: ServiceContext): void {
+    static #requireHome(subscription: sync.Subscription, context: RequestContext): void {
         const { subjects } = context.requireCaller();
         const isHome = subjects.some(
             (subject) =>
@@ -172,7 +176,7 @@ export class ObjectSource {
                 (principal.installation.is(subject) && subject.scope === subscription.below),
         );
         if (!isHome) {
-            throw new ServiceError("FORBIDDEN", {
+            throw new CallError("FORBIDDEN", {
                 message: `only ${subscription.below} follows the rows its residents receive`,
             });
         }
@@ -181,7 +185,7 @@ export class ObjectSource {
     /** Decide who a relayed copy is for: a served object's principal, or the caller. */
     async #follower(
         request: Omit<sync.Subscription, "after">,
-        context: ServiceContext,
+        context: RequestContext,
     ): Promise<ReplicaFollower> {
         // find the served object standing for the scope
         const standing = await this.#standing(request.below);
@@ -198,13 +202,13 @@ export class ObjectSource {
             return { subject, ...(parent === undefined ? {} : { parent }) };
         }
 
-        // decide for a caller that is the scope's principal or lives in the scope, such as its installation
-        const { subjects } = context.caller(request.below);
+        // decide for the scope's principal or a caller living in it, bound to the called space or the scope below
+        const { subjects } = context.caller(context.scope ?? request.below);
         const kept = subjects.filter(
             (subject) => subject.id === request.below || subject.scope === request.below,
         );
         if (kept.length === 0) {
-            throw new ServiceError("FORBIDDEN", {
+            throw new CallError("FORBIDDEN", {
                 message: `only ${request.below} and what lives in it follow the copies kept for it`,
             });
         }
@@ -226,7 +230,7 @@ export class ObjectSource {
     async #requireReplicate(
         below: string,
         kept: readonly Subject[],
-        context: ServiceContext,
+        context: RequestContext,
     ): Promise<void> {
         // list the permissions on the caller's own objects
         const authorization = await this.store.authorize(
@@ -254,7 +258,7 @@ export class ObjectSource {
         }
         const [first] = granting;
         if (first === undefined) {
-            throw new ServiceError("FORBIDDEN", {
+            throw new CallError("FORBIDDEN", {
                 message: `no ${scope.type} keeps copies of its chain`,
             });
         }
@@ -411,7 +415,7 @@ export class ObjectSource {
                 return isSource ? [projector] : [];
             });
             if (projectors.length === 0) {
-                throw new ServiceError("NOT_FOUND", {
+                throw new CallError("NOT_FOUND", {
                     message: `nothing here projects ${parameters.type}`,
                 });
             }
@@ -426,18 +430,18 @@ export class ObjectSource {
         signal: AbortSignal,
         drain?: AbortSignal,
     ): AsyncGenerator<sync.Page> {
-        // require the rows this installation keeps, and each recipient to live in the following home
+        // require the rows the named installation keeps here, and each recipient to live in the following home
         const parameters = ProjectionParameters.parse(subscription.parameters);
-        const { installation } = this.store;
+        const source = this.#projected(parameters);
+        const installation = this.store.installationOf(source);
         if (installation === undefined || parameters.installation !== installation.id) {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: `${parameters.installation} keeps the rows elsewhere`,
             });
         }
-        const source = this.#projected(parameters);
         for (const recipient of parameters.recipients) {
             if (!(await installation.directory.isHome(recipient, subscription.below))) {
-                throw new ServiceError("FORBIDDEN", {
+                throw new CallError("FORBIDDEN", {
                     message: `${recipient} lives in no home ${subscription.below}`,
                 });
             }
@@ -479,7 +483,7 @@ export class ObjectSource {
                 object.policy.definition.packageId === parameters.packageId,
         );
         if (source?.fields[parameters.to]?.type !== "subject") {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: `no ${parameters.type} received through ${parameters.to}`,
             });
         }
@@ -487,10 +491,13 @@ export class ObjectSource {
         return source;
     }
 
-    /** List a home's subscriptions: one per projected type and source installation of residents. */
-    async projectionSubscriptions(home: string): Promise<sync.Subscription[]> {
+    /** List a home's subscriptions: one per type projected and source installation of residents. */
+    async projectionSubscriptions(
+        home: string,
+        objects: readonly ObjectType[],
+    ): Promise<sync.Subscription[]> {
         // project nowhere without a projected type
-        const projecting = this.store.objects.flatMap((object) =>
+        const projecting = objects.flatMap((object) =>
             object.projected === undefined ? [] : [object.projected],
         );
         const { residence } = this.store;
@@ -504,9 +511,8 @@ export class ObjectSource {
         const rows = await this.store.database
             .select({
                 user: residing.column("scope"),
-                source: residing.column("source"),
+                source: residing.column("sourceId"),
                 installation: residing.column("installation"),
-                service: residing.column("service"),
             })
             .from(residence.residence.table)
             .innerJoin(
@@ -519,21 +525,19 @@ export class ObjectSource {
             .innerJoin(Scope.table, eq(Scope.table.parent, account.column("id")))
             .where(eq(Scope.table.scope, home))
             .orderBy(
-                residing.column("source"),
+                residing.column("sourceId"),
                 residing.column("installation"),
-                residing.column("service"),
                 residing.column("scope"),
             );
         const sources = Map.groupBy(
             rows.map((row) => ({
                 source: schema.string().parse(row.source),
                 installation: schema.identifier("installation").parse(row.installation),
-                service: PackageId.parse(row.service),
                 recipient: Subject.key(
                     principal.user.reference(Scope.universe.id, schema.string().parse(row.user)),
                 ),
             })),
-            (row) => JSON.stringify([row.source, row.installation, row.service]),
+            (row) => JSON.stringify([row.source, row.installation]),
         );
 
         // follow each projected type from each source for its recipients
@@ -541,7 +545,7 @@ export class ObjectSource {
             const source = projected.sourceOf(options);
 
             return [...sources.values()].map((entries) => {
-                const { source: scope, installation, service } = aligned(entries, 0);
+                const { source: scope, installation } = aligned(entries, 0);
 
                 return this.projectionShape.subscription({
                     name: home,
@@ -549,7 +553,6 @@ export class ObjectSource {
                     below: home,
                     parameters: {
                         installation,
-                        service,
                         packageId: source.policy.definition.packageId,
                         type: source.name,
                         to: options.to,
@@ -562,20 +565,22 @@ export class ObjectSource {
 
     /** Build the controller recording in each recipient's user scope its projected rows' keeper. */
     addresses(): Controller | undefined {
-        // find the served types some type projects, with their recipient fields
-        const { installation } = this.store;
-        const sources = this.store.durable.flatMap((object) =>
-            object.projections.flatMap((projecting) =>
-                projecting.projected === undefined
+        // find the served types some type projects, with their recipient fields and the installations keeping them
+        const sources = this.store.durable.flatMap((object) => {
+            const installation = this.store.installationOf(object);
+
+            return object.projections.flatMap((projecting) =>
+                projecting.projected === undefined || installation === undefined
                     ? []
-                    : [{ table: object.table, to: projecting.projected.to }],
-            ),
-        );
-        if (installation === undefined || sources.length === 0) {
+                    : [{ table: object.table, to: projecting.projected.to, installation }],
+            );
+        });
+        if (sources.length === 0) {
             return undefined;
         }
+        const keepers = new Map(sources.map(({ installation }) => [installation.id, installation]));
 
-        // key each recipient, and record it once
+        // key each recipient with its keeper, and record it once
         return {
             name: "address",
             watches: sources.map(({ table }) => table),
@@ -585,29 +590,37 @@ export class ObjectSource {
                 const source = sources.find(({ table }) => table === change.table);
                 const recipient = source === undefined ? undefined : row[source.to];
 
-                return typeof recipient === "string" ? [recipient] : [];
+                return source !== undefined && typeof recipient === "string"
+                    ? [JSON.stringify([source.installation.id, recipient])]
+                    : [];
             },
             list: async () => {
                 const keys = await Promise.all(
-                    sources.map(async ({ table, to }) => {
+                    sources.map(async ({ table, to, installation }) => {
                         const rows = await this.store.database
                             .selectDistinct({ recipient: table[TABLE].column(to) })
                             .from(table);
 
                         return rows.flatMap(({ recipient }) =>
-                            typeof recipient === "string" ? [recipient] : [],
+                            typeof recipient === "string"
+                                ? [JSON.stringify([installation.id, recipient])]
+                                : [],
                         );
                     }),
                 );
 
                 return [...new Set(keys.flat())];
             },
-            reconcile: async (recipient) => {
+            reconcile: async (key) => {
+                // read the keeper and the recipient
+                const [keeper, recipient] = AddressKey.parse(JSON.parse(key));
+                const installation = present(keepers.get(keeper), `the installation ${keeper}`);
+
                 // settle a recipient without a user, whose key a change of a row referring to them enqueues again
                 try {
                     await installation.directory.address(recipient);
                 } catch (error) {
-                    if (!(isServiceError(error) && error.code === "NOT_FOUND")) {
+                    if (!(isCallError(error) && error.code === "NOT_FOUND")) {
                         throw error;
                     }
                 }
@@ -620,7 +633,7 @@ export class ObjectSource {
     /** Follow a scope's durable objects for the caller. */
     async *#durable(
         subscription: sync.Subscription,
-        context: ServiceContext,
+        context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // open the audience
         const { scope, after, previous, refresh, origin } = subscription;
@@ -662,7 +675,7 @@ export class ObjectSource {
     /** Follow a scope's ephemeral objects for a writer. */
     async *#ephemeral(
         subscription: sync.Subscription,
-        context: ServiceContext,
+        context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // track the writer's rows
         const { scope, after, previous, refresh, origin } = subscription;
@@ -698,7 +711,7 @@ export class ObjectSource {
     /** Follow a scope's external objects for the caller, decided in memory until access changes. */
     async *#external(
         subscription: sync.Subscription,
-        context: ServiceContext,
+        context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // open the scope's files
         const { scope, after, previous, refresh, origin } = subscription;
@@ -732,16 +745,14 @@ export class ObjectSource {
     /** Follow the access rows the caller's own checks read in a scope's chain. */
     async *#access(
         subscription: sync.Subscription,
-        context: ServiceContext,
+        context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // follow until access changes
         const { scope, after, refresh, origin } = subscription;
         yield* this.#decided(scope, context, "durable", (audience, signal, isFirst) => {
             // copy the chain's scopes and roles, and the relationships the caller's subjects hold
             const { chain } = audience;
-            const subjects = audience.authorization.access.authorities.flatMap(
-                (authority) => authority.subjects,
-            );
+            const subjects = audience.authorization.access.authority.subjects;
             const queries: Record<string, sync.Query> = {
                 scopes: { table: Scope.table, scopes: chain },
                 roles: { table: accessRole, scopes: chain },
@@ -771,7 +782,7 @@ export class ObjectSource {
     /** Follow pages decided for the caller, restarting from a snapshot on chain access changes. */
     async *#decided(
         scope: string,
-        context: ServiceContext,
+        context: RequestContext,
         storage: ObjectStorage,
         follow: (
             audience: ObjectAudience,
@@ -831,12 +842,12 @@ export class ObjectSource {
         scope: string,
         target: Omit<ObjectReference, "scope">,
         event: JsonValue,
-        context: ServiceContext,
+        context: RequestContext,
     ): Promise<void> {
         // require a small event and a reader
         const store = this.store.requireEphemeral();
         if (new TextEncoder().encode(JSON.stringify(event)).length > BROADCAST_BYTES) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `a broadcast has at most ${BROADCAST_BYTES} bytes`,
             });
         }
@@ -848,7 +859,7 @@ export class ObjectSource {
             context.caller(scope),
         );
         if (!(await this.#lists(authorization, reference))) {
-            throw new ServiceError("NOT_FOUND", { message: `no ${target.type} ${target.id}` });
+            throw new CallError("NOT_FOUND", { message: `no ${target.type} ${target.id}` });
         }
 
         // send it to the scope's streams
@@ -884,7 +895,7 @@ export class ObjectSource {
     #shape(request: Pick<sync.Subscription, "shape">): sync.Shape {
         const shape = this.shapes.get(request.shape);
         if (shape === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `no shape ${request.shape}` });
+            throw new CallError("NOT_FOUND", { message: `no shape ${request.shape}` });
         }
 
         return shape;
@@ -919,7 +930,7 @@ export class ObjectSource {
 
     /** List the tables whose changes list the copies again. */
     #copyWatches(subscriber: Subscriber): Table[] {
-        // watch the copied scope types and the residents' homes and addresses
+        // watch the copied scope types, the rows each copy includes, and the residents' homes and addresses
         const { residence } = this.store;
         const scopes = this.store.copied
             .filter((object) => object.policy.definition.scope === true)
@@ -928,6 +939,7 @@ export class ObjectSource {
         return [
             ...new Set([
                 Scope.table,
+                sync.replicaRow,
                 ...scopes,
                 ...(residence === undefined
                     ? []
@@ -1027,44 +1039,6 @@ export class ObjectSource {
         }
     }
 
-    /** List the universe rows a scope reads: copied types' rows, nested types in their scopes. */
-    universeRows(): UniverseParameters["rows"] {
-        // leave inherited rows to the chains
-        const copied = this.store.copied.filter((object) => object.inherited === undefined);
-        const isUnscoped = (object: ObjectType) =>
-            object.scopes.length === 0 ||
-            object.scopes.some((scope) => !copied.some((type) => type.same(scope)));
-
-        // copy a type living in any scope type the copy holds no rows of from every scope its rows live in
-        const listed = copied.filter(isUnscoped);
-        const rows: UniverseParameters["rows"][number][] = listed.map((object) =>
-            object.scope === Scope.universe.id
-                ? { type: object.typeReference, where: {} }
-                : { type: object.typeReference, where: {}, isEverywhere: true },
-        );
-
-        // add the types living in the scopes of listed types, at any depth
-        for (let isGrowing = true; isGrowing;) {
-            isGrowing = false;
-            for (const object of copied.filter((candidate) => !listed.includes(candidate))) {
-                const scopes = listed.filter((scope) =>
-                    object.scopes.some((type) => type.same(scope)),
-                );
-                if (scopes.length > 0) {
-                    rows.push({
-                        type: object.typeReference,
-                        where: {},
-                        within: scopes.map((scope) => scope.typeReference),
-                    });
-                    listed.push(object);
-                    isGrowing = true;
-                }
-            }
-        }
-
-        return rows;
-    }
-
     /** List the subscriptions of a database's served scopes, kept below its space. */
     async servedSubscriptions(
         below: string,
@@ -1106,7 +1080,7 @@ export class ObjectSource {
         const universe = this.universeSubscription(below);
         const chains = await this.store.authorizer.chainVia(
             this.store.database,
-            below,
+            { name: Authorizer.chainCopy(below), below },
             [...scopes.flat(), ...own],
             this.store.authorizer.scoped,
             elsewhere.map((type) => type.typeReference),
@@ -1121,19 +1095,58 @@ export class ObjectSource {
     /** List a database's copy subscriptions for a scope: its chain and its universe rows. */
     async subscriptions(
         below: string,
-        options: { readonly isHome: boolean },
+        options: ChainOptions,
+        elsewhere: readonly ObjectType[] = [],
     ): Promise<sync.Subscription[]> {
-        // copy the chain and the rows of the universe the scope reads
+        // copy the chain and the rows of the universe the scope reads, but those another copy keeps
         const chain = await this.store.authorizer.chain(this.store.database, below, options);
-        const universe = this.universeSubscription(below);
+        const universe = this.universeSubscription(below, elsewhere);
 
         return universe === undefined ? chain : [...chain, universe];
     }
 
-    /** Build the universe rows subscription of a scope or machine, if any type lives there. */
-    universeSubscription(below: string): sync.Subscription | undefined {
-        // request nothing where no global object type is served
-        const rows = this.universeRows();
+    /** Request the universe rows a scope or machine may read, but those another copy keeps. */
+    universeSubscription(
+        below: string,
+        elsewhere: readonly ObjectType[] = [],
+    ): sync.Subscription | undefined {
+        // leave inherited rows to the chains and rows another copy keeps to it
+        const copied = this.store.copied.filter(
+            (object) =>
+                object.inherited === undefined && !elsewhere.some((type) => type.same(object)),
+        );
+        const isUnscoped = (object: ObjectType) =>
+            object.scopes.length === 0 ||
+            object.scopes.some((scope) => !copied.some((type) => type.same(scope)));
+
+        // copy a type living in any scope type the copy holds no rows of from every scope its rows live in
+        const listed = copied.filter(isUnscoped);
+        const rows: UniverseParameters["rows"][number][] = listed.map((object) =>
+            object.scope === Scope.universe.id
+                ? { type: object.typeReference, where: {} }
+                : { type: object.typeReference, where: {}, isEverywhere: true },
+        );
+
+        // add the types living in the scopes of listed types, at any depth
+        for (let isGrowing = true; isGrowing;) {
+            isGrowing = false;
+            for (const object of copied.filter((candidate) => !listed.includes(candidate))) {
+                const scopes = listed.filter((scope) =>
+                    object.scopes.some((type) => type.same(scope)),
+                );
+                if (scopes.length > 0) {
+                    rows.push({
+                        type: object.typeReference,
+                        where: {},
+                        within: scopes.map((scope) => scope.typeReference),
+                    });
+                    listed.push(object);
+                    isGrowing = true;
+                }
+            }
+        }
+
+        // request nothing where no universe object type is copied
         if (rows.length === 0) {
             return undefined;
         }
@@ -1227,7 +1240,7 @@ export class ObjectSource {
             ...chain.map((link) => link.object.id),
         ];
         if (!scopes.includes(request.scope)) {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: `${request.scope} does not contain ${request.below}`,
             });
         }
@@ -1245,7 +1258,7 @@ export class ObjectSource {
         for (const [relay, links] of chains) {
             const ids = links.map((link) => link.object.id);
             if (!ids.includes(scope)) {
-                throw new ServiceError("NOT_FOUND", {
+                throw new CallError("NOT_FOUND", {
                     message: `${scope} does not contain ${relay}`,
                 });
             }
@@ -1257,7 +1270,7 @@ export class ObjectSource {
         // require each scope between to contain a replicated scope
         const outside = between.find((id) => !scopes.has(id));
         if (outside !== undefined) {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: `${outside} contains none of the replicated scopes`,
             });
         }
@@ -1270,7 +1283,7 @@ export class ObjectSource {
         const scope = await Scope.object(Snapshot.live(database), via);
         const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
-            throw new ServiceError("FORBIDDEN", {
+            throw new CallError("FORBIDDEN", {
                 message: `no ${scope.type} keeps copies of its chain`,
             });
         }
@@ -1493,7 +1506,7 @@ export type ReplicaFollower =
           /** The scope containing the follower's scope, when this database keeps no copy of it. */
           readonly parent?: string;
       }
-    | { readonly context: ServiceContext };
+    | { readonly context: RequestContext };
 
 /** Revise each listed copy whose action changed or left, and list the new ones. */
 function revise(
@@ -1519,7 +1532,7 @@ function revise(
 /** Build a caller's copy feed options, ending at a completed page once it lapses. */
 function followOptions(
     audience: sync.Audience,
-    context: ServiceContext,
+    context: RequestContext,
     options: {
         readonly previous: Readonly<Record<string, sync.Query>> | undefined;
         readonly refresh: sync.Subscription["refresh"];

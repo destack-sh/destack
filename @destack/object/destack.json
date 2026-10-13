@@ -8,7 +8,7 @@
             "runtimes": ["browser"]
         },
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["browser", "bun"]
         },
         "./server": {
             "runtimes": ["bun", "workerd"]
@@ -24,9 +24,23 @@
                     "symbols": "./inspect#objectSymbols"
                 }
             ]
+        },
+        "defineAuditAction": {
+            "describes": [
+                {
+                    "kind": "audit-action",
+                    "function": "./inspect#describeAuditAction",
+                    "vocabulary": "./inspect#auditActionVocabulary"
+                }
+            ]
         }
     },
     "stamps": {
-        "defineObject": { "module": 1 }
+        "defineObject": {
+            "module": 1
+        },
+        "defineAuditAction": {
+            "module": 1
+        }
     }
 }

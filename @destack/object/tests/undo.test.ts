@@ -1,10 +1,11 @@
+import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
-import { journal } from "@destack/audit/stack";
 import { defineDatabase, eq, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { defineService } from "@destack/service";
-import { RequestId } from "@destack/service/request";
-import { testCallKey } from "@destack/service/test";
+import { definePackage } from "@destack/runtime";
+import { RequestId } from "@destack/runtime/request";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
 import { ObjectExtension } from "../src/server/index.ts";
@@ -45,7 +46,9 @@ const page = defineObject({
     shareable: { by: "write" },
 }).methods((method) => ({
     create: method.create("write"),
+    createMany: method.createMany("write", { fields: ["title"] }),
     update: method.update("write"),
+    deleteMany: method.deleteMany("write", { match: ["status"] }),
     archive: method.mutation({ permission: "write", inverse: "unarchive" }),
     unarchive: method.mutation({ permission: "write" }),
     announce: method.mutation({ permission: "write" }),
@@ -59,8 +62,6 @@ const tally = defineObject({
     fields: { count: field.bigint(), label: field.string() },
     shareable: {},
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("edit"),
     update: method.update("edit"),
 }));
@@ -73,8 +74,6 @@ const stamp = defineObject({
     fields: { bytes: field.binary(), label: field.string() },
     shareable: {},
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("edit"),
     update: method.update("edit"),
 }));
@@ -96,9 +95,56 @@ test("invert each trait's methods into the calls that undo them, and leave the r
         invert("delete", { input: target }),
         invert("restore", { input: target }),
     ]).toEqual([
-        [{ method: "page.delete", release: page.package.version, input: target }],
-        [{ method: "page.restore", release: page.package.version, input: target }],
-        [{ method: "page.delete", release: page.package.version, input: target }],
+        [
+            {
+                type: page.typeReference,
+                method: "delete",
+                release: page.package.version,
+                input: target,
+            },
+        ],
+        [
+            {
+                type: page.typeReference,
+                method: "restore",
+                release: page.package.version,
+                input: target,
+            },
+        ],
+        [
+            {
+                type: page.typeReference,
+                method: "delete",
+                release: page.package.version,
+                input: target,
+            },
+        ],
+    ]);
+
+    // delete each page a bulk creation created, and leave a bulk deletion undoable by nothing
+    const created = { spaceId: "space-1", id: "page-2" };
+    expect([
+        invert("createMany", {
+            input: { spaceId: "space-1", items: [{ title: "A" }, { title: "B" }] },
+            result: { ids: ["page-1", "page-2"] },
+        }),
+        invert("deleteMany", { input: { spaceId: "space-1", where: { status: "draft" } } }),
+    ]).toEqual([
+        [
+            {
+                type: page.typeReference,
+                method: "delete",
+                release: page.package.version,
+                input: target,
+            },
+            {
+                type: page.typeReference,
+                method: "delete",
+                release: page.package.version,
+                input: created,
+            },
+        ],
+        undefined,
     ]);
 
     // restore only fields unchanged since
@@ -114,7 +160,8 @@ test("invert each trait's methods into the calls that undo them, and leave the r
     ]).toEqual([
         [
             {
-                method: "page.update",
+                type: page.typeReference,
+                method: "update",
                 release: page.package.version,
                 input: { ...target, title: "A" },
             },
@@ -134,13 +181,28 @@ test("invert each trait's methods into the calls that undo them, and leave the r
     ]).toEqual([
         [
             {
-                method: "page.move",
+                type: page.typeReference,
+                method: "move",
                 release: page.package.version,
                 input: { ...target, parentId: "folder-1" },
             },
         ],
-        [{ method: "page.retract", release: page.package.version, input: target }],
-        [{ method: "page.publish", release: page.package.version, input: target }],
+        [
+            {
+                type: page.typeReference,
+                method: "retract",
+                release: page.package.version,
+                input: target,
+            },
+        ],
+        [
+            {
+                type: page.typeReference,
+                method: "publish",
+                release: page.package.version,
+                input: target,
+            },
+        ],
     ]);
 
     // undo grants and custom methods with inverses
@@ -155,12 +217,20 @@ test("invert each trait's methods into the calls that undo them, and leave the r
     ]).toEqual([
         [
             {
-                method: "page.revoke",
+                type: page.typeReference,
+                method: "revoke",
                 release: page.package.version,
                 input: { ...target, relationshipId: "relationship-1" },
             },
         ],
-        [{ method: "page.unarchive", release: page.package.version, input: target }],
+        [
+            {
+                type: page.typeReference,
+                method: "unarchive",
+                release: page.package.version,
+                input: target,
+            },
+        ],
         undefined,
         undefined,
     ]);
@@ -254,20 +324,21 @@ test("undo an update of an exact integer, restoring its value on the device and 
     // serve the tallies of a space
     const storage = await TestDatabase.create(
         "sqlite",
-        defineDatabase({ name: "main", tables: [...tally.tables, journal] }),
+        defineDatabase({ name: "main", tables: [...tally.tables, ...callTables] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    const service = defineService("tallies", { objects: { tally } });
+    const tallies = definePackage({ objects: { tally } });
     const served = serveObjects(
-        ObjectExtension.compose([ObjectExtension.of(service, [])], {
+        ObjectExtension.compose([ObjectExtension.of(tallies, [])], {
             clock: Clock.system,
-            origin: { package: service.package, service: service.name },
+            origin: { package: Package.of(tallies) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             database: storage.database,
-        }).services[0],
+        }).packages[0],
         spaceId,
     );
 
@@ -320,20 +391,21 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     // serve the stamps of a space
     const storage = await TestDatabase.create(
         "sqlite",
-        defineDatabase({ name: "main", tables: [...stamp.tables, journal] }),
+        defineDatabase({ name: "main", tables: [...stamp.tables, ...callTables] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    const service = defineService("stamps", { objects: { stamp } });
+    const stamps = definePackage({ objects: { stamp } });
     const served = serveObjects(
-        ObjectExtension.compose([ObjectExtension.of(service, [])], {
+        ObjectExtension.compose([ObjectExtension.of(stamps, [])], {
             clock: Clock.system,
-            origin: { package: service.package, service: service.name },
+            origin: { package: Package.of(stamps) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             database: storage.database,
-        }).services[0],
+        }).packages[0],
         spaceId,
     );
 

@@ -22,9 +22,12 @@ export const chunk = defineTable(
         position: text("position").notNull(),
         /** The chunk's runs in sequence order. */
         runs: json("runs", schema.array(Run)).notNull(),
+        /** The chunk's visible characters, which searches read. */
+        text: text("text").notNull(),
     },
     {
         log: {},
+        fullText: ["text"],
         constraints: (columns) => [
             index("chunk_parent").on(
                 columns.parentPackageId,

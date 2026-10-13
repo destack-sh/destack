@@ -1,8 +1,8 @@
 import { Explanation, Invitation, Relationship } from "@destack/access";
 import { type Row } from "@destack/db";
 import { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import { Page, page } from "@destack/service/page";
+import { CallError } from "@destack/runtime/error";
+import { Page } from "./page.ts";
 import { Call } from "./call.ts";
 import { Step } from "./step.ts";
 import type * as sync from "@destack/sync";
@@ -13,6 +13,7 @@ import {
     type MethodProcedure,
     type ObjectSchema,
     type Route,
+    ListPage,
 } from "./procedure.ts";
 import { type ObjectType } from "../object/object.ts";
 import type { SharingGate } from "../trait/shareable.ts";
@@ -34,7 +35,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
             { permission: read, mutates: false },
             { method: "GET", path: "/{id}/relationships" },
             (shapes) => shapes.target.extend(PageShape),
-            page(Relationship.schema),
+            ListPage.schema(Relationship.schema),
             async (call) => {
                 // page the object's relationships by identifier
                 const listing = sharingPage(call, "relationships");
@@ -105,7 +106,7 @@ export function sharingMethods({ grant, read }: SharingGate) {
             { permission: grant, mutates: false },
             { method: "GET", path: "/{id}/invitations" },
             (shapes) => shapes.target.extend(PageShape),
-            page(Invitation.schema),
+            ListPage.schema(Invitation.schema),
             async (call) => {
                 // page the object's invitations by identifier
                 const listing = sharingPage(call, "invitations");
@@ -235,7 +236,7 @@ async function explain(call: Call): Promise<Explanation> {
                 ? undefined
                 : await authorizer.check(snapshot, object.permission(grant), target, access);
         if (granting?.isAllowed !== true) {
-            throw new ServiceError("FORBIDDEN", {
+            throw new CallError("FORBIDDEN", {
                 message: `explaining access to ${object.name} needs ${grant}`,
             });
         }
@@ -251,7 +252,7 @@ async function explain(call: Call): Promise<Explanation> {
     else {
         const reading = await authorizer.check(snapshot, requireReading(object), target, access);
         if (!reading.isAllowed) {
-            throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${target.id}` });
+            throw new CallError("NOT_FOUND", { message: `no ${object.name} ${target.id}` });
         }
 
         return authorizer.explain(snapshot, explained(), target, access);
@@ -261,7 +262,7 @@ async function explain(call: Call): Promise<Explanation> {
 /** Read the permission reading an object of a type needs. */
 function requireReading(object: ObjectType) {
     if (object.reading === undefined) {
-        throw new ServiceError("BAD_REQUEST", { message: `${object.name} has no objects to read` });
+        throw new CallError("BAD_REQUEST", { message: `${object.name} has no objects to read` });
     }
 
     return object.reading;
@@ -276,13 +277,13 @@ async function requirePresent(call: Call, state: "live" | "stored"): Promise<voi
 
     // refuse a missing or trashed object
     if (row === undefined) {
-        throw new ServiceError("NOT_FOUND", { message: `no ${call.object.name} ${call.id}` });
+        throw new CallError("NOT_FOUND", { message: `no ${call.object.name} ${call.id}` });
     } else if (
         state === "live" &&
         row["deletionRequestedAt"] !== undefined &&
         row["deletionRequestedAt"] !== null
     ) {
-        throw new ServiceError("CONFLICT", { message: `${call.object.name} is in the trash` });
+        throw new CallError("CONFLICT", { message: `${call.object.name} is in the trash` });
     }
 }
 

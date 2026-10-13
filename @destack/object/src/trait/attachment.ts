@@ -7,7 +7,7 @@ import type { Trait } from "./trait.ts";
 /** Objects taking attachments of other types. */
 export const attachments: Trait<readonly Attachment[]> = {
     key: "attachments",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) =>
         definition.attachments === undefined || definition.attachments.length === 0
             ? undefined

@@ -1,7 +1,9 @@
 import { accessRelationship } from "@destack/access";
-import { identifier, integer, json, text } from "@destack/db";
+import { type Column, identifier, index, integer, json, text } from "@destack/db";
+import { eventColumns } from "@destack/event";
 import { validated } from "../field/field.ts";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
+import { ObjectType, type ObjectStorage } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
 /** User-defined labels indexed by name. */
@@ -39,13 +41,25 @@ export function naturalKeyColumn<Key extends schema.Schema<string>>(key: Key) {
     return validated("id", key).primaryKey();
 }
 
-/** The columns every record has, its identifier the natural key when the objects declare one. */
-export type RecordBuilderMap<Prefix extends string = string, Key = undefined> =
-    Key extends schema.Schema<string>
-        ? Omit<ReturnType<typeof recordColumns<Prefix>>, "id"> & {
-              readonly id: ReturnType<typeof naturalKeyColumn<Key>>;
-          }
-        : ReturnType<typeof recordColumns<Prefix>>;
+/** Declare the columns every event has beside its scope and data: identity and time. */
+export function eventRecordColumns() {
+    const { id, time } = eventColumns();
+
+    return { id, time };
+}
+
+/** The columns every record has, an event's in the event log. */
+export type RecordBuilderMap<
+    Prefix extends string = string,
+    Key = undefined,
+    Storage = "durable",
+> = Storage extends "events"
+    ? ReturnType<typeof eventRecordColumns>
+    : Key extends schema.Schema<string>
+      ? Omit<ReturnType<typeof recordColumns<Prefix>>, "id"> & {
+            readonly id: ReturnType<typeof naturalKeyColumn<Key>>;
+        }
+      : ReturnType<typeof recordColumns<Prefix>>;
 
 /** Declare the column holding an ephemeral object's writer. */
 export function writerColumns() {
@@ -60,15 +74,37 @@ export type WriterBuilderMap<Storage> = Storage extends "ephemeral"
     ? ReturnType<typeof writerColumns>
     : {};
 
-/** The record trait every object takes. */
-export const record: Trait<true> = {
-    options: () => true,
-    columns: (_options, object) => ({
-        ...recordColumns(object.identity),
-        ...(object.key === undefined ? {} : { id: naturalKeyColumn(object.key) }),
-        ...(object.storage === "ephemeral" ? writerColumns() : {}),
-    }),
-    constraints: () => [],
+/** The record trait every object takes, by the storage keeping the objects. */
+export const record: Trait<ObjectStorage> = {
+    options: (definition) => ObjectType.storageKind(definition.storage),
+    columns: (_options, object) =>
+        object.storage === "events"
+            ? eventRecordColumns()
+            : {
+                  ...recordColumns(object.identity),
+                  ...(object.key === undefined ? {} : { id: naturalKeyColumn(object.key) }),
+                  ...(object.storage === "ephemeral" ? writerColumns() : {}),
+              },
+    // index the event log by time, and by each key that keeps no map
+    constraints: (storage, table, columns) =>
+        storage !== "events"
+            ? []
+            : [
+                  index(`${table}_time`).on(
+                      present(columns["scope"], "the scope column"),
+                      present(columns["time"], "the time column"),
+                      present(columns["id"], "the identity column"),
+                  ),
+                  ...Object.entries(columns)
+                      .filter(([name, column]) => isKeyColumn(name, column))
+                      .map(([, column]) =>
+                          index(`${table}_${column.definition.name}`).on(
+                              present(columns["scope"], "the scope column"),
+                              column,
+                              present(columns["time"], "the time column"),
+                          ),
+                      ),
+              ],
     // cascade durable objects' relationships
     table: (_options, object) =>
         object.storage !== "durable"
@@ -85,3 +121,8 @@ export const record: Trait<true> = {
               },
     methods: () => ({}),
 };
+
+/** Report whether an event column is a key an index covers: beside the event columns, no map. */
+function isKeyColumn(name: string, column: Column): boolean {
+    return !Object.hasOwn(eventColumns(), name) && column.definition.kind !== "json";
+}

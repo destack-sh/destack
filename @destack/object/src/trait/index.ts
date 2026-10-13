@@ -10,6 +10,7 @@ export {
     type ProvisionedObject,
     type ProvisionedRecord,
 } from "./provisioned.ts";
+export { DesiredState, desiredState } from "./desired.ts";
 export { tracked, type TrackedDefinition } from "./tracked.ts";
 export { ParentReference } from "./nested.ts";
 export { expiring, type ExpiryRule } from "./expiring.ts";

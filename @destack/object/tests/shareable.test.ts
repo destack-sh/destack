@@ -10,7 +10,7 @@ const board = defineObject({
     scope: space,
     fields: { title: field.string() },
     shareable: {},
-}).methods((method) => ({ get: method.get("read"), update: method.update("edit") }));
+}).methods((method) => ({ update: method.update("edit") }));
 
 /** Hold a permission through each of some relations. */
 function holders(...relations: string[]): ReturnType<typeof relation>[] {

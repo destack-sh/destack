@@ -1,12 +1,12 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { present, schema, Clock } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -40,7 +40,6 @@ const board = defineObject({
     search: { searchable: ["name", "summary"], filterable: ["ownerId"], sortable: ["rank"] },
     permissions: { read: relation("owner"), write: relation("owner") },
 }).methods((method) => ({
-    get: method.get("read"),
     create: method.create("write", { fields: ["name", "icon", "color", "cover"] }),
 }));
 
@@ -48,7 +47,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
     // keep a board with an icon, an accent and a cover
     const storage = await TestDatabase.create(
         present(TEST_DIALECTS.at(-1), "the last test dialect"),
-        defineDatabase({ name: "board", tables: [...board.tables, journal] }),
+        defineDatabase({ name: "board", tables: [...board.tables, ...callTables] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -56,10 +55,11 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { board },
+        objects: [board],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: board.package, service: "test" },
+        events: await testEvents(storage.database),
+        origin: { package: board.package },
     });
     const created = await store
         .mutate(userContext("user-1", spaceId).caller(), {

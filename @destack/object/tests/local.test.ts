@@ -1,18 +1,22 @@
-import { expect, test } from "@destack/test";
-import { principal } from "@destack/access";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { accessTables, Caller, CONTAINED, principal } from "@destack/access";
+import { AccessFixture } from "@destack/access/test";
+import { RequestId } from "@destack/runtime/request";
+import { Scope, type Subject } from "@destack/sync";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
 import { Identifier, Clock } from "@destack/schema";
-import { defineService } from "@destack/service";
-import { testCallKey } from "@destack/service/test";
+import { definePackage } from "@destack/runtime";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
 import { client, defineObject, field } from "../src/index.ts";
-import { ObjectExtension } from "../src/server/index.ts";
+import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { spacePrincipal } from "./fixture/space.ts";
-import { draft, panel, user } from "./fixture/local.ts";
+import { draft, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { unmoved } from "./fixture/space.ts";
 
@@ -106,27 +110,26 @@ test("keep a user's local objects from another user on the same client, and the 
     await storage.close();
 });
 
-test("refuse to serve local objects, and refuse local definitions reaching beyond the client", async () => {
+test("refuse to serve local objects at another principal's store, and refuse local definitions reaching beyond the client", async () => {
     const { database } = await serveNotes("sqlite");
     const local = { scope: client, storage: "local", fields: {}, permissions: [] } as const;
+    const events = await testEvents(database);
 
     // refuse a server for a local type, and local types in the universe, in several scopes or with durable traits
     expect([
         failure(
             () =>
                 ObjectExtension.compose(
-                    [ObjectExtension.of(defineService("drafts", { objects: { draft } }), [])],
+                    [ObjectExtension.of(definePackage({ objects: { draft } }), [])],
                     {
                         clock: Clock.system,
-                        origin: {
-                            package: defineService("drafts", { objects: { draft } }).package,
-                            service: defineService("drafts", { objects: { draft } }).name,
-                        },
+                        origin: { package: draft.package },
                         principal: spacePrincipal(spaceId),
                         callKey: testCallKey,
+                        events,
                         database,
                     },
-                ).services[0],
+                ).packages[0],
         ),
         failure(() =>
             defineObject({
@@ -159,12 +162,74 @@ test("refuse to serve local objects, and refuse local definitions reaching beyon
             })),
         ),
     ]).toEqual([
-        "local object draft lives on its client, and no server serves it",
+        "local object draft lives in its scope's own store alone",
         "local object shared lives in one scope type",
         "local object spread lives in one scope type",
         "local object kept takes no inherited",
         "local object remote runs method create off the client",
     ]);
+});
+
+test("serve a client's local objects at its own store to the people signed in on it alone", async () => {
+    // keep a laptop's stickies
+    const [ada, bob] = [Identifier.create("user"), Identifier.create("user")];
+    const laptop = client.reference(Scope.universe.id, Identifier.create("client"));
+    const storage = await TestDatabase.create(
+        "sqlite",
+        [...accessTables, sticky.table, ...callTables],
+        {
+            isMigrated: true,
+        },
+    );
+    onTestFinished(() => storage.close());
+    await new AccessFixture(storage.database).copyScope(laptop);
+
+    // serve them at the laptop's own store
+    const store = new ObjectStore({
+        clock: Clock.system,
+        principal: principal.client.reference(Scope.universe.id, laptop.id),
+        objects: [sticky],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: sticky.package },
+    });
+
+    // call as ada signed in on the laptop, who lives inside it, and as bob signed in elsewhere
+    const callerOf = (id: string, inside: readonly Subject[]): Caller => {
+        const person = Caller.of(principal.user.reference(Scope.universe.id, id), Date.now());
+
+        return { ...person, subjects: [...person.subjects, ...inside] };
+    };
+    const callers = {
+        ada: callerOf(ada, [{ ...laptop, relation: CONTAINED }]),
+        bob: callerOf(bob, []),
+    };
+    const write = (caller: Caller, text: string) =>
+        refusal(
+            store.mutate(caller, {
+                id: RequestId.create(Date.now()),
+                calls: [sticky.call("create", { clientId: laptop.id, text })],
+            }),
+        );
+    const list = async (caller: Caller) => {
+        const listed = store.query(caller, sticky.call("list", { clientId: laptop.id }));
+
+        return listed.then((page) => page.items.map((row) => row.text), refusalOf);
+    };
+
+    // write and list a sticky as each, bob seeing none of the laptop's
+    expect({
+        adaWrites: await write(callers.ada, "Water the plants"),
+        bobWrites: await write(callers.bob, "Call home"),
+        adaLists: await list(callers.ada),
+        bobLists: await list(callers.bob),
+    }).toEqual({
+        adaWrites: "done",
+        bobWrites: ["NOT_FOUND", "sticky not found"],
+        adaLists: ["Water the plants"],
+        bobLists: [],
+    });
 });
 
 /** Read the drafts and panel widths a client shows its caller. */
@@ -180,6 +245,11 @@ async function readLocal(access: ObjectAccess<{ draft: typeof draft; panel: type
     await Promise.all([drafts.close(), panels.close()]);
 
     return rows;
+}
+
+/** Read a call's refusal as its code and message. */
+function refusalOf(error: unknown): Promise<"done" | readonly [string, string]> {
+    return refusal(Promise.reject(error));
 }
 
 /** Read the message a definition or construction fails with. */

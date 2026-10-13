@@ -1,13 +1,13 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { type DatabaseConnection, eq } from "@destack/db";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { schema, type JsonObject, Clock } from "@destack/schema";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { contained, Manager, principal, relation, through, union } from "@destack/access";
-import { journal } from "@destack/audit/stack";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import { ObjectStore, Stack } from "../src/server/index.ts";
 import { label, note, objectDatabase, task } from "./schema.ts";
@@ -30,15 +30,16 @@ const card = defineObject({
 }).methods((method) => ({ create: method.create("write") }));
 
 /** Serve the declared objects over a database, applying their records. */
-function serve(database: DatabaseConnection): ObjectStore {
+async function serve(database: DatabaseConnection): Promise<ObjectStore> {
     return new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { label, note, task },
+        objects: [label, note, task],
         policies: [space],
         database,
         callKey: testCallKey,
-        origin: { package: note.package, service: "test" },
+        events: await testEvents(database),
+        origin: { package: note.package },
     });
 }
 
@@ -80,7 +81,7 @@ test.each(TEST_DIALECTS)(
             as: spacePrincipal(spaceId),
             scope: spaceId,
             document: { notes: { one: { title: "first" } } },
-            store: serve(database),
+            store: await serve(database),
             release: async (step) => {
                 await step.rows(note.table, {});
                 throw new TypeError("no release in this test");
@@ -128,7 +129,7 @@ test.each(TEST_DIALECTS)(
         await database
             .insert(space.table)
             .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
-        const store = serve(database);
+        const store = await serve(database);
         const apply = (document: JsonObject) =>
             Stack.apply({
                 now: Date.now(),
@@ -211,7 +212,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
         fields: { bookCount: field.count() },
         relations: { reader: { subjects: [principal.user] } },
         permissions: { read: relation("reader") },
-    }).methods((method) => ({ get: method.get("read"), list: method.list("read") }));
+    }).methods();
     const book = (read: ReturnType<typeof union>) =>
         defineObject({
             name: "book",
@@ -222,7 +223,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
             aggregates: { bookCount: { function: "count" } },
             relations: { owner: { subjects: [principal.user] } },
             permissions: { read },
-        }).methods((method) => ({ list: method.list("read") }));
+        }).methods();
 
     // count books every shelf reader lists, and refuse books only their owners list
     expect(book(union(relation("owner"), through("parent", "read"))).name).toBe("book");
@@ -263,7 +264,7 @@ test("refuse declarations that depend on themselves, also next to one depending 
             as: spacePrincipal(spaceId),
             scope: spaceId,
             document: {},
-            store: serve(storage.database),
+            store: await serve(storage.database),
         }),
     ).rejects.toMatchObject({
         code: "CYCLIC_DECLARATION",
@@ -274,7 +275,7 @@ test("refuse declarations that depend on themselves, also next to one depending 
 test.each(TEST_DIALECTS)(
     "adopt a direct record into a declaration whose next apply rewrites it, refusing managed records and a second record per declaration on %s",
     async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...card.tables, journal], {
+        const storage = await TestDatabase.create(dialect, [...card.tables, ...callTables], {
             isMigrated: true,
         });
         onTestFinished(() => storage.close());
@@ -283,10 +284,11 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { card },
+            objects: [card],
             database,
             callKey: testCallKey,
-            origin: { package: card.package, service: "test" },
+            events: await testEvents(database),
+            origin: { package: card.package },
         });
 
         // write two cards directly as alice, and hand them over as her
@@ -389,5 +391,5 @@ function ledger(isScope: boolean) {
         fields: { title: field.string().default("") },
         permissions: { read: union(relation("owner"), contained(principal.space)) },
         relations: { owner: { subjects: [principal.user] } },
-    }).methods((method) => ({ get: method.get("read") }));
+    }).methods();
 }

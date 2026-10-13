@@ -29,10 +29,10 @@ export type BindableProcedures = {
     >;
 };
 
-/** Objects that installations and machine services bind to and consume, such as secrets. */
+/** Objects that installations and machines bind to and consume, such as secrets. */
 export const bindable: Trait<true | Gated> = {
     key: "bindable",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.bindable,
     columns: () => ({}),
     constraints: () => [],

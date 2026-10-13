@@ -4,26 +4,24 @@ import { onTestFinished } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
-import { PackageId } from "@destack/package";
+import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { schema, present, Clock } from "@destack/schema";
-import { createClient, type ClientOptions } from "@destack/service/client";
-import { Health } from "@destack/service/health";
-import { Server, type ServiceImplementation } from "@destack/service/server";
+import { createClient, type ClientOptions } from "@destack/runtime/client";
+import { Health } from "@destack/runtime/health";
+import { Server, type PackageImplementation } from "@destack/runtime/server";
 import { v7 } from "uuid";
-import { note, notebook, notesDatabase, notesService } from "./note.ts";
+import { note, notebook, notesDatabase, notesPackage } from "./note.ts";
 import { principal } from "@destack/access";
 import { openSpace, spacePrincipal, unmoved } from "./space.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../../src/test/index.ts";
 
 /** The space with the notes. */
 export const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 
 /** The object types a device keeps, by key. */
 const DEVICE_OBJECTS = { notebook, note };
-
-/** The package serving the notes. */
-const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e238");
 
 /** Serve a space's notes to bearer-identified users, returning a client per user. */
 export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) {
@@ -35,34 +33,34 @@ export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) 
 
     // serve the notes over HTTP to bearer-identified users
     const served = serveObjects(
-        ObjectExtension.compose([ObjectExtension.of(notesService, [])], {
-            origin: { package: notesService.package, service: notesService.name },
+        ObjectExtension.compose([ObjectExtension.of(notesPackage, [])], {
+            origin: { package: Package.of(notesPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
+            events: await testEvents(database),
             database,
             clock,
-        }).services[0],
+        }).packages[0],
         spaceId,
     );
 
-    const connect = (user: string) => createClient(notesService, served.endpoint(user));
+    const connect = (user: string) => createClient(notesPackage, served.endpoint(user));
 
     return { connect, endpoint: served.endpoint, server: served.server, database };
 }
 
-/** Serve an object service over HTTP to bearer-identified users in a space, with each user's endpoint. */
-export function serveObjects(implementation: ServiceImplementation, scope: string) {
+/** Serve objects over HTTP to bearer-identified users in a space, with each user's endpoint. */
+export function serveObjects(implementation: PackageImplementation, scope: string) {
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
         clock: Clock.system,
         ...implementation,
-        audience,
         scope,
         resources: new ResourceContext(),
-        health: new Health(implementation.service.name),
+        health: new Health(implementation.package.name),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: bearerUser(audience, scope),
+        authenticate: bearerUser(notesPackage.id, scope),
     });
     onTestFinished(() => server.close());
 

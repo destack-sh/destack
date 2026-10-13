@@ -1,19 +1,17 @@
 import { permission, principal, relation, union } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
-import type { ResourceState } from "@destack/package/declare";
 import {
     CONNECTION_PROVIDER,
     ResourceDefinition,
     ResourcePlacement,
     ResourceRetention,
-    type KindState,
     type ResourceKind,
 } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
-import { field, type FieldOf } from "../field/field.ts";
+import { field } from "../field/field.ts";
 import { method } from "../method/record.ts";
 import {
     ObjectPermissions,
@@ -80,9 +78,9 @@ function resourceFields(kind: ResourceKind) {
         definitionName: field.string(),
         /** The desired specification. */
         spec: field.json(kind.spec),
-        /** The desired states the active consumers need, which the provider applies. */
+        /** The digests of the states the active consumers need, which the provider applies. */
         states: field.json(desiredStates(kind)).default([]),
-        /** The desired states only draining consumers need, dropped after they stop. */
+        /** The digests of the states only draining consumers need, dropped after they stop. */
         drainingStates: field.json(desiredStates(kind)).default([]),
         /** The digest of the desired states the provider applied, absent before the first apply. */
         appliedState: field.string(Digest).optional(),
@@ -107,40 +105,20 @@ function resourceFields(kind: ResourceKind) {
     };
 }
 
-/** Read a kind's desired state schema: its state's values, none for a stateless kind. */
-function desiredStates(kind: ResourceKind): schema.Schema<ResourceState[]>;
-/**
- * Read the schema of a kind's desired states by its state schema.
- *
- * @construct a kind's state schema parses the JSON objects its declarations require of a resource.
- */
-function desiredStates(kind: ResourceKind): schema.Schema {
-    return kind.state === undefined
-        ? schema.array(schema.record(schema.string(), schema.json())).max(0)
-        : schema.array(kind.state);
+/** Read the schema of a kind's desired states by digest, none for a stateless kind. */
+function desiredStates(kind: ResourceKind) {
+    return kind.state === undefined ? schema.array(Digest).max(0) : schema.array(Digest);
 }
 
 /** The fields a definition provisioned as a kind's resources takes, none otherwise. */
 export type ProvisionedFieldsOf<Provisioning> = Provisioning extends {
     readonly kind: infer Kind extends ResourceKind;
 }
-    ? Omit<ReturnType<typeof resourceFields>, "spec" | "states" | "drainingStates"> & {
+    ? Omit<ReturnType<typeof resourceFields>, "spec"> & {
           /** The desired specification, typed by the kind. */
           readonly spec: ReturnType<typeof field.json<schema.Output<Kind["spec"]>>>;
-          /** The desired states the active consumers need, typed by the kind. */
-          readonly states: FieldOf<{ value: readonly DesiredStateOf<Kind>[]; default: true }>;
-          /** The desired states only draining consumers still need, typed by the kind. */
-          readonly drainingStates: FieldOf<{
-              value: readonly DesiredStateOf<Kind>[];
-              default: true;
-          }>;
       }
     : {};
-
-/** A kind's desired state: its state's value, or any state in kind-generic code. */
-type DesiredStateOf<Kind extends ResourceKind> = string extends Kind["name"]
-    ? ResourceState
-    : KindState<Kind> & ResourceState;
 
 /** The table of a kind's resources in a scope type, as code generic over kinds reads it. */
 export type ProvisionedTable<Scope> = ObjectTable<
@@ -311,8 +289,6 @@ export const Provisioned = {
 /** Declare the methods every resource takes beside those of its kind. */
 function resourceMethods() {
     return {
-        get: method.get("read"),
-        list: method.list("read"),
         create: method.create("declare", {
             isInternal: true,
             fields: [

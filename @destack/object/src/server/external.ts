@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "@destack/db";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import type { ObjectType } from "../object/object.ts";
 
 /** The files of external objects' rows, each scope's opened as a read-only database. */
@@ -24,7 +24,7 @@ export const ExternalStorage = {
         // refuse types kept apart or nowhere, and several stores for none
         const [only, ...others] = found;
         if (only === undefined || others.length > 0) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `no one store keeps the external objects ${names.join(", ")}`,
             });
         }

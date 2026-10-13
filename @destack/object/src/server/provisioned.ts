@@ -2,6 +2,7 @@ import { accessRelationship } from "@destack/access";
 import { and, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import {
     Address,
+    type KindState,
     Plan,
     type Provider,
     type ResourceKind,
@@ -9,8 +10,7 @@ import {
     type Step,
 } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import type { ResourceState } from "@destack/package/declare";
-import { aligned, Digest, Duration, type Identifier } from "@destack/schema";
+import { aligned, Digest, Duration, type Identifier, present } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import {
     ObjectWatch,
@@ -21,10 +21,14 @@ import { type Condition, type ObservationReport } from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ProvisionedObject, type ProvisionedRecord } from "../trait/provisioned.ts";
+import { DesiredState } from "../trait/desired.ts";
 import { Call } from "../method/call.ts";
 
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
 export const DRAINING = "draining";
+
+/** The parsed desired states a controller keeps: the platform's, its predecessor's and apps'. */
+const DESIRED_STATES_KEPT = 16;
 
 /** What a process reconciling the resources it serves supplies: its providers and its machine. */
 export interface ProvisionedOptions {
@@ -37,6 +41,15 @@ export interface ProvisionedOptions {
     readonly machine: Identifier<"machine">;
 }
 
+/** What one reconcile of a resource uses: the process's providers and its desired states. */
+interface ReconcileOptions extends ProvisionedOptions {
+    /** Read the desired states of some digests a resource lists. */
+    readonly states: (
+        row: ProvisionedRecord,
+        digests: readonly Digest[],
+    ) => Promise<KindState<ResourceKind>[]>;
+}
+
 /** The control loop of one kind's provisioned objects through a process's providers. */
 export class ProvisionedController implements ObjectController<ProvisionedObject<"space">> {
     /** The rows the loop takes: every resource of the kind. */
@@ -47,6 +60,10 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     readonly #object: ProvisionedObject<"space">;
     /** The process's providers of the kind and its machine. */
     readonly #options: ProvisionedOptions;
+    /** The resources' kind. */
+    readonly #kind: ResourceKind;
+    /** The desired states read so far by digest, parsed by the kind, the latest read last. */
+    readonly #states = new Map<Digest, unknown>();
 
     /** Reconcile a kind's provisioned objects via its providers, refusing self-controlled ones. */
     constructor(object: ProvisionedObject<"space">, options: ProvisionedOptions) {
@@ -61,6 +78,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
             throw new TypeError(`no provider here serves ${object.name} resources`);
         }
         this.#object = object;
+        this.#kind = present(object.provisioned, `the kind of ${object.name}`).kind;
         this.#options = { ...options, providers };
 
         // wake a resource once its consumers change, and the resources of a scope this database starts or stops holding
@@ -88,12 +106,50 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Reconcile one resource, returning when to look again. */
     reconcile(reconciliation: ObjectReconciliation<ProvisionedObject<"space">>) {
-        return reconcile(
-            this.#object,
-            aligned(reconciliation.rows, 0),
-            reconciliation,
-            this.#options,
-        );
+        return reconcile(this.#object, aligned(reconciliation.rows, 0), reconciliation, {
+            ...this.#options,
+            states: (row, digests) => this.#read(reconciliation.database, row, digests),
+        });
+    }
+
+    /** Read the desired states of some digests a resource lists, each parsed once by the kind. */
+    async #read(
+        database: DatabaseConnection,
+        row: ProvisionedRecord,
+        digests: readonly Digest[],
+    ): Promise<KindState<ResourceKind>[]>;
+    /**
+     * Read the states, parsing each missing one by the kind's state schema.
+     *
+     * @construct every kept state is the output of the kind's state schema.
+     */
+    async #read(
+        database: DatabaseConnection,
+        row: ProvisionedRecord,
+        digests: readonly Digest[],
+    ): Promise<unknown[]> {
+        // read and parse the states not kept
+        const missing = digests.filter((digest) => !this.#states.has(digest));
+        if (missing.length > 0) {
+            const parsed = this.#kind.states(
+                await DesiredState.read(Snapshot.live(database), row.scope, missing),
+            );
+            for (const [index, digest] of missing.entries()) {
+                this.#states.set(digest, aligned(parsed, index));
+            }
+        }
+
+        // keep the latest read states
+        const states = digests.map((digest) => present(this.#states.get(digest), digest));
+        for (const [index, digest] of digests.entries()) {
+            this.#states.delete(digest);
+            this.#states.set(digest, aligned(states, index));
+        }
+        for (const digest of [...this.#states.keys()].slice(0, -DESIRED_STATES_KEPT)) {
+            this.#states.delete(digest);
+        }
+
+        return states;
     }
 
     /** Select the provider a resource requests, or the first of its kind. */
@@ -114,7 +170,7 @@ async function reconcile(
     object: ProvisionedObject<"space">,
     row: ProvisionedRecord,
     reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    options: ProvisionedOptions,
+    options: ReconcileOptions,
 ): Promise<number | undefined> {
     // act only on a resource whose scope this database holds and whose owner set its approval threshold
     const { approval } = row;
@@ -252,7 +308,7 @@ async function apply(
     row: ProvisionedRecord,
     approval: Risk,
     reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    options: ProvisionedOptions,
+    options: ReconcileOptions,
 ): Promise<void> {
     // require the resource's provider
     const provider = ProvisionedController.select(options.providers, row);
@@ -271,7 +327,7 @@ async function apply(
     }
 
     // plan the desired states or a recreation stopping the draining consumers first
-    const planned = await planRecreation(object, row, provider, reconciliation);
+    const planned = await planRecreation(object, row, provider, reconciliation, options);
     if (planned === undefined) {
         return;
     }
@@ -309,7 +365,7 @@ async function apply(
     // apply the plan and record the desired states it applied
     else {
         const digests = { plan: planDigest, state: stateDigest };
-        await applyPlan(object, row, provider, plan, digests, reconciliation);
+        await applyPlan(object, row, provider, plan, digests, reconciliation, options);
     }
 }
 
@@ -319,12 +375,13 @@ async function planRecreation(
     row: ProvisionedRecord,
     provider: ProvisionedOptions["providers"][number],
     reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+    options: ReconcileOptions,
 ): Promise<{ readonly plan: Plan; readonly isDraining: boolean } | undefined> {
     // plan the desired states
-    const planOf = (states: readonly ResourceState[]) =>
+    const planOf = async (digests: readonly Digest[]) =>
         provider.reconcile !== undefined
-            ? provider.reconcile.plan(provider.kind.record(row), provider.kind.states(states))
-            : Promise.resolve({ steps: [] });
+            ? provider.reconcile.plan(provider.kind.record(row), await options.states(row, digests))
+            : { steps: [] };
     try {
         return { plan: await planOf([...row.states, ...row.drainingStates]), isDraining: false };
     } catch (error) {
@@ -373,13 +430,14 @@ async function applyPlan(
     plan: Plan,
     digests: { readonly plan: string; readonly state: string },
     reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+    options: ReconcileOptions,
 ): Promise<void> {
     try {
         // apply the plan
         if (provider.reconcile !== undefined) {
             await provider.reconcile.apply(
                 provider.kind.record(row),
-                provider.kind.states([...row.states, ...row.drainingStates]),
+                await options.states(row, [...row.states, ...row.drainingStates]),
                 digests.plan,
             );
         }

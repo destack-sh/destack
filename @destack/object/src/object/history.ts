@@ -49,12 +49,6 @@ export const activity = {
             },
         } as const;
     },
-
-    /** Declare the activities' read methods. */
-    methods: (method: MethodBuilder<ActivityTable>) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-    }),
 };
 
 /** A scope type's checkpoints: named points in an object's history. */
@@ -85,8 +79,6 @@ export const checkpoint = {
 
     /** Declare the checkpoints' methods, a creation marking the transaction's base position. */
     methods: (method: MethodBuilder<ObjectTable>) => ({
-        get: method.get("read"),
-        list: method.list("read"),
         create: {
             ...method
                 .create("checkpoint", { fields: ["title", "description"] })

@@ -1,7 +1,6 @@
 import { Subject } from "@destack/sync";
 import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { principal, relation, through, union } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
@@ -17,7 +16,8 @@ import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { request } from "./fixture/request.ts";
 
 /** The space containing the pages. */
@@ -27,9 +27,7 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const MINUTE = 60_000;
 
 /** The sessions of changes to pages. */
-const activity = defineObject(Intrinsic.activity.definition(space)).methods(
-    Intrinsic.activity.methods,
-);
+const activity = defineObject(Intrinsic.activity.definition(space)).methods();
 
 /** The named points in pages' history. */
 const checkpoint = defineObject(Intrinsic.checkpoint.definition(space)).methods(
@@ -56,8 +54,6 @@ const page = defineObject({
     attachments: [activity.attach({ by: "read" }), checkpoint.attach({ by: "edit" })],
     tracked: { by: "edit", activity },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("edit"),
     update: method.update("edit"),
 }));
@@ -184,7 +180,7 @@ test("refuse serving history that reads through an object keeping none", async (
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
         permissions: { read: relation("owner") },
-    }).methods((method) => ({ get: method.get("read") }));
+    }).methods();
     const sheet = defineObject({
         name: "sheet",
         plural: "sheets",
@@ -194,24 +190,26 @@ test("refuse serving history that reads through an object keeping none", async (
         permissions: { read: through("parent", "read") },
         attachments: [activity.attach({ by: "read" })],
         tracked: { by: "read", activity },
-    }).methods((method) => ({ get: method.get("read") }));
+    }).methods();
 
     // refuse the sheet's history, which the folder's lost changes decided
     const storage = await TestDatabase.create(
         "sqlite",
-        defineDatabase({ name: "main", tables: [journal] }),
+        defineDatabase({ name: "main", tables: [...callTables] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
+    const events = await testEvents(storage.database);
     expect(
         () =>
             new ObjectStore({
                 clock: Clock.system,
                 principal: spacePrincipal(spaceId),
-                objects: { activity, folder, sheet },
+                objects: [activity, folder, sheet],
                 database: storage.database,
                 callKey: testCallKey,
-                origin: { package: activity.package, service: "test" },
+                events,
+                origin: { package: activity.package },
             }),
     ).toThrow(
         new TypeError("object sheet keeps history but reads through folder, which keeps none"),
@@ -221,12 +219,12 @@ test("refuse serving history that reads through an object keeping none", async (
 /** Serve pages over a new database to one user at a set time. */
 async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
     // keep the pages, their activities and checkpoints, and requests in one database
-    const objects = { activity, checkpoint, page };
+    const objects = [activity, checkpoint, page];
     const storage = await TestDatabase.create(
         dialect,
         defineDatabase({
             name: "main",
-            tables: [journal, ...Object.values(objects).flatMap((object) => object.tables)],
+            tables: [...callTables, ...objects.flatMap((object) => object.tables)],
         }),
         { isMigrated: true },
     );
@@ -241,9 +239,9 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
         objects,
         database: storage.database,
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         origin: {
             package: activity.package,
-            service: "test",
         },
         clock,
     });
@@ -290,7 +288,8 @@ test("undo a revert by updating the reverted fields no one changed since back", 
         }),
     ).toEqual([
         {
-            method: "page.update",
+            type: page.typeReference,
+            method: "update",
             release: page.package.version,
             input: { spaceId, id: "page-1", title: "Roadmap" },
         },

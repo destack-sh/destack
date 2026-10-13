@@ -2,8 +2,8 @@ import { broadcastChannel, type Channel } from "@destack/db";
 import type { Clock, Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import { connectShared } from "@destack/db/browser";
-import type { ClientOptions } from "@destack/service/client";
-import { RequestId } from "@destack/service/request";
+import type { ClientOptions } from "@destack/runtime/client";
+import { RequestId } from "@destack/runtime/request";
 import type { ObjectType } from "../object/object.ts";
 import { ObjectClient } from "../client/client.ts";
 
@@ -90,10 +90,12 @@ export class BrowserTab<
         readonly caller: Subject;
         /** The browser's client, whose partition keeps local objects scoped to clients. */
         readonly client: Subject;
-        /** Where and how to reach the service serving the objects. */
+        /** Where and how to reach the server serving the objects. */
         readonly endpoint: ClientOptions;
         /** Where and how to reach the machine serving a moved scope now. */
         readonly reconnect: (machine: string) => ClientOptions;
+        /** Where and how to reach the home of an enclosing scope whose rows the tab changes. */
+        readonly homes?: (scope: string) => ClientOptions;
         /** The most object rows the shared copy keeps, absent for no limit. */
         readonly storage?: { readonly rows: number };
         /** How long the shared local log keeps changes, a minute by default. */

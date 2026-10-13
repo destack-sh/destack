@@ -2,7 +2,7 @@ import { present, schema } from "@destack/schema";
 import { Step } from "./step.ts";
 import { defineMethod, type Method } from "./method.ts";
 import { SequenceEdit } from "../sequence/index.ts";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { Chunk, Undo } from "../text/chunk.ts";
 
 /** Edit one text field of an object. */
@@ -55,7 +55,7 @@ export function edit(
                     .requireAuthorization()
                     .check(call.object.permission(guard), call.reference());
                 if (!decision.isAllowed) {
-                    throw new ServiceError("FORBIDDEN", {
+                    throw new CallError("FORBIDDEN", {
                         message: `field ${field} is not writable`,
                     });
                 }

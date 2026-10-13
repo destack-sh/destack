@@ -1,11 +1,11 @@
 import { none, through, Caller } from "@destack/access";
-import type { AuditCall } from "@destack/audit";
-import { journal } from "@destack/audit/stack";
+import { call, journal } from "../src/index.ts";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
-import { reconciliation, testCallKey } from "@destack/service/test";
+import { RequestId } from "@destack/runtime/request";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -14,6 +14,7 @@ import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
+import { auditedCalls } from "./fixture/audit.ts";
 
 /** An API key a caller hands a method, which nothing derived from the call keeps. */
 const ApiKey = schema.sensitive(schema.string().regex(/^sk-/u));
@@ -26,7 +27,6 @@ const holder = defineObject({
     fields: { label: field.string(), token: field.string().sensitive().optional() },
     permissions: { read: through("space", "read"), provision: none() },
 }).methods((method) => ({
-    get: method.get("read"),
     create: method.create("read", {
         fields: ["label", "token"],
         input: schema.object({ key: ApiKey }),
@@ -40,14 +40,13 @@ const holder = defineObject({
 }));
 
 test("keep a sensitive input out of the rows, the journal, the audit events, the telemetry and the error of a refused call, and a sensitive column in its row alone", async () => {
-    // serve the holders, delivering audit events and exporting telemetry to lists
+    // serve the holders, recording audit events and exporting telemetry to a list
     const storage = await TestDatabase.create(
         "sqlite",
-        defineDatabase({ name: "main", tables: [...holder.tables, space.table, journal] }),
+        defineDatabase({ name: "main", tables: [...holder.tables, space.table, ...callTables] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const audited: AuditCall[] = [];
     const exported: string[] = [];
     const telemetry = await startTelemetry(
         new OtlpExporter(
@@ -62,17 +61,11 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { holder },
+        objects: [holder],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: holder.package, service: "test" },
-        history: {
-            ingest: async (batch: { readonly calls: AuditCall[] }) => {
-                audited.push(...batch.calls);
-
-                return batch.calls.length;
-            },
-        },
+        events: await testEvents(storage.database),
+        origin: { package: holder.package },
     });
     await openSpace(storage.database, spaceId);
 
@@ -114,9 +107,11 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     }
     await telemetry.flush();
 
-    // deliver the journal's audit events, then read every place a call leaves a trace
+    // read every place a call leaves a trace
+    const audited = await auditedCalls(storage.database);
     const rows: Record<string, unknown> = {};
-    for (const table of [...holder.tables, journal]) {
+    const calls = call.eventKind().table;
+    for (const table of [...holder.tables, journal, calls]) {
         rows[table[TABLE].name] = await storage.database.select().from(table);
     }
     const traces = {
@@ -145,7 +140,14 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
         leaking,
         refusal: await refusal(Promise.reject(refused)),
         systemRefusal: await refusal(Promise.reject(refusedSystem)),
-        isAudited: audited.length > 0,
+        audited: audited.map(({ method, input, execution }) => ({
+            method,
+            input,
+            caller: execution.context.caller.subject.type,
+            target: execution.target.type,
+            outcome:
+                execution.outcome.kind === "success" ? "success" : execution.outcome.error.code,
+        })),
         isTokenKept: traces.rows.includes(token),
     }).toEqual({
         leaking: [],
@@ -154,7 +156,29 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
             "BAD_REQUEST",
             "invalid input: key: invalid string: must match pattern /^sk-/u",
         ],
-        isAudited: true,
+        audited: [
+            {
+                method: "holder.create",
+                input: {},
+                caller: "user",
+                target: "holder",
+                outcome: "success",
+            },
+            {
+                method: "holder.create",
+                input: {},
+                caller: "user",
+                target: "holders",
+                outcome: "BAD_REQUEST",
+            },
+            {
+                method: "holder.provision",
+                input: {},
+                caller: "space",
+                target: "holders",
+                outcome: "BAD_REQUEST",
+            },
+        ],
         isTokenKept: true,
     });
 });

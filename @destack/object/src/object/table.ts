@@ -22,9 +22,11 @@ import { ObjectConstraint } from "./constraint.ts";
 import { snakeCase, type SnakeCase } from "./name.ts";
 import {
     ObjectScope,
+    ObjectType,
     type TraitInstance,
     type ObjectAggregate,
     type ObjectDefinition,
+    type ObjectStorage,
 } from "./object.ts";
 
 /** The column builders fields create, by property name. */
@@ -108,7 +110,7 @@ export type ObjectBuilderMap<
     Traits = {},
     Identity extends string = Name,
     Storage = "durable",
-> = RecordBuilderMap<Identity, TraitOf<Traits, "key">> &
+> = RecordBuilderMap<Identity, TraitOf<Traits, "key">, Storage> &
     WriterBuilderMap<Storage> &
     ScopeBuilderMap<Scope> &
     ParentBuilderMap<Identity, TraitOf<Traits, "nested">> &
@@ -157,7 +159,7 @@ export function deriveTable(
         identity: definition.identity ?? name,
         packageId,
         table,
-        storage: definition.storage ?? "durable",
+        storage: ObjectType.storageKind(definition.storage),
         key: definition.key,
     };
 
@@ -165,6 +167,9 @@ export function deriveTable(
     const builders = objectColumns(definition, applied, object);
     const kept = applied.map(({ trait, options }) => trait.table?.(options, object) ?? {});
     const tree = kept.find((traitTable) => traitTable.tree !== undefined)?.tree;
+    const fullText = kept
+        .flatMap((traitTable) => traitTable.fullText ?? [])
+        .filter((property) => Object.hasOwn(builders, property));
 
     // define the table
     const tableName = snakeCase(name);
@@ -190,15 +195,30 @@ export function deriveTable(
             // rename moved fields' columns in place and convert stored rows
             moved: { columns: movedColumns(definition) },
             ...(definition.convert === undefined ? {} : { convert: definition.convert }),
-            // keep history for tracked objects and index a tree
-            log: definition.tracked === undefined ? {} : { retention: "history" },
+            // keep history for tracked objects, append events, and index a tree
+            log: logOf(definition, object.storage),
             ...(tree === undefined ? {} : { tree }),
+            ...(fullText.length === 0 ? {} : { fullText }),
         },
         module,
     );
     derived = defined;
 
     return defined;
+}
+
+/** Log a table's changes: its history when tracked, appends alone for the event log. */
+function logOf(definition: ObjectDefinition, storage: ObjectStorage) {
+    // append events alone
+    if (storage === "events") {
+        return { appendOnly: true };
+    }
+    // keep a tracked object's history
+    else if (definition.tracked !== undefined) {
+        return { retention: "history" as const };
+    }
+
+    return {};
 }
 
 /** Build an object's columns: the record trait's, the scope, the other traits' and the fields'. */

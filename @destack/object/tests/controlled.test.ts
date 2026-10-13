@@ -1,7 +1,7 @@
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test, TestClock } from "@destack/test";
 import { none, principal, relation, Caller } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
@@ -9,8 +9,9 @@ import { present, schema } from "@destack/schema";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { RequestId } from "@destack/service/request";
-import { testCallKey } from "@destack/service/test";
+import { RequestId } from "@destack/runtime/request";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 
 /** The space with the machines. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
@@ -40,7 +41,7 @@ const machine = defineObject({
 /** The database with the machines, their access and the journal. */
 const machineDatabase = defineDatabase({
     name: "main",
-    tables: [journal, ...machine.tables],
+    tables: [...callTables, ...machine.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -52,12 +53,12 @@ test.each(TEST_DIALECTS)(
         const clock = new TestClock(0);
         const store = new ObjectStore({
             principal: spacePrincipal(spaceId),
-            objects: { machine },
+            objects: [machine],
             database: storage.database,
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             origin: {
                 package: machine.package,
-                service: "test",
             },
             clock,
         });
@@ -199,10 +200,11 @@ test("answer a repeated system request from the journal, provisioning once, and 
     const clock = new TestClock(0);
     const store = new ObjectStore({
         principal: spacePrincipal(spaceId),
-        objects: { machine },
+        objects: [machine],
         database: storage.database,
         callKey: testCallKey,
-        origin: { package: machine.package, service: "test" },
+        events: await testEvents(storage.database),
+        origin: { package: machine.package },
         clock,
     });
     const at = (time: number) => {

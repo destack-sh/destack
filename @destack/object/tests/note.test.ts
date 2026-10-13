@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { eq } from "@destack/db";
 import { channelHub } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
@@ -7,7 +7,7 @@ import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
 import { schema, present, Clock } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { note, notebook } from "./fixture/note.ts";
 import { principal } from "@destack/access";
 import { Subject } from "@destack/sync";
@@ -62,7 +62,12 @@ test.each(TEST_DIALECTS)(
         });
         expect(edited.text).toBe("Three papers");
         await expect(
-            bob.note.delete({ spaceId, id: filed.id, requestId: RequestId.create(Date.now()), revision: 2 }),
+            bob.note.delete({
+                spaceId,
+                id: filed.id,
+                requestId: RequestId.create(Date.now()),
+                revision: 2,
+            }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
 
         // move a note only as its manager into an editable notebook
@@ -121,7 +126,11 @@ test.each(TEST_DIALECTS)(
             { items: [], cursor: null },
             { items: [], cursor: null },
         ]);
-        await alice.note.restore({ spaceId, id: loose.id, requestId: RequestId.create(Date.now()) });
+        await alice.note.restore({
+            spaceId,
+            id: loose.id,
+            requestId: RequestId.create(Date.now()),
+        });
         expect(await titles()).toEqual(["Ideas", "Sources"]);
 
         // follow the notes on bob's device and write into the shared notebook, predicted at once
@@ -178,12 +187,14 @@ test.each(TEST_DIALECTS)(
                 id: any(String),
                 calls: [
                     {
-                        method: "notebook.create",
+                        type: notebook.typeReference,
+                        method: "create",
                         release: notebook.package.version,
                         input: { name: "Travel", id: book.id, spaceId },
                     },
                     {
-                        method: "note.create",
+                        type: note.typeReference,
+                        method: "create",
                         release: note.package.version,
                         input: {
                             parentId: book.id,
@@ -516,9 +527,9 @@ test("decide checks on a device from its copy of the caller's access rows, and f
     const device = await Device.open("bob", endpoint("bob"));
     device.online();
     const checks = async () => [
-        await device.client.can(notebook, research.id, "read"),
-        await device.client.can(notebook, research.id, "edit"),
-        await device.client.can(notebook, research.id, "manage"),
+        await device.client.check(notebook, research.id, "read"),
+        await device.client.check(notebook, research.id, "edit"),
+        await device.client.check(notebook, research.id, "manage"),
     ];
     expect(await checks()).toEqual([false, false, false]);
 

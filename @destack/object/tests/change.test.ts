@@ -5,9 +5,9 @@ import {
     Trigger,
     type ChangeTrigger,
     type RunRequest,
-} from "@destack/service/trigger";
+} from "@destack/runtime/trigger";
 import { present, schema } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import { ChangeController } from "../src/server/change.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
@@ -72,7 +72,12 @@ test("build a call of an object's method, leaving the scope to the one it is pus
     });
 
     expect([call, outcomes.map((entry) => "value" in entry.outcome)]).toEqual([
-        { method: "notebook.update", input: { id, name: "Trips" }, release: note.package.version },
+        {
+            type: notebook.typeReference,
+            method: "update",
+            input: { id, name: "Trips" },
+            release: note.package.version,
+        },
         [true],
     ]);
     expect((await alice.notebook.get({ spaceId, id })).name).toBe("Trips");
@@ -192,7 +197,13 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(Date.now()),
         });
         const update = (title: string, at: number) =>
-            alice.note.update({ spaceId, id, title, revision: at, requestId: RequestId.create(Date.now()) });
+            alice.note.update({
+                spaceId,
+                id,
+                title,
+                revision: at,
+                requestId: RequestId.create(Date.now()),
+            });
         await update("Tickets", revision);
         await update("", revision + 1);
         await alice.note.create({ spaceId, title: "", requestId: RequestId.create(Date.now()) });
@@ -242,7 +253,8 @@ test.each(TEST_DIALECTS)(
             clock,
         );
         const create = async (title: string) =>
-            (await alice.note.create({ spaceId, title, requestId: RequestId.create(Date.now()) })).id;
+            (await alice.note.create({ spaceId, title, requestId: RequestId.create(Date.now()) }))
+                .id;
 
         // advance the slot of a quiet trigger before it lapses, so compaction keeps the changes after it
         const delay = await controller.reconcile(keyOf(lagging));

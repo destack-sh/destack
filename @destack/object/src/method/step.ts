@@ -40,12 +40,22 @@ export const Step = {
 
     /** Build the input identifying the step's object: the object it created, else its target. */
     target(step: Step): JsonObject {
-        // read the object's identifier and the scope the call carried
+        // read the object's identifier
         const id = step.after?.["id"] ?? step.input["id"];
+        if (id === undefined) {
+            throw new TypeError(`${step.object.name}.${step.name} names no object`);
+        }
+
+        return Step.reference(step, id);
+    },
+
+    /** Build the input identifying one object of the step's type in the scope the call carried. */
+    reference(step: Step, id: JsonValue): JsonObject {
+        // read the scope the call carried
         const { field } = step.object.route;
         const scope = field === undefined ? undefined : step.input[field];
-        if (id === undefined || (field !== undefined && scope === undefined)) {
-            throw new TypeError(`${step.object.name}.${step.name} names no object`);
+        if (field !== undefined && scope === undefined) {
+            throw new TypeError(`${step.object.name}.${step.name} names no scope`);
         }
 
         return field === undefined || scope === undefined ? { id } : { [field]: scope, id };

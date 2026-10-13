@@ -1,16 +1,16 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { userContext } from "./fixture/user.ts";
 
 /** Cards whose `title` became `name`. */
@@ -25,7 +25,6 @@ const card = defineObject({
     },
     permissions: { read: relation("owner"), write: relation("owner") },
 }).methods((method) => ({
-    get: method.get("read"),
     create: method.create("write"),
     update: method.update("write"),
 }));
@@ -37,7 +36,7 @@ test.for(TEST_DIALECTS)(
             dialect,
             defineDatabase({
                 name: "main",
-                tables: [journal, ...card.tables],
+                tables: [...callTables, ...card.tables],
             }),
             { isMigrated: true },
         );
@@ -46,12 +45,12 @@ test.for(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { card },
+            objects: [card],
             database: storage.database,
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             origin: {
                 package: card.package,
-                service: "test",
             },
         });
         const context = userContext("alice", spaceId);
@@ -61,7 +60,8 @@ test.for(TEST_DIALECTS)(
             id: RequestId.create(Date.now()),
             calls: [
                 {
-                    method: "card.create",
+                    type: card.typeReference,
+                    method: "create",
                     release: "2026.8.0",
                     input: { spaceId, title: "Plan" },
                 },
@@ -72,7 +72,8 @@ test.for(TEST_DIALECTS)(
             id: RequestId.create(Date.now()),
             calls: [
                 {
-                    method: "card.update",
+                    type: card.typeReference,
+                    method: "update",
                     release: "2026.8.0",
                     input: { spaceId, id: created.id, title: "Roadmap" },
                 },
@@ -84,7 +85,8 @@ test.for(TEST_DIALECTS)(
             id: RequestId.create(Date.now()),
             calls: [
                 {
-                    method: "card.update",
+                    type: card.typeReference,
+                    method: "update",
                     release: "2026.10.0",
                     input: { spaceId, id: created.id, name: "Next" },
                 },

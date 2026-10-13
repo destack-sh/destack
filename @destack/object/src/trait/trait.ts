@@ -33,7 +33,10 @@ export interface TraitObject {
 }
 
 /** The table options a trait adds. */
-export type TraitTable = Pick<TableOptions<never>, "dependents" | "aggregates" | "tree">;
+export type TraitTable = Pick<TableOptions<never>, "dependents" | "aggregates" | "tree"> & {
+    /** The text properties the table's full-text index keeps. */
+    readonly fullText?: readonly string[];
+};
 
 /** What a trait adds to an object's policy. */
 export interface TraitPolicy {
@@ -69,8 +72,8 @@ export type Erasure<Definition, Keys extends keyof ObjectDefinition> = Omit<Defi
 export interface Trait<Options> {
     /** The definition key enabling the trait, absent for implied traits. */
     readonly key?: keyof ObjectTraits | "attachments";
-    /** Whether only durable objects take the trait. */
-    readonly isDurable?: true;
+    /** The storages whose types take the trait, every storage when absent. */
+    readonly storages?: readonly ObjectStorage[];
     /** Read the trait's options from an object definition. */
     options(
         definition: ObjectDefinition<unknown, string, Readonly<Record<string, Method>>>,

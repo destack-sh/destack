@@ -1,7 +1,7 @@
+import { callTables } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
-import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
-import { defineService } from "@destack/service";
+import { definePackage } from "@destack/runtime";
 import { defineObject, field } from "../../src/index.ts";
 import { space } from "./space.ts";
 
@@ -16,8 +16,6 @@ export const notebook = defineObject({
     },
     shareable: {},
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("manage"),
     update: method.update("manage"),
     delete: method.delete("manage"),
@@ -44,17 +42,15 @@ export const note = defineObject({
     aggregates: { noteCount: { function: "count", where: { deletionRequestedAt: null } } },
     shareable: {},
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("edit"),
     update: method.update("edit"),
 }));
 
 /** Notebooks and notes, with their sharing, trash and sync. */
-export const notesService = defineService("notes", { objects: { notebook, note } });
+export const notesPackage = definePackage({ objects: { notebook, note } });
 
 /** The database of one space's notebooks and notes. */
 export const notesDatabase = defineDatabase({
     name: "main",
-    tables: [...notebook.tables, ...note.tables, journal],
+    tables: [...notebook.tables, ...note.tables, ...callTables],
 });

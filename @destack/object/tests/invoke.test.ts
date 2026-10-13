@@ -1,21 +1,22 @@
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
-import { reportError } from "@destack/service/server";
-import { testCallKey } from "@destack/service/test";
+import { reportError } from "@destack/runtime/server";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { request } from "./fixture/request.ts";
-import { createRouterClient } from "@destack/service/server";
+import { createRouterClient } from "@destack/runtime/server";
 
 /** The space containing the shelves. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
@@ -32,7 +33,6 @@ const book = defineObject({
     },
     permissions: { read: relation("owner"), write: relation("owner") },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write", { fields: ["shelf"] }),
     update: method.update("write", { fields: ["isTidy"] }),
     tidy: method.updateMany("write", { fields: ["isTidy"], match: ["shelf"] }),
@@ -102,14 +102,14 @@ const shelf = defineObject({
             },
             // issue a slip to the borrower as the space and close it
             lend: async (call) => {
-                const [slipped] = await call.mutate(call.service, [
+                const [slipped] = await call.mutate(call.self, [
                     slip.call("issue", {
                         borrowerId: call.input.borrower,
                         shelf: call.target.name,
                     }),
                 ]);
                 const issued = schema.looseObject({ id: schema.string() }).parse(slipped);
-                await call.mutate(call.service, [
+                await call.mutate(call.self, [
                     slip.call("close", { id: issued.id, isReturned: true }),
                 ]);
 
@@ -138,10 +138,10 @@ const shelf = defineObject({
 /** The database with the shelves, the books, their access and the journal. */
 const shelfDatabase = defineDatabase({
     name: "main",
-    tables: [journal, ...book.tables, ...shelf.tables, ...slip.tables],
+    tables: [...callTables, ...book.tables, ...shelf.tables, ...slip.tables],
 });
 
-/** Read a call's refusal as the service reports it to its caller. */
+/** Read a call's refusal as the server reports it to its caller. */
 function reported(pending: Promise<unknown>): Promise<"done" | readonly [string, string]> {
     return refusal(
         pending.catch((error: unknown) => {
@@ -159,12 +159,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { book, shelf, slip },
+            objects: [book, shelf, slip],
             database: storage.database,
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             origin: {
                 package: book.package,
-                service: "test",
             },
         });
         let context = userContext("user-1", spaceId);
@@ -221,11 +221,11 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: {
+            objects: [
                 book,
                 shelf,
                 // mark issued slips on the server when the base type is invoked
-                slip: slip.implement({
+                slip.implement({
                     methods: {
                         issue: (call, next) =>
                             next(
@@ -235,12 +235,12 @@ test.each(TEST_DIALECTS)(
                             ),
                     },
                 }),
-            },
+            ],
             database: storage.database,
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             origin: {
                 package: book.package,
-                service: "test",
             },
         });
         const context = userContext("user-1", spaceId);
@@ -279,7 +279,8 @@ test.each(TEST_DIALECTS)(
                     id: mutationId,
                     calls: [
                         {
-                            method: "slip.issue",
+                            type: slip.typeReference,
+                            method: "issue",
                             release: slip.package.version,
                             input: { borrower: "user-1", shelf: "home" },
                         },
@@ -287,11 +288,11 @@ test.each(TEST_DIALECTS)(
                 },
             ],
         });
-        // hide the space's methods from the routes and from pushes
+        // hide the space's methods from the routes and from pushes, routing the slips' reads alone
         expect([rows, forged, Object.keys(slip.procedures), (await pushed).outcomes]).toEqual([
             [{ id: lent.slip, borrower: "user-2", shelf: "home!", isReturned: true }],
             ["NOT_FOUND", "slip not found"],
-            [],
+            ["get", "list"],
             [
                 {
                     id: mutationId,
@@ -317,10 +318,11 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { book, shelf, slip },
+            objects: [book, shelf, slip],
             database: storage.database,
             callKey: testCallKey,
-            origin: { package: book.package, service: "test" },
+            events: await testEvents(storage.database),
+            origin: { package: book.package },
         });
         const context = userContext("user-1", spaceId);
         const home = await store

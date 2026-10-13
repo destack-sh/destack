@@ -1,6 +1,6 @@
 import { TABLE } from "@destack/db";
 import { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import type { StateMachine } from "../field/field.ts";
 import { Step } from "./step.ts";
 import { defineMethod, type Method } from "./method.ts";
@@ -44,7 +44,7 @@ export function transitionMethod(
             // refuse transitions from any other state
             const state = schema.string().parse(call.requireTarget()[field]);
             if (!transition.from.includes(state)) {
-                throw new ServiceError("CONFLICT", {
+                throw new CallError("CONFLICT", {
                     message: `${call.object.name} cannot ${name} while ${field} is ${state}`,
                 });
             }

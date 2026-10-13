@@ -5,13 +5,14 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { Page } from "@destack/sync";
 import { schema, Clock } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import { ObjectStore } from "../src/server/index.ts";
 import { comment, folder, objectDatabase, task, taskVersion, team } from "./schema.ts";
 import { principal } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
 import { userContext } from "./fixture/user.ts";
 import { request } from "./fixture/request.ts";
 
@@ -50,12 +51,12 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { task, team, comment, taskVersion, folder },
+        objects: [task, team, comment, taskVersion, folder],
         database,
         callKey: testCallKey,
+        events: await testEvents(database),
         origin: {
             package: task.package,
-            service: "test",
         },
     });
     const controller = new AbortController();

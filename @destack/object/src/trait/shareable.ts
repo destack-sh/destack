@@ -13,13 +13,13 @@ import {
 } from "@destack/access";
 import { AccessName, Subject } from "@destack/sync";
 import { Instant, schema } from "@destack/schema";
-import { page } from "@destack/service/page";
 import { type Method } from "../method/method.ts";
 import {
     PageShape,
     type Procedure,
     type ReplayShape,
     type TargetShape,
+    ListPage,
 } from "../method/procedure.ts";
 import { field } from "../field/field.ts";
 import {
@@ -316,7 +316,7 @@ export const Roles = {
 /** Objects callers share through relationships and invitations. */
 export const shareable: Trait<SharingGate> = {
     key: "shareable",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => {
         const grant = Roles.gate(definition);
 
@@ -337,7 +337,7 @@ export type ShareableProcedures<Object extends ObjectType> = {
     >;
     relationships: Procedure<
         schema.Object<TargetShape<Object> & typeof PageShape>,
-        ReturnType<typeof page<typeof Relationship.schema>>
+        ReturnType<typeof ListPage.schema<typeof Relationship.schema>>
     >;
     grant: Procedure<
         schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof GrantShape>,
@@ -349,7 +349,7 @@ export type ShareableProcedures<Object extends ObjectType> = {
     >;
     invitations: Procedure<
         schema.Object<TargetShape<Object> & typeof PageShape>,
-        ReturnType<typeof page<typeof Invitation.schema>>
+        ReturnType<typeof ListPage.schema<typeof Invitation.schema>>
     >;
     invite: Procedure<
         schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof InviteShape>,

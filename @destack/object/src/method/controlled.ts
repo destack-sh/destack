@@ -1,5 +1,5 @@
 import { TABLE } from "@destack/db";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { Digest, schema } from "@destack/schema";
 import type { MethodBuilder } from "./method.ts";
 import { method } from "./record.ts";
@@ -46,7 +46,7 @@ export const finalize = controlledMethod
     .handle(async (call) => {
         // require a requested deletion
         if (call.target.deletionRequestedAt === null) {
-            throw new ServiceError("CONFLICT", {
+            throw new CallError("CONFLICT", {
                 message: `${call.object.name} is not being deleted`,
             });
         }

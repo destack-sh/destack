@@ -2,8 +2,9 @@ import { type Insert, type JsonOf, type Select, TABLE } from "@destack/db";
 import type * as sync from "@destack/sync";
 import { Scope } from "@destack/sync";
 import { type Identifier, schema } from "@destack/schema";
-import { defineProcedure } from "@destack/service/procedure";
-import { RequestId } from "@destack/service/request";
+import { defineProcedure } from "@destack/runtime/procedure";
+import { RequestId } from "@destack/runtime/request";
+import { MAX_PAGE_LIMIT } from "./page.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type {
     CallerField,
@@ -75,7 +76,44 @@ export const PageShape = {
     /** The continuation from the previous page. */
     cursor: schema.string().min(1).exactOptional(),
     /** The largest page to return. */
-    limit: schema.number().int().min(1).max(1000).exactOptional(),
+    limit: schema.number().int().min(1).max(MAX_PAGE_LIMIT).exactOptional(),
+};
+
+/** A list method's page: its rows and the cursor of the next page, null after the last. */
+export interface ListPage<Item> {
+    /** The page's rows. */
+    readonly items: readonly Item[];
+    /** The cursor continuing after the page, null after the last page. */
+    readonly cursor: string | null;
+}
+
+/** The pages of list methods. */
+export const ListPage = {
+    /** Describe a page of some rows. */
+    schema<Item extends schema.Schema>(item: Item) {
+        return schema.object({
+            /** The page's rows. */
+            items: schema.array(item),
+            /** The cursor continuing after the page, null after the last page. */
+            cursor: schema.string().min(1).nullable(),
+        });
+    },
+
+    /** Read every row of a list, following its cursors page by page. */
+    async *all<Item, Input extends { readonly cursor?: string }>(
+        list: (input: Input) => Promise<ListPage<Item>>,
+        input: Input,
+    ): AsyncGenerator<Item> {
+        let cursor: string | null | undefined;
+        do {
+            // read the next page after the cursor
+            const page = await list(
+                cursor === undefined || cursor === null ? input : { ...input, cursor },
+            );
+            yield* page.items;
+            cursor = page.cursor;
+        } while (cursor !== null);
+    },
 };
 
 /** The revision a change requires. */
@@ -101,16 +139,13 @@ export function objectProcedures(object: ObjectType): Readonly<Record<string, un
 export function callableProcedures(
     object: ObjectType,
 ): Readonly<Record<string, Procedure<InputSchema, ProcedureOutput>>> {
-    // build the collection path
-    const scope = scopeRoute(object);
-    const collection: `/${string}` = `${scope.prefix}/${kebabCase(object.plural)}`;
-
-    // derive each method's procedure
+    // derive each method's procedure below its collection, in its scope's route
     const procedures: Record<string, Procedure<InputSchema, ProcedureOutput>> = {};
     for (const [name, method] of Object.entries(object.methods)) {
         if (method.isInternal === true) {
             continue;
         }
+        const collection: `/${string}` = `${object.route.prefix}/${kebabCase(object.plural)}`;
         const { route, input, output } = object.procedure(name);
         procedures[name] = procedure(
             defineProcedure({
@@ -132,7 +167,7 @@ export function callableProcedures(
 export function objectSchema(object: ObjectType): ObjectSchema {
     // read the identifier and the fields selecting the scope
     const id = object.table[TABLE].column("id").definition.json;
-    const scopeField = scopeRoute(object).field;
+    const scopeField = object.route.field;
     const selection = schema.object(
         scopeField === undefined ? {} : { [scopeField]: schema.string().min(1) },
     );
@@ -242,7 +277,7 @@ export interface ScopeRoute {
     readonly field?: string;
 }
 
-/** Derive an object's scope route. */
+/** Derive the scope route of an object type, or of one of its methods. */
 export function scopeRoute(object: ObjectType): ScopeRoute {
     // route universe objects without a scope, and put the scope in a field for several or any
     const [single, ...others] = object.scopes;
@@ -254,7 +289,6 @@ export function scopeRoute(object: ObjectType): ScopeRoute {
     }
 
     // put the scope in its type's route and identifier field
-
     return {
         prefix: `/${kebabCase(single.plural)}/{${single.identity}Id}`,
         field: `${single.identity}Id`,
@@ -479,7 +513,7 @@ type WrittenName<Object extends ObjectType, Declared extends Method> =
     | (string extends NonNullable<Declared["fields"]>[number]
           ? WrittenField<Object["fields"]>
           : NonNullable<Declared["fields"]>[number])
-    | (Declared extends { readonly kind: "create" }
+    | (Declared extends { readonly kind: "create" | "createMany" }
           ? true extends NonNullable<Declared["isInternal"]>
               ? CallerField<Object["fields"]>
               : never
@@ -527,7 +561,7 @@ type RequiredShape<
 type VariantField<Fields> = Fields extends readonly (infer Field extends string)[] ? Field : never;
 
 /** The JSON validators of the given columns, each optional to a partial write. */
-type ColumnShape<
+export type ColumnShape<
     Object extends ObjectType,
     Written extends string,
     IsPartial extends boolean,

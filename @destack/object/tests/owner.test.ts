@@ -1,15 +1,17 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, through, union, universe } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { defineDatabase, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, schema } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
-import { subjectContext, testCallKey } from "@destack/service/test";
+import { RequestId } from "@destack/runtime/request";
+import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { type CallableName, Claim, claimTable, defineObject, field } from "../src/index.ts";
 import { Scope } from "@destack/sync";
-import { DatabaseClaimStore, ObjectStore } from "../src/server/index.ts";
-import { outbox } from "@destack/service/outbox";
+import { ObjectStore } from "../src/server/index.ts";
+import { claim } from "./fixture/claim.ts";
+import { outbox } from "@destack/runtime/outbox";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request } from "./fixture/request.ts";
 
@@ -34,7 +36,7 @@ const declared = defineObject({
         /** The asset's name, unique within its owner. */
         name: field.string(),
     },
-    indexes: { name: { on: ["holderId", "name"], unique: true, across: () => universe } },
+    indexes: { name: { on: ["holderId", "name"], across: () => universe } },
     permissions: { read: through("holder", "read"), manage: none() },
 }).methods((method) => ({
     create: method.create("manage"),
@@ -59,7 +61,7 @@ const asset = declared.implement({
 /** The database with the assets, their access, the copied spaces and the journal. */
 const assetDatabase = defineDatabase({
     name: "main",
-    tables: [journal, outbox, claimTable, space.table, ...asset.tables],
+    tables: [...callTables, outbox, claimTable, space.table, ...asset.tables],
 });
 
 test("map an owned object's relation in the universe and record its names under its owner", async () => {
@@ -72,7 +74,7 @@ test("map an owned object's relation in the universe and record its names under 
     expect({
         owner: asset.mapping.owner,
         relation: asset.mapping.relations["holder"],
-        claims: claims.map((claim) => [claim.key, claim.scope]),
+        claims: claims.map((entry) => [entry.key, entry.owner]),
     }).toEqual({
         owner: "holder",
         relation: { column: "holderId", scope: Scope.universe.id },
@@ -151,11 +153,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(homeId),
-            objects: { asset },
+            objects: [asset],
             database: storage.database,
             callKey: testCallKey,
-            origin: { package: asset.package, service: "test" },
-            claims: new DatabaseClaimStore(storage.database, Clock.system),
+            events: await testEvents(storage.database),
+            origin: { package: asset.package },
+            claims: { object: claim },
         });
         const call = <Name extends CallableName<typeof asset>>(
             by: string,
@@ -186,3 +189,60 @@ test.each(TEST_DIALECTS)(
         ]);
     },
 );
+
+/** Stickers kept in a space and owned by none, decided by the space's roles alone. */
+const sticker = defineObject({
+    name: "sticker",
+    plural: "stickers",
+    scope: space,
+    fields: {
+        /** The sticker's name. */
+        name: field.string(),
+    },
+    permissions: { read: none(), manage: none() },
+}).methods((method) => ({ create: method.create("manage") }));
+
+/** The database with the assets beside the stickers. */
+const stickerDatabase = defineDatabase({
+    name: "main",
+    tables: [...callTables, outbox, claimTable, space.table, ...asset.tables, ...sticker.tables],
+});
+
+test("admit an owner to its owned objects in a private home it cannot see, and refuse the home's other objects", async () => {
+    // keep assets and stickers in a private home, owned by the holder, beside a rival space
+    const storage = await TestDatabase.create("sqlite", stickerDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    for (const id of [homeId, holderId, rivalId]) {
+        await openSpace(storage.database, id, "private");
+        await storage.database
+            .insert(space.table)
+            .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+    }
+    const store = new ObjectStore({
+        clock: Clock.system,
+        principal: spacePrincipal(homeId),
+        objects: [asset, sticker],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: asset.package },
+        claims: { object: claim },
+    });
+    const create = (by: string, type: typeof asset | typeof sticker, input: object) =>
+        refusal(
+            request(
+                store,
+                type,
+                "create",
+                { spaceId: homeId, requestId: RequestId.create(Date.now()), ...input },
+                subjectContext(spacePrincipal(by), homeId),
+            ),
+        );
+
+    // create the home's first asset as its holder, hide it from the rival, and hide the home from the rival's sticker
+    expect([
+        await create(holderId, asset, { holderId, name: "lamp" }),
+        await create(rivalId, asset, { holderId, name: "desk" }),
+        await create(rivalId, sticker, { name: "star" }),
+    ]).toEqual(["done", ["NOT_FOUND", "asset not found"], ["NOT_FOUND", `no scope ${homeId}`]]);
+});

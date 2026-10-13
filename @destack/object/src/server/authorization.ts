@@ -5,10 +5,9 @@ import {
     earliest,
     AccessContext,
     type Authorizer,
-    type GrantReader,
+    type TupleReader,
     type Access,
     type Permission,
-    Caller,
 } from "@destack/access";
 import {
     and,
@@ -22,20 +21,19 @@ import {
     type Transaction,
 } from "@destack/db";
 import { aligned, schema } from "@destack/schema";
-import { conceal, ServiceError } from "@destack/service/error";
+import { conceal, CallError } from "@destack/runtime/error";
 import type { Call } from "../method/call.ts";
+import { EventListing } from "../query/event.ts";
 import type { MethodKind } from "../method/kind.ts";
 import { SCOPE_READ, type ObjectType } from "../object/object.ts";
 
 /** The kinds of method a scope with capped storage still runs, since they free storage. */
-const FREEING_KINDS: ReadonlySet<MethodKind> = new Set(["delete", "purge"]);
+const FREEING_KINDS: ReadonlySet<MethodKind> = new Set(["delete", "deleteMany", "purge"]);
 
 /** A caller's authorization in one call's transaction. */
 export class Authorization extends access.Authorization {
     /** The caller's resolved access in the call's scope. */
     readonly access: Access;
-    /** The token lending the caller's authority to the serving installation, for its calls. */
-    readonly delegation?: string;
 
     /** Authorize a caller in one transaction. */
     constructor(
@@ -43,13 +41,9 @@ export class Authorization extends access.Authorization {
         transaction: Transaction,
         context: () => AccessContext,
         resolved: Access,
-        delegation?: string,
     ) {
         super(authorizer, transaction, context, resolved);
         this.access = resolved;
-        if (delegation !== undefined) {
-            this.delegation = delegation;
-        }
     }
 
     /** Match the rows the caller may list. */
@@ -76,7 +70,7 @@ export class Authorization extends access.Authorization {
         permission: Permission,
         scope: string,
         rows: readonly Row[],
-        reader?: GrantReader,
+        reader?: TupleReader,
     ): Promise<access.Admission & { readonly below: readonly string[] }> {
         // admit the inherited copies of enclosing scopes wholesale
         const table = object.table;
@@ -170,7 +164,7 @@ export class Authorization extends access.Authorization {
 
         // hide a missing row and a row the caller may not read
         if (row === undefined || !isAllowed) {
-            throw new ServiceError("NOT_FOUND", { message: `no ${object.name} ${id}` });
+            throw new CallError("NOT_FOUND", { message: `no ${object.name} ${id}` });
         }
 
         return row;
@@ -190,7 +184,7 @@ export class Authorization extends access.Authorization {
             return row;
         }
 
-        // challenge for step-up authentication first and for a lent delegate's missing grant second
+        // challenge for step-up authentication first and for a grant giving too little second
         const stepUp = await this.authorizer.challenge(
             this.snapshot,
             permission,
@@ -204,12 +198,12 @@ export class Authorization extends access.Authorization {
                 { stepUp },
             );
         }
-        await this.#requireLentGrant(call, id, permission, governing, select);
+        await this.#requireGranted(call, id, permission, governing, select);
 
         // refuse a reader, and hide the object from others
         const isReadable =
             object.reading !== undefined && (await this.#permits(call, id, object.reading));
-        const denial = new ServiceError("FORBIDDEN", {
+        const denial = new CallError("FORBIDDEN", {
             message: `permission denied: ${permission.name}`,
         });
         throw isReadable ? denial : conceal(denial, `no ${object.name} ${id}`);
@@ -226,46 +220,29 @@ export class Authorization extends access.Authorization {
         return this.#decide(call, id, permission, evaluated);
     }
 
-    /** Refuse a target a lent delegate lacks the grant for, read by the delegation before it. */
-    async #requireLentGrant(
+    /** Refuse a target the caller's subject may reach and its grant gives too little for. */
+    async #requireGranted(
         call: Call,
         id: string,
         permission: Permission,
         governing: Access,
         select: (access: Access) => Promise<readonly Row[]>,
     ): Promise<void> {
-        // walk the delegation chain
+        // pass a caller under no grant
         const { object, scope } = call;
-        const context = governing.context;
-        const delegates = context.delegates ?? [];
-        const chain = Caller.delegation(context);
-        const governingScope = this.authorizer.governingScope(object.reference(scope, id));
-        for (const [position, delegate] of delegates.entries()) {
-            // skip a delegate acting with full authority
-            if (delegate.authority === "full") {
-                continue;
-            }
+        const { grant, delegates: _delegates, ...subject } = governing.context;
+        if (grant === undefined) {
+            return;
+        }
 
-            // compare the access before and after lending to the delegate
-            const lending = await this.authorizer.resolve(this.snapshot, governingScope, {
-                ...context,
-                delegates: delegates.slice(0, position),
+        // refuse the grant when the subject alone reaches the target
+        const governingScope = this.authorizer.governingScope(object.reference(scope, id));
+        const alone = await this.authorizer.resolve(this.snapshot, governingScope, subject);
+        if ((await select(alone)).length > 0) {
+            throw new CallError("INSUFFICIENT_GRANT", {
+                message: `grant ${grant.id} gives no ${permission.name} on ${object.name} ${id}`,
+                data: { permission, object: object.reference(scope, id), grant: grant.id },
             });
-            const lent = await this.authorizer.resolve(this.snapshot, governingScope, {
-                ...context,
-                delegates: delegates.slice(0, position + 1),
-            });
-            if ((await select(lending)).length > 0 && (await select(lent)).length === 0) {
-                throw new ServiceError("INSUFFICIENT_GRANT", {
-                    message: "invite the principal the delegate acts for to the missing delegation",
-                    data: {
-                        permission,
-                        object: object.reference(scope, id),
-                        delegate: aligned(chain, position).delegate,
-                        onBehalfOf: aligned(chain, position).delegator,
-                    },
-                });
-            }
         }
     }
 
@@ -280,28 +257,20 @@ export class Authorization extends access.Authorization {
         // require a scope some of the objects live in
         const own = this.access.scopes[0];
         if (own?.id !== scope || !objects.some((object) => object.livesIn(own))) {
-            throw new ServiceError("NOT_FOUND", { message: `no scope ${scope}` });
+            throw new CallError("NOT_FOUND", { message: `no scope ${scope}` });
         }
 
-        // decide for the person when the credential's restrictions include the scope
-        const { permissions, ...person } = this.access.context;
-        const isNamed = permissions?.some((restriction) => restriction.scope === scope) === true;
-        const context = isNamed ? person : this.access.context;
-        const caller = (bound: string) =>
-            isNamed ? this.authorizer.resolve(this.snapshot, bound, person) : this.in(bound);
-
-        // decide for the caller and for the lending principal
-        const delegates = context.delegates ?? [];
-        const lent = delegates.findIndex((delegate) => delegate.authority === "lent");
-        const principal = { ...context, delegates: delegates.slice(0, lent) };
+        // decide for the caller, or for its subject alone where its grant gives something in the scope
+        const { grant, delegates: _delegates, ...subject } = this.access.context;
         const isVisible =
-            (await this.#sees(own, objects, caller)) ||
-            (lent !== -1 &&
-                (await this.#sees(own, objects, (bound) =>
-                    this.authorizer.resolve(this.snapshot, bound, principal),
-                )));
+            grant === undefined
+                ? await this.#sees(own, objects, (bound) => this.in(bound))
+                : grant.permissions.some((entry) => entry.scope === scope) &&
+                  (await this.#sees(own, objects, (bound) =>
+                      this.authorizer.resolve(this.snapshot, bound, subject),
+                  ));
         if (!isVisible) {
-            const denial = new ServiceError("FORBIDDEN", {
+            const denial = new CallError("FORBIDDEN", {
                 message: `scope ${scope} is not visible`,
             });
             throw conceal(denial, `no scope ${scope}`);
@@ -361,10 +330,10 @@ export class Authorization extends access.Authorization {
             : this.isScopeOf(object);
     }
 
-    /** Refuse an object type living outside the admitted scope's type. */
+    /** Refuse a type routed outside the admitted scope. */
     requireScopeOf(object: ObjectType): void {
         if (!this.isScopeOf(object)) {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: `no ${object.plural} in scope ${this.access.scope}`,
             });
         }
@@ -374,7 +343,7 @@ export class Authorization extends access.Authorization {
     requireUnmoved(): void {
         const moved = this.access.moved;
         if (moved !== undefined) {
-            throw new ServiceError("MISDIRECTED_REQUEST", {
+            throw new CallError("MISDIRECTED_REQUEST", {
                 message: `${moved.scope} moves to ${moved.machine}`,
                 data: moved,
             });
@@ -385,7 +354,7 @@ export class Authorization extends access.Authorization {
     requirePartition(served: string | undefined): void {
         const { scope, partition } = this.access;
         if (served !== undefined && partition !== undefined && partition !== served) {
-            throw new ServiceError("MISDIRECTED_REQUEST", {
+            throw new CallError("MISDIRECTED_REQUEST", {
                 message: `${scope} is served by partition ${partition}`,
                 data: { scope, partition },
             });
@@ -408,7 +377,7 @@ export class Authorization extends access.Authorization {
             return mutates && !FREEING_KINDS.has(kind);
         });
         if (writing !== undefined) {
-            throw new ServiceError("QUOTA_EXCEEDED", {
+            throw new CallError("QUOTA_EXCEEDED", {
                 message: `storage of scope ${this.access.scope} is capped: ${writing.object.name}.${writing.name} is refused until data is deleted or the plan changes`,
             });
         }
@@ -423,7 +392,7 @@ export class Authorization extends access.Authorization {
                 Object.hasOwn(call.input, name) &&
                 !(await this.#permits(call, id, call.object.permission(permission)))
             ) {
-                throw new ServiceError("FORBIDDEN", { message: `field ${name} is not writable` });
+                throw new CallError("FORBIDDEN", { message: `field ${name} is not writable` });
             }
         }
     }
@@ -453,8 +422,11 @@ export class Authorization extends access.Authorization {
         permission: access.PermissionReference,
         evaluated: Access,
     ): Promise<Row[]> {
-        // read the row in the call's scope through its transaction
-        const row = await call.requireTransaction().row(call.object.table, { id });
+        // read the row in the call's scope: an event from the event log, any other through the transaction
+        const row =
+            call.object.storage !== "events"
+                ? await call.requireTransaction().row(call.object.table, { id })
+                : await EventListing.row(call, id);
         const rows: readonly Row[] = row === null || row["scope"] !== call.scope ? [] : [row];
 
         return this.keep(rows, permission, evaluated);
@@ -493,7 +465,7 @@ export class Authorization extends access.Authorization {
     async concealed(
         object: ObjectType,
         rows: readonly Row[],
-        reader?: GrantReader,
+        reader?: TupleReader,
     ): Promise<{ readonly hidden: string[][]; readonly until?: number }> {
         // group the guarded fields by read permission
         const hidden = rows.map((): string[] => []);
@@ -542,23 +514,23 @@ export class Authorization extends access.Authorization {
         return { hidden: ordered, ...(until === undefined ? {} : { until }) };
     }
 
-    /** Omit from each row the guarded fields the caller may not read on it. */
-    async redact(object: ObjectType, rows: readonly Row[]): Promise<Row[]> {
-        // omit sensitive and unreadable fields
+    /** Conceal the guarded fields the caller may not read, reporting personal values shown. */
+    async redact(
+        object: ObjectType,
+        rows: readonly Row[],
+    ): Promise<{ readonly rows: Row[]; readonly isRevealing: boolean }> {
+        // decide the guarded fields the caller may not read on each row
+        const table = object.table[TABLE];
         const hidden =
             object.guarded.length === 0
                 ? rows.map((): string[] => [])
                 : (await this.concealed(object, rows)).hidden;
 
-        return rows.map((row, position) =>
-            omit(row, [...object.sensitive, ...aligned(hidden, position)]),
-        );
+        return {
+            rows: rows.map((row, position) =>
+                table.conceal(row, [...object.sensitive, ...aligned(hidden, position)]),
+            ),
+            isRevealing: object.reveals(rows, hidden),
+        };
     }
-}
-
-/** Copy a row without some of its fields. */
-function omit(row: Row, names: readonly string[]): Row {
-    return names.length === 0
-        ? row
-        : Object.fromEntries(Object.entries(row).filter(([name]) => !names.includes(name)));
 }

@@ -1,5 +1,5 @@
-import { ObjectReference, Subject } from "@destack/sync";
-import { Caller, type Creation, type GrantReader, type Permission } from "@destack/access";
+import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
+import { Caller, type Creation, type TupleReader, type Permission } from "@destack/access";
 import {
     and,
     eq,
@@ -19,11 +19,13 @@ import {
 } from "@destack/db";
 import type { BranchCall } from "../branch/branch.ts";
 import { Identifier, present, schema, Version, type JsonObject } from "@destack/schema";
-import { isServiceError, ServiceError, TRANSIENT_STATUSES } from "@destack/service/error";
-import type { Address, Destination } from "@destack/service/outbox";
-import { RequestId } from "@destack/service/request";
-import { RunRequest } from "@destack/service/trigger";
-import type * as sync from "@destack/sync";
+import type { PackageId } from "@destack/package";
+import { isCallError, CallError, TRANSIENT_STATUSES } from "@destack/runtime/error";
+import type { Address, Destination } from "@destack/runtime/outbox";
+import { RequestId } from "@destack/runtime/request";
+import { RunRequest } from "@destack/runtime/trigger";
+import { Exchange } from "@destack/runtime/authentication";
+import * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import { Observation, type ObservationReport, type ObservedRecord } from "../object/condition.ts";
 import type { ObjectTable } from "../object/table.ts";
@@ -32,11 +34,11 @@ import type { ObjectStore } from "../server/store.ts";
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import type { MethodKind, TargetKind } from "./kind.ts";
 import { InputSchema } from "./input.ts";
-import type { InstallationContext } from "@destack/service/workload";
+import type { InstallationContext } from "@destack/runtime/workload";
 import type { Settled, SettlementCall } from "./settlement.ts";
 import type { IsSum, listObjects } from "./record.ts";
 import { ParentReference } from "../trait/nested.ts";
-import { ObjectReader } from "./reader.ts";
+import { ObjectReader, type SessionReader } from "./reader.ts";
 
 /** The values a draw takes: the integers a double holds exactly, 2^53. */
 const RANDOM_RANGE = 2 ** 53;
@@ -189,29 +191,28 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         objects: readonly ObjectType[],
         entry: ObjectCall,
         mutates: boolean,
-        isRemote: boolean,
+        code: CallCode,
     ): {
         readonly object: ObjectType;
         readonly name: string;
         readonly input: JsonObject;
     } {
-        // find the object type and a method clients may call
-        const separator = entry.method.lastIndexOf(".");
-        const object = objects.find((served) => served.name === entry.method.slice(0, separator));
-        const name = entry.method.slice(separator + 1);
+        // find the object type and a method the calling code may call
+        const object = Call.typeOf(objects, entry);
+        const name = entry.method;
         const method = object?.methods?.[name];
         if (
             object === undefined ||
             method === undefined ||
-            (method.isInternal === true && isRemote) ||
+            !CallCode.reaches(code, object, method) ||
             (mutates && !method.mutates)
         ) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `no ${mutates ? "mutating " : ""}method ${entry.method}`,
+            throw new CallError("BAD_REQUEST", {
+                message: `no ${mutates ? "mutating " : ""}method ${sync.Call.label(entry)}`,
             });
         } else if (!mutates && method.mutates) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `${entry.method} changes objects, so a client pushes it`,
+            throw new CallError("BAD_REQUEST", {
+                message: `${sync.Call.label(entry)} changes objects, so a client pushes it`,
             });
         }
 
@@ -219,12 +220,24 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         const fields = InputSchema.fields(object.input(name)).shape;
         const parsed = JSON_INPUT.safeParse(Call.upgrade(object, name, entry, fields));
         if (!parsed.success) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `the input to ${entry.method} is not JSON`,
+            throw new CallError("BAD_REQUEST", {
+                message: `the input to ${sync.Call.label(entry)} is not JSON`,
             });
         }
 
         return { object, name, input: parsed.data };
+    }
+
+    /** Find the type of a call's method among some types. */
+    static typeOf(
+        types: readonly ObjectType[],
+        call: Pick<ObjectCall, "type">,
+    ): ObjectType | undefined {
+        return types.find(
+            (type) =>
+                type.typeReference.packageId === call.type.packageId &&
+                type.typeReference.type === call.type.type,
+        );
     }
 
     /** Record a call of an object's method, against the release of the object's package. */
@@ -234,7 +247,8 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         input: Readonly<Record<string, unknown>>,
     ): sync.Call {
         return Call.wire({
-            method: `${object.name}.${name}`,
+            type: object.typeReference,
+            method: name,
             input,
             release: object.package.version,
         });
@@ -244,7 +258,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     static wire(call: ObjectCall): sync.Call {
         const input = schema.record(schema.string(), schema.json()).parse(call.input);
 
-        return { method: call.method, input, release: call.release };
+        return { type: call.type, method: call.method, input, release: call.release };
     }
 
     /** Convert a recorded call's input to the object's release, dropping undeclared fields. */
@@ -257,8 +271,8 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         // refuse a call of a later release
         const served = object.package.version;
         if (Version.compare(call.release, served) > 0) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `${call.method} was made against release ${call.release} of ${object.name}, which is at ${served}`,
+            throw new CallError("BAD_REQUEST", {
+                message: `${sync.Call.label(call)} was made against release ${call.release} of ${object.name}, which is at ${served}`,
             });
         }
 
@@ -295,7 +309,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     ): Promise<ResultsOf<Calls>> {
         const results: unknown[] = [];
         for (const entry of calls) {
-            results.push(await this.#run(caller, entry, true));
+            results.push(await this.#run(caller, entry, true, CallCode.store));
         }
 
         return Call.#results(calls, results);
@@ -321,7 +335,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return present(this.requestId, `the request of ${this.object.name}.${this.name}`);
     }
 
-    /** Record an object's conditions and observed fields at its generation as the service, once. */
+    /** Record an object's conditions and observed fields at its generation as the package, once. */
     async observe(
         object: ObjectType,
         row: ObservedRecord & Readonly<Record<string, unknown>>,
@@ -333,7 +347,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
 
         // record the generation, the conditions and the fields
-        const [written] = await this.mutate(this.service, [
+        const [written] = await this.mutate(this.self, [
             Call.observation(object, row, observation),
         ]);
 
@@ -356,18 +370,36 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
 
     /** Read through a method in this call's transaction as a caller. */
     async query<Result>(caller: Caller, call: ObjectCall<Result>): Promise<Result> {
-        const [result] = Call.#results([call], [await this.#run(caller, call, false)]);
+        const [result] = Call.#results(
+            [call],
+            [await this.#run(caller, call, false, CallCode.store)],
+        );
 
         return result;
     }
 
+    /** Run a call a package's sandboxed hook sent in this call's transaction. */
+    runSandboxed(
+        caller: Caller,
+        entry: ObjectCall,
+        mutates: boolean,
+        packageId: PackageId,
+    ): Promise<unknown> {
+        return this.#run(caller, entry, mutates, { kind: "sandbox", packageId });
+    }
+
     /** Run one platform call in this call's transaction and scope, refusing it without a runner. */
-    async #run(caller: Caller, entry: ObjectCall, mutates: boolean): Promise<unknown> {
+    async #run(
+        caller: Caller,
+        entry: ObjectCall,
+        mutates: boolean,
+        code: CallCode,
+    ): Promise<unknown> {
         if (this.run === undefined) {
             throw new TypeError(`${this.object.name}.${this.name} runs no nested calls`);
         }
 
-        return this.run(entry, caller, mutates);
+        return this.run(entry, caller, mutates, code);
     }
 
     /** Type the results of calls by the results they answer. */
@@ -396,16 +428,13 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return new Call({ ...this.#fields, ...changes });
     }
 
-    /** The database the call reads raw: the client copy in a prediction, else the live database. */
-    get database(): DatabaseConnection {
-        const location = this.location;
-        if (location.kind === "server" && !location.transaction.isReading) {
-            throw new TypeError(
-                `${this.object.name}.${this.name} reads and writes through its transaction`,
-            );
+    /** The client copy a prediction reads and writes, refusing a call a store or a sandbox runs. */
+    get #copy(): DatabaseConnection {
+        if (this.location.kind !== "client") {
+            throw new TypeError(`${this.object.name}.${this.name} reads through call.read`);
         }
 
-        return this.#fields.database;
+        return this.location.database;
     }
 
     /** Whether a client predicts the call, which it runs without the server's authorization. */
@@ -420,11 +449,13 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
 
     /** Read a table's or object type's rows in the call's view. */
     read<Read extends Table>(source: Read | { readonly table: Read }): ObjectReader<Read> {
-        // read through the transaction on a server without a view of its own
+        // read through the transaction on a server without a view of its own, and through the store in a hook
         const table = TABLE in source ? source : source.table;
         const location = this.location;
         if (location.kind === "server" && location.snapshot === undefined) {
             return new ObjectReader(table, location.transaction);
+        } else if (location.kind === "sandbox") {
+            return new ObjectReader(table, location.session);
         }
 
         return new ObjectReader(table, this.view());
@@ -435,9 +466,11 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         const location = this.location;
         if (location.kind === "server") {
             return location.snapshot ?? location.transaction.view();
+        } else if (location.kind === "sandbox") {
+            throw new TypeError(`${this.object.name}.${this.name} reads through call.read`);
         }
 
-        return Snapshot.live(this.database);
+        return Snapshot.live(this.#copy);
     }
 
     /** Write rows of any tables through the call: its server transaction, or the client copy. */
@@ -451,9 +484,9 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         // remove and put each row in the client's copy, refusing a change of no row
         for (const { table, before, after } of changes) {
             if (after !== null) {
-                await this.database.upsert(table, [after]);
+                await this.#copy.upsert(table, [after]);
             } else if (before !== null) {
-                await this.database.delete(table).where(Key.match(table, before));
+                await this.#copy.delete(table).where(Key.match(table, before));
             } else {
                 throw new TypeError(
                     `a write to ${table[TABLE].name} has neither a row before nor after`,
@@ -462,22 +495,20 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
     }
 
-    /** Read the transaction a server call writes through, refusing a prediction. */
+    /** Read the transaction a server call writes through, refusing a prediction and a hook. */
     requireTransaction(): Transaction {
-        if (this.location.kind === "client") {
-            throw new TypeError(
-                `${this.object.name}.${this.name} is predicted, outside a transaction`,
-            );
+        if (this.location.kind !== "server") {
+            throw new TypeError(`${this.object.name}.${this.name} runs outside a transaction`);
         }
 
         return this.location.transaction;
     }
 
-    /** Read the server's authorization, refusing a prediction. */
+    /** Read the server's authorization, refusing a prediction and a hook. */
     requireAuthorization(): Authorization {
-        if (this.location.kind === "client") {
-            throw new ServiceError("FORBIDDEN", {
-                message: `${this.object.name} changes on the server`,
+        if (this.location.kind !== "server") {
+            throw new CallError("FORBIDDEN", {
+                message: `${this.object.name} is authorized in its store`,
             });
         }
 
@@ -488,7 +519,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     requireCaller(): Subject {
         const subject = this.caller.subject;
         if (subject === undefined) {
-            throw new ServiceError("FORBIDDEN", {
+            throw new CallError("FORBIDDEN", {
                 message: `${this.object.name} needs a calling principal`,
             });
         }
@@ -535,7 +566,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     requireParent(): ObjectReference {
         const parent = this.parent();
         if (parent === undefined) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `${this.object.name} needs a parent`,
             });
         }
@@ -566,7 +597,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
     }
 
     /** Require the receive permission on a parent. */
-    async requireReceiving(parent: ObjectReference, reader?: GrantReader): Promise<void> {
+    async requireReceiving(parent: ObjectReference, reader?: TupleReader): Promise<void> {
         // require a nested object, and an attachment host type
         const declared = this.object.parent;
         if (declared === undefined) {
@@ -581,7 +612,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
                     (host) => host.packageId === parent.packageId && host.type === parent.type,
                 )
             ) {
-                throw new ServiceError("BAD_REQUEST", {
+                throw new CallError("BAD_REQUEST", {
                     message: `${parent.type} takes no ${this.object.plural}`,
                 });
             }
@@ -593,7 +624,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
                 ...(mapping.scope === undefined ? {} : { [mapping.scope]: parent.scope }),
             });
             if (found === undefined) {
-                throw new ServiceError("NOT_FOUND", { message: `no ${parent.type} ${parent.id}` });
+                throw new CallError("NOT_FOUND", { message: `no ${parent.type} ${parent.id}` });
             }
         }
 
@@ -610,18 +641,18 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
                 : declared.object;
         const reading = host?.reading;
         if (reading === undefined || !(await authorization.check(reading, parent)).isAllowed) {
-            throw new ServiceError("NOT_FOUND", { message: `no ${parent.type} ${parent.id}` });
+            throw new CallError("NOT_FOUND", { message: `no ${parent.type} ${parent.id}` });
         }
         await authorization.require(receive, parent);
     }
 
-    /** Send a call to run later, once this call's transaction commits. */
+    /** Send a call to run at its rows' home for the caller's subject once this call commits. */
     async send(request: { readonly call: sync.Call; readonly at?: number }): Promise<void> {
-        // record the send once in the call's transaction, lending the caller's authority when delegated
-        const { delegation } = this.requireAuthorization();
+        // record the send once in the call's transaction, asking to run it for the caller's subject
+        const exchange = Exchange.of(this.requireAuthorization().context());
         await this.requireStore().send(request.call, this.requireTransaction(), {
             ...(request.at === undefined ? {} : { at: request.at }),
-            ...(delegation === undefined ? {} : { delegation }),
+            ...(exchange === undefined ? {} : { exchange }),
         });
     }
 
@@ -639,13 +670,56 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         this: Call<ObjectTable>,
         changes: Readonly<Partial<InsertValue<ObjectTable>>>,
     ): Promise<Select<ObjectTable>> {
+        return this.#write(this.#revised(changes));
+    }
+
+    /** Stamp changes as an update writes them: next revision, time, author and generation. */
+    revised<Recorded extends Definition & ObjectTable>(
+        this: Call<Recorded>,
+        changes: Readonly<Partial<Select<Recorded>>>,
+    ): Partial<InsertValue<ObjectTable>>;
+    /**
+     * Stamp changes to the record the call targets.
+     *
+     * @construct the target is a record of this call's object, whose table the signature reads.
+     */
+    revised(
+        this: Call<ObjectTable>,
+        changes: Readonly<Partial<InsertValue<ObjectTable>>>,
+    ): Partial<InsertValue<ObjectTable>> {
+        return this.#revised(changes);
+    }
+
+    /** Stamp changes with the next revision, time and author, advancing a controlled generation. */
+    #revised(
+        this: Call<ObjectTable>,
+        changes: Readonly<Partial<InsertValue<ObjectTable>>>,
+    ): Partial<InsertValue<ObjectTable>> {
         // advance the generation of a controlled target
         const target: Row = this.requireTarget();
         const generation = this.object.isControlled
             ? { generation: GENERATION.parse(target["generation"]) + 1 }
             : {};
 
-        return this.#write({ ...changes, ...generation });
+        return this.#stamped({ ...changes, ...generation });
+    }
+
+    /** Stamp changes with the target's next revision, the call's time and its author. */
+    #stamped(
+        this: Call<ObjectTable>,
+        changes: Readonly<Partial<InsertValue<ObjectTable>>>,
+    ): Partial<InsertValue<ObjectTable>> {
+        // stamp the next revision, and the time and author where the table records them
+        const target: Select<ObjectTable> = this.requireTarget();
+        const author = this.caller.subject === undefined ? null : Subject.key(this.caller.subject);
+        const columns = this.object.table[TABLE].columns;
+
+        return {
+            ...changes,
+            revision: target.revision + 1,
+            ...(Object.hasOwn(columns, "updatedAt") ? { updatedAt: this.now } : {}),
+            ...(Object.hasOwn(columns, "updatedBy") ? { updatedBy: author } : {}),
+        };
     }
 
     /** Update the target's observed state at the loaded revision and generation. */
@@ -662,7 +736,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         this: Call<ObjectTable>,
         changes: Readonly<Partial<InsertValue<ObjectTable>>>,
     ): Promise<Select<ObjectTable>> {
-        return this.#write(changes);
+        return this.#write(this.#stamped(changes));
     }
 
     /** Delete the target at the loaded revision. */
@@ -682,12 +756,12 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
 
         // delete only the revision a prediction loaded
-        const deleted = await this.database
+        const deleted = await this.#copy
             .delete(table)
             .where(and(eq(table.id, target.id), eq(table.revision, target.revision)))
             .returning({ id: table.id });
         if (deleted.length === 0) {
-            throw new ServiceError("CONFLICT", {
+            throw new CallError("CONFLICT", {
                 message: `${this.object.name} revision has changed`,
             });
         }
@@ -699,30 +773,20 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         const id = this.requireTarget().id;
         const row = await transaction.row(this.object.table, { id });
         if (row === null) {
-            throw new ServiceError("CONFLICT", { message: `${this.object.name} ${id} is removed` });
+            throw new CallError("CONFLICT", { message: `${this.object.name} ${id} is removed` });
         }
 
         return row;
     }
 
-    /** Write changes to the target at the loaded revision. */
+    /** Write stamped changes to the target at the loaded revision. */
     async #write(
         this: Call<ObjectTable>,
-        changes: Readonly<Partial<InsertValue<ObjectTable>>>,
+        stamped: Readonly<Partial<InsertValue<ObjectTable>>>,
     ): Promise<Select<ObjectTable>> {
-        // stamp the changes with the next revision, which every derived table has
+        // write the stamped changes over the target
         const base: ObjectTable = this.object.table;
         const target: Select<ObjectTable> = this.requireTarget();
-        const author = this.caller.subject === undefined ? null : Subject.key(this.caller.subject);
-        const columns = base[TABLE].columns;
-        const isTimed = Object.hasOwn(columns, "updatedAt");
-        const isAuthored = Object.hasOwn(columns, "updatedBy");
-        const stamped: Partial<InsertValue<ObjectTable>> = {
-            ...changes,
-            revision: target.revision + 1,
-            ...(isTimed ? { updatedAt: this.now } : {}),
-            ...(isAuthored ? { updatedBy: author } : {}),
-        };
 
         // write over the target as the transaction has it, whose commit refuses a target changed since
         if (this.location.kind === "server") {
@@ -741,13 +805,13 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         }
 
         // update at the revision a prediction loaded
-        const [row] = await this.database
+        const [row] = await this.#copy
             .update(base)
             .set(stamped)
             .where(and(eq(base.id, target.id), eq(base.revision, target.revision)))
             .returning();
         if (!row) {
-            throw new ServiceError("CONFLICT", {
+            throw new CallError("CONFLICT", {
                 message: `${this.object.name} revision has changed`,
             });
         }
@@ -755,8 +819,8 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return row;
     }
 
-    /** The service's caller acting as itself, such as its space or installation, in a store. */
-    get service(): Caller {
+    /** The store's principal acting as itself, such as its space or installation. */
+    get self(): Caller {
         return Caller.of(this.requireStore().principal, this.now);
     }
 
@@ -767,7 +831,7 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         });
     }
 
-    /** Read the store's installation, refusing a prediction and a store outside a space. */
+    /** Read the installation the call runs as, refusing a prediction and a call outside a space. */
     requireInstallation(): InstallationContext {
         if (this.location.kind === "client" || this.location.installation === undefined) {
             throw new TypeError(`${this.object.name}.${this.name} runs in no installation`);
@@ -776,9 +840,9 @@ export class Call<Definition extends Table = Table, Input extends schema.Schema 
         return this.location.installation;
     }
 
-    /** Read the store running the call, refusing a prediction no store runs. */
+    /** Read the store running the call, refusing a prediction and a hook no store runs. */
     requireStore(): ObjectStore {
-        if (this.location.kind === "client") {
+        if (this.location.kind !== "server") {
             throw new TypeError(`${this.object.name}.${this.name} runs in no store`);
         }
 
@@ -809,7 +873,6 @@ export type CallFields<
     | "input"
     | "id"
     | "target"
-    | "database"
     | "caller"
     | "now"
     | "location"
@@ -822,11 +885,13 @@ export type CallFields<
     | "expansion"
 >;
 
-/** Where a call runs: predicted on a client over its replica, or served by a store. */
+/** Where a call runs: predicted on a client, served by a store, or hooked in a sandbox. */
 export type CallLocation =
     | {
           /** A client predicting the call. */
           readonly kind: "client";
+          /** The client's copy the prediction reads and writes. */
+          readonly database: DatabaseConnection;
       }
     | {
           /** A store serving the call. */
@@ -841,11 +906,21 @@ export type CallLocation =
           readonly transaction: Transaction;
           /** The call's view at a position or over a branch, the mutation's if absent. */
           readonly snapshot?: Snapshot;
+      }
+    | {
+          /** An installation's sandbox running the call's hook for its store. */
+          readonly kind: "sandbox";
+          /** The reads of the store the hook makes in its mutation's session. */
+          readonly session: SessionReader;
+          /** The installation the sandbox runs as. */
+          readonly installation: InstallationContext;
       };
 
 /** A call of one object type method as a value: method, input, release and result. */
 export interface ObjectCall<Result = unknown> {
-    /** The object type and method, such as page.create. */
+    /** The package-qualified object type. */
+    readonly type: ObjectTypeReference;
+    /** The method's name, such as create. */
     readonly method: string;
     /** The method's input with its scope and target, as the method's input schema reads it. */
     readonly input: Readonly<Record<string, unknown>>;
@@ -862,8 +937,42 @@ export type ResultsOf<Calls extends readonly ObjectCall[]> = {
         : never;
 };
 
-/** Run a call in a calling method's transaction and scope as a caller. */
-export type Run = (entry: ObjectCall, caller: Caller, mutates: boolean) => Promise<unknown>;
+/** Run a call in the calling method's transaction and scope. */
+export type Run = (
+    entry: ObjectCall,
+    caller: Caller,
+    mutates: boolean,
+    code: CallCode,
+) => Promise<unknown>;
+
+/** The code making a call: the store's own, a client's, or a package's sandboxed hooks. */
+export type CallCode =
+    | { readonly kind: "store" }
+    | { readonly kind: "client" }
+    | { readonly kind: "sandbox"; readonly packageId: PackageId };
+
+/** The codes making calls, and the methods each reaches. */
+export const CallCode = {
+    /** The store's own code, which reaches every method. */
+    store: { kind: "store" } as const satisfies CallCode,
+
+    /** A client's code, which reaches public methods. */
+    client: { kind: "client" } as const satisfies CallCode,
+
+    /** Read the code of a caller: a client's for a remote caller, else the store's. */
+    of(caller: Caller): CallCode {
+        return Caller.isRemote(caller) ? CallCode.client : CallCode.store;
+    },
+
+    /** Decide whether code reaches a method, internal ones the store's and their package's. */
+    reaches(code: CallCode, object: ObjectType, method: Method): boolean {
+        return (
+            method.isInternal !== true ||
+            code.kind === "store" ||
+            (code.kind === "sandbox" && code.packageId === object.package.id)
+        );
+    },
+};
 
 /** The input a call reads: the output of its method's input schema, a JSON object without one. */
 export type InputOf<Input extends schema.Schema> = [Input] extends [never]
@@ -1080,7 +1189,7 @@ export type Bivariant<Callback extends (...parameters: never[]) => unknown> = {
 /** Report whether a failure is the machine's final refusal: a client error, apart from timeouts. */
 function isRefusal(error: Error): boolean {
     return (
-        isServiceError(error) &&
+        isCallError(error) &&
         error.status >= 400 &&
         error.status < 500 &&
         !TRANSIENT_STATUSES.has(error.status)

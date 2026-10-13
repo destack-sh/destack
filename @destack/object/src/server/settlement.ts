@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, isNull, lte, or, type DatabaseConnection } from "@destack/db";
 import { schema, Duration, type JsonValue } from "@destack/schema";
-import { ServiceError } from "@destack/service";
-import type { Controller } from "@destack/service/control";
+import { CallError } from "@destack/runtime";
+import type { Controller } from "@destack/runtime/control";
 import { v7 } from "uuid";
 import type { Call } from "../method/call.ts";
 import { settlement, SettlementCall } from "../method/settlement.ts";
@@ -183,7 +183,7 @@ export const Settlement = {
 
 /** Refuse a call whose settlement a settler claimed after its grace passed. */
 function refuseOutlasted(call: Call): never {
-    throw new ServiceError("SERVICE_UNAVAILABLE", {
+    throw new CallError("SERVICE_UNAVAILABLE", {
         message: `${call.object.name}.${call.name} outlasted its settlement grace`,
     });
 }

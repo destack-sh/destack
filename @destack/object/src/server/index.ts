@@ -1,7 +1,7 @@
 export * from "./store.ts";
 export * from "./authorization.ts";
 export * from "./stack.ts";
-export * from "../claim/store.ts";
+export * from "../claim/reservation.ts";
 export * from "../claim/controller.ts";
 export * from "./ephemeral.ts";
 export * from "./provisioned.ts";
@@ -12,3 +12,5 @@ export * from "./tracked.ts";
 export * from "./external.ts";
 export { Settlement } from "./settlement.ts";
 export * from "./extension.ts";
+export * from "../audit/journal.ts";
+export * from "../audit/recorder.ts";

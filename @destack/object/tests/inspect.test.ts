@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
+import { defineObject, field } from "../src/index.ts";
 import { objectSymbols, objectVocabulary } from "../src/inspect/index.ts";
 import { task } from "./schema.ts";
 import { any } from "./fixture/match.ts";
@@ -75,10 +76,82 @@ test("list a task's methods as symbols, each with its route and input, reading o
                 mutates: true,
                 route: { method: "POST", path: "/spaces/{spaceId}/tasks/{id}/archive" },
                 input: any(Object),
+                output: any(Object),
             },
         },
         relationships: [
             { kind: "writes", symbol: { kind: "table", name: "destack__object__task" } },
         ],
+    });
+});
+
+test("describe the methods callers call: kind, permission, route, and input without its request", () => {
+    // define a gauge measured by a query and reset by a mutation
+    const gauge = defineObject({
+        name: "gauge",
+        plural: "gauges",
+        scope: "universe",
+        fields: { level: field.number() },
+        permissions: ["read", "reset"],
+    }).methods((method) => ({
+        measure: method.query({
+            permission: "read",
+            input: schema.object({ unit: schema.enum(["percent", "ratio"]) }),
+            output: schema.object({ value: schema.number() }),
+        }),
+        reset: method.mutation({ permission: "reset", output: schema.object({}) }),
+        tidy: method.mutation({ permission: "reset", isInternal: true }),
+    }));
+    const described = gauge.describeMethods();
+
+    // describe each method but the internal one, a mutation's input without its request
+    expect({
+        names: Object.keys(described),
+        measure: described["measure"],
+        reset: described["reset"],
+    }).toEqual({
+        names: ["measure", "reset", "get", "list"],
+        measure: {
+            kind: "custom",
+            permission: "read",
+            mutates: false,
+            route: { method: "POST", path: "/gauges/{id}/measure" },
+            input: {
+                $schema: "https://json-schema.org/draft/2020-12/schema",
+                type: "object",
+                properties: {
+                    id: any(Object),
+                    unit: { type: "string", enum: ["percent", "ratio"] },
+                },
+                required: ["id", "unit"],
+                additionalProperties: false,
+            },
+            output: {
+                $schema: "https://json-schema.org/draft/2020-12/schema",
+                type: "object",
+                properties: { value: { type: "number" } },
+                required: ["value"],
+                additionalProperties: false,
+            },
+        },
+        reset: {
+            kind: "custom",
+            permission: "reset",
+            mutates: true,
+            route: { method: "POST", path: "/gauges/{id}/reset" },
+            input: {
+                $schema: "https://json-schema.org/draft/2020-12/schema",
+                type: "object",
+                properties: { id: any(Object) },
+                required: ["id"],
+                additionalProperties: false,
+            },
+            output: {
+                $schema: "https://json-schema.org/draft/2020-12/schema",
+                type: "object",
+                properties: {},
+                additionalProperties: false,
+            },
+        },
     });
 });

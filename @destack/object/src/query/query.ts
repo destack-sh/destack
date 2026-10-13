@@ -1,10 +1,11 @@
 import { type Condition, type QueryOptions, type Relation, Relations } from "@destack/db";
 import { Scope, type Query } from "@destack/sync";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { present } from "@destack/schema";
 import type { ObjectQuery, OpenQueryOptions } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
 import { CHUNKS } from "../text/chunk.ts";
+import { ObjectSearch } from "../trait/search.ts";
 
 /** The relations of each served list of object types, derived once. */
 const SCHEMAS = new WeakMap<readonly ObjectType[], Relations>();
@@ -27,9 +28,9 @@ export function compileQueries(
             const { object: objectName, ...options } = query;
             const object = objects.find((entry) => entry.name === objectName);
             if (!object) {
-                throw new ServiceError("BAD_REQUEST", { message: `no object ${objectName}` });
+                throw new CallError("BAD_REQUEST", { message: `no object ${objectName}` });
             } else if ((object.scope === Scope.universe.id) !== isGlobal) {
-                throw new ServiceError("BAD_REQUEST", {
+                throw new CallError("BAD_REQUEST", {
                     message: `object ${objectName} is not in scope ${scope}`,
                 });
             }
@@ -84,11 +85,11 @@ function optionsOf(
 ): QueryOptions {
     // require a listed object type, and trash selection at the root only
     if (object.listing === undefined) {
-        throw new ServiceError("BAD_REQUEST", { message: `object ${object.name} is not listed` });
+        throw new CallError("BAD_REQUEST", { message: `object ${object.name} is not listed` });
     } else if (options.deleted !== undefined && object.lifecycle.recoverable === undefined) {
-        throw new ServiceError("BAD_REQUEST", { message: `object ${object.name} has no trash` });
+        throw new CallError("BAD_REQUEST", { message: `object ${object.name} has no trash` });
     } else if (options.deleted !== undefined && !isRoot) {
-        throw new ServiceError("BAD_REQUEST", {
+        throw new CallError("BAD_REQUEST", {
             message: `included ${object.name} objects leave their trash out`,
         });
     }
@@ -113,7 +114,7 @@ function optionsOf(
     // filter a root's trashed rows, which relations leave out for included ones
     const trash = isRoot ? trashCondition(object, options) : undefined;
     const where = joined([
-        ...(options.where === undefined ? [] : [options.where]),
+        ...(options.where === undefined ? [] : [ObjectSearch.expand(object, options.where)]),
         ...(trash === undefined ? [] : [trash]),
     ]);
 
@@ -163,7 +164,7 @@ export function related(
             ? undefined
             : objects.find((entry) => entry.table === relation.table);
     if (relation === undefined || target === undefined) {
-        throw new ServiceError("BAD_REQUEST", {
+        throw new CallError("BAD_REQUEST", {
             message: `object ${object.name} includes nothing named ${name}`,
         });
     }

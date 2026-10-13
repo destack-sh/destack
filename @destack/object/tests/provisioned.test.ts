@@ -1,19 +1,27 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { reconciliation, testCallKey } from "@destack/service/test";
-import { journal } from "@destack/audit/stack";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
+import { journal } from "../src/index.ts";
 import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { canonicalize, Clock, present, schema } from "@destack/schema";
+import { canonicalize, Clock, Digest, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 
-import { claimTable, CONSUMER, defineObject, type ProvisionedRecord } from "../src/index.ts";
-import { DatabaseClaimStore, DRAINING, ObjectStore } from "../src/server/index.ts";
+import {
+    CONSUMER,
+    defineObject,
+    DesiredState,
+    desiredState,
+    type ProvisionedRecord,
+} from "../src/index.ts";
+import { DRAINING, ObjectStore } from "../src/server/index.ts";
+import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 
 /** The space with the boxes and links. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
@@ -60,7 +68,7 @@ const ids = {
 /** The database with the space, its boxes and links, their access and the journal. */
 const boxDatabase = defineDatabase({
     name: "main",
-    tables: [...new Set([journal, ...space.tables, ...box.tables, ...link.tables])],
+    tables: [...new Set([...callTables, ...space.tables, ...box.tables, ...link.tables])],
 });
 
 /** The installation consuming boxes. */
@@ -150,7 +158,13 @@ async function serve(boxes: Boxes) {
         .values({ id: spaceId, scope: "universe", createdAt: 1, updatedAt: 1 });
 
     // keep the claims of the resource names in the universe
-    const universe = await TestDatabase.create("sqlite", [claimTable], { isMigrated: true });
+    const universe = await TestDatabase.create(
+        "sqlite",
+        [...new Set([...callTables, ...claim.tables])],
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => universe.close());
 
     // serve the boxes through their memory provider and links through one provisioning nothing
@@ -161,11 +175,12 @@ async function serve(boxes: Boxes) {
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { box, link },
+        objects: [box, link],
         database,
-        claims: new DatabaseClaimStore(universe.database, Clock.system),
+        claims: await serveClaims(universe.database, Clock.system),
         callKey: testCallKey,
-        origin: { package: box.package, service: "test" },
+        events: await testEvents(database),
+        origin: { package: box.package },
         provisioned: { providers: [boxes.provider(), links], machine: machineId },
     });
 
@@ -184,32 +199,41 @@ async function serve(boxes: Boxes) {
     const read = async (id: typeof ids.first) =>
         (await database.select().from(box.table).where(eq(box.table.id, id)))[0];
 
-    // write a box's desired states and approval threshold as its space does
+    // keep a box's desired states and write their digests and its approval threshold as its space does
+    const digests = (states: readonly { size: number }[]) =>
+        Promise.all(states.map((state) => Digest.json(state)));
     const want = async (
         id: typeof ids.first,
         states: { size: number }[],
         drainingStates: { size: number }[] = [],
     ) => {
         const row = present(await read(id), `box ${id}`);
-        await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-            id: RequestId.create(Date.now()),
-            calls: [
-                box.call("specify", {
-                    ...box.target(row),
-                    states,
-                    drainingStates,
-                    approval: declared.approval,
-                }),
-            ],
+        await Transaction.run(database, async (transaction) => {
+            await DesiredState.keep(transaction, spaceId, [...states, ...drainingStates]);
+            await store.mutate(
+                Caller.of(spacePrincipal(spaceId), Date.now()),
+                {
+                    id: RequestId.create(Date.now()),
+                    calls: [
+                        box.call("specify", {
+                            ...box.target(row),
+                            states: await digests(states),
+                            drainingStates: await digests(drainingStates),
+                            approval: declared.approval,
+                        }),
+                    ],
+                },
+                { transaction },
+            );
         });
     };
 
-    return { store, database, reconcile, read, want };
+    return { store, database, reconcile, read, want, digests };
 }
 
 test("provision a box, apply its consumers' growth, and apply a destructive shrink only once its plan is approved", async () => {
     const boxes = new Boxes();
-    const { database, reconcile, read, want } = await serve(boxes);
+    const { store, database, reconcile, read, want, digests } = await serve(boxes);
     const now = Date.now();
     await database.insert(box.table).values({
         ...declared,
@@ -251,6 +275,22 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     await reconcile("box", ids.first);
     const shrunk = present(await read(ids.first), "the shrunk box");
 
+    // keep the one state the box needs, and refuse a digest of a state the space keeps none of
+    const kept = await database.select({ state: desiredState.state }).from(desiredState);
+    const unknown = await refusal(
+        store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [
+                box.call("specify", {
+                    ...box.target(shrunk),
+                    states: await digests([{ size: 4 }]),
+                    drainingStates: [],
+                    approval: declared.approval,
+                }),
+            ],
+        }),
+    );
+
     // record the provider, the reference and the host, and apply each size in turn
     expect({
         unset: [unset.reference, unset.observedGeneration, unset.conditions],
@@ -265,6 +305,8 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         unchanged,
         shrunk: [shrunk.conditions["ready"]?.reason, shrunk.approvedPlan, shrunk.plan],
         sizes: [...boxes.sizes],
+        kept,
+        unknown,
     }).toEqual({
         unset: [null, 0, {}],
         fenced: [null, 0, {}],
@@ -283,6 +325,11 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         unchanged: waiting,
         shrunk: ["Applied", null, null],
         sizes: [[ids.first, 1]],
+        kept: [{ state: { size: 1 } }],
+        unknown: [
+            "BAD_REQUEST",
+            `${spaceId} keeps no desired states ${await Digest.json({ size: 4 })}`,
+        ],
     });
 });
 

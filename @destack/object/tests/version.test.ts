@@ -3,12 +3,13 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import { ObjectStore } from "../src/server/index.ts";
 import { objectDatabase, task, taskVersion } from "./schema.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
 import { userContext } from "./fixture/user.ts";
 import { request } from "./fixture/request.ts";
 
@@ -36,12 +37,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { task, taskVersion },
+            objects: [task, taskVersion],
             database,
             callKey: testCallKey,
+            events: await testEvents(database),
             origin: {
                 package: task.package,
-                service: "test",
             },
         });
         const context = userContext("user-1", spaceId);

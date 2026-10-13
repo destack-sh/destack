@@ -14,7 +14,7 @@ export type VersionBuilderMap<Versions> = Versions extends VersionsDefinition
 /** Immutable versions of a parent, numbered within it. */
 export const versioned: Trait<VersionsDefinition> = {
     key: "versioned",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.versioned,
     columns: () => ({
         number: integer("number").notNull(),

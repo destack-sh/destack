@@ -25,16 +25,17 @@ import {
 } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import { type ObjectOf, ObjectType } from "../object/object.ts";
+import type { ObjectDescription } from "../object/description.ts";
 import { isManaging, managedColumns } from "../trait/declarable.ts";
 import type { RecordBuilderMap } from "../trait/record.ts";
 import type { FieldColumn } from "../field/field.ts";
-import { type ClaimStore, Reservation } from "../claim/store.ts";
+import { type Claimer, type ClaimHome, Reservation } from "../claim/reservation.ts";
 import type { ObjectStore } from "./store.ts";
 import type { Authorization } from "./authorization.ts";
 import { Call, type ObjectCall, type ResultsOf } from "../method/call.ts";
 import { Caller } from "@destack/access";
-import { ServiceError } from "@destack/service/error";
-import { RequestId } from "@destack/service/request";
+import { CallError } from "@destack/runtime/error";
+import { RequestId } from "@destack/runtime/request";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Claimant } from "../claim/claim.ts";
@@ -48,6 +49,18 @@ type ManagedColumns = TableColumnMap<
 
 /** One section of a stack document: declarations by name. */
 const DECLARED = schema.record(schema.string(), schema.unknown());
+
+/** The fields of a described type's definition that place its declarations in a stack document. */
+const DESCRIBED = schema.looseObject({
+    /** The type's name. */
+    name: schema.string(),
+    /** The type's plural, the document key of its declarations. */
+    plural: schema.string(),
+    /** How stacks declare the type, absent on a type stacks do not declare. */
+    declarable: schema.unknown().exactOptional(),
+    /** The type its records nest in, whose declarations hold the type's own. */
+    nested: schema.unknown().exactOptional(),
+});
 
 /** The columns a declaration determines. */
 type DeclaredValues = Partial<Insert<Table>>;
@@ -120,16 +133,18 @@ export interface ApplyOptions {
     readonly document: JsonObject;
     /** Further policies of declared objects. */
     readonly policies?: readonly Policy[];
-    /** The claims of unique indexes, kept by the account service. */
-    readonly claims?: ClaimStore;
+    /** The claim type keeping the names of unique indexes, and the store serving it. */
+    readonly claims?: ClaimHome;
     /** The object store running the declarations' calls, applying records where they live. */
-    readonly store?: Pick<ObjectStore, "mutate" | "admit">;
+    readonly store?: Pick<ObjectStore, "mutate" | "admit" | "claimer" | "isCopy">;
     /** Open a package release's build in the scope via a snapshot, the installation's if given. */
     readonly release?: (
         snapshot: Snapshot,
         packageId: PackageId,
         installation?: Identifier<"installation">,
     ) => Promise<BuildReader>;
+    /** Read the object types the applied declarations install, served once the store reloads. */
+    readonly installing?: (snapshot: Snapshot) => Promise<readonly ObjectDescription[]>;
 }
 
 /** An object type beside how its declarations become records. */
@@ -155,13 +170,15 @@ export class Stack {
     readonly #options: ApplyOptions;
     /** The declared object types in dependency order. */
     readonly #ordered: readonly TypeDeclaration[];
+    /** The document keys no served type collects, which types the stack installs may collect. */
+    readonly #installing: readonly string[];
     /** The scope enclosing the stack's scope, read on first use. */
     #enclosing: Promise<string> | undefined;
 
     /** Keep a stack's inputs, its ordered object types and the transaction writing them. */
     private constructor(
         options: ApplyOptions,
-        ordered: readonly TypeDeclaration[],
+        declared: Declared,
         authorizer: Authorizer,
         now: number,
         transaction: Transaction,
@@ -177,60 +194,32 @@ export class Stack {
         // keep the transaction and what applies it
         this.transaction = transaction;
         this.#options = options;
-        this.#ordered = ordered;
+        this.#ordered = declared.ordered;
+        this.#installing = declared.installing;
     }
 
-    /** Plan a stack's steps, addressed `<type>/<name>`, without writing anything. */
-    static async plan(options: ApplyOptions): Promise<Plan> {
-        const ordered = await Stack.#declare(options);
+    /** Plan a stack's steps, addressed `<type>/<name>`, in a transaction its apply commits. */
+    static async plan(options: ApplyOptions): Promise<StackPlan> {
+        // write the steps into an open transaction
+        const declared = await Stack.#declare(options);
         const transaction = await Transaction.open(options.database);
+        const stack = await Stack.#open(options, declared, transaction);
 
-        return (await Stack.#open(options, ordered, transaction)).#apply();
+        return new StackPlan(options, transaction, await stack.#apply());
     }
 
-    /** Apply a stack in one transaction, as steps addressed `<type>/<name>`. */
+    /** Plan and apply a stack in one transaction, again while it loses a race. */
     static async apply(options: ApplyOptions): Promise<Plan> {
-        // run the steps over one transaction, again while it loses a race, reserving the names the written objects claim
-        const ordered = await Stack.#declare(options);
-        const { claims } = options;
-        const requestId = crypto.randomUUID();
-        let reservation: Reservation | undefined;
-        let plan: Plan;
-        try {
-            plan = await Transaction.run(options.database, async (transaction) => {
-                // apply the steps and reserve the claimed names as the transaction commits
-                const stack = await Stack.#open(options, ordered, transaction);
-                const applied = await stack.#apply();
-                const claimants = await Claimant.written(transaction, options.objects);
-                transaction.record(async (committing) => {
-                    reservation =
-                        claims &&
-                        (await Reservation.reserve(
-                            claims,
-                            committing,
-                            claimants,
-                            options.objects,
-                            requestId,
-                        ));
-                });
+        return Transaction.retry(async () => {
+            const planned = await Stack.plan(options);
+            await planned.apply();
 
-                return applied;
-            });
-        }
-        // release the names once the commit fails
-        catch (error) {
-            await claims?.release(requestId);
-            throw error;
-        }
-
-        // confirm the reserved names
-        await reservation?.confirm();
-
-        return plan;
+            return planned.plan;
+        });
     }
 
     /** Order a stack's declarations, refusing uncollected and multiply collected entries. */
-    static async #declare(options: ApplyOptions): Promise<TypeDeclaration[]> {
+    static async #declare(options: ApplyOptions): Promise<Declared> {
         // pair each object type with its declaration
         const declared = options.objects.map((object) => {
             // require a declaration on a declarable type
@@ -254,18 +243,22 @@ export class Stack {
         const indexed = declared.find((entry) => Object.keys(entry.object.indexes).length > 0);
         if (indexed !== undefined && options.claims === undefined) {
             throw new TypeError(
-                `object ${indexed.object.name} declares indexes but no claim store keeps their names`,
+                `object ${indexed.object.name} declares indexes but no claim type keeps their names`,
             );
         }
 
-        // reject collections and entries that no declaration collects, and entries several collect
+        // keep collections no declaration collects for the types the stack installs, and reject entries that none or several collect
         const ordered = order(declared);
+        const installing: string[] = [];
         for (const [key, value] of Object.entries(options.document)) {
             const readers = ordered.filter((entry) =>
                 (entry.keys ?? [entry.object.plural]).includes(key),
             );
-            if (readers.length === 0) {
+            if (readers.length === 0 && options.installing === undefined) {
                 throw new ObjectError("UNSUPPORTED_DECLARATION", `this server applies no ${key}`);
+            } else if (readers.length === 0) {
+                installing.push(key);
+                continue;
             }
             const collected = await Promise.all(
                 readers.map(async (entry) =>
@@ -285,13 +278,13 @@ export class Stack {
             }
         }
 
-        return ordered;
+        return { ordered, installing };
     }
 
     /** Open a stack over a database transaction with its ordered declarations, refusing moves. */
     static async #open(
         options: ApplyOptions,
-        ordered: TypeDeclaration[],
+        declared: Declared,
         transaction: Transaction,
     ): Promise<Stack> {
         // apply in order under the declared object types' policies
@@ -303,14 +296,14 @@ export class Stack {
         // refuse a moved scope
         for (const link of await Scope.chain(transaction.view(), options.scope)) {
             if (link.movedTo !== undefined) {
-                throw new ServiceError("MISDIRECTED_REQUEST", {
+                throw new CallError("MISDIRECTED_REQUEST", {
                     message: `${link.object.id} moves to ${link.movedTo}`,
                     data: { scope: link.object.id, machine: link.movedTo },
                 });
             }
         }
 
-        return new Stack(options, ordered, authorizer, options.now, transaction);
+        return new Stack(options, declared, authorizer, options.now, transaction);
     }
 
     /** Read a nested type's declarations inline under its parent's, named `<parent>/<child>`. */
@@ -385,7 +378,10 @@ export class Stack {
         // wait for a record kept where its rows live until its copy arrives, and refuse an unknown one
         const id = await this.find(object, name);
         const target = this.#select(object).object;
-        if (id === undefined && (await target.isCopy(this.transaction.view(), this.scope))) {
+        if (
+            id === undefined &&
+            (await this.#store().isCopy(target, this.transaction.view(), this.scope))
+        ) {
             this.wait(`${target.name} ${name} waits for its copy`);
         } else if (id === undefined) {
             throw new ObjectError("INVALID_DECLARATION", `unknown ${target.name}: ${name}`);
@@ -461,12 +457,56 @@ export class Stack {
             }
         }
 
+        // plan the declarations of the types the stack installs and wait until the store serves them
+        if (this.#installing.length > 0) {
+            const installing = this.#installing.join(", ");
+            steps.push(...(await this.#planInstalling()));
+
+            return { steps, deferred: `${installing} wait for the store to serve their types` };
+        }
+
         // retire in reverse order
         for (const declaration of this.#ordered.toReversed()) {
             steps.push(...(await this.#retire(declaration, found(resolved, declaration))));
         }
 
         return { steps };
+    }
+
+    /** Plan creating the declarations of the types the stack installs. */
+    async #planInstalling(): Promise<Step[]> {
+        // read the declarable types the applied declarations install
+        const installing = present(this.#options.installing, "the reader of the installed types");
+        const descriptions = await installing(this.transaction.view());
+        const types = descriptions
+            .map((description) => DESCRIBED.parse(description.definition))
+            .filter((type) => type.declarable !== undefined);
+
+        // plan each declaration of a collection one of them collects, and the declarations nested in it
+        const steps: Step[] = [];
+        for (const key of this.#installing) {
+            const type = types.find((each) => each.plural === key && each.nested === undefined);
+            if (type === undefined) {
+                throw new ObjectError("UNSUPPORTED_DECLARATION", `this server applies no ${key}`);
+            }
+            for (const [name, value] of Object.entries(DECLARED.parse(this.document[key]))) {
+                steps.push(creation(type.name, name));
+                for (const [plural, children] of Object.entries(DECLARED.parse(value))) {
+                    // plan the declarations of a type nested in it
+                    const child = types.find(
+                        (each) => each.plural === plural && each.nested !== undefined,
+                    );
+                    if (child !== undefined) {
+                        const names = Object.keys(DECLARED.parse(children));
+                        steps.push(
+                            ...names.map((each) => creation(child.name, Address.join(name, each))),
+                        );
+                    }
+                }
+            }
+        }
+
+        return steps;
     }
 
     /** Select an object type's declaration by type or name. */
@@ -571,8 +611,7 @@ export class Stack {
     ): Promise<Step> {
         // plan the creation
         const { transaction, manager } = this;
-        const target = Address.join(declaration.object.name, name);
-        const step: Step = { action: "create", target, risk: "safe", detail: "declare" };
+        const step = creation(declaration.object.name, name);
 
         // keep the record through its table's owner, or apply it under a fresh identifier where its rows live
         const { object } = declaration;
@@ -583,7 +622,7 @@ export class Stack {
         }
         const id = object.generateId();
         await this.#applyRecord(object, name, values, id);
-        if (!(await object.isCopy(transaction.view(), this.scope))) {
+        if (!(await this.#store().isCopy(object, transaction.view(), this.scope))) {
             await declaration.written?.(this, await read(transaction, object.table, id), resolved);
         }
 
@@ -637,7 +676,7 @@ export class Stack {
             return [step];
         }
         await this.#applyRecord(declaration.object, name, values);
-        if (!(await declaration.object.isCopy(transaction.view(), this.scope))) {
+        if (!(await this.#store().isCopy(declaration.object, transaction.view(), this.scope))) {
             await declaration.written?.(this, await read(transaction, table, row.id), resolved);
         }
 
@@ -670,7 +709,7 @@ export class Stack {
     }
 
     /** Require the object store running the declarations' calls. */
-    #store(): Pick<ObjectStore, "mutate" | "admit"> {
+    #store(): Pick<ObjectStore, "mutate" | "admit" | "isCopy"> {
         const { store } = this.#options;
         if (store === undefined) {
             throw new TypeError("the stack runs calls, but no object store runs them");
@@ -739,8 +778,68 @@ export class Stack {
     }
 }
 
+/** A stack's planned steps over the open transaction that applies them unchanged. */
+export class StackPlan {
+    /** The planned steps, and the wait deferring the rest. */
+    readonly plan: Plan;
+    /** What the machine applies the stack with. */
+    readonly #options: ApplyOptions;
+    /** The open transaction keeping the planned writes. */
+    readonly #transaction: Transaction;
+
+    /** Keep a plan with the transaction keeping its writes. */
+    constructor(options: ApplyOptions, transaction: Transaction, plan: Plan) {
+        this.plan = plan;
+        this.#options = options;
+        this.#transaction = transaction;
+    }
+
+    /** Apply the planned steps unchanged, refusing a plan another commit made stale. */
+    async apply(): Promise<void> {
+        // reserve the names the written objects claim before the commit
+        const { claims, objects, now, store } = this.#options;
+        const claimants = await Claimant.written(this.#transaction, objects);
+        const claimer: Claimer =
+            store === undefined ? { kind: "store" } : store.claimer(this.#transaction);
+        const reservation =
+            claims &&
+            (await Reservation.reserve(claims, claimants, objects, {
+                id: crypto.randomUUID(),
+                now,
+                claimer,
+            }));
+        this.#transaction.record(async (committing) => {
+            await reservation?.commit(committing);
+        });
+
+        // commit, releasing the names once the commit fails
+        try {
+            await this.#transaction.commit();
+        } catch (error) {
+            await reservation?.release();
+            throw error;
+        }
+
+        // confirm the reserved names
+        await reservation?.confirm();
+    }
+}
+
 /** Stop applying until a dependency is ready. */
 class DependencyWait extends Error {}
+
+/** Plan creating a declared record of a type under its declared name. */
+function creation(type: string, name: string): Step {
+    return { action: "create", target: Address.join(type, name), risk: "safe", detail: "declare" };
+}
+
+/** A stack's declarations in dependency order, and the keys left to the types it installs. */
+interface Declared {
+    /** The declared object types in dependency order. */
+    readonly ordered: readonly TypeDeclaration[];
+    /** The document keys no served type collects. */
+    readonly installing: readonly string[];
+}
 
 /** Select an object type's declarations from a document, a nested type's under its parent's. */
 async function collect(

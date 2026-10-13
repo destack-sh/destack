@@ -1,6 +1,6 @@
 import type { Permission } from "@destack/access";
 import { sql, TABLE, type Row, type SQL, type Table } from "@destack/db";
-import type { RowKey, Audience, Watch } from "@destack/sync";
+import type { Audience, Watch } from "@destack/sync";
 import type { Call } from "../method/call.ts";
 import type { ObjectType } from "../object/object.ts";
 
@@ -70,9 +70,9 @@ export class Listing implements Audience {
     /** Decide nothing again. */
     async refresh(): Promise<void> {}
 
-    /** List no dependents. */
-    async dependents(): Promise<readonly RowKey[]> {
-        return [];
+    /** Decide nothing beyond rows themselves. */
+    async decides(): Promise<boolean> {
+        return false;
     }
 }
 

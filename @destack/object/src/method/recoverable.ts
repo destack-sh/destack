@@ -1,6 +1,6 @@
 import { Duration, present, type schema } from "@destack/schema";
 import { type Row, type Select } from "@destack/db";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import type { Call } from "./call.ts";
 import { defineMethod, type Method, type MethodBuilder } from "./method.ts";
 import { method } from "./record.ts";
@@ -84,11 +84,11 @@ async function restore(
     const target = call.requireTarget();
     const requested = target.deletionRequestedAt;
     if (requested === null) {
-        throw new ServiceError("CONFLICT", { message: `${object.name} is not deleted` });
+        throw new CallError("CONFLICT", { message: `${object.name} is not deleted` });
     } else if (isPurged(target)) {
-        throw new ServiceError("CONFLICT", { message: `${object.name} is purged` });
+        throw new CallError("CONFLICT", { message: `${object.name} is purged` });
     } else if (call.now - requested >= Duration.milliseconds(recoveryOf(call).within)) {
-        throw new ServiceError("CONFLICT", {
+        throw new CallError("CONFLICT", {
             message: `${object.name} is past its recovery window`,
         });
     }
@@ -104,9 +104,9 @@ async function purge(
     const { object } = call;
     const target = call.requireTarget();
     if (target.deletionRequestedAt === null) {
-        throw new ServiceError("CONFLICT", { message: `${object.name} is not deleted` });
+        throw new CallError("CONFLICT", { message: `${object.name} is not deleted` });
     } else if (isPurged(target)) {
-        throw new ServiceError("CONFLICT", { message: `${object.name} is purged` });
+        throw new CallError("CONFLICT", { message: `${object.name} is purged` });
     }
 
     // mark a kept record purged
@@ -129,7 +129,7 @@ export function discard<const Permission extends string>(permission: Permission)
         .handle(async (call) => {
             // require a purged record
             if (!isPurged(call.target)) {
-                throw new ServiceError("CONFLICT", {
+                throw new CallError("CONFLICT", {
                     message: `${call.object.name} is not purged`,
                 });
             }

@@ -22,7 +22,7 @@ export const suspendable: Trait<Gated> & {
     ): Method<{ kind: "custom"; permission: Permission; mutates: true }>;
 } = {
     key: "suspendable",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.suspendable,
     columns: () => ({}),
     constraints: () => [],

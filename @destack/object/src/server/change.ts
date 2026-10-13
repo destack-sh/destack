@@ -12,14 +12,14 @@ import {
     type Match,
 } from "@destack/db";
 import { Clock, found, schema } from "@destack/schema";
-import type { Controller } from "@destack/service/control";
+import type { Controller } from "@destack/runtime/control";
 import {
     type ChangeOperation,
     type ChangeTrigger,
     type ObjectChange,
     type RunClient,
     RunEvent,
-} from "@destack/service/trigger";
+} from "@destack/runtime/trigger";
 import { ObjectType } from "../object/object.ts";
 
 /** The rows one snapshot page reads: a few hundred kilobytes. */

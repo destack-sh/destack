@@ -95,7 +95,7 @@ export const recoverable: Trait<RecoverableDefinition> & {
     within<Self extends ObjectType>(object: Self, within: Duration): Self;
 } = {
     key: "recoverable",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.recoverable,
     columns: (options) => ({
         ...deletionColumns(),

@@ -1,5 +1,13 @@
-import { type Column, index, type TableConstraint } from "@destack/db";
+import {
+    type Column,
+    index,
+    type OpenCondition,
+    SearchText,
+    type TableConstraint,
+} from "@destack/db";
+import { CHUNKS } from "../text/chunk.ts";
 import { defineSchema, present, schema } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
@@ -28,6 +36,20 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
             ...definition,
         });
     },
+
+    /** Expand a condition's searches: each word in a searched column or a searched text's chunk. */
+    expand(object: ObjectType, condition: OpenCondition): OpenCondition {
+        // leave a type searching no text to its table's index
+        const texts = (object.search?.searchable ?? []).filter((name) =>
+            object.text.includes(name),
+        );
+        if (texts.length === 0) {
+            return condition;
+        }
+        const columns = (object.search?.searchable ?? []).filter((name) => !texts.includes(name));
+
+        return expandSearches(condition, texts, columns.length > 0);
+    },
 });
 
 /** How a definition declares its query roles, a role left out pointing at no field. */
@@ -53,10 +75,12 @@ const INDEXED_TYPES: ReadonlySet<string> = new Set([
 /** Objects found by query roles, each filter or sort field indexed in the objects' scope. */
 export const search: Trait<ObjectSearch> = {
     key: "search",
-    isDurable: true,
+    storages: ["durable", "events"],
     options: (definition) => readSearch(definition),
     columns: () => ({}),
     constraints: (options, table, columns) => indexes(options, table, columns),
+    // index the searchable fields' text, which a list's `SEARCH` condition matches
+    table: (options) => ({ fullText: options.searchable }),
     methods: () => ({}),
     validate: (options, object) => requireRoles(object, options),
 };
@@ -101,4 +125,72 @@ function requireRoles(object: ObjectType, options: ObjectSearch): void {
             }
         }
     }
+}
+
+/** Expand the searches of a condition and the conditions it combines, related types' aside. */
+function expandSearches(
+    condition: OpenCondition,
+    texts: readonly string[],
+    isColumnSearched: boolean,
+): OpenCondition {
+    // expand the conditions a condition combines and negates, keeping its other entries
+    const { SEARCH: searched, AND: all, OR: any, NOT: negated, ...rest } = condition;
+    const expand = (nested: OpenCondition) => expandSearches(nested, texts, isColumnSearched);
+    const combined = [
+        ...conditionsOf(all).map(expand),
+        ...wordsOf(searched, texts, isColumnSearched),
+    ];
+
+    return {
+        ...rest,
+        ...(combined.length === 0 ? {} : { AND: combined }),
+        ...(any === undefined ? {} : { OR: conditionsOf(any).map(expand) }),
+        ...(negated === undefined ? {} : { NOT: expand(conditionOf(negated)) }),
+    };
+}
+
+/** Expand a search into each word in a searched column or a searched text's chunk. */
+function wordsOf(
+    searched: OpenCondition[string] | undefined,
+    texts: readonly string[],
+    isColumnSearched: boolean,
+): OpenCondition[] {
+    // keep no words without a search, and refuse a search of no text
+    if (searched === undefined) {
+        return [];
+    } else if (typeof searched !== "string") {
+        throw new CallError("BAD_REQUEST", { message: "a search takes text" });
+    }
+
+    return SearchText.query(searched).map((word) => ({
+        OR: [
+            ...(isColumnSearched ? [{ SEARCH: word }] : []),
+            { [CHUNKS]: { field: { in: [...texts] }, SEARCH: word } },
+        ],
+    }));
+}
+
+/** Read the conditions a combination lists, refusing an entry that is no condition. */
+function conditionsOf(entry: OpenCondition[string] | undefined): OpenCondition[] {
+    if (entry === undefined) {
+        return [];
+    } else if (!Array.isArray(entry)) {
+        throw new CallError("BAD_REQUEST", { message: "a combination lists conditions" });
+    }
+
+    return entry.map((nested: unknown) => conditionOf(nested));
+}
+
+/** Read a condition, refusing an entry that is no condition. */
+function conditionOf(entry: unknown): OpenCondition {
+    if (!isCondition(entry)) {
+        throw new CallError("BAD_REQUEST", { message: "a combination lists conditions" });
+    }
+
+    return entry;
+}
+
+/** Report whether an entry is a condition: an object of entries. */
+function isCondition(entry: unknown): entry is OpenCondition {
+    return typeof entry === "object" && entry !== null && !Array.isArray(entry);
 }

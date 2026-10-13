@@ -36,21 +36,11 @@ type PositionField = { readonly at: typeof LogPosition };
 /** Objects keeping their history, grouped into activities. */
 export const tracked: Trait<TrackedDefinition> = {
     key: "tracked",
-    isDurable: true,
+    storages: ["durable"],
     options: (definition) => definition.tracked,
     columns: () => ({}),
     constraints: () => [],
-    methods: (options, declared) => {
-        // read history with the permission reading the object
-        const reading = ["get", "list"]
-            .map((kind) => Object.values(declared).find((method) => method.kind === kind))
-            .find((method) => method !== undefined)?.permission;
-        if (reading === undefined || reading === null) {
-            throw new TypeError("an object keeping history needs a get or list method");
-        }
-
-        return { revert: revertMethod(options.by) };
-    },
+    methods: (options) => ({ revert: revertMethod(options.by) }),
     validate: (options, object) => {
         // require the activity attachment and a valid session
         if (!object.attachments.some((attachment) => attachment.object === options.activity)) {

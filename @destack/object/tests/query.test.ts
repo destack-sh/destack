@@ -1,7 +1,7 @@
 import { expect, test, onTestFinished, TestClock } from "@destack/test";
 import { Expression } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { QueriesParameters } from "../src/replica/replica.ts";
@@ -287,7 +287,11 @@ test.for(TEST_DIALECTS)(
         await book("Home", true);
         const trashed = await book("Travel", true);
         await book("Work", false);
-        await alice.note.delete({ spaceId, id: trashed.note, requestId: RequestId.create(Date.now()) });
+        await alice.note.delete({
+            spaceId,
+            id: trashed.note,
+            requestId: RequestId.create(Date.now()),
+        });
 
         // list them on the server, and read them from a device's copy
         const query = {
@@ -487,7 +491,11 @@ test.for(TEST_DIALECTS)(
         await kept.close();
 
         // receive a notebook the server creates after the close into the local copy
-        await alice.notebook.create({ spaceId, requestId: RequestId.create(Date.now()), name: "Later" });
+        await alice.notebook.create({
+            spaceId,
+            requestId: RequestId.create(Date.now()),
+            name: "Later",
+        });
         const database = device.client.database;
         const isReceived = await database.log.until(
             async () =>
@@ -543,7 +551,11 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
-        await alice.notebook.create({ spaceId, requestId: RequestId.create(Date.now()), name: "Home" });
+        await alice.notebook.create({
+            spaceId,
+            requestId: RequestId.create(Date.now()),
+            name: "Home",
+        });
         const device = await Device.open("alice", endpoint("alice"), [], { storage: { rows: 10 } });
         device.online();
 

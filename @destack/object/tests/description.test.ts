@@ -1,6 +1,7 @@
 import { expect, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { declareState, TABLE } from "@destack/db";
+import { t } from "@destack/locale";
 import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import { schema, toJsonSchema } from "@destack/schema";
 import { defineObject, field, type FileBucket, ObjectType } from "../src/index.ts";
@@ -43,6 +44,7 @@ const sample = defineObject({
         due: field.time().personal(),
         kind: field.enum(["draft", "final"]).guardWrite("edit"),
         meta: field.json(schema.object({ weight: schema.number() })),
+        heading: field.message(),
         attachment: field.file(files),
         author: field.reference(principal.user).caller().relate("author"),
         member: field.subject(principal.user, principal.installation),
@@ -72,8 +74,6 @@ const sample = defineObject({
         },
     },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("write", {
         fields: ["title", "kind"],
         variants: { kind: { draft: ["rank"], final: [] } },
@@ -116,13 +116,10 @@ const TYPES = [
     sample,
 ];
 
-/** The declarations the test types refer to: the types themselves, two principal kinds and the bucket. */
-const KNOWN = [...TYPES, principal.user, principal.installation, files, BoxKind];
-
 test("describe every field and method as its builder calls, and declare the same type from them", () => {
     // describe the type, declare it again and describe that
     const described = sample.describe();
-    const declared = ObjectType.of(described, KNOWN);
+    const declared = ObjectType.of(described, TYPES);
     expect(declared.describe()).toEqual(described);
 
     // keep the routes, schemas and tables a manifest and a migration read
@@ -137,7 +134,7 @@ test("describe every field and method as its builder calls, and declare the same
     ]);
 });
 
-test("describe fields and methods as the calls written, declarations by reference and schemas as JSON Schema", () => {
+test("describe fields and methods as the calls written, types by reference, kinds and buckets as data and schemas as JSON Schema", () => {
     // read the calls of a few fields and methods
     const { definition } = sample.describe();
     const fields = schema.record(schema.string(), schema.json()).parse(definition["fields"]);
@@ -149,8 +146,10 @@ test("describe fields and methods as the calls written, declarations by referenc
         fields["author"],
         fields["later"],
         fields["attachment"],
+        fields["heading"],
         methods["update"],
         methods["tidy"],
+        box.describe().definition["provisioned"],
     ]).toEqual([
         {
             $field: [
@@ -201,10 +200,11 @@ test("describe fields and methods as the calls written, declarations by referenc
             $field: [
                 {
                     builder: "file",
-                    arguments: [{ $bucket: { packageId: note.package.id, name: "files" } }],
+                    arguments: [{ $bucket: { package: note.package, name: "files", spec: {} } }],
                 },
             ],
         },
+        { $field: [{ builder: "message", arguments: [] }] },
         {
             $method: [
                 {
@@ -221,18 +221,32 @@ test("describe fields and methods as the calls written, declarations by referenc
                 },
             ],
         },
+        {
+            kind: {
+                $kind: { package: box.package, name: "box", spec: toJsonSchema(BoxKind.spec) },
+            },
+        },
     ]);
 });
 
+test("keep a message field's package, identifier and source text, and refuse plain text", () => {
+    // read a message back from its JSON form, and check plain text against the column
+    const heading = t`Meet Destack.`;
+    const column = sample.table.heading.definition;
+
+    expect({
+        kept: column.fromJson(JSON.parse(JSON.stringify(heading))),
+        isText: column.json.safeParse("Meet Destack.").success,
+    }).toEqual({
+        kept: { package: note.package.id, id: heading.id, source: "Meet Destack.", values: {} },
+        isText: false,
+    });
+});
+
 test("describe every test type as data, and declare the same types, routes and tables from it", () => {
-    // describe each type, declare them all again from the platform's declarations alone, and describe them
+    // describe each type, declare them all again from the descriptions alone, and describe them
     const described = TYPES.map((type) => type.describe());
-    const declared = ObjectType.ofAll(described, [
-        principal.user,
-        principal.installation,
-        files,
-        BoxKind,
-    ]);
+    const declared = ObjectType.ofAll(described, []);
     expect(declared.map((type) => type.describe())).toEqual(described);
 
     // keep the routes, schemas and tables a manifest and a migration read
@@ -275,9 +289,9 @@ test("refuse code, unknown declarations and intrinsic types at their path", () =
             "coded.methods.rename.mutation[0].inverse is code, which a description cannot keep",
         ),
     );
-    expect(() => ObjectType.of(sample.describe(), [space, principal.user])).toThrow(
+    expect(() => ObjectType.of(sample.describe(), [space])).toThrow(
         new TypeError(
-            `a description refers to bucket ${JSON.stringify([note.package.id, "files"])}, which is not known`,
+            `a description refers to object type ${JSON.stringify([note.package.id, "note"])}, which is not known`,
         ),
     );
 

@@ -1,5 +1,6 @@
+import { callTables } from "../src/test/index.ts";
 import { defineObject, field, type ObjectType } from "../src/index.ts";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";
@@ -83,8 +84,6 @@ export const task = defineObject({
     },
     shareable: { by: "write" },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("write", { fields: ["title"] }),
     update: method.update("write", { fields: ["title", "estimate", "currentId"] }),
     archive: method.mutation({ permission: "write" }),
@@ -107,7 +106,7 @@ export const comment = defineObject({
     nested: { in: task, delete: "cascade", receive: "write" },
     fields: { text: field.string(schema.string().min(1)) },
     permissions: ["read", "write"],
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
 /** Immutable versions of a task's title. */
 export const taskVersion = defineObject({
@@ -162,7 +161,7 @@ export const objectDatabase = defineDatabase({
         space.table,
         note.table,
         label.table,
-        journal,
+        ...callTables,
         ...task.tables,
         ...team.tables,
         ...comment.tables,

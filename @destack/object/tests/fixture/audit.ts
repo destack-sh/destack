@@ -1,29 +1,34 @@
-import { Clock } from "@destack/schema";
-import type { DatabaseConnection } from "@destack/db";
-import { testCallKey } from "@destack/service/test";
-import { Journal } from "@destack/audit/server";
+import { asc, type DatabaseConnection } from "@destack/db";
+import { AuditCall, call } from "../../src/index.ts";
 
-/** The most calls a test reads from a journal. */
-const READ_CALLS = 1000;
+/** Read the audited calls a database keeps as call events, in start order. */
+export async function auditedCalls(database: DatabaseConnection): Promise<AuditCall[]> {
+    const table = call.eventKind().table;
+    const rows = await database
+        .select({ data: table.data })
+        .from(table)
+        .orderBy(asc(table.time), asc(table.id));
 
-/** Read the methods a database's journal recorded, by callers' requests or by a principal's components, a failed one with its error code. */
+    return rows.map((row) => AuditCall.parse(row.data));
+}
+
+/** Read the methods a database's audited calls ran, by callers' requests or by a principal's components, a failed one with its error code. */
 export async function auditedActions(
     database: DatabaseConnection,
     actor: "caller" | "component",
 ): Promise<string[]> {
-    const calls = await new Journal(database, testCallKey, { clock: Clock.system }).read({
-        limit: READ_CALLS,
-    });
+    const calls = await auditedCalls(database);
 
     return calls
         .filter(
-            (call) => (call.execution.context.component !== undefined) === (actor === "component"),
+            (ended) =>
+                (ended.execution.context.component !== undefined) === (actor === "component"),
         )
-        .map((call) => {
-            const outcome = call.execution.outcome;
+        .map((ended) => {
+            const outcome = ended.execution.outcome;
 
-            return outcome !== undefined && outcome.kind !== "success"
-                ? `${call.method} ${outcome.error.code}`
-                : call.method;
+            return outcome.kind !== "success"
+                ? `${ended.method} ${outcome.error.code}`
+                : ended.method;
         });
 }

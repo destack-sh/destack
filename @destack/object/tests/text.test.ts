@@ -1,29 +1,26 @@
 import { bearerUser } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import { type DatabaseConnection, type Dialect, defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { PackageId } from "@destack/package";
+import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { createClient, type ClientOptions } from "@destack/service/client";
-import { Health } from "@destack/service/health";
-import { defineService } from "@destack/service";
-import { RequestId } from "@destack/service/request";
-import { Server } from "@destack/service/server";
+import { createClient, type ClientOptions } from "@destack/runtime/client";
+import { Health } from "@destack/runtime/health";
+import { definePackage } from "@destack/runtime";
+import { RequestId } from "@destack/runtime/request";
+import { Server } from "@destack/runtime/server";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
 import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
 import { ObjectExtension } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { aligned, present, Clock } from "@destack/schema";
 
 /** The space with the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
-
-/** The package serving the documents. */
-const audience = PackageId.parse("package-01a0d5eb-fb8a-74f4-ba37-8a4d6970e239");
 
 /** Documents their owner and editors write together. */
 const document = defineObject({
@@ -42,19 +39,17 @@ const document = defineObject({
     },
     shareable: { by: "manage" },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     create: method.create("read"),
     update: method.update("read"),
 }));
 
-/** The documents service. */
-const documentsService = defineService("documents", { objects: { document } });
+/** The documents package. */
+const documentsPackage = definePackage({ objects: { document } });
 
 /** The database of one space's documents. */
 const documentsDatabase = defineDatabase({
     name: "main",
-    tables: [...document.tables, journal],
+    tables: [...document.tables, ...callTables],
 });
 
 /** Serve a space's documents to bearer-identified users. */
@@ -68,20 +63,20 @@ async function serveDocuments(dialect: Dialect) {
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
         clock: Clock.system,
-        ...ObjectExtension.compose([ObjectExtension.of(documentsService, [])], {
+        ...ObjectExtension.compose([ObjectExtension.of(documentsPackage, [])], {
             clock: Clock.system,
-            origin: { package: documentsService.package, service: documentsService.name },
+            origin: { package: Package.of(documentsPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
+            events: await testEvents(database),
             database,
-        }).services[0],
-        audience,
+        }).packages[0],
         scope: spaceId,
         resources: new ResourceContext(),
         health: new Health("documents"),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: bearerUser(audience, spaceId),
+        authenticate: bearerUser(documentsPackage.id, spaceId),
     });
     onTestFinished(() => server.close());
     const endpoint = (name: string): ClientOptions => ({
@@ -89,7 +84,7 @@ async function serveDocuments(dialect: Dialect) {
         headers: { authorization: `Bearer ${name}` },
         fetch: (request: Request) => server.fetch(request),
     });
-    const connect = (name: string) => createClient(documentsService, endpoint(name));
+    const connect = (name: string) => createClient(documentsPackage, endpoint(name));
 
     return { connect, endpoint, database };
 }

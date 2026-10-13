@@ -2,7 +2,7 @@ import { included, type ObjectReference, type Item, type Query } from "@destack/
 import { through } from "@destack/access";
 import { TABLE, type Transaction, type Snapshot } from "@destack/db";
 import { schema, canonicalize, Identifier, present } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { FractionalIndex } from "../field/fractional-index.ts";
 import { ObjectReader } from "../method/reader.ts";
 import type { Call } from "../method/call.ts";
@@ -14,6 +14,9 @@ import { chunk, chunkRun } from "./table.ts";
 
 /** The most characters per chunk: a keystroke syncs one ~1 KiB row, 1 MB is ~2,000 rows. */
 export const CHUNK_CHARACTERS = 512;
+
+/** The last whitespace character of a text, where a chunk ends without cutting a word. */
+const LAST_SPACE = /\s(?=\S*$)/u;
 
 /** The characters left in each chunk after a split: three quarters, with room to type. */
 const FILL_CHARACTERS = (CHUNK_CHARACTERS * 3) / 4;
@@ -359,7 +362,7 @@ function requireContained(
     // refuse a run the text already contains
     const duplicate = found.find((entry) => inserted.has(entry.run));
     if (duplicate !== undefined) {
-        throw new ServiceError("BAD_REQUEST", {
+        throw new CallError("BAD_REQUEST", {
             message: `${field} already holds run ${duplicate.run}`,
         });
     }
@@ -375,7 +378,7 @@ function requireContained(
             ),
     );
     if (missing !== undefined) {
-        throw new ServiceError("BAD_REQUEST", {
+        throw new CallError("BAD_REQUEST", {
             message: `no chunk holds element ${missing.run}:${missing.offset}`,
         });
     }
@@ -402,7 +405,7 @@ function applyEdits(
     for (const edit of edits) {
         // refuse inserting a run the text holds
         if ("insert" in edit && sequence.runs.some((piece) => piece.run === edit.run)) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `${field} already holds run ${edit.run}`,
             });
         }
@@ -413,7 +416,7 @@ function applyEdits(
             sequence = sequence.apply(edit);
         } catch (error) {
             if (error instanceof RangeError) {
-                throw new ServiceError("BAD_REQUEST", { message: error.message });
+                throw new CallError("BAD_REQUEST", { message: error.message });
             }
             throw error;
         }
@@ -437,7 +440,7 @@ async function recut(
         const current = rows[index];
         const [first, ...rest] = fill(part);
         if (current !== undefined && canonicalize(first) !== canonicalize(current.runs)) {
-            const row = { ...current, runs: first };
+            const row = { ...current, runs: first, text: new Sequence(first).text() };
             chunks.changed.push(row);
             if (
                 !call.isPredicted &&
@@ -464,6 +467,7 @@ async function recut(
                 id: Identifier.create("chunk"),
                 position: before,
                 runs,
+                text: new Sequence(runs).text(),
             });
         }
     }
@@ -613,7 +617,7 @@ function fill(runs: readonly Run[]): [Run[], ...Run[][]] {
     let filled = 0;
     for (let piece of runs) {
         while (characters(piece) > capacity - filled) {
-            const room = capacity - filled;
+            const room = wordEnd(piece, capacity - filled);
             if (room > 0) {
                 const [head, tail] = Sequence.split(piece, room);
                 group.push(head);
@@ -628,6 +632,14 @@ function fill(runs: readonly Run[]): [Run[], ...Run[][]] {
     }
 
     return groups;
+}
+
+/** Find where a group ends in a piece's room: after a space in its second half, else at its end. */
+function wordEnd(piece: Run, room: number): number {
+    const text = typeof piece.text === "string" ? piece.text.slice(0, room) : "";
+    const space = text.search(LAST_SPACE);
+
+    return space >= room / 2 ? space + 1 : room;
 }
 
 /** Count the characters a piece stores. */

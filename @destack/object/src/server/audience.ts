@@ -1,6 +1,5 @@
 import {
-    type ObjectReference,
-    type RowKey,
+    ObjectReference,
     type Audience,
     Watch,
     replica,
@@ -9,31 +8,32 @@ import {
     Subject,
     SyncError,
 } from "@destack/sync";
-import { accessRelationship, earliest, type Permission, Caller } from "@destack/access";
-import { journal } from "@destack/audit/stack";
 import {
-    and,
-    eq,
-    gt,
-    or,
+    accessRelationship,
+    accessRole,
+    accessRolePermission,
+    decisionTables,
+    earliest,
+    type Permission,
+    Caller,
+} from "@destack/access";
+import { journal } from "../stack/db.ts";
+import {
     sql,
     TABLE,
     type Row,
     type SQL,
     type Table,
-    type Change,
+    Change,
     type LogPosition,
     Snapshot,
     Transaction,
 } from "@destack/db";
-import { schema, canonicalize } from "@destack/schema";
+import { canonicalize } from "@destack/schema";
 import type { ObjectStorage, ObjectType } from "../object/object.ts";
 import { ObjectTypeIndex } from "../query/listing.ts";
 import type { Authorization } from "./authorization.ts";
 import type { ObjectStore } from "./store.ts";
-
-/** The most identifiers one dependents read lists, well within the parameter budget. */
-const DEPENDENT_IDS = 500;
 
 /** The columns holding a row's parent. */
 const PARENT_COLUMNS = ["parentPackageId", "parentType", "parentId"] as const;
@@ -44,6 +44,10 @@ export class ObjectAudience implements Audience {
     readonly #store: ObjectStore;
     /** The scope the stream follows. */
     readonly #scope: string;
+    /** The caller following the stream. */
+    readonly #caller: Caller;
+    /** The types whose personal values the stream showed, journaled once each. */
+    readonly #revealed = new Set<ObjectType>();
     /** Admit the subscriber again, as it resolves access once access changes. */
     readonly #admit: () => Promise<Authorization>;
     /** The object types by table. */
@@ -71,6 +75,7 @@ export class ObjectAudience implements Audience {
     private constructor(
         store: ObjectStore,
         scope: string,
+        caller: Caller,
         admit: () => Promise<Authorization>,
         authorization: Authorization,
         storage: ObjectStorage,
@@ -81,6 +86,7 @@ export class ObjectAudience implements Audience {
         // keep the inputs and watch access
         this.#store = store;
         this.#scope = scope;
+        this.#caller = caller;
         this.#admit = admit;
         this.#objects = new ObjectTypeIndex(store.objects);
         this.#authorization = authorization;
@@ -134,6 +140,7 @@ export class ObjectAudience implements Audience {
         return new ObjectAudience(
             store,
             scope,
+            reader,
             admit,
             await admit(),
             storage,
@@ -207,13 +214,18 @@ export class ObjectAudience implements Audience {
         return this.#authorization.listable(listed.object, listed.permission);
     }
 
-    /** The key of the caller's access inputs. */
+    /** The name of the caller's access inputs and resolved access, apart from time. */
     get key(): string {
+        const access = this.#authorization.access;
         this.#key ??= canonicalize({
             scope: this.#scope,
-            context: { ...this.#authorization.access.context, request: null, now: null },
+            context: { ...access.context, request: null, now: null },
             isContained: this.#isContained,
             via: this.#via.map((relay) => relay.scope),
+            roles: access.grantedRoles,
+            subjects: access.authority.subjects.map((subject) => Subject.key(subject)).toSorted(),
+            chain: access.chainKey,
+            decided: this.#decided?.sequence ?? null,
         });
 
         return this.#key;
@@ -276,6 +288,18 @@ export class ObjectAudience implements Audience {
         const concealed = await this.#authorization.concealed(object, rows, this.#reader(position));
         this.#until = earliest([this.#until, concealed.until]);
 
+        // journal the first personal values a remote caller's stream of the type shows
+        const isFirst = !this.#revealed.has(object) && Caller.isRemote(this.#caller);
+        if (isFirst && object.reveals(rows, concealed.hidden)) {
+            this.#revealed.add(object);
+            await this.#store.recordUnmask({
+                scope: this.#scope,
+                caller: this.#caller,
+                object,
+                operation: "sync",
+            });
+        }
+
         return concealed.hidden;
     }
 
@@ -289,138 +313,68 @@ export class ObjectAudience implements Audience {
         await this.#authorize();
     }
 
-    /** List the rows with access a change decides, or everything. */
-    async dependents(change: Change): Promise<readonly RowKey[] | "everything"> {
+    /** Report whether a change may decide the visibility of rows beyond its own. */
+    async decides(change: Change): Promise<boolean> {
         // require the follower to replicate the scopes it copies via again after a change only their decisions read
         const via = this.#via.filter((relay) => Watch.matches(relay.watches, change));
         if (via.length > 0 && !Watch.matches(this.#deciding(), change)) {
             await Promise.all(via.map((relay) => relay.require()));
 
-            return [];
+            return false;
         }
 
-        // resolve access after an access change, requiring the follower to copy via its scopes again
-        if (this.#objects.get(change.table) === undefined && change.table !== journal) {
-            await this.#authorize();
-            if (change.table !== accessRelationship) {
-                return "everything";
-            }
-            const row = change.operation === "insert" ? change.after : change.before;
-            const object = this.#store.objects.find(
-                (entry) =>
-                    entry.policy.definition.packageId === row["packageId"] &&
-                    entry.policy.definition.name === row["type"],
-            );
-            if (object === undefined) {
-                return "everything";
-            }
-
-            return this.#dependentsOf(object, identifier(row["objectId"]));
-        }
-
-        // follow a moved row
-        const object = this.#objects.get(change.table);
+        // leave roles the caller has no binding of, and another identity's relationship to its own row
         if (
-            object?.parent === undefined ||
-            change.operation !== "update" ||
-            PARENT_COLUMNS.every((column) => change.before[column] === change.after[column])
+            ((change.table === accessRole || change.table === accessRolePermission) &&
+                !this.#hasRole(change)) ||
+            (change.table === accessRelationship && !this.#isConcerned(change))
         ) {
-            return [];
+            return false;
         }
 
-        return this.#dependentsOf(object, identifier(change.key["id"]));
+        // decide again after an access change, or once a row moves under another parent
+        const object = this.#objects.get(change.table);
+
+        return (
+            decisionTables.includes(change.table) ||
+            (object?.parent !== undefined &&
+                change.operation === "update" &&
+                PARENT_COLUMNS.some((column) => change.before[column] !== change.after[column]))
+        );
     }
 
-    /** List the rows whose access an object's access decides. */
-    async #dependentsOf(object: ObjectType, id: string): Promise<RowKey[]> {
-        // walk the types level by level
-        const keys: RowKey[] = [];
-        let level = new Map<ObjectType, string[]>([[object, [id]]]);
-        while (level.size > 0) {
-            const next = new Map<ObjectType, string[]>();
-            for (const [type, ids] of level) {
-                // collect rows and subtrees
-                const listed = [...ids, ...(await this.#subtree(type, ids))];
-                keys.push(...listed.map((entry) => ({ table: type.table, key: { id: entry } })));
+    /** Decide whether a role or role permission change is of a role the caller has. */
+    #hasRole(change: Change): boolean {
+        const column = change.table === accessRole ? "id" : "roleId";
+        const roles = new Set(
+            [Change.before(change), Change.after(change)].map((row) => row?.[column]),
+        );
 
-                // continue to durable children and attachments
-                for (const child of this.#store.objects.filter(
-                    (served) => served.storage === "durable",
-                )) {
-                    const isAttached = type.attaches(child);
-                    if ((type.same(child.parent?.object) && !child.same(type)) || isAttached) {
-                        next.set(child, [
-                            ...(next.get(child) ?? []),
-                            ...(await this.#children(child, type, listed)),
-                        ]);
-                    }
-                }
+        return this.#authorization.access.bindings.some((binding) => roles.has(binding.roleId));
+    }
+
+    /** Decide whether a relationship change may change the caller's access. */
+    #isConcerned(change: Change): boolean {
+        return [Change.before(change), Change.after(change)].some((row) => {
+            // read the subject of each image
+            if (row === null) {
+                return false;
             }
-            level = next;
-        }
+            const relation = row["subjectRelation"];
+            const subject = Subject.parse({
+                packageId: row["subjectPackageId"],
+                type: row["subjectType"],
+                scope: row["subjectScope"],
+                id: row["subjectId"],
+                ...(relation === null ? {} : { relation }),
+            });
 
-        return keys;
-    }
-
-    /** Read the proper descendants of some rows of a tree type. */
-    async #subtree(object: ObjectType, ids: readonly string[]): Promise<string[]> {
-        // read descendants in batches
-        const path = object.tree?.ancestors;
-        const below: string[] = [];
-        if (path === undefined) {
-            return below;
-        }
-        for (let start = 0; start < ids.length; start += DEPENDENT_IDS) {
-            const batch = ids.slice(start, start + DEPENDENT_IDS);
-            const rows = await this.#store.database
-                .select({ id: path.descendant })
-                .from(path)
-                .where(
-                    and(
-                        eq(path.scope, this.#scope),
-                        or(...batch.map((entry) => eq(path.ancestor, entry))),
-                        gt(path.depth, 0),
-                    ),
-                );
-            below.push(...rows.map((row) => identifier(row.id)));
-        }
-
-        return below;
-    }
-
-    /** Read the identifiers of the children of some rows. */
-    async #children(
-        child: ObjectType,
-        parent: ObjectType,
-        parents: readonly string[],
-    ): Promise<string[]> {
-        // read children in batches
-        const table = child.table;
-        const definition = table[TABLE];
-        const hosted =
-            child.parent?.object === "any"
-                ? [
-                      eq(definition.column("parentPackageId"), parent.policy.definition.packageId),
-                      eq(definition.column("parentType"), parent.name),
-                  ]
-                : [];
-        const found: string[] = [];
-        for (let start = 0; start < parents.length; start += DEPENDENT_IDS) {
-            const batch = parents.slice(start, start + DEPENDENT_IDS);
-            const rows = await this.#store.database
-                .select({ id: definition.column("id") })
-                .from(table)
-                .where(
-                    and(
-                        child.inScope(this.#scope),
-                        ...hosted,
-                        or(...batch.map((entry) => eq(definition.column("parentId"), entry))),
-                    ),
-                );
-            found.push(...rows.map((row) => identifier(row.id)));
-        }
-
-        return found;
+            // take every subject set, as the same run may add the caller to it, and the caller's identities
+            return (
+                subject.relation !== undefined ||
+                this.#authorization.access.authority.isMember(subject)
+            );
+        });
     }
 
     /** Resolve the caller's access again and reset derived state. */
@@ -432,7 +386,6 @@ export class ObjectAudience implements Audience {
         if (this.#storage !== "durable") {
             this.#decided = await this.#store.database.log.position();
         }
-        this.#below.clear();
         this.watches = this.#watched();
     }
 
@@ -446,7 +399,7 @@ export class ObjectAudience implements Audience {
         return this.#storage === "durable"
             ? this.#store.authorizer.watch(
                   [...this.chain, ...this.#below],
-                  this.#authorization.access.authorities.flatMap((authority) => authority.subjects),
+                  this.#authorization.access.authority.subjects,
               )
             : [];
     }
@@ -493,11 +446,6 @@ interface Relay {
     readonly watches: readonly Watch[];
     /** Require the follower to replicate the scope. */
     require(): Promise<void>;
-}
-
-/** Read an identifier of a row. */
-function identifier(value: unknown): string {
-    return schema.string().parse(value);
 }
 
 /** The access of each recipient of a type's rows, as a projection's source decides them. */
@@ -553,7 +501,7 @@ export class RecipientAudience implements Audience {
         return "memory";
     }
 
-    /** The recipients and their access inputs. */
+    /** The recipients and what each is decided by. */
     get key(): string {
         return canonicalize(
             [...this.#members].map(([recipient, member]) => [recipient, member.key]),
@@ -623,18 +571,13 @@ export class RecipientAudience implements Audience {
         await Promise.all([...this.#members.values()].map((member) => member.refresh()));
     }
 
-    /** List the rows a change decides for any recipient. */
-    async dependents(change: Change): Promise<readonly RowKey[] | "everything"> {
-        const dependents = await Promise.all(
-            [...this.#members.values()].map((member) => member.dependents(change)),
+    /** Report whether a change may decide the visibility of rows for any recipient. */
+    async decides(change: Change): Promise<boolean> {
+        const decisions = await Promise.all(
+            [...this.#members.values()].map((member) => member.decides(change)),
         );
 
-        // decide everything when any member does
-        if (dependents.includes("everything")) {
-            return "everything";
-        }
-
-        return dependents.flatMap((keys) => (keys === "everything" ? [] : keys));
+        return decisions.includes(true);
     }
 
     /** Group rows by the recipient deciding them, leaving out rows of no known recipient. */

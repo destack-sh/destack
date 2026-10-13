@@ -1,6 +1,6 @@
 import type * as sync from "@destack/sync";
 import { TABLE } from "@destack/db";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import type { Call } from "./call.ts";
 import { Step } from "./step.ts";
 import { defineMethod, type Method } from "./method.ts";
@@ -75,7 +75,7 @@ async function requireDestination(call: Call, nesting: NestedDefinition): Promis
     const { object } = call;
     const parent = call.parent();
     if (parent === undefined && nesting.optional !== true) {
-        throw new ServiceError("BAD_REQUEST", { message: `${object.name} needs a parent` });
+        throw new CallError("BAD_REQUEST", { message: `${object.name} needs a parent` });
     }
 
     // require a receiving parent outside the subtree
@@ -100,7 +100,7 @@ async function requireOutside(call: Call, parentId: string): Promise<void> {
     const visited = new Set<string>();
     for (let node: string | null = parentId; node !== null && !visited.has(node);) {
         if (node === moved) {
-            throw new ServiceError("CONFLICT", {
+            throw new CallError("CONFLICT", {
                 message: `${call.object.name} cannot move into its own subtree`,
             });
         }

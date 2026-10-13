@@ -1,16 +1,17 @@
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { userContext } from "./fixture/user.ts";
 import { request } from "./fixture/request.ts";
 
@@ -30,7 +31,6 @@ const chore = defineObject({
     },
     permissions: { read: relation("owner"), write: relation("owner") },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write", { fields: ["list", "done"] }),
     finish: method.updateMany("write", { fields: ["done"], match: ["list"] }),
     claim: method.updateMany("write", { fields: ["assignee"], match: ["list", "assignee"] }),
@@ -39,7 +39,7 @@ const chore = defineObject({
 /** The database with the chores, their access and the journal. */
 const choreDatabase = defineDatabase({
     name: "main",
-    tables: [journal, ...chore.tables],
+    tables: [...callTables, ...chore.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -51,12 +51,12 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { chore },
+            objects: [chore],
             database: storage.database,
             callKey: testCallKey,
+            events: await testEvents(storage.database),
             origin: {
                 package: chore.package,
-                service: "test",
             },
         });
         let context = userContext("user-1", spaceId);

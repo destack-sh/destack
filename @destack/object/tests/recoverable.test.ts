@@ -1,9 +1,10 @@
 import { type Change, eq, defineDatabase } from "@destack/db";
 import { Subject } from "@destack/sync";
-import { reconciliation, testCallKey } from "@destack/service/test";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present } from "@destack/schema";
 
@@ -36,14 +37,13 @@ const credential = defineObject({
         purge: relation("custodian"),
     },
 }).methods((method) => ({
-    get: method.get("read"),
     create: method.create("write", { fields: ["custodianId", "value"] }),
 }));
 
 /** The database with the credentials, their access and the journal. */
 const credentialDatabase = defineDatabase({
     name: "main",
-    tables: [journal, ...credential.tables],
+    tables: [...callTables, ...credential.tables],
 });
 
 test.each(TEST_DIALECTS)(
@@ -70,15 +70,16 @@ test.each(TEST_DIALECTS)(
             { days: 7 },
         );
         const clock = new TestClock(Date.now());
+        const events = await testEvents(database);
         const serve = (object: ObjectType) =>
             new ObjectStore({
                 principal: spacePrincipal(spaceId),
-                objects: { credential: object },
+                objects: [object],
                 database,
                 callKey: testCallKey,
+                events,
                 origin: {
                     package: credential.package,
-                    service: "test",
                 },
                 clock,
             });

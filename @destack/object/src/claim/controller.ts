@@ -8,9 +8,9 @@ import {
     TABLE,
 } from "@destack/db";
 import { Clock, found } from "@destack/schema";
-import type { Controller } from "@destack/service/control";
+import type { Controller } from "@destack/runtime/control";
 import { ObjectKey, ObjectType } from "../object/object.ts";
-import { type ClaimStore, Reservation } from "./store.ts";
+import { type Claimer, type ClaimHome, Reservation } from "./reservation.ts";
 import { Claimant, Claim } from "./claim.ts";
 
 /** The one key the controller reconciles: every expired reservation. */
@@ -22,26 +22,34 @@ export class ClaimController implements Controller {
     readonly name = "claims";
     /** The indexed objects' tables. */
     readonly watches: readonly Table[];
-    /** The store with the claims. */
-    readonly #claims: ClaimStore;
+    /** The claim type and the store serving it. */
+    readonly #claims: ClaimHome;
     /** The database with the objects. */
     readonly #database: DatabaseConnection;
     /** The indexed object types. */
     readonly #objects: readonly ObjectType[];
     /** The store's clock, which reservations expire by. */
     readonly #clock: Clock;
+    /** Read the principal claiming a type's names. */
+    readonly #claimer: (object: ObjectType) => Claimer;
 
-    /** Finish the reservations of some object types' indexes on their store's clock. */
+    /** Finish the reservations of some object types' indexes, each as its claimer. */
     constructor(
-        claims: ClaimStore,
+        claims: ClaimHome,
         database: DatabaseConnection,
         objects: readonly ObjectType[],
-        clock: Clock,
+        options: {
+            /** The store's clock. */
+            readonly clock: Clock;
+            /** Read the principal claiming a type's names. */
+            readonly claimer: (object: ObjectType) => Claimer;
+        },
     ) {
         // keep the indexed types and watch their tables
         this.#claims = claims;
         this.#database = database;
-        this.#clock = clock;
+        this.#clock = options.clock;
+        this.#claimer = options.claimer;
         this.#objects = objects.filter((object) => Object.keys(object.indexes).length > 0);
         this.watches = this.#objects.map((object) => object.table);
     }
@@ -58,7 +66,7 @@ export class ClaimController implements Controller {
 
     /** Finish expired reservations, returning the delay until the next. */
     async reconcile(): Promise<number | undefined> {
-        // list expired reservations
+        // list a chain's worth of expired reservations
         const now = this.#clock.now();
         const byIndex = new Map(
             this.#objects.flatMap((object) =>
@@ -67,31 +75,45 @@ export class ClaimController implements Controller {
                 ),
             ),
         );
-        const expiry = await this.#claims.expired([...byIndex.keys()]);
+        const expiry = await Reservation.expired(
+            this.#claims,
+            this.#database,
+            [...byIndex.keys()],
+            now,
+        );
 
-        // finish one chain per run with enclosing scopes from one snapshot
-        const due = expiry.claims.slice(0, CHAIN_TERMS);
+        // claim each object's names as its row has them now, with enclosing scopes from one snapshot
         const snapshot = Snapshot.live(this.#database);
-        const byObject = Map.groupBy(due, (entry) => found(byIndex, entry.index));
+        const byObject = Map.groupBy(expiry.claims, (entry) => found(byIndex, entry.index));
         for (const [object, entries] of byObject) {
             // read present rows
             const table = object.table;
-            const ids = [...new Set(entries.map((entry) => entry.objectId))];
+            const owners = new Map(entries.map((entry) => [entry.objectId, entry.owner]));
             const rows: readonly Row[] = await this.#database
                 .select()
                 .from(table)
-                .where(inArray(table[TABLE].column("id"), ids));
+                .where(inArray(table[TABLE].column("id"), [...owners.keys()]));
             const present = new Map(rows.map((row) => [ObjectKey.parse(row).id, row]));
 
-            // claim each object's names as its row has them now
-            for (const id of ids) {
-                const claimant = await Claimant.of(object, id, present.get(id), snapshot);
-                Reservation.refuse(this.#objects, await this.#claims.replace(claimant));
+            // read each object's names, under its reservation's owner once its row is gone
+            const claimants: Claimant[] = [];
+            for (const [objectId, owner] of owners) {
+                const row = present.get(objectId);
+                const current = row === undefined ? owner : Claim.owning(object, row);
+                claimants.push(
+                    await Claimant.of(object, { objectId, owner: current }, row, snapshot),
+                );
             }
+
+            // replace their names as the type's claimer, refusing names other objects own
+            await Reservation.replace(this.#claims, this.#database, claimants, this.#objects, {
+                now,
+                claimer: this.#claimer(object),
+            });
         }
 
-        // schedule the next run
-        if (expiry.claims.length > due.length) {
+        // run again at once while a chain's worth expired, else at the next deadline
+        if (expiry.claims.length >= CHAIN_TERMS) {
             return 0;
         }
 

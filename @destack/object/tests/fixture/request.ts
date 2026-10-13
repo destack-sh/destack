@@ -1,5 +1,5 @@
-import type { ServiceContext } from "@destack/service/server";
-import { RequestId } from "@destack/service/request";
+import type { RequestContext } from "@destack/runtime/server";
+import { RequestId } from "@destack/runtime/request";
 import type { CallableName, CallOutput, ObjectType } from "../../src/index.ts";
 import type { ObjectStore } from "../../src/server/index.ts";
 
@@ -9,7 +9,7 @@ export async function request<Type extends ObjectType, Name extends CallableName
     object: Type,
     name: Name,
     input: Readonly<Record<string, unknown>>,
-    context: ServiceContext,
+    context: RequestContext,
 ): Promise<CallOutput<Type, Name>>;
 /**
  * Run one method as a request carries it.
@@ -21,11 +21,11 @@ export async function request(
     object: ObjectType,
     name: string,
     input: Readonly<Record<string, unknown>>,
-    context: ServiceContext,
+    context: RequestContext,
 ): Promise<unknown> {
     // read through a query
     const { requestId, writerId, ...rest } = input;
-    const call = { method: `${object.name}.${name}`, input: rest, release: object.package.version };
+    const call = object.call(name, rest);
     if (!object.method(name).mutates) {
         return store.query(context.caller(), call);
     }

@@ -1,14 +1,15 @@
+import { Package } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { journal } from "@destack/audit/stack";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema, Clock } from "@destack/schema";
-import { defineService } from "@destack/service";
-import { testInstallation } from "@destack/service/test";
+import { definePackage } from "@destack/runtime";
+import { testInstallation } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import type { Uplink } from "@destack/sync";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -36,16 +37,16 @@ const room = defineObject({
     partition: true,
     fields: {},
     permissions: { read: none() },
-}).methods((method) => ({ get: method.get("read") }));
+}).methods();
 
 /** The room the scenarios serve a partition of. */
 const ROOM = "room-01996ab0-0000-7000-8000-0000000000a3";
 
-/** The service of the space's rooms. */
-const roomsService = defineService("rooms", { objects: { room } });
+/** The package of the space's rooms. */
+const roomsPackage = definePackage({ objects: { room } });
 
 /** The database of the space's rooms. */
-const roomsDatabase = defineDatabase({ name: "main", tables: [...room.tables, journal] });
+const roomsDatabase = defineDatabase({ name: "main", tables: [...room.tables, ...callTables] });
 
 /** An uplink streaming and receiving nothing, named by who it stands for. */
 function idle(name: string): Uplink {
@@ -58,7 +59,7 @@ function idle(name: string): Uplink {
 }
 
 /** The database of the space's cards. */
-const cardsDatabase = defineDatabase({ name: "main", tables: [...card.tables, journal] });
+const cardsDatabase = defineDatabase({ name: "main", tables: [...card.tables, ...callTables] });
 
 test.each(TEST_DIALECTS)(
     "serve a call in the store's own partition or in any partition, and point one in another partition to the partition serving it on %s",
@@ -67,14 +68,16 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, cardsDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
+        const events = await testEvents(storage.database);
         const serve = (partition?: string) =>
             new ObjectStore({
                 clock: Clock.system,
                 principal: spacePrincipal(spaceId),
-                objects: { card },
+                objects: [card],
                 database: storage.database,
                 callKey: testCallKey,
-                origin: { package: card.package, service: "test" },
+                events,
+                origin: { package: card.package },
                 ...(partition === undefined ? {} : { partition }),
             });
         const create = (store: ObjectStore) =>
@@ -109,13 +112,14 @@ test.each(TEST_DIALECTS)(
         const machine = idle("machine");
         const root = idle("root");
         const subscriptions = async (partition: string) => {
-            const { store } = ObjectExtension.compose([ObjectExtension.of(roomsService, [])], {
+            const { store } = ObjectExtension.compose([ObjectExtension.of(roomsPackage, [])], {
                 clock: Clock.system,
-                origin: { package: roomsService.package, service: roomsService.name },
+                origin: { package: Package.of(roomsPackage) },
                 callKey: testCallKey,
+                events: await testEvents(storage.database),
                 database: storage.database,
                 installation: {
-                    ...(await testInstallation(roomsService.package, spaceId)),
+                    ...(await testInstallation(Package.of(roomsPackage), spaceId)),
                     partition,
                     publisher: machine,
                     publisherAt: (address, packageId) => {
@@ -151,9 +155,7 @@ test.each(TEST_DIALECTS)(
                 [`chain:${ROOM}`, spaceId, "root"],
                 [`chain:${ROOM}`, "universe", "root"],
             ],
-            [
-                `installation-019f5530-8000-7000-8000-00000000f001--${spaceId} ${roomsService.package.id}`,
-            ],
+            [`installation-019f5530-8000-7000-8000-00000000f001--${spaceId} ${roomsPackage.id}`],
         ]);
     },
 );

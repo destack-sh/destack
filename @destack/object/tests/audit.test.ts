@@ -1,15 +1,15 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { Journal } from "@destack/audit/server";
-import { journal } from "@destack/audit/stack";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema, Clock } from "@destack/schema";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
 import { v7 } from "uuid";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
+import { auditedCalls } from "./fixture/audit.ts";
 
 /** The space keeping the lockers. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -31,7 +31,7 @@ const locker = defineObject({
 }));
 
 test("name the version a read disclosed in its recorded call, apart from its value", async () => {
-    const storage = await TestDatabase.create("sqlite", [...locker.tables, journal], {
+    const storage = await TestDatabase.create("sqlite", [...locker.tables, ...callTables], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -49,7 +49,7 @@ test("name the version a read disclosed in its recorded call, apart from its val
         })
         .returning();
 
-    // record each audited read in the journal
+    // record each audited read as a call event
     const handled = locker.implement({
         methods: {
             open: async (opening) => ({ version: opening.target.version, value: "secret" }),
@@ -58,12 +58,12 @@ test("name the version a read disclosed in its recorded call, apart from its val
     const store = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
-        objects: { locker: handled },
+        objects: [handled],
         database,
         callKey: testCallKey,
+        events: await testEvents(database),
         origin: {
             package: locker.package,
-            service: "test",
         },
     });
     const context = userContext("owner", SPACE_ID);
@@ -76,7 +76,7 @@ test("name the version a read disclosed in its recorded call, apart from its val
         version: 3,
         value: "secret",
     });
-    const recorded = await new Journal(database, testCallKey, { clock: Clock.system }).read();
+    const recorded = await auditedCalls(database);
     expect(
         recorded.map((read) => [
             read.method,

@@ -16,9 +16,10 @@ import {
 
 import { schema, Version } from "@destack/schema";
 
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 
 import * as sync from "@destack/sync";
+import { ObjectTypeReference } from "@destack/sync";
 
 import type { Step } from "../method/step.ts";
 
@@ -42,8 +43,8 @@ export const undoEntry = defineTable("undo_entry", {
 
 /** A stored step with its object type. */
 export type StoredStep = Omit<Step, "object" | "current"> & {
-    /** The object type's name. */
-    readonly object: string;
+    /** The package-qualified object type. */
+    readonly object: ObjectTypeReference;
     /** The release of the object type's package the step was taken at. */
     readonly release: Version;
 };
@@ -51,7 +52,7 @@ export type StoredStep = Omit<Step, "object" | "current"> & {
 /** The steps an entry keeps, as their JSON reads back. */
 const STORED_STEPS: schema.Schema<StoredStep[]> = schema.array(
     schema.looseObject({
-        object: schema.string(),
+        object: ObjectTypeReference,
         release: Version,
         name: schema.string(),
         input: schema.record(schema.string(), schema.json()),
@@ -112,7 +113,8 @@ export class UndoStack {
             steps.length > 0 &&
             steps.every(
                 (step) =>
-                    this.client.method(`${step.object}.${step.name}`).method.inverse !== undefined,
+                    this.client.method({ type: step.object, method: step.name }).method.inverse !==
+                    undefined,
             );
         if (!isUndoable) {
             return;
@@ -191,7 +193,10 @@ export class UndoStack {
         const calls: sync.Call[] = [];
         for (const stored of STORED_STEPS.parse(entry.steps).toReversed()) {
             // refuse a step recorded by another release
-            const { object, name, method } = this.client.method(`${stored.object}.${stored.name}`);
+            const { object, name, method } = this.client.method({
+                type: stored.object,
+                method: stored.name,
+            });
             if (stored.release !== object.package.version) {
                 return [];
             }
@@ -230,7 +235,7 @@ export class UndoStack {
                 // predict each inverse call
                 const steps: StoredStep[] = [];
                 for (const call of calls) {
-                    const { object, name } = this.client.method(call.method);
+                    const { object, name } = this.client.method(call);
                     steps.push(
                         (await this.client.step(database, object, name, call.input, true)).step,
                     );

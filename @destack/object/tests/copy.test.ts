@@ -1,5 +1,6 @@
-import { reconciliation, testCallKey } from "@destack/service/test";
-import { ControlLoop, controllerLease } from "@destack/service/control";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { callTables, testEvents } from "../src/test/index.ts";
+import { ControlLoop, controllerLease } from "@destack/runtime/control";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     accessTables,
@@ -13,20 +14,24 @@ import {
     through,
     union,
 } from "@destack/access";
-import { journal } from "@destack/audit/stack";
+import { journal } from "../src/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema, Clock } from "@destack/schema";
+import { Clock, Identifier, present, schema } from "@destack/schema";
 
-import { ServiceError } from "@destack/service/error";
-import { RequestId } from "@destack/service/request";
+import { CallError } from "@destack/runtime/error";
+import { RequestId } from "@destack/runtime/request";
+import { until } from "@destack/runtime/timer";
 import { Scope, Feed, Replica, type Page, type Subscription } from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore, Subscriber } from "../src/server/index.ts";
 import { userContext } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
+
+/** How long a copy may take to reach its home or relist: 5 s, far above the milliseconds it takes. */
+const COPY_MILLISECONDS = 5000;
 
 /** Refuse a change sent over the uplink, as these copies receive none. */
 const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
@@ -68,7 +73,7 @@ const account = defineObject({
         reader: { subjects: [principal.installation], grantedBy: null },
     },
     permissions: { read: union(relation("member"), relation("reader")) },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
 /** Spaces within accounts, which installations read and replicate as granted. */
 const space = defineObject({
@@ -82,7 +87,7 @@ const space = defineObject({
         replicator: { subjects: [principal.installation], grantedBy: null },
     },
     permissions: { read: relation("reader"), replicate: relation("replicator") },
-}).methods((method) => ({ list: method.list("read") }));
+}).methods();
 
 /** Comments an installation keeps in the spaces it follows. */
 const comment = defineObject({
@@ -110,7 +115,6 @@ const document = defineObject({
     fields: { title: field.string(schema.string().min(1)) },
     permissions: { read: none(), write: none() },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
 }));
 
@@ -118,7 +122,7 @@ test.each(TEST_DIALECTS)(
     "decide calls over a relayed copy of access as the holder does, through the account's members and restricted credentials, on %s",
     async (dialect) => {
         const home = await TestDatabase.create(dialect, accessTables, { isMigrated: true });
-        const installed = await TestDatabase.create(dialect, [...document.tables, journal], {
+        const installed = await TestDatabase.create(dialect, [...document.tables, ...callTables], {
             isMigrated: true,
         });
         onTestFinished(async () => {
@@ -165,7 +169,7 @@ test.each(TEST_DIALECTS)(
         const store: ObjectStore = new ObjectStore({
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: { document },
+            objects: [document],
             database: installed.database,
             subscriber: Subscriber.of(
                 {
@@ -177,12 +181,12 @@ test.each(TEST_DIALECTS)(
                             signal,
                         ),
                 },
-                () => store.authorizer.chain(installed.database, spaceId, { isHome: false }),
+                () => store.authorizer.chain(installed.database, spaceId, { kind: "follower" }),
             ),
             callKey: testCallKey,
+            events: await testEvents(installed.database),
             origin: {
                 package: document.package,
-                service: "test",
             },
         });
 
@@ -214,19 +218,26 @@ test.each(TEST_DIALECTS)(
             Scope.universe.id,
         ]);
 
-        // create through credentials restricted to the space, to another one and unrestricted, and list as alice
+        // create through tokens whose grants give the space, another one or everything, and list as alice
         const create = async (user: string, title: string, restricted?: string) => {
-            // restrict the caller's permissions to one scope when the credential asks
+            // limit the caller's token to one scope by its grant when asked
             const context = userContext(
                 user,
                 spaceId,
                 restricted === undefined
                     ? {}
                     : {
-                          permissions: [
-                              document.permission("read"),
-                              document.permission("write"),
-                          ].map((permission) => ({ ...permission, scope: restricted })),
+                          delegates: [
+                              principal.personalAccessToken.reference(user, `token-${user}`),
+                          ],
+                          grant: {
+                              id: Identifier.create("grant"),
+                              scope: user,
+                              permissions: [
+                                  document.permission("read"),
+                                  document.permission("write"),
+                              ].map((permission) => ({ ...permission, scope: restricted })),
+                          },
                       },
             );
 
@@ -418,7 +429,7 @@ test("follow copies as a server serving no methods, which keeps no journal and t
     const store: ObjectStore = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: {},
+        objects: [],
         policies: [document],
         database: follower.database,
         subscriber: Subscriber.of(
@@ -431,9 +442,9 @@ test("follow copies as a server serving no methods, which keeps no journal and t
                         signal,
                     ),
             },
-            () => store.authorizer.chain(follower.database, spaceId, { isHome: false }),
+            () => store.authorizer.chain(follower.database, spaceId, { kind: "follower" }),
         ),
-        origin: { package: document.package, service: "test" },
+        origin: { package: document.package },
     });
     const controller = new AbortController();
     const loop = new ControlLoop(follower.database, store.controllers(), {
@@ -456,12 +467,12 @@ test("follow copies as a server serving no methods, which keeps no journal and t
 
 test("copy the chains of an installation's two served spaces in one copy via both, requiring it to replicate each and refusing a scope outside them", async () => {
     // keep an account with two spaces at home, and another account
-    const home = await TestDatabase.create("sqlite", [...space.tables, journal], {
+    const home = await TestDatabase.create("sqlite", [...space.tables, ...callTables], {
         isMigrated: true,
     });
     const declared = defineDatabase({
         name: "installed",
-        tables: [...document.tables, journal],
+        tables: [...document.tables, ...callTables],
         copies: [space.table],
     });
     const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
@@ -482,11 +493,12 @@ test("copy the chains of an installation's two served spaces in one copy via bot
     const source = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { space },
+        objects: [space],
         policies: [document],
         database: home.database,
         callKey: testCallKey,
-        origin: { package: document.package, service: "test" },
+        events: await testEvents(home.database),
+        origin: { package: document.package },
     });
     const fixture = new AccessFixture(home.database);
     const subject = principal.installation.reference(followingSpaceId, followingId);
@@ -501,7 +513,7 @@ test("copy the chains of an installation's two served spaces in one copy via bot
     const copying: ObjectStore = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { document },
+        objects: [document],
         policies: [space],
         database: installed.database,
         subscriber: Subscriber.of(
@@ -518,7 +530,8 @@ test("copy the chains of an installation's two served spaces in one copy via bot
             ],
         ),
         callKey: testCallKey,
-        origin: { package: document.package, service: "test" },
+        events: await testEvents(installed.database),
+        origin: { package: document.package },
     });
     const controller = await followUniverse(copying, home.database);
 
@@ -568,12 +581,12 @@ test("copy a scoped table an installation's database declares beside its followe
     // keep an account with two spaces and a document in each at home
     const home = await TestDatabase.create(
         "sqlite",
-        [...space.tables, ...document.tables, journal],
+        [...space.tables, ...document.tables, ...callTables],
         { isMigrated: true },
     );
     const declared = defineDatabase({
         name: "installed",
-        tables: [...comment.tables, journal, controllerLease],
+        tables: [...comment.tables, ...callTables, controllerLease],
         copies: [space.table, document.table],
     });
     const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
@@ -600,10 +613,11 @@ test("copy a scoped table an installation's database declares beside its followe
     const source = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { space, document },
+        objects: [space, document],
         database: home.database,
         callKey: testCallKey,
-        origin: { package: document.package, service: "test" },
+        events: await testEvents(home.database),
+        origin: { package: document.package },
     });
     const fixture = new AccessFixture(home.database);
     const subject = principal.installation.reference(followingSpaceId, followingId);
@@ -616,7 +630,7 @@ test("copy a scoped table an installation's database declares beside its followe
     const copying: ObjectStore = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { comment },
+        objects: [comment],
         policies: [space, document],
         database: installed.database,
         subscriber: Subscriber.of(
@@ -628,7 +642,8 @@ test("copy a scoped table an installation's database declares beside its followe
             () => copying.source.servedSubscriptions(followingSpaceId),
         ),
         callKey: testCallKey,
-        origin: { package: document.package, service: "test" },
+        events: await testEvents(installed.database),
+        origin: { package: document.package },
     });
     const replica = present(
         copying.controllers().find((each) => each.name === "replica"),
@@ -649,13 +664,13 @@ test("copy a scoped table an installation's database declares beside its followe
         installed.database.select({ scope: document.table.scope }).from(document.table);
     await installed.database.log.until(
         async () => (await documents()).length > 0,
-        AbortSignal.timeout(5000),
+        AbortSignal.timeout(COPY_MILLISECONDS),
     );
     const followed = await documents();
     await home.database.delete(accessRelationship).where(eq(accessRelationship.id, reading));
     await installed.database.log.until(
         async () => (await documents()).length === 0,
-        AbortSignal.timeout(5000),
+        AbortSignal.timeout(COPY_MILLISECONDS),
     );
     expect({ followed, left: await documents() }).toEqual({
         followed: [{ scope: spaceId }],
@@ -669,7 +684,7 @@ async function openCopies() {
     const home = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
     const machine = await TestDatabase.create(
         "sqlite",
-        [...document.tables, journal, controllerLease],
+        [...document.tables, ...callTables, controllerLease],
         { isMigrated: true },
     );
     onTestFinished(async () => {
@@ -690,11 +705,11 @@ async function openCopies() {
     const feed = new Feed(home.database, accessTables, { clock: Clock.system });
     const requested = new Set<string>();
     const refused = new AbortController();
-    const refuse = () => refused.abort(new ServiceError("FORBIDDEN", { message: "refused" }));
+    const refuse = () => refused.abort(new CallError("FORBIDDEN", { message: "refused" }));
     const store: ObjectStore = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { document },
+        objects: [document],
         database: machine.database,
         subscriber: Subscriber.of(
             {
@@ -712,13 +727,14 @@ async function openCopies() {
                 (
                     await Promise.all(
                         [...requested].map((below): Promise<Subscription[]> =>
-                            store.authorizer.chain(machine.database, below, { isHome: false }),
+                            store.authorizer.chain(machine.database, below, { kind: "follower" }),
                         ),
                     )
                 ).flat(),
         ),
         callKey: testCallKey,
-        origin: { package: document.package, service: "test" },
+        events: await testEvents(machine.database),
+        origin: { package: document.package },
     });
 
     return { home, machine, store, requested, refuse };
@@ -736,12 +752,12 @@ function scopeOf(key: string): string | undefined {
 
 test("copy the chains of the accounts an installation's rows relate to, beside its own space where those rows live", async () => {
     // keep two accounts at home, the first readable by the installation
-    const home = await TestDatabase.create("sqlite", [...account.tables, journal], {
+    const home = await TestDatabase.create("sqlite", [...account.tables, ...callTables], {
         isMigrated: true,
     });
     const declared = defineDatabase({
         name: "installed",
-        tables: [...annotation.tables, journal],
+        tables: [...annotation.tables, ...callTables],
         copies: [account.table],
     });
     const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
@@ -768,16 +784,17 @@ test("copy the chains of the accounts an installation's rows relate to, beside i
     const source = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: { account },
+        objects: [account],
         database: home.database,
         callKey: testCallKey,
-        origin: { package: account.package, service: "test" },
+        events: await testEvents(home.database),
+        origin: { package: account.package },
     });
     const follower = { subject, parent: Scope.universe.id };
     const copying: ObjectStore = new ObjectStore({
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        objects: { annotation },
+        objects: [annotation],
         policies: [account],
         database: installed.database,
         subscriber: Subscriber.of(
@@ -794,7 +811,8 @@ test("copy the chains of the accounts an installation's rows relate to, beside i
             ],
         ),
         callKey: testCallKey,
-        origin: { package: annotation.package, service: "test" },
+        events: await testEvents(installed.database),
+        origin: { package: annotation.package },
     });
     await followUniverse(copying, home.database);
 
@@ -811,6 +829,123 @@ test("copy the chains of the accounts an installation's rows relate to, beside i
         ],
         via: [accountId, followingSpaceId],
     });
+});
+
+test("copy the chain of an account another copy brought first, once the universe copy includes it", async () => {
+    // keep an account at home that the installation reads
+    const home = await TestDatabase.create("sqlite", [...account.tables, ...callTables], {
+        isMigrated: true,
+    });
+    const declared = defineDatabase({
+        name: "installed",
+        tables: [...annotation.tables, ...callTables],
+        copies: [account.table],
+    });
+    const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
+    onTestFinished(async () => {
+        await Promise.all([home.close(), installed.close()]);
+    });
+    const accessCopies = new AccessFixture(home.database);
+    await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
+    await home.database
+        .insert(account.table)
+        .values({ id: accountId, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
+    const subject = principal.installation.reference(followingSpaceId, followingId);
+    await accessCopies.copyRelationship(
+        accountId,
+        account.reference(Scope.universe.id, accountId),
+        "reader",
+        subject,
+        1,
+    );
+
+    // serve the accounts at home, and record the first chain request via the account
+    const source = new ObjectStore({
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [account],
+        database: home.database,
+        callKey: testCallKey,
+        events: await testEvents(home.database),
+        origin: { package: account.package },
+    });
+    const follower = { subject, parent: Scope.universe.id };
+    const chain = Authorizer.chainCopy(followingSpaceId);
+    const followed = Promise.withResolvers<unknown>();
+    const publisher = {
+        receive: refuseChanges,
+        stream: async function* (asked: Subscription, signal: AbortSignal) {
+            // stream the universe's rows from home
+            if (asked.name !== chain) {
+                yield* source.source.replicate(asked, asked.after, follower, signal);
+            }
+            // record a chain request via the account and keep it open
+            else {
+                const via = asked.parameters["via"];
+                if (Array.isArray(via) && via.includes(accountId)) {
+                    followed.resolve(via);
+                }
+                await until(signal);
+            }
+        },
+    };
+
+    // copy the universe's rows under another name first, as a residents copy does
+    const copying: ObjectStore = new ObjectStore({
+        clock: Clock.system,
+        principal: spacePrincipal(followingSpaceId),
+        objects: [annotation],
+        policies: [account],
+        database: installed.database,
+        subscriber: Subscriber.of(publisher, async () => [
+            residents,
+            ...(await copying.source.servedSubscriptions(followingSpaceId)),
+        ]),
+        callKey: testCallKey,
+        events: await testEvents(installed.database),
+        origin: { package: annotation.package },
+    });
+    const residents = {
+        ...present(copying.source.universeSubscription(followingSpaceId), "the universe request"),
+        name: "residents",
+    };
+    const early = new AbortController();
+    const copied = copying.source
+        .replicaOf(residents)
+        .follow(
+            installed.database,
+            (from, signal) => publisher.stream({ ...residents, ...from }, signal),
+            early.signal,
+            { subscription: residents, clock: Clock.system },
+        );
+    const head = await home.database.log.position();
+    await Replica.wait(
+        installed.database,
+        Scope.universe.id,
+        head,
+        AbortSignal.timeout(COPY_MILLISECONDS),
+    );
+    early.abort();
+    await Promise.allSettled([copied]);
+
+    // run the copies, whose universe copy then only records the account it shares with the other copy
+    const controller = new AbortController();
+    const loop = new ControlLoop(
+        installed.database,
+        copying.controllers().filter((each) => each.name === "replica"),
+        { clock: Clock.system, report: failing },
+    );
+    const running = loop.run(controller.signal);
+    onTestFinished(async () => {
+        controller.abort();
+        await running;
+    });
+
+    // list the copies again and follow the chain via the account
+    const timeout = until(AbortSignal.timeout(COPY_MILLISECONDS)).then(
+        () => "no chain via the account",
+    );
+    expect(await Promise.race([followed.promise, timeout])).toEqual([accountId, followingSpaceId]);
 });
 
 /** Follow a store's copy of the universe until it reaches the home's head, stopping when the test finishes. */

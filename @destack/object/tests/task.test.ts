@@ -2,26 +2,24 @@ import { bearerUser } from "./fixture/user.ts";
 import { ObjectExtension } from "../src/server/index.ts";
 import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { PackageId } from "@destack/package";
+import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { schema, present, Clock } from "@destack/schema";
-import { createClient } from "@destack/service/client";
-import { Health } from "@destack/service/health";
-import { RequestId } from "@destack/service/request";
-import { Server } from "@destack/service/server";
+import { createClient } from "@destack/runtime/client";
+import { Health } from "@destack/runtime/health";
+import { RequestId } from "@destack/runtime/request";
+import { Server } from "@destack/runtime/server";
 import { v7 } from "uuid";
-import { project, task, tasksDatabase, tasksService } from "./fixture/task.ts";
+import { project, task, tasksDatabase, tasksPackage } from "./fixture/task.ts";
 import type { CallInput } from "../src/index.ts";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { principal } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
 
 /** The space with the projects. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
-
-/** The package serving the projects. */
-const audience = PackageId.parse("package-01a0d5eb-fb66-76d2-93b6-5568ae045a69");
 
 test.each(TEST_DIALECTS)(
     "plan a project with its members, assignees, guarded budgets and comments on %s",
@@ -34,24 +32,24 @@ test.each(TEST_DIALECTS)(
         // serve the space's tasks to users identified by their bearer credential
         const server = Server.start({
             clock: Clock.system,
-            ...ObjectExtension.compose([ObjectExtension.of(tasksService, [])], {
+            ...ObjectExtension.compose([ObjectExtension.of(tasksPackage, [])], {
                 clock: Clock.system,
-                origin: { package: tasksService.package, service: tasksService.name },
+                origin: { package: Package.of(tasksPackage) },
                 principal: spacePrincipal(spaceId),
                 callKey: testCallKey,
+                events: await testEvents(database),
                 database,
-            }).services[0],
-            audience,
+            }).packages[0],
             scope: spaceId,
             resources: new ResourceContext(),
             health: new Health("tasks"),
             drainTimeout: 1000,
             authorizeMachine: async () => {},
-            authenticate: bearerUser(audience, spaceId),
+            authenticate: bearerUser(tasksPackage.id, spaceId),
         });
         onTestFinished(() => server.close());
         const as = (caller: string) =>
-            createClient(tasksService, {
+            createClient(tasksPackage, {
                 url: "https://tasks.test",
                 headers: { authorization: `Bearer ${caller}` },
                 fetch: (request: Request) => server.fetch(request),
@@ -157,7 +155,11 @@ test.each(TEST_DIALECTS)(
                 (item) => [item.authorId, item.text],
             ),
         ).toEqual([["bob", "Draft is ready"]]);
-        await bob.task.complete({ spaceId, id: announce.id, requestId: RequestId.create(Date.now()) });
+        await bob.task.complete({
+            spaceId,
+            id: announce.id,
+            requestId: RequestId.create(Date.now()),
+        });
 
         // follow up a task of another space by its qualified reference
         const origin = {
@@ -191,7 +193,7 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-test("serve a handled type in place of the service's own", async () => {
+test("serve a handled type in place of the package's own", async () => {
     const storage = await TestDatabase.create("sqlite", tasksDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
@@ -200,39 +202,37 @@ test("serve a handled type in place of the service's own", async () => {
     const frozen = project.implement({
         methods: {
             create: async () => {
-                throw new ServiceError("CONFLICT", { message: "projects are frozen" });
+                throw new CallError("CONFLICT", { message: "projects are frozen" });
             },
         },
     });
-    const served = ObjectExtension.compose([ObjectExtension.of(tasksService, [frozen])], {
+    const served = ObjectExtension.compose([ObjectExtension.of(tasksPackage, [frozen])], {
         clock: Clock.system,
-        origin: { package: tasksService.package, service: tasksService.name },
+        origin: { package: Package.of(tasksPackage) },
         principal: spacePrincipal(spaceId),
         callKey: testCallKey,
+        events: await testEvents(storage.database),
         database: storage.database,
-    }).services[0];
+    }).packages[0];
     const server = Server.start({
         clock: Clock.system,
         ...served,
-        audience,
         scope: spaceId,
         resources: new ResourceContext(),
         health: new Health("tasks"),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: bearerUser(audience, spaceId),
+        authenticate: bearerUser(tasksPackage.id, spaceId),
     });
     onTestFinished(() => server.close());
-    const alice = createClient(tasksService, {
+    const alice = createClient(tasksPackage, {
         url: "https://tasks.test",
         headers: { authorization: "Bearer alice" },
         fetch: (request: Request) => server.fetch(request),
     });
     await expect(
         alice.project.create({ spaceId, requestId: RequestId.create(Date.now()), name: "Launch" }),
-    ).rejects.toEqual(
-        new ServiceError("CONFLICT", { defined: true, message: "projects are frozen" }),
-    );
+    ).rejects.toEqual(new CallError("CONFLICT", { defined: true, message: "projects are frozen" }));
 });
 
 /** Reference a user principal by identifier. */

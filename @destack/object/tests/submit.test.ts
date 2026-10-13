@@ -14,12 +14,14 @@ test("predict recorded calls as one mutation, which the server executes together
     // submit two recorded note creations
     const submitted = device.client.submit([
         {
-            method: "note.create",
+            type: note.typeReference,
+            method: "create",
             release: note.package.version,
             input: { spaceId, parentId, title: "Packing" },
         },
         {
-            method: "note.create",
+            type: note.typeReference,
+            method: "create",
             release: note.package.version,
             input: { spaceId, parentId, title: "Tickets" },
         },

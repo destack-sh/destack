@@ -4,25 +4,23 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
-import { PackageId } from "@destack/package";
+import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { present, schema, Clock } from "@destack/schema";
-import { createClient, type ClientOptions } from "@destack/service/client";
-import { Health } from "@destack/service/health";
-import { RequestId } from "@destack/service/request";
-import { Server } from "@destack/service/server";
+import { createClient, type ClientOptions } from "@destack/runtime/client";
+import { Health } from "@destack/runtime/health";
+import { RequestId } from "@destack/runtime/request";
+import { Server } from "@destack/runtime/server";
 import { v7 } from "uuid";
 import { anyone, LinkSecret, principal } from "@destack/access";
 import { Subject } from "@destack/sync";
-import { page, pageDatabase, pagesService } from "./fixture/page.ts";
+import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, unmoved, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
+import { testEvents } from "../src/test/index.ts";
 
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
-
-/** The package serving the pages. */
-const audience = PackageId.parse("package-01a0d5eb-fbad-732f-bbb4-a58aebbeb908");
 
 /** The rows an include adds, read for their titles. */
 const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
@@ -37,20 +35,20 @@ async function servePages(dialect: Dialect) {
     // serve the space's pages
     const server = Server.start({
         clock: Clock.system,
-        ...ObjectExtension.compose([ObjectExtension.of(pagesService, [])], {
+        ...ObjectExtension.compose([ObjectExtension.of(pagesPackage, [])], {
             clock: Clock.system,
-            origin: { package: pagesService.package, service: pagesService.name },
+            origin: { package: Package.of(pagesPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
+            events: await testEvents(database),
             database,
-        }).services[0],
-        audience,
+        }).packages[0],
         scope: spaceId,
         resources: new ResourceContext(),
         health: new Health("pages"),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: bearerUser(audience, spaceId),
+        authenticate: bearerUser(pagesPackage.id, spaceId),
     });
     onTestFinished(() => server.close());
 
@@ -61,7 +59,7 @@ async function servePages(dialect: Dialect) {
         fetch: (request: Request) => server.fetch(request),
     });
     const connect = (headers: Record<string, string>) =>
-        createClient(pagesService, endpoint(headers));
+        createClient(pagesPackage, endpoint(headers));
 
     return { connect, endpoint, owner };
 }
@@ -235,10 +233,7 @@ test.each(TEST_DIALECTS)(
         });
         expect([
             why.isAllowed,
-            present(why.authorities[0], "the first authority").grants.map((grant) => [
-                grant.path.join(" / "),
-                grant.failure,
-            ]),
+            why.tuples.map((tuple) => [tuple.path.join(" / "), tuple.failure]),
         ]).toEqual([
             false,
             [
