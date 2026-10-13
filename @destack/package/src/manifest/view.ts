@@ -46,8 +46,8 @@ export const ViewDescription = Object.assign(
                 capabilities: Capabilities,
                 /** The object types the view presents, so opening an object picks its view. */
                 presents: schema.array(ViewPresentation),
-                /** The packages of the platform services the view calls as its person. */
-                services: schema.array(PackageId),
+                /** The packages the view calls as its person. */
+                packages: schema.array(PackageId),
             })
             .strict(),
     ),

@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { type DomainError, type ServiceErrorCode, type ServiceErrorReport } from "@destack/error";
+import { type DomainError, type CallErrorCode, type CallErrorReport } from "@destack/error";
 import type { CapabilityName } from "../definition/capability.ts";
 
 /** Invalid package definitions and distributed files. */
@@ -18,8 +18,8 @@ export const PackageErrorCode = defineSchema(
 /** A machine-readable package failure code. */
 export type PackageErrorCode = schema.Infer<typeof PackageErrorCode>;
 
-/** The service error code of each package failure: an invalid package, or one no host processes. */
-const SERVICE_CODES: Readonly<Record<PackageErrorCode, ServiceErrorCode>> = {
+/** The call error code of each package failure: an invalid package, or one no host processes. */
+const CALL_CODES: Readonly<Record<PackageErrorCode, CallErrorCode>> = {
     INVALID_DEFINITION: "BAD_REQUEST",
     UNSUPPORTED_LANGUAGE: "UNPROCESSABLE_CONTENT",
     UNSUPPORTED_TARGET: "UNPROCESSABLE_CONTENT",
@@ -41,9 +41,9 @@ export class PackageError extends Error implements DomainError {
         this.code = code;
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }
 
@@ -72,7 +72,7 @@ export class CapabilityError extends Error implements DomainError {
     }
 
     /** Report a capability no host grants as a workload the host cannot process. */
-    toServiceError(): ServiceErrorReport {
+    toCallError(): CallErrorReport {
         return { code: "UNPROCESSABLE_CONTENT", message: this.message };
     }
 }
