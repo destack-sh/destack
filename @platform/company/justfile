@@ -1,5 +1,7 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+# load the local secrets, such as the deploy tokens, when present
+set dotenv-path := "../../.env.local"
 
 # the Wrangler version, the same as @platform/site
 wrangler := "bunx wrangler@4.134.0"
