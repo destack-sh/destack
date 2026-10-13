@@ -1,7 +1,7 @@
 import { ModuleMetadata } from "@destack/package";
 import { expect, test } from "@destack/test";
 import type { Catalog } from "../message/catalog.ts";
-import { Message, plural, select, t } from "../message/message.ts";
+import { argument, Message, plural, select, t } from "../message/message.ts";
 import { Localization } from "./localization.ts";
 
 /** The first strong isolate MessageFormat 2 places around a string value. */
@@ -153,4 +153,22 @@ test("write an instant relative to now in its largest whole unit, past and futur
         english.relative(NOW - 10_000, NOW),
         english.relative(NOW, NOW),
     ]).toEqual(["3 days ago", "in 2 Stunden", "yesterday", "10 seconds ago", "now"]);
+});
+
+test("render a message with the arguments its reader supplies, refusing one left out", () => {
+    // render the notes' shared message for ada's two notes
+    const shared = Message.context(
+        "",
+        NOTES,
+    )`${argument("author")} shared ${plural(argument("count"), { one: "# note", other: "# notes" })}`;
+    const localization = Localization.of("en", []);
+    expect(localization.render(shared, { author: "Ada", count: 2 })).toBe(
+        `${OPEN}Ada${CLOSE} shared 2 notes`,
+    );
+
+    // refuse an untyped message whose reader leaves an argument out
+    const untyped: Message = shared;
+    expect(() => localization.render(untyped, { author: "Ada" })).toThrow(
+        new TypeError("message failed to format: Variable not available: $count"),
+    );
 });

@@ -2,6 +2,7 @@ import { MessageFormat } from "messageformat";
 import { type Direction, Locale, type LocaleTag } from "../locale/locale.ts";
 import type { Catalog } from "../message/catalog.ts";
 import type { Message } from "../message/message.ts";
+import type { JsonValue } from "@destack/schema";
 
 /** The smallest relative time unit, with its length in milliseconds. */
 const SECOND: readonly [Intl.RelativeTimeFormatUnit, number] = ["second", 1000];
@@ -20,6 +21,13 @@ const UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] = [
 /** The compiled formatters, by locale and source, compiled once each. */
 const COMPILED = new Map<string, MessageFormat>();
 
+/** The arguments a message's reader supplies, none for a message without any. */
+export type RenderArguments<Names extends string> = [Names] extends [never]
+    ? []
+    : string extends Names
+      ? [arguments?: Readonly<Record<string, JsonValue>>]
+      : [arguments: Readonly<Record<Names, JsonValue>>];
+
 /** A person's locale bound to the packages' catalogs, rendering messages and formatting values. */
 export interface Localization {
     /** The language and region the person reads. */
@@ -27,8 +35,8 @@ export interface Localization {
     /** The direction text and controls run in, the locale's own unless a host sets another. */
     readonly direction: Direction;
 
-    /** Render a message in the nearest locale its package's catalogs translate it into. */
-    render(message: Message): string;
+    /** Render a message with its arguments in the nearest locale its catalogs translate it into. */
+    render<Names extends string>(message: Message<Names>, ...rest: RenderArguments<Names>): string;
 
     /** Write a number. */
     number(value: number, options?: Intl.NumberFormatOptions): string;
@@ -84,7 +92,13 @@ export const Localization = {
         return {
             tag,
             direction: direction ?? Locale.direction(tag),
-            render: (message) => render(message, chain, source, translations),
+            render: (message, ...[supplied]) =>
+                render(
+                    { ...message, values: { ...message.values, ...supplied } },
+                    chain,
+                    source,
+                    translations,
+                ),
             number: (value, options) => numbers(options).format(value),
             money: (amount, currency) => money(amount, currency, numbers),
             date: (time, options) => dates(options).format(time),
@@ -106,12 +120,27 @@ function render(
     for (const tag of chain) {
         const translated = translations.get(`${message.package}\u0000${tag}`)?.messages[message.id];
         if (translated !== undefined) {
-            return compile(tag, translated).format(message.values);
+            return format(compile(tag, translated), message.values);
         }
     }
 
     // read the source text in the source language
-    return compile(source, message.source).format(message.values);
+    return format(compile(source, message.source), message.values);
+}
+
+/** Format a compiled message, refusing one that fails, such as one missing an argument. */
+function format(compiled: MessageFormat, values: Readonly<Record<string, unknown>>): string {
+    // collect the formatter's errors, which it would otherwise log and render around
+    const errors: unknown[] = [];
+    const text = compiled.format(values, (error) => errors.push(error));
+    const [first] = errors;
+    if (first !== undefined) {
+        throw new TypeError(
+            `message failed to format: ${first instanceof Error ? first.message : JSON.stringify(first)}`,
+        );
+    }
+
+    return text;
 }
 
 /** Compile a MessageFormat 2 source for a locale once. */

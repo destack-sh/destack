@@ -1,6 +1,6 @@
 import { PackageError } from "@destack/package";
 import { expect, test } from "@destack/test";
-import { Message, plural, select, t, verbatim } from "./message.ts";
+import { argument, Message, plural, select, t, verbatim } from "./message.ts";
 
 /** The id of this package, whose modules the transform stamps. */
 const LOCALE = "package-01a10754-6288-731f-a2ef-8b79479a427a";
@@ -38,6 +38,24 @@ test("write one variant per combination of several selectors", () => {
         "* one {{They shared {$p1} note}}",
         "* * {{They shared {$p1} notes}}",
     ]);
+});
+
+test("leave each argument's value to the reader, naming its placeholder and its selector by the argument", () => {
+    const shared = t`${argument("author")} shared ${plural(argument("count"), { one: "# note", other: "# notes" })} in ${"Trips"}`;
+    expect([shared.source.split("\n"), shared.values]).toEqual([
+        [
+            ".input {$count :number}",
+            ".match $count",
+            "one {{{$author} shared {$count} note in {$p2}}}",
+            "* {{{$author} shared {$count} notes in {$p2}}}",
+        ],
+        { p2: "Trips" },
+    ]);
+
+    // refuse an argument named like a positional placeholder
+    expect(() => argument("p0")).toThrow(
+        new TypeError("message argument p0 is no camel case name of its own"),
+    );
 });
 
 test("identify a message by its source and context alone, not its values", () => {

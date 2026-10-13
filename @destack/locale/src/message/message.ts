@@ -1,6 +1,12 @@
 import { ModuleMetadata, PackageId } from "@destack/package";
 import { defineSchema, type JsonValue, schema } from "@destack/schema";
 
+/** An argument's name: a camel case MessageFormat 2 variable name. */
+const ARGUMENT_NAME = /^[a-z][a-zA-Z0-9]*$/u;
+
+/** The names of the positional placeholders a template's values take. */
+const POSITIONAL_NAME = /^p[0-9]+$/u;
+
 /** The plural categories CLDR defines, `other` always required. */
 type PluralForms = Partial<Record<"zero" | "one" | "two" | "few" | "many", string>> & {
     /** The form for every other count. */
@@ -13,44 +19,87 @@ type SelectCases = Readonly<Record<string, string>> & {
     readonly other: string;
 };
 
+/** The key of the argument names a message's readers supply, a type alone. */
+declare const ARGUMENTS: unique symbol;
+
 /** A localizable message: its identifier, MessageFormat 2 source and the JSON values it formats. */
-export type Message = schema.Infer<typeof messageSchema>;
+export type Message<Names extends string = string> = schema.Infer<typeof messageSchema> & {
+    /** The names of the arguments its readers supply when rendering it. */
+    readonly [ARGUMENTS]?: Names;
+};
+
+/** A value a message's reader supplies by name when rendering it, such as a payload's field. */
+export interface Argument<Name extends string = string> {
+    /** The kind of interpolation. */
+    readonly kind: "argument";
+    /** The variable the value fills. */
+    readonly name: Name;
+}
 
 /** A part of a message whose text varies with a value: a plural count or a selected case. */
-export interface Variant {
+export interface Variant<Value = number | string | Argument> {
     /** How the value selects the text. */
     readonly kind: "plural" | "select";
     /** The selecting value. */
-    readonly value: number | string;
+    readonly value: Value;
     /** The text of each category or case, `#` standing for the value in a plural. */
     readonly forms: Readonly<Record<string, string>>;
 }
 
+/** The names of the arguments a template's interpolation leaves to the message's readers. */
+type ArgumentName<Part> =
+    Part extends Argument<infer Name>
+        ? Name
+        : Part extends Variant<Argument<infer Name>>
+          ? Name
+          : never;
+
+/** A template tag writing messages, typed by the arguments their readers supply. */
+export type MessageTag = <const Parts extends readonly unknown[]>(
+    strings: TemplateStringsArray,
+    ...parts: Parts
+) => Message<ArgumentName<Parts[number]>>;
+
+/** Leave a value to the message's reader, who supplies it by name when rendering the message. */
+export function argument<Name extends string>(name: Name): Argument<Name> {
+    // refuse a name that is no variable name, or one the positional placeholders take
+    if (!ARGUMENT_NAME.test(name) || POSITIONAL_NAME.test(name)) {
+        throw new TypeError(`message argument ${name} is no camel case name of its own`);
+    }
+
+    return { kind: "argument", name };
+}
+
 /** Vary a message's text with a count by its CLDR plural category, `#` standing for the count. */
-export function plural(value: number, forms: PluralForms): Variant {
+export function plural<Value extends number | Argument>(
+    value: Value,
+    forms: PluralForms,
+): Variant<Value> {
     return { kind: "plural", value, forms };
 }
 
 /** Vary a message's text with a value, `other` covering every unlisted one. */
-export function select(value: string, cases: SelectCases): Variant {
+export function select<Value extends string | Argument>(
+    value: Value,
+    cases: SelectCases,
+): Variant<Value> {
     return { kind: "select", value, forms: cases };
 }
 
 /** Write a localizable message from a template, with interpolations as placeholders or variants. */
-export function t(strings: TemplateStringsArray, ...parts: readonly unknown[]): Message;
+export function t<const Parts extends readonly unknown[]>(
+    strings: TemplateStringsArray,
+    ...parts: Parts
+): Message<ArgumentName<Parts[number]>>;
 /** Build the template tag writing a module's messages, as the module transform calls it. */
-export function t(
-    module: ModuleMetadata,
-): (strings: TemplateStringsArray, ...parts: readonly unknown[]) => Message;
+export function t(module: ModuleMetadata): MessageTag;
 /**
  * Build the writing module's template tag, refusing a template written without it.
  *
  * @construct the module transform rewrites each t`…` into t(module)`…`.
  * A template reaches t only untransformed.
  */
-export function t(
-    first: TemplateStringsArray | ModuleMetadata,
-): Message | ((strings: TemplateStringsArray, ...parts: readonly unknown[]) => Message) {
+export function t(first: TemplateStringsArray | ModuleMetadata): Message | MessageTag {
     // refuse a template the module transform did not stamp
     const module = ModuleMetadata.require("package" in first ? first : undefined, "t");
 
@@ -84,17 +133,22 @@ export const Message = Object.assign(messageSchema, {
         parts: readonly unknown[],
         context: string,
         module: ModuleMetadata,
-    ): Message {
-        // name each interpolation as a variable holding a JSON value, variants as selectors
+    ): schema.Infer<typeof messageSchema> {
+        // name each interpolation: an argument by its own name, any other value by its position
         const values: Record<string, JsonValue> = {};
         const selectors: { readonly name: string; readonly variant: Variant }[] = [];
         const pieces: (string | { readonly name: string; readonly variant?: Variant })[] = [];
         for (const [index, text] of strings.entries()) {
             pieces.push(text);
             if (index < parts.length) {
-                const name = `p${index}`;
                 const part = parts[index];
-                values[name] = jsonOf(name, isVariant(part) ? part.value : part);
+                const value = isVariant(part) ? part.value : part;
+                const name = isArgument(value) ? value.name : `p${index}`;
+                if (!isArgument(value)) {
+                    values[name] = jsonOf(name, value);
+                }
+
+                // place the variable, selecting by a variant's value
                 pieces.push(isVariant(part) ? { name, variant: part } : { name });
                 if (isVariant(part)) {
                     selectors.push({ name, variant: part });
@@ -109,10 +163,7 @@ export const Message = Object.assign(messageSchema, {
     },
 
     /** Build a template tag that writes a module's messages under a context. */
-    context(
-        context: string,
-        module?: ModuleMetadata,
-    ): (strings: TemplateStringsArray, ...parts: readonly unknown[]) => Message {
+    context(context: string, module?: ModuleMetadata): MessageTag {
         // refuse a context the module transform did not stamp
         const stamped = ModuleMetadata.require(module, "Message.context");
 
@@ -128,6 +179,11 @@ function jsonOf(name: string, value: unknown): JsonValue {
     }
 
     return parsed.data;
+}
+
+/** Report whether an interpolation is an argument the message's reader supplies. */
+function isArgument(part: unknown): part is Argument {
+    return typeof part === "object" && part !== null && "kind" in part && part.kind === "argument";
 }
 
 /** Report whether an interpolation is a plural or selected variant. */
