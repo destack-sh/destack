@@ -262,7 +262,9 @@ function Notion() {
                 <span aria-hidden="true" {...style.attrs(styles.notionIcon)}>
                     🚀
                 </span>
-                <b {...style.attrs(styles.notionTitle)}>Destack launch</b>
+                <b data-morph-title {...style.attrs(styles.notionTitle)}>
+                    Destack launch
+                </b>
                 <dl {...style.attrs(styles.notionProperties)}>
                     <dt {...style.attrs(styles.notionKey)}>
                         <Glyph name="status" size={16} weight={1.75} />

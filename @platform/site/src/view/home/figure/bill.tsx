@@ -13,7 +13,6 @@ const GB = 1_000_000_000;
 /** Draw a figure's bill as a ledger of equal blocks, each with its storage, compute and cost. */
 export function Bill(properties: {
     lines: readonly Line[];
-    label: string;
     isOpenAt: Stagger;
     lighting?: Lighting;
     onToggle?: (row: number) => void;
@@ -32,23 +31,6 @@ export function Bill(properties: {
     // read which lines run in your space, and join the blocks into one once all of them do
     const isOwned = (index: number) => properties.isOpenAt(index + 1);
     const isWhole = () => properties.lines.every((_, index) => isOwned(index));
-    const isAny = () => properties.lines.some((_, index) => isOwned(index));
-
-    // total the work the lines take, which stays the same whoever runs it
-    const storage = () => properties.lines.reduce((sum, line) => sum + line.workload.storage, 0);
-    const compute = () => properties.lines.reduce((sum, line) => sum + line.workload.compute, 0);
-    const isFloor = () => properties.lines.some((line) => line.workload.isAtLeast);
-
-    // bill the lines still rented at their vendors' prices, and the lines in your space by the work they use
-    const cost = () =>
-        properties.lines.reduce(
-            (sum, line, index) =>
-                sum +
-                (isOwned(index)
-                    ? usageCostOf(line.workload, rates)
-                    : monthlyOf(line.entry.stacked)),
-            0,
-        );
 
     // set each line as a ledger row in the state it is in
     const rows = (): readonly LedgerRow[] =>
@@ -82,7 +64,7 @@ export function Bill(properties: {
                         isFloor: line.workload.isAtLeast,
                     },
                     figureOf(
-                        "$/mo",
+                        "Cost",
                         "US dollars a month",
                         isOwned(index)
                             ? dollarsOf(usageCostOf(line.workload, rates))
@@ -97,24 +79,6 @@ export function Bill(properties: {
     return (
         <Ledger
             rows={rows()}
-            total={{
-                name: properties.label,
-                note: isAny() ? "Usage at cloud prices, free on your own machines" : "",
-                cells: [
-                    figureOf("Storage", "GB a month", amountOf(storage() / GB), true, true),
-                    {
-                        ...figureOf(
-                            "Compute",
-                            "GB·h of memory time",
-                            compute().toFixed(2),
-                            true,
-                            true,
-                        ),
-                        isFloor: isFloor(),
-                    },
-                    figureOf("$/mo", "US dollars a month", dollarsOf(cost()), false, false),
-                ],
-            }}
             isWhole={isWhole()}
             lit={lightOf(properties.lighting)}
             isPressable={properties.lighting !== undefined || properties.onToggle !== undefined}
@@ -143,11 +107,6 @@ function lightOf(lighting: Lighting | undefined): number | undefined {
 /** Return the line a ledger row stands for, counting from one, or none. */
 function rowOf(index: number | undefined): number | undefined {
     return index === undefined ? undefined : index + 1;
-}
-
-/** Return a rented item's monthly fee, or nothing for what it charges by use or bundles. */
-function monthlyOf(item: Item): number {
-    return item.price.kind === "fee" ? item.price.monthly : 0;
 }
 
 /** Return an amount to the hundredth, a floor for what rounds to nothing, or a dash. */

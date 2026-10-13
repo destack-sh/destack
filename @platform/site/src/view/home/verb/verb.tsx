@@ -4,6 +4,7 @@ import { color } from "@destack/theme/tokens.stylex";
 import { createSignal } from "@destack/view";
 import { createTimer } from "@destack/view/primitives/timer";
 import { createReducedMotion } from "@destack/view/motion";
+import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
@@ -12,13 +13,10 @@ import { Label } from "../entry/label";
 import { Bill } from "../figure/bill";
 import { accentOf, type Item, marksOf } from "../figure/item";
 import { holdings, pages, Presence, PresenceAnchor, SpaceBrowser, type Viewer } from "./space";
-import { createSteps } from "../figure/stagger";
+import type { Stagger } from "../figure/stagger";
 import { workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
 import { screen } from "../../layout/screen.stylex";
-
-/** The milliseconds between the steps of the figure's switch, one per holding. */
-const stepTime = 60;
 
 /** The milliseconds the pointer rests on a holding before the browser turns to its page. */
 const settleIn = 80;
@@ -37,7 +35,7 @@ const verb: Form = {
     sense: {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
-        sentence: "Own your apps and agents on one personal software platform.",
+        sentence: "Own your apps and agents on one unified personal software platform.",
     },
 };
 
@@ -68,17 +66,13 @@ export function Verb(properties: { isOpen: boolean }) {
         },
     };
 
-    // follow the motion the section shows
+    // follow the motion the section shows, and whether it is on screen
     const [section, setSection] = createSignal<HTMLElement>();
     const isReduced = createReducedMotion(section);
+    const isShown = createVisibilityObserver(section, { initialValue: true });
 
-    // switch the browser first and then each holding in order
-    const { isOpenAt } = createSteps(
-        () => properties.isOpen,
-        holdings.length + 1,
-        stepTime,
-        isReduced,
-    );
+    // switch the browser and every holding at once, so the switch morphs as one
+    const isOpenAt: Stagger = () => properties.isOpen;
 
     // hold who is looking, whether the reader chose them, and the page the window turns to on its own
     const [viewer, setViewer] = createSignal<Viewer>("Me");
@@ -97,7 +91,7 @@ export function Verb(properties: { isOpen: boolean }) {
             "shown page",
         );
 
-    // turn to the next page the viewer may see every page time, held while motion is reduced
+    // turn to the next page the viewer may see every page time, held while still or off screen
     createTimer(
         () => {
             // look as your agent every other round once owned, until the reader picks a viewer
@@ -117,7 +111,7 @@ export function Verb(properties: { isOpen: boolean }) {
             }
             setTurned(next);
         },
-        () => (isReduced() || chosen() !== undefined ? false : pageTime),
+        () => (isReduced() || chosen() !== undefined || !isShown() ? false : pageTime),
         setInterval,
     );
 
@@ -167,7 +161,6 @@ export function Verb(properties: { isOpen: boolean }) {
                         workload: workloadOf(entry.stacked.name),
                         tint: accentOf(entry.stacked.name, tintOf(entry.stacked)),
                     }))}
-                    label={isOpenAt(1) ? "1 space" : "8 sites, 8 invoices"}
                     lighting={lighting}
                     isOpenAt={isOpenAt}
                     badgeOf={(row) => <PresenceAnchor row={row} />}

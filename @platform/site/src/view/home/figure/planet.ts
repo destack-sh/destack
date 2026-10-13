@@ -1,4 +1,5 @@
 import { palette } from "../../palette.stylex";
+import { MODEL } from "./agent";
 
 /** The planet colour of each app and service, chosen by what it does. */
 const glyphs: Readonly<Record<string, string>> = {
@@ -10,7 +11,7 @@ const glyphs: Readonly<Record<string, string>> = {
     calendar: palette.mars,
     table: palette.oxygen,
     mail: palette.venus,
-    agent: palette.nebula,
+    agent: MODEL.tint,
     canvas: palette.pulsar,
 
     // services

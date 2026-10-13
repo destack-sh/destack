@@ -1,7 +1,7 @@
 import { Icon } from "@destack/icon";
 import gitCommit from "@destack/icon/phosphor/git-commit";
 import * as style from "@destack/style";
-import { color, font, stroke } from "@destack/theme/tokens.stylex";
+import { color, font } from "@destack/theme/tokens.stylex";
 import { createEffect, createSignal, onSettled } from "@destack/view";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
@@ -12,12 +12,11 @@ import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
 import { accentOf } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
-import { ServiceGlyph } from "../figure/tile";
 import { sectionOf } from "../verb/apps";
 import { services } from "./service";
 
-/** A browser too narrow for the tag column, where each tag pins to its part instead. */
-const PINNED = "@container (max-width: 559px)";
+/** A browser narrower than a phone, where each tag shows only its mark. */
+const NARROW = "@container (max-width: 479px)";
 
 /** How each rented service is wired into the app's own code, in ledger order. */
 const wiring: readonly string[] = [
@@ -62,17 +61,34 @@ const rail: readonly (readonly [icon: string, label: string])[] = [
     ["mail", "Mail"],
 ];
 
-/** The height in pixels of one x-ray tag, which sets how the tag column stacks them. */
-const TAG_HEIGHT = 24;
+/** The space in pixels every outline leaves around the element it marks. */
+const PAD = 4;
 
-/** The gap in pixels between two tags in the tag column. */
-const TAG_GAP = 6;
+/** The height in pixels of a tag, which sits on its outline's top edge, just above it. */
+const TAG_HEIGHT = 20;
 
-/** Where a part of the page sits in the browser, and the ledger row of the service behind it. */
-type Box = { index: number; x: number; y: number; width: number; height: number };
+/** How far in pixels a tag sits from its outline's left corner. */
+const TAG_INSET = 8;
 
-/** The column the tags line up in, or none on a narrow browser, where tags sit on their marks. */
-type Column = { left: number; top: number; bottom: number } | undefined;
+/** The width in pixels a tag takes per character of its text, to estimate its size. */
+const TAG_CHARACTER = 6.2;
+
+/** The width in pixels a tag's mark and padding take, beside its text. */
+const TAG_FRAME = 30;
+
+/** Where a part of the page sits, the ledger row of its service, and where its tag sits. */
+type Box = {
+    index: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    tagX: number;
+    tagY: number;
+};
+
+/** A rectangle in the browser's own coordinates. */
+type Rectangle = { left: number; top: number; right: number; bottom: number };
 
 /** Draw the docs app in a browser, x-rayed: each part outlined with the service that runs it. */
 export function XRay(properties: {
@@ -80,62 +96,67 @@ export function XRay(properties: {
     lit: number | undefined;
     onLight: (index: number | undefined) => void;
 }) {
-    // hold the browser, the elements marked for the x-ray and the tag column
+    // hold the browser and the elements marked for the x-ray
     let root: HTMLDivElement | undefined;
-    let gutter: HTMLDivElement | undefined;
     const [boxes, setBoxes] = createSignal<readonly Box[]>([]);
-    const [column, setColumn] = createSignal<Column>(undefined);
 
     // hold the app the browser shows, by its page
     const [row, setRow] = createSignal(1);
     const app = () => appOf(row());
 
-    // measure every marked part and the tag column against the browser
+    // measure every marked element against the browser
     const measure = () => {
-        if (!root || !gutter) {
+        if (!root) {
             return;
         }
+        // measure each marked element the page shows above its fold
         const bounds = root.getBoundingClientRect();
         const marked = [...root.querySelectorAll<HTMLElement>("[data-xray]")];
-        const measured = marked.map((element) => {
-            const rectangle = element.getBoundingClientRect();
-            const page = element.closest("main")?.getBoundingClientRect();
+        const measured = marked
+            .map((element) => {
+                const rectangle = element.getBoundingClientRect();
+                const page = element.closest("main")?.getBoundingClientRect();
 
-            return {
-                index: indexOf(element.dataset["xray"] ?? ""),
-                x: rectangle.left - bounds.left,
-                y: rectangle.top - bounds.top,
-                width: rectangle.width,
-                height: rectangle.height,
-                isHidden:
-                    page !== undefined && rectangle.top + rectangle.height / 2 > page.bottom - 16,
-            };
-        });
+                return {
+                    index: indexOf(element.dataset["xray"] ?? ""),
+                    x: rectangle.left - bounds.left,
+                    y: rectangle.top - bounds.top,
+                    width: rectangle.width,
+                    height: rectangle.height,
+                    isHidden:
+                        page !== undefined &&
+                        rectangle.top + rectangle.height / 2 > page.bottom - 16,
+                };
+            })
+            .filter((box) => !box.isHidden);
 
-        // keep the elements the page shows, leaving out those below its fold
+        // place each tag at the first corner of its outline that covers no text or other tag
+        const obstacles = textOf(root, bounds);
+        const placed: Rectangle[] = [];
         setBoxes(
-            measured
-                .filter((box) => !box.isHidden)
-                .map(({ index, x, y, width, height }) => ({ index, x, y, width, height })),
-        );
+            measured.map(({ index, x, y, width, height }) => {
+                // find the tag's spot, and keep later tags clear of it
+                const tagWidth = tagWidthOf(index, properties.isOpenAt(index + 1));
+                const spot = spotOf({ x, y, width, height }, tagWidth, bounds, [
+                    ...obstacles,
+                    ...placed,
+                ]);
+                placed.push({
+                    left: spot.x,
+                    top: spot.y,
+                    right: spot.x + tagWidth,
+                    bottom: spot.y + TAG_HEIGHT,
+                });
 
-        // keep the column only while it shows
-        const lane = gutter.getBoundingClientRect();
-        setColumn(
-            lane.width === 0
-                ? undefined
-                : {
-                      left: lane.left - bounds.left,
-                      top: lane.top - bounds.top,
-                      bottom: lane.bottom - bounds.top,
-                  },
+                return { index, x, y, width, height, tagX: spot.x, tagY: spot.y };
+            }),
         );
     };
 
     // measure again as the browser resizes and once the space takes over the page
     const resizes = makeResizeObserver(measure);
     createEffect(
-        () => [properties.isOpenAt(0), row()],
+        () => [row(), ...services.map((_, index) => properties.isOpenAt(index))],
         () => {
             requestAnimationFrame(measure);
         },
@@ -146,27 +167,6 @@ export function XRay(properties: {
         }
         measure();
     });
-
-    // stack the tags down the column in page order, each as near its part as the one above allows
-    const tops = () => {
-        // place nothing while the column is hidden
-        const lane = column();
-        const placed = new Map<number, number>();
-        if (lane === undefined) {
-            return placed;
-        }
-
-        // place each tag at its part's height, or just below the tag above
-        let floor = lane.top + TAG_GAP;
-        const ordered = boxes().toSorted((first, second) => centreOf(first) - centreOf(second));
-        for (const box of ordered) {
-            const top = Math.max(centreOf(box) - TAG_HEIGHT / 2, floor);
-            placed.set(box.index, top);
-            floor = top + TAG_HEIGHT + TAG_GAP;
-        }
-
-        return placed;
-    };
 
     // keep a tab for each service still rented, its vendor's dashboard
     const rented = () => services.filter((_, index) => !properties.isOpenAt(index + 1));
@@ -263,7 +263,7 @@ export function XRay(properties: {
                 </span>
             </div>
 
-            {/* Page, with the tag column beside it */}
+            {/* Page */}
             <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
                 <Fade
                     isOpen={isOwned()}
@@ -292,29 +292,13 @@ export function XRay(properties: {
                         </span>
                     </p>
                 </Fade>
-                <div ref={gutter} aria-hidden="true" {...style.attrs(styles.gutter)} />
             </div>
 
             {/* X-ray */}
             <div aria-hidden="true" {...style.attrs(styles.overlay)}>
-                <svg {...style.attrs(styles.leaders)}>
-                    {boxes().map((box) => (
-                        <Leader
-                            box={box}
-                            column={column()}
-                            top={tops().get(box.index) ?? 0}
-                            accent={accentAt(properties.isOpenAt, box.index)}
-                            isOwned={properties.isOpenAt(box.index + 1)}
-                            isLit={box.index === properties.lit}
-                            isDimmed={isDimmed(properties.lit, box.index)}
-                        />
-                    ))}
-                </svg>
                 {boxes().map((box) => (
                     <Mark
                         box={box}
-                        column={column()}
-                        top={tops().get(box.index) ?? 0}
                         accent={accentAt(properties.isOpenAt, box.index)}
                         isOwned={properties.isOpenAt(box.index + 1)}
                         isLit={box.index === properties.lit}
@@ -327,77 +311,19 @@ export function XRay(properties: {
     );
 }
 
-/** Draw the line from an x-rayed part to its tag in the column. */
-function Leader(properties: {
-    box: Box;
-    column: Column;
-    top: number;
-    accent: string;
-    isOwned: boolean;
-    isLit: boolean;
-    isDimmed: boolean;
-}) {
-    // run from the part's right edge to the tag's left, easing across the gap
-    const path = () => {
-        // draw no line while the column is hidden
-        const lane = properties.column;
-        if (lane === undefined) {
-            return "";
-        }
-
-        // bend the line halfway between the part and the tag
-        const startX = properties.box.x + properties.box.width + 3;
-        const startY = centreOf(properties.box);
-        const endX = lane.left + 10;
-        const endY = properties.top + TAG_HEIGHT / 2;
-        const bend = Math.max((endX - startX) / 2, 12);
-
-        return `M${startX} ${startY}C${startX + bend} ${startY} ${endX - bend} ${endY} ${endX} ${endY}`;
-    };
-
-    return (
-        <g
-            {...style.attrs(
-                styles.leader,
-                properties.isLit && styles.leaderLit,
-                properties.isDimmed && styles.markDimmed,
-            )}
-        >
-            <path
-                d={path()}
-                fill="none"
-                stroke-dasharray={properties.isOwned ? "none" : "3 3"}
-                {...style.attrs(styles.leaderLine(properties.accent))}
-            />
-            <circle
-                cx={properties.box.x + properties.box.width + 3}
-                cy={centreOf(properties.box)}
-                r="2.5"
-                {...style.attrs(styles.leaderEnd(properties.accent))}
-            />
-        </g>
-    );
-}
-
-/** Draw one x-rayed part: its outline, and its tag in the column or pinned to its corner. */
+/** Draw one x-rayed part: its outline, and a tag naming its service on the outline's top edge. */
 function Mark(properties: {
     box: Box;
-    column: Column;
-    top: number;
     accent: string;
     isOwned: boolean;
     isLit: boolean;
     isDimmed: boolean;
     onLight: (index: number | undefined) => void;
 }) {
-    // set the tag in the column, or pin it to the part's corner on a narrow browser
+    // set the tag where the measure placed it, on a corner of the outline
     const service = () => serviceAt(properties.box.index);
-    const isPinned = () => properties.column === undefined;
-    const tagLeft = () =>
-        properties.column === undefined
-            ? properties.box.x + properties.box.width - 12
-            : properties.column.left + 10;
-    const tagTop = () => (properties.column === undefined ? properties.box.y - 12 : properties.top);
+    const tagLeft = () => properties.box.tagX;
+    const tagTop = () => properties.box.tagY;
 
     return (
         <>
@@ -415,10 +341,10 @@ function Mark(properties: {
                         properties.isDimmed && styles.markDimmed,
                     ],
                     {
-                        left: `${properties.box.x - 3}px`,
-                        top: `${properties.box.y - 3}px`,
-                        width: `${properties.box.width + 6}px`,
-                        height: `${properties.box.height + 6}px`,
+                        left: `${properties.box.x - PAD}px`,
+                        top: `${properties.box.y - PAD}px`,
+                        width: `${properties.box.width + PAD * 2}px`,
+                        height: `${properties.box.height + PAD * 2}px`,
                     },
                 )}
             />
@@ -430,7 +356,6 @@ function Mark(properties: {
                     [
                         styles.tag,
                         properties.isOwned ? styles.tagOwned : styles.tagRented(properties.accent),
-                        isPinned() && styles.tagPinned,
                         properties.isLit && styles.tagLit,
                         properties.isDimmed && styles.markDimmed,
                     ],
@@ -439,10 +364,13 @@ function Mark(properties: {
             >
                 {properties.isOwned ? (
                     <>
-                        <ServiceGlyph icon={iconOf(service().destacked.mark)} />
-                        <span {...style.attrs(styles.tagName, isPinned() && styles.hidden)}>
-                            {service().destacked.name}
-                        </span>
+                        <span
+                            style={{
+                                "mask-image": `url(/diagram/${iconOf(service().destacked.mark)}.svg)`,
+                            }}
+                            {...style.attrs(styles.tagGlyph)}
+                        />
+                        <span {...style.attrs(styles.tagName)}>{service().destacked.name}</span>
                     </>
                 ) : (
                     <>
@@ -451,10 +379,8 @@ function Mark(properties: {
                             src={logoOf(service().stacked.mark)}
                             {...style.attrs(styles.tagLogo)}
                         />
-                        <span {...style.attrs(styles.tagName, isPinned() && styles.hidden)}>
-                            {service().stacked.name}
-                        </span>
-                        <span {...style.attrs(styles.tagWiring, isPinned() && styles.hidden)}>
+                        <span {...style.attrs(styles.tagName)}>{service().stacked.name}</span>
+                        <span {...style.attrs(styles.tagWiring)}>
                             {wiringAt(properties.box.index)}
                         </span>
                     </>
@@ -462,6 +388,91 @@ function Mark(properties: {
             </span>
         </>
     );
+}
+
+/** Return where a tag sits: the first corner of its outline, above or below, clear of obstacles. */
+function spotOf(
+    box: { x: number; y: number; width: number; height: number },
+    tagWidth: number,
+    bounds: DOMRect,
+    obstacles: readonly Rectangle[],
+): { x: number; y: number } {
+    // try above left, above right, below left and below right, in that order
+    const left = box.x - PAD + TAG_INSET;
+    const right = box.x + box.width + PAD - TAG_INSET - tagWidth;
+    const above = box.y - PAD - TAG_HEIGHT + 1;
+    const below = box.y + box.height + PAD - 1;
+    const spots = [
+        { x: left, y: above },
+        { x: right, y: above },
+        { x: left, y: below },
+        { x: right, y: below },
+    ];
+
+    // keep the first spot inside the browser that overlaps nothing
+    const clear = spots.find(
+        (spot) =>
+            spot.x >= 0 &&
+            spot.y >= 0 &&
+            spot.x + tagWidth <= bounds.width &&
+            spot.y + TAG_HEIGHT <= bounds.height &&
+            !obstacles.some((obstacle) =>
+                isOverlap(obstacle, {
+                    left: spot.x,
+                    top: spot.y,
+                    right: spot.x + tagWidth,
+                    bottom: spot.y + TAG_HEIGHT,
+                }),
+            ),
+    );
+
+    return clear ?? { x: left, y: above };
+}
+
+/** Return the rectangles of every line of text the browser shows, outside the x-ray itself. */
+function textOf(root: HTMLElement, bounds: DOMRect): readonly Rectangle[] {
+    // walk the text of the page and its toolbar, skipping the tags themselves
+    const rectangles: Rectangle[] = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        // read each visible line of a text node, relative to the browser
+        if (
+            (node.textContent ?? "").trim() === "" ||
+            node.parentElement?.closest("[aria-hidden]")
+        ) {
+            continue;
+        }
+        range.selectNodeContents(node);
+        for (const line of range.getClientRects()) {
+            rectangles.push({
+                left: line.left - bounds.left,
+                top: line.top - bounds.top,
+                right: line.right - bounds.left,
+                bottom: line.bottom - bounds.top,
+            });
+        }
+    }
+
+    return rectangles;
+}
+
+/** Report whether two rectangles overlap. */
+function isOverlap(first: Rectangle, second: Rectangle): boolean {
+    return (
+        first.left < second.right &&
+        second.left < first.right &&
+        first.top < second.bottom &&
+        second.top < first.bottom
+    );
+}
+
+/** Estimate a tag's width from its text: the service's name, and how it is wired while rented. */
+function tagWidthOf(index: number, isOwned: boolean): number {
+    const service = serviceAt(index);
+    const text = isOwned ? service.destacked.name : `${service.stacked.name} ${wiringAt(index)}`;
+
+    return TAG_FRAME + text.length * TAG_CHARACTER;
 }
 
 /** Return the app that shows a page. */
@@ -497,11 +508,6 @@ function indexOf(label: string): number {
 /** Report whether a part fades back while another one is lit. */
 function isDimmed(lit: number | undefined, index: number): boolean {
     return lit !== undefined && lit !== index;
-}
-
-/** Return the height in the browser a part's middle sits at. */
-function centreOf(box: Box): number {
-    return box.y + box.height / 2;
 }
 
 /** Return the colour a part wears: the engine's orange once owned, or its vendor's accent. */
@@ -597,23 +603,11 @@ const styles = style.create({
         bottom: 0,
         left: 0,
         position: "absolute",
-        right: { default: "13rem", [PINNED]: 0 },
+        right: 0,
         top: 0,
     },
     bare: {
         gridTemplateColumns: "minmax(0, 1fr)",
-    },
-    gutter: {
-        backgroundColor: `color-mix(in srgb, ${color.muted} 60%, transparent)`,
-        borderLeftColor: color.border,
-        borderLeftStyle: "solid",
-        borderLeftWidth: stroke.border,
-        bottom: 0,
-        display: { default: "block", [PINNED]: "none" },
-        position: "absolute",
-        right: 0,
-        top: 0,
-        width: "13rem",
     },
     page: {
         filter: "saturate(0.6)",
@@ -624,27 +618,6 @@ const styles = style.create({
     commit: {
         gap: "0.375rem",
     },
-    leaders: {
-        height: "100%",
-        inset: 0,
-        overflow: "visible",
-        position: "absolute",
-        width: "100%",
-    },
-    leader: {
-        transitionDuration: "200ms",
-        transitionProperty: "opacity",
-    },
-    leaderLit: {
-        strokeWidth: 1.5,
-    },
-    leaderLine: (accent: string) => ({
-        stroke: `color-mix(in srgb, ${accent} 65%, transparent)`,
-        strokeWidth: 1,
-    }),
-    leaderEnd: (accent: string) => ({
-        fill: accent,
-    }),
     overlay: {
         inset: 0,
         pointerEvents: "none",
@@ -679,56 +652,58 @@ const styles = style.create({
     },
     tag: {
         alignItems: "center",
-        borderRadius: "5px",
-        boxShadow: `0 1px 2px color-mix(in srgb, ${palette.ink} 14%, transparent)`,
+        borderRadius: "4px",
+        boxShadow: `0 1px 2px color-mix(in srgb, ${palette.ink} 18%, transparent)`,
         display: "inline-flex",
-        fontSize: "0.6875rem",
+        fontSize: "0.65rem",
         fontWeight: 600,
-        gap: "0.3125rem",
-        height: "24px",
+        gap: "0.25rem",
+        height: "20px",
         boxSizing: "border-box",
         lineHeight: 1,
         pointerEvents: "auto",
-        paddingBlock: "0.1875rem",
-        paddingInlineEnd: "0.375rem",
-        paddingInlineStart: "0.1875rem",
+        paddingBlock: "0.125rem",
+        paddingInlineEnd: { default: "0.375rem", [NARROW]: "0.125rem" },
+        paddingInlineStart: "0.125rem",
         position: "absolute",
         transitionDuration: "320ms",
         transitionProperty: "opacity, left, top",
         transitionTimingFunction: "ease",
         whiteSpace: "nowrap",
     },
-    tagPinned: {
-        paddingInlineEnd: "0.1875rem",
-    },
     tagLit: {
         zIndex: 1,
     },
-    hidden: {
-        display: "none",
-    },
     tagRented: (accent: string) => ({
-        backgroundColor: color.card,
-        boxShadow: `inset 0 0 0 1px ${accent}, 0 1px 2px color-mix(in srgb, ${palette.ink} 14%, transparent)`,
-        color: color.cardForeground,
+        backgroundColor: accent,
+        color: palette.tileGlyph,
     }),
     tagOwned: {
-        backgroundColor: color.card,
-        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${palette.ember} 45%, transparent), 0 1px 2px color-mix(in srgb, ${palette.ink} 14%, transparent)`,
-        color: color.cardForeground,
+        backgroundColor: palette.ember,
+        color: palette.tileGlyph,
+    },
+    tagGlyph: {
+        backgroundColor: palette.tileGlyph,
+        flexShrink: 0,
+        height: "12px",
+        marginInline: "2px",
+        maskPosition: "center",
+        maskRepeat: "no-repeat",
+        maskSize: "contain",
+        width: "12px",
     },
     tagLogo: {
         backgroundColor: palette.logoGround,
         borderRadius: "3px",
-        height: "1rem",
-        width: "1rem",
+        height: "14px",
+        width: "14px",
     },
     tagName: {
-        display: "inline",
+        display: { default: "inline", [NARROW]: "none" },
     },
     tagWiring: {
-        color: color.mutedForeground,
-        display: "inline",
+        color: `color-mix(in srgb, ${palette.tileGlyph} 78%, transparent)`,
+        display: { default: "inline", [NARROW]: "none" },
         fontFamily: font.code,
         fontSize: "0.625rem",
         fontWeight: 400,

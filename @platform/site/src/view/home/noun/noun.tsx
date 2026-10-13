@@ -11,7 +11,7 @@ import { Bill } from "../figure/bill";
 import { accentOf } from "../figure/item";
 import { XRay } from "./xray";
 import { services } from "./service";
-import { createSteps, type Stagger } from "../figure/stagger";
+import { createSteps } from "../figure/stagger";
 import { workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
 import { screen } from "../../layout/screen.stylex";
@@ -97,7 +97,6 @@ export function Noun(properties: { isOpen: boolean }) {
                         workload: workloadOf(entry.stacked.name),
                         tint: accentOf(entry.stacked.name, color.mutedForeground),
                     }))}
-                    label={labelOf(isOpenAt)}
                     isOpenAt={isOpenAt}
                     lighting={{ lit: lit(), onLight: setLit, onChoose: setLit }}
                     onToggle={toggle}
@@ -116,16 +115,6 @@ function keyOf(rented: number) {
     }
 
     return "Some vendors, some engine";
-}
-
-/** Label the bill: the vendors still rented, and the engine behind the rest. */
-function labelOf(isOpenAt: Stagger): string {
-    // count the vendors still rented, and the engine once any service runs on it
-    const rented = services.filter((_, index) => !isOpenAt(index + 1)).length;
-    const vendors = rented === 0 ? "" : `${rented} ${rented === 1 ? "vendor" : "vendors"}`;
-    const engine = rented < services.length ? "1 engine" : "";
-
-    return [vendors, engine].filter((part) => part !== "").join(" + ");
 }
 
 /** The noun section styles. */

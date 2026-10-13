@@ -24,7 +24,6 @@ import { color, font, radius, space, stroke, weight } from "@destack/theme/token
 import { AvatarGroup } from "@destack/ui/avatar";
 import { Button } from "@destack/ui/button";
 import { Checkbox } from "@destack/ui/checkbox";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@destack/ui/input-group";
 import {
     Item,
     ItemActions,
@@ -199,43 +198,50 @@ function Launch() {
                     Ship to the waitlist on Thursday, then open signups on Friday. Pricing goes live
                     with the launch post.
                 </p>
-                <ul data-xray="Database" {...style.attrs(styles.checklist)}>
-                    {launch.map(([item, isDone]) => (
-                        <li {...style.attrs(appText.body, styles.check)}>
-                            <Checkbox checked={isDone} aria-label={item} />
-                            <span {...style.attrs(isDone && styles.struck)}>{item}</span>
-                            {item.startsWith("Record") ? (
-                                <>
-                                    <span {...style.attrs(appStyles.property)}>
+                <div {...style.attrs(styles.annotated)}>
+                    <ul data-xray="Database" {...style.attrs(styles.checklist)}>
+                        {launch.map(([item, isDone]) => (
+                            <li {...style.attrs(appText.body, styles.check)}>
+                                <Checkbox checked={isDone} aria-label={item} />
+                                <span
+                                    {...style.attrs(
+                                        isDone && styles.struck,
+                                        isCommented(item) && styles.highlight,
+                                    )}
+                                >
+                                    {item}
+                                </span>
+                                {isCommented(item) ? (
+                                    <span {...style.attrs(appStyles.property, styles.wide)}>
                                         <StateMark state="started" />
                                         DST-14 · Wed 11:00
                                     </span>
-                                    <span {...style.attrs(styles.cursor)}>
-                                        <span {...style.attrs(appText.meta, styles.cursorName)}>
-                                            Agent
-                                        </span>
-                                    </span>
-                                </>
-                            ) : undefined}
-                        </li>
-                    ))}
-                </ul>
-                <Item data-xray="Messaging" variant="outline" size="sm" xstyle={styles.comment}>
-                    <ItemMedia>
-                        <Face owner="A" />
-                    </ItemMedia>
-                    <ItemContent>
-                        <ItemTitle xstyle={appText.body}>
-                            Agent <span {...style.attrs(styles.quiet)}>09:13</span>
-                        </ItemTitle>
-                        <ItemDescription xstyle={appText.body}>
+                                ) : undefined}
+                            </li>
+                        ))}
+                    </ul>
+
+                    {/* the agent's comment in the margin, beside the line it is about */}
+                    <aside data-xray="Messaging" {...style.attrs(styles.comment)}>
+                        <span {...style.attrs(styles.commentHead)}>
+                            <Face owner="A" />
+                            <b {...style.attrs(appText.meta)}>Agent</b>
+                            <span {...style.attrs(appText.meta, styles.quiet)}>09:13</span>
+                        </span>
+                        <span {...style.attrs(appText.meta)}>
                             Moved the demo to Wednesday so it lands before Thursday's invites.
-                        </ItemDescription>
-                    </ItemContent>
-                </Item>
+                        </span>
+                        <span {...style.attrs(appText.meta, styles.quiet)}>Reply</span>
+                    </aside>
+                </div>
             </article>
         </Paned>
     );
+}
+
+/** Report whether a launch item carries the agent's comment. */
+function isCommented(item: string): boolean {
+    return item.startsWith("Record");
 }
 
 /** Draw the launch tasks: your list grouped by state, your agent working through its share. */
@@ -308,30 +314,35 @@ function Tasks() {
     );
 }
 
-/** Draw the launch channel. */
+/** Draw the launch channel: its topic and members, a day of messages, and the composer. */
 function Chat() {
     return (
         <Paned>
-            <Toolbar
-                title="# launch"
-                actions={
-                    <>
-                        <AvatarGroup data-xray="Identity" aria-label="Members">
-                            <Face owner="F" />
-                            <Face owner="A" />
-                        </AvatarGroup>
-                        <span {...style.attrs(appStyles.action)}>Ship v4 on Friday</span>
-                    </>
-                }
-            />
+            <div {...style.attrs(styles.channelHead)}>
+                <b {...style.attrs(appText.heading)}># launch</b>
+                <span {...style.attrs(appText.meta, styles.quiet, styles.wide)}>
+                    Ship v4 on Friday
+                </span>
+                <span data-xray="Identity" {...style.attrs(styles.members)}>
+                    <AvatarGroup aria-label="Members">
+                        <Face owner="F" />
+                        <Face owner="A" />
+                        <Face owner="M" tint={palette.rust} />
+                    </AvatarGroup>
+                    <span {...style.attrs(appText.meta, styles.quiet)}>4</span>
+                </span>
+            </div>
             <div {...style.attrs(appText.meta, styles.divider)}>
                 <Separator />
                 Today
                 <Separator />
             </div>
-            <div data-xray="Database" {...style.attrs(styles.messages)}>
-                {messages.map(([author, time, line], index) => (
-                    <div {...style.attrs(styles.message)}>
+            <div {...style.attrs(styles.messages)}>
+                {messages.slice(0, 3).map(([author, time, line], index) => (
+                    <div
+                        data-xray={index === 0 ? "Database" : undefined}
+                        {...style.attrs(styles.message)}
+                    >
                         <Face owner={author === "Agent" ? "A" : "F"} size="default" />
                         <div {...style.attrs(styles.messageBody)}>
                             <span {...style.attrs(appText.body)}>
@@ -339,56 +350,57 @@ function Chat() {
                             </span>
                             <span {...style.attrs(appText.body)}>{line}</span>
                             {index === 1 ? (
-                                <Item variant="outline" size="sm" xstyle={styles.attachment}>
-                                    <ItemMedia>
-                                        <StateMark state="started" />
-                                    </ItemMedia>
-                                    <ItemContent>
-                                        <ItemTitle xstyle={appText.body}>
-                                            DST-14 Record the demo
-                                        </ItemTitle>
-                                        <ItemDescription xstyle={appText.meta}>
-                                            Tasks · due moved to Wed 11:00
-                                        </ItemDescription>
-                                    </ItemContent>
-                                </Item>
+                                <span {...style.attrs(styles.linked)}>
+                                    <StateMark state="started" />
+                                    <span {...style.attrs(styles.linkedText)}>
+                                        <b {...style.attrs(appText.meta)}>DST-14 Record the demo</b>
+                                        <span {...style.attrs(appText.meta, styles.quiet)}>
+                                            Tasks · due Wed 11:00
+                                        </span>
+                                    </span>
+                                </span>
                             ) : undefined}
                             {index === 1 ? (
                                 <span {...style.attrs(styles.inline)}>
-                                    <span {...style.attrs(appStyles.property)}>👍 2</span>
-                                    <span {...style.attrs(appStyles.property)}>🚀 1</span>
+                                    <span {...style.attrs(styles.reaction, styles.reactionOn)}>
+                                        👍 2
+                                    </span>
+                                    <span {...style.attrs(styles.reaction)}>🚀 1</span>
                                 </span>
                             ) : undefined}
                             {index === 2 ? (
                                 <span
                                     data-xray="Messaging"
-                                    {...style.attrs(appText.body, styles.inline, styles.replies)}
+                                    {...style.attrs(appText.meta, styles.inline, styles.replies)}
                                 >
                                     <AvatarGroup aria-label="Replied">
                                         <Face owner="F" />
                                     </AvatarGroup>
-                                    3 replies · last at 09:52
+                                    3 replies
+                                    <span {...style.attrs(styles.quiet)}>Last reply 09:52</span>
                                 </span>
                             ) : undefined}
                         </div>
                     </div>
                 ))}
             </div>
-            <span {...style.attrs(appText.meta, styles.inline, styles.agentNote)}>
-                <Spinner aria-label="Agent is typing" />
-                Agent is typing…
-            </span>
-            <InputGroup>
-                <InputGroupInput placeholder="Message #launch, or ask your agent" readonly />
-                <InputGroupAddon align="inline-end">
+            <div {...style.attrs(styles.composer)}>
+                <span {...style.attrs(appText.body, styles.quiet)}>Message #launch</span>
+                <span {...style.attrs(styles.composerTools)}>
                     <span data-xray="Files" {...style.attrs(styles.mark)}>
                         <Icon icon={paperclip} />
                     </span>
                     <Icon icon={at} />
                     <Icon icon={smiley} />
-                    <Icon icon={paperPlaneRight} />
-                </InputGroupAddon>
-            </InputGroup>
+                    <span {...style.attrs(appText.meta, styles.typing, styles.wide)}>
+                        <Spinner aria-label="Agent is typing" />
+                        Agent is typing…
+                    </span>
+                    <span {...style.attrs(styles.sendButton)}>
+                        <Icon icon={paperPlaneRight} />
+                    </span>
+                </span>
+            </div>
         </Paned>
     );
 }
@@ -779,25 +791,31 @@ const styles = style.create({
         color: color.mutedForeground,
         textDecorationLine: "line-through",
     },
-    cursor: {
-        display: { default: "inline-block", [NARROW]: "none" },
-        backgroundColor: palette.violet,
-        height: "1.25em",
-        position: "relative",
-        width: "2px",
+    annotated: {
+        alignItems: "start",
+        display: "grid",
+        gap: "1.25rem",
+        gridTemplateColumns: { default: "minmax(0, 1fr) 12rem", [NARROW]: "minmax(0, 1fr)" },
     },
-    cursorName: {
-        backgroundColor: palette.violet,
-        borderRadius: radius[1],
-        color: palette.cream,
-        insetBlockEnd: "100%",
-        insetInlineStart: 0,
-        paddingInline: space[1],
-        position: "absolute",
-        whiteSpace: "nowrap",
+    highlight: {
+        backgroundColor: `color-mix(in srgb, ${palette.amber} 28%, transparent)`,
+        borderRadius: "2px",
+        boxShadow: `0 2px 0 ${palette.amber}`,
     },
     comment: {
-        maxWidth: "26rem",
+        backgroundColor: color.card,
+        borderRadius: "8px",
+        boxShadow: `0 0 0 1px ${color.border}, 0 2px 8px color-mix(in srgb, ${palette.ink} 8%, transparent)`,
+        display: { default: "grid", [NARROW]: "none" },
+        gap: "0.25rem",
+        marginTop: "1.75rem",
+        paddingBlock: "0.625rem",
+        paddingInline: "0.75rem",
+    },
+    commentHead: {
+        alignItems: "center",
+        display: "flex",
+        gap: "0.375rem",
     },
     mark: {
         display: "inline-flex",
@@ -833,6 +851,88 @@ const styles = style.create({
     agentNote: {
         color: palette.violet,
     },
+    channelHead: {
+        alignItems: "center",
+        borderBottomColor: color.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: stroke.border,
+        display: "flex",
+        gap: space[3],
+        paddingBottom: space[3],
+    },
+    members: {
+        alignItems: "center",
+        display: "flex",
+        gap: space[2],
+        marginLeft: "auto",
+    },
+    linked: {
+        alignItems: "center",
+        borderColor: color.border,
+        borderInlineStartColor: palette.amber,
+        borderInlineStartWidth: "3px",
+        borderRadius: radius[2],
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "flex",
+        gap: space[2],
+        marginTop: space[1],
+        maxWidth: "20rem",
+        paddingBlock: space[2],
+        paddingInline: space[3],
+    },
+    linkedText: {
+        display: "grid",
+    },
+    reaction: {
+        alignItems: "center",
+        borderColor: color.border,
+        borderRadius: "999px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "inline-flex",
+        fontSize: "0.75rem",
+        gap: space[1],
+        paddingBlock: "0.0625rem",
+        paddingInline: space[2],
+    },
+    reactionOn: {
+        backgroundColor: `color-mix(in srgb, ${color.primary} 10%, transparent)`,
+        borderColor: `color-mix(in srgb, ${color.primary} 45%, transparent)`,
+    },
+    composer: {
+        borderColor: color.border,
+        borderRadius: radius[3],
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "grid",
+        gap: space[2],
+        paddingBlock: space[3],
+        paddingInline: space[3],
+    },
+    composerTools: {
+        alignItems: "center",
+        color: color.mutedForeground,
+        display: "flex",
+        gap: space[3],
+    },
+    typing: {
+        alignItems: "center",
+        color: palette.violet,
+        display: "inline-flex",
+        gap: space[2],
+        marginLeft: "auto",
+    },
+    sendButton: {
+        alignItems: "center",
+        backgroundColor: color.foreground,
+        borderRadius: radius[2],
+        color: color.background,
+        display: "inline-flex",
+        height: "1.75rem",
+        justifyContent: "center",
+        width: "1.75rem",
+    },
     divider: {
         alignItems: "center",
         color: color.mutedForeground,
@@ -854,9 +954,6 @@ const styles = style.create({
         display: "grid",
         gap: space[1],
         justifyItems: "start",
-    },
-    attachment: {
-        maxWidth: "22rem",
     },
     replies: {
         color: color.primary,

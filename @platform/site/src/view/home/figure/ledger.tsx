@@ -46,7 +46,6 @@ export type LedgerRow = {
 /** Draw a ledger: a stack of blocks, one per row, joined into one band once every row is owned. */
 export function Ledger(properties: {
     rows: readonly LedgerRow[];
-    total: { name: string; note: string; cells: readonly Cell[] };
     isWhole: boolean;
     lit: number | undefined;
     isPressable: boolean;
@@ -96,17 +95,6 @@ export function Ledger(properties: {
                     </li>
                 ))}
             </ol>
-
-            {/* total the ledger under the stack */}
-            <p title={properties.total.note} {...style.attrs(styles.row, styles.total)}>
-                <span {...style.attrs(styles.names)}>
-                    <span {...style.attrs(styles.label)}>Total</span>
-                    <b {...style.attrs(styles.name)}>{properties.total.name}</b>
-                </span>
-                {properties.total.cells.map((cell) => (
-                    <Figure cell={cell} />
-                ))}
-            </p>
         </div>
     );
 }
@@ -159,7 +147,7 @@ function inlineOf(tint: string, isLit: boolean) {
 const styles = style.create({
     ledger: {
         display: "grid",
-        gridTemplateRows: "minmax(0, 1fr) auto",
+        gridTemplateRows: "minmax(0, 1fr)",
         minHeight: { default: 0, [screen.belowDesktop]: "30rem", [media.maxMd]: 0 },
     },
     row: {
@@ -246,7 +234,10 @@ const styles = style.create({
         fontSize: "0.625rem",
         letterSpacing: "0.1em",
         lineHeight: "0.875rem",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
         textTransform: "uppercase",
+        whiteSpace: "nowrap",
     },
     nameLine: {
         alignItems: "center",
@@ -284,12 +275,5 @@ const styles = style.create({
         display: "inline-block",
         textAlign: "start",
         width: "1.25ch",
-    },
-    total: {
-        borderTopColor: color.foreground,
-        borderTopStyle: "solid",
-        borderTopWidth: "1.5px",
-        marginTop: "0.5rem",
-        paddingBlock: "0.625rem",
     },
 });

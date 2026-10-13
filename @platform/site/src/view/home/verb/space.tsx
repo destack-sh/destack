@@ -6,7 +6,6 @@ import { createEffect, createSignal, onSettled } from "@destack/view";
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
-import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
 import type { Entry } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
@@ -267,12 +266,15 @@ export function SpaceBrowser(properties: {
     };
 
     return (
-        <div data-component="Browser" {...style.attrs(browserStyles.browser)}>
+        <div data-component="Browser" data-morph="space" {...style.attrs(browserStyles.browser)}>
             <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
                 <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                 {properties.isOpenAt(1) ? (
                     <span
                         data-component="Tab"
+                        style={{
+                            "view-transition-name": `space-tab-${String(properties.page.row)}`,
+                        }}
                         {...style.attrs(browserStyles.tab, browserStyles.tabOn)}
                     >
                         <Favicon icon="user" tint="#2f7d8c" />
@@ -284,6 +286,7 @@ export function SpaceBrowser(properties: {
                         <span
                             data-component="Tab"
                             title={title}
+                            style={{ "view-transition-name": `space-tab-${String(row)}` }}
                             onClick={() => properties.onChoose(row)}
                             {...style.attrs(
                                 browserStyles.tab,
@@ -401,11 +404,9 @@ export function SpaceBrowser(properties: {
                     )}
                 </div>
             </div>
-            <Fade
-                isOpen={isOpen()}
-                xstyle={browserStyles.viewport}
-                isLarge
-                component={isOpen() ? "SitePage" : "RentedPage"}
+            <div
+                data-component={isOpen() ? "SitePage" : "RentedPage"}
+                {...style.attrs(browserStyles.viewport)}
             >
                 {isOpen() ? (
                     <div {...style.attrs(appStyles.app, styles.owned)}>
@@ -416,7 +417,10 @@ export function SpaceBrowser(properties: {
                                 .map(([, name, icon]) => [icon, name] as const)}
                             onOpen={(icon) => properties.onChoose(rowOfApp(icon))}
                         />
-                        <main {...style.attrs(appStyles.main)}>
+                        <main
+                            style={{ "view-transition-name": "space-page" }}
+                            {...style.attrs(appStyles.main)}
+                        >
                             {isAllowed() ? (
                                 sectionOf(properties.page.row)
                             ) : (
@@ -435,9 +439,14 @@ export function SpaceBrowser(properties: {
                         />
                     </div>
                 ) : (
-                    <div {...style.attrs(styles.window)}>{rentedPageOf(properties.page.row)}</div>
+                    <div
+                        style={{ "view-transition-name": "space-page" }}
+                        {...style.attrs(styles.window)}
+                    >
+                        {rentedPageOf(properties.page.row)}
+                    </div>
                 )}
-            </Fade>
+            </div>
         </div>
     );
 }

@@ -51,3 +51,58 @@
 :root[data-switched] [data-hint] {
     display: none;
 }
+
+/* morph the space browser between the rented sites and your space: the rail slides in, the page reshapes */
+[data-morph="space"] [data-component="AppRail"] {
+    view-transition-name: space-rail;
+}
+
+/* carry the page title from the rented site into your own app */
+[data-morph="space"] [data-morph-title],
+[data-morph="space"] [data-component="PageTitle"] {
+    view-transition-name: space-title;
+    width: fit-content;
+}
+
+/* show the live page at once, so only the named parts morph and every figure keeps its own motion */
+::view-transition-old(root) {
+    display: none;
+}
+
+::view-transition-new(root) {
+    animation: none;
+}
+
+::view-transition-group(*) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+::view-transition-old(space-page),
+::view-transition-new(space-page) {
+    height: 100%;
+    object-fit: cover;
+    object-position: left top;
+}
+
+::view-transition-new(space-rail) {
+    animation: rail-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+::view-transition-old(space-rail) {
+    animation: rail-out 300ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes rail-in {
+    from {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+}
+
+@keyframes rail-out {
+    to {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+}

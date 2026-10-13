@@ -18,6 +18,7 @@ import {
 import { commandEvents } from "../../layout/command";
 import { lattice } from "../../layout/lattice.stylex";
 import { Crossfade } from "../figure/crossfade";
+import { morph } from "../figure/morph";
 import { plate } from "../figure/plate.stylex";
 import { cardVariables } from "./card.stylex";
 import { Band, Card, DuctTape, type Entity } from "./card";
@@ -42,6 +43,13 @@ import { makeTimer } from "@destack/view/primitives/timer";
 
 /** The rows above the waterline today. */
 const dryRows = 2;
+
+/** How much faster the dry rows turn than the water travels, done within its first half row. */
+const DRY_PACE = 2;
+
+/** How far behind the row above each dry row starts turning, in rows of the water's travel. */
+const DRY_STAGGER = 0.5;
+
 /** The two configurations the figure compares. */
 type Stack = "today" | "destack";
 
@@ -419,12 +427,13 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         const { offset, height } = board;
         const row = height / layers.length;
         const figureStyle = elements().figure.style;
+        const start = offset + row * dryRows;
         for (const index of reveals.keys()) {
-            // leave the dry rows above the waterline alone
-            if (index < dryRows) {
-                continue;
-            }
-            const passed = (level - offset - row * index) / row;
+            // reveal the dry rows as the water starts to move, then each row as the water passes it
+            const passed =
+                index < dryRows
+                    ? ((level - start) / row) * DRY_PACE - index * DRY_STAGGER
+                    : (level - offset - row * index) / row;
             const reveal = Math.max(0, Math.min(1, passed));
             figureStyle.setProperty(`--reveal-${index}`, reveal.toFixed(3));
             reveals[index] = reveal;
@@ -479,7 +488,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     createEventListener(
         () => document,
         commandEvents.switchStack,
-        () => select(isOpen() ? "today" : "destack"),
+        () => morph(() => select(isOpen() ? "today" : "destack")),
     );
 
     // rest the water on its line, and again through resizes
@@ -499,9 +508,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         }
     });
 
-    // swap one silo at a time while the stack is locked
+    // swap one silo at a time while the stack is locked and the figure is on screen
     const swap = () => {
-        if (!isOpen()) {
+        if (!isOpen() && !elements().figure.hasAttribute("data-asleep")) {
             setToday((today() + 1) % todayScenes.length);
         }
     };
@@ -533,6 +542,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             onPointerMove={skim}
             onPointerLeave={() => setLit(undefined)}
             style={{
+                "--reveal-0": "0",
+                "--reveal-1": "0",
                 "--reveal-2": "0",
                 "--reveal-3": "0",
                 "--reveal-4": "0",
@@ -549,12 +560,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             <For each={layers}>
                 {(layer, index) => (
                     <div
-                        {...style.attributes(
-                            [styles.claim, styles.row(index() + 1)],
-                            index() < dryRows
-                                ? undefined
-                                : { opacity: `calc(0.85 + 0.15 * var(--reveal-${index()}))` },
-                        )}
+                        {...style.attributes([styles.claim, styles.row(index() + 1)], {
+                            opacity: `calc(0.85 + 0.15 * var(--reveal-${index()}))`,
+                        })}
                     >
                         {/* set the layer's number beside the count it costs */}
                         <span {...style.attrs(styles.numberLine)}>
@@ -906,9 +914,6 @@ function Swap(properties: {
     isPlated?: boolean;
     xstyle?: style.Styles;
 }) {
-    // tell whether the row stays dry, and read how far the water has left it
-    const isDry = properties.row < dryRows;
-
     // set a thing as one dashed plate today, and as one plate per standard once open
     const plated = (text: string, isOpen: boolean) =>
         properties.isPlated === true ? (
@@ -926,25 +931,19 @@ function Swap(properties: {
         <span {...style.attrs(styles.swap, properties.xstyle)}>
             <span
                 style={{
-                    ...(isDry ? {} : { opacity: `clamp(0, 1 - ${reveal} * 2, 1)` }),
+                    opacity: `clamp(0, 1 - ${reveal} * 2, 1)`,
                     "pointer-events": properties.isOpen ? "none" : "auto",
                 }}
-                {...style.attrs(
-                    styles.swapText,
-                    isDry && (properties.isOpen ? styles.swapOut : styles.swapReturn),
-                )}
+                {...style.attrs(styles.swapText)}
             >
                 {plated(properties.today, false)}
             </span>
             <span
                 style={{
-                    ...(isDry ? {} : { opacity: `clamp(0, ${reveal} * 2 - 1, 1)` }),
+                    opacity: `clamp(0, ${reveal} * 2 - 1, 1)`,
                     "pointer-events": properties.isOpen ? "auto" : "none",
                 }}
-                {...style.attrs(
-                    styles.swapText,
-                    isDry && (properties.isOpen ? styles.swapIn : styles.swapLeave),
-                )}
+                {...style.attrs(styles.swapText)}
             >
                 {plated(properties.destack, true)}
             </span>
@@ -1063,20 +1062,6 @@ const styles = style.create({
     },
     swapText: {
         gridArea: "1 / 1",
-    },
-    swapIn: {
-        transition: { default: `opacity 300ms ${easing} 250ms`, [media.motionReduce]: "none" },
-    },
-    swapOut: {
-        opacity: 0,
-        transition: { default: `opacity 250ms ${easing}`, [media.motionReduce]: "none" },
-    },
-    swapReturn: {
-        transition: { default: `opacity 300ms ${easing} 600ms`, [media.motionReduce]: "none" },
-    },
-    swapLeave: {
-        opacity: 0,
-        transition: { default: `opacity 250ms ${easing} 500ms`, [media.motionReduce]: "none" },
     },
     claimText: {
         fontSize: "1rem",

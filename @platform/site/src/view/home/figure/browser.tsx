@@ -68,8 +68,7 @@ export const browserStyles = style.create({
         justifyContent: "flex-start",
         maxWidth: "12rem",
         transition: {
-            default:
-                "flex-grow 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, color 160ms ease",
+            default: "flex-grow 180ms cubic-bezier(0.23, 1, 0.32, 1)",
             [media.motionReduce]: "none",
         },
     },
@@ -98,6 +97,10 @@ export const browserStyles = style.create({
     },
     tabTitleHidden: {
         opacity: 0,
+    },
+    tabSteady: {
+        flexGrow: 1,
+        transition: "none",
     },
     tabTitle: {
         flexGrow: 1,
