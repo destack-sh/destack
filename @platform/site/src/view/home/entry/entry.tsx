@@ -12,7 +12,7 @@ import { screen } from "../../layout/screen.stylex";
 type Sense = {
     /** The definition. */
     definition: string;
-    /** The passages of the definition drawn underlined, in order: whole words, phrases or parts of words. */
+    /** The passages of the definition drawn underlined, in order. */
     highlight: readonly string[];
     /** The plain phrase under the definition that says what it means. */
     sentence: JSX.Element;
@@ -48,7 +48,7 @@ export function Syllables(properties: { syllables: readonly string[] }) {
     );
 }
 
-/** Head a section with a dictionary entry: the headword line, the definition, and the phrase under it. */
+/** Head a section with a dictionary entry. */
 export function Entry(properties: { form: Form; isTitle?: boolean }) {
     return (
         <header {...style.attrs(lattice.cell, styles.entry)}>
@@ -73,7 +73,7 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
     );
 }
 
-/** Label the figure under an entry with its number and a usage example of the word, as a dictionary does. */
+/** Label the figure under an entry with its number and a usage example, as a dictionary does. */
 export function FigureLabel(properties: {
     number: number;
     isOpen: boolean;
@@ -165,7 +165,6 @@ const styles = style.create({
         paddingInline: frame.inset,
     },
     labelControl: {
-        display: { default: null, [media.maxMd]: "none" },
         marginLeft: "auto",
     },
     figure: {

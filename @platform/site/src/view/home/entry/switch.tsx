@@ -25,52 +25,87 @@ const stacked = ["stacked"];
 /** The switch's word for the stack destacked. */
 const destacked = ["de", "stacked"];
 
-/** Switch the whole page, and every figure on it, between the stack as it is and the stack destacked. */
-export function StackSwitch(properties: { isOpen: boolean }) {
+/** Where a stack switch sits: in a figure's label, or in the phones' bottom bar. */
+export type SwitchPlace = "label" | "bar";
+
+/** Switch the whole page and every figure between the stack as it is and destacked. */
+export function StackSwitch(properties: { isOpen: boolean; place: SwitchPlace }) {
+    // leave phones to the bottom bar's switch
+    const isInLabel = () => properties.place === "label";
+
+    return (
+        <span {...style.attrs(styles.place, isInLabel() && styles.placeLabel)}>
+            <Toggle
+                isOn={properties.isOpen}
+                off={stacked}
+                on={destacked}
+                label="Destack"
+                title={properties.isOpen ? "Restack" : "Destack"}
+                isCharging
+                onToggle={() => {
+                    // flip the figures' rebuilt pieces in from now on and switch every figure
+                    document.documentElement.dataset["switched"] = "";
+                    document.dispatchEvent(new CustomEvent(commandEvents.switchStack));
+                }}
+            />
+        </span>
+    );
+}
+
+/** Switch between two states by their words, with a track between them. */
+export function Toggle(properties: {
+    isOn: boolean;
+    off: readonly string[];
+    on: readonly string[];
+    label: string;
+    title: string;
+    isCharging: boolean;
+    onToggle: () => void;
+}) {
+    // charge the goo while hovered or held, when the toggle asks for it
+    const chargeTo = (amount: number) => {
+        if (properties.isCharging) {
+            charge(properties.isOn ? 0 : amount);
+        }
+    };
+
     return (
         <span {...style.attrs(styles.holder)}>
             <button
                 type="button"
                 role="switch"
-                aria-label="Destack"
-                aria-checked={properties.isOpen ? "true" : "false"}
-                title={properties.isOpen ? "Restack" : "Destack"}
-                onClick={() => {
-                    // flip the figures' rebuilt parts in from now on and switch every figure
-                    document.documentElement.dataset["switched"] = "";
-                    document.dispatchEvent(new CustomEvent(commandEvents.switchStack));
-                }}
-                onPointerEnter={() => charge(properties.isOpen ? 0 : hoverCharge)}
-                onPointerLeave={() => charge(0)}
-                onPointerDown={() => {
-                    // tick the switch and charge the goo harder while held
-                    charge(properties.isOpen ? 0 : heldCharge);
-                }}
+                aria-label={properties.label}
+                aria-checked={properties.isOn ? "true" : "false"}
+                title={properties.title}
+                onClick={() => properties.onToggle()}
+                onPointerEnter={() => chargeTo(hoverCharge)}
+                onPointerLeave={() => chargeTo(0)}
+                onPointerDown={() => chargeTo(heldCharge)}
                 {...style.attrs(styles.switch)}
             >
-                <b {...style.attrs(styles.word, !properties.isOpen && styles.active)}>
-                    <Syllables syllables={stacked} />
+                <b {...style.attrs(styles.word, !properties.isOn && styles.active)}>
+                    <Syllables syllables={properties.off} />
                 </b>
                 <span
                     aria-hidden="true"
-                    {...style.attrs(styles.track, properties.isOpen && styles.trackOn)}
+                    {...style.attrs(styles.track, properties.isOn && styles.trackOn)}
                 >
                     <span
                         {...style.attrs(
                             styles.knob,
-                            properties.isOpen ? styles.knobOn : styles.knobNudge,
+                            properties.isOn ? styles.knobOn : styles.knobNudge,
                         )}
                     />
                 </span>
-                <b {...style.attrs(styles.word, properties.isOpen && styles.active)}>
-                    <Syllables syllables={destacked} />
+                <b {...style.attrs(styles.word, properties.isOn && styles.active)}>
+                    <Syllables syllables={properties.on} />
                 </b>
             </button>
         </span>
     );
 }
 
-/** Hold the phone's bottom bar from the first figure to the footer: back to the top, the stack switch, and the menu. */
+/** Hold the phone's bottom bar from the first figure to the footer. */
 export function BottomBar(properties: { isOpen: boolean }) {
     // show the bar from the first figure label until the footer comes into view
     let bar: HTMLDivElement | undefined;
@@ -108,7 +143,7 @@ export function BottomBar(properties: { isOpen: boolean }) {
             <Button variant="ghost" size="icon" aria-label="Back to top" onClick={toTop}>
                 <Icon icon={arrowUp} xstyle={styles.barIcon} />
             </Button>
-            <StackSwitch isOpen={properties.isOpen} />
+            <StackSwitch isOpen={properties.isOpen} place="bar" />
             <Button
                 variant="ghost"
                 size="icon"
@@ -131,6 +166,12 @@ const nudge = style.keyframes({
 
 /** The switch styles. */
 const styles = style.create({
+    place: {
+        display: "contents",
+    },
+    placeLabel: {
+        display: { default: "contents", [media.maxMd]: "none" },
+    },
     switch: {
         alignItems: "center",
         backgroundColor: "transparent",

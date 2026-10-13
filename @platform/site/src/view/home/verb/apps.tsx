@@ -41,6 +41,7 @@ import type { JSX } from "@destack/view";
 
 import { palette } from "../../palette.stylex";
 import { AppHeader, appStyles, appText } from "../figure/app";
+import { AgentAvatar } from "../figure/agent";
 import {
     coverOf,
     launch,
@@ -52,6 +53,9 @@ import {
     tasks,
     week,
 } from "./corner";
+
+/** An app narrower than a phone screen, which then drops what only fits wide. */
+const NARROW = "@container (max-width: 479px)";
 
 /** The hours your week shows, from nine to five. */
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
@@ -109,32 +113,38 @@ function Toolbar(properties: { title: string; actions: JSX.Element; children?: J
     );
 }
 
-/** Draw a person's face: you in teal, your agent in violet, anyone else in their tint. */
+/** Draw a person's face: you in teal, anyone else in their tint, and your agent as its avatar. */
 function Face(properties: { owner: string; tint?: string; size?: "sm" | "default" }) {
-    const tint = () =>
-        properties.tint ?? (properties.owner === "A" ? palette.violet : palette.teal);
-
     return (
         <span
-            style={{ "background-color": tint() }}
+            style={{
+                "background-color": isAgentOwner(properties.owner)
+                    ? undefined
+                    : (properties.tint ?? palette.teal),
+            }}
             {...style.attrs(appStyles.avatar, properties.size === "default" && styles.faceLarge)}
         >
-            {properties.owner}
+            {isAgentOwner(properties.owner) ? <AgentAvatar size="fill" /> : properties.owner}
         </span>
     );
+}
+
+/** Report whether a face belongs to your agent, marked `A` in the corner data. */
+function isAgentOwner(owner: string): boolean {
+    return owner === "A";
 }
 
 /** Draw who is in a page right now: you and your agent. */
 function Present() {
     return (
-        <AvatarGroup aria-label="In this page">
+        <AvatarGroup data-xray="Identity" aria-label="In this page">
             <Face owner="F" />
             <Face owner="A" />
         </AvatarGroup>
     );
 }
 
-/** Draw a task's state: a dashed ring to do, a half ring started, a ring in review, a check done. */
+/** Draw a task's state. */
 function StateMark(properties: { state: TaskState }) {
     const marks = { todo: circleDashed, started: circleHalf, review: circle, done: checkCircle };
     const tints = {
@@ -163,7 +173,9 @@ function Launch() {
                 actions={
                     <>
                         <Present />
-                        <span {...style.attrs(appStyles.action)}>Agent edited just now</span>
+                        <span {...style.attrs(appStyles.action, styles.wide)}>
+                            Agent edited just now
+                        </span>
                         <span {...style.attrs(appStyles.primary)}>Share</span>
                     </>
                 }
@@ -179,13 +191,15 @@ function Launch() {
                         <Progress value={66} aria-label="Tasks done" xstyle={styles.progress} />4 of
                         6 tasks
                     </span>
-                    <span {...style.attrs(appStyles.property)}>Reminder Thu</span>
+                    <span data-xray="Jobs" {...style.attrs(appStyles.property)}>
+                        Reminder Thu
+                    </span>
                 </div>
                 <p {...style.attrs(appText.body)}>
                     Ship to the waitlist on Thursday, then open signups on Friday. Pricing goes live
                     with the launch post.
                 </p>
-                <ul {...style.attrs(styles.checklist)}>
+                <ul data-xray="Database" {...style.attrs(styles.checklist)}>
                     {launch.map(([item, isDone]) => (
                         <li {...style.attrs(appText.body, styles.check)}>
                             <Checkbox checked={isDone} aria-label={item} />
@@ -206,7 +220,7 @@ function Launch() {
                         </li>
                     ))}
                 </ul>
-                <Item variant="outline" size="sm" xstyle={styles.comment}>
+                <Item data-xray="Messaging" variant="outline" size="sm" xstyle={styles.comment}>
                     <ItemMedia>
                         <Face owner="A" />
                     </ItemMedia>
@@ -240,12 +254,12 @@ function Tasks() {
                     <Icon icon={kanban} />
                     Board
                 </span>
-                <span {...style.attrs(appStyles.property)}>
+                <span data-xray="Search" {...style.attrs(appStyles.property)}>
                     <Icon icon={funnel} />
                     Due this week
                 </span>
             </Toolbar>
-            <div {...style.attrs(styles.list)}>
+            <div data-xray="Database" {...style.attrs(styles.list)}>
                 {STATES.map(([state, name]) => (
                     <>
                         <div {...style.attrs(appText.body, styles.groupRow)}>
@@ -270,7 +284,10 @@ function Tasks() {
                                         {title}
                                     </span>
                                     {id === "DST-15" ? (
-                                        <span {...style.attrs(styles.inline, styles.agentNote)}>
+                                        <span
+                                            data-xray="Jobs"
+                                            {...style.attrs(styles.inline, styles.agentNote)}
+                                        >
                                             <Spinner aria-label="Agent is writing" />
                                             writing…
                                         </span>
@@ -291,7 +308,7 @@ function Tasks() {
     );
 }
 
-/** Draw the launch channel: your thread with your agent in it, its changes linked to the apps they touched. */
+/** Draw the launch channel. */
 function Chat() {
     return (
         <Paned>
@@ -299,7 +316,7 @@ function Chat() {
                 title="# launch"
                 actions={
                     <>
-                        <AvatarGroup aria-label="Members">
+                        <AvatarGroup data-xray="Identity" aria-label="Members">
                             <Face owner="F" />
                             <Face owner="A" />
                         </AvatarGroup>
@@ -312,7 +329,7 @@ function Chat() {
                 Today
                 <Separator />
             </div>
-            <div {...style.attrs(styles.messages)}>
+            <div data-xray="Database" {...style.attrs(styles.messages)}>
                 {messages.map(([author, time, line], index) => (
                     <div {...style.attrs(styles.message)}>
                         <Face owner={author === "Agent" ? "A" : "F"} size="default" />
@@ -343,7 +360,10 @@ function Chat() {
                                 </span>
                             ) : undefined}
                             {index === 2 ? (
-                                <span {...style.attrs(appText.body, styles.inline, styles.replies)}>
+                                <span
+                                    data-xray="Messaging"
+                                    {...style.attrs(appText.body, styles.inline, styles.replies)}
+                                >
                                     <AvatarGroup aria-label="Replied">
                                         <Face owner="F" />
                                     </AvatarGroup>
@@ -361,7 +381,9 @@ function Chat() {
             <InputGroup>
                 <InputGroupInput placeholder="Message #launch, or ask your agent" readonly />
                 <InputGroupAddon align="inline-end">
-                    <Icon icon={paperclip} />
+                    <span data-xray="Files" {...style.attrs(styles.mark)}>
+                        <Icon icon={paperclip} />
+                    </span>
                     <Icon icon={at} />
                     <Icon icon={smiley} />
                     <Icon icon={paperPlaneRight} />
@@ -371,7 +393,7 @@ function Chat() {
     );
 }
 
-/** Draw the code behind your apps: the repository, its latest commit and your agent's open pull request. */
+/** Draw the code behind your apps. */
 function Code() {
     return (
         <Paned>
@@ -391,7 +413,7 @@ function Code() {
                 <span {...style.attrs(appStyles.property)}>2 branches</span>
                 <span {...style.attrs(appStyles.property)}>48 commits</span>
             </Toolbar>
-            <Item variant="outline" size="sm" xstyle={styles.pull}>
+            <Item data-xray="Jobs" variant="outline" size="sm" xstyle={styles.pull}>
                 <ItemMedia xstyle={styles.green}>
                     <Icon icon={gitPullRequest} weight="bold" />
                 </ItemMedia>
@@ -407,7 +429,7 @@ function Code() {
                     </Button>
                 </ItemActions>
             </Item>
-            <Table>
+            <Table data-xray="Files">
                 <TableHeader>
                     <TableRow>
                         <TableHead colspan={3}>
@@ -443,7 +465,7 @@ function Code() {
     );
 }
 
-/** Draw your website: its pages in the editor, previewed as visitors see them at your own address. */
+/** Draw your website. */
 function Website() {
     return (
         <Paned>
@@ -483,7 +505,7 @@ function Website() {
                 <p {...style.attrs(appText.body, styles.quiet)}>
                     On building Destack: the product, the pricing and the tools I run it on.
                 </p>
-                <ol {...style.attrs(styles.postGrid)}>
+                <ol data-xray="Database" {...style.attrs(styles.postGrid)}>
                     {posts.map(([title, topic, date, from, to], index) => (
                         <li {...style.attrs(styles.post)}>
                             <span
@@ -513,11 +535,13 @@ function Week() {
                         <span {...style.attrs(appStyles.action)}>Day</span>
                         <span {...style.attrs(appStyles.action, appStyles.actionStrong)}>Week</span>
                         <span {...style.attrs(appStyles.action)}>Month</span>
-                        <span {...style.attrs(appStyles.primary)}>Share booking link</span>
+                        <span data-xray="Messaging" {...style.attrs(appStyles.primary)}>
+                            Share booking link
+                        </span>
                     </>
                 }
             />
-            <div {...style.attrs(appText.meta, styles.week)}>
+            <div data-xray="Database" {...style.attrs(appText.meta, styles.week)}>
                 {DAYS.map((day, index) => (
                     <span
                         style={{ "grid-column": String(index + 2) }}
@@ -557,12 +581,12 @@ function Week() {
     );
 }
 
-/** Return the grid row a time of day starts at in the week: two rows per hour under the two of the day names. */
+/** Return the grid row a time of day starts at in the week. */
 function rowOf(hour: number): number {
     return 3 + (hour - (HOURS[0] ?? 0)) * 2;
 }
 
-/** Draw the launch mail: a draft by your agent, addressed to the waitlist read live from its table. */
+/** Draw the launch mail. */
 function Mail() {
     return (
         <Paned>
@@ -572,16 +596,20 @@ function Mail() {
                     <>
                         <Present />
                         <span {...style.attrs(appStyles.action)}>Agent drafted 09:40</span>
-                        <span {...style.attrs(appStyles.primary)}>Send Fri 09:00</span>
+                        <span data-xray="Jobs" {...style.attrs(appStyles.primary)}>
+                            Send Fri 09:00
+                        </span>
                     </>
                 }
             >
-                <span {...style.attrs(appStyles.property, styles.on)}>
+                <span data-xray="Database" {...style.attrs(appStyles.property, styles.on)}>
                     <Icon icon={at} />
                     To Signups · Waiting
                 </span>
                 <span {...style.attrs(appStyles.property)}>1,840 people</span>
-                <span {...style.attrs(appStyles.property)}>From hello@destack.sh</span>
+                <span data-xray="Messaging" {...style.attrs(appStyles.property)}>
+                    From hello@destack.sh
+                </span>
             </Toolbar>
             <article {...style.attrs(styles.document)}>
                 <p {...style.attrs(appText.body)}>Hi Maya,</p>
@@ -608,7 +636,7 @@ function Mail() {
     );
 }
 
-/** Draw your waitlist's signups: the table your public form fills, ready to invite the first batch. */
+/** Draw your waitlist's signups. */
 function Signups() {
     return (
         <Paned>
@@ -616,12 +644,14 @@ function Signups() {
                 title="Signups"
                 actions={
                     <>
-                        <span {...style.attrs(appStyles.action)}>24 joined today</span>
+                        <span data-xray="Analytics" {...style.attrs(appStyles.action)}>
+                            24 joined today
+                        </span>
                         <span {...style.attrs(appStyles.primary)}>Invite 400</span>
                     </>
                 }
             >
-                <span {...style.attrs(appStyles.property)}>
+                <span data-xray="Search" {...style.attrs(appStyles.property)}>
                     <Icon icon={magnifyingGlass} />
                     Search 1,840 signups
                 </span>
@@ -631,7 +661,7 @@ function Signups() {
                 </span>
                 <span {...style.attrs(appStyles.property)}>Source: any</span>
             </Toolbar>
-            <Table>
+            <Table data-xray="Database">
                 <TableHeader>
                     <TableRow>
                         <TableHead xstyle={styles.select}>
@@ -679,6 +709,9 @@ function Signups() {
 
 /** The styles of your space's apps, drawn at the size of a real window. */
 const styles = style.create({
+    wide: {
+        display: { default: "inline-flex", [NARROW]: "none" },
+    },
     on: {
         backgroundColor: `color-mix(in srgb, ${color.primary} 14%, transparent)`,
         color: color.foreground,
@@ -747,6 +780,7 @@ const styles = style.create({
         textDecorationLine: "line-through",
     },
     cursor: {
+        display: { default: "inline-block", [NARROW]: "none" },
         backgroundColor: palette.violet,
         height: "1.25em",
         position: "relative",

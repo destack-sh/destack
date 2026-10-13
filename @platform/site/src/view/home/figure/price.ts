@@ -1,4 +1,4 @@
-/** What an item costs a month: a fee and how it adds up, a rate charged by use, a share of a subscription already billed, or nothing beyond your plan. */
+/** What an item costs a month. */
 export type Price =
     | { kind: "fee"; monthly: number; basis: string }
     | { kind: "usage"; basis: string }
@@ -15,12 +15,7 @@ function usage(basis: string): Price {
     return { kind: "usage", basis };
 }
 
-/**
- * The monthly list prices of the tools the figures rent, for one person on monthly billing, by subscription, with the plan as the basis.
- *
- * Read from the vendors' pricing pages on 2026-10-11, in US dollars, on the cheapest paid plan one person needs.
- * Linear and Webflow publish only yearly billing, and Mailchimp and n8n only showed local currency, so those are the nearest published figures.
- */
+/** The monthly list prices of the tools the figures rent, for one person, by subscription. */
 export const prices: Readonly<Record<string, Price>> = {
     Notion: fee(12, "Plus"),
     Linear: fee(10, "Basic, yearly"),
@@ -55,7 +50,8 @@ export const prices: Readonly<Record<string, Price>> = {
     n8n: fee(24, "Starter"),
     ChatGPT: fee(20, "Plus"),
     Claude: fee(20, "Pro"),
-    AWS: usage("pay per use"),
+    Gemini: fee(19.99, "Google AI Pro"),
+    Grok: fee(30, "SuperGrok"),
 };
 
 /** The bytes in a megabyte. */
@@ -64,23 +60,18 @@ const MB = 1_000_000;
 /** The bytes in a gigabyte. */
 const GB = 1_000_000_000;
 
-/** The work a tool's job takes a month, the same whoever runs it: the bytes it keeps, the GB-hours of compute it uses, and whether that compute is a floor. */
+/** The work a tool's job takes a month, the same whoever runs it. */
 export type Workload = { storage: number; compute: number; isAtLeast: boolean };
 
-/**
- * The work each tool's job takes for one person a few months into a launch, by tool.
- *
- * Napkin estimates for a whole account: storage from typical counts and sizes, such as 40k mails at 200 KB or 200 recordings at 100 MB.
- * Compute from requests, builds and syncs at their memory and time, such as 30 builds of 3 minutes at 2 GB; builds and hosting that grow with use are floors.
- */
+/** The work each tool's job takes for one person a few months into a launch, by tool. */
 export const workloads: Readonly<Record<string, Workload>> = {
     Notion: { storage: 235 * MB, compute: 0.01, isAtLeast: false },
     Linear: { storage: 25 * MB, compute: 0.01, isAtLeast: false },
     Slack: { storage: 815 * MB, compute: 0.5, isAtLeast: false },
-    GitHub: { storage: 550 * MB, compute: 3, isAtLeast: true },
+    GitHub: { storage: 3 * GB, compute: 58, isAtLeast: true },
     Framer: { storage: 110 * MB, compute: 0.02, isAtLeast: false },
     Calendly: { storage: 0.6 * MB, compute: 0.005, isAtLeast: false },
-    Replit: { storage: 300 * MB, compute: 0.03, isAtLeast: false },
+    Replit: { storage: 300 * MB, compute: 10, isAtLeast: true },
     Gmail: { storage: 8 * GB, compute: 0.2, isAtLeast: false },
     WorkOS: { storage: 25 * MB, compute: 0.01, isAtLeast: false },
     Doppler: { storage: 2 * MB, compute: 0.001, isAtLeast: false },
@@ -90,7 +81,7 @@ export const workloads: Readonly<Record<string, Workload>> = {
     Resend: { storage: 100 * MB, compute: 0.01, isAtLeast: false },
     Temporal: { storage: 200 * MB, compute: 0.1, isAtLeast: false },
     PostHog: { storage: 3 * GB, compute: 0.5, isAtLeast: false },
-    Vercel: { storage: 2 * GB, compute: 0.3, isAtLeast: true },
+    Vercel: { storage: 2 * GB, compute: 18, isAtLeast: true },
     Figma: { storage: 2 * GB, compute: 0.1, isAtLeast: false },
     Superhuman: { storage: 8 * GB, compute: 0.2, isAtLeast: false },
     Granola: { storage: 20 * MB, compute: 0.3, isAtLeast: false },
@@ -112,7 +103,8 @@ export const workloads: Readonly<Record<string, Workload>> = {
     Forms: { storage: 2 * MB, compute: 0.005, isAtLeast: false },
     ChatGPT: { storage: 15 * MB, compute: 0, isAtLeast: false },
     Claude: { storage: 15 * MB, compute: 0, isAtLeast: false },
-    AWS: { storage: 50 * GB, compute: 2, isAtLeast: true },
+    Gemini: { storage: 15 * MB, compute: 0, isAtLeast: false },
+    Grok: { storage: 20 * MB, compute: 0, isAtLeast: false },
 };
 
 /** Return the work a tool's job takes by its name, or refuse a name the list lacks. */

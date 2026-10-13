@@ -1,13 +1,15 @@
 import * as style from "@destack/style";
-import { color, font, stroke } from "@destack/theme/tokens.stylex";
+import { color, stroke } from "@destack/theme/tokens.stylex";
 import type { JSX } from "@destack/view";
 
 import { palette } from "../../palette.stylex";
+import { AgentAvatar, isAgent } from "./agent";
+import { paperGlyphOf, washOf } from "./planet";
 
 /** A mock narrower than a phone screen, which then takes its phone layout. */
 const NARROW = "@container (max-width: 479px)";
 
-/** The type sizes of a drawn app of your space: its page title, its body, its meta and its smallest labels. */
+/** The type sizes of a drawn app of your space. */
 export const appText = style.create({
     title: {
         fontSize: { default: "1.75rem", [NARROW]: "1.375rem" },
@@ -34,7 +36,7 @@ export const appText = style.create({
     },
 });
 
-/** The shell of a drawn app of your space: the rail of apps, the page with its header, and the status bar. */
+/** The shell of a drawn app of your space. */
 export const appStyles = style.create({
     app: {
         display: "grid",
@@ -55,7 +57,7 @@ export const appStyles = style.create({
         borderTopWidth: { default: 0, [NARROW]: stroke.border },
         display: "flex",
         flexDirection: { default: "column", [NARROW]: "row" },
-        gap: "0.5rem",
+        gap: "0.25rem",
         gridRow: { default: "auto", [NARROW]: "3" },
         justifyContent: { default: "flex-start", [NARROW]: "space-around" },
         paddingBlock: { default: "0.75rem", [NARROW]: "0.375rem" },
@@ -86,7 +88,7 @@ export const appStyles = style.create({
         borderRadius: "6px",
         display: "flex",
         flexShrink: 0,
-        height: "2rem",
+        height: "1.75rem",
         justifyContent: "center",
         position: "relative",
         width: "2rem",
@@ -100,11 +102,12 @@ export const appStyles = style.create({
         maskSize: "contain",
         width: "0.875rem",
     },
+    railGlyph: {
+        height: "1rem",
+        width: "1rem",
+    },
     glyphOn: {
         backgroundColor: color.primary,
-    },
-    selected: {
-        backgroundColor: `color-mix(in srgb, ${color.primary} 14%, transparent)`,
     },
     badge: {
         backgroundColor: color.primary,
@@ -231,9 +234,6 @@ export const appStyles = style.create({
         height: "0.5rem",
         width: "0.5rem",
     },
-    code: {
-        fontFamily: font.code,
-    },
 });
 
 /** Draw a glyph of the diagram set, such as an app's mark in the rail, tinted when lit. */
@@ -247,7 +247,7 @@ export function AppGlyph(properties: { name: string; isOn?: boolean }) {
     );
 }
 
-/** Draw the rail every app of your space shares: your account, search, the inbox, and your apps with the open one lit. */
+/** Draw the rail every app of your space shares. */
 export function AppRail(properties: {
     open: string;
     apps: readonly (readonly [name: string, label: string])[];
@@ -275,19 +275,31 @@ export function AppRail(properties: {
                     data-component="AppLink"
                     title={label}
                     onClick={() => properties.onOpen(name)}
-                    {...style.attrs(
-                        appStyles.railButton,
-                        name === properties.open && appStyles.selected,
-                    )}
+                    style={
+                        name === properties.open ? { "background-color": washOf(name) } : undefined
+                    }
+                    {...style.attrs(appStyles.railButton)}
                 >
-                    <AppGlyph name={name} isOn={name === properties.open} />
+                    {isAgent(name) ? (
+                        <AgentAvatar size="glyph" />
+                    ) : (
+                        <span
+                            aria-hidden="true"
+                            style={{
+                                "mask-image": `url(/diagram/${name}.svg)`,
+                                "background-color":
+                                    name === properties.open ? paperGlyphOf(name) : undefined,
+                            }}
+                            {...style.attrs(appStyles.glyph, appStyles.railGlyph)}
+                        />
+                    )}
                 </span>
             ))}
         </nav>
     );
 }
 
-/** Draw a page's header: its title, and its actions at the end, the last one as the primary action. */
+/** Draw a page's header. */
 export function AppHeader(properties: { title: JSX.Element; children?: JSX.Element }) {
     return (
         <div data-component="PageHeader" {...style.attrs(appStyles.toolbar)}>

@@ -4,7 +4,7 @@ import { children, type JSX } from "@destack/view";
 
 import { palette } from "../../palette.stylex";
 
-/** Draw an app window: a card in the theme's card colour with a title bar of three lights and a title. */
+/** Draw an app window. */
 export function Window(properties: {
     title: JSX.Element;
     xstyle?: style.Styles;

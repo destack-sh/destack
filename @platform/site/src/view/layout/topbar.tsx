@@ -14,7 +14,7 @@ import { createEffect, createMemo, createSignal } from "@destack/view";
 import { Link, useLocation } from "@destack/view/router";
 
 import { CommandPalette } from "./palette";
-import { DownloadCell } from "../home/participle/download/download";
+import { DownloadCell } from "../home/imperative/download/download";
 import { Goo } from "../effect/goo";
 import { frame } from "./frame.stylex";
 import { Mark } from "./mark";

@@ -1,7 +1,7 @@
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 
-/** Show the stacked or the destacked text in the space of the longer one, so switching never moves what follows. */
+/** Show the stacked or the destacked text in the space of the longer one. */
 export function Crossfade(properties: { isOpen: boolean; stacked: string; destacked: string }) {
     return (
         <span data-component="Crossfade" {...style.attrs(styles.pair)}>

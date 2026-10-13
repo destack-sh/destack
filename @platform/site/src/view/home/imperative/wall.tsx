@@ -7,25 +7,26 @@ import { createEffect, createMemo, For } from "@destack/view";
 
 import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
+import { Tile } from "../figure/tile";
 import { accentOf, type Entry, type Line } from "../figure/item";
 import { palette } from "../../palette.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 
-/** An app every space comes with: its name, its icon, and its tint. */
-type App = { name: string; icon: string; tint: string };
+/** An app every space comes with: its name and its icon. */
+type App = { name: string; icon: string };
 
 /** The apps a space comes with, by the job they do. */
 const apps = {
-    pages: { name: "Pages", icon: "pages", tint: "#3d6fb0" },
-    tasks: { name: "Tasks", icon: "tasks", tint: "#c64a17" },
-    calendar: { name: "Calendar", icon: "calendar", tint: "#c64a17" },
-    files: { name: "Files", icon: "bucket", tint: "#2f7d8c" },
-    tables: { name: "Tables", icon: "table", tint: "#4f8a5b" },
-    canvas: { name: "Canvas", icon: "vector", tint: "#a0485f" },
-    workflows: { name: "Workflows", icon: "sync", tint: "#4f8a5b" },
-    chat: { name: "Chat", icon: "chat", tint: "#4f8a5b" },
-    mail: { name: "Mail", icon: "mail", tint: "#3d6fb0" },
+    pages: { name: "Pages", icon: "pages" },
+    tasks: { name: "Tasks", icon: "tasks" },
+    calendar: { name: "Calendar", icon: "calendar" },
+    files: { name: "Files", icon: "bucket" },
+    tables: { name: "Tables", icon: "table" },
+    canvas: { name: "Canvas", icon: "canvas" },
+    workflows: { name: "Workflows", icon: "sync" },
+    chat: { name: "Chat", icon: "chat" },
+    mail: { name: "Mail", icon: "mail" },
 } satisfies Record<string, App>;
 
 /** The job each app does, as the tally labels its row. */
@@ -44,7 +45,7 @@ const jobLabels: Record<Job, string> = {
 /** A job a space's app does. */
 type Job = keyof typeof apps;
 
-/** The apps every space holds, one to each kind of thing it keeps, in the order the space sets them. */
+/** The apps every space holds, one to each kind of thing it keeps, in the space's order. */
 const spaceJobs: readonly Job[] = [
     "pages",
     "tables",
@@ -56,20 +57,18 @@ const spaceJobs: readonly Job[] = [
     "canvas",
 ];
 
-/** The tally's rows for the services your space works with: the label, the services, and what your space does in their place. */
+/** The tally's rows for the services your space works with. */
 const connections: readonly (readonly [label: string, names: readonly string[], app: App])[] = [
-    ["Agents", ["ChatGPT", "Claude"], { name: "Agents", icon: "agent", tint: "#6b5ca5" }],
-    ["Code", ["GitHub"], { name: "Forge", icon: "source", tint: "#c64a17" }],
-    ["Cloud", ["AWS"], { name: "Hosting", icon: "hosts", tint: "#2f7d8c" }],
+    ["Agents", ["ChatGPT", "Claude", "Gemini", "Grok"], { name: "Agents", icon: "agent" }],
 ];
 
-/** The lines of the bill: one per job the space does, workflows included, then one per group of connections. */
+/** The lines of the bill. */
 export const lineCount = spaceJobs.length + 1 + connections.length;
 
 /** A tool's face on the wall: its icon, its name, and its tint. */
 type Face = { icon: string; name: string; tint: string };
 
-/** A tool you may use today and what your space does with it: replaces it with an app, does either, or connects to it with a status line. */
+/** A tool you may use today and what your space does with it. */
 type Tool =
     | (Face & { kind: "replace"; job: Job })
     | (Face & { kind: "both"; job: Job; status: string })
@@ -130,7 +129,7 @@ const either: readonly Tool[] = [
     },
 ];
 
-/** The services your space connects to: the agents that work in it, the cloud it runs on, and mirrors. */
+/** The agents your space connects to, which work in it as you. */
 const foundations: readonly Tool[] = [
     {
         icon: "openai",
@@ -147,28 +146,27 @@ const foundations: readonly Tool[] = [
         status: "your agent",
     },
     {
-        icon: "github",
-        name: "GitHub",
-        tint: "#181717",
+        icon: "gemini",
+        name: "Gemini",
+        tint: "#8e75b2",
         kind: "connect",
-        status: "mirrored",
+        status: "your agent",
     },
     {
-        icon: "aws",
-        name: "AWS",
-        tint: "#ff9900",
+        icon: "grok",
+        name: "Grok",
+        tint: "#000000",
         kind: "connect",
-        status: "where it runs",
+        status: "your agent",
     },
 ];
 
-/** The order the wall sets its tools in, a row to each family: the startup stack, the work trackers, Google, the customer-facing sites, and the rest with the services your space connects to. */
+/** The order the wall sets its tools in, six to a row. */
 const order: readonly string[] = [
     "Notion",
     "Linear",
     "Slack",
     "Figma",
-    "GitHub",
     "Superhuman",
     "Granola",
     "Loom",
@@ -193,7 +191,8 @@ const order: readonly string[] = [
     "Forms",
     "ChatGPT",
     "Claude",
-    "AWS",
+    "Gemini",
+    "Grok",
 ];
 
 /** Every tool on the wall, in the wall's order. */
@@ -204,20 +203,18 @@ const tools: readonly Tool[] = order.map((name) =>
     ),
 );
 
-/** The tools picked before the reader picks any: the six of the first figure, a chat, an assistant and a cloud. */
+/** The tools picked before the reader picks any. */
 export const firstPicks: readonly string[] = [
     "Notion",
     "Framer",
-    "Linktree",
     "Calendly",
     "Linear",
     "Dropbox",
     "Slack",
     "Claude",
-    "AWS",
 ];
 
-/** The subscription each tool bills under when it shares one: Google's tools come with one Workspace. */
+/** The subscription each tool bills under when it shares one. */
 const billedUnder: Readonly<Record<string, string>> = {
     Docs: "Google Workspace",
     Sheets: "Google Workspace",
@@ -238,7 +235,7 @@ function subscriptionsOf(picked: readonly Tool[]): readonly string[] {
     return [...new Set(picked.map((tool) => billedUnder[tool.name] ?? tool.name))];
 }
 
-/** The price of a service the space works with, which its vendor bills either way and the comparison leaves out. */
+/** The price of a service the space works with. */
 const vendorBilled: Price = { kind: "fee", monthly: 0, basis: "billed by its vendor" };
 
 /** Price one tally row: the subscriptions its tools add to those billed in the rows above it. */
@@ -287,27 +284,27 @@ function jobOf(tool: Tool): Job | undefined {
     return tool.kind === "connect" ? undefined : tool.job;
 }
 
-/** Return the status line of a tool your space stays connected to, or none when it only replaces it. */
+/** Return the status line of a tool your space stays connected to, or none when replaced. */
 function statusOf(tool: Tool): string | undefined {
     return tool.kind === "replace" ? undefined : tool.status;
 }
 
-/** One cell of the wall: a tool on its own, an app your picked tools merged into, or a tool your space stays connected to. */
+/** One cell of the wall. */
 type Cell =
     | { kind: "tool"; key: string; tool: Tool; isPicked: boolean }
     | { kind: "app"; key: string; job: Job; sources: readonly Tool[] }
     | { kind: "link"; key: string; tool: Tool; isPicked: boolean };
 
-/** The wall's height on tablets, the taller of its two states there: the stacked grid of five rows. */
+/** The wall's height on tablets, the taller of its two states there. */
 const TABLET_WALL = "31.5rem";
 
-/** The wall's height on phones, the taller of its two states there: the space with its connections, down to 360 pixel wide screens. */
+/** The wall's height on phones, the taller of its two states there. */
 const PHONE_WALL = "48rem";
 
 /** The cells to a row of the wall. */
 const perRow = 6;
 
-/** Lay out the wall: every tool on its own while stacked, or once destacked every app your space holds with the picked tools it replaces, and every service it connects to. */
+/** Lay out the wall. */
 function cellsOf(picks: readonly string[], isOpen: boolean): readonly Cell[] {
     // set every tool on its own while stacked
     if (!isOpen) {
@@ -338,7 +335,7 @@ function cellsOf(picks: readonly string[], isOpen: boolean): readonly Cell[] {
     ];
 }
 
-/** Describe what a cell shows, so a cell that shows the same thing keeps its object across layouts. */
+/** Describe what a cell shows. */
 function signatureOf(cell: Cell) {
     // name the kind and key, then the tools an app took over or the pick of a tool or service
     return cell.kind === "app"
@@ -346,7 +343,7 @@ function signatureOf(cell: Cell) {
         : `${cell.kind}:${cell.key}:${String(cell.isPicked)}`;
 }
 
-/** Return the key of the cell a cell grows out of: an app out of its first tool, and every other cell out of itself. */
+/** Return the key of the cell a cell grows out of. */
 function originOf(cell: Cell) {
     // grow an app out of its first tool, and return a picked tool to the app it went into
     if (cell.kind === "app") {
@@ -368,12 +365,7 @@ const moveStep = 18;
 /** The strong ease-out every move lands on. */
 const landing = "cubic-bezier(0.23, 1, 0.32, 1)";
 
-/**
- * Draw your stack as a wall of tools to pick from, and once destacked as your space.
- *
- * While stacked, every tool keeps its own tile and the picked ones are lit.
- * Once destacked, only your space is left: the picked tools slide together and merge into the apps that take over their jobs, beside the tools your space connects to.
- */
+/** Draw your stack as a wall of tools to pick from, and once destacked as your space. */
 export function ToolWall(properties: {
     picks: readonly string[];
     isOpen: boolean;
@@ -449,9 +441,9 @@ export function ToolWall(properties: {
     );
 }
 
-/** The services every space comes with, which none of the tools above bring along: the icon, the name, and what it does. */
+/** The services every space comes with, which none of the tools above bring along. */
 const included: readonly (readonly [icon: string, name: string, line: string])[] = [
-    ["user", "Accounts", "one sign-in for you and your agent"],
+    ["accounts", "Accounts", "one sign-in for you and your agent"],
     ["auth", "Access", "who sees what, one rule set"],
     ["vault", "Vault", "keys that never leave the server"],
     ["sync", "Workflows", "jobs that survive restarts"],
@@ -478,7 +470,7 @@ function Included() {
                         )}
                     >
                         <span {...style.attrs(styles.face, styles.link)}>
-                            <Favicon icon={icon} tint={color.foreground} size={18} />
+                            <Tile icon={icon} size="small" />
                             <span {...style.attrs(styles.toolName)}>{name}</span>
                         </span>
                     </li>
@@ -572,7 +564,7 @@ function CellView(properties: { cell: Cell; isOpen: boolean; onPick: (name: stri
     );
 }
 
-/** Draw what a cell holds: a tool to pick, an app with the tools it took over, or a connection with its status. */
+/** Draw what a cell holds. */
 function contentOf(cell: Cell, onPick: (name: string) => void) {
     if (cell.kind === "app") {
         const app = apps[cell.job];
@@ -587,9 +579,7 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
                     cell.sources.length > 0 && styles.picked,
                 )}
             >
-                <span style={{ "background-color": app.tint }} {...style.attrs(styles.appIcon)}>
-                    <Favicon icon={app.icon} tint="#ffffff" size={14} />
-                </span>
+                <Tile icon={app.icon} size="small" />
                 <span {...style.attrs(styles.toolName)}>{app.name}</span>
                 <span {...style.attrs(styles.sources)}>
                     {cell.sources.map((tool) => (
@@ -632,7 +622,7 @@ function contentOf(cell: Cell, onPick: (name: string) => void) {
     );
 }
 
-/** Tally the picks a row to each job your space does: the picked tools that do it while stacked, and the app or service that takes it over once destacked. */
+/** Tally the picks a row to each job your space does. */
 export function tallyOf(picks: readonly string[]): readonly Line[] {
     // gather the picked tools, and the rows of jobs then of connections
     const picked = tools.filter((tool) => picks.includes(tool.name));
@@ -677,7 +667,7 @@ export function tallyOf(picks: readonly string[]): readonly Line[] {
     });
 }
 
-/** Set one tally row: the tools you picked for a job while stacked, and what your space does in their place once destacked, which still pays for the services it works with. */
+/** Set one tally row. */
 function entryOf(
     label: string,
     doers: readonly Tool[],
@@ -710,7 +700,7 @@ function entryOf(
         },
         destacked: {
             label,
-            mark: { icon: app.icon, tint: app.tint },
+            mark: { app: app.icon },
             name: app.name,
             note: first === undefined ? "included" : `${verb} ${listOf(doers)}`,
             price: isConnection ? price : { kind: "included" },
@@ -718,7 +708,7 @@ function entryOf(
     };
 }
 
-/** Label the bill: the picked tools the space takes over and the invoices they send while stacked, or one space once destacked. */
+/** Label the bill. */
 export function labelOf(picks: readonly string[], isOpen: boolean): string {
     // count only what the space takes over, since the services it works with bill on their own either way
     const picked = tools.filter((tool) => picks.includes(tool.name));
@@ -740,7 +730,7 @@ function workloadOfRow(doers: readonly Tool[]): Workload {
     };
 }
 
-/** Write the prompt that sets up a space, brings in the picked tools it replaces, and connects the rest. */
+/** Write the prompt that sets up a space, brings in replaced tools and connects the rest. */
 export function promptOf(picks: readonly string[]) {
     // split the picks into what moves in and what stays connected
     const picked = tools.filter((tool) => picks.includes(tool.name));
@@ -820,12 +810,6 @@ const styles = style.create({
         animationName: { default: rise, [media.motionReduce]: "none" },
         animationTimingFunction: landing,
     },
-    group: {
-        alignContent: "start",
-        display: "grid",
-        gap: "0.75rem",
-        minWidth: 0,
-    },
     groupName: {
         color: color.mutedForeground,
         fontFamily: font.code,
@@ -844,7 +828,7 @@ const styles = style.create({
         gridAutoRows: {
             default: "minmax(0, 1fr)",
             [screen.belowDesktop]: "5.75rem",
-            [media.maxMd]: "3.5rem",
+            [media.maxMd]: "4.5rem",
         },
         gridTemplateColumns: {
             default: `repeat(${perRow}, minmax(0, 1fr))`,
@@ -939,15 +923,6 @@ const styles = style.create({
     app: {
         backgroundColor: color.card,
         position: "relative",
-    },
-    appIcon: {
-        alignItems: "center",
-        borderRadius: "5px",
-        display: "flex",
-        flexShrink: 0,
-        height: "20px",
-        justifyContent: "center",
-        width: "20px",
     },
     link: {
         backgroundColor: color.card,

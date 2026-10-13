@@ -2,20 +2,18 @@ import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import type { JSX } from "@destack/view";
 
+import { AppGlyph } from "../figure/app";
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
 import type { Stagger } from "../figure/stagger";
-import { Tile } from "../figure/tile";
+import { ServiceGlyph } from "../figure/tile";
 import { palette } from "../../palette.stylex";
 
 /** A mock too narrow for the chat and the board side by side, which then stack. */
 const NARROW = "@container (max-width: 959px)";
 
-/** A mock narrower than a phone screen, whose board then stacks its columns and drops its wide parts. */
+/** A mock narrower than a phone, whose board stacks its columns and drops what only fits wide. */
 const PHONE = "@container (max-width: 479px)";
-
-/** The engine's services the launch board runs on, numbered as the board marks them: changing the app, reading the other apps, keeping it current, and sharing it. */
-export const services: readonly string[] = ["Forge", "Database", "Workflows", "Access"];
 
 /** The launch tasks still open: the identifier, the title and the due date. */
 const tasks: readonly (readonly [id: string, title: string, due: string])[] = [
@@ -44,14 +42,30 @@ const demos: readonly (readonly [time: string, person: string])[] = [
     ["Fri 16:30", "Leo"],
 ];
 
-/** Draw what a rented part of the board fails to do, marked the same way everywhere. */
-function Issue(properties: { children: string }) {
-    return (
-        <span data-component="Issue" {...style.attrs(styles.issue)}>
-            {properties.children}
-        </span>
-    );
-}
+/** The tracker's board of launch issues: each status and its issues. */
+const lanes: readonly (readonly [
+    lane: string,
+    issues: readonly (readonly [id: string, title: string])[],
+])[] = [
+    [
+        "Todo",
+        [
+            ["DST-13", "Turn on pricing"],
+            ["DST-17", "Open signups"],
+        ],
+    ],
+    [
+        "In Progress",
+        [
+            ["DST-14", "Record the demo"],
+            ["DST-15", "Draft the launch post"],
+        ],
+    ],
+    ["In Review", [["DST-16", "Email the waitlist"]]],
+];
+
+/** What the tracker's filter menu offers: its own issue fields, and nothing from other apps. */
+const filters = ["Status", "Assignee", "Labels", "Project", "Cycle", "Priority"];
 
 /** Draw a message of yours as a rounded pill on the right. */
 function UserMessage(properties: { children: JSX.Element }) {
@@ -62,7 +76,7 @@ function UserMessage(properties: { children: JSX.Element }) {
     );
 }
 
-/** A rented assistant the chat runs in: its name, its mark, its composer prompt and how it sums up its work. */
+/** A rented assistant the chat runs in. */
 export type Assistant = { name: string; icon: string; tint: string; prompt: string; work: string };
 
 /** The rented assistants the chat turns between while stacked. */
@@ -83,7 +97,7 @@ export const assistants: readonly Assistant[] = [
     },
 ];
 
-/** Draw a reply as the chat sets it: how long the agent worked, its text, and the actions under it. */
+/** Draw a reply as the chat sets it. */
 function Reply(properties: { work: string; time: string; children: JSX.Element }) {
     return (
         <div data-component="AgentMessage" {...style.attrs(styles.reply)}>
@@ -102,65 +116,144 @@ function Reply(properties: { work: string; time: string; children: JSX.Element }
     );
 }
 
-/** What marks a column: one of your space's apps on its tile, or a vendor's icon in its colour. */
-type Mark = { tile: string } | { icon: string; tint: string };
-
-/** Draw a column's mark: an app's tile or a vendor's icon. */
-function MarkView(properties: { mark: Mark }) {
-    // choose the tile or the icon inside an expression, so the mark follows the stack as it switches
-    return (
-        <>
-            {"tile" in properties.mark ? (
-                <Tile name={properties.mark.tile} />
-            ) : (
-                <Favicon icon={properties.mark.icon} tint={properties.mark.tint} />
-            )}
-        </>
-    );
-}
-
-/** Draw one column of the board: its mark and name, what it says about itself, and its rows. */
+/** Draw one column of the board: its app's glyph and name, its count, its rows, and their type. */
 function Column(properties: {
+    icon: string;
     name: string;
-    service: number;
-    isOwned: boolean;
-    owned: { mark: Mark; count: string };
-    rented: { mark: Mark; issue: string };
+    count: string;
+    type: string;
     children: JSX.Element;
 }) {
     return (
         <section data-component="BoardColumn" {...style.attrs(styles.panel)}>
             <p {...style.attrs(styles.panelHead)}>
-                <MarkView
-                    mark={properties.isOwned ? properties.owned.mark : properties.rented.mark}
-                />
+                <AppGlyph name={properties.icon} />
                 {properties.name}
-                {properties.isOwned ? (
-                    <span {...style.attrs(styles.count)}>{properties.owned.count}</span>
-                ) : (
-                    <Issue>{properties.rented.issue}</Issue>
-                )}
+                <span {...style.attrs(styles.count)}>{properties.count}</span>
             </p>
             <div {...style.attrs(styles.stack)}>{properties.children}</div>
+            <p data-component="ColumnSource" {...style.attrs(styles.source)}>
+                <span title="Live" {...style.attrs(styles.dot)} />
+                <span {...style.attrs(styles.sourceType)}>{properties.type}</span>
+            </p>
         </section>
     );
 }
 
-/** Draw a row a column cannot fill while rented, with what it would take. */
-function Missing(properties: { children: string }) {
+/** Draw the board your agent added to Tasks: its new tab, the merged change and its columns. */
+function TasksBoard() {
     return (
-        <p data-component="MissingRows" {...style.attrs(styles.row, styles.missing)}>
-            {properties.children}
-        </p>
+        <>
+            <p {...style.attrs(styles.bar)}>
+                <ServiceGlyph icon="tasks" />
+                <span {...style.attrs(styles.title)}>Launch tasks</span>
+                <span {...style.attrs(styles.tabs)}>
+                    <span {...style.attrs(styles.tab)}>List</span>
+                    <span {...style.attrs(styles.tab, styles.tabOn)}>
+                        Board
+                        <span {...style.attrs(styles.new)}>New</span>
+                    </span>
+                    <span {...style.attrs(styles.tab, styles.wide)}>Calendar</span>
+                </span>
+                <span title="Live" {...style.attrs(styles.dot, styles.pushed)} />
+            </p>
+            <div data-component="Board" {...style.attrs(styles.body)}>
+                <p data-component="ForgeChange" {...style.attrs(styles.change)}>
+                    <Glyph size={15} name="check" />
+                    <code {...style.attrs(styles.code)}>tasks/board.tsx</code>
+                    <span {...style.attrs(styles.added)}>+38</span>
+                    <span {...style.attrs(styles.quiet, styles.wide)}>merged by you in Forge</span>
+                    <span {...style.attrs(styles.pushed, styles.button)}>View change</span>
+                </p>
+                <div {...style.attrs(styles.columns)}>
+                    <Column icon="tasks" name="Open tasks" count="5" type="Task">
+                        {tasks.map(([id, title, due]) => (
+                            <p data-component="TaskRow" {...style.attrs(styles.row)}>
+                                <span {...style.attrs(styles.id)}>{id}</span>
+                                <span {...style.attrs(styles.rowTitle)}>{title}</span>
+                                <span {...style.attrs(styles.quiet)}>{due}</span>
+                            </p>
+                        ))}
+                    </Column>
+                    <Column icon="table" name="Signups" count="1,840 · +12 today" type="Signup">
+                        {signups.map(([email, joined]) => (
+                            <p data-component="SignupRow" {...style.attrs(styles.row)}>
+                                <span {...style.attrs(styles.rowTitle)}>{email}</span>
+                                <span {...style.attrs(styles.quiet)}>{joined}</span>
+                            </p>
+                        ))}
+                    </Column>
+                    <Column icon="calendar" name="Demos booked" count="5" type="Event">
+                        {demos.map(([time, person]) => (
+                            <p data-component="DemoRow" {...style.attrs(styles.row)}>
+                                <span {...style.attrs(styles.rowTitle)}>{person}</span>
+                                <span {...style.attrs(styles.quiet)}>{time}</span>
+                            </p>
+                        ))}
+                    </Column>
+                </div>
+                <p data-component="SpaceAccess" {...style.attrs(styles.access)}>
+                    <Glyph size={15} name="person" />
+                    Your team and your agent
+                </p>
+            </div>
+        </>
     );
 }
 
-/**
- * Draw a launch board asked of your agent, with the conversation on the left and the board on the right.
- *
- * While rented, the agent can only ask the vendor for the feature and glue a copy together: a vote on a feature request, and an hourly copy into a document.
- * Once owned, the agent changes your own Tasks app: a board view merged in Forge that reads the waitlist and the calendar live and is shared through your space's access.
- */
+/** Draw the tracker's board of your launch issues, its filter finding nothing beyond them. */
+function TrackerBoard() {
+    return (
+        <>
+            <p {...style.attrs(styles.bar)}>
+                <Favicon icon="linear" tint="#5e6ad2" />
+                <span {...style.attrs(styles.title)}>Launch</span>
+                <span {...style.attrs(styles.tabs)}>
+                    <span {...style.attrs(styles.tab)}>List</span>
+                    <span {...style.attrs(styles.tab, styles.tabOn)}>Board</span>
+                </span>
+                <span {...style.attrs(styles.filterButton, styles.pushed)}>
+                    <Glyph size={13} name="filter" />
+                    Filter
+                </span>
+            </p>
+            <div data-component="TrackerBoard" {...style.attrs(styles.body, styles.trackerBody)}>
+                <div {...style.attrs(styles.lanes)}>
+                    {lanes.map(([lane, issues]) => (
+                        <section {...style.attrs(styles.lane)}>
+                            <p {...style.attrs(styles.laneHead)}>
+                                {lane}
+                                <span {...style.attrs(styles.quiet)}>{issues.length}</span>
+                            </p>
+                            {issues.map(([id, title]) => (
+                                <p {...style.attrs(styles.card)}>
+                                    <span {...style.attrs(styles.id)}>{id}</span>
+                                    <span {...style.attrs(styles.cardTitle)}>{title}</span>
+                                </p>
+                            ))}
+                        </section>
+                    ))}
+                </div>
+
+                {/* the filter menu, asked for signups */}
+                <div data-component="FilterMenu" {...style.attrs(styles.menu)}>
+                    <p {...style.attrs(styles.menuSearch)}>
+                        <Glyph size={13} name="search" />
+                        signups
+                        <span {...style.attrs(styles.caret)} />
+                    </p>
+                    <p {...style.attrs(styles.menuEmpty)}>No results</p>
+                    <p {...style.attrs(styles.menuHead)}>Filter issues by</p>
+                    {filters.map((filter) => (
+                        <p {...style.attrs(styles.menuItem)}>{filter}</p>
+                    ))}
+                </div>
+            </div>
+        </>
+    );
+}
+
+/** Draw a launch board asked of your agent, the conversation on the left and the board right. */
 export function LaunchBoard(properties: { isOpenAt: Stagger; assistant: Assistant }) {
     return (
         <div {...style.attrs(styles.app)}>
@@ -189,9 +282,8 @@ export function LaunchBoard(properties: { isOpenAt: Stagger; assistant: Assistan
                     ) : (
                         <Reply work={properties.assistant.work} time="2m 40s">
                             <p {...style.attrs(styles.paragraph)}>
-                                Linear can't show other apps' data, so I upvoted their request for
-                                custom dashboards, and a Zapier zap now copies your open tasks into
-                                Notion hourly. Signups and demos aren't connected.
+                                Linear boards only show Linear issues. Signups live in Replit and
+                                demos in Calendly, and Linear can't read either.
                             </p>
                         </Reply>
                     )}
@@ -205,7 +297,7 @@ export function LaunchBoard(properties: { isOpenAt: Stagger; assistant: Assistan
                     ) : (
                         <Reply work={properties.assistant.work} time="21s">
                             <p {...style.attrs(styles.paragraph)}>
-                                Shared the Notion page by link. Anyone with the link can see it.
+                                There's only the tasks part to share. Want me to send that?
                             </p>
                         </Reply>
                     )}
@@ -220,9 +312,10 @@ export function LaunchBoard(properties: { isOpenAt: Stagger; assistant: Assistan
                         </span>
                         {properties.isOpenAt(0) ? (
                             <span data-component="AgentScope" {...style.attrs(styles.chip)}>
-                                <Tile name="tasks" />
-                                <Tile name="calendar" />
-                                Your space · live
+                                <ServiceGlyph icon="tasks" />
+                                <ServiceGlyph icon="calendar" />
+                                Your space
+                                <span title="Live" {...style.attrs(styles.dot)} />
                             </span>
                         ) : (
                             <span data-component="ConnectorScope" {...style.attrs(styles.chip)}>
@@ -239,154 +332,15 @@ export function LaunchBoard(properties: { isOpenAt: Stagger; assistant: Assistan
                 </div>
             </Fade>
 
-            {/* show the board: glued together from rented parts, or a view of your own app */}
-            <div
-                data-component={properties.isOpenAt(1) ? "SpaceApp" : "RentedBoard"}
-                {...style.attrs(styles.pane)}
+            {/* show the board as a view of your own app, or the vendor's roadmap you wait on */}
+            <Fade
+                isOpen={properties.isOpenAt(1)}
+                xstyle={styles.pane}
+                isLarge
+                component={properties.isOpenAt(1) ? "SpaceApp" : "TrackerBoard"}
             >
-                {/* name where the board lives */}
-                <Fade isOpen={properties.isOpenAt(1)} xstyle={styles.bar}>
-                    {properties.isOpenAt(1) ? (
-                        <>
-                            <Tile name="tasks" />
-                            <span {...style.attrs(styles.title)}>Tasks › Launch board</span>
-                        </>
-                    ) : (
-                        <>
-                            <Favicon icon="notion" tint="#191919" />
-                            <span {...style.attrs(styles.title)}>Notion › Launch board</span>
-                        </>
-                    )}
-                    <span {...style.attrs(styles.end)}>
-                        {properties.isOpenAt(3) ? (
-                            <span {...style.attrs(styles.live)}>
-                                <span {...style.attrs(styles.dot)} />
-                                Live
-                            </span>
-                        ) : (
-                            <span {...style.attrs(styles.quiet)}>
-                                <Favicon icon="zapier" tint="#ff4f00" size={12} /> Synced 58 min ago
-                            </span>
-                        )}
-                    </span>
-                </Fade>
-
-                <div data-component="Board" {...style.attrs(styles.body)}>
-                    {/* change the app itself, or ask its vendor to */}
-                    <Fade
-                        isOpen={properties.isOpenAt(1)}
-                        component={properties.isOpenAt(1) ? "ForgeChange" : "FeatureRequest"}
-                    >
-                        {properties.isOpenAt(1) ? (
-                            <p {...style.attrs(styles.change)}>
-                                <Glyph size={15} name="check" />
-                                <code {...style.attrs(styles.code)}>tasks/board.tsx</code>
-                                <span {...style.attrs(styles.added)}>+38</span>
-                                <span {...style.attrs(styles.quiet)}>Merged by you in Forge</span>
-                                <span {...style.attrs(styles.pushed, styles.button)}>
-                                    View change
-                                </span>
-                            </p>
-                        ) : (
-                            <p {...style.attrs(styles.change)}>
-                                <Favicon icon="linear" tint="#5e6ad2" />
-                                <b {...style.attrs(styles.strong)}>Custom dashboards</b>
-                                <span {...style.attrs(styles.quiet, styles.wide)}>
-                                    Feature request · 4,212 votes
-                                </span>
-                                <Issue>Under review</Issue>
-                                <span {...style.attrs(styles.button)}>▲ Upvoted</span>
-                            </p>
-                        )}
-                    </Fade>
-
-                    {/* read every column from where it lives */}
-                    <div {...style.attrs(styles.columns)}>
-                        <Column
-                            service={2}
-                            name="Open tasks"
-                            isOwned={properties.isOpenAt(2)}
-                            owned={{ mark: { tile: "tasks" }, count: "5" }}
-                            rented={{
-                                mark: { icon: "linear", tint: "#5e6ad2" },
-                                issue: "Copied hourly",
-                            }}
-                        >
-                            {tasks.map(([id, title, due]) => (
-                                <p data-component="TaskRow" {...style.attrs(styles.row)}>
-                                    <span {...style.attrs(styles.id)}>{id}</span>
-                                    <span {...style.attrs(styles.rowTitle)}>{title}</span>
-                                    <span {...style.attrs(styles.quiet)}>{due}</span>
-                                </p>
-                            ))}
-                        </Column>
-                        <Column
-                            service={2}
-                            name="Signups"
-                            isOwned={properties.isOpenAt(2)}
-                            owned={{
-                                mark: { icon: "table", tint: "#4f8a5b" },
-                                count: "1,840 · +12 today",
-                            }}
-                            rented={{
-                                mark: { icon: "replit", tint: "#f26207" },
-                                issue: "Not connected",
-                            }}
-                        >
-                            {properties.isOpenAt(2) ? (
-                                signups.map(([email, joined]) => (
-                                    <p data-component="SignupRow" {...style.attrs(styles.row)}>
-                                        <span {...style.attrs(styles.rowTitle)}>{email}</span>
-                                        <span {...style.attrs(styles.quiet)}>{joined}</span>
-                                    </p>
-                                ))
-                            ) : (
-                                <Missing>Paste the waitlist export</Missing>
-                            )}
-                        </Column>
-                        <Column
-                            service={2}
-                            name="Demos booked"
-                            isOwned={properties.isOpenAt(2)}
-                            owned={{ mark: { tile: "calendar" }, count: "5" }}
-                            rented={{
-                                mark: { icon: "calendly", tint: "#006bff" },
-                                issue: "Not connected",
-                            }}
-                        >
-                            {properties.isOpenAt(2) ? (
-                                demos.map(([time, person]) => (
-                                    <p data-component="DemoRow" {...style.attrs(styles.row)}>
-                                        <span {...style.attrs(styles.rowTitle)}>{person}</span>
-                                        <span {...style.attrs(styles.quiet)}>{time}</span>
-                                    </p>
-                                ))
-                            ) : (
-                                <Missing>Paste the bookings export</Missing>
-                            )}
-                        </Column>
-                    </div>
-
-                    {/* share the board through your space, or by link */}
-                    <Fade
-                        isOpen={properties.isOpenAt(4)}
-                        component={properties.isOpenAt(4) ? "SpaceAccess" : "PublicLink"}
-                    >
-                        {properties.isOpenAt(4) ? (
-                            <p {...style.attrs(styles.access)}>
-                                <Glyph size={15} name="person" />
-                                Shared with your team · your agent can read it
-                            </p>
-                        ) : (
-                            <p {...style.attrs(styles.access)}>
-                                <Glyph size={15} name="link" />
-                                Shared by link
-                                <Issue>Anyone with the link</Issue>
-                            </p>
-                        )}
-                    </Fade>
-                </div>
-            </div>
+                {properties.isOpenAt(1) ? <TasksBoard /> : <TrackerBoard />}
+            </Fade>
         </div>
     );
 }
@@ -558,19 +512,6 @@ const styles = style.create({
         fontWeight: 600,
         whiteSpace: "nowrap",
     },
-    end: {
-        alignItems: "center",
-        display: "flex",
-        gap: "0.5rem",
-        marginLeft: "auto",
-    },
-    live: {
-        alignItems: "center",
-        color: color.mutedForeground,
-        display: "flex",
-        gap: "0.375rem",
-        whiteSpace: "nowrap",
-    },
     dot: {
         backgroundColor: palette.lightGreen,
         borderRadius: "50%",
@@ -621,6 +562,141 @@ const styles = style.create({
         paddingInline: "0.625rem",
         whiteSpace: "nowrap",
     },
+    tabs: {
+        display: "flex",
+        gap: "0.25rem",
+        marginLeft: "0.75rem",
+    },
+    tab: {
+        alignItems: "center",
+        borderRadius: "6px",
+        color: color.mutedForeground,
+        display: "inline-flex",
+        fontSize: "0.75rem",
+        gap: "0.375rem",
+        paddingBlock: "0.25rem",
+        paddingInline: "0.5rem",
+    },
+    tabOn: {
+        backgroundColor: color.muted,
+        color: color.foreground,
+        fontWeight: 600,
+    },
+    new: {
+        backgroundColor: `color-mix(in srgb, ${palette.signal} 16%, transparent)`,
+        borderRadius: "4px",
+        color: palette.ember,
+        fontSize: "0.625rem",
+        fontWeight: 700,
+        paddingInline: "0.25rem",
+    },
+    trackerBody: {
+        gridTemplateRows: "minmax(0, 1fr)",
+        position: "relative",
+    },
+    filterButton: {
+        alignItems: "center",
+        borderColor: color.border,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "inline-flex",
+        fontSize: "0.75rem",
+        gap: "0.375rem",
+        paddingBlock: "0.1875rem",
+        paddingInline: "0.5rem",
+    },
+    lanes: {
+        display: "grid",
+        gap: "0.75rem",
+        gridTemplateColumns: { default: "repeat(3, minmax(0, 1fr))", [PHONE]: "minmax(0, 1fr)" },
+        minHeight: 0,
+        paddingInlineEnd: { default: "15rem", [PHONE]: 0 },
+    },
+    lane: {
+        alignContent: "start",
+        backgroundColor: color.muted,
+        borderRadius: "8px",
+        display: "grid",
+        gap: "0.5rem",
+        padding: "0.625rem",
+    },
+    laneHead: {
+        alignItems: "center",
+        display: "flex",
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        gap: "0.5rem",
+        margin: 0,
+    },
+    card: {
+        backgroundColor: color.card,
+        borderRadius: "6px",
+        boxShadow: `0 0 0 1px ${color.border}`,
+        display: "grid",
+        gap: "0.25rem",
+        margin: 0,
+        paddingBlock: "0.5rem",
+        paddingInline: "0.625rem",
+    },
+    cardTitle: {
+        fontSize: "0.8125rem",
+        fontWeight: 600,
+    },
+    menu: {
+        backgroundColor: color.card,
+        borderRadius: "8px",
+        boxShadow: `0 0 0 1px ${color.border}, 0 12px 28px color-mix(in srgb, ${palette.ink} 18%, transparent)`,
+        display: "grid",
+        fontSize: "0.8125rem",
+        paddingBlock: "0.375rem",
+        position: "absolute",
+        right: "1.5rem",
+        top: "0.5rem",
+        width: { default: "14rem", [PHONE]: "calc(100% - 2rem)" },
+    },
+    menuSearch: {
+        alignItems: "center",
+        borderBottomColor: color.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: stroke.border,
+        display: "flex",
+        gap: "0.5rem",
+        margin: 0,
+        paddingBottom: "0.5rem",
+        paddingTop: "0.375rem",
+        paddingInline: "0.75rem",
+    },
+    caret: {
+        backgroundColor: color.foreground,
+        height: "1em",
+        marginLeft: "-0.375rem",
+        width: "1.5px",
+    },
+    menuEmpty: {
+        color: color.mutedForeground,
+        margin: 0,
+        paddingBlock: "0.625rem",
+        paddingInline: "0.75rem",
+    },
+    menuHead: {
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
+        color: color.mutedForeground,
+        fontSize: "0.6875rem",
+        margin: 0,
+        paddingBottom: "0.25rem",
+        paddingTop: "0.5rem",
+        paddingInline: "0.75rem",
+    },
+    menuItem: {
+        color: color.mutedForeground,
+        margin: 0,
+        opacity: 0.7,
+        paddingBlock: "0.25rem",
+        paddingInline: "0.75rem",
+    },
     columns: {
         alignItems: "stretch",
         display: "grid",
@@ -634,7 +710,7 @@ const styles = style.create({
     },
     panel: {
         scrollSnapAlign: "start",
-        alignContent: "start",
+        gridTemplateRows: "auto minmax(0, 1fr) auto",
         borderColor: color.border,
         borderRadius: "8px",
         borderStyle: "solid",
@@ -663,26 +739,31 @@ const styles = style.create({
         fontWeight: 500,
         marginLeft: "auto",
     },
-    issue: {
-        alignItems: "center",
-        color: palette.rust,
-        display: "inline-flex",
-        fontSize: "0.72rem",
-        fontWeight: 600,
-        gap: "0.375rem",
-        marginLeft: "auto",
-        whiteSpace: "nowrap",
-        "::before": {
-            backgroundColor: palette.gold,
-            borderRadius: "50%",
-            content: "''",
-            height: "0.375rem",
-            width: "0.375rem",
-        },
-    },
     stack: {
+        alignContent: "start",
         display: "grid",
         minWidth: 0,
+    },
+    source: {
+        alignItems: "center",
+        backgroundColor: color.muted,
+        borderTopColor: color.border,
+        borderTopStyle: "dashed",
+        borderTopWidth: stroke.border,
+        color: color.mutedForeground,
+        display: "flex",
+        flexWrap: "wrap",
+        fontSize: "0.6875rem",
+        gap: "0.375rem",
+        margin: 0,
+        minHeight: "2rem",
+        paddingBlock: "0.25rem",
+        paddingInline: "0.75rem",
+    },
+    sourceType: {
+        color: color.foreground,
+        fontSize: "0.6875rem",
+        marginLeft: 0,
     },
     row: {
         alignItems: "center",
@@ -695,12 +776,6 @@ const styles = style.create({
         minHeight: "2.375rem",
         minWidth: 0,
         paddingInline: "0.75rem",
-    },
-    missing: {
-        color: color.mutedForeground,
-        fontStyle: "italic",
-        justifyContent: "center",
-        minHeight: "9.5rem",
     },
     id: {
         color: color.mutedForeground,

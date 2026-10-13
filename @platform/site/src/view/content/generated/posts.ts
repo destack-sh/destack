@@ -182,7 +182,7 @@ export const posts = [
             },
             alt: "Illustration of a Cambrian ecosystem, with Kylinxia, trilobites, worms, and colourful sponges beneath deep blue water.",
         },
-        date: "2026-10-14",
+        date: "2026-10-19",
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",
         slug: "introducing-destack",

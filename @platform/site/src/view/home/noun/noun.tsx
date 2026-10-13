@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color } from "@destack/theme/tokens.stylex";
 import { createSignal } from "@destack/view";
 
@@ -8,13 +9,11 @@ import { Fade } from "../figure/fade";
 import { Label } from "../entry/label";
 import { Bill } from "../figure/bill";
 import { accentOf } from "../figure/item";
-import { Favicon } from "../figure/glyph";
-import { Tile } from "../figure/tile";
-import { PagesApp, services } from "./pages";
+import { XRay } from "./xray";
+import { services } from "./service";
 import { createSteps, type Stagger } from "../figure/stagger";
 import { workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
-import { Window } from "../figure/window";
 import { screen } from "../../layout/screen.stylex";
 import { createReducedMotion } from "@destack/view/motion";
 
@@ -34,20 +33,23 @@ const noun: Form = {
     },
 };
 
-/** Show the noun at work: a docs app taken apart into the ten services it runs on, rented one by one or built into one engine. */
+/** Show the noun at work: a docs app on ten rented services, or built on one engine. */
 export function Noun(properties: { isOpen: boolean }) {
     // follow the motion the section shows
     const [section, setSection] = createSignal<HTMLElement>();
     const isReduced = createReducedMotion(section);
 
-    // switch the app's parts and the ledger's rows in service order before the rest
+    // switch each service and its ledger row in order, after the space itself
     const steps = createSteps(() => properties.isOpen, services.length + 1, stepTime, isReduced);
     const isOpenAt = steps.isOpenAt;
+
+    // hold the service pointed at, in the diagram or the bill
+    const [lit, setLit] = createSignal<number | undefined>(undefined);
 
     // count the services still rented, which a row's switch changes one at a time
     const rented = () => services.filter((_, index) => !isOpenAt(index + 1)).length;
 
-    // destack or rent one service alone, flipping its parts in as the stack switch does
+    // destack or rent one service alone, flipping it in as the stack switch does
     const toggle = (row: number) => {
         document.documentElement.dataset["switched"] = "";
         steps.toggle(row);
@@ -68,33 +70,20 @@ export function Noun(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={3}
                 isOpen={properties.isOpen}
-                stacked="one app, glued to ten vendors"
-                destacked="one app, built on one engine"
+                stacked="your apps, glued to ten vendors"
+                destacked="your apps, built on one engine"
             >
-                <StackSwitch isOpen={properties.isOpen} />
+                <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>{isOpenAt(0) ? "Pages, a docs app" : "Notion, a docs app"}</Label>
-                <Window
-                    title={
-                        <span {...style.attrs(styles.title)}>
-                            {isOpenAt(0) ? (
-                                <>
-                                    <Tile name="pages" />
-                                    Pages
-                                </>
-                            ) : (
-                                <>
-                                    <Favicon icon="notion" tint="#191919" />
-                                    Notion
-                                </>
-                            )}
-                        </span>
-                    }
-                    xstyle={styles.window}
-                >
-                    <PagesApp isOpenAt={isOpenAt} />
-                </Window>
+                <Label>
+                    {isOpenAt(0)
+                        ? "Your apps, on one engine"
+                        : "Your own apps, each on ten vendors"}
+                </Label>
+                <div {...style.attrs(styles.window)}>
+                    <XRay isOpenAt={isOpenAt} lit={lit()} onLight={setLit} />
+                </div>
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <div {...style.attrs(styles.keyHead)}>
@@ -110,6 +99,7 @@ export function Noun(properties: { isOpen: boolean }) {
                     }))}
                     label={labelOf(isOpenAt)}
                     isOpenAt={isOpenAt}
+                    lighting={{ lit: lit(), onLight: setLit, onChoose: setLit }}
                     onToggle={toggle}
                 />
             </div>
@@ -122,7 +112,7 @@ function keyOf(rented: number) {
     if (rented === services.length) {
         return "Ten vendors, glued together";
     } else if (rented === 0) {
-        return "One unified software engine";
+        return "One engine, one context";
     }
 
     return "Some vendors, some engine";
@@ -160,12 +150,6 @@ const styles = style.create({
     },
     window: {
         minHeight: 0,
-        height: { default: null, [screen.belowDesktop]: "30rem" },
-    },
-    title: {
-        alignItems: "center",
-        display: "inline-flex",
-        fontWeight: 600,
-        gap: "0.375rem",
+        height: { default: "100%", [screen.belowDesktop]: "34rem", [media.maxMd]: "36rem" },
     },
 });

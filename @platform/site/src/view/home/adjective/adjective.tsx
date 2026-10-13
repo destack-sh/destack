@@ -2,7 +2,7 @@ import * as style from "@destack/style";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { assistants, LaunchBoard, services } from "./board";
+import { assistants, LaunchBoard } from "./board";
 import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
 import { Label } from "../entry/label";
@@ -27,25 +27,20 @@ const destackable: Form = {
     pronunciation: "/diːˈstakəbl/",
     partOfSpeech: "adjective",
     sense: {
-        definition: "standardised, integrated and malleable",
-        highlight: ["standardised", "malleable"],
-        sentence: "Every app is made from the same modern, standardised, integrated stack.",
+        definition: "standardised, connected, open, and malleable",
+        highlight: ["standardised", "connected"],
+        sentence: "Every app is built the same way, and sees everything you keep.",
     },
 };
 
-/** Show the adjective at work: a launch board asked of your agent, glued together from rented apps, or changed into your own Tasks app and wired to the rest of your space. */
+/** Show the adjective at work. */
 export function Adjective(properties: { isOpen: boolean }) {
     // follow the motion the section shows
     const [section, setSection] = createSignal<HTMLElement>();
     const isReduced = createReducedMotion(section);
 
-    // switch the chat first and then the app's parts in service order
-    const { isOpenAt } = createSteps(
-        () => properties.isOpen,
-        services.length + 1,
-        stepTime,
-        isReduced,
-    );
+    // switch the chat first and then the board beside it
+    const { isOpenAt } = createSteps(() => properties.isOpen, 2, stepTime, isReduced);
 
     // turn between the rented assistants while stacked, held while motion is reduced
     const [turn, setTurn] = createSignal(0);
@@ -71,23 +66,23 @@ export function Adjective(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={4}
                 isOpen={properties.isOpen}
-                stacked="an app only its vendor can change"
-                destacked="an app you change yourself, wired into everything"
+                stacked="an app that only sees its own data"
+                destacked="an app that sees all of yours"
             >
-                <StackSwitch isOpen={properties.isOpen} />
+                <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
                     {properties.isOpen
-                        ? "A launch board, in your own Tasks"
-                        : "A launch board, on their roadmap"}
+                        ? "A launch board, from all your apps"
+                        : "A launch board, from one app's data"}
                 </Label>
                 <Window
                     title={
                         <span {...style.attrs(styles.title)}>
                             {isOpenAt(0) ? (
                                 <>
-                                    <Tile name="chat" />
+                                    <Tile icon="chat" size="small" />
                                     Chat
                                 </>
                             ) : (

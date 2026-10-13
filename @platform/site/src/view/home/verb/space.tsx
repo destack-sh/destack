@@ -4,7 +4,7 @@ import key from "@destack/icon/phosphor/key";
 import { present } from "@destack/schema";
 import { createEffect, createSignal, onSettled } from "@destack/view";
 import * as style from "@destack/style";
-import { color, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, stroke } from "@destack/theme/tokens.stylex";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
@@ -12,6 +12,8 @@ import type { Entry } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "./apps";
 import { AppRail, appStyles, appText } from "../figure/app";
+import { browserStyles } from "../figure/browser";
+import { AgentAvatar } from "../figure/agent";
 import { rentedPageOf } from "./vendor";
 import { palette } from "../../palette.stylex";
 import { media } from "@destack/style/media.stylex";
@@ -26,7 +28,7 @@ export type Viewer = "Me" | "Agent" | "Public";
 /** Everyone who can look at your space, in the order the switcher offers them. */
 export const viewers: readonly Viewer[] = ["Me", "Agent", "Public"];
 
-/** What you keep, numbered as the browser marks them: rented as a site each, or held in your own space. */
+/** What you keep, numbered as the browser marks them. */
 export const holdings: readonly Entry[] = [
     {
         stacked: {
@@ -38,7 +40,7 @@ export const holdings: readonly Entry[] = [
         },
         destacked: {
             label: "Docs",
-            mark: { icon: "pages", tint: "#3d6fb0" },
+            mark: { app: "pages" },
             name: "Pages",
             note: "only the people you pick can read it",
             price: { kind: "included" },
@@ -54,7 +56,7 @@ export const holdings: readonly Entry[] = [
         },
         destacked: {
             label: "Tasks",
-            mark: { icon: "tasks", tint: "#c64a17" },
+            mark: { app: "tasks" },
             name: "Tasks",
             note: "a free seat for every viewer",
             price: { kind: "included" },
@@ -70,7 +72,7 @@ export const holdings: readonly Entry[] = [
         },
         destacked: {
             label: "Chat",
-            mark: { icon: "chat", tint: "#4f8a5b" },
+            mark: { app: "chat" },
             name: "Chat",
             note: "one sign-in for every channel",
             price: { kind: "included" },
@@ -86,7 +88,7 @@ export const holdings: readonly Entry[] = [
         },
         destacked: {
             label: "Code",
-            mark: { icon: "source", tint: "#c64a17" },
+            mark: { app: "source" },
             name: "Forge",
             note: "code kept beside the apps",
             price: { kind: "included" },
@@ -102,7 +104,7 @@ export const holdings: readonly Entry[] = [
         },
         destacked: {
             label: "Website",
-            mark: { icon: "pages", tint: "#3d6fb0" },
+            mark: { app: "pages" },
             name: "Pages",
             note: "edited like any other page",
             price: { kind: "included" },
@@ -118,7 +120,7 @@ export const holdings: readonly Entry[] = [
         },
         destacked: {
             label: "Booking",
-            mark: { icon: "calendar", tint: "#c64a17" },
+            mark: { app: "calendar" },
             name: "Calendar",
             note: "free times read live, never copied",
             price: { kind: "included" },
@@ -134,7 +136,7 @@ export const holdings: readonly Entry[] = [
         },
         destacked: {
             label: "Waitlist",
-            mark: { icon: "table", tint: "#4f8a5b" },
+            mark: { app: "table" },
             name: "Waitlist",
             note: "signups in the tables you already have",
             price: { kind: "included" },
@@ -150,7 +152,7 @@ export const holdings: readonly Entry[] = [
         },
         destacked: {
             label: "Mail",
-            mark: { icon: "mail", tint: "#3d6fb0" },
+            mark: { app: "mail" },
             name: "Mail",
             note: "the waitlist mailed from its table",
             price: { kind: "included" },
@@ -158,7 +160,7 @@ export const holdings: readonly Entry[] = [
     },
 ];
 
-/** One page the browser shows: its ledger row, the rail row of the app that opens it, its path in your space, who sees it once owned, and the rented site's address. */
+/** One page the browser shows. */
 export type Page = {
     row: number;
     app: number;
@@ -215,7 +217,7 @@ export const pages: readonly Page[] = [
     { row: 8, app: 8, path: "/mail", viewers: ["Me", "Agent"], site: "mail.google.com/mail/u/0" },
 ];
 
-/** The sites you rent, as the browser's tabs while rented: the ledger row, the icon and its tint, and the tab's title. */
+/** The sites you rent, as the browser's tabs while rented. */
 const tabs: readonly (readonly [row: number, icon: string, tint: string, title: string])[] = [
     [1, "notion", "#191919", "Destack launch"],
     [2, "linear", "#5e6ad2", "Destack › All issues"],
@@ -227,7 +229,7 @@ const tabs: readonly (readonly [row: number, icon: string, tint: string, title: 
     [8, "gmail", "#ea4335", "Inbox (2) - Gmail"],
 ];
 
-/** The apps of your own space on its rail: the ledger row, the name, the icon and its tint, and who sees it. */
+/** The apps of your own space on its rail. */
 const sections: readonly (readonly [
     row: number,
     name: string,
@@ -244,13 +246,7 @@ const sections: readonly (readonly [
     [8, "Mail", "mail", "#3d6fb0", ["Me", "Agent"]],
 ];
 
-/**
- * Draw your corner of the cloud in a browser, one page at a time.
- *
- * While rented, every page is a different site in its own tab, with its own look, login and sharing.
- * Once owned, every page is an app of one space at your own handle, shown to whoever looks as far as access allows.
- * Every page lays out at the width of a real window and shows at four fifths of its size.
- */
+/** Draw your space in the cloud in a browser, one page at a time. */
 export function SpaceBrowser(properties: {
     isOpenAt: Stagger;
     page: Page;
@@ -271,13 +267,16 @@ export function SpaceBrowser(properties: {
     };
 
     return (
-        <div data-component="Browser" {...style.attrs(styles.browser)}>
-            <div data-component="TabStrip" {...style.attrs(styles.strip)}>
-                <span aria-hidden="true" {...style.attrs(styles.lights)} />
+        <div data-component="Browser" {...style.attrs(browserStyles.browser)}>
+            <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
+                <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                 {properties.isOpenAt(1) ? (
-                    <span data-component="Tab" {...style.attrs(styles.tab, styles.tabOn)}>
+                    <span
+                        data-component="Tab"
+                        {...style.attrs(browserStyles.tab, browserStyles.tabOn)}
+                    >
                         <Favicon icon="user" tint="#2f7d8c" />
-                        <span {...style.attrs(styles.tabTitle)}>Florian</span>
+                        <span {...style.attrs(browserStyles.tabTitle)}>Florian</span>
                         <Glyph name="close" size={12} />
                     </span>
                 ) : (
@@ -287,16 +286,16 @@ export function SpaceBrowser(properties: {
                             title={title}
                             onClick={() => properties.onChoose(row)}
                             {...style.attrs(
-                                styles.tab,
-                                styles.tabEven,
-                                row === properties.page.row && styles.tabOn,
+                                browserStyles.tab,
+                                browserStyles.tabEven,
+                                row === properties.page.row && browserStyles.tabOn,
                             )}
                         >
                             <Favicon icon={icon} tint={tint} />
                             <span
                                 {...style.attrs(
-                                    styles.tabTitle,
-                                    row !== properties.page.row && styles.tabTitleHidden,
+                                    browserStyles.tabTitle,
+                                    row !== properties.page.row && browserStyles.tabTitleHidden,
                                 )}
                             >
                                 {title}
@@ -304,29 +303,29 @@ export function SpaceBrowser(properties: {
                         </span>
                     ))
                 )}
-                <span {...style.attrs(styles.newTab)}>
+                <span {...style.attrs(browserStyles.newTab)}>
                     <Glyph name="plus" />
                 </span>
             </div>
-            <div data-component="Toolbar" {...style.attrs(styles.toolbar)}>
-                <span {...style.attrs(styles.tools, styles.desktopOnly)}>
+            <div data-component="Toolbar" {...style.attrs(browserStyles.toolbar)}>
+                <span {...style.attrs(browserStyles.tools, browserStyles.desktopOnly)}>
                     <Glyph name="back" />
                     <Glyph name="forward" />
                     <Glyph name="reload" />
                 </span>
-                <span data-component="AddressBar" {...style.attrs(styles.omnibox)}>
+                <span data-component="AddressBar" {...style.attrs(browserStyles.omnibox)}>
                     <Glyph name="lock" size={12} />
                     {isOpen() ? (
-                        <span {...style.attrs(styles.url)}>
-                            <span {...style.attrs(styles.host)}>destack.app</span>
-                            <span {...style.attrs(styles.path)}>
+                        <span {...style.attrs(browserStyles.url)}>
+                            <span {...style.attrs(browserStyles.host)}>destack.app</span>
+                            <span {...style.attrs(browserStyles.path)}>
                                 /@florian{properties.page.path === "/" ? "" : properties.page.path}
                             </span>
                         </span>
                     ) : (
-                        <span {...style.attrs(styles.url)}>
-                            <span {...style.attrs(styles.host)}>{host()}</span>
-                            <span {...style.attrs(styles.path)}>
+                        <span {...style.attrs(browserStyles.url)}>
+                            <span {...style.attrs(browserStyles.host)}>{host()}</span>
+                            <span {...style.attrs(browserStyles.path)}>
                                 {properties.page.site.slice(host().length)}
                             </span>
                         </span>
@@ -340,15 +339,17 @@ export function SpaceBrowser(properties: {
                     aria-label="Show tabs"
                     aria-expanded={isOverview() ? "true" : "false"}
                     onClick={() => setIsOverview((is) => !is)}
-                    {...style.attrs(styles.tabCount)}
+                    {...style.attrs(browserStyles.tabCount)}
                 >
                     {isOpen() ? 1 : tabs.length}
                 </button>
-                <span {...style.attrs(styles.tools)}>
-                    <span {...style.attrs(styles.desktopOnly)}>
+                <span {...style.attrs(browserStyles.tools)}>
+                    <span {...style.attrs(browserStyles.desktopOnly)}>
                         <Glyph name="puzzle" />
                     </span>
-                    <span {...style.attrs(styles.profile, styles.desktopOnly)}>F</span>
+                    <span {...style.attrs(browserStyles.profile, browserStyles.desktopOnly)}>
+                        F
+                    </span>
                     <Glyph name="menu" />
                 </span>
             </div>
@@ -402,7 +403,7 @@ export function SpaceBrowser(properties: {
             </div>
             <Fade
                 isOpen={isOpen()}
-                xstyle={styles.viewport}
+                xstyle={browserStyles.viewport}
                 isLarge
                 component={isOpen() ? "SitePage" : "RentedPage"}
             >
@@ -464,7 +465,7 @@ function openApp(page: Page): string {
     return sections.find(([row]) => row === page.app)?.[2] ?? "pages";
 }
 
-/** Draw the status bar every app of your space shares: where the page lives, who can see it, and the preview of who is looking. */
+/** Draw the status bar every app of your space shares. */
 function SpaceStatus(properties: {
     page: Page;
     viewer: Viewer;
@@ -519,29 +520,29 @@ function audienceOf(page: Page): string {
 }
 
 /** Mark where a row's faces sit, which the travelling presence moves to. */
-export function PresenceSlot(properties: { row: number }) {
-    return <span data-presence-row={String(properties.row)} {...style.attrs(styles.slot)} />;
+export function PresenceAnchor(properties: { row: number }) {
+    return <span data-presence-row={String(properties.row)} {...style.attrs(styles.anchor)} />;
 }
 
-/** Draw the people in the page the browser shows, travelling to its row: you, your agent where it may look, and the public. */
+/** Draw the people in the page the browser shows, travelling to its row. */
 export function Presence(properties: { row: number; isShown: boolean }) {
-    // hold the presence and where its row's slot sits within the ledger
+    // hold the presence and where its row's anchor sits within the ledger
     let element: HTMLSpanElement | undefined;
     const [place, setPlace] = createSignal<{ x: number; y: number }>();
     const page = () => present(pages[properties.row - 1], "row page");
 
-    // move to the slot of the row on show, on each turn of the page and as the ledger resizes
+    // move to the anchor of the row on show, on each turn of the page and as the ledger resizes
     const measure = (row: number) => {
-        // find the row's slot, waiting until the presence and its ledger are laid out
+        // find the row's anchor, waiting until the presence and its ledger are laid out
         const host = element?.offsetParent;
-        const slot = host?.querySelector(`[data-presence-row="${String(row)}"]`);
-        if (!element || !host || !slot) {
+        const anchor = host?.querySelector(`[data-presence-row="${String(row)}"]`);
+        if (!element || !host || !anchor) {
             return;
         }
 
-        // set the faces off from the slot's start, centred on its line
+        // set the faces off from the anchor's start, centred on its line
         const bounds = host.getBoundingClientRect();
-        const target = slot.getBoundingClientRect();
+        const target = anchor.getBoundingClientRect();
         setPlace({
             x: target.left - bounds.left,
             y: target.top - bounds.top + (target.height - element.offsetHeight) / 2,
@@ -579,16 +580,18 @@ export function Presence(properties: { row: number; isShown: boolean }) {
                     <span
                         title={viewer === "Me" ? "Florian" : "Agent"}
                         style={{
-                            "background-color": viewer === "Me" ? palette.teal : palette.violet,
+                            "background-color": viewer === "Me" ? palette.teal : undefined,
                         }}
                         {...style.attrs(styles.face)}
                     >
-                        <span
-                            style={{
-                                "mask-image": `url(/diagram/${viewer === "Me" ? "user" : "agent"}.svg)`,
-                            }}
-                            {...style.attrs(styles.faceGlyph)}
-                        />
+                        {viewer === "Me" ? (
+                            <span
+                                style={{ "mask-image": "url(/diagram/user.svg)" }}
+                                {...style.attrs(styles.faceGlyph)}
+                            />
+                        ) : (
+                            <AgentAvatar size="fill" />
+                        )}
                     </span>
                 ),
             )}
@@ -596,7 +599,7 @@ export function Presence(properties: { row: number; isShown: boolean }) {
     );
 }
 
-/** The space styles: the browser in the page's units, and its pages in the pixels of a real window. */
+/** The space styles. */
 const styles = style.create({
     owned: {
         height: "100%",
@@ -631,9 +634,9 @@ const styles = style.create({
         maskSize: "contain",
         width: "0.75rem",
     },
-    slot: {
+    anchor: {
         display: "inline-block",
-        height: "1.5rem",
+        height: "1.25rem",
         width: 0,
     },
     presence: {
@@ -647,122 +650,6 @@ const styles = style.create({
             [media.motionReduce]: "none",
         },
         zIndex: 1,
-    },
-    browser: {
-        backgroundColor: color.card,
-        borderColor: color.border,
-        borderRadius: "10px",
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        boxShadow: shadow.raised,
-        color: color.cardForeground,
-        display: "grid",
-        fontSize: "0.8125rem",
-        gridTemplateColumns: "minmax(0, 1fr)",
-        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [NARROW]: "auto minmax(0, 1fr)" },
-        height: "100%",
-        minHeight: 0,
-        overflow: "hidden",
-    },
-    strip: {
-        alignItems: "stretch",
-        backgroundColor: color.muted,
-        display: { default: "flex", [NARROW]: "none" },
-        gap: "0.125rem",
-        height: "2.5rem",
-        minWidth: 0,
-        paddingInlineStart: "0.875rem",
-        paddingInlineEnd: "0.625rem",
-        paddingTop: "0.375rem",
-    },
-    lights: {
-        alignSelf: "stretch",
-        backgroundImage: `radial-gradient(circle at 6px 50%, ${palette.windowClose} 5.5px, transparent 6px), radial-gradient(circle at 26px 50%, ${palette.windowMinimize} 5.5px, transparent 6px), radial-gradient(circle at 46px 50%, ${palette.windowZoom} 5.5px, transparent 6px)`,
-        backgroundRepeat: "no-repeat",
-        flexShrink: 0,
-        marginRight: "0.875rem",
-        width: "52px",
-    },
-    tab: {
-        cursor: "pointer",
-        alignItems: "center",
-        borderStartStartRadius: "8px",
-        borderStartEndRadius: "8px",
-        borderEndEndRadius: "0",
-        borderEndStartRadius: "0",
-        color: color.mutedForeground,
-        display: "flex",
-        flexShrink: 0,
-        fontSize: "0.72rem",
-        gap: "0.5rem",
-        justifyContent: "center",
-        minWidth: 0,
-        paddingInline: "0.75rem",
-        position: "relative",
-    },
-    tabEven: {
-        flexBasis: 0,
-        flexGrow: 1,
-        flexShrink: 1,
-        justifyContent: "flex-start",
-        maxWidth: "12rem",
-        transition: {
-            default:
-                "flex-grow 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, color 160ms ease",
-            [media.motionReduce]: "none",
-        },
-    },
-    tabOn: {
-        flexGrow: 5,
-        backgroundColor: color.card,
-        color: color.foreground,
-        "::before": {
-            backgroundImage: `radial-gradient(circle at 0 0, transparent 8px, ${color.card} 8.5px)`,
-            bottom: 0,
-            content: "''",
-            height: "8px",
-            left: "-8px",
-            position: "absolute",
-            width: "8px",
-        },
-        "::after": {
-            backgroundImage: `radial-gradient(circle at 100% 0, transparent 8px, ${color.card} 8.5px)`,
-            bottom: 0,
-            content: "''",
-            height: "8px",
-            position: "absolute",
-            right: "-8px",
-            width: "8px",
-        },
-    },
-    tabTitleHidden: {
-        opacity: 0,
-    },
-    tabTitle: {
-        flexGrow: 1,
-        transition: "opacity 160ms ease",
-        minWidth: 0,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
-    newTab: {
-        alignItems: "center",
-        color: color.mutedForeground,
-        display: "flex",
-        flexShrink: 0,
-        paddingInline: "0.5rem",
-    },
-    toolbar: {
-        alignItems: "center",
-        borderBottomColor: color.border,
-        borderBottomStyle: "solid",
-        borderBottomWidth: stroke.border,
-        display: "flex",
-        gap: "0.875rem",
-        height: "2.75rem",
-        minWidth: 0,
-        paddingInline: "0.875rem",
     },
     overview: {
         alignContent: "start",
@@ -839,80 +726,6 @@ const styles = style.create({
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-    },
-    desktopOnly: {
-        display: { default: "inline-flex", [NARROW]: "none" },
-    },
-    path: {
-        display: { default: "inline", [NARROW]: "none" },
-    },
-    tabCount: {
-        alignItems: "center",
-        backgroundColor: "transparent",
-        borderColor: "currentColor",
-        cursor: "pointer",
-        padding: 0,
-        borderRadius: "5px",
-        borderStyle: "solid",
-        borderWidth: "1.5px",
-        color: color.mutedForeground,
-        display: { default: "none", [NARROW]: "inline-flex" },
-        flexShrink: 0,
-        fontSize: "0.6875rem",
-        fontWeight: 700,
-        height: "1.25rem",
-        justifyContent: "center",
-        minWidth: "1.25rem",
-    },
-    tools: {
-        alignItems: "center",
-        color: color.mutedForeground,
-        display: "flex",
-        flexShrink: 0,
-        gap: "0.875rem",
-    },
-    profile: {
-        alignItems: "center",
-        backgroundColor: palette.teal,
-        borderRadius: "50%",
-        color: "white",
-        display: "inline-flex",
-        fontSize: "0.6rem",
-        fontWeight: 700,
-        height: "1.25rem",
-        justifyContent: "center",
-        width: "1.25rem",
-    },
-    omnibox: {
-        alignItems: "center",
-        backgroundColor: color.muted,
-        borderRadius: "999px",
-        color: color.mutedForeground,
-        display: "flex",
-        flexGrow: 1,
-        gap: "0.5rem",
-        height: "1.875rem",
-        minWidth: 0,
-        paddingInline: "0.875rem",
-    },
-    url: {
-        alignItems: "baseline",
-        display: "flex",
-        flexGrow: 1,
-        minWidth: 0,
-        overflow: "hidden",
-        whiteSpace: "nowrap",
-    },
-    host: {
-        color: color.foreground,
-    },
-    viewport: {
-        gridColumn: "1 / -1",
-        gridRow: { default: "3", [NARROW]: "2" },
-        maskImage: "linear-gradient(to bottom, black calc(100% - 1rem), transparent)",
-        minHeight: 0,
-        overflow: "clip",
-        position: "relative",
     },
     window: {
         height: "125%",

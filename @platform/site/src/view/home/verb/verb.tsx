@@ -11,7 +11,7 @@ import { Fade } from "../figure/fade";
 import { Label } from "../entry/label";
 import { Bill } from "../figure/bill";
 import { accentOf, type Item, marksOf } from "../figure/item";
-import { holdings, pages, Presence, PresenceSlot, SpaceBrowser, type Viewer } from "./space";
+import { holdings, pages, Presence, PresenceAnchor, SpaceBrowser, type Viewer } from "./space";
 import { createSteps } from "../figure/stagger";
 import { workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
@@ -37,7 +37,7 @@ const verb: Form = {
     sense: {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
-        sentence: "Own your apps and agents in one unified personal software platform.",
+        sentence: "Own your apps and agents on one personal software platform.",
     },
 };
 
@@ -48,7 +48,7 @@ function tintOf(item: Item): string {
     return mark !== undefined && "tint" in mark ? mark.tint : color.mutedForeground;
 }
 
-/** Open the page with the verb, illustrated by your corner of the cloud: spread over rented sites, or held in one space at your own address. */
+/** Open the page with the verb, illustrated by your space in the cloud. */
 export function Verb(properties: { isOpen: boolean }) {
     // hold the holding pointed at, the one the browser settles on a moment later, and the one chosen
     const [lit, setLit] = createSignal<number | undefined>(undefined);
@@ -136,15 +136,15 @@ export function Verb(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="eight siloed apps, eight separate rented stacks"
-                destacked="eight integrated apps, one owned space"
+                stacked="eight apps, eight rented stacks"
+                destacked="eight apps, one owned space"
             >
-                <StackSwitch isOpen={properties.isOpen} />
+                <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
                     {isOpenAt(0)
-                        ? "Your own corner of the cloud"
+                        ? "Your space, and your agent sees all of it"
                         : "Eight rented apps, none of them truly yours"}
                 </Label>
                 <SpaceBrowser
@@ -170,7 +170,7 @@ export function Verb(properties: { isOpen: boolean }) {
                     label={isOpenAt(1) ? "1 space" : "8 sites, 8 invoices"}
                     lighting={lighting}
                     isOpenAt={isOpenAt}
-                    badgeOf={(row) => <PresenceSlot row={row} />}
+                    badgeOf={(row) => <PresenceAnchor row={row} />}
                 />
                 <Presence row={page().row} isShown={isOpenAt(1)} />
             </div>

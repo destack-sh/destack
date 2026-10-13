@@ -2008,19 +2008,19 @@ const styles = style.create({
     notionCover: {
         backgroundImage: `linear-gradient(120deg, ${notion.paper} 0%, ${notion.tan} 50%, ${notion.clay} 100%)`,
         display: "block",
-        height: "170px",
+        height: { default: "170px", [NARROW]: "96px" },
     },
     notionBody: {
         display: "grid",
-        paddingInline: "72px",
+        paddingInline: { default: "72px", [NARROW]: "20px" },
     },
     notionIcon: {
-        fontSize: "78px",
+        fontSize: { default: "78px", [NARROW]: "56px" },
         lineHeight: 1,
         marginTop: "-40px",
     },
     notionTitle: {
-        fontSize: "40px",
+        fontSize: { default: "40px", [NARROW]: "30px" },
         fontWeight: 700,
         lineHeight: 1.2,
         marginBottom: "12px",

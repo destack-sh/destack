@@ -7,13 +7,7 @@ export type Stagger = (step: number) => boolean;
 /** A figure's stack state by step: whether each step is open, and how to switch one step alone. */
 type Steps = { isOpenAt: Stagger; toggle: (step: number) => void };
 
-/**
- * Follow the stack's state step by step, so a figure switches its parts in the order of their numbers.
- *
- * Step zero switches at once and every later step one interval after the one before it, up to the last.
- * Any step also switches alone on request, until the stack switches again.
- * With reduced motion, every step switches at once.
- */
+/** Follow the stack's state step by step. */
 export function createSteps(
     isOpen: () => boolean,
     last: number,

@@ -2,10 +2,15 @@ import { color } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 
 import type { Price, Workload } from "./price";
+import { Tile } from "./tile";
 import { palette } from "../../palette.stylex";
 
-/** What marks an item: a vendor's logo under `/logos`, an icon under `/diagram` on a tinted tile, or an icon's empty outline where nothing does the job yet. */
-export type ItemMark = { logo: string } | { icon: string; tint: string } | { placeholder: string };
+/** What marks an item: a vendor's logo or icon, an app of your space, or an outline. */
+export type ItemMark =
+    | { logo: string }
+    | { icon: string; tint: string }
+    | { app: string }
+    | { placeholder: string };
 
 /** One item of a bill: a label for its job, its mark and name, a note, and its price. */
 export type Item = {
@@ -24,17 +29,17 @@ export type Item = {
 /** One row of a bill in both states of the stack. */
 export type Entry = { stacked: Item; destacked: Item };
 
-/** One line of a bill: its row in both states, the work its job takes, and the tint it wears while rented. */
+/** One line of a bill. */
 export type Line = { entry: Entry; workload: Workload; tint: string };
 
-/** How a bill's lines light together with the figure beside it: the lit number, how to light one while pointing, and how to choose one by pressing. */
+/** How a bill's lines light together with the figure beside it. */
 export type Lighting = {
     lit: number | undefined;
     onLight: (number: number | undefined) => void;
     onChoose: (number: number | undefined) => void;
 };
 
-/** The colour a vendor's block wears in a bill, for vendors whose mark is black or a logo without a tint. */
+/** The colour a vendor's block wears in a bill, for vendors whose mark is black or a logo. */
 const accents: Readonly<Record<string, string>> = {
     Notion: "#9f6b53",
     GitHub: "#2da44e",
@@ -51,6 +56,7 @@ const accents: Readonly<Record<string, string>> = {
     PostHog: "#f54e00",
     Vercel: "#64748b",
     ChatGPT: "#10a37f",
+    Grok: "#475569",
 };
 
 /** Return the colour a vendor's block wears: its accent where it has one, or its mark's tint. */
@@ -60,7 +66,9 @@ export function accentOf(vendor: string, tint: string): string {
 
 /** Return an item's marks as a list, one mark or several. */
 export function marksOf(mark: ItemMark | readonly ItemMark[]): readonly ItemMark[] {
-    return "logo" in mark || "icon" in mark || "placeholder" in mark ? [mark] : mark;
+    return "logo" in mark || "icon" in mark || "app" in mark || "placeholder" in mark
+        ? [mark]
+        : mark;
 }
 
 /** Report whether every mark of an item is an empty outline, so nothing does its job yet. */
@@ -68,13 +76,15 @@ export function isEmptyOf(mark: ItemMark | readonly ItemMark[]) {
     return marksOf(mark).every((each) => "placeholder" in each);
 }
 
-/** Draw an item's mark: a vendor's logo, an icon on its tinted tile, or an icon's empty outline. */
+/** Draw an item's mark: a vendor's logo or icon, an app's brand tile, or an outline. */
 export function ItemBadge(properties: { mark: ItemMark }) {
     // choose the logo, the outline or the tile inside an expression, so the badge follows its mark as the stack switches
     return (
         <>
             {"logo" in properties.mark ? (
                 <img alt="" src={`/logos/${properties.mark.logo}`} {...style.attrs(styles.logo)} />
+            ) : "app" in properties.mark ? (
+                <Tile icon={properties.mark.app} size="large" />
             ) : "placeholder" in properties.mark ? (
                 <span {...style.attrs(styles.tile, styles.placeholder)}>
                     <span

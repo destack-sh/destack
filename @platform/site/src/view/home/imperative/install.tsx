@@ -6,8 +6,8 @@ import type { JSX } from "@destack/view";
 
 import { installCommand } from "../../content/site";
 import { lattice } from "../../layout/lattice.stylex";
-import { systemOf, systems } from "../participle/download/catalog";
-import { createDownloads } from "../participle/download/download";
+import { systemOf, systems } from "./download/catalog";
+import { createDownloads } from "./download/download";
 import { Glyph } from "../figure/glyph";
 import { screen } from "../../layout/screen.stylex";
 import { createCopy } from "../../layout/copy";
@@ -27,7 +27,7 @@ function Key(properties: { isPrimary?: boolean; children: JSX.Element }) {
     );
 }
 
-/** Download the published build for this machine, or open the setup guide when none fits, from the whole field. */
+/** Download the published build for this machine, or open the setup guide when none fits. */
 function DownloadField() {
     // hold the build chosen for this machine
     const { selected } = createDownloads();
@@ -107,7 +107,7 @@ function waysOf(prompt: string): readonly Way[] {
     ];
 }
 
-/** Show the three ways to install side by side in ruled cells, each a numbered name over the field that installs. */
+/** Show the three ways to install side by side, each a numbered name over its field. */
 export function InstallWays(properties: { prompt: string }) {
     return (
         <ol {...style.attrs(lattice.cell, styles.column)}>

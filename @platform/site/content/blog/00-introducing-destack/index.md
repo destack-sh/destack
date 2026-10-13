@@ -1,7 +1,7 @@
 ---
 title: "Introducing Destack"
 subtitle: "The final stack for personal software (for real this time)."
-date: "2026-10-14"
+date: "2026-10-19"
 author: "Florian"
 ---
 

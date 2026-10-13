@@ -1,17 +1,7 @@
 import { media } from "@destack/style/media.stylex";
-import { createSignal, For, onSettled, Show } from "@destack/view";
+import { createSignal, onSettled, Show } from "@destack/view";
 import * as style from "@destack/style";
-import { color, font, stroke } from "@destack/theme/tokens.stylex";
-import { Icon } from "@destack/icon";
-import caretDown from "@destack/icon/phosphor/caret-down";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@destack/ui/dropdown-menu";
+import { color, font } from "@destack/theme/tokens.stylex";
 
 import { type Download, readDownloads, selectDownload } from "./catalog.ts";
 import { captureException } from "../../../telemetry.ts";
@@ -43,26 +33,19 @@ export function createDownloads() {
     return { downloads, selected, setSelected, error };
 }
 
-/** Render the desktop download cell and its platform choices. */
+/** Render the desktop download link. */
 export function DownloadCell(properties: { xstyle?: style.Styles }) {
-    // hold the loaded downloads, the choice and whether the choices are open
-    const { downloads, selected, setSelected, error } = createDownloads();
-    const [isOpen, setIsOpen] = createSignal(false);
+    const { selected } = createDownloads();
 
     return (
         <div {...style.attrs(styles.root, properties.xstyle)}>
-            {/* download for this machine, or open the choices until one is known */}
             <Show
                 when={selected()}
                 fallback={
-                    <button
-                        type="button"
-                        {...style.attrs(styles.action)}
-                        onClick={() => setIsOpen(true)}
-                    >
+                    <a href="/docs/setup/" {...style.attrs(styles.action)}>
                         <SystemIcon target={undefined} />
                         Download
-                    </button>
+                    </a>
                 }
             >
                 {(download) => (
@@ -76,45 +59,6 @@ export function DownloadCell(properties: { xstyle?: style.Styles }) {
                     </a>
                 )}
             </Show>
-
-            {/* choose another platform or a guide */}
-            <DropdownMenu open={isOpen()} onOpenChange={setIsOpen}>
-                <DropdownMenuTrigger
-                    variant="ghost"
-                    aria-label="Choose a platform"
-                    xstyle={styles.toggle}
-                >
-                    <Icon icon={caretDown} weight="bold" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" xstyle={styles.menu}>
-                    <For each={downloads()}>
-                        {(download) => (
-                            <DropdownMenuItem
-                                onSelect={() => setSelected(download)}
-                                render={(item) => <a {...item} href={download.url} />}
-                            >
-                                <SystemIcon target={download.target} />
-                                {download.label}
-                                <span {...style.attrs(styles.version)}>{download.version}</span>
-                            </DropdownMenuItem>
-                        )}
-                    </For>
-                    <Show when={!downloads().length}>
-                        <DropdownMenuLabel role="status">
-                            {error() ?? "Loading downloads…"}
-                        </DropdownMenuLabel>
-                    </Show>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        render={(item) => <a {...item} href="/docs/setup/#ask-your-agent" />}
-                    >
-                        Ask your agent
-                    </DropdownMenuItem>
-                    <DropdownMenuItem render={(item) => <a {...item} href="/docs/setup/" />}>
-                        Installation guide
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
         </div>
     );
 }
@@ -166,8 +110,7 @@ const styles = style.create({
         fontWeight: 600,
         gap: "0.5rem",
         justifyContent: "center",
-        paddingInlineEnd: 0,
-        paddingInlineStart: "2.5rem",
+        paddingInline: 0,
         position: "relative",
         zIndex: 1,
         ":hover > svg": { translate: "0 2px" },
@@ -181,32 +124,5 @@ const styles = style.create({
             [media.motionReduce]: "none",
         },
         width: "1.125rem",
-    },
-    toggle: {
-        alignSelf: "stretch",
-        borderInlineStartColor: `color-mix(in srgb, ${color.primaryForeground} 30%, transparent)`,
-        borderInlineStartStyle: "solid",
-        borderInlineStartWidth: stroke.border,
-        borderRadius: 0,
-        color: "inherit",
-        height: "auto",
-        paddingInline: 0,
-        width: "2.5rem",
-        backgroundColor: {
-            default: "transparent",
-            ":hover": {
-                default: "transparent",
-                [media.hover]: "color-mix(in srgb, white 15%, transparent)",
-            },
-        },
-    },
-    menu: {
-        minWidth: "16rem",
-    },
-    version: {
-        color: color.mutedForeground,
-        fontFamily: font.code,
-        fontSize: "0.75rem",
-        marginInlineStart: "auto",
     },
 });

@@ -38,7 +38,7 @@ export function coverOf(index: number, from: string, to: string) {
     return `${patterns[index % patterns.length] ?? ""}, radial-gradient(circle at 20% 85%, rgb(255 255 255 / 25%), transparent 45%), linear-gradient(135deg, ${from}, ${to})`;
 }
 
-/** October 2025: its length, the weekday the first falls on from Sunday, the days with free times, today, and the chosen day. */
+/** The month the booking page shows, October 2025, with its free and chosen days. */
 export const month = {
     days: 31,
     first: 3,
@@ -61,7 +61,7 @@ export const launch: readonly (readonly [item: string, isDone: boolean])[] = [
 /** A task's state, from not started to done. */
 export type TaskState = "todo" | "started" | "review" | "done";
 
-/** The launch tasks: the identifier, the title, the state, the owner's initial and tint, and the due date. */
+/** The launch tasks. */
 export const tasks: readonly (readonly [
     id: string,
     title: string,
@@ -103,7 +103,7 @@ export const sources: readonly (readonly [name: string, change: string, when: st
     ["README.md", "Launch checklist", "Oct 14"],
 ];
 
-/** A block of your week: the weekday from Monday, the start and end hour, the title, and whether visitors may book it. */
+/** A block of your week. */
 export type WeekBlock = readonly [
     day: number,
     start: number,
@@ -112,7 +112,7 @@ export type WeekBlock = readonly [
     isBookable: boolean,
 ];
 
-/** Your week of October 20: the events from your apps and the free times your booking page offers. */
+/** Your week of October 20. */
 export const week: readonly WeekBlock[] = [
     [0, 9, 9.5, "Standup", false],
     [0, 14, 15, "Pricing review", false],
@@ -129,7 +129,7 @@ export const week: readonly WeekBlock[] = [
 /** A signup's state, invited or still waiting. */
 export type SignupState = "invited" | "waiting";
 
-/** The latest signups: the address, where they came from, when they joined, and whether they are invited. */
+/** The latest signups: the address. */
 export const signups: readonly (readonly [
     email: string,
     source: string,
@@ -145,7 +145,7 @@ export const signups: readonly (readonly [
     ["ines@orbitlabs.eu", "Website", "Oct 18", "invited"],
 ];
 
-/** The mail in the inbox, newest first: the sender, their tint, the subject, the preview line, the time, and whether it is unread. */
+/** The mail in the inbox, newest first. */
 export const mails: readonly (readonly [
     sender: string,
     tint: string,
