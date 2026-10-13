@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { asc, eq } from "../sql/index.ts";
+import { asc, eq, sql } from "../sql/index.ts";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
 import { integer, json, text } from "../table/column.ts";
@@ -494,5 +494,103 @@ test.each(TEST_DIALECTS)(
             ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
             ["DUPLICATE", "a record with the same unique key exists"],
         ]);
+    },
+);
+
+/** Entries with slugs unique across them, optional details and a count. */
+const entry = defineTable(
+    "commit_entry",
+    {
+        /** The entry's key. */
+        id: text("id").primaryKey(),
+        /** The board the entry lives in. */
+        scope: text("scope").notNull(),
+        /** The slug, unique among entries. */
+        slug: text("slug").notNull(),
+        /** The details, absent for none. */
+        details: json("details", schema.object({ note: schema.string() })),
+        /** How often the entry was seen. */
+        seen: integer("seen").notNull(),
+    },
+    { log: {}, constraints: (row) => [unique("commit_entry_slug").on(row.slug)] },
+);
+
+/** Build an entry's row on the board, with a note in its details when given. */
+function entryRow(id: string, slug: string, seen: number, note?: string) {
+    return { id, scope: "board", slug, details: note === undefined ? null : { note }, seen };
+}
+
+test.each(TEST_DIALECTS)(
+    "commit runs of inserts, plain updates and deletes in a few statements on %s, shifting unique slugs in write order",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [entry], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const { database } = storage;
+        const commit = async (write: (changes: ChangeSet) => void) => {
+            const changes = new ChangeSet();
+            write(changes);
+            const before = database.driver.state.statements;
+            await changes.commit(
+                database,
+                await database.log.position(),
+                new ReadSet(),
+                async () => {},
+            );
+
+            return database.driver.state.statements - before;
+        };
+
+        // insert four entries, then update them, one clearing its details beside the count
+        const written = [
+            entryRow("a", "x", 0, "first"),
+            entryRow("b", "y", 0),
+            entryRow("c", "z", 0),
+            entryRow("d", "q", 0),
+        ];
+        const inserting = await commit((changes) => {
+            for (const after of written) {
+                changes.write({ table: entry, before: null, after });
+            }
+        });
+        const updating = await commit((changes) => {
+            for (const before of written) {
+                changes.write({
+                    table: entry,
+                    before,
+                    after: { ...before, seen: 1, details: null },
+                });
+            }
+        });
+
+        // shift the slugs along a chain in write order, then delete two entries
+        const seen = (id: string, slug: string) => entryRow(id, slug, 1);
+        await commit((changes) => {
+            changes.write({ table: entry, before: seen("c", "z"), after: seen("c", "w") });
+            changes.write({ table: entry, before: seen("b", "y"), after: seen("b", "z") });
+            changes.write({ table: entry, before: seen("a", "x"), after: seen("a", "y") });
+        });
+        const deleting = await commit((changes) => {
+            changes.write({ table: entry, before: seen("a", "y"), after: null });
+            changes.write({ table: entry, before: seen("d", "q"), after: null });
+        });
+
+        // keep the shifted slugs, real nulls for cleared details, and a statement per group of rows
+        const extra = dialect === "postgresql" ? 1 : 0;
+        const rows = await database.select().from(entry).orderBy(asc(entry.id));
+        const cleared = await database.execute(
+            sql`SELECT count(*) AS count FROM ${entry} WHERE ${entry.details} IS NULL`,
+        );
+        expect({
+            rows: rows.map((each) => [each.id, each.slug, each.seen, each.details]),
+            cleared: Number(cleared[0]?.["count"]),
+            statements: { inserting, updating, deleting },
+        }).toEqual({
+            rows: [
+                ["b", "z", 1, null],
+                ["c", "w", 1, null],
+            ],
+            cleared: 2,
+            statements: { inserting: 3 + extra, updating: 4 + extra, deleting: 3 + extra },
+        });
     },
 );

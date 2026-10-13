@@ -1,5 +1,8 @@
 import { aligned, canonicalize } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
+import { type Dialect, PARAMETER_BUDGET } from "../dialect/dialect.ts";
+import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
+import { sql } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import { Condition, Scalar } from "../query/condition.ts";
 import { Key } from "../query/key.ts";
@@ -52,12 +55,12 @@ export class ReadSet {
 
     /** Record a scan of the whole rows meeting a condition. */
     rows(table: Table, where: Condition): void {
-        this.#scan(table, where, "row");
+        this.match(table, Condition.resolve(where, Namespace.fields(table)), "row");
     }
 
     /** Record a scan of the logged images of the rows meeting a condition. */
     images(table: Table, where: Condition): void {
-        this.#scan(table, where, "image");
+        this.match(table, Condition.resolve(where, Namespace.fields(table)), "image");
     }
 
     /** Record a read of one row by its key, a whole row read outranking an image read. */
@@ -70,11 +73,10 @@ export class ReadSet {
         this.#keys.set(name, keys);
     }
 
-    /** Record a scan, compiling the condition against the table's fields. */
-    #scan(table: Table, where: Condition, kind: ReadKind): void {
-        // add the compiled condition to the table's scans
+    /** Record a scan of the rows a predicate matches, whole or as logged images. */
+    match(table: Table, predicate: Predicate, kind: ReadKind): void {
+        // add the compiled predicate to the table's scans
         const name = this.#table(table);
-        const predicate = Condition.resolve(where, Namespace.fields(table));
         const matches = this.#matches.get(name) ?? [];
         this.#matches.set(name, [...matches, { match: Predicate.compile(predicate, table), kind }]);
     }
@@ -217,7 +219,7 @@ export class ChangeSet {
         reads: ReadSet,
         records: (transaction: DatabaseConnection) => Promise<void>,
     ): Promise<void> {
-        // check references once the whole state is written, and validate against every commit before the lock
+        // validate reads before the lock and check references after the writes
         await database.transaction(
             async (transaction) => {
                 // hold off other commits, and refuse once a commit after the base touched a read
@@ -227,32 +229,154 @@ export class ChangeSet {
                 // write the records kept once, before the changes they may enable
                 await records(transaction);
 
-                // insert, update or delete each changed row
-                for (const { table, before, after } of this.changes) {
-                    // insert a created row
-                    if (before === null && after !== null) {
-                        await transaction.insert(table).values(after);
-                    }
-                    // set a changed row's changed columns
-                    else if (before !== null && after !== null) {
-                        const changed = changedColumns({ table, before, after });
-                        await transaction
-                            .update(table)
-                            .set(
-                                Object.fromEntries(
-                                    changed.map((column) => [column, after[column]]),
-                                ),
-                            )
-                            .where(Key.match(table, before));
-                    }
-                    // delete a removed row
-                    else if (before !== null) {
-                        await transaction.delete(table).where(Key.match(table, before));
-                    }
+                // apply each run of one table's inserts, key-keeping updates or deletes in batches
+                for (const run of ChangeSet.#runs(this.changes, transaction.dialect)) {
+                    await ChangeSet.#apply(transaction, run);
                 }
             },
             { constraints: "deferred", isolationLevel: "read committed" },
         );
+    }
+
+    /** Group consecutive inserts, plain updates or deletes of one table, any other update alone. */
+    static #runs(changes: Iterable<RowChange>, dialect: Dialect): RowChange[][] {
+        const runs: RowChange[][] = [];
+        for (const change of changes) {
+            // extend a run of the same table's same batched operation, else start another
+            const current = runs.at(-1);
+            const operation = ChangeSet.#operation(change, dialect);
+            const last = current === undefined ? undefined : aligned(current, 0);
+            const isExtended =
+                current !== undefined &&
+                last !== undefined &&
+                last.table === change.table &&
+                operation !== "single" &&
+                ChangeSet.#operation(last, dialect) === operation;
+            if (isExtended) {
+                current.push(change);
+            } else {
+                runs.push([change]);
+            }
+        }
+
+        return runs;
+    }
+
+    /** Read how a change applies: inserted, updated or deleted in batches, else on its own. */
+    static #operation(
+        change: RowChange,
+        dialect: Dialect,
+    ): "insert" | "update" | "delete" | "single" {
+        // batch insertions and removals
+        const { table, before, after } = change;
+        if (before === null) {
+            return "insert";
+        } else if (after === null) {
+            return "delete";
+        }
+
+        // batch an update keeping its key and its unique values, its columns readable from JSON
+        const definition = table[TABLE];
+        const changed = changedColumns(change);
+        const unique = new Set(definition.uniqueKeys.flatMap((key) => key.columns));
+        const isBytes = [...definition.key, ...changed].some(
+            (column) => definition.column(column).definition.kind === "binary",
+        );
+        const isPlain =
+            Key.name(table, before) === Key.name(table, after) &&
+            !changed.some((column) => unique.has(column)) &&
+            !(isBytes && dialect === "sqlite");
+
+        return isPlain ? "update" : "single";
+    }
+
+    /** Apply one run of changes: batched inserts and deletes, updates by changed columns. */
+    static async #apply(transaction: DatabaseConnection, run: readonly RowChange[]): Promise<void> {
+        // read the run's table and operation from its first change
+        const first = aligned(run, 0);
+        const { table } = first;
+        const operation = ChangeSet.#operation(first, transaction.dialect);
+
+        // insert created rows, a batch within the parameter budget per statement
+        if (operation === "insert") {
+            const rows = run.flatMap((change) => (change.after === null ? [] : [change.after]));
+            const size = Math.max(1, Math.floor(PARAMETER_BUDGET / table[TABLE].entries.length));
+            for (let start = 0; start < rows.length; start += size) {
+                await transaction.insert(table).values(rows.slice(start, start + size));
+            }
+        }
+        // delete removed rows by key
+        else if (operation === "delete") {
+            await transaction.remove(
+                table,
+                run.flatMap((change) => (change.before === null ? [] : [change.before])),
+            );
+        }
+        // update plain rows together
+        else if (operation === "update") {
+            await ChangeSet.#update(transaction, run);
+        }
+        // update a row moving its key or unique values on its own, in write order
+        else {
+            await ChangeSet.#set(transaction, first);
+        }
+    }
+
+    /** Set one changed row's changed columns where its key was. */
+    static async #set(transaction: DatabaseConnection, change: RowChange): Promise<void> {
+        // write the changed columns where the row's key was
+        const { table } = change;
+        const { before, after } = ChangeSet.#kept(change);
+        const changed = changedColumns(change);
+        await transaction
+            .update(table)
+            .set(Object.fromEntries(changed.map((column) => [column, after[column]])))
+            .where(Key.match(table, before));
+    }
+
+    /** Read a changed row's images before and after, refusing a creation or a removal. */
+    static #kept(change: RowChange): { readonly before: Row; readonly after: Row } {
+        const { table, before, after } = change;
+        if (before === null || after === null) {
+            throw new TypeError(
+                `a change of a ${table[TABLE].name} row has no row before or after`,
+            );
+        }
+
+        return { before, after };
+    }
+
+    /** Update plain rows, one statement per set of changed columns, a lone row by itself. */
+    static async #update(
+        transaction: DatabaseConnection,
+        run: readonly RowChange[],
+    ): Promise<void> {
+        // group the rows by the columns they change, which no unique key reads
+        const groups = Map.groupBy(run, (change) => changedColumns(change).join(","));
+        for (const group of groups.values()) {
+            // update a lone row by its own statement
+            const first = aligned(group, 0);
+            if (group.length === 1) {
+                await ChangeSet.#set(transaction, first);
+                continue;
+            }
+
+            // update the group from one JSON array of each row's key and changed values
+            const { table } = first;
+            const key = table[TABLE].key;
+            const changed = changedColumns(first);
+            const tuples = group.map((change) => {
+                const { before, after } = ChangeSet.#kept(change);
+
+                return [
+                    ...key.map((column) => jsonOf(table, column, before)),
+                    ...changed.map((column) => jsonOf(table, column, after)),
+                ];
+            });
+            await tupleUpdate(table, key, changed, transaction.dialect).all(transaction, {
+                tuples: JSON.stringify(tuples),
+            });
+        }
     }
 
     /** Refuse with `CONCURRENT_UPDATE` once a later commit touched a transaction's reads. */
@@ -432,32 +556,29 @@ export class Transaction {
     ): Promise<Select<Definition>[]> {
         this.reads.rows(table, where);
 
-        return this.#rows(table, where, options);
+        return this.#rows(table, Condition.resolve(where, Namespace.fields(table)), options);
     }
 
     /** Read the rows meeting a condition with the transaction's own writes, unrecorded. */
     async #rows<Definition extends Table>(
         table: Definition,
-        where: Condition<RowImage<NoInfer<Definition>>>,
+        where: Predicate,
         options: RowsOptions<RowImage<NoInfer<Definition>>>,
     ): Promise<Select<Definition>[]> {
-        // read the committed rows meeting the condition in order, enough for the limit once the writes replace some
+        // read enough committed rows in order to fill the limit after the writes replace some
         const order = Order.complete(Order.of(options.orderBy ?? {}), table);
         const written = this.changes.writtenRows(table);
         const query = this.database
             .select()
             .from(table)
-            .where(Condition.render(where, table))
+            .where(Predicate.render(where, Predicate.bind(table, {})))
             .orderBy(...Order.render(order, table));
         const committed = await (options.limit === undefined
             ? query
             : query.limit(options.limit + written.size));
 
         // replace the rows the transaction wrote by its writes meeting the condition
-        const predicate = Predicate.compile(
-            Condition.resolve(where, Namespace.fields(table)),
-            table,
-        );
+        const predicate = Predicate.compile(where, table);
         const kept: Row[] = committed.filter((row) => !written.has(Key.name(table, row)));
         for (const row of written.values()) {
             if (row !== null && Predicate.matches(predicate, row)) {
@@ -492,7 +613,9 @@ export class Transaction {
     ): Promise<RowImage<Definition>[]> {
         this.reads.images(table, where);
 
-        return images<Definition>(await this.#rows(table, where, options));
+        return images<Definition>(
+            await this.#rows(table, Condition.resolve(where, Namespace.fields(table)), options),
+        );
     }
 
     /** Count the rows meeting a condition with the transaction's own writes. */
@@ -551,22 +674,26 @@ export class Transaction {
             return;
         }
 
-        // read the rows sharing the scalar columns of any of the keys
-        const shared = keyed.map(({ key, after }) => ({
-            AND: [
-                Condition.equal(
-                    Object.fromEntries(
-                        key.columns.flatMap((column) => {
-                            const value = Scalar.safeParse(after[column]);
+        // read the rows sharing the scalar values of any of the keys in one recorded read
+        const shared = Condition.any(
+            keyed.map(({ key, after }) => ({
+                AND: [
+                    Condition.equal(
+                        Object.fromEntries(
+                            key.columns.flatMap((column) => {
+                                const value = Scalar.safeParse(after[column]);
 
-                            return value.success ? [[column, value.data]] : [];
-                        }),
+                                return value.success ? [[column, value.data]] : [];
+                            }),
+                        ),
                     ),
-                ),
-                key.where ?? {},
-            ],
-        }));
-        const read = await this.rows(table, { OR: shared });
+                    key.where ?? {},
+                ],
+            })),
+            table,
+        );
+        this.reads.match(table, shared, "row");
+        const read: Row[] = await this.#rows(table, shared, {});
 
         // see the rows as the changes leave them: the ones they replace gone, their new ones added
         const replaced = new Set(
@@ -577,13 +704,26 @@ export class Transaction {
             ...changes.flatMap(({ after }) => (after === null ? [] : [after])),
         ];
 
+        // index the rows each key covers by their key value once per key
+        const indexed = new Map<UniqueKey, Map<string, Row[]>>();
+        const holders = (key: UniqueKey, covers: (row: Row) => boolean) => {
+            // reuse a key's index, else build it
+            const known = indexed.get(key);
+            if (known !== undefined) {
+                return known;
+            }
+            const held = Map.groupBy(rows.filter(covers), (row) => keyOf(table, key, row));
+            indexed.set(key, held);
+
+            return held;
+        };
+
         // refuse the first key another row shares
         for (const { key, covers, after } of keyed) {
-            const isShared = rows.some(
-                (row) => row !== after && covers(row) && sameKey(table, key, row, after),
-            );
+            const sharing = holders(key, covers).get(keyOf(table, key, after)) ?? [];
+            const isShared = sharing.some((row) => row !== after);
             if (isShared) {
-                // refuse a key a commit after the base took as a lost race, which runs again to see it
+                // refuse a key a later commit took as a lost race
                 if (this.#base !== null) {
                     await ChangeSet.requireCurrent(this.database, this.#base, this.reads);
                 }
@@ -723,17 +863,45 @@ function canonicalColumn(value: unknown): string | undefined {
 
 /** Decide whether two rows have equal unique key values, comparing their canonical JSON. */
 function sameKey(table: Table, key: UniqueKey, left: Row, right: Row): boolean {
-    const encoded = (row: Row) =>
-        canonicalize(
-            table[TABLE].encode(
-                Object.fromEntries(key.columns.map((column) => [column, row[column] ?? null])),
-            ),
-        );
+    return keyOf(table, key, left) === keyOf(table, key, right);
+}
 
-    return encoded(left) === encoded(right);
+/** Write a row's value of a unique key as canonical JSON of the key's encoded columns. */
+function keyOf(table: Table, key: UniqueKey, row: Row): string {
+    return canonicalize(
+        table[TABLE].encode(
+            Object.fromEntries(key.columns.map((column) => [column, row[column] ?? null])),
+        ),
+    );
 }
 
 /** Report whether a failure lost a race: a serialization failure, deadlock or busy database. */
 function isLostRace(error: unknown): boolean {
     return error instanceof DatabaseError && error.code === "CONCURRENT_UPDATE";
+}
+
+/** Update rows by key from a JSON array of each row's key and changed values, in that order. */
+function tupleUpdate(
+    table: Table,
+    key: readonly string[],
+    changed: readonly string[],
+    dialect: Dialect,
+): Statement {
+    return table[TABLE].statement(`update:${dialect}:${changed.join(",")}`, () => {
+        // set each changed column from its element after the key's
+        const definition = table[TABLE];
+        const set = changed.map(
+            (column, index) =>
+                sql`${sql.identifier(definition.column(column).definition.name)} = ${elementValue(definition.column(column), key.length + index, dialect)}`,
+        );
+        const matches = key.map(
+            (column, index) =>
+                sql`${definition.column(column)} = ${elementValue(definition.column(column), index, dialect)}`,
+        );
+
+        return new Statement(
+            (value) =>
+                sql`UPDATE ${table} SET ${sql.join(set, sql`, `)} FROM ${jsonElements(value("tuples"), "wanted")} WHERE ${sql.join(matches, sql` AND `)}`,
+        );
+    });
 }
