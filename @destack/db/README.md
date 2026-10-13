@@ -149,6 +149,8 @@ test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {
 });
 ```
 
+## Seeded tests
+
 `TestDatabase.seeded` copies a template a `TestSeed` writes once per process.
 
 ```ts
