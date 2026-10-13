@@ -7,7 +7,7 @@ import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { own, Role, type RoleRequest } from "../role/role.ts";
 
-/** A database keeping copies of other services' access, for tests of services that follow one. */
+/** A database keeping copies of other packages' access, for tests of packages that follow one. */
 export class AccessFixture {
     /** The database keeping the copies. */
     readonly database: DatabaseConnection;

@@ -2033,6 +2033,8 @@ function validatePredicate(
                 "INVALID_DECLARATION",
                 `policy conditions follow no relations: ${predicate.via}`,
             );
+        case "search":
+            throw new AccessError("INVALID_DECLARATION", "policy conditions search no text");
     }
 }
 

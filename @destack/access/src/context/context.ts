@@ -10,7 +10,7 @@ import { Attribute } from "../declare/expression.ts";
 /** The assurance of a principal proven by its server's key: phishing-resistant, as level 3 is. */
 export const KEY_ASSURANCE = 3;
 
-/** The largest clock difference between a credential's verifier and its service. */
+/** The largest clock difference between a credential's verifier and the server checking it. */
 export const CLOCK_TOLERANCE_MILLISECONDS = 5000;
 
 /** The header a host forwards a verified caller to its runner in. */

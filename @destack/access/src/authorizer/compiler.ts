@@ -947,6 +947,9 @@ function bindAttributes(
                 `policy conditions follow no relations: ${via}`,
             );
         },
+        search: () => {
+            throw new AccessError("INVALID_DECLARATION", "policy conditions search no text");
+        },
     };
 }
 

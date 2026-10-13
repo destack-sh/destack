@@ -60,7 +60,7 @@ function chainOf(authorizer: Authorizer, scope: string) {
 }
 
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
-    // open the account service's database with accounts, the cell's with spaces, and an app's with notes
+    // open the account package's database with accounts, the cell's with spaces, and an app's with notes
     const global = await openFixture();
     const regional = await openFixture();
     const app = await openFixture();

@@ -1,8 +1,8 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 import type { StepUp } from "../context/elevation.ts";
 
-/** The service error code of each access failure. */
-const SERVICE_CODES = {
+/** The call error code of each access failure. */
+const CALL_CODES = {
     INVALID_DECLARATION: "INTERNAL_SERVER_ERROR",
     INVALID_CONTEXT: "FORBIDDEN",
     NOT_FOUND: "NOT_FOUND",
@@ -11,10 +11,10 @@ const SERVICE_CODES = {
     INSUFFICIENT_AUTHENTICATION: "INSUFFICIENT_AUTHENTICATION",
     CONFLICT: "CONFLICT",
     STALE: "SERVICE_UNAVAILABLE",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** A failure code of access decisions and declarations. */
-export type AccessErrorCode = keyof typeof SERVICE_CODES;
+export type AccessErrorCode = keyof typeof CALL_CODES;
 
 /** Reject an invalid declaration, unavailable record, or unauthorized operation. */
 export class AccessError extends Error implements DomainError {
@@ -40,9 +40,9 @@ export class AccessError extends Error implements DomainError {
         }
     }
 
-    /** Convert the failure to the caller's service error, with its step-up challenge. */
-    toServiceError(): ServiceErrorReport {
-        const code = SERVICE_CODES[this.code];
+    /** Convert the failure to the caller's call error, with its step-up challenge. */
+    toCallError(): CallErrorReport {
+        const code = CALL_CODES[this.code];
 
         return this.stepUp === undefined
             ? { code, message: this.message }
