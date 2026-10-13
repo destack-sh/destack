@@ -92,20 +92,9 @@ export function defineShape<Parameters extends object>(definition: {
         subscription: (subscription) => ({
             ...subscription,
             shape: definition.name,
-            parameters: jsonParameters(definition.parameters.parse(subscription.parameters)),
+            parameters: PARAMETERS.parse(definition.parameters.parse(subscription.parameters)),
         }),
     };
-}
-
-/** Take a shape's parsed parameters as the JSON object a subscription sends. */
-function jsonParameters(parameters: object): Subscription["parameters"];
-/**
- * Take the parsed parameters as they are.
- *
- * @construct a shape's parameters parse the JSON its subscriptions send, so they are JSON.
- */
-function jsonParameters(parameters: object): object {
-    return parameters;
 }
 
 /** Serves a copy's subscriptions one step closer to its rows' home. */
