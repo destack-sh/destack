@@ -1,13 +1,13 @@
-import type { DomainError, ServiceErrorCode, ServiceErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The service error code of each binding failure: every binding failure is the host's. */
-const SERVICE_CODES = {
+/** The call error code of each binding failure: every binding failure is the host's. */
+const CALL_CODES = {
     NOT_BOUND: "INTERNAL_SERVER_ERROR",
     ALREADY_BOUND: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, ServiceErrorCode>>;
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
 
 /** A failure code of resource bindings. */
-export type ResourceErrorCode = keyof typeof SERVICE_CODES;
+export type ResourceErrorCode = keyof typeof CALL_CODES;
 
 /** A resource binding failure. */
 export class ResourceError extends Error implements DomainError {
@@ -21,9 +21,9 @@ export class ResourceError extends Error implements DomainError {
         this.code = code;
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 }
 
@@ -45,7 +45,7 @@ export class PlanError extends Error implements DomainError {
     }
 
     /** Report the unreachable state as a conflict with the declared state. */
-    toServiceError(): ServiceErrorReport {
+    toCallError(): CallErrorReport {
         return { code: "CONFLICT", message: this.message };
     }
 }
