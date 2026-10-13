@@ -16,6 +16,18 @@ export interface ResourceRecord<Kind extends ResourceKind = ResourceKind> {
     readonly reference: string | null;
 }
 
+/** Resources as their spaces record them. */
+export const ResourceRecord = {
+    /** Read a provisioned resource's reference, refusing an unprovisioned one. */
+    reference(record: Pick<ResourceRecord, "reference">): string {
+        if (record.reference === null) {
+            throw new TypeError("resource is not provisioned");
+        }
+
+        return record.reference;
+    },
+};
+
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
 export const ResourceBinding = defineSchema(
     schema.object({
