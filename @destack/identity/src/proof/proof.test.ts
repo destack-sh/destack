@@ -53,3 +53,25 @@ test("refuse reading anything but a key proof", () => {
         new IdentityError("INVALID_PROOF", "key proof is no compact JWS"),
     );
 });
+
+test("tell a key proof from other tokens by its declared type", async () => {
+    // sign a proof, and keep an unsigned token of another type
+    const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+        "sign",
+        "verify",
+    ]);
+    const signed = await Proof.sign(
+        pair.privateKey,
+        await PublicKey.of(pair.publicKey),
+        "client-1",
+        Date.now(),
+    );
+    const header = btoa(JSON.stringify({ alg: "ES256", typ: "at+jwt" })).replace(/=+$/u, "");
+
+    // take the proof alone
+    expect([Proof.is(signed), Proof.is(`${header}.e30.c2ln`), Proof.is("0".repeat(64))]).toEqual([
+        true,
+        false,
+        false,
+    ]);
+});

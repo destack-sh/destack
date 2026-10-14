@@ -84,6 +84,15 @@ export class Proof {
         return (this.issuedAt + PROOF_SKEW_SECONDS) * 1000;
     }
 
+    /** Decide whether a bearer token is a key proof by its declared type. */
+    static is(token: string): boolean {
+        try {
+            return decodeProtectedHeader(token).typ === PROOF_TYPE;
+        } catch {
+            return false;
+        }
+    }
+
     /** Read a proof's header and claims, refusing any other serialization, type or algorithm. */
     static read(proof: string): Proof {
         // require the declared type, algorithm, key and claims
