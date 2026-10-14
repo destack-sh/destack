@@ -6,6 +6,7 @@ import { defineTable } from "../table/table.ts";
 import { integer, json, text } from "../table/column.ts";
 import { unique, uniqueIndex } from "../table/constraint.ts";
 import { ChangeSet, Transaction, ReadSet } from "./commit.ts";
+import { LOG } from "./schema.ts";
 
 /** Tasks in folders, with a priority. */
 const task = defineTable(
@@ -591,6 +592,68 @@ test.each(TEST_DIALECTS)(
             ],
             cleared: 2,
             statements: { inserting: 3 + extra, updating: 4 + extra, deleting: 3 + extra },
+        });
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "read a committed row once per transaction, and see the transaction's own write of it after on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+
+        // read one task twice, write it, then read it again
+        const transaction = await Transaction.open(database);
+        const before = database.driver.state.statements;
+        const first = await transaction.row(task, { id: "a" });
+        const second = await transaction.row(task, { id: "a" });
+        const reads = database.driver.state.statements - before;
+        const written = { id: "a", scope: "inbox", priority: 7 };
+        await transaction.write({ table: task, before: first, after: written });
+        const third = await transaction.row(task, { id: "a" });
+
+        // spend one statement on the first read alone, the write showing over it
+        expect({ reads, first, second, third }).toEqual({
+            reads: 1,
+            first: { id: "a", scope: "inbox", priority: 1 },
+            second: { id: "a", scope: "inbox", priority: 1 },
+            third: written,
+        });
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "read each writing transaction's own identity as its log entries keep it, a rolled back one leaving none behind, on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+
+        // write in a transaction, roll one back, and write in another, reading each identity
+        const write = (id: string) =>
+            database.transaction(async (writing) => {
+                await writing.insert(task).values({ id, scope: "inbox", priority: 4 });
+
+                return writing.log.transaction();
+            });
+        const first = await write("d");
+        const refused = await database
+            .transaction(async (writing) => {
+                await writing.insert(task).values({ id: "e", scope: "inbox", priority: 5 });
+                throw new TypeError("roll back");
+            })
+            .catch((error: unknown) => error);
+        const second = await write("f");
+
+        // keep each identity on its own entry, the two apart
+        const entries = await database.execute(
+            sql`SELECT "transaction" AS id FROM ${sql.relation(LOG)} ORDER BY sequence DESC LIMIT 2`,
+        );
+        expect({
+            refused,
+            isApart: first !== second,
+            entries: entries.map((row) => row["id"]).toReversed(),
+        }).toEqual({
+            refused: new TypeError("roll back"),
+            isApart: true,
+            entries: [first, second],
         });
     },
 );

@@ -163,9 +163,9 @@ export class DatabaseDriver {
         return await this.session.transaction(
             async (transaction) => {
                 // mark, write and unmark the transaction
-                const isMarked = await openTransaction(transaction, this.state);
+                const marked = await openTransaction(transaction, this.state);
                 const result = await operation(transaction);
-                if (isMarked) {
+                if (marked !== undefined) {
                     await closeTransaction(transaction, this.state);
                 }
 

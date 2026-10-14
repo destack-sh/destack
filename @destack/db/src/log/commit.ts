@@ -445,6 +445,8 @@ export class Transaction {
     readonly #records: ((transaction: DatabaseConnection) => Promise<void>)[] = [];
     /** The identifiers the transaction derived so far, counted from zero in every attempt. */
     #derived = 0;
+    /** The committed rows the transaction read by key, each read once and checked at commit. */
+    readonly #committed = new Map<string, Row | null>();
 
     /** Start a transaction at a position, or one that only reads at null. */
     constructor(database: DatabaseConnection, base: LogPosition | null) {
@@ -539,11 +541,21 @@ export class Transaction {
         if (written !== undefined) {
             return written === null ? null : aligned(selected<Definition>([written]), 0);
         }
+
+        // take the committed row this transaction read before
+        const name = `${table[TABLE].sqlName}\u0000${Key.name(table, key)}`;
+        const known = this.#committed.get(name);
+        if (known !== undefined) {
+            return known === null ? null : aligned(selected<Definition>([known]), 0);
+        }
+
+        // read the committed row once
         const [row = null] = await this.database
             .select()
             .from(table)
             .where(Key.match(table, key))
             .limit(1);
+        this.#committed.set(name, row);
 
         return row;
     }

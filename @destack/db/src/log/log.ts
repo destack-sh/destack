@@ -499,6 +499,13 @@ export class Log {
 
     /** Read the open transaction's identity, absent outside a writing transaction. */
     async transaction(): Promise<string | undefined> {
+        // take the identity the open SQLite transaction keeps
+        const kept = this.database.driver.transaction?.id;
+        if (kept !== undefined) {
+            return kept;
+        }
+
+        // read the identity the database stamps
         const [row] = await this.database.execute(sql`SELECT ${this.stamp()} AS id`);
 
         return TransactionRow.parse(row).id ?? undefined;

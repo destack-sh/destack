@@ -12,10 +12,13 @@ export class TransactionState {
     readonly signal: AbortSignal | undefined;
     /** The SQL names of the tables the outermost transaction writes, which its commit announces. */
     readonly written: Set<string>;
+    /** The identity the outermost SQLite transaction's log triggers stamp, absent without a log. */
+    readonly id: string | undefined;
 
-    /** Create the state, recording its writes in the outermost transaction's tables. */
-    constructor(written: Set<string>, signal?: AbortSignal) {
+    /** Create the state, recording its writes and identity as the outermost transaction's. */
+    constructor(written: Set<string>, id: string | undefined, signal?: AbortSignal) {
         this.written = written;
+        this.id = id;
         this.signal = signal;
     }
 

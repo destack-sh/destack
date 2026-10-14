@@ -1,5 +1,5 @@
 import { canonicalize, schema } from "@destack/schema";
-import { exists, fill, render, sql, type SQLWrapper } from "../sql/index.ts";
+import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
 import type { Session } from "./session.ts";
@@ -185,6 +185,19 @@ export class DatabaseConnection<
         }
     }
 
+    /** Read rows by key in one statement, binding the keys as one JSON array. */
+    async get<Definition extends Table>(
+        table: Definition,
+        rows: readonly Key<Definition>[],
+    ): Promise<Row[]> {
+        // skip the round trip of no keys
+        if (rows.length === 0) {
+            return [];
+        }
+
+        return this.select().from(table).where(this.#keyed(table, rows));
+    }
+
     /** Delete rows by key in one statement, binding the keys as one JSON array. */
     async remove<Definition extends Table>(
         table: Definition,
@@ -195,16 +208,18 @@ export class DatabaseConnection<
             return;
         }
 
+        await this.delete(table).where(this.#keyed(table, rows));
+    }
+
+    /** Match a table's rows by key against the tuples of one bound JSON array. */
+    #keyed(table: Table, rows: readonly Row[]): SQL {
         // match each key column against its value in the JSON array's tuples
         const definition = table[TABLE];
         const columns = definition.key.map((property) => definition.column(property));
         const values = columns.map((column, index) => elementValue(column, index, this.dialect));
         const tuples = sql.param(JSON.stringify(rows.map((row) => Key.tuple(table, row))));
 
-        // delete the matching rows
-        await this.delete(table).where(
-            sql`(${sql.join(columns, sql`, `)}) IN (SELECT ${sql.join(values, sql`, `)} FROM ${jsonElements(tuples, "wanted")})`,
-        );
+        return sql`(${sql.join(columns, sql`, `)}) IN (SELECT ${sql.join(values, sql`, `)} FROM ${jsonElements(tuples, "wanted")})`;
     }
 
     /** Execute a SQL script in one round trip as a write of every declared table. */
@@ -365,13 +380,15 @@ export class DatabaseConnection<
                             [],
                         );
                     }
-                    const isMarked =
-                        session.dialect === "sqlite" &&
-                        !isNested &&
-                        options.isReadOnly !== true &&
-                        (await openTransaction(session, this.state));
-                    const result = await this.#transact(session, operation, written, signal);
-                    if (isMarked) {
+
+                    // mark the outermost SQLite write for the log, and keep its identity in nested ones
+                    const marked =
+                        session.dialect === "sqlite" && !isNested && options.isReadOnly !== true
+                            ? await openTransaction(session, this.state)
+                            : undefined;
+                    const id = marked ?? this.driver.transaction?.id;
+                    const result = await this.#transact(session, operation, written, id, signal);
+                    if (marked !== undefined) {
                         await closeTransaction(session, this.state);
                     }
 
@@ -406,9 +423,10 @@ export class DatabaseConnection<
         session: Session,
         operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         written: Set<string>,
+        id: string | undefined,
         signal?: AbortSignal,
     ): Promise<Value> {
-        const state = new TransactionState(written, signal);
+        const state = new TransactionState(written, id, signal);
         const transaction = new DatabaseConnection(
             new DatabaseDriver(session, this.state, state),
             this.tables,
