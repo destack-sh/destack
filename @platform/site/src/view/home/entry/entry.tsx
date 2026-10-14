@@ -153,7 +153,7 @@ const styles = style.create({
         display: "flex",
     },
     label: {
-        alignItems: "center",
+        alignItems: "baseline",
         display: "flex",
         flexWrap: "wrap",
         fontSize: "0.9375rem",
