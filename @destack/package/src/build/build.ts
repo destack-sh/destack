@@ -31,6 +31,16 @@ export interface TransformContext {
     readonly server: boolean;
     /** The options an output gives each extension, by the name of the extension's package. */
     readonly options: Readonly<Record<string, unknown>>;
+    /** The build's content-addressed cache of derived files, absent where builds keep none. */
+    readonly cache?: TransformCache;
+}
+
+/** The build's content-addressed cache, keeping the files transforms derive under their keys. */
+export interface TransformCache {
+    /** Read the bytes kept under a key, a SHA-256 digest of what derived them, absent on a miss. */
+    read(key: string): Promise<Uint8Array<ArrayBuffer> | undefined>;
+    /** Keep bytes under a key for later builds. */
+    write(key: string, bytes: Uint8Array<ArrayBuffer>): Promise<void>;
 }
 
 /** An output kind compiled in one pass into several outputs, such as a web app's two sides. */
