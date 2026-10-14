@@ -1391,6 +1391,51 @@ async function syncLabels(
     expect(isSynced).toBe(true);
 }
 
+/** Units with a predefined row every database keeps. */
+const unit = defineTable(
+    "unit",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        name: text("name").notNull(),
+    },
+    { log: {}, predefined: [{ id: "metre", scope: "inbox", name: "Metre" }] },
+);
+
+test.for(TEST_DIALECTS)(
+    "keep a predefined row out of a replica, which keeps it after dropping the replica, on %s",
+    async (dialect) => {
+        const source = await open(dialect, [unit, ...replicaTables]);
+        const local = await openReplica(
+            dialect,
+            defineDatabase({ name: "replica", tables: replicaTables, replicated: [unit] }),
+        );
+        const feed = new Feed(source, [unit, replicaPosition], { clock: Clock.system });
+        await source.insert(unit).values({ id: "foot", scope: "inbox", name: "Foot" });
+
+        // replicate the units, including only the written one
+        const units = new Replica({ name: "work", scope: "inbox", tables: [unit] });
+        await syncLabels(units, source, local, feed);
+        const included = await local.select({ key: replicaRow.key }).from(replicaRow);
+        const replicated = await local.select().from(unit).orderBy(asc(unit.id));
+
+        // drop the replica, which deletes the written unit and keeps the predefined one
+        await units.drop(local);
+        expect({
+            included: included.map((row) => row.key),
+            replicated,
+            kept: await local.select().from(unit),
+        }).toEqual({
+            included: [Key.name(unit, { id: "foot" })],
+            replicated: [
+                { id: "foot", scope: "inbox", name: "Foot" },
+                { id: "metre", scope: "inbox", name: "Metre" },
+            ],
+            kept: [{ id: "metre", scope: "inbox", name: "Metre" }],
+        });
+    },
+);
+
 /** Follow a replica's queries from a feed, with the follower's own origin. */
 function followFrom(feed: Feed, replica: Replica) {
     return (from: Resumption, signal: AbortSignal) =>

@@ -1534,10 +1534,13 @@ export class Replica {
         table: Table,
         keys: readonly string[],
     ): Promise<void> {
+        // leave the predefined rows to the database, which keeps them identical everywhere
+        const owned = keys.filter((key) => !Key.isPredefined(table, Key.parse(table, key)));
+
         // take the rows out of the replica
         const name = table[TABLE].sqlName;
-        for (let start = 0; start < keys.length; start += PRUNE_BATCH) {
-            const batch = keys.slice(start, start + PRUNE_BATCH);
+        for (let start = 0; start < owned.length; start += PRUNE_BATCH) {
+            const batch = owned.slice(start, start + PRUNE_BATCH);
             const selected = and(
                 this.#match(replicaRow),
                 eq(replicaRow.table, name),
@@ -1608,8 +1611,13 @@ export class Replica {
         delivered: ReadonlyMap<string, Set<string>> | undefined,
         open: ApplyOptions["open"],
     ): Promise<void> {
-        // open the row and note its key for a snapshot's retractions
+        // leave a predefined row to the database, which keeps it identical everywhere
         const decoded = table[TABLE].decode(change.row);
+        if (Key.isPredefined(table, decoded)) {
+            return;
+        }
+
+        // open the row and note its key for a snapshot's retractions
         const row =
             open === undefined || change.operation === "delete"
                 ? decoded
