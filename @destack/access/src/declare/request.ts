@@ -31,7 +31,7 @@ export const PermissionRequest = Object.assign(
             },
         ): (PermissionReference & { readonly scope: string })[] {
             return PermissionScope.options.flatMap((name) => {
-                // grant the scope's permissions in each scope the context names for it
+                // grant the scope's permissions in each matching scope of the context
                 const named = scopes[name];
                 const each = named === undefined ? [] : typeof named === "string" ? [named] : named;
 

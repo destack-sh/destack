@@ -25,9 +25,9 @@ export type GrantRequest = schema.Infer<typeof GrantRequest>;
 /** A delegator's grant of permissions to a delegate acting for it. */
 export type Grant = Select<typeof accessGrant>;
 
-/** A grant: the claim a token carries for it, and its liveness for a caller. */
+/** A grant: its token claim, and its liveness for a caller. */
 export const Grant = {
-    /** Read the grant a token carries for a grant. */
+    /** Read the claim a token carries for a grant. */
     claim(grant: Grant): CallerGrant {
         return { id: grant.id, scope: grant.scope, permissions: [...grant.permissions] };
     },
@@ -56,13 +56,13 @@ export const Grant = {
             !Subject.same(grant.delegator, parties.delegator) ||
             !Subject.same(grant.delegate, parties.delegate)
         ) {
-            throw new AccessError("UNAUTHORIZED", `grant ${id} is another delegate's`);
+            throw new AccessError("UNAUTHORIZED", `grant ${id} belongs to another delegate`);
         }
 
-        // refuse a grant asking approval for each call
-        // TODO #Incomplete: answer APPROVAL_REQUIRED with an approval object the delegator answers
+        // refuse a grant that needs approval for each call
+        // TODO #Incomplete: phase E lands an "each" call on a one-call branch, answered APPROVAL_REQUIRED { branch }
         if (grant.approval === "each") {
-            throw new AccessError("FORBIDDEN", `grant ${id} asks approval for each call`);
+            throw new AccessError("FORBIDDEN", `grant ${id} needs approval for each call`);
         }
 
         return grant;

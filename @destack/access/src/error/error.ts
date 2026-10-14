@@ -34,7 +34,7 @@ export class AccessError extends Error implements DomainError {
         this.name = "AccessError";
         this.code = code;
 
-        // keep the challenge a refusal names
+        // keep the refusal's challenge
         if (options?.stepUp !== undefined) {
             this.stepUp = options.stepUp;
         }

@@ -2,16 +2,16 @@ import { ObjectReference, Subject } from "@destack/sync";
 import { defineSchema, schema } from "@destack/schema";
 import { PermissionReference } from "../declare/policy.ts";
 
-/** Whether a caller has a permission on one object, and until when by time alone. */
+/** Whether a caller has a permission on one object, and until when. */
 export const Decision = defineSchema(
     schema.object({
         /** Whether the caller has the permission. */
         isAllowed: schema.boolean(),
-        /** The next moment time alone may change the decision, absent if only access changes do. */
+        /** The next time the decision may change on its own, absent if only access changes can. */
         until: schema.number().int().exactOptional(),
     }),
 );
-/** Whether a caller has a permission on one object, and until when by time alone. */
+/** Whether a caller has a permission on one object, and until when. */
 export type Decision = schema.Infer<typeof Decision>;
 
 /** The gate that refuses a request before any tuple: grant, elevation, suspension or scope. */
@@ -51,7 +51,7 @@ export const Explanation = defineSchema(
         /** Every tuple of the permission on the object, with why it fails when it does. */
         tuples: schema.array(
             schema.object({
-                /** How the permission reaches the tuple, in order. */
+                /** The steps from the permission to the tuple, in order. */
                 path: schema.array(schema.string()),
                 /** The object the relationship, field or role binding sits on. */
                 object: ObjectReference,

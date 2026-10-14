@@ -40,26 +40,24 @@ export const StepUp = {
 export const Elevation = {
     /** The schema of an elevation. */
     schema: elevationSchema,
-    admits,
-    until,
+
+    /** Report whether a request authenticated at the elevation's level within its age. */
+    admits(elevation: Elevation, context: AccessContext): boolean {
+        const assurance = context.assurance;
+
+        return (
+            assurance !== undefined &&
+            assurance.level >= elevation.assurance &&
+            context.now - assurance.authenticatedAt <= elevation.maxAge
+        );
+    },
+
+    /** Read the moment an admitted request's authentication grows too old for the elevation. */
+    until(elevation: Elevation, context: AccessContext): number | undefined {
+        const assurance = context.assurance;
+
+        return assurance !== undefined && Elevation.admits(elevation, context)
+            ? assurance.authenticatedAt + elevation.maxAge
+            : undefined;
+    },
 };
-
-/** Report whether a request authenticated at the elevation's level within its age. */
-function admits(elevation: Elevation, context: AccessContext): boolean {
-    const assurance = context.assurance;
-
-    return (
-        assurance !== undefined &&
-        assurance.level >= elevation.assurance &&
-        context.now - assurance.authenticatedAt <= elevation.maxAge
-    );
-}
-
-/** Read the moment an admitted request's authentication grows too old for the elevation. */
-function until(elevation: Elevation, context: AccessContext): number | undefined {
-    const assurance = context.assurance;
-
-    return assurance !== undefined && admits(elevation, context)
-        ? assurance.authenticatedAt + elevation.maxAge
-        : undefined;
-}

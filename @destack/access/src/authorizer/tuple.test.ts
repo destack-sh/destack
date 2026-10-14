@@ -192,40 +192,34 @@ test.for(TEST_DIALECTS)(
                 aligned(values, Math.floor(draw() * values.length));
             await database.delete(accessRelationship);
 
-            // relate random subjects to random nodes, groups and roles, skipping repeated tuples
-            for (let position = 0; position < 10; position++) {
+            // relate random subjects to random nodes, groups and roles in one insert, skipping repeated tuples
+            const related = Array.from({ length: 10 }, (_, position) => {
                 const isBinding = draw() < 0.25;
                 const isMembership = !isBinding && draw() < 0.2;
-                await database
-                    .insert(accessRelationship)
-                    .values(
-                        Relationship.encode(
-                            {
-                                id: `relationship-01996ab0-0000-7000-8000-0000000003${String(position).padStart(2, "0")}`,
-                                object: isMembership
-                                    ? group.reference("personal", "g1")
-                                    : node.reference("personal", pick(["a", "b", "c"])),
-                                ...(isBinding
-                                    ? { role: roleId }
-                                    : {
-                                          relation: isMembership
-                                              ? "member"
-                                              : pick(["viewer", "editor", "subtree-editor"]),
-                                      }),
-                                subject: isMembership
-                                    ? pick([user("bob"), user("carol"), agent])
-                                    : pick(subjects),
-                                ...lifetime(
-                                    pick([1, 1, 1, NOW + 1]),
-                                    pick([null, null, NOW, NOW + 1000]),
-                                ),
-                                ...(isMembership ? {} : { conditions: pick(conditions) }),
-                            },
-                            "personal",
-                        ),
-                    )
-                    .onConflictDoNothing();
-            }
+
+                return Relationship.encode(
+                    {
+                        id: `relationship-01996ab0-0000-7000-8000-0000000003${String(position).padStart(2, "0")}`,
+                        object: isMembership
+                            ? group.reference("personal", "g1")
+                            : node.reference("personal", pick(["a", "b", "c"])),
+                        ...(isBinding
+                            ? { role: roleId }
+                            : {
+                                  relation: isMembership
+                                      ? "member"
+                                      : pick(["viewer", "editor", "subtree-editor"]),
+                              }),
+                        subject: isMembership
+                            ? pick([user("bob"), user("carol"), agent])
+                            : pick(subjects),
+                        ...lifetime(pick([1, 1, 1, NOW + 1]), pick([null, null, NOW, NOW + 1000])),
+                        ...(isMembership ? {} : { conditions: pick(conditions) }),
+                    },
+                    "personal",
+                );
+            });
+            await database.insert(accessRelationship).values(related).onConflictDoNothing();
 
             // admit through grants what the queries admit, for each caller at once, permission and authorizer
             for (const authorizer of authorizers) {
@@ -316,7 +310,7 @@ test.for(TEST_DIALECTS)(
                                         across: Number(permitting.permitted) === 1,
                                     });
 
-                                    // keep each decision until the moment it names, as the query decides it just before then
+                                    // keep each decision until its expiry, as the query decides it just before then
                                     if (decision.until !== undefined) {
                                         const before = { ...context, now: decision.until - 1 };
                                         const later = await authorizer.resolve(
@@ -359,7 +353,7 @@ test.for(TEST_DIALECTS)(
 
                         // decide reading the relationships in memory as their query does, through what each shares
                         const read = relationship.permission("read");
-                        const related = await database
+                        const stored = await database
                             .select()
                             .from(accessRelationship)
                             .orderBy(asc(accessRelationship.id));
@@ -374,13 +368,13 @@ test.for(TEST_DIALECTS)(
                             snapshot,
                             read,
                             access,
-                            related,
+                            stored,
                             reader,
                         );
                         expect({
                             model,
                             context,
-                            relationships: related
+                            relationships: stored
                                 .filter((_row, position) => readable.permitted.has(position))
                                 .map((row) => row.id),
                         }).toEqual({ model, context, relationships: queriedRelationships });
@@ -402,7 +396,7 @@ test("read an intersection's grants as the superset its decisions change with", 
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
 
-    // read the owner each cell's edit permission reaches
+    // read the owner of each cell's edit permission
     const { database, authorizer } = fixture;
     const rows = await database.select().from(item).orderBy(asc(item.id));
     const trees = await authorizer

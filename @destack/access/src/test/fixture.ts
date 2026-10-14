@@ -372,7 +372,7 @@ export const rows = [
 /** Require the tree a table declares. */
 function requireTree(declared: Tree | undefined): Tree {
     if (declared === undefined) {
-        throw new TypeError("the item table declares no tree");
+        throw new TypeError("the item table has no tree");
     }
 
     return declared;

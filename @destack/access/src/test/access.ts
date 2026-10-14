@@ -5,20 +5,23 @@ import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
-import { own, Role, type RoleRequest } from "../role/role.ts";
+import { Role, type RoleRequest } from "../role/role.ts";
 
-/** A database keeping copies of other packages' access, for tests of packages that follow one. */
+/** A database keeping replicas of other packages' access, for tests of packages that follow one. */
 export class AccessFixture {
-    /** The database keeping the copies. */
+    /** The database keeping the replicas. */
     readonly database: DatabaseConnection;
 
-    /** Keep copies of access in a database. */
+    /** Keep replicas of access in a database. */
     constructor(database: DatabaseConnection) {
         this.database = database;
     }
 
-    /** Record a scope object below its containing scopes, as a copy of its home's access does. */
-    async copyScope(scope: ObjectReference, partition: "parent" | "own" = "parent"): Promise<void> {
+    /** Record a scope object below its containing scopes, as its home's access replica does. */
+    async replicateScope(
+        scope: ObjectReference,
+        partition: "parent" | "own" = "parent",
+    ): Promise<void> {
         // read the ancestry and partition of the containing scope
         const [parent] =
             scope.scope === Scope.universe.id
@@ -45,18 +48,22 @@ export class AccessFixture {
         });
     }
 
-    /** Define a copied scope's owner role and bind it to an owner on the scope, returning it. */
-    async copyOwner(scope: ObjectReference, owner: Subject, now = Date.now()): Promise<string> {
+    /** Define a replicated scope's owner role and bind it to an owner, returning it. */
+    async replicateOwner(
+        scope: ObjectReference,
+        owner: Subject,
+        now = Date.now(),
+    ): Promise<string> {
         // write the role and its binding in one transaction
         const transaction = await Transaction.open(this.database);
-        const role = await own(transaction, scope, owner, now);
+        const role = await Role.own(transaction, scope, owner, now);
         await transaction.commit();
 
         return role;
     }
 
-    /** Define a role in a copied scope and bind it to a subject on the scope, returning it. */
-    async copyRole(
+    /** Define a role in a replicated scope and bind it to a subject on the scope, returning it. */
+    async replicateRole(
         scope: ObjectReference,
         role: RoleRequest,
         subject: Subject,
@@ -70,8 +77,8 @@ export class AccessFixture {
         return id;
     }
 
-    /** Relate a subject to an object in its governing scope, as a home access copy does. */
-    async copyRelationship(
+    /** Relate a subject to an object in its governing scope, as a home access replica does. */
+    async replicateRelationship(
         governing: string,
         object: ObjectReference,
         relation: string,
@@ -96,8 +103,8 @@ export class AccessFixture {
         return id;
     }
 
-    /** Mark a copied scope suspended or active again, as its home's suspension replicates. */
-    async suspendCopy(scope: string, suspendedAt: number | null): Promise<void> {
+    /** Mark a replicated scope suspended or active again, as its home's suspension replicates. */
+    async suspendReplica(scope: string, suspendedAt: number | null): Promise<void> {
         await this.database
             .update(Scope.table)
             .set({ suspendedAt })

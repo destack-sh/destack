@@ -16,9 +16,9 @@ test.for(TEST_DIALECTS)(
         const authorizer = new Authorizer(policies, mappings);
 
         // insert an account and a space inside it
-        const copies = new AccessFixture(database);
-        await copies.copyScope(account.reference(Scope.universe.id, "account-a"));
-        await copies.copyScope(space.reference("account-a", "space-a"), "own");
+        const access = new AccessFixture(database);
+        await access.replicateScope(account.reference(Scope.universe.id, "account-a"));
+        await access.replicateScope(space.reference("account-a", "space-a"), "own");
         const context = {
             subjects: [principal.user.reference("universe", "alice")],
             now: 1000,

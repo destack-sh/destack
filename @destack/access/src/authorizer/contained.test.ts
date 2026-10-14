@@ -36,7 +36,7 @@ const lot = new Policy(module4.package, {
     permissions: { look: through("district", "visit") },
 });
 
-/** Parcels, objects living in a realm, read by the installations inside the realm alone. */
+/** Parcels, objects living in a realm, read only by the installations inside the realm. */
 const parcel = new Policy(module4.package, {
     name: "parcel",
     permissions: { reside: contained(principal.installation) },
@@ -73,7 +73,7 @@ test.for(TEST_DIALECTS)(
             district.reference("far", "outside"),
         ];
         for (const scope of scopes) {
-            await new AccessFixture(database).copyScope(scope);
+            await new AccessFixture(database).replicateScope(scope);
         }
         await database.insert(accountTable).values([
             { id: "near", scope: "universe" },
@@ -115,7 +115,7 @@ test.for(TEST_DIALECTS)(
             return [scope, memory.isAllowed, Number(row?.["permitted"]) === 1];
         };
 
-        // permit the district to its own installation alone
+        // permit the district only to its own installation
         const inside = district.reference("near", "inside");
         expect(
             await Promise.all(["inside", "sibling", "near"].map((scope) => decide(inside, scope))),
@@ -177,7 +177,7 @@ test.for(TEST_DIALECTS)(
             district.reference("near", "inside"),
             district.reference("far", "outside"),
         ]) {
-            await new AccessFixture(database).copyScope(scope);
+            await new AccessFixture(database).replicateScope(scope);
         }
 
         // resolve a caller whose credential is bound to the near realm in each scope
@@ -192,7 +192,7 @@ test.for(TEST_DIALECTS)(
         );
 
         // resolve the realm and its district, refusing the other realm, its district and the universe above
-        const refused = ["UNAUTHORIZED", "the caller's credential acts within near alone"];
+        const refused = ["UNAUTHORIZED", "the caller's credential applies to near only"];
         expect(resolved).toEqual(["done", "done", refused, refused, refused]);
     },
 );

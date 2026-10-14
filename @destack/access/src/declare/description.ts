@@ -98,11 +98,13 @@ export const PolicyDescription = defineSchema(
         elevated: schema.record(AccessName, Elevation.schema).exactOptional(),
         /** Permissions that stay available while the scope is suspended. */
         administration: schema.array(AccessName).exactOptional(),
+        /** Permissions that stay available while the scope moves to another machine. */
+        moving: schema.array(AccessName).exactOptional(),
         /** Whether the objects are scopes. */
         scope: schema.literal(true).exactOptional(),
         /** Whether each object is a partition. */
         partition: schema.literal(true).exactOptional(),
-        /** Whether objects live in the universe, each found by identifier alone. */
+        /** Whether objects live in the universe, each found by identifier only. */
         isGlobal: schema.literal(true).exactOptional(),
     }),
 );

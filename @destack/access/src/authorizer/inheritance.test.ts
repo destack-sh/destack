@@ -18,7 +18,7 @@ import {
     union,
 } from "../index.ts";
 
-/** Organisations, whose editors and viewers keep their permissions everywhere below them. */
+/** Organisations, with editors and viewers that keep their permissions everywhere below them. */
 const org = new Policy(module1.package, {
     name: "org",
     relations: { editor: { subjects: [principal.user] }, viewer: { subjects: [principal.user] } },
@@ -122,9 +122,9 @@ test.for(TEST_DIALECTS)(
         const { database } = storage;
         const acme = org.reference("universe", "acme");
         const plans = folder.reference("acme", "plans");
-        const copies = new AccessFixture(database);
-        await copies.copyScope(acme);
-        await copies.copyScope(plans);
+        const replicas = new AccessFixture(database);
+        await replicas.replicateScope(acme);
+        await replicas.replicateScope(plans);
         await database.insert(item).values(["a", "b", "c"].map((id) => documentRow(id)));
 
         // make carol an editor of the organisation, dave a viewer of the folder, and erin nothing
@@ -175,7 +175,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test("refuse a permission read through an enclosing scope that its chain's relationships cannot decide", () => {
-    // read a folder permission of viewers who are also editors, which a union of relationships cannot decide
+    // read a folder permission of viewers who are also editors, beyond a union of relationships
     const narrowed = new Policy(module1.package, {
         name: "folder",
         relations: {
@@ -195,14 +195,14 @@ test("refuse a permission read through an enclosing scope that its chain's relat
         permissions: { read: through("folder", "read") },
     });
     expect(() => new Authorizer([org, narrowed, inside], [{ ...mapping, policy: inside }])).toThrow(
-        "folder.read is decided along a scope chain, so it follows relations alone",
+        "folder.read is a chain permission: it can use relations only",
     );
 });
 
 test.for(TEST_DIALECTS)(
     "share an object with everyone with a permission on another, as its relations decide it, on %s",
     async (dialect) => {
-        // keep a team whose readers are its viewers and editors, and a note shared with its readers
+        // keep a team with its viewers and editors as readers, and a note shared with its readers
         const storage = await TestDatabase.create(dialect, fixtureDatabase, {
             isMigrated: true,
         });
@@ -225,7 +225,7 @@ test.for(TEST_DIALECTS)(
             [team, note],
             [{ ...mapping, policy: note, relations: {} }],
         );
-        await new AccessFixture(database).copyScope(org.reference("universe", "plans"));
+        await new AccessFixture(database).replicateScope(org.reference("universe", "plans"));
         await database.insert(item).values({
             id: "a",
             scope: "plans",
@@ -298,9 +298,9 @@ test.for(TEST_DIALECTS)(
         );
         const acme = org.reference("universe", "acme");
         const plans = folder.reference("acme", "plans");
-        const accessCopies = new AccessFixture(database);
-        await accessCopies.copyScope(acme);
-        await accessCopies.copyScope(plans);
+        const replicas = new AccessFixture(database);
+        await replicas.replicateScope(acme);
+        await replicas.replicateScope(plans);
         await database.insert(item).values({
             id: "a",
             scope: "plans",
@@ -365,7 +365,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "read a permission through the scope of whichever type holds each object, granting nothing where that type declares no such permission, on %s",
+    "read a permission through each object's scope, granting nothing where the scope type lacks the permission, on %s",
     async (dialect) => {
         // keep notes in a shop serving its workers and in a club declaring no serving
         const storage = await TestDatabase.create(dialect, fixtureDatabase, {
@@ -395,9 +395,9 @@ test.for(TEST_DIALECTS)(
         });
         const corner = shop.reference("universe", "corner");
         const chess = club.reference("universe", "chess");
-        const copies = new AccessFixture(database);
-        await copies.copyScope(corner);
-        await copies.copyScope(chess);
+        const replicas = new AccessFixture(database);
+        await replicas.replicateScope(corner);
+        await replicas.replicateScope(chess);
         await database.insert(item).values([
             { ...documentRow("a"), scope: "corner" },
             { ...documentRow("b"), scope: "chess" },

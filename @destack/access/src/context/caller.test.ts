@@ -25,7 +25,7 @@ test("forward a caller to a runner and read it back, refusing a malformed one", 
     const headers = new Headers();
     Caller.forward(alice, headers);
 
-    // read back the forwarded and absent callers, and refuse a header that is no caller or no JSON
+    // read back the forwarded and absent callers, and refuse a header that is not a JSON caller
     const read = Caller.forwarded(new Request("http://runner.test", { headers }));
     const absent = Caller.forwarded(new Request("http://runner.test"));
     const malformed = ["INVALID_CONTEXT", "the forwarded caller is malformed"];
@@ -95,7 +95,7 @@ test("require delegates to act for a verified subject, and a grant to have the d
         await chained({ ...alice, subjects: [], delegates: [agent], grant }),
     ]).toEqual([
         "done",
-        ["INVALID_CONTEXT", "a grant needs the delegates acting under it"],
+        ["INVALID_CONTEXT", "a grant needs delegates"],
         ["INVALID_CONTEXT", "delegation chain is inconsistent"],
     ]);
 });

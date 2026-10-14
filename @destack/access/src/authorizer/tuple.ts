@@ -37,7 +37,7 @@ export interface Tuple {
     readonly path: readonly string[];
 }
 
-/** The tuples an expression reaches on a row, combined as the expression combines its branches. */
+/** The tuples of an expression on a row, combined like the expression's branches. */
 export type TupleTree =
     | {
           /** Admit a caller any of the tuples admits: a relation, a field or a role binding. */
@@ -80,7 +80,7 @@ export type TupleTree =
           readonly match: Match;
       };
 
-/** How a row reaches a decision: listed in its scope, or read as one object by its key. */
+/** How a decision reads a row: listed in its scope, or as one object by its key. */
 export type Lookup = "listing" | "object";
 
 /** The arrows followed and the path taken while collecting tuples. */
@@ -99,19 +99,27 @@ export class TupleReader {
     readonly #snapshot: Snapshot;
     /** The objects of the rows' scope and every scope enclosing it, nearest first. */
     readonly #scopes: readonly ObjectReference[];
-    /** The chains of the scopes below that scope whose rows the reader also decides, by scope. */
-    readonly #chains = new Map<string, readonly ObjectReference[]>();
+    /** The chains of the enclosed scopes the reader also decides rows of, by scope. */
+    readonly #chains: Map<string, readonly ObjectReference[]>;
     /** The relationships of each object read so far, by object key. */
-    readonly #read = new Map<string, Promise<RelationshipRow[]>>();
+    readonly #read: Map<string, Promise<RelationshipRow[]>>;
     /** The role bindings of each owner scope's chain read so far, by scope. */
-    readonly #chainBound = new Map<string, Promise<RoleBinding[]>>();
+    readonly #chainBound: Map<string, Promise<RoleBinding[]>>;
     /** The proper ancestors of each node read so far, by tree, scope and node. */
-    readonly #ancestry = new Map<string, Promise<string[]>>();
+    readonly #ancestry: Map<string, Promise<string[]>>;
     /** The rows read so far, absent where none exists, by type, scope and identifier. */
-    readonly #loaded = new Map<string, Promise<Row | undefined>>();
+    readonly #loaded: Map<string, Promise<Row | undefined>>;
 
     /** Read tuples from a snapshot of a database for rows within a scope chain. */
     constructor(authorizer: Authorizer, snapshot: Snapshot, scopes: readonly ObjectReference[]) {
+        // start with empty state
+        this.#chains = new Map<string, readonly ObjectReference[]>();
+        this.#read = new Map<string, Promise<RelationshipRow[]>>();
+        this.#chainBound = new Map<string, Promise<RoleBinding[]>>();
+        this.#ancestry = new Map<string, Promise<string[]>>();
+        this.#loaded = new Map<string, Promise<Row | undefined>>();
+
+        // keep the authorizer, the snapshot and the scope chain
         this.#authorizer = authorizer;
         this.#snapshot = snapshot;
         this.#scopes = scopes;
@@ -141,18 +149,20 @@ export class TupleReader {
     async ownership(row: Row, mapping: TableMapping): Promise<TupleTree> {
         await this.#prefetch(mapping, [row]);
 
-        return any(await this.#bound(null, mapping, row, { arrows: [], path: ["ownership"] }));
+        return TupleTree.any(
+            await this.#bound(null, mapping, row, { arrows: [], path: ["ownership"] }),
+        );
     }
 
     /** Collect the tuple tree of a permission on one row, of the permission's type by default. */
     async tree(
         permission: PermissionReference,
         row: Row,
-        mapping = this.#authorizer.mapping(permission),
+        mapping = this.#authorizer.requireMapping(permission),
     ): Promise<TupleTree> {
         const [tree] = await this.trees(permission, [row], mapping);
         if (tree === undefined) {
-            throw new TypeError(`no tuple tree of ${permission.name} for its row`);
+            throw new TypeError(`permission ${permission.name} has no tuple tree for the row`);
         }
 
         return tree;
@@ -162,7 +172,7 @@ export class TupleReader {
     async trees(
         permission: PermissionReference,
         rows: readonly Row[],
-        mapping = this.#authorizer.mapping(permission),
+        mapping = this.#authorizer.requireMapping(permission),
     ): Promise<TupleTree[]> {
         // read the rows' relationships and ancestry in bulk
         await this.#prefetch(mapping, rows);
@@ -175,7 +185,7 @@ export class TupleReader {
             rows.map(async (row) =>
                 isSameType
                     ? this.#permission(permission, mapping, row, trail)
-                    : any(await this.#bound(permission, mapping, row, trail)),
+                    : TupleTree.any(await this.#bound(permission, mapping, row, trail)),
             ),
         );
     }
@@ -198,14 +208,17 @@ export class TupleReader {
             const ancestors = new Set<string>();
             for (const [relation, tree] of Object.entries(mapping.trees ?? {})) {
                 const byDescendant = new Map<string, string[]>(ids.map((id) => [id, []]));
-                for (const chunk of chunks(ids)) {
+                for (const chunk of TupleReader.#chunks(ids)) {
                     for (const entry of await tree.ancestry(this.#snapshot, scope, chunk)) {
                         found(byDescendant, entry.descendant).push(entry.ancestor);
                         ancestors.add(entry.ancestor);
                     }
                 }
                 for (const [id, above] of byDescendant) {
-                    this.#ancestry.set(ancestryKey(relation, scope, id), Promise.resolve(above));
+                    this.#ancestry.set(
+                        TupleReader.#ancestryKey(relation, scope, id),
+                        Promise.resolve(above),
+                    );
                 }
             }
             reached.push(
@@ -221,9 +234,9 @@ export class TupleReader {
         const byObject = new Map<string, RelationshipRow[]>(
             objects.map((object) => [ObjectReference.key(object), []]),
         );
-        for (const chunk of chunks(objects)) {
+        for (const chunk of TupleReader.#chunks(objects)) {
             for (const entry of await Relationship.readByObject(this.#snapshot, chunk)) {
-                found(byObject, ObjectReference.key(relatedObject(entry))).push(entry);
+                found(byObject, ObjectReference.key(TupleReader.#relatedObject(entry))).push(entry);
             }
         }
         for (const [key, entries] of byObject) {
@@ -244,13 +257,13 @@ export class TupleReader {
             path: [...trail.path, `${permission.type} ${permission.name}`],
         };
 
-        return some([
+        return TupleTree.some([
             await this.#expression(expression, mapping, row, step),
-            any(await this.#bound(permission, mapping, row, step)),
+            TupleTree.any(await this.#bound(permission, mapping, row, step)),
         ]);
     }
 
-    /** Collect the tree one expression reaches and combine its branches like the expression. */
+    /** Collect the tree of one expression, combining its branches like the expression. */
     async #expression(
         expression: AccessExpression,
         mapping: TableMapping,
@@ -259,12 +272,12 @@ export class TupleReader {
     ): Promise<TupleTree> {
         switch (expression.kind) {
             case "none":
-                return some([]);
+                return TupleTree.some([]);
             case "resource": {
-                // grant nothing by attributes a database with only the object's scope row cannot read
+                // grant nothing by attributes when the database has only the object's scope row
                 const predicate = mapping.policy.resolve(expression);
                 if (!TableMapping.decides(mapping, predicate)) {
-                    return some([]);
+                    return TupleTree.some([]);
                 }
 
                 // read the attributes from their columns
@@ -288,7 +301,7 @@ export class TupleReader {
                 );
 
                 return expression.kind === "union"
-                    ? some(branches)
+                    ? TupleTree.some(branches)
                     : { kind: "all", trees: branches };
             }
             case "exclusion":
@@ -305,7 +318,7 @@ export class TupleReader {
                     trail,
                 );
             case "relation":
-                return any(await this.#relation(expression.name, mapping, row, trail));
+                return TupleTree.any(await this.#relation(expression.name, mapping, row, trail));
             case "through":
                 return this.#through(expression, mapping, row, trail);
             case "granters":
@@ -317,7 +330,7 @@ export class TupleReader {
         }
     }
 
-    /** Grant a row to principals inside its scope or the scope it is, of some types when given. */
+    /** Grant a row to principals inside its scope, or inside the row as a scope, of some types. */
     #contained(
         expression: Extract<AccessExpression, { kind: "contained" }>,
         mapping: TableMapping,
@@ -340,17 +353,17 @@ export class TupleReader {
                   ? nearest
                   : undefined;
         if (object === undefined) {
-            return some([]);
+            return TupleTree.some([]);
         }
 
-        // grant the scope's containment set, to principals of the named types alone when given
+        // grant the scope's containment set, only to principals of the named types when given
         return TupleReader.#containment(object, expression.principals, {
             ...trail,
             path: [...trail.path, CONTAINED],
         });
     }
 
-    /** Grant an object's containment set, to principals of the named types alone when given. */
+    /** Grant an object's containment set, only to principals of the named types when given. */
     static #containment(
         object: ObjectReference,
         principals: readonly ObjectTypeReference[] | undefined,
@@ -362,7 +375,7 @@ export class TupleReader {
             object,
             path: trail.path,
         });
-        const inside = any([grant({ ...object, relation: CONTAINED })]);
+        const inside = TupleTree.any([grant({ ...object, relation: CONTAINED })]);
 
         return principals === undefined
             ? inside
@@ -370,12 +383,14 @@ export class TupleReader {
                   kind: "all",
                   trees: [
                       inside,
-                      any(principals.map((type) => grant({ ...type, scope: "*", id: "*" }))),
+                      TupleTree.any(
+                          principals.map((type) => grant({ ...type, scope: "*", id: "*" })),
+                      ),
                   ],
               };
     }
 
-    /** Collect the tuple tree of a row's referenced object, where kept here. */
+    /** Collect the tuple tree of a row's referenced object, when local. */
     async #granters(
         reference: string,
         mapping: TableMapping,
@@ -388,17 +403,17 @@ export class TupleReader {
             packageId: PackageId.parse(row[columns.packageId]),
             type: schema.string().parse(row[columns.type]),
         };
-        const target = this.#authorizer.mappingOf(referenced);
+        const target = this.#authorizer.mapping(referenced);
         const grantedBy = target?.policy.definition.grantedBy;
         if (target === undefined || grantedBy === undefined) {
-            return some([]);
+            return TupleTree.some([]);
         }
         const [related] = await this.#rows(target, schema.string().parse(row[columns.scope]), [
             schema.string().parse(row[columns.id]),
         ]);
 
         return related === undefined
-            ? some([])
+            ? TupleTree.some([])
             : this.#permission(target.policy.permission(grantedBy), target, related, {
                   ...trail,
                   path: [
@@ -415,13 +430,13 @@ export class TupleReader {
         row: Row,
         trail: Trail,
     ): Promise<TupleTree> {
-        // read the referenced object where this database keeps its type, other than the row's own type
+        // read the referenced object when its type is local and differs from the row's type
         const columns = TableMapping.reference(mapping, expression.reference);
         const referenced = {
             packageId: PackageId.parse(row[columns.packageId]),
             type: schema.string().parse(row[columns.type]),
         };
-        const mapped = this.#authorizer.mappingOf(referenced);
+        const mapped = this.#authorizer.mapping(referenced);
         const target = mapped?.policy === mapping.policy ? undefined : mapped;
         const [related] =
             target === undefined
@@ -430,7 +445,7 @@ export class TupleReader {
                       schema.string().parse(row[columns.id]),
                   ]);
         if (target === undefined || related === undefined) {
-            return some([]);
+            return TupleTree.some([]);
         }
 
         // see a concealed relation through its grant permission, any other through the relationship read or grant permission
@@ -453,7 +468,7 @@ export class TupleReader {
             ],
         };
 
-        return some(
+        return TupleTree.some(
             await Promise.all(
                 names
                     .filter((name): name is string => name !== undefined)
@@ -479,7 +494,7 @@ export class TupleReader {
             return [
                 {
                     subject,
-                    object: objectOf(mapping, row),
+                    object: TupleReader.#object(mapping, row),
                     path: [...trail.path, `field ${field.column} holding relation ${name}`],
                     arrows: trail.arrows,
                 },
@@ -487,14 +502,17 @@ export class TupleReader {
         }
 
         // grant to the accepted subjects of the relation's relationships
-        const relationships = await this.#relationshipsOf(mapping, row);
+        const relationships = await this.#rowRelationships(mapping, row);
 
         return relationships
-            .filter((entry) => entry.relation === name && accepts(relation, subjectOf(entry)))
+            .filter(
+                (entry) =>
+                    entry.relation === name && accepts(relation, TupleReader.#subject(entry)),
+            )
             .map((entry) => ({
-                subject: subjectOf(entry),
+                subject: TupleReader.#subject(entry),
                 condition: new TupleCondition(entry),
-                object: objectOf(mapping, row),
+                object: TupleReader.#object(mapping, row),
                 path: [...trail.path, `relation ${name}`],
                 arrows: trail.arrows,
             }));
@@ -574,7 +592,7 @@ export class TupleReader {
     ): Promise<TupleTree> {
         // keep the relationships to plain objects in the row's scope
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
-        const relationships = (await this.#relationshipsOf(mapping, row)).filter(
+        const relationships = (await this.#rowRelationships(mapping, row)).filter(
             (entry) =>
                 entry.relation === expression.relation &&
                 entry.subjectScope === scope &&
@@ -589,7 +607,7 @@ export class TupleReader {
             );
         }
 
-        return some(trees);
+        return TupleTree.some(trees);
     }
 
     /** Collect the trees of one relationship's object, none for a type the relation refuses. */
@@ -600,7 +618,7 @@ export class TupleReader {
         scope: string,
         trail: Trail,
     ): Promise<TupleTree[]> {
-        // find the accepted subject type the relationship names
+        // find the accepted subject type of the relationship
         const subject = relation.subjects.find(
             (type) => type.packageId === entry.subjectPackageId && type.type === entry.subjectType,
         );
@@ -609,7 +627,7 @@ export class TupleReader {
         }
 
         // decide the permission on the related object under the arrow's conditions
-        const target = this.#authorizer.mapping(subject);
+        const target = this.#authorizer.requireMapping(subject);
         const trees: TupleTree[] = [];
         for (const related of await this.#rows(target, scope, [entry.subjectId])) {
             trees.push(
@@ -640,7 +658,7 @@ export class TupleReader {
         scope: string,
         trail: Trail,
     ): Promise<TupleTree> {
-        // find the related type: the relation's one type, or the type the row's columns name
+        // find the related type: the relation's one type, or the type in the row's columns
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
         const typed = field.subject;
         const subject =
@@ -651,20 +669,21 @@ export class TupleReader {
                           type.packageId === row[typed.packageId] && type.type === row[typed.type],
                   );
         if (subject === undefined) {
-            return some([]);
+            return TupleTree.some([]);
         }
 
         // read the parent or the ancestors the field refers to
-        const target = this.#authorizer.mapping(subject);
+        const target = this.#authorizer.requireMapping(subject);
         const isUnset = row[field.column] === null || row[field.column] === undefined;
         const direct = isUnset ? [] : [TableMapping.text(row, field.column)];
         const ids = expression.transitive
             ? await this.#ancestors(mapping, expression.relation, row)
             : direct;
 
-        // decide the permission on each related object
+        // decide the permission on each related object, a global type's at the universe it lives in
+        const within = target.scope === undefined ? Scope.universe.id : (field.scope ?? scope);
         const trees: TupleTree[] = [];
-        for (const related of await this.#rows(target, field.scope ?? scope, ids)) {
+        for (const related of await this.#rows(target, within, ids)) {
             trees.push(
                 await this.#permission(
                     target.policy.permission(expression.permission),
@@ -681,7 +700,7 @@ export class TupleReader {
             );
         }
 
-        return some(trees);
+        return TupleTree.some(trees);
     }
 
     /** Collect the chain objects' relationships and containment sets granting the permission. */
@@ -718,7 +737,7 @@ export class TupleReader {
                         entry.relation !== null && relations.includes(entry.relation)
                             ? [
                                   {
-                                      subject: subjectOf(entry),
+                                      subject: TupleReader.#subject(entry),
                                       condition: new TupleCondition(entry),
                                       object,
                                       path: [
@@ -733,7 +752,7 @@ export class TupleReader {
                 ),
         );
 
-        return some([any(tuples.flat()), ...contained]);
+        return TupleTree.some([TupleTree.any(tuples.flat()), ...contained]);
     }
 
     /** Collect the role bindings granting a permission on the row, ancestors, owners or chain. */
@@ -749,10 +768,10 @@ export class TupleReader {
         ];
 
         return bindings.map((entry) => ({
-            subject: subjectOf(entry),
+            subject: TupleReader.#subject(entry),
             condition: new TupleCondition(entry),
             role: { id: entry.roleId, binding: entry.id, permission },
-            object: relatedObject(entry),
+            object: TupleReader.#relatedObject(entry),
             path: [...trail.path, `role ${entry.roleId} bound on ${entry.type} ${entry.objectId}`],
             arrows: trail.arrows,
         }));
@@ -772,7 +791,7 @@ export class TupleReader {
     async #owned(mapping: TableMapping, relation: string, row: Row): Promise<RoleBinding[]> {
         // find the owner the relation's field refers to, none for an unset field
         const subject = this.#authorizer.onlySubject(mapping.policy, relation);
-        const target = this.#authorizer.mapping(subject);
+        const target = this.#authorizer.requireMapping(subject);
         const field = TableMapping.field(mapping, relation);
         const value = row[field.column];
         if (value === null || value === undefined) {
@@ -780,7 +799,7 @@ export class TupleReader {
         }
         const referred = schema.string().parse(value);
 
-        // read a scope owner's bindings and those of the scopes enclosing it by its chain alone
+        // read the bindings of a scope owner and its enclosing scopes by its chain only
         if (target.policy.definition.scope === true) {
             return await this.#chainBindings(referred);
         }
@@ -813,7 +832,7 @@ export class TupleReader {
                 links.map((link) => this.#relationships(link.object)),
             );
 
-            return bindings.flat().filter(Relationship.isBinding);
+            return bindings.flat().filter((relationship) => Relationship.isBinding(relationship));
         });
         this.#chainBound.set(scope, read);
 
@@ -824,7 +843,9 @@ export class TupleReader {
     async #placed(mapping: TableMapping, row: Row): Promise<RoleBinding[]> {
         // read the bindings on the row
         const definition = mapping.policy.definition;
-        const direct = (await this.#relationshipsOf(mapping, row)).filter(Relationship.isBinding);
+        const direct = (await this.#rowRelationships(mapping, row)).filter((relationship) =>
+            Relationship.isBinding(relationship),
+        );
         const parent = mapping.parent;
         const tree = parent === undefined ? undefined : mapping.trees?.[parent];
 
@@ -843,12 +864,15 @@ export class TupleReader {
                 ),
             );
 
-            return [...direct, ...above.flat().filter(Relationship.isBinding)];
+            return [
+                ...direct,
+                ...above.flat().filter((relationship) => Relationship.isBinding(relationship)),
+            ];
         }
         // read the bindings covering the owning parent
         else if (parent !== undefined) {
             const subject = this.#authorizer.onlySubject(mapping.policy, parent);
-            const target = this.#authorizer.mapping(subject);
+            const target = this.#authorizer.requireMapping(subject);
             const parentId = row[TableMapping.field(mapping, parent).column];
             const parents =
                 parentId === null || parentId === undefined
@@ -862,7 +886,7 @@ export class TupleReader {
 
             return [...direct, ...covered.flat()];
         }
-        // read the bindings on the row alone
+        // read the bindings on the row only
         else {
             return direct;
         }
@@ -874,7 +898,7 @@ export class TupleReader {
             this.#chain(scope).map((object) => this.#relationships(object)),
         );
 
-        return bindings.flat().filter(Relationship.isBinding);
+        return bindings.flat().filter((relationship) => Relationship.isBinding(relationship));
     }
 
     /** Read the chain deciding a scope's rows: its own when covered, the reader's otherwise. */
@@ -882,9 +906,9 @@ export class TupleReader {
         return this.#chains.get(scope) ?? this.#scopes;
     }
 
-    /** Read the relationships on the object a mapped row is. */
-    #relationshipsOf(mapping: TableMapping, row: Row): Promise<RelationshipRow[]> {
-        return this.#relationships(objectOf(mapping, row));
+    /** Read the relationships on a mapped row's object. */
+    #rowRelationships(mapping: TableMapping, row: Row): Promise<RelationshipRow[]> {
+        return this.#relationships(TupleReader.#object(mapping, row));
     }
 
     /** Read every relationship on one object once. */
@@ -910,7 +934,7 @@ export class TupleReader {
             return [];
         }
 
-        // read the rows not read before in one query, noting the ones none exists for
+        // read the unread rows in one query, and note the missing ones
         const { packageId, name } = mapping.policy.definition;
         const key = (id: string) => JSON.stringify([packageId, name, scope, id]);
         const missing = ids.filter((id) => !this.#loaded.has(key(id)));
@@ -936,7 +960,7 @@ export class TupleReader {
     async #ancestors(mapping: TableMapping, relation: string, row: Row): Promise<string[]> {
         // reuse the ancestry read before
         const tree = TableMapping.tree(mapping, relation);
-        const key = ancestryKey(
+        const key = TupleReader.#ancestryKey(
             relation,
             TableMapping.scope(mapping, row),
             TableMapping.text(row, mapping.id),
@@ -957,69 +981,59 @@ export class TupleReader {
 
         return read;
     }
-}
 
-/** Reference the object a mapped row is. */
-function objectOf(mapping: TableMapping, row: Row): ObjectReference {
-    const definition = mapping.policy.definition;
+    /** Reference a mapped row's object. */
+    static #object(mapping: TableMapping, row: Row): ObjectReference {
+        const definition = mapping.policy.definition;
 
-    return {
-        packageId: definition.packageId,
-        type: definition.name,
-        scope: TableMapping.scope(mapping, row),
-        id: schema.string().parse(row[mapping.id]),
-    };
-}
-
-/** Reference the object a relationship relates. */
-function relatedObject(entry: RelationshipRow): ObjectReference {
-    return {
-        packageId: entry.packageId,
-        type: entry.type,
-        scope: entry.objectScope,
-        id: entry.objectId,
-    };
-}
-
-/** Read a relationship's subject. */
-function subjectOf(entry: RelationshipRow): Subject {
-    return {
-        packageId: entry.subjectPackageId,
-        type: entry.subjectType,
-        scope: entry.subjectScope,
-        id: entry.subjectId,
-        ...(entry.subjectRelation === null ? {} : { relation: entry.subjectRelation }),
-    };
-}
-
-/** Name a node's ancestry within one tree and scope. */
-function ancestryKey(relation: string, scope: string, id: string): string {
-    return JSON.stringify([relation, scope, id]);
-}
-
-/** Split values into chunks within the parameter budget. */
-function chunks<Value>(values: readonly Value[]): Value[][] {
-    const result: Value[][] = [];
-    for (let start = 0; start < values.length; start += PREFETCH_CHUNK) {
-        result.push(values.slice(start, start + PREFETCH_CHUNK));
+        return {
+            packageId: definition.packageId,
+            type: definition.name,
+            scope: TableMapping.scope(mapping, row),
+            id: schema.string().parse(row[mapping.id]),
+        };
     }
 
-    return result;
-}
+    /** Reference the object a relationship relates. */
+    static #relatedObject(entry: RelationshipRow): ObjectReference {
+        return {
+            packageId: entry.packageId,
+            type: entry.type,
+            scope: entry.objectScope,
+            id: entry.objectId,
+        };
+    }
 
-/** Combine trees some of which admits. */
-function some(trees: readonly TupleTree[]): TupleTree {
-    return { kind: "some", trees };
-}
+    /** Read a relationship's subject. */
+    static #subject(entry: RelationshipRow): Subject {
+        return {
+            packageId: entry.subjectPackageId,
+            type: entry.subjectType,
+            scope: entry.subjectScope,
+            id: entry.subjectId,
+            ...(entry.subjectRelation === null ? {} : { relation: entry.subjectRelation }),
+        };
+    }
 
-/** Admit through any of some tuples. */
-function any(tuples: readonly Tuple[]): TupleTree {
-    return { kind: "any", tuples };
+    /** Key a node's ancestry within one tree and scope. */
+    static #ancestryKey(relation: string, scope: string, id: string): string {
+        return JSON.stringify([relation, scope, id]);
+    }
+
+    /** Split values into chunks within the parameter budget. */
+    static #chunks<Value>(values: readonly Value[]): Value[][] {
+        const result: Value[][] = [];
+        for (let start = 0; start < values.length; start += PREFETCH_CHUNK) {
+            result.push(values.slice(start, start + PREFETCH_CHUNK));
+        }
+
+        return result;
+    }
 }
 
 /** Read and decide tuple trees. */
 export const TupleTree = {
-    /** List every grant a tree reaches for indexing and expiry. */
+    /** List every grant in a tree, for indexing and expiry. */
     flatten(tree: TupleTree): Tuple[] {
         switch (tree.kind) {
             case "any":
@@ -1064,18 +1078,28 @@ export const TupleTree = {
                         exists: (via) => {
                             throw new AccessError(
                                 "INVALID_DECLARATION",
-                                `policy conditions follow no relations: ${via}`,
+                                `policy conditions cannot follow relations: ${via}`,
                             );
                         },
                         search: () => {
                             throw new AccessError(
                                 "INVALID_DECLARATION",
-                                "policy conditions search no text",
+                                "policy conditions cannot search",
                             );
                         },
                     }) === true
                 );
             }
         }
+    },
+
+    /** Combine trees into one that admits when any of them admits. */
+    some(trees: readonly TupleTree[]): TupleTree {
+        return { kind: "some", trees };
+    },
+
+    /** Admit through any of some tuples. */
+    any(tuples: readonly Tuple[]): TupleTree {
+        return { kind: "any", tuples };
     },
 };

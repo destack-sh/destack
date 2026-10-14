@@ -20,7 +20,7 @@ export class Policy<Name extends string = string> {
     readonly name: string;
     /** The immutable serializable definition. */
     readonly definition: PolicyDescription;
-    /** The other policies the relations name as subjects. */
+    /** The other policies the relations reference as subjects. */
     readonly references: readonly Policy[];
     /** The names of the object attributes conditions read. */
     readonly #attributes: ReadonlySet<string>;
@@ -37,15 +37,15 @@ export class Policy<Name extends string = string> {
     /** Qualify the declared subject types by package and freeze a copy of the rules. */
     constructor(owner: Package, input: PolicyInput<Name>) {
         // qualify the relations and require each to accept a subject type
-        const relations = qualifyRelations(owner, input);
-        requireSubjectTypes(relations);
+        const relations = Policy.#qualifyRelations(owner, input);
+        Policy.#requireSubjectTypes(relations);
 
-        // remember the policies named as subjects and the policies contributed to
+        // remember the policies referenced as subjects and the policies contributed to
         this.references = [
             ...new Set([
                 ...Object.values(input.relations ?? {})
                     .flatMap((relation) => relation.subjects)
-                    .flatMap((subject) => referencedPolicies(subject)),
+                    .flatMap((subject) => Policy.#referencedPolicies(subject)),
                 ...(input.contributes ?? []).map((entry) => entry.policy),
             ]),
         ];
@@ -53,7 +53,9 @@ export class Policy<Name extends string = string> {
         // retain the declaring package and a frozen copy of the rules
         this.package = owner;
         this.name = input.name;
-        this.definition = freeze(PolicyDescription.parse(describe(owner, input, relations)));
+        this.definition = Policy.#freeze(
+            PolicyDescription.parse(Policy.#describe(owner, input, relations)),
+        );
 
         // keep the names of the attributes conditions read
         this.#attributes = new Set(Object.keys(this.definition.attributes));
@@ -148,6 +150,115 @@ export class Policy<Name extends string = string> {
             ...(match[2] === undefined ? {} : { relation: match[2] }),
             ...(match[3] === undefined ? {} : { wildcard: true }),
         });
+    }
+
+    /** Qualify the package's subject types, defaulting relation grants to the policy's. */
+    static #qualifyRelations<Name extends string>(
+        owner: Package,
+        input: PolicyInput<Name>,
+    ): Record<string, RelationDescription> {
+        return Object.fromEntries(
+            Object.entries(input.relations ?? {}).map(([name, relation]) => {
+                const grantedBy =
+                    relation.grantedBy === undefined ? input.grantedBy : relation.grantedBy;
+
+                return [
+                    name,
+                    {
+                        subjects: relation.subjects.map((subject) =>
+                            Policy.subjectType(owner.id, subject),
+                        ),
+                        ...(grantedBy === undefined || grantedBy === null ? {} : { grantedBy }),
+                        ...(relation.open === true ? { open: true } : {}),
+                        ...(relation.isScope === true ? { isScope: true } : {}),
+                        ...(relation.concealed === true ? { concealed: true } : {}),
+                    },
+                ];
+            }),
+        );
+    }
+
+    /** Require every row relation to accept a subject type unless other types add themselves. */
+    static #requireSubjectTypes(relations: Readonly<Record<string, RelationDescription>>): void {
+        for (const [name, relation] of Object.entries(relations)) {
+            if (
+                relation.subjects.length === 0 &&
+                relation.open !== true &&
+                relation.isScope !== true
+            ) {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `relation ${name} has no subject type and is not open`,
+                );
+            }
+        }
+    }
+
+    /** Describe a declared policy as plain values. */
+    static #describe<Name extends string>(
+        owner: Package,
+        input: PolicyInput<Name>,
+        relations: Readonly<Record<string, RelationDescription>>,
+    ): JsonValue {
+        return JsonValue.of({
+            packageId: owner.id,
+            name: input.name,
+            attributes: input.attributes ?? {},
+            context: input.context ?? {},
+            relations,
+            permissions: input.permissions,
+            ...(input.grantedBy === undefined ? {} : { grantedBy: input.grantedBy }),
+            ...(input.relationships === undefined
+                ? {}
+                : { relationships: { read: input.relationships.read } }),
+            ...(input.reserved === undefined ? {} : { reserved: [...input.reserved] }),
+            ...(input.elevated === undefined ? {} : { elevated: { ...input.elevated } }),
+            ...(input.administration === undefined
+                ? {}
+                : { administration: [...input.administration] }),
+            ...(input.moving === undefined ? {} : { moving: [...input.moving] }),
+            ...(input.scope === true ? { scope: true } : {}),
+            ...(input.partition === true ? { partition: true } : {}),
+            ...(input.isGlobal === true ? { isGlobal: true } : {}),
+            ...(input.contributes === undefined || input.contributes.length === 0
+                ? {}
+                : {
+                      contributes: input.contributes.map((entry) => ({
+                          packageId: entry.policy.definition.packageId,
+                          type: entry.policy.definition.name,
+                          relation: entry.relation,
+                      })),
+                  }),
+        });
+    }
+
+    /** Freeze every declaration node after copying it. */
+    static #freeze<Value>(value: Value): Value {
+        // freeze the children before the node
+        if (value !== null && typeof value === "object") {
+            for (const child of Object.values(value)) {
+                Policy.#freeze(child);
+            }
+            Object.freeze(value);
+        }
+
+        return value;
+    }
+
+    /** List the policy a relation's subject type references, none for a plain subject type. */
+    static #referencedPolicies(subject: SubjectTypeInput): Policy[] {
+        // key a policy by itself
+        if (subject instanceof Policy) {
+            return [subject];
+        }
+        // key the policy of a subject set
+        else if (subject instanceof PolicySubject) {
+            return [subject.policy];
+        }
+        // reference nothing else
+        else {
+            return [];
+        }
     }
 }
 
@@ -262,98 +373,12 @@ interface PolicyFields<Name extends string> {
     readonly elevated?: Readonly<Partial<Record<NoInfer<Name>, Elevation>>>;
     /** Permissions available while the scope is suspended, such as reading and resuming it. */
     readonly administration?: readonly NoInfer<Name>[];
+    /** Permissions available while the scope moves, such as cancelling the move. */
+    readonly moving?: readonly NoInfer<Name>[];
     /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: boolean;
     /** The open relations of other types this type's objects join, as an attachment's parent. */
     readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];
-}
-
-/** Qualify the declaring package's subject types and default relation grants to the policy's. */
-function qualifyRelations<Name extends string>(
-    owner: Package,
-    input: PolicyInput<Name>,
-): Record<string, RelationDescription> {
-    return Object.fromEntries(
-        Object.entries(input.relations ?? {}).map(([name, relation]) => {
-            const grantedBy =
-                relation.grantedBy === undefined ? input.grantedBy : relation.grantedBy;
-
-            return [
-                name,
-                {
-                    subjects: relation.subjects.map((subject) =>
-                        Policy.subjectType(owner.id, subject),
-                    ),
-                    ...(grantedBy === undefined || grantedBy === null ? {} : { grantedBy }),
-                    ...(relation.open === true ? { open: true } : {}),
-                    ...(relation.isScope === true ? { isScope: true } : {}),
-                    ...(relation.concealed === true ? { concealed: true } : {}),
-                },
-            ];
-        }),
-    );
-}
-
-/** Require every row relation to accept a subject type unless other types add themselves. */
-function requireSubjectTypes(relations: Readonly<Record<string, RelationDescription>>): void {
-    for (const [name, relation] of Object.entries(relations)) {
-        if (relation.subjects.length === 0 && relation.open !== true && relation.isScope !== true) {
-            throw new AccessError(
-                "INVALID_DECLARATION",
-                `relation ${name} accepts no subject type and is not open`,
-            );
-        }
-    }
-}
-
-/** Describe a declared policy as plain values. */
-function describe<Name extends string>(
-    owner: Package,
-    input: PolicyInput<Name>,
-    relations: Readonly<Record<string, RelationDescription>>,
-): JsonValue {
-    return JsonValue.of({
-        packageId: owner.id,
-        name: input.name,
-        attributes: input.attributes ?? {},
-        context: input.context ?? {},
-        relations,
-        permissions: input.permissions,
-        ...(input.grantedBy === undefined ? {} : { grantedBy: input.grantedBy }),
-        ...(input.relationships === undefined
-            ? {}
-            : { relationships: { read: input.relationships.read } }),
-        ...(input.reserved === undefined ? {} : { reserved: [...input.reserved] }),
-        ...(input.elevated === undefined ? {} : { elevated: { ...input.elevated } }),
-        ...(input.administration === undefined
-            ? {}
-            : { administration: [...input.administration] }),
-        ...(input.scope === true ? { scope: true } : {}),
-        ...(input.partition === true ? { partition: true } : {}),
-        ...(input.isGlobal === true ? { isGlobal: true } : {}),
-        ...(input.contributes === undefined || input.contributes.length === 0
-            ? {}
-            : {
-                  contributes: input.contributes.map((entry) => ({
-                      packageId: entry.policy.definition.packageId,
-                      type: entry.policy.definition.name,
-                      relation: entry.relation,
-                  })),
-              }),
-    });
-}
-
-/** Freeze every declaration node after copying it. */
-function freeze<Value>(value: Value): Value {
-    // freeze the children before the node
-    if (value !== null && typeof value === "object") {
-        for (const child of Object.values(value)) {
-            freeze(child);
-        }
-        Object.freeze(value);
-    }
-
-    return value;
 }
 
 /** List the relations an expression reads, directly or through an arrow. */
@@ -376,21 +401,5 @@ export function relationsOf(expression: AccessExpression): string[] {
         case "readers":
         case "contained":
             return [];
-    }
-}
-
-/** List the policy a relation's subject type names, none for a plain subject type. */
-function referencedPolicies(subject: SubjectTypeInput): Policy[] {
-    // key a policy by itself
-    if (subject instanceof Policy) {
-        return [subject];
-    }
-    // key the policy of a subject set
-    else if (subject instanceof PolicySubject) {
-        return [subject.policy];
-    }
-    // name nothing else
-    else {
-        return [];
     }
 }

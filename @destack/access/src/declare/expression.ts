@@ -13,7 +13,7 @@ export const AttributeType = schema.enum(["string", "number", "boolean"]);
 /** The scalar type of an attribute that permission conditions compare. */
 export type AttributeType = schema.Infer<typeof AttributeType>;
 
-/** Constrain a column with access names to their lowercase kebab case, by its property. */
+/** Constrain a column property to lowercase kebab case access names. */
 export function nameCheck(name: string, property: string) {
     return check(name, {
         [property]: {

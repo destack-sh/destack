@@ -35,7 +35,7 @@ export interface TableMapping {
     readonly owner?: string;
     /** Whether the table has several object types, told apart by its packageId and type columns. */
     readonly isShared?: boolean;
-    /** The rows the scopes inside each row's scope copy, for inherited objects. */
+    /** The rows that replicas of the scopes inside each row's scope keep, for inherited objects. */
     readonly inherited?: Condition;
     /** Application columns supplying declared scalar attributes. */
     readonly attributes: Readonly<Record<string, string>>;
@@ -67,25 +67,308 @@ export interface TableMapping {
 
 /** Where a policy's objects live: reading rows and scopes, and validating mappings. */
 export const TableMapping = {
-    read,
-    scope,
-    text,
-    attribute: readAttribute,
-    field: readField,
-    reference: readReference,
-    tree: readTree,
-    scopeColumn,
-    validate,
-    freeze,
-    decides,
+    /** Decide whether a mapping reads every attribute a policy condition reads. */
+    decides(mapping: TableMapping, predicate: Predicate): boolean {
+        return [...Predicate.fields(predicate)].every(
+            (name) => mapping.attributes[name] !== undefined,
+        );
+    },
+
+    /** Check mapped columns against their declared attribute and relation types. */
+    validate(authorizer: Authorizer, mapping: TableMapping): void {
+        // check the columns and the relations, trees and parent against the policy
+        TableMapping.validateKeys(mapping);
+        TableMapping.validateAttributes(mapping);
+        TableMapping.validateReferenceColumns(mapping);
+        TableMapping.validateRelations(authorizer, mapping);
+        TableMapping.validateTrees(authorizer, mapping);
+        TableMapping.validateParent(authorizer, mapping);
+    },
+
+    /** Require the record identifier and scope columns to be non-null text. */
+    validateKeys(mapping: TableMapping): void {
+        for (const name of mapping.scope === undefined
+            ? [mapping.id]
+            : [mapping.id, mapping.scope]) {
+            const attribute = TableMapping.column(mapping.table, name).definition;
+            if (attribute.kind !== "text" || attribute.nullable) {
+                throw new AccessError("INVALID_DECLARATION", `invalid object key column: ${name}`);
+            }
+        }
+    },
+
+    /** Require columns with the object's declared scalar type, where null reads as missing. */
+    validateAttributes(mapping: TableMapping): void {
+        const definition = mapping.policy.definition;
+        for (const [name, expected] of Object.entries(definition.attributes)) {
+            // leave the attributes of a scope type mapped onto its scope rows undecided
+            const mapped = mapping.attributes[name];
+            if (mapped === undefined && mapping.table === Scope.table) {
+                continue;
+            } else if (mapped === undefined) {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `attribute ${name} of ${definition.name} has no column`,
+                );
+            }
+
+            // compare the column's kind with the declared type
+            const attribute = TableMapping.column(mapping.table, mapped).definition;
+            const kind = attribute.kind;
+            const type =
+                kind === "integer" || kind === "real"
+                    ? "number"
+                    : kind === "text"
+                      ? "string"
+                      : kind;
+            if (type !== expected) {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `incompatible attribute column: ${name}`,
+                );
+            }
+        }
+    },
+
+    /** Require text columns for polymorphic subjects and referenced objects. */
+    validateReferenceColumns(mapping: TableMapping): void {
+        // collect the subject type columns of fields and the columns of references
+        const typed = [
+            ...Object.values(mapping.relations).flatMap((field) =>
+                field.subject === undefined ? [] : Object.values<string>(field.subject),
+            ),
+            ...Object.values(mapping.references ?? {}).flatMap((reference) => [
+                reference.packageId,
+                reference.type,
+                reference.scope,
+                reference.id,
+            ]),
+        ];
+
+        // require each to be text
+        for (const name of typed) {
+            if (TableMapping.column(mapping.table, name).definition.kind !== "text") {
+                throw new AccessError("INVALID_DECLARATION", `invalid reference column: ${name}`);
+            }
+        }
+    },
+
+    /** Require a field relation to accept one type in a text column, unless typed columns exist. */
+    validateRelations(authorizer: Authorizer, mapping: TableMapping): void {
+        for (const [name, field] of Object.entries(mapping.relations)) {
+            const relation = authorizer.relation(mapping.policy, name);
+            if (
+                (field.subject === undefined &&
+                    field.isKey === undefined &&
+                    (relation.subjects.length !== 1 || relation.open)) ||
+                relation.subjects.some((subject) => subject.wildcard) ||
+                TableMapping.column(mapping.table, field.column).definition.kind !== "text" ||
+                field.scope === "" ||
+                (field.scope === ANY_SCOPE &&
+                    relation.subjects.some((subject) => TableMapping.isPrincipalType(subject)))
+            ) {
+                throw new AccessError("INVALID_DECLARATION", `invalid relation mapping: ${name}`);
+            }
+        }
+
+        // require an owner mapped to a field relating one type
+        const { owner } = mapping;
+        if (owner !== undefined && mapping.relations[owner]?.subject !== undefined) {
+            throw new AccessError("INVALID_DECLARATION", `invalid owner mapping: ${owner}`);
+        } else if (owner !== undefined && mapping.relations[owner] === undefined) {
+            throw new AccessError("INVALID_DECLARATION", `owner ${owner} is not a mapped relation`);
+        }
+    },
+
+    /** Require each ancestor index to maintain this table's declared self relation. */
+    validateTrees(authorizer: Authorizer, mapping: TableMapping): void {
+        const definition = mapping.policy.definition;
+        for (const [name, tree] of Object.entries(mapping.trees ?? {})) {
+            const field = mapping.relations[name];
+            const [subject] = authorizer.relation(mapping.policy, name).subjects;
+            if (
+                !field ||
+                subject === undefined ||
+                field.scope !== undefined ||
+                subject.packageId !== definition.packageId ||
+                subject.type !== definition.name ||
+                tree.definition.table !== mapping.table ||
+                tree.definition.parent !== field.column ||
+                tree.definition.id !== mapping.id ||
+                tree.definition.scope !== mapping.scope
+            ) {
+                throw new AccessError("INVALID_DECLARATION", `invalid tree mapping: ${name}`);
+            }
+        }
+    },
+
+    /** Require the owning parent to be a field relation of one subject type. */
+    validateParent(authorizer: Authorizer, mapping: TableMapping): void {
+        // refuse a parent kept in relationships
+        if (mapping.parent !== undefined && !mapping.relations[mapping.parent]) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `owning parent must be a field relation: ${mapping.parent}`,
+            );
+        }
+        // require one subject type of a parent kept in a field
+        else if (mapping.parent !== undefined) {
+            authorizer.onlySubject(mapping.policy, mapping.parent);
+        }
+    },
+
+    /** Copy mapping selections while retaining the registered table and declaration. */
+    freeze(mapping: TableMapping): TableMapping {
+        // copy nested relation fields so callers cannot change a prepared query
+        const relations = Object.fromEntries(
+            Object.entries(mapping.relations).map(([name, field]) => [
+                name,
+                Object.freeze({ ...field }),
+            ]),
+        );
+
+        return Object.freeze({
+            ...mapping,
+            attributes: Object.freeze({ ...mapping.attributes }),
+            relations: Object.freeze(relations),
+            ...(mapping.references === undefined
+                ? {}
+                : { references: Object.freeze({ ...mapping.references }) }),
+            ...(mapping.trees === undefined ? {} : { trees: Object.freeze({ ...mapping.trees }) }),
+        });
+    },
+
+    /** Decide whether a subject type is a principal, the type callers authenticate as. */
+    isPrincipalType(type: SubjectType): boolean {
+        return Object.values(principal).some(
+            (kind) =>
+                kind.definition.packageId === type.packageId && kind.definition.name === type.type,
+        );
+    },
+
+    /** Read rows of a mapped type in a scope by identifier from a snapshot. */
+    async read(
+        snapshot: Snapshot,
+        mapping: TableMapping,
+        within: string,
+        ids: readonly string[],
+    ): Promise<Row[]> {
+        // read the rows by identifier, and scopes through their own reader of the universe
+        const definition = mapping.policy.definition;
+        const rows: Row[] =
+            mapping.table === Scope.table
+                ? await Scope.read(snapshot, ids)
+                : await snapshot.select(
+                      mapping.table,
+                      [mapping.id],
+                      ids.map((id) => [id]),
+                  );
+
+        return rows.filter(
+            (row) =>
+                (within === ANY_SCOPE || TableMapping.scope(mapping, row) === within) &&
+                (mapping.isShared !== true ||
+                    (row["packageId"] === definition.packageId && row["type"] === definition.name)),
+        );
+    },
+
+    /** Read the scope a mapped row lives in. */
+    scope(mapping: TableMapping, row: Row): string {
+        return mapping.scope === undefined
+            ? Scope.universe.id
+            : TableMapping.text(row, mapping.scope);
+    },
+
+    /** Read a mapped row's text column, refusing a value of another kind. */
+    text(row: Row, name: string): string {
+        const value = row[name];
+        if (typeof value !== "string") {
+            throw new TypeError(`column ${name} is not text`);
+        }
+
+        return value;
+    },
+
+    /** Read the column storing a mapping's attribute, refusing an unmapped attribute. */
+    attribute(mapping: TableMapping, name: string): string {
+        const mapped = Object.hasOwn(mapping.attributes, name)
+            ? mapping.attributes[name]
+            : undefined;
+        if (mapped === undefined) {
+            throw new AccessError("INVALID_DECLARATION", `attribute ${name} has no column`);
+        }
+
+        return mapped;
+    },
+
+    /** Read the ancestor index of a mapping's self relation, refusing a relation without one. */
+    tree(mapping: TableMapping, relation: string): Tree {
+        // require the declared index
+        const trees = mapping.trees ?? {};
+        const tree = Object.hasOwn(trees, relation) ? trees[relation] : undefined;
+        if (tree === undefined) {
+            throw new AccessError("INVALID_DECLARATION", `${relation} has no ancestor index`);
+        }
+
+        return tree;
+    },
+
+    /** Read the field storing a mapping's relation, refusing a relation without one. */
+    field(mapping: TableMapping, relation: string): TableMapping["relations"][string] {
+        const field = Object.hasOwn(mapping.relations, relation)
+            ? mapping.relations[relation]
+            : undefined;
+        if (field === undefined) {
+            throw new AccessError("INVALID_DECLARATION", `${relation} is not a field relation`);
+        }
+
+        return field;
+    },
+
+    /** Read the columns of a mapping's declared object reference. */
+    reference(mapping: TableMapping, name: string): ReferenceColumns {
+        // require the declared reference
+        const references = mapping.references ?? {};
+        const columns = Object.hasOwn(references, name) ? references[name] : undefined;
+        if (columns === undefined) {
+            throw new AccessError("INVALID_DECLARATION", `unknown object reference: ${name}`);
+        }
+
+        return columns;
+    },
+
+    /** Select the scope a mapped row of a table, or of one of its aliases, lives in. */
+    scopeColumn(table: Table, mapping: TableMapping): SQLWrapper {
+        return mapping.scope === undefined
+            ? sql`${Scope.universe.id}`
+            : TableMapping.column(table, mapping.scope);
+    },
+
+    /** Resolve a mapped application column without interpolating caller SQL. */
+    column(table: Table, name: string): Column {
+        // accept only the table's own columns
+        const found = Object.hasOwn(table[TABLE].columns, name)
+            ? table[TABLE].columns[name]
+            : undefined;
+        if (found === undefined) {
+            throw new AccessError("INVALID_DECLARATION", `unknown mapped column: ${name}`);
+        }
+
+        return found;
+    },
+
+    /** Select a table's columns under their property names. */
+    columns(table: Table): SQL {
+        return sql.join(
+            Object.entries(table[TABLE].columns).map(
+                ([property, entry]) => sql`${entry} AS ${sql.identifier(property)}`,
+            ),
+            sql`, `,
+        );
+    },
 };
 
-/** Decide whether a mapping reads every attribute a policy condition reads. */
-function decides(mapping: TableMapping, predicate: Predicate): boolean {
-    return [...Predicate.fields(predicate)].every((name) => mapping.attributes[name] !== undefined);
-}
-
-/** The columns naming an object of any type: its package, type, scope and identifier. */
+/** The columns that identify an object of any type: its package, type, scope and identifier. */
 export interface ReferenceColumns {
     /** The column with the object's package. */
     readonly packageId: string;
@@ -107,281 +390,4 @@ export interface FieldRelation {
     readonly field: TableMapping["relations"][string];
     /** The subject type of the field. */
     readonly subject: SubjectType;
-}
-
-/** Check mapped columns against their declared attribute and relation types. */
-function validate(authorizer: Authorizer, mapping: TableMapping): void {
-    // check the columns and the relations, trees and parent against the policy
-    validateKeys(mapping);
-    validateAttributes(mapping);
-    validateReferenceColumns(mapping);
-    validateRelations(authorizer, mapping);
-    validateTrees(authorizer, mapping);
-    validateParent(authorizer, mapping);
-}
-
-/** Require the record identifier and scope columns to hold text that is never null. */
-function validateKeys(mapping: TableMapping): void {
-    for (const name of mapping.scope === undefined ? [mapping.id] : [mapping.id, mapping.scope]) {
-        const attribute = column(mapping.table, name).definition;
-        if (attribute.kind !== "text" || attribute.nullable) {
-            throw new AccessError("INVALID_DECLARATION", `invalid object key column: ${name}`);
-        }
-    }
-}
-
-/** Require columns with the object's declared scalar type, where null reads as missing. */
-function validateAttributes(mapping: TableMapping): void {
-    const definition = mapping.policy.definition;
-    for (const [name, expected] of Object.entries(definition.attributes)) {
-        // leave the attributes of a scope type mapped onto its scope rows undecided
-        const mapped = mapping.attributes[name];
-        if (mapped === undefined && mapping.table === Scope.table) {
-            continue;
-        } else if (mapped === undefined) {
-            throw new AccessError(
-                "INVALID_DECLARATION",
-                `no column maps attribute ${name} of ${definition.name}`,
-            );
-        }
-
-        // compare the column's kind with the declared type
-        const attribute = column(mapping.table, mapped).definition;
-        const kind = attribute.kind;
-        const type =
-            kind === "integer" || kind === "real" ? "number" : kind === "text" ? "string" : kind;
-        if (type !== expected) {
-            throw new AccessError("INVALID_DECLARATION", `incompatible attribute column: ${name}`);
-        }
-    }
-}
-
-/** Require the text columns naming polymorphic subjects and referenced objects. */
-function validateReferenceColumns(mapping: TableMapping): void {
-    // collect the subject type columns of fields and the columns of references
-    const typed = [
-        ...Object.values(mapping.relations).flatMap((field) =>
-            field.subject === undefined ? [] : Object.values<string>(field.subject),
-        ),
-        ...Object.values(mapping.references ?? {}).flatMap((reference) => [
-            reference.packageId,
-            reference.type,
-            reference.scope,
-            reference.id,
-        ]),
-    ];
-
-    // require each to hold text
-    for (const name of typed) {
-        if (column(mapping.table, name).definition.kind !== "text") {
-            throw new AccessError("INVALID_DECLARATION", `invalid reference column: ${name}`);
-        }
-    }
-}
-
-/** Require a field relation to accept one type in a text column, unless typed columns exist. */
-function validateRelations(authorizer: Authorizer, mapping: TableMapping): void {
-    for (const [name, field] of Object.entries(mapping.relations)) {
-        const relation = authorizer.relation(mapping.policy, name);
-        if (
-            (field.subject === undefined &&
-                field.isKey === undefined &&
-                (relation.subjects.length !== 1 || relation.open)) ||
-            relation.subjects.some((subject) => subject.wildcard) ||
-            column(mapping.table, field.column).definition.kind !== "text" ||
-            field.scope === "" ||
-            (field.scope === ANY_SCOPE && relation.subjects.some(isPrincipalType))
-        ) {
-            throw new AccessError("INVALID_DECLARATION", `invalid relation mapping: ${name}`);
-        }
-    }
-
-    // require an owner mapped to a field relating one type
-    const { owner } = mapping;
-    if (owner !== undefined && mapping.relations[owner]?.subject !== undefined) {
-        throw new AccessError("INVALID_DECLARATION", `invalid owner mapping: ${owner}`);
-    } else if (owner !== undefined && mapping.relations[owner] === undefined) {
-        throw new AccessError("INVALID_DECLARATION", `owner ${owner} is no mapped relation`);
-    }
-}
-
-/** Require each ancestor index to maintain this table's declared self relation. */
-function validateTrees(authorizer: Authorizer, mapping: TableMapping): void {
-    const definition = mapping.policy.definition;
-    for (const [name, tree] of Object.entries(mapping.trees ?? {})) {
-        const field = mapping.relations[name];
-        const [subject] = authorizer.relation(mapping.policy, name).subjects;
-        if (
-            !field ||
-            subject === undefined ||
-            field.scope !== undefined ||
-            subject.packageId !== definition.packageId ||
-            subject.type !== definition.name ||
-            tree.definition.table !== mapping.table ||
-            tree.definition.parent !== field.column ||
-            tree.definition.id !== mapping.id ||
-            tree.definition.scope !== mapping.scope
-        ) {
-            throw new AccessError("INVALID_DECLARATION", `invalid tree mapping: ${name}`);
-        }
-    }
-}
-
-/** Require the owning parent to be a field relation of one subject type. */
-function validateParent(authorizer: Authorizer, mapping: TableMapping): void {
-    // refuse a parent kept in relationships
-    if (mapping.parent !== undefined && !mapping.relations[mapping.parent]) {
-        throw new AccessError(
-            "INVALID_DECLARATION",
-            `owning parent must be a field relation: ${mapping.parent}`,
-        );
-    }
-    // require one subject type of a parent kept in a field
-    else if (mapping.parent !== undefined) {
-        authorizer.onlySubject(mapping.policy, mapping.parent);
-    }
-}
-
-/** Copy mapping selections while retaining the registered table and declaration. */
-function freeze(mapping: TableMapping): TableMapping {
-    // copy nested relation fields so callers cannot change a prepared query
-    const relations = Object.fromEntries(
-        Object.entries(mapping.relations).map(([name, field]) => [
-            name,
-            Object.freeze({ ...field }),
-        ]),
-    );
-
-    return Object.freeze({
-        ...mapping,
-        attributes: Object.freeze({ ...mapping.attributes }),
-        relations: Object.freeze(relations),
-        ...(mapping.references === undefined
-            ? {}
-            : { references: Object.freeze({ ...mapping.references }) }),
-        ...(mapping.trees === undefined ? {} : { trees: Object.freeze({ ...mapping.trees }) }),
-    });
-}
-
-/** Decide whether a subject type is a principal, which callers authenticate as. */
-function isPrincipalType(type: SubjectType): boolean {
-    return Object.values(principal).some(
-        (kind) =>
-            kind.definition.packageId === type.packageId && kind.definition.name === type.type,
-    );
-}
-
-/** Read rows of a mapped type in a scope by identifier from a snapshot. */
-async function read(
-    snapshot: Snapshot,
-    mapping: TableMapping,
-    within: string,
-    ids: readonly string[],
-): Promise<Row[]> {
-    // read the rows by identifier, scopes through their own reader, which knows the universe
-    const definition = mapping.policy.definition;
-    const rows: Row[] =
-        mapping.table === Scope.table
-            ? await Scope.read(snapshot, ids)
-            : await snapshot.select(
-                  mapping.table,
-                  [mapping.id],
-                  ids.map((id) => [id]),
-              );
-
-    return rows.filter(
-        (row) =>
-            (within === ANY_SCOPE || scope(mapping, row) === within) &&
-            (mapping.isShared !== true ||
-                (row["packageId"] === definition.packageId && row["type"] === definition.name)),
-    );
-}
-
-/** Read the scope a mapped row lives in. */
-function scope(mapping: TableMapping, row: Row): string {
-    return mapping.scope === undefined ? Scope.universe.id : text(row, mapping.scope);
-}
-
-/** Read a mapped row's text column, refusing a value of another kind. */
-function text(row: Row, name: string): string {
-    const value = row[name];
-    if (typeof value !== "string") {
-        throw new TypeError(`column ${name} keeps no text`);
-    }
-
-    return value;
-}
-
-/** Read the column keeping a mapping's attribute, refusing an unmapped attribute. */
-function readAttribute(mapping: TableMapping, name: string): string {
-    const mapped = Object.hasOwn(mapping.attributes, name) ? mapping.attributes[name] : undefined;
-    if (mapped === undefined) {
-        throw new AccessError("INVALID_DECLARATION", `no column maps attribute ${name}`);
-    }
-
-    return mapped;
-}
-
-/** Read the ancestor index of a mapping's self relation, refusing a relation without one. */
-function readTree(mapping: TableMapping, relation: string): Tree {
-    // require the declared index
-    const trees = mapping.trees ?? {};
-    const tree = Object.hasOwn(trees, relation) ? trees[relation] : undefined;
-    if (tree === undefined) {
-        throw new AccessError("INVALID_DECLARATION", `no ancestor index maintains ${relation}`);
-    }
-
-    return tree;
-}
-
-/** Read the field keeping a mapping's relation, refusing a relation without one. */
-function readField(mapping: TableMapping, relation: string): TableMapping["relations"][string] {
-    const field = Object.hasOwn(mapping.relations, relation)
-        ? mapping.relations[relation]
-        : undefined;
-    if (field === undefined) {
-        throw new AccessError("INVALID_DECLARATION", `${relation} is no field relation`);
-    }
-
-    return field;
-}
-
-/** Read the columns of a mapping's declared object reference. */
-function readReference(mapping: TableMapping, name: string): ReferenceColumns {
-    // require the declared reference
-    const references = mapping.references ?? {};
-    const columns = Object.hasOwn(references, name) ? references[name] : undefined;
-    if (columns === undefined) {
-        throw new AccessError("INVALID_DECLARATION", `unknown object reference: ${name}`);
-    }
-
-    return columns;
-}
-
-/** Select the scope a mapped row of a table, or of one of its aliases, lives in. */
-function scopeColumn(table: Table, mapping: TableMapping): SQLWrapper {
-    return mapping.scope === undefined ? sql`${Scope.universe.id}` : column(table, mapping.scope);
-}
-
-/** Resolve a mapped application column without interpolating caller SQL. */
-export function column(table: Table, name: string): Column {
-    // accept only the table's own columns
-    const found = Object.hasOwn(table[TABLE].columns, name)
-        ? table[TABLE].columns[name]
-        : undefined;
-    if (found === undefined) {
-        throw new AccessError("INVALID_DECLARATION", `unknown mapped column: ${name}`);
-    }
-
-    return found;
-}
-
-/** Select a table's columns under their property names. */
-export function columnsOf(table: Table): SQL {
-    return sql.join(
-        Object.entries(table[TABLE].columns).map(
-            ([property, entry]) => sql`${entry} AS ${sql.identifier(property)}`,
-        ),
-        sql`, `,
-    );
 }

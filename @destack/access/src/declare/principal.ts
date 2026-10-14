@@ -21,7 +21,7 @@ export const principal = {
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
     /** A bearer token a person issues, acting for them under its grant. */
     personalAccessToken: new Policy(OWNER, { name: "personal-access-token", permissions: {} }),
-    /** A space, which signs with its own key and keeps copies for itself. */
+    /** A space, which signs with its own key and keeps replicas for itself. */
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
     /** A way to contact someone outside Destack with proven control, such as an email. */
     contact: new Policy(OWNER, { name: "contact", permissions: {} }),

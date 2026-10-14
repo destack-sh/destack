@@ -5,7 +5,8 @@
 ```ts
 // owner + editor + parent->read
 read: union(relation("owner"), relation("editor"), through("parent", "read"));
-reader: { subjects: [principal.user, folder.members("read")] }; // user | folder#read
+// user | folder#read
+const reader = { subjects: [principal.user, folder.members("read")] };
 edit: intersection(relation("editor"), resource({ team: sql.placeholder("team") })); // a caveat
 await authorizer.check(snapshot, page.permission("edit"), target, access); // CheckPermission
 // LookupSubjects
@@ -13,7 +14,10 @@ await authorizer.subjects(snapshot, page.permission("read"), target, type, Date.
     limit: 50,
 });
 // LookupResources as SQL
-await database.select().from(pages).where(authorizer.where(page.permission("read"), access));
+await database
+    .select()
+    .from(pages)
+    .where(authorizer.where(page.permission("read"), access));
 await authorization.grant({ object: page, relation: "editor", subject }); // WriteRelationships
 ```
 
@@ -41,7 +45,7 @@ export const note = new Policy(import.meta.destack.package, {
 
 ## Decisions
 
-An `Authorizer` resolves a caller's `Access` in a scope, and `require` throws an `AccessError` naming the first permission the caller lacks.
+An `Authorizer` resolves a caller's `Access` in a scope, and `require` throws an `AccessError` with the first permission the caller lacks.
 
 ```ts
 const authorizer = new Authorizer(
@@ -85,7 +89,7 @@ await authorization.assign(space, role.id, carol);
 
 ## Grants
 
-A `Grant` lets a delegate act for its delegator with what both allow: the delegator's access intersected with the grant's RFC 9396 permissions, carried on a caller as its RFC 8693 actor chain.
+A `Grant` lets a delegate act for its delegator with what both allow: the delegator's access intersected with the grant's RFC 9396 permissions, presented on a caller as its RFC 8693 actor chain.
 
 ```ts
 const grant = await authorization.createGrant(aliceScope, {
@@ -93,7 +97,12 @@ const grant = await authorization.createGrant(aliceScope, {
     permissions: [{ ...note.permission("read"), scope: spaceId, method: "get" }],
     approval: "once",
 });
-const caller = { subject: alice, subjects: [alice], delegates: [installation], grant: Grant.claim(grant) };
+const caller = {
+    subject: alice,
+    subjects: [alice],
+    delegates: [installation],
+    grant: Grant.claim(grant),
+};
 await authorization.revokeGrant(aliceScope, grant.id);
 ```
 

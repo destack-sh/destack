@@ -7,7 +7,7 @@ import { accessRole, accessRolePermission } from "../role/table.ts";
 import { accessInvitation } from "../invitation/table.ts";
 import { accessGrant } from "../grant/table.ts";
 
-/** The name of the shape copying a scope's chain. */
+/** The name of the shape replicating a scope's chain. */
 export const CHAIN_SHAPE = "chain";
 
 /** The access tables decisions read, parents first. */

@@ -12,10 +12,23 @@ import {
     LinkSecret,
     Policy,
     principal,
+    through,
     type AccessContext,
     type RelationshipCondition,
 } from "../index.ts";
-import { cell, entity, item, mappings, node, policies, rows } from "../test/fixture.ts";
+import {
+    account,
+    cell,
+    entity,
+    group,
+    item,
+    mappings,
+    module1,
+    node,
+    policies,
+    rows,
+    space,
+} from "../test/fixture.ts";
 import { Authorization } from "./authorization.ts";
 import { openFixture, sessionCredential, userSubject } from "../test/database.ts";
 
@@ -153,7 +166,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     expect(refusals).toEqual([
         [
             "INSUFFICIENT_AUTHENTICATION",
-            "authenticate again at the required assurance",
+            "authentication assurance is too low: authenticate again",
             { assurance: 2, maxAge: 15 * 60 * 1000 },
         ],
         ["FORBIDDEN", "permission denied: edit", undefined],
@@ -676,16 +689,42 @@ databaseTest(
         }).toEqual({
             delegateScopes: ["personal", "personal"],
             refusals: [
-                "FORBIDDEN: only a principal grants its own authority",
-                "FORBIDDEN: a grant's delegate is one other principal",
+                "FORBIDDEN: a principal can grant only its own authority",
+                "FORBIDDEN: a grant needs one other principal as delegate",
             ],
-            elsewhere: `UNAUTHORIZED: grant ${forBob.id} is another delegate's`,
+            elsewhere: `UNAUTHORIZED: grant ${forBob.id} belongs to another delegate`,
             lapsed: `UNAUTHORIZED: grant ${forAlice.id} expired`,
             revoked: `UNAUTHORIZED: grant ${forAlice.id} is revoked`,
             kept: "resolved",
         });
     },
 );
+
+test("follow a scope relation of several scope types to the nearest scope only, and refuse one of a plain type", () => {
+    // relate pins to the account or space they live in
+    const pin = pinPolicy([account, space]);
+    const authorizer = new Authorizer([...policies, pin], mappings);
+    const reading = {
+        kind: "through",
+        relation: "scope",
+        permission: "read",
+        transitive: false,
+    } as const;
+
+    // take the space below its account, the account alone, and refuse a group as a scope
+    expect([
+        authorizer
+            .enclosingTypes(pin, reading, [chainLink(space), chainLink(account)])
+            .map((type) => type.type),
+        authorizer.enclosingTypes(pin, reading, [chainLink(account)]).map((type) => type.type),
+    ]).toEqual([["space"], ["account"]]);
+    expect(() => new Authorizer([...policies, pinPolicy([account, group])], mappings)).toThrow(
+        new AccessError(
+            "INVALID_DECLARATION",
+            "pin.scope is a scope relation: it accepts scope types only",
+        ),
+    );
+});
 
 /** Give editing one node of the personal scope. */
 function editing(objectId: string) {
@@ -851,4 +890,18 @@ async function expectEditable(
         )
         .orderBy(item.id);
     expect(selected.map((row) => row.id)).toEqual(expected);
+}
+
+/** Declare pins reading through the scope types they live in. */
+function pinPolicy(scopes: readonly Policy[]): Policy {
+    return new Policy(module1.package, {
+        name: "pin",
+        relations: { scope: { subjects: [...scopes], grantedBy: null, isScope: true } },
+        permissions: { read: through("scope", "read") },
+    });
+}
+
+/** Reference a scope type as a chain link has it. */
+function chainLink(type: Policy) {
+    return { packageId: type.definition.packageId, type: type.name };
 }

@@ -13,7 +13,7 @@ export const KEY_ASSURANCE = 3;
 /** The largest clock difference between a credential's verifier and the server checking it. */
 export const CLOCK_TOLERANCE_MILLISECONDS = 5000;
 
-/** The header a host forwards a verified caller to its runner in. */
+/** The header that forwards a verified caller from a host to its runner. */
 export const CALLER_HEADER = "Destack-Caller";
 
 /** The schema of a contact. */
@@ -43,7 +43,7 @@ export const Contact = Object.assign(contactSchema, {
         return `${contact.medium}:${contact.address}`;
     },
 
-    /** Reference a contact as the principal relationships and invitations name. */
+    /** Reference a contact as a principal for relationships and invitations. */
     subject(contact: Contact): Subject {
         return principal.contact.reference(Scope.universe.id, Contact.key(contact));
     },
@@ -159,7 +159,7 @@ export const Caller = {
         deployments: schema.array(CallerDeployment).exactOptional(),
     }),
 
-    /** Key a caller by represented subject and sending principal, as retries and writers are. */
+    /** Key a caller by represented subject and sending principal, for retries and writers. */
     key(caller: Pick<Caller, "subject" | "delegates">): string {
         const { subject } = caller;
         const sender = Caller.sender(caller);
@@ -223,10 +223,10 @@ export const Caller = {
 
     /** Require a caller's delegates to act for one of its verified subjects. */
     requireChain(caller: Caller): void {
-        // refuse a grant without delegates, which a grant only narrows
+        // refuse a grant without delegates
         const represented = caller.subject;
         if (caller.grant !== undefined && (caller.delegates ?? []).length === 0) {
-            throw new AccessError("INVALID_CONTEXT", "a grant needs the delegates acting under it");
+            throw new AccessError("INVALID_CONTEXT", "a grant needs delegates");
         }
 
         // refuse delegates acting for a subject the caller did not verify
@@ -244,7 +244,7 @@ export const Caller = {
         return Caller.isDelegated(caller) ? [] : (caller.contacts ?? []);
     },
 
-    /** Read a caller's credential key, `<kind>:<id>`, which credential conditions match. */
+    /** Read a caller's credential key, `<kind>:<id>`, for credential conditions. */
     credentialKey(caller: Pick<Caller, "credential">): string | undefined {
         const { credential } = caller;
 
@@ -319,7 +319,7 @@ export const Caller = {
             return undefined;
         }
 
-        // refuse a header that is no JSON caller
+        // refuse a header that is not a JSON caller
         const parsed = Caller.schema.safeParse(JsonValue.parse(forwarded));
         if (!parsed.success) {
             throw new AccessError("INVALID_CONTEXT", "the forwarded caller is malformed");
@@ -336,7 +336,7 @@ export const Caller = {
 
 /** What the authorizer decides on: a verified caller at a time, within a request. */
 export interface AccessContext extends Caller {
-    /** The request's identifier, which conditions bound to one request match. */
+    /** The request's identifier, for conditions bound to one request. */
     readonly request?: string;
     /** Trusted time of the decision in UTC epoch milliseconds. */
     readonly now: number;

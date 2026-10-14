@@ -24,7 +24,7 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 
-/** Assets kept in one scope, each belonging to the space its holder column names. */
+/** Assets in one scope, each belonging to the space in its holder column. */
 const assetTable = defineTable("example_asset", {
     id: text("id").primaryKey(),
     scope: text("scope").notNull(),
@@ -52,7 +52,7 @@ const assetMapping: TableMapping = {
 /** The person reading the assets. */
 const carol = principal.user.reference(Scope.universe.id, "carol");
 
-/** The holder's account, which encloses the holder. */
+/** The holder's account, enclosing the holder. */
 const holding = account.reference(Scope.universe.id, "account-1");
 
 /** The holder space, inside its account. */
@@ -64,7 +64,7 @@ const unrelated = account.reference(Scope.universe.id, "account-2");
 /** The scope keeping the assets, inside a third account. */
 const home = space.reference("account-3", "home");
 
-/** Open a database keeping assets of a space in another account's home, with the scopes copied. */
+/** Open a database keeping assets of a space in another account's home, scopes replicated. */
 async function openOwned() {
     // migrate the access tables beside the scopes and the assets
     const storage = await TestDatabase.create(
@@ -75,13 +75,13 @@ async function openOwned() {
     onTestFinished(() => storage.close());
     const { database } = storage;
 
-    // copy the accounts, the holder and the home, and keep the holder and an asset it holds
-    const copies = new AccessFixture(database);
+    // replicate the accounts, the holder and the home, and keep the holder and an asset it holds
+    const replicas = new AccessFixture(database);
     for (const scope of [holding, unrelated, account.reference(Scope.universe.id, "account-3")]) {
-        await copies.copyScope(scope);
+        await replicas.replicateScope(scope);
     }
-    await copies.copyScope(holder);
-    await copies.copyScope(home, "own");
+    await replicas.replicateScope(holder);
+    await replicas.replicateScope(home, "own");
     await database.insert(spaceTable).values({ id: holder.id, account: holder.scope });
     await database.insert(assetTable).values({ id: "asset-1", scope: home.id, holder: holder.id });
 
@@ -114,7 +114,7 @@ async function openOwned() {
 
     // define a role reading assets in a scope, bound there to carol
     const reader = (scope: ObjectReference) =>
-        copies.copyRole(
+        replicas.replicateRole(
             scope,
             {
                 name: "asset-reader",
@@ -141,7 +141,7 @@ async function openOwned() {
         );
     };
 
-    return { readable, reader, bind, copies };
+    return { readable, reader, bind, replicas };
 }
 
 test("cover an owned row with the roles bound on its owner and on the scopes enclosing the owner, in SQL and in grant trees", async () => {
@@ -174,10 +174,10 @@ test("cover an owned row with a role bound on the account enclosing its owner", 
 });
 
 test("grant nothing through a role bound on an owner when a scope outside the owner's chain defines it", async () => {
-    const { readable, reader, bind, copies } = await openOwned();
+    const { readable, reader, bind, replicas } = await openOwned();
 
     // define a reader in an unrelated account, then bind it on the holder
-    await copies.copyScope(space.reference("account-2", "elsewhere"));
+    await replicas.replicateScope(space.reference("account-2", "elsewhere"));
     const foreign = await reader(space.reference("account-2", "elsewhere"));
     await bind(holder, foreign);
 

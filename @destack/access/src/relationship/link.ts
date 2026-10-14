@@ -16,7 +16,7 @@ export interface Link {
 export class LinkSecret {
     /** The secret a request presents. */
     readonly secret: string;
-    /** The digest relationships keep. */
+    /** The digest relationships store. */
     readonly digest: string;
 
     /** Pair a secret with its digest. */

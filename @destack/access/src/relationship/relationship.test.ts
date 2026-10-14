@@ -178,7 +178,7 @@ test.for(TEST_DIALECTS)(
                 }),
         );
 
-        // read the offer to dave alone, none to bob and none to dave on node a
+        // read only the offer to dave, none to bob and none to dave on node a
         const snapshot = Snapshot.live(fixture.database);
         const read = async (on: ObjectReference, addressee: Subject) =>
             (await Invitation.readOn(snapshot, on, addressee)).map((offer) => [

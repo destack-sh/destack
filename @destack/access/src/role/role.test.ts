@@ -192,10 +192,10 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
     const { database, readable, defineRole, relate } = await openRoleFixture();
 
     // place the personal scope inside the account its members own
-    const copies = new AccessFixture(database);
-    await copies.copyScope(account.reference("universe", "account-1"));
-    await copies.copyOwner(account.reference("universe", "account-1"), carolMembership, 1);
-    await copies.copyScope(space.reference("account-1", "personal"), "own");
+    const access = new AccessFixture(database);
+    await access.replicateScope(account.reference("universe", "account-1"));
+    await access.replicateOwner(account.reference("universe", "account-1"), carolMembership, 1);
+    await access.replicateScope(space.reference("account-1", "personal"), "own");
 
     // bind an editor role including the reader role on the account
     const reader = await defineRole(1, [node.permission("read")], "account-1");
@@ -343,7 +343,8 @@ test("bind only roles whose permissions the granting caller has", async () => {
         ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
-        message: "a role binds only to declared subject sets and scope relations, not node#viewer",
+        message:
+            "a role cannot bind to node#viewer: it is not a declared subject set or scope relation",
     });
 });
 
@@ -398,7 +399,7 @@ test("let owners have everything in their scope, make owners, and never remove t
             }),
     );
 
-    // refuse a sharer who is no owner binding the role granting everything
+    // refuse a sharer who is not an owner binding the role granting everything
     const sharer = await Authorization.run(
         home,
         database,
@@ -502,7 +503,7 @@ test("create a scope without owners of its own, which the owners of its account 
                 owner: aligned(carol.subjects, 0),
             }),
         ),
-    ).rejects.toMatchObject({ code: "INVALID_CONTEXT", message: "only a new scope has owners" });
+    ).rejects.toMatchObject({ code: "INVALID_CONTEXT", message: "only a scope can have owners" });
     expect(decision.isAllowed).toBe(true);
 });
 
@@ -521,20 +522,20 @@ test("list the spaces an account contains to the account's owner", async () => {
     ]);
 
     // record two accounts, their spaces, and carol as the first account's owner
-    const accessCopies = new AccessFixture(database);
-    await accessCopies.copyScope(account.reference("universe", "account-1"));
-    await accessCopies.copyOwner(
+    const access = new AccessFixture(database);
+    await access.replicateScope(account.reference("universe", "account-1"));
+    await access.replicateOwner(
         account.reference("universe", "account-1"),
         aligned(carol.subjects, 0),
         1,
     );
-    await accessCopies.copyScope(account.reference("universe", "account-2"));
+    await access.replicateScope(account.reference("universe", "account-2"));
     for (const [id, owner] of [
         ["space-1", "account-1"],
         ["space-2", "account-1"],
         ["space-3", "account-2"],
     ] as const) {
-        await new AccessFixture(database).copyScope(space.reference(owner, id), "own");
+        await new AccessFixture(database).replicateScope(space.reference(owner, id), "own");
         await database.insert(spaceTable).values({ id, account: owner });
     }
 
@@ -556,7 +557,7 @@ test("list the spaces an account contains to the account's owner", async () => {
     expect(await listed(alice)).toEqual([]);
 
     // list the same spaces from the scope records of every database
-    await new AccessFixture(database).copyScope(account.reference("account-1", "account-3"));
+    await new AccessFixture(database).replicateScope(account.reference("account-1", "account-3"));
     const scopes = new Authorizer(policies, mappings);
     const recorded = await database
         .select({ id: Scope.table.scope })
@@ -757,7 +758,7 @@ test("assign a role to one subject alone, revoking the previous subject and keep
         createdAt: 2000,
         expiresAt: null,
     };
-    expect([kept, rows.map(Relationship.decode)]).toEqual([binding, [binding]]);
+    expect([kept, rows.map((row) => Relationship.decode(row))]).toEqual([binding, [binding]]);
 });
 
 test("refuse keeping and assigning roles to a caller without the permissions", async () => {

@@ -60,7 +60,7 @@ export const accessRelationship = defineTable(
         subjectRelation: text("subject_relation"),
         /** Optional expiry in UTC epoch milliseconds. */
         expiresAt: integer("expires_at"),
-        /** The request the relationship applies to alone, until it commits. */
+        /** The only request the relationship applies to, until it commits. */
         requestId: text("request_id"),
         /** The credential a call presents for it to apply, such as a session or agent. */
         credential: text("credential"),
@@ -108,6 +108,13 @@ export const accessRelationship = defineTable(
                 relationship.subjectScope,
                 relationship.subjectId,
                 relationship.subjectRelation,
+            ),
+            index("relationship_scope_subject").on(
+                relationship.objectScope,
+                relationship.subjectPackageId,
+                relationship.subjectType,
+                relationship.subjectScope,
+                relationship.subjectId,
             ),
             index("relationship_role").on(relationship.roleId),
             check("relationship_label", {

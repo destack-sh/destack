@@ -19,13 +19,11 @@ import {
 import { PackageId } from "@destack/package";
 import { schema, zip } from "@destack/schema";
 import {
-    defineShape,
     Replica,
     Scope,
-    type Shape,
     type Subscription,
     type ScopeLink,
-    type Watch,
+    Watch,
     type ObjectReference,
     ObjectTypeReference,
     Subject,
@@ -39,7 +37,7 @@ import type {
     ConditionExpression,
 } from "../declare/expression.ts";
 import { accepts, type RelationDescription, type SubjectType } from "../declare/subject.ts";
-import { ACCESS_PACKAGE_ID, INTRINSIC_POLICIES } from "../declare/principal.ts";
+import { ACCESS_PACKAGE_ID, anyone, INTRINSIC_POLICIES } from "../declare/principal.ts";
 import { ACCESS_MAPPINGS } from "../replica/replica.ts";
 import { type AccessContext } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
@@ -50,83 +48,86 @@ import { accessRole } from "../role/table.ts";
 import { accessTables, CHAIN_SHAPE, decisionTables } from "../replica/replica.ts";
 import { earliest, Access } from "./access.ts";
 import { Compiler } from "./compiler.ts";
+import { TupleCondition } from "./condition.ts";
 import type { Decision, Explanation } from "./decision.ts";
 import { TupleReader, TupleTree, type Tuple, type Lookup } from "./tuple.ts";
-import { column, TableMapping, type FieldRelation } from "./mapping.ts";
+import { TableMapping, type FieldRelation } from "./mapping.ts";
 
-/** The identifier of a wildcard subject, which relates every identity of its type. */
+/** The identifier of a wildcard subject, matching every identity of its type. */
 const WILDCARD = "*";
 
-/** The default time an unheard access copy lasts before refusal: three 10-second beats, in ms. */
+/** How long an unheard access replica lasts before refusal: three 10-second beats, in ms. */
 const LAG_MILLISECONDS = 30_000;
 
-/** The name of the shape copying the universe's rows a scope reads. */
-const UNIVERSE_SHAPE = "universe";
+/** The name of the shape replicating the universe's rows a scope reads. */
+export const UNIVERSE_SHAPE = "universe";
 
-/** The parameters of a chain copy. */
+/** The parameters of a chain replica. */
 export const ChainParameters = schema.object({
     /** The object types whose access rows live in the follower's own database. */
     local: schema.array(ObjectTypeReference),
-    /** The object types the follower copies. */
-    copied: schema.array(ObjectTypeReference),
-    /** The scopes an outside follower replicates, with the copied scope above and those between. */
+    /** The object types the follower replicates. */
+    replicated: schema.array(ObjectTypeReference),
+    /** The scopes an outside follower replicates, with the scope above and those between. */
     via: schema.array(schema.string().min(1)).min(1).exactOptional(),
-    /** The scopes between the replicated ones and the copied scope, as the follower knows them. */
+    /** The scopes between the replicated ones and the scope above, as the follower knows them. */
     between: schema.array(schema.string().min(1)).exactOptional(),
+    /** The home below, whose own roles and relationships its enclosing scope keeps. */
+    own: schema.string().min(1).exactOptional(),
 });
-/** The parameters of a chain copy. */
+/** The parameters of a chain replica. */
 export type ChainParameters = schema.Infer<typeof ChainParameters>;
 
-/** The parameters of a universe copy: each object type's rows, decided for their reader. */
-const UniverseParameters = schema.object({
+/** The parameters of a universe replica: each object type's rows, decided for their reader. */
+export const UniverseParameters = schema.object({
     /** The rows of each object type. */
     rows: schema.array(
         schema.object({
             /** The object type. */
             type: ObjectTypeReference,
-            /** The rows copied. */
+            /** The rows replicated. */
             where: Condition.schema,
-            /** The requested types whose rows these rows scope, absent for the copied scope. */
+            /** The requested types whose rows these rows scope, absent for the replicated scope. */
             within: schema.array(ObjectTypeReference).min(1).exactOptional(),
-            /** Whether rows copy from whichever scope they live in, instead of the copied scope. */
+            /** Whether rows are replicated from their own scope instead of the replicated scope. */
             isEverywhere: schema.literal(true).exactOptional(),
         }),
     ),
 });
-/** The parameters of a copy of the universe's rows. */
+/** The parameters of a replica of the universe's rows. */
 export type UniverseParameters = schema.Infer<typeof UniverseParameters>;
 
-/** A table a chain copy reads: its row condition, absent for all rows, and its scopes. */
+/** A table a chain replica reads: its row condition, absent for all rows, and its scopes. */
 type ChainTable = [Table, Condition | undefined, readonly string[]];
 
-/** A caller's permitted rows of a set by position, and the next moment time alone changes that. */
+/** A caller's permitted rows of a set by position, and the next time they change. */
 export interface Admission {
     /** The positions of the rows the caller has the permission on. */
     readonly permitted: ReadonlySet<number>;
-    /** The next moment time may change the rows the caller has it on. */
+    /** The next time the permitted rows may change. */
     readonly until?: number;
 }
 
-/** One scope type along a permission's scope chain and what on its object grants the permission. */
+/** One scope type on a permission's scope chain and the relations granting the permission there. */
 export interface ChainStep {
     /** The scope type. */
     readonly type: Pick<PermissionReference, "packageId" | "type">;
     /** The relations whose relationships on its object grant the permission. */
     readonly relations: readonly string[];
-    /** The containment set the permission admits, of some principal types alone when given. */
+    /** The containment set the permission admits, limited to some principal types when given. */
     readonly contained?: { readonly principals?: readonly ObjectTypeReference[] };
 }
 
-/** The chain a scope's copies cover: a home's above it, or a follower's from itself. */
+/** The chain a scope's replicas cover: a home's above it, or a follower's from itself. */
 export type ChainOptions =
     | {
-          /** A home, copying the chain above it. */
+          /** A home, replicating the chain above it. */
           readonly kind: "home";
-          /** The scope the home lives in, whose chain it copies before it is born. */
+          /** The scope the home lives in, whose chain it replicates before it is born. */
           readonly parent: string;
       }
     | {
-          /** A follower, copying its chain from itself. */
+          /** A follower, replicating its chain from itself. */
           readonly kind: "follower";
       };
 
@@ -138,36 +139,38 @@ export class Authorizer {
     readonly elevated: ReadonlyMap<string, Elevation>;
     /** The keys of permissions that stay available while a scope is suspended. */
     readonly administration: ReadonlySet<string>;
-    /** Field relations some relation names as a subject set. */
-    readonly fields: FieldRelation[] = [];
+    /** The keys of permissions that stay available while a scope moves. */
+    readonly moving: ReadonlySet<string>;
+    /** Field relations that another relation uses as a subject set. */
+    readonly fields: FieldRelation[];
     /** The subject sets that relations accept and roles may bind to. */
-    readonly memberships: SubjectType[] = [];
+    readonly memberships: SubjectType[];
     /** The permissions accepted as subject sets, by the type and relation of each relationship. */
-    readonly #implied = new Map<string, string[]>();
+    readonly #implied: Map<string, string[]>;
     /** The permissions accepted as sets on enclosed scopes, by enclosing type and permission. */
-    readonly #enclosed = new Map<string, PermissionReference[]>();
+    readonly #enclosed: Map<string, PermissionReference[]>;
     /** The scope types that take subject sets from the scopes enclosing them. */
-    readonly #enclosedTypes = new Set<string>();
+    readonly #enclosedTypes: Set<string>;
     /** The scope chain steps of permissions read through enclosing scopes, by permission key. */
-    readonly #inherited = new Map<string, readonly ChainStep[]>();
-    /** How long an access copy may go without its home before refusal, in milliseconds. */
+    readonly #inherited: Map<string, readonly ChainStep[]>;
+    /** How long an access replica may go without its home before refusal, in milliseconds. */
     readonly lag: number;
     /** The one partition whose scopes' access this database keeps, every partition when absent. */
     readonly partition: string | undefined;
-    /** The object types whose access rows live in this database, rather than as copies. */
+    /** The object types whose access rows live in this database, rather than as replicas. */
     readonly local: readonly ObjectTypeReference[];
-    /** The object types copied from scopes above: inherited rows, and kept scope types' rows. */
-    readonly copied: readonly ObjectTypeReference[];
-    /** The copied object types whose rows live in a scope. */
+    /** The object types replicated from scopes above: inherited rows and kept scope types. */
+    readonly replicated: readonly ObjectTypeReference[];
+    /** The replicated object types whose rows live in a scope. */
     readonly scoped: readonly ObjectTypeReference[];
     /** The global principal types, outside scope chains. */
     readonly global: readonly ObjectTypeReference[];
     /** The policies indexed by package and type. */
-    readonly #policies = new Map<string, Policy>();
+    readonly #policies: Map<string, Policy>;
     /** The subject types other types contribute to each open relation, by type and relation. */
-    readonly #contributions = new Map<string, SubjectType[]>();
+    readonly #contributions: Map<string, SubjectType[]>;
     /** The table mappings indexed by package and type. */
-    readonly #mappings = new Map<string, TableMapping>();
+    readonly #mappings: Map<string, TableMapping>;
     /** The compiler of the registered policies to SQL. */
     readonly #compiler: Compiler;
 
@@ -176,21 +179,34 @@ export class Authorizer {
         policies: readonly Policy[],
         mappings: readonly TableMapping[] = [],
         options: {
-            /** How long a copy of access may go without hearing from its home, in milliseconds. */
+            /** How long an access replica may go without hearing from its home, in milliseconds. */
             readonly lag?: number;
-            /** Decide whether the database copies a table's rows from their home. */
-            readonly copies?: (table: Table) => boolean;
+            /** Decide whether the database replicates a table's rows from their home. */
+            readonly replicates?: (table: Table) => boolean;
             /** The one partition whose scopes' access the database keeps, every one when absent. */
             readonly partition?: string;
         } = {},
     ) {
-        // register every policy the declared policies name under its type
-        const types = collectPolicies(policies);
+        // start with empty state
+        this.fields = [];
+        this.memberships = [];
+        this.#implied = new Map<string, string[]>();
+        this.#enclosed = new Map<string, PermissionReference[]>();
+        this.#enclosedTypes = new Set<string>();
+        this.#inherited = new Map<string, readonly ChainStep[]>();
+
+        // start the rest of the state empty
+        this.#policies = new Map<string, Policy>();
+        this.#contributions = new Map<string, SubjectType[]>();
+        this.#mappings = new Map<string, TableMapping>();
+
+        // register every policy the declared policies reference, by type
+        const types = Authorizer.#collectPolicies(policies);
         for (const type of types) {
-            this.#policies.set(policyKey(type), type);
+            this.#policies.set(Authorizer.#policyKey(type), type);
         }
 
-        // add contributing types to open relations and validate every named permission
+        // add contributing types to open relations and validate every referenced permission
         for (const type of types) {
             this.#registerContributions(type);
         }
@@ -198,10 +214,11 @@ export class Authorizer {
             this.#validatePermissions(type);
         }
 
-        // index the permissions the policies list as reserved, elevated or administrative
-        this.reserved = listedPermissions(types, "reserved");
-        this.elevated = elevatedPermissions(types);
-        this.administration = listedPermissions(types, "administration");
+        // index the permissions the policies list as reserved, elevated, administrative or moving
+        this.reserved = Authorizer.#listedPermissions(types, "reserved");
+        this.elevated = Authorizer.#elevatedPermissions(types);
+        this.administration = Authorizer.#listedPermissions(types, "administration");
+        this.moving = Authorizer.#listedPermissions(types, "moving");
         this.lag = options.lag ?? LAG_MILLISECONDS;
         this.partition = options.partition;
         this.#compiler = new Compiler(this);
@@ -214,11 +231,11 @@ export class Authorizer {
             this.#validateScopeRelations(type);
         }
 
-        // list the types whose access rows this database keeps, and the types it keeps copies of
-        const copies = options.copies ?? (() => false);
-        this.local = this.#localTypes(copies);
-        this.copied = this.#copiedTypes(copies);
-        this.scoped = this.#scopedTypes(copies);
+        // list the types whose access rows this database keeps, and the types it keeps replicas of
+        const replicates = options.replicates ?? (() => false);
+        this.local = this.#localTypes(replicates);
+        this.replicated = this.#replicatedTypes(replicates);
+        this.scoped = this.#scopedTypes(replicates);
         this.global = this.#globalTypes();
 
         // expand the subject sets roles may bind to
@@ -230,7 +247,7 @@ export class Authorizer {
         this.#requireDeciding(types, sets);
     }
 
-    /** Add a contributing type to each open relation it names. */
+    /** Add a contributing type to each open relation it references. */
     #registerContributions(type: Policy): void {
         for (const entry of type.definition.contributes ?? []) {
             // refuse a contribution to a relation that is not open
@@ -238,7 +255,7 @@ export class Authorizer {
             if (target?.definition.relations[entry.relation]?.open !== true) {
                 throw new AccessError(
                     "INVALID_DECLARATION",
-                    `${type.name} contributes to ${entry.type}.${entry.relation}, which is not an open relation`,
+                    `${type.name} cannot contribute to ${entry.type}.${entry.relation}: it is not an open relation`,
                 );
             }
 
@@ -270,7 +287,7 @@ export class Authorizer {
             }
         }
 
-        // resolve the type's grant, reserved, elevated and administration permissions
+        // resolve the type's grant, reserved, elevated, administration and moving permissions
         if (definition.grantedBy !== undefined) {
             this.expression(type.permission(definition.grantedBy));
         }
@@ -278,6 +295,7 @@ export class Authorizer {
             ...(definition.reserved ?? []),
             ...Object.keys(definition.elevated ?? {}),
             ...(definition.administration ?? []),
+            ...(definition.moving ?? []),
         ]) {
             this.expression(type.permission(name));
         }
@@ -352,7 +370,7 @@ export class Authorizer {
         this.#mappings.set(key, mapping);
     }
 
-    /** Require each relation to an enclosing scope to name one scope type and live in no field. */
+    /** Require each relation to an enclosing scope to accept scope types and map to no field. */
     #validateScopeRelations(type: Policy): void {
         for (const [name, relation] of Object.entries(type.definition.relations)) {
             if (relation.isScope === true) {
@@ -362,22 +380,24 @@ export class Authorizer {
     }
 
     /** List the mapped types whose access rows live in this database. */
-    #localTypes(copies: (table: Table) => boolean): ObjectTypeReference[] {
+    #localTypes(replicates: (table: Table) => boolean): ObjectTypeReference[] {
         return [...this.#mappings.values()]
-            .filter((mapping) => !accessTables.includes(mapping.table) && !copies(mapping.table))
+            .filter(
+                (mapping) => !accessTables.includes(mapping.table) && !replicates(mapping.table),
+            )
             .map((mapping) => ({
                 packageId: mapping.policy.definition.packageId,
                 type: mapping.policy.definition.name,
             }));
     }
 
-    /** List the mapped types this database copies: inherited types and copied scope types. */
-    #copiedTypes(copies: (table: Table) => boolean): ObjectTypeReference[] {
+    /** List the mapped types this database replicates: inherited and replicated scope types. */
+    #replicatedTypes(replicates: (table: Table) => boolean): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
                     mapping.inherited !== undefined ||
-                    (copies(mapping.table) &&
+                    (replicates(mapping.table) &&
                         mapping.policy.definition.scope === true &&
                         mapping.table !== Scope.table),
             )
@@ -387,12 +407,12 @@ export class Authorizer {
             }));
     }
 
-    /** List the copied types whose rows live in a scope, apart from inherited and scope types. */
-    #scopedTypes(copies: (table: Table) => boolean): ObjectTypeReference[] {
+    /** List the replicated types whose rows live in a scope, beside inherited and scope types. */
+    #scopedTypes(replicates: (table: Table) => boolean): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
-                    copies(mapping.table) &&
+                    replicates(mapping.table) &&
                     mapping.inherited === undefined &&
                     mapping.policy.definition.scope !== true &&
                     mapping.scope !== undefined,
@@ -497,7 +517,7 @@ export class Authorizer {
         }
     }
 
-    /** Expand subject sets through the fields that keep them. */
+    /** Expand subject sets through the fields that store them. */
     #registerFieldSets(sets: ReadonlyMap<string, PermissionReference>): void {
         for (const mapping of this.#mappings.values()) {
             const definition = mapping.policy.definition;
@@ -508,7 +528,7 @@ export class Authorizer {
                     name: relation,
                 });
                 if (sets.has(key)) {
-                    requireSubjectIndex(mapping, relation, field);
+                    Authorizer.#requireSubjectIndex(mapping, relation, field);
                     this.fields.push({
                         mapping,
                         relation,
@@ -526,9 +546,13 @@ export class Authorizer {
         sets: ReadonlyMap<string, PermissionReference>,
     ): void {
         const parents = this.#parentRelations();
-        const intrinsic = new Set(INTRINSIC_POLICIES.map((policy) => policyKey(policy)));
+        const intrinsic = new Set(
+            INTRINSIC_POLICIES.map((policy) => Authorizer.#policyKey(policy)),
+        );
         for (const type of types.filter(
-            (policy) => !intrinsic.has(policyKey(policy)) && this.#mappings.has(policyKey(policy)),
+            (policy) =>
+                !intrinsic.has(Authorizer.#policyKey(policy)) &&
+                this.#mappings.has(Authorizer.#policyKey(policy)),
         )) {
             const definition = type.definition;
             const decided = new Set(Object.values(definition.permissions).flatMap(relationsOf));
@@ -541,7 +565,7 @@ export class Authorizer {
                 if (!decided.has(name) && !sets.has(key) && !parents.has(key)) {
                     throw new AccessError(
                         "INVALID_DECLARATION",
-                        `relation ${definition.name}.${name} decides no permission`,
+                        `no permission uses relation ${definition.name}.${name}`,
                     );
                 }
             }
@@ -623,9 +647,9 @@ export class Authorizer {
         };
     }
 
-    /** Return an object type's table mapping, failing for a type without a mapped table. */
-    mapping(reference: Pick<PermissionReference, "packageId" | "type">): TableMapping {
-        const mapping = this.mappingOf(reference);
+    /** Read an object type's table mapping, failing for a type without a mapped table. */
+    requireMapping(reference: Pick<PermissionReference, "packageId" | "type">): TableMapping {
+        const mapping = this.mapping(reference);
         if (!mapping) {
             throw new AccessError(
                 "INVALID_DECLARATION",
@@ -636,10 +660,8 @@ export class Authorizer {
         return mapping;
     }
 
-    /** Read an object type's table mapping, absent for a type without a mapped table. */
-    mappingOf(
-        reference: Pick<PermissionReference, "packageId" | "type">,
-    ): TableMapping | undefined {
+    /** Read the mapping of an object type's table, absent for a type without a mapped table. */
+    mapping(reference: Pick<PermissionReference, "packageId" | "type">): TableMapping | undefined {
         return this.#mappings.get(ObjectTypeReference.key(reference));
     }
 
@@ -669,7 +691,7 @@ export class Authorizer {
         if (visited.has(key)) {
             throw new AccessError(
                 "INVALID_DECLARATION",
-                `${reference.type}.${reference.name} encloses itself`,
+                `cyclic scope chain: ${reference.type}.${reference.name}`,
             );
         }
         const { relations, contained, enclosing } = this.deciding(reference);
@@ -695,7 +717,7 @@ export class Authorizer {
         } else if (
             expression.kind === "through" &&
             !expression.transitive &&
-            this.mappingOf(permission)?.relations[expression.relation] !== undefined
+            this.mapping(permission)?.relations[expression.relation] !== undefined
         ) {
             return { permission: expression.permission, relation: expression.relation };
         }
@@ -703,18 +725,18 @@ export class Authorizer {
         return undefined;
     }
 
-    /** Read the object a row's field relation names, absent when the row names none. */
+    /** Read the object a row's field relation references, absent when the field is empty. */
     related(mapping: TableMapping, relation: string, row: Row): ObjectReference | undefined {
         // read the related identifier
         const field = mapping.relations[relation];
         if (field === undefined) {
-            throw new AccessError("INVALID_DECLARATION", `${relation} is no field relation`);
+            throw new AccessError("INVALID_DECLARATION", `${relation} is not a field relation`);
         }
         const id = row[field.column];
         if (id === null || id === undefined) {
             return undefined;
         } else if (typeof id !== "string") {
-            throw new TypeError(`field ${field.column} keeps no identifier`);
+            throw new TypeError(`field ${field.column} is not an identifier`);
         }
 
         // type it by the one type the relation accepts
@@ -747,18 +769,17 @@ export class Authorizer {
     /** Decide whether the transaction's database keeps an object's access rows. */
     async isLocal(transaction: Transaction, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
-        if (this.mappingOf(object)?.table === accessRole) {
+        if (this.mapping(object)?.table === accessRole) {
             const scope = await Scope.object(transaction.view(), object.scope);
 
             return this.isLocal(transaction, scope);
         }
-        // keep a scope's access where no copy brings it, a born scope's only in its partition's database
+        // keep a scope object's own access with its row: where its enclosing scope is kept, never as a replica
         else if (this.policy(object).definition.scope === true) {
             const view = transaction.view();
-            const isCopied = await Replica.isCopied(view, object.id, accessRelationship);
-            const [row] = await Scope.read(view, [object.id]);
+            const isReplicated = await Replica.isReplicated(view, object.id, accessRelationship);
 
-            return !isCopied && !this.#isElsewhere(row);
+            return !isReplicated && (await this.keeps(view, object.scope));
         }
         // keep another type's access where its rows are local
         else {
@@ -768,18 +789,18 @@ export class Authorizer {
         }
     }
 
-    /** Decide whether a snapshot's database keeps a scope's access rows, which no copy brings. */
+    /** Decide whether a snapshot's database stores a scope's own access rows. */
     async keeps(snapshot: Snapshot, scope: string): Promise<boolean> {
         const [row] = await Scope.read(snapshot, [scope]);
 
         return (
             row !== undefined &&
             !this.#isElsewhere(row) &&
-            !(await Replica.isCopied(snapshot, scope, accessRelationship))
+            !(await Replica.isReplicated(snapshot, scope, accessRelationship))
         );
     }
 
-    /** Decide whether a scope's row was born in another partition than this database keeps. */
+    /** Decide whether a scope's row was created in another partition than this database's. */
     #isElsewhere(row: { readonly partition: string } | undefined): boolean {
         return (
             this.partition !== undefined && row !== undefined && row.partition !== this.partition
@@ -791,50 +812,56 @@ export class Authorizer {
         if (!(await this.isLocal(transaction, object))) {
             throw new AccessError(
                 "FORBIDDEN",
-                `access of ${object.type} ${object.id} is written in the database keeping it`,
+                `cannot write the access of ${object.type} ${object.id} here: this database has a replica`,
             );
         }
     }
 
-    /** List the copy requests of the scopes above one, one per scope. */
+    /** List the replica requests of the scopes above one, one per scope. */
     async chain(
         database: DatabaseConnection,
         scope: string,
         options: ChainOptions,
     ): Promise<Subscription[]> {
         // read the ancestors the scope's row lists
-        const [copy] = await database
+        const [replica] = await database
             .select({ ancestors: Scope.table.ancestors })
             .from(Scope.table)
             .where(eq(Scope.table.scope, scope));
-        const above = copy === undefined ? [] : [...copy.ancestors, Scope.universe.id];
+        const above = replica === undefined ? [] : [...replica.ancestors, Scope.universe.id];
 
-        // copy a home's chain above it, its parent's until it is born, and a follower's from itself
+        // replicate a home's chain above it, its parent's until it is born, and a follower's from itself
         const scopes =
             options.kind === "home"
-                ? copy === undefined
+                ? replica === undefined
                     ? [options.parent]
                     : above
                 : [scope, ...above];
 
-        // copy each scope's rows for the scope below
-        return scopes.map((copied) =>
-            this.chainShape.subscription({
-                name: Authorizer.chainCopy(scope),
-                scope: copied,
+        // replicate each scope's rows for the scope below, and a home's own access from its enclosing scope
+        const [enclosing] = scopes;
+
+        return scopes.map((replicated) =>
+            Authorizer.chainSubscription({
+                name: Authorizer.chainReplica(scope),
+                scope: replicated,
                 below: scope,
-                parameters: { local: [...this.local], copied: [...this.copied] },
+                parameters: {
+                    local: [...this.local],
+                    replicated: [...this.replicated],
+                    ...(options.kind === "home" && replicated === enclosing ? { own: scope } : {}),
+                },
             }),
         );
     }
 
-    /** Request the one copy of the scope chains above a follower's replicated scopes. */
+    /** Request the one replica of the scope chains above a follower's replicated scopes. */
     async chainVia(
         database: DatabaseConnection,
-        copy: {
-            /** The copy's name, one record per follower. */
+        replica: {
+            /** The replica's name, one record per follower. */
             readonly name: string;
-            /** The scope the copy is kept for, the follower or the scope it lives in. */
+            /** The scope the replica is kept for, the follower or the scope it lives in. */
             readonly below: string;
         },
         via: readonly { readonly id: string; readonly scope: string | null }[],
@@ -846,7 +873,7 @@ export class Authorizer {
             return undefined;
         }
 
-        // read the ancestors the replicated scopes' copies list in one query, beside the scopes containing them
+        // read the ancestors of the replicated scopes' replicas and their containing scopes in one query
         const replicated = new Set(via.map((object) => object.id));
         const rows = await database
             .select({ ancestors: Scope.table.ancestors })
@@ -860,16 +887,18 @@ export class Authorizer {
             containing.filter((scope) => scope !== Scope.universe.id && !replicated.has(scope)),
         );
 
-        // copy the chains up to the universe and the inherited rows in them
-        return this.chainShape.subscription({
-            name: copy.name,
+        // replicate the chains up to the universe and the inherited rows in them
+        return Authorizer.chainSubscription({
+            name: replica.name,
             scope: Scope.universe.id,
-            below: copy.below,
+            below: replica.below,
             parameters: {
                 local: [...this.local],
-                // take the scopes' own rows from the follower's copy of the universe
-                copied: [
-                    ...this.copied.filter((type) => this.mapping(type).inherited !== undefined),
+                // take the scopes' own rows from the follower's replica of the universe
+                replicated: [
+                    ...this.replicated.filter(
+                        (type) => this.requireMapping(type).inherited !== undefined,
+                    ),
                     ...scoped,
                 ].filter(
                     (type) =>
@@ -884,76 +913,99 @@ export class Authorizer {
         });
     }
 
-    /** Build the chain copy's name for the scope below, giving each follower's copy a record. */
-    static chainCopy(below: string): string {
+    /** Build the chain replica's name for the scope below, one record per follower. */
+    static chainReplica(below: string): string {
         return `${CHAIN_SHAPE}:${below}`;
     }
 
-    /** The shape of a scope's chain copy: access rows, inherited rows and own object. */
-    readonly chainShape = defineShape({
-        name: CHAIN_SHAPE,
-        parameters: ChainParameters,
-        audience: "contained",
-        isReadinessGate: true,
-        replica: ({ name, scope, parameters }) => this.#chainReplica(name, scope, parameters),
-    });
-
-    /** The shape of the universe's rows a scope reads, decided for their reader. */
-    readonly universeShape = defineShape({
-        name: UNIVERSE_SHAPE,
-        parameters: UniverseParameters,
-        audience: "reader",
-        isReadinessGate: true,
-        replica: ({ name, scope, parameters }) => this.#universeReplica(name, scope, parameters),
-    });
-
-    /** The shapes the policies decide: chain copies and the universe's rows. */
-    get shapes(): readonly Shape[] {
-        return [this.chainShape, this.universeShape];
+    /** Build the replica name of the outside chains a scope below reads. */
+    static viaReplica(below: string): string {
+        return `${CHAIN_SHAPE}:${below}:via`;
     }
 
-    /** Build the copy a request of a policy shape asks for, refusing any other shape. */
-    replicaOf(request: Subscription): Replica {
-        const shape = this.shapes.find((declared) => declared.name === request.shape);
-        if (shape === undefined) {
-            throw new AccessError("NOT_FOUND", `no shape ${request.shape}`);
-        }
-
-        return shape.replica(request);
+    /** Request a scope's chain replica: access rows, inherited rows and own object. */
+    static chainSubscription(
+        request: Omit<Subscription, "shape" | "parameters" | "after"> & {
+            readonly parameters: ChainParameters;
+        },
+    ): Subscription {
+        return { ...request, shape: CHAIN_SHAPE, parameters: Authorizer.#json(request.parameters) };
     }
 
-    /** Build a chain copy: scope access rows, copied types' inherited rows and scopes' rows. */
+    /** Request the universe's rows a scope reads, decided for their reader. */
+    static universeSubscription(
+        request: Omit<Subscription, "shape" | "parameters" | "after"> & {
+            readonly parameters: UniverseParameters;
+        },
+    ): Subscription {
+        return {
+            ...request,
+            shape: UNIVERSE_SHAPE,
+            parameters: Authorizer.#json(request.parameters),
+        };
+    }
+
+    /** Build a scope's chain replica for a request. */
+    replicateChain(request: Pick<Subscription, "name" | "scope" | "parameters">): Replica {
+        const parameters = ChainParameters.parse(request.parameters);
+
+        return this.#chainReplica(request.name, request.scope, parameters);
+    }
+
+    /** Build the replica of the universe's rows a scope reads for a request. */
+    replicateUniverse(request: Pick<Subscription, "name" | "scope" | "parameters">): Replica {
+        const parameters = UniverseParameters.parse(request.parameters);
+
+        return this.#universeReplica(request.name, request.scope, parameters);
+    }
+
+    /** Write a request's parameters in JSON form. */
+    static #json(parameters: ChainParameters | UniverseParameters): Subscription["parameters"] {
+        return schema.record(schema.string(), schema.json()).parse(parameters);
+    }
+
+    /** Build a chain replica: access rows, replicated types' inherited rows and scopes' rows. */
     #chainReplica(name: string, scope: string, parameters: ChainParameters): Replica {
-        // copy the scope, and the replicated scopes and those between for a follower outside their chains
+        // replicate the scope, and the replicated scopes and those between for a follower outside their chains
         const via = parameters.via ?? [];
         const scopes = [scope, ...(parameters.between ?? []), ...via];
 
-        // leave out the access rows of the objects the follower keeps, and of objects living in the universe
+        // leave out the access rows of the objects the follower keeps, and of global principals living in the universe
+        const { own } = parameters;
         const remote: Condition = {
             NOT: {
-                OR: [...parameters.local, ...this.global].map((type) => ({
-                    packageId: type.packageId,
-                    type: type.type,
-                })),
+                OR: [
+                    ...parameters.local.map((type) => ({
+                        packageId: type.packageId,
+                        type: type.type,
+                    })),
+                    ...this.global.map((type) => ({
+                        packageId: type.packageId,
+                        type: type.type,
+                        objectScope: Scope.universe.id,
+                    })),
+                ],
             },
         };
+        // add a home's own roles and relationships, which its enclosing scope keeps, beside the scopes' rows
+        const home = own === undefined ? scopes : [...scopes, own];
         const access = decisionTables.map((table): ChainTable => [
             table,
             table === accessRelationship ? remote : undefined,
-            scopes,
+            table === Scope.table ? scopes : home,
         ]);
 
-        // add the rows of each copied type this database keeps
-        const kept = parameters.copied.filter((type) => this.mappingOf(type) !== undefined);
-        const copied = kept.flatMap((type) => this.#copiedRows(type, scopes, via));
+        // add the rows of each replicated type this database keeps, a home's own scope object among them
+        const kept = parameters.replicated.filter((type) => this.mapping(type) !== undefined);
+        const replicated = kept.flatMap((type) => this.#replicatedRows(type, scopes, via, home));
         const owned = new Set(
             kept
-                .filter((type) => this.mapping(type).policy.definition.scope === true)
-                .map((type) => this.#copiedTable(type)),
+                .filter((type) => this.requireMapping(type).policy.definition.scope === true)
+                .map((type) => this.#replicatedTable(type)),
         );
 
-        // copy them under the request's name and scope, reading each table in its scopes
-        const tables = [...access, ...copied];
+        // replicate them under the request's name and scope, reading each table in its scopes
+        const tables = [...access, ...replicated];
 
         return new Replica({
             name,
@@ -971,28 +1023,31 @@ export class Authorizer {
         });
     }
 
-    /** Select a copied type's rows in a chain copy. */
-    #copiedRows(
+    /** Select a replicated type's rows in a chain replica. */
+    #replicatedRows(
         type: ObjectTypeReference,
         scopes: readonly string[],
         via: readonly string[],
+        objects: readonly string[],
     ): ChainTable[] {
-        const mapping = this.mapping(type);
-        const table = this.#copiedTable(type);
+        const mapping = this.requireMapping(type);
+        const table = this.#replicatedTable(type);
 
-        // copy an inherited type's inherited rows in the scopes its objects may live in
+        // replicate an inherited type's inherited rows in the scopes its objects may live in
         if (mapping.inherited !== undefined) {
             const scope = mapping.scope;
             const living =
                 scope === undefined
                     ? scopes
                     : scopes.filter(
-                          (id) => column(table, scope).definition.schema.safeParse(id).success,
+                          (id) =>
+                              TableMapping.column(table, scope).definition.schema.safeParse(id)
+                                  .success,
                       );
 
             return living.length === 0 ? [] : [[table, mapping.inherited, living]];
         }
-        // copy a scoped type's rows living in the replicated scopes of a follower outside their chains
+        // replicate a scoped type's rows living in the replicated scopes of a follower outside their chains
         else if (
             mapping.policy.definition.scope !== true &&
             mapping.scope !== undefined &&
@@ -1000,7 +1055,7 @@ export class Authorizer {
         ) {
             const scope = mapping.scope;
             const living = via.filter(
-                (id) => column(table, scope).definition.schema.safeParse(id).success,
+                (id) => TableMapping.column(table, scope).definition.schema.safeParse(id).success,
             );
 
             return living.length === 0 ? [] : [[table, undefined, living]];
@@ -1009,31 +1064,36 @@ export class Authorizer {
         else if (mapping.policy.definition.scope !== true) {
             throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
         }
-        // copy the scopes' own rows whose identifiers are of the scope type
+        // replicate the scope objects' own rows whose identifiers are of the scope type, a home's included
         else {
-            const scopeIdentifier = column(table, mapping.id).definition.schema;
-            const owned = scopes.filter((id) => scopeIdentifier.safeParse(id).success);
+            const scopeIdentifier = TableMapping.column(table, mapping.id).definition.schema;
+            const owned = objects.filter((id) => scopeIdentifier.safeParse(id).success);
 
             return owned.length === 0 ? [] : [[table, { [mapping.id]: { in: owned } }, owned]];
         }
     }
 
-    /** Build a universe copy: each requested type's rows, across other requested rows' scopes. */
+    /** Build a universe replica: each requested type's rows, across the other rows' scopes. */
     #universeReplica(name: string, scope: string, parameters: UniverseParameters): Replica {
         // add each requested type's rows
         const rows = parameters.rows.map(({ type, where }): [Table, Condition] => [
-            this.#copiedTable(type),
+            this.#replicatedTable(type),
             where,
         ]);
 
-        // copy across scopes the rows living in the scopes of other requested types' rows, and from every scope the rows living anywhere
+        // replicate rows across the scopes of other requested rows, and replicate rows that live anywhere from every scope
         const within = parameters.rows.flatMap(({ type, within: parents }): [Table, Table[]][] =>
             parents === undefined
                 ? []
-                : [[this.#copiedTable(type), parents.map((parent) => this.#copiedTable(parent))]],
+                : [
+                      [
+                          this.#replicatedTable(type),
+                          parents.map((parent) => this.#replicatedTable(parent)),
+                      ],
+                  ],
         );
         const everywhere = parameters.rows.flatMap(({ type, isEverywhere }) =>
-            isEverywhere === true ? [this.#copiedTable(type)] : [],
+            isEverywhere === true ? [this.#replicatedTable(type)] : [],
         );
 
         return new Replica({
@@ -1047,10 +1107,10 @@ export class Authorizer {
     }
 
     /** Read the table of a requested object type, refusing a type without a kept table. */
-    #copiedTable(type: ObjectTypeReference): Table {
+    #replicatedTable(type: ObjectTypeReference): Table {
         const mapping = this.#mappings.get(ObjectTypeReference.key(type));
         if (mapping === undefined || mapping.table === Scope.table) {
-            throw new AccessError("NOT_FOUND", `no object type ${type.type} to copy`);
+            throw new AccessError("NOT_FOUND", `no object type ${type.type} to replicate`);
         }
 
         return mapping.table;
@@ -1065,11 +1125,9 @@ export class Authorizer {
             ...(ids.length === 0
                 ? []
                 : [
-                      {
-                          table: accessRelationship,
-                          scopes: "every" as const,
-                          where: { subjectId: { in: [...ids, WILDCARD] } },
-                      },
+                      Watch.of(accessRelationship, "every", {
+                          subjectId: { in: [...ids, WILDCARD] },
+                      }),
                   ]),
         ];
     }
@@ -1156,13 +1214,16 @@ export class Authorizer {
             subject !== undefined &&
             !accepts(this.relation(this.policy(request.object), request.relation), subject)
         ) {
-            throw new AccessError("FORBIDDEN", `relation ${request.relation} rejects the subject`);
+            throw new AccessError(
+                "FORBIDDEN",
+                `relation ${request.relation} does not accept the subject`,
+            );
         }
         // refuse a wildcard as a role's subject
         else if (isRole && subject !== undefined && (subject.id === "*" || subject.scope === "*")) {
-            throw new AccessError("FORBIDDEN", "a role binds only to named subjects");
+            throw new AccessError("FORBIDDEN", "a role cannot bind to a wildcard");
         }
-        // require a role's subject set to be one resolving a caller expands
+        // require a role's subject set to be one that caller resolution expands
         else if (
             isRole &&
             subject?.relation !== undefined &&
@@ -1175,18 +1236,18 @@ export class Authorizer {
         ) {
             throw new AccessError(
                 "FORBIDDEN",
-                `a role binds only to declared subject sets and scope relations, not ${subject.type}#${subject.relation}`,
+                `a role cannot bind to ${subject.type}#${subject.relation}: it is not a declared subject set or scope relation`,
             );
         }
         // require a future expiry
         else if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= now)) {
-            throw new AccessError("FORBIDDEN", "a relationship expires in the future");
+            throw new AccessError("FORBIDDEN", "a relationship must expire in the future");
         }
     }
 
     /** Remove the relationships bound to one request after it commits. */
     async release(database: DatabaseConnection, requestId: string): Promise<void> {
-        // delete the request's relationships about the types this database keeps
+        // delete the request's relationships on local types
         const types = this.local.map((type) =>
             and(
                 eq(accessRelationship.packageId, type.packageId),
@@ -1246,7 +1307,7 @@ export class Authorizer {
         return new TupleReader(this, snapshot, scopes);
     }
 
-    /** Decide whether a caller has a permission on one object, and until when by time alone. */
+    /** Decide whether a caller has a permission on one object, and until when. */
     async check(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1255,18 +1316,21 @@ export class Authorizer {
         reader?: TupleReader,
     ): Promise<Decision> {
         // deny a missing object
-        const mapping = this.mapping(target);
+        const mapping = this.requireMapping(target);
         const reading = reader ?? this.reader(snapshot, access.scopes);
         const row = await reading.row(mapping, target);
         if (row === undefined) {
             return { isAllowed: false };
         }
 
-        // read the tree the permission reaches on the object
+        // read the permission's tuple tree on the object
         const tree = await reading.tree(permission, row, mapping);
-        const until = earliest([access.until, grantsUntil(TupleTree.flatten(tree), access)]);
+        const until = earliest([
+            access.until,
+            Authorizer.#grantsUntil(TupleTree.flatten(tree), access),
+        ]);
 
-        // admit the caller when its authority has the permission, past its gate for one object
+        // admit the caller when it passes the gate and its authority has the permission
         const isAllowed =
             this.#gate(permission, mapping, row, access, "object") === undefined &&
             TupleTree.permits(tree, access);
@@ -1282,7 +1346,7 @@ export class Authorizer {
         access: Access,
         reader?: TupleReader,
     ): Promise<void> {
-        // decide in memory where reads are cheap, the snapshot is past, layered or recorded, or the target is the universe no table keeps
+        // decide in memory when reads are cheap, the snapshot is past, layered or recorded, or the target is the universe
         const database = snapshot.database;
         const isUniverse =
             target.packageId === Scope.universe.packageId && target.type === Scope.universe.type;
@@ -1357,18 +1421,18 @@ export class Authorizer {
         now: number,
         page: { readonly after?: string; readonly limit: number },
     ): Promise<Subject[]> {
-        // read the grants the permission reaches on the object, through one reader of its scope chain
+        // read the permission's grants on the object with one reader of its scope chain
         const scope = this.governingScope(target);
         const links = await Scope.chain(snapshot, scope);
         const reader = this.reader(
             snapshot,
             links.map((link) => link.object),
         );
-        const row = await reader.row(this.mapping(target), target);
+        const row = await reader.row(this.requireMapping(target), target);
         if (row === undefined) {
             return [];
         }
-        const tree = await reader.tree(permission, row, this.mapping(target));
+        const tree = await reader.tree(permission, row, this.requireMapping(target));
 
         // expand the grants' subject sets into the principals of the type
         const candidates = new Map<string, Subject>();
@@ -1390,7 +1454,7 @@ export class Authorizer {
                     candidates.set(key, subject);
                 }
             }
-            frontier = await members(snapshot, sets);
+            frontier = await Authorizer.#members(snapshot, sets);
         }
 
         // decide the candidates after the page's cursor in key order until the page is full
@@ -1411,10 +1475,62 @@ export class Authorizer {
         return permitted;
     }
 
+    /** Decide whether a caller has a live relationship or role binding on a scope or in it. */
+    async isRelatedIn(snapshot: Snapshot, scope: string, access: Access): Promise<boolean> {
+        // find the scope's own object on the access's chain, which lives in its enclosing scope
+        const own = access.scopes.find((link) => link.id === scope);
+        if (own === undefined) {
+            throw new AccessError("INVALID_CONTEXT", `access is not resolved in ${scope}`);
+        }
+
+        // list the subjects the authority matches in the scope and its enclosing scope
+        const wanted = new Map<string, readonly string[]>();
+        const subjects: readonly Subject[] = [
+            ...access.authority.subjects,
+            anyone.reference("*", "*"),
+        ];
+        for (const objectScope of new Set([scope, own.scope])) {
+            for (const subject of subjects) {
+                // match an identity with its wildcards, a subject set exactly
+                const isPlain = subject.relation === undefined;
+                for (const subjectScope of isPlain ? [subject.scope, "*"] : [subject.scope]) {
+                    for (const id of isPlain ? [subject.id, "*"] : [subject.id]) {
+                        const tuple = [
+                            objectScope,
+                            subject.packageId,
+                            subject.type,
+                            subjectScope,
+                            id,
+                        ];
+                        wanted.set(JSON.stringify(tuple), tuple);
+                    }
+                }
+            }
+        }
+
+        // read those subjects' relationships in both scopes in one statement
+        const rows = await snapshot.select(
+            accessRelationship,
+            ["objectScope", "subjectPackageId", "subjectType", "subjectScope", "subjectId"],
+            [...wanted.values()],
+        );
+
+        // keep a relationship on an object in the scope or on the scope itself, whose subject and conditions pass
+        return rows.some(
+            (row) =>
+                (row.objectScope === scope ||
+                    (row.objectId === own.id &&
+                        row.packageId === own.packageId &&
+                        row.type === own.type)) &&
+                access.authority.isMember(Relationship.decode(row).subject) &&
+                new TupleCondition(row).failure(access.context) === undefined,
+        );
+    }
+
     /** Decide whether the caller is an owner of one object. */
     async isOwner(snapshot: Snapshot, target: ObjectReference, access: Access): Promise<boolean> {
-        // own no missing object
-        const mapping = this.mapping(target);
+        // deny a missing object
+        const mapping = this.requireMapping(target);
         const reader = this.reader(snapshot, access.scopes);
         const row = await reader.row(mapping, target);
         if (row === undefined) {
@@ -1438,7 +1554,7 @@ export class Authorizer {
         lookup: Lookup = "listing",
     ): Promise<Admission> {
         // decide each row by the caller's access in the row's scope
-        const mapping = this.mapping(permission);
+        const mapping = this.requireMapping(permission);
         const accesses = rows.map((row) => below.get(TableMapping.scope(mapping, row)) ?? access);
         for (const enclosed of below.values()) {
             reader.cover(enclosed.scopes);
@@ -1449,7 +1565,10 @@ export class Authorizer {
         const until = earliest([
             access.until,
             ...decided.map(([[, evaluated], tree]) =>
-                earliest([evaluated.until, grantsUntil(TupleTree.flatten(tree), evaluated)]),
+                earliest([
+                    evaluated.until,
+                    Authorizer.#grantsUntil(TupleTree.flatten(tree), evaluated),
+                ]),
             ),
         ]);
 
@@ -1475,17 +1594,17 @@ export class Authorizer {
         if (permission.packageId !== target.packageId || permission.type !== target.type) {
             throw new AccessError(
                 "INVALID_CONTEXT",
-                "explain a permission of the object's own type",
+                "the permission must belong to the object's type",
             );
         }
-        const mapping = this.mapping(target);
+        const mapping = this.requireMapping(target);
         const reader = this.reader(snapshot, access.scopes);
         const found = await reader.row(mapping, target);
         if (found === undefined) {
             throw new AccessError("NOT_FOUND", `no ${target.type} ${target.id}`);
         }
 
-        // decide the authority by the permission's tree, and each tuple it reaches alone
+        // decide the authority by the permission's tree, and by each tuple on its own
         const blocked = this.#gate(permission, mapping, found, access, "object");
         const tree = await reader.tree(permission, found);
         const tuples = TupleTree.flatten(tree).map((tuple) => {
@@ -1509,7 +1628,7 @@ export class Authorizer {
         };
     }
 
-    /** Refuse a caller a permission on one object, challenging it for admitting authentication. */
+    /** Refuse a caller a permission on one object, with a step-up challenge when one admits it. */
     async #refuse(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -1525,7 +1644,7 @@ export class Authorizer {
         if (stepUp !== undefined) {
             throw new AccessError(
                 "INSUFFICIENT_AUTHENTICATION",
-                "authenticate again at the required assurance",
+                "authentication assurance is too low: authenticate again",
                 { stepUp },
             );
         }
@@ -1540,7 +1659,7 @@ export class Authorizer {
         access: Access,
         lookup: Lookup,
     ): ReturnType<Access["gate"]> | "outside" {
-        // refuse the request its credential, elevation or suspension refuses
+        // refuse a request that its credential, elevation or suspension refuses
         const refused = access.gate(permission, mapping, row);
         if (refused !== undefined) {
             return refused;
@@ -1620,14 +1739,14 @@ export class Authorizer {
         expression: Extract<AccessExpression, { kind: "through" }>,
         chain: readonly Pick<ObjectReference, "packageId" | "type">[],
     ): readonly SubjectType[] {
-        // take the declared scope type
+        // take the one declared scope type
         const types = this.scopeTypes(type, expression.relation, expression.permission);
         const relation = this.relation(type, expression.relation);
-        if (relation.subjects.length > 0) {
+        if (relation.subjects.length === 1) {
             return types;
         }
 
-        // take the nearest scope's type alone
+        // take only the nearest scope's type among several or any
         const [nearest] = chain;
 
         return types.filter(
@@ -1644,38 +1763,34 @@ export class Authorizer {
         if (only === undefined || others.length > 0) {
             throw new AccessError(
                 "INVALID_DECLARATION",
-                `relation ${type.definition.name}#${name} accepts no single subject type`,
+                `relation ${type.definition.name}#${name} needs exactly one subject type`,
             );
         }
 
         return only;
     }
 
-    /** Require a relation to each object's scope to accept one scope type, kept by the chain. */
+    /** Require a relation to each object's scope to accept scope types only, kept by the chain. */
     #validateScopeRelation(type: Policy, name: string, relation: RelationDescription): void {
-        // require one scope type, kept by the scope chain, or none for the scope of whichever type holds each object
-        const [scope, ...others] = relation.subjects;
-        if (scope === undefined) {
-            return;
-        }
-        const isScopeType =
-            scope.relation === undefined &&
-            scope.wildcard !== true &&
-            this.policy(scope).definition.scope === true;
-        if (others.length > 0 || !isScopeType) {
+        // require scope types stored by the scope chain, or none for the scope of any type
+        const isScopeTypes = relation.subjects.every(
+            (scope) =>
+                scope.relation === undefined &&
+                scope.wildcard !== true &&
+                this.policy(scope).definition.scope === true,
+        );
+        if (!isScopeTypes) {
             throw new AccessError(
                 "INVALID_DECLARATION",
-                `${type.name}.${name} is the scope holding each object, so it accepts one scope type alone`,
+                `${type.name}.${name} is a scope relation: it accepts scope types only`,
             );
         }
         if (
-            this.mappingOf({ packageId: type.definition.packageId, type: type.name })?.relations[
-                name
-            ]
+            this.mapping({ packageId: type.definition.packageId, type: type.name })?.relations[name]
         ) {
             throw new AccessError(
                 "INVALID_DECLARATION",
-                `${type.name}.${name} is the scope holding each object, so no field keeps it`,
+                `${type.name}.${name} is a scope relation: a field cannot store it`,
             );
         }
     }
@@ -1740,11 +1855,11 @@ export class Authorizer {
     /** Refuse deciding a chain permission by a field or scope chain relation. */
     #requireRelationships(reference: PermissionReference, name: string): void {
         const isScope = this.policy(reference).definition.relations[name]?.isScope === true;
-        const isField = this.mappingOf(reference)?.relations[name] !== undefined;
+        const isField = this.mapping(reference)?.relations[name] !== undefined;
         if (isScope || isField) {
             throw new AccessError(
                 "INVALID_DECLARATION",
-                `${reference.type}.${name} is kept ${isScope ? "by the scope chain" : "in a field"}, so relationships on the chain cannot decide ${reference.name}`,
+                `${reference.type}.${reference.name} cannot use ${name}: it is a ${isScope ? "scope" : "field"} relation`,
             );
         }
     }
@@ -1755,7 +1870,7 @@ export class Authorizer {
         readonly contained?: ChainStep["contained"];
         readonly enclosing: readonly PermissionReference[];
     } {
-        // collect the relations and enclosing sets the permission's unions and named permissions reach
+        // collect the relations and enclosing sets of the permission's unions and named permissions
         const policy = this.policy(reference);
         const relations = new Set<string>();
         let contained: ChainStep["contained"];
@@ -1766,7 +1881,7 @@ export class Authorizer {
             if (expression.kind === "none") {
                 continue;
             }
-            // take a relation relationships keep
+            // take a relation stored in relationships
             else if (expression.kind === "relation") {
                 this.#requireRelationships(reference, expression.name);
                 relations.add(expression.name);
@@ -1804,7 +1919,7 @@ export class Authorizer {
             else {
                 throw new AccessError(
                     "INVALID_DECLARATION",
-                    `${reference.type}.${reference.name} is decided along a scope chain, so it follows relations alone`,
+                    `${reference.type}.${reference.name} is a chain permission: it can use relations only`,
                 );
             }
         }
@@ -1875,7 +1990,7 @@ export class Authorizer {
                     break;
                 case "resource":
                 case "context":
-                    validateCondition(expression, type);
+                    Authorizer.#validateCondition(expression, type);
                     break;
                 case "through":
                     this.#validateThrough(type, expression, path);
@@ -1934,312 +2049,318 @@ export class Authorizer {
             );
         }
     }
-}
 
-/** Take the next moment time alone changes whether any grant passes, absent if never. */
-function grantsUntil(grants: readonly Tuple[], access: Access): number | undefined {
-    const context = access.context;
+    /** Take the next time any grant may start or stop passing, absent if never. */
+    static #grantsUntil(grants: readonly Tuple[], access: Access): number | undefined {
+        const context = access.context;
 
-    return earliest(
-        grants.flatMap((grant) => [
-            grant.condition?.until(context),
-            ...grant.arrows.map((arrow) => arrow.until(context)),
-        ]),
-    );
-}
-
-/** Require a condition to read declared attributes and compare values of their type. */
-function validateCondition(expression: ConditionExpression, type: Policy): void {
-    // read the object's or the request's attributes
-    const isObject = expression.kind === "resource";
-    const definition = type.definition;
-    const predicate = type.resolve(expression);
-
-    // refuse relations and undeclared attributes, which resolve as relations
-    const [relation] = Predicate.relations(predicate);
-    if (relation !== undefined && Object.hasOwn(definition.relations, relation.via)) {
-        throw new AccessError(
-            "INVALID_DECLARATION",
-            `policy conditions follow no relations: ${relation.via}`,
-        );
-    } else if (relation !== undefined) {
-        throw new AccessError(
-            "INVALID_DECLARATION",
-            `undeclared ${isObject ? "object" : "request"} attribute: ${relation.via}`,
+        return earliest(
+            grants.flatMap((grant) => [
+                grant.condition?.until(context),
+                ...grant.arrows.map((arrow) => arrow.until(context)),
+            ]),
         );
     }
 
-    // compare values of each attribute's type
-    validatePredicate(
-        predicate,
-        isObject ? definition.attributes : definition.context,
-        isObject ? definition.context : undefined,
-    );
-}
+    /** Require a condition to read declared attributes and compare values of their type. */
+    static #validateCondition(expression: ConditionExpression, type: Policy): void {
+        // read the object's or the request's attributes
+        const isObject = expression.kind === "resource";
+        const definition = type.definition;
+        const predicate = type.resolve(expression);
 
-/** Require comparisons with values of each attribute's declared type, ordering only numbers. */
-function validatePredicate(
-    predicate: Predicate,
-    declared: Readonly<Record<string, AttributeType>>,
-    placeholders: Readonly<Record<string, AttributeType>> | undefined,
-): void {
-    switch (predicate.kind) {
-        case "compare":
-            validateCompare(predicate, declared, placeholders);
-            break;
-        case "oneOf":
-            validateOneOf(predicate, declared);
-            break;
-        case "missing":
-            attributeType(predicate.name, declared);
-            break;
-        case "like":
-            // require a text attribute for a pattern
-            if (attributeType(predicate.name, declared) !== "string") {
-                throw new AccessError("INVALID_DECLARATION", "patterns match text attributes");
-            }
-            break;
-        case "characters":
-            // require a text attribute for a character set
-            if (attributeType(predicate.name, declared) !== "string") {
+        // refuse relations and undeclared attributes, which resolve as relations
+        const [relation] = Predicate.relations(predicate);
+        if (relation !== undefined && Object.hasOwn(definition.relations, relation.via)) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `policy conditions cannot follow relations: ${relation.via}`,
+            );
+        } else if (relation !== undefined) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `undeclared ${isObject ? "object" : "request"} attribute: ${relation.via}`,
+            );
+        }
+
+        // compare values of each attribute's type
+        Authorizer.#validatePredicate(
+            predicate,
+            isObject ? definition.attributes : definition.context,
+            isObject ? definition.context : undefined,
+        );
+    }
+
+    /** Require comparisons with values of each attribute's declared type, ordering only numbers. */
+    static #validatePredicate(
+        predicate: Predicate,
+        declared: Readonly<Record<string, AttributeType>>,
+        placeholders: Readonly<Record<string, AttributeType>> | undefined,
+    ): void {
+        switch (predicate.kind) {
+            case "compare":
+                Authorizer.#validateCompare(predicate, declared, placeholders);
+                break;
+            case "oneOf":
+                Authorizer.#validateListed(predicate, declared);
+                break;
+            case "missing":
+                Authorizer.#attributeType(predicate.name, declared);
+                break;
+            case "like":
+                // require a text attribute for a pattern
+                if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
+                    throw new AccessError(
+                        "INVALID_DECLARATION",
+                        "pattern applies to text attributes only",
+                    );
+                }
+                break;
+            case "characters":
+                // require a text attribute for a character set
+                if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
+                    throw new AccessError(
+                        "INVALID_DECLARATION",
+                        "character set applies to text attributes only",
+                    );
+                }
+                break;
+            case "length":
+                // require a text attribute, and compare its length as a number
+                if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
+                    throw new AccessError(
+                        "INVALID_DECLARATION",
+                        "length applies to text attributes only",
+                    );
+                }
+                Authorizer.#validatePredicate(
+                    predicate.predicate,
+                    { ...declared, [predicate.name]: "number" },
+                    placeholders,
+                );
+                break;
+            case "all":
+            case "any":
+                for (const nested of predicate.predicates) {
+                    Authorizer.#validatePredicate(nested, declared, placeholders);
+                }
+                break;
+            case "not":
+                Authorizer.#validatePredicate(predicate.predicate, declared, placeholders);
+                break;
+            case "exists":
                 throw new AccessError(
                     "INVALID_DECLARATION",
-                    "character sets match text attributes",
+                    `policy conditions cannot follow relations: ${predicate.via}`,
+                );
+            case "search":
+                throw new AccessError("INVALID_DECLARATION", "policy conditions cannot search");
+        }
+    }
+
+    /** Require a comparison with a value or attribute of the same type, ordering only numbers. */
+    static #validateCompare(
+        predicate: Extract<Predicate, { readonly kind: "compare" }>,
+        declared: Readonly<Record<string, AttributeType>>,
+        placeholders: Readonly<Record<string, AttributeType>> | undefined,
+    ): void {
+        // read the value's type from the value or its placeholder's request attribute
+        const value = predicate.value;
+        const valueType =
+            value instanceof Placeholder
+                ? Authorizer.#placeholderType(value.placeholder, placeholders)
+                : typeof value === "object"
+                  ? Authorizer.#attributeType(value.field, declared)
+                  : typeof value;
+        const isOrdered = predicate.operator !== "eq" && predicate.operator !== "ne";
+        const attribute = Authorizer.#attributeType(predicate.name, declared);
+
+        // order only numbers
+        if (isOrdered && attribute !== "number") {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `ordered comparisons require a number attribute: ${predicate.name}`,
+            );
+        }
+        // compare only values of the attribute's type
+        else if (valueType !== attribute) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `comparisons require a ${attribute} value: ${predicate.name}`,
+            );
+        }
+    }
+
+    /** Require listed values of the attribute's type. */
+    static #validateListed(
+        predicate: Extract<Predicate, { readonly kind: "oneOf" }>,
+        declared: Readonly<Record<string, AttributeType>>,
+    ): void {
+        // refuse a listed value of another type
+        const attribute = Authorizer.#attributeType(predicate.name, declared);
+        if (predicate.values.some((value) => typeof value !== attribute)) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `listed values require ${attribute} values: ${predicate.name}`,
+            );
+        }
+    }
+
+    /** Read a declared attribute's type. */
+    static #attributeType(
+        name: string,
+        declared: Readonly<Record<string, AttributeType>>,
+    ): AttributeType {
+        const type = Object.hasOwn(declared, name) ? declared[name] : undefined;
+        if (type === undefined) {
+            throw new AccessError("INVALID_DECLARATION", `undeclared attribute: ${name}`);
+        }
+
+        return type;
+    }
+
+    /** Read the type of the request attribute a placeholder reads. */
+    static #placeholderType(
+        name: string,
+        placeholders: Readonly<Record<string, AttributeType>> | undefined,
+    ): AttributeType {
+        // refuse placeholders in request conditions, which read request attributes directly
+        if (placeholders === undefined) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `request conditions cannot read placeholders: ${name}`,
+            );
+        } else if (!Object.hasOwn(placeholders, name)) {
+            throw new AccessError("INVALID_DECLARATION", `undeclared request attribute: ${name}`);
+        }
+
+        return Authorizer.#attributeType(name, placeholders);
+    }
+
+    /** Collect every policy the declared ones refer to, one per type, with intrinsic policies. */
+    static #collectPolicies(policies: readonly Policy[]): Policy[] {
+        // include every policy the declared policies reference
+        const byType = new Map<string, Policy>();
+        const visited = new Set<Policy>();
+        const pending = [...policies];
+        for (let type = pending.shift(); type !== undefined; type = pending.shift()) {
+            if (visited.has(type)) {
+                continue;
+            }
+            visited.add(type);
+            pending.push(...type.references);
+
+            // keep one policy per type, preferring a representing policy over the intrinsic one
+            const existing = byType.get(Authorizer.#policyKey(type));
+            if (existing === undefined || INTRINSIC_POLICIES.includes(existing)) {
+                byType.set(Authorizer.#policyKey(type), type);
+            }
+            // refuse two distinct policies for one type
+            else if (!INTRINSIC_POLICIES.includes(type)) {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `duplicate object type: ${Authorizer.#policyKey(type)}`,
                 );
             }
-            break;
-        case "length":
-            // require a text attribute, and compare its length as a number
-            if (attributeType(predicate.name, declared) !== "string") {
-                throw new AccessError("INVALID_DECLARATION", "lengths measure text attributes");
-            }
-            validatePredicate(
-                predicate.predicate,
-                { ...declared, [predicate.name]: "number" },
-                placeholders,
-            );
-            break;
-        case "all":
-        case "any":
-            for (const nested of predicate.predicates) {
-                validatePredicate(nested, declared, placeholders);
-            }
-            break;
-        case "not":
-            validatePredicate(predicate.predicate, declared, placeholders);
-            break;
-        case "exists":
-            throw new AccessError(
-                "INVALID_DECLARATION",
-                `policy conditions follow no relations: ${predicate.via}`,
-            );
-        case "search":
-            throw new AccessError("INVALID_DECLARATION", "policy conditions search no text");
-    }
-}
-
-/** Require a comparison with a value or attribute of the same type, ordering only numbers. */
-function validateCompare(
-    predicate: Extract<Predicate, { readonly kind: "compare" }>,
-    declared: Readonly<Record<string, AttributeType>>,
-    placeholders: Readonly<Record<string, AttributeType>> | undefined,
-): void {
-    // read the value's type from the value or its placeholder's request attribute
-    const value = predicate.value;
-    const valueType =
-        value instanceof Placeholder
-            ? placeholderType(value.placeholder, placeholders)
-            : typeof value === "object"
-              ? attributeType(value.field, declared)
-              : typeof value;
-    const isOrdered = predicate.operator !== "eq" && predicate.operator !== "ne";
-    const attribute = attributeType(predicate.name, declared);
-
-    // order only numbers
-    if (isOrdered && attribute !== "number") {
-        throw new AccessError(
-            "INVALID_DECLARATION",
-            `ordered comparisons require a number attribute: ${predicate.name}`,
-        );
-    }
-    // compare only values of the attribute's type
-    else if (valueType !== attribute) {
-        throw new AccessError(
-            "INVALID_DECLARATION",
-            `comparisons require a ${attribute} value: ${predicate.name}`,
-        );
-    }
-}
-
-/** Require listed values of the attribute's type. */
-function validateOneOf(
-    predicate: Extract<Predicate, { readonly kind: "oneOf" }>,
-    declared: Readonly<Record<string, AttributeType>>,
-): void {
-    // refuse a listed value of another type
-    const attribute = attributeType(predicate.name, declared);
-    if (predicate.values.some((value) => typeof value !== attribute)) {
-        throw new AccessError(
-            "INVALID_DECLARATION",
-            `listed values require ${attribute} values: ${predicate.name}`,
-        );
-    }
-}
-
-/** Read a declared attribute's type. */
-function attributeType(
-    name: string,
-    declared: Readonly<Record<string, AttributeType>>,
-): AttributeType {
-    const type = Object.hasOwn(declared, name) ? declared[name] : undefined;
-    if (type === undefined) {
-        throw new AccessError("INVALID_DECLARATION", `undeclared attribute: ${name}`);
-    }
-
-    return type;
-}
-
-/** Read the type of the request attribute a placeholder reads. */
-function placeholderType(
-    name: string,
-    placeholders: Readonly<Record<string, AttributeType>> | undefined,
-): AttributeType {
-    // refuse placeholders in request conditions, which read request attributes directly
-    if (placeholders === undefined) {
-        throw new AccessError(
-            "INVALID_DECLARATION",
-            `request conditions read no placeholders: ${name}`,
-        );
-    } else if (!Object.hasOwn(placeholders, name)) {
-        throw new AccessError("INVALID_DECLARATION", `undeclared request attribute: ${name}`);
-    }
-
-    return attributeType(name, placeholders);
-}
-
-/** Collect every policy the declared ones refer to, one per type, with intrinsic policies. */
-function collectPolicies(policies: readonly Policy[]): Policy[] {
-    // include every policy the declared policies name
-    const byType = new Map<string, Policy>();
-    const visited = new Set<Policy>();
-    const pending = [...policies];
-    for (let type = pending.shift(); type !== undefined; type = pending.shift()) {
-        if (visited.has(type)) {
-            continue;
         }
-        visited.add(type);
-        pending.push(...type.references);
 
-        // keep one policy per type, preferring a representing policy over the intrinsic one
-        const existing = byType.get(policyKey(type));
-        if (existing === undefined || INTRINSIC_POLICIES.includes(existing)) {
-            byType.set(policyKey(type), type);
-        }
-        // refuse two distinct policies for one type
-        else if (!INTRINSIC_POLICIES.includes(type)) {
-            throw new AccessError(
-                "INVALID_DECLARATION",
-                `duplicate object type: ${policyKey(type)}`,
-            );
-        }
+        return [
+            ...INTRINSIC_POLICIES.filter((type) => !byType.has(Authorizer.#policyKey(type))),
+            ...byType.values(),
+        ];
     }
 
-    return [
-        ...INTRINSIC_POLICIES.filter((type) => !byType.has(policyKey(type))),
-        ...byType.values(),
-    ];
-}
-
-/** Index the authentication each elevated permission asks for by permission key. */
-function elevatedPermissions(types: readonly Policy[]): Map<string, Elevation> {
-    return new Map(
-        types.flatMap((type) =>
-            Object.entries(type.definition.elevated ?? {}).map(([name, elevation]) => [
-                PermissionReference.key(type.permission(name)),
-                elevation,
-            ]),
-        ),
-    );
-}
-
-/** Require an index on the column of a field keeping a subject set. */
-function requireSubjectIndex(
-    mapping: TableMapping,
-    relation: string,
-    field: FieldRelation["field"],
-): void {
-    // find an index or unique constraint leading with the column
-    const subjectColumn = column(mapping.table, field.column);
-    const isIndexed = mapping.table[TABLE]
-        .constraints("sqlite")
-        .some(
-            (constraint) =>
-                (constraint.kind === "index" || constraint.kind === "unique") &&
-                constraint.columns[0] === subjectColumn,
-        );
-
-    // require an index or the primary key
-    if (!isIndexed && subjectColumn.definition.primaryKey !== true) {
-        throw new AccessError(
-            "INVALID_DECLARATION",
-            `subject set ${mapping.policy.definition.name}#${relation} needs an index on ${field.column}`,
-        );
-    }
-}
-
-/** Collect the keys of the permissions policies list as reserved or administrative. */
-function listedPermissions(
-    types: readonly Policy[],
-    list: "reserved" | "administration",
-): Set<string> {
-    return new Set(
-        types.flatMap((type) =>
-            (type.definition[list] ?? []).map((name) =>
-                PermissionReference.key({
-                    packageId: type.definition.packageId,
-                    type: type.definition.name,
-                    name,
-                }),
+    /** Index the authentication each elevated permission asks for by permission key. */
+    static #elevatedPermissions(types: readonly Policy[]): Map<string, Elevation> {
+        return new Map(
+            types.flatMap((type) =>
+                Object.entries(type.definition.elevated ?? {}).map(([name, elevation]) => [
+                    PermissionReference.key(type.permission(name)),
+                    elevation,
+                ]),
             ),
-        ),
-    );
-}
-
-/** Key a policy by its package and its type name. */
-function policyKey(policy: Policy): string {
-    return ObjectTypeReference.key({
-        packageId: policy.definition.packageId,
-        type: policy.definition.name,
-    });
-}
-
-/** Read the members of subject sets: the subjects of their objects' set relation. */
-async function members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Subject[]> {
-    // read nothing for no sets
-    if (sets.length === 0) {
-        return [];
+        );
     }
 
-    // read the relationships of each set's relation
-    const wanted = new Set(sets.map((set) => Subject.key(set)));
-    const rows = await Relationship.readByObject(
-        snapshot,
-        sets.map((set) => ({
-            packageId: set.packageId,
-            type: set.type,
-            scope: set.scope,
-            id: set.id,
-        })),
-    );
+    /** Require an index on the column of a field storing a subject set. */
+    static #requireSubjectIndex(
+        mapping: TableMapping,
+        relation: string,
+        field: FieldRelation["field"],
+    ): void {
+        // find an index or unique constraint leading with the column
+        const subjectColumn = TableMapping.column(mapping.table, field.column);
+        const isIndexed = mapping.table[TABLE]
+            .constraints("sqlite")
+            .some(
+                (constraint) =>
+                    (constraint.kind === "index" || constraint.kind === "unique") &&
+                    constraint.columns[0] === subjectColumn,
+            );
 
-    return rows
-        .map((row) => Relationship.decode(row))
-        .filter(
-            (relationship) =>
-                "relation" in relationship &&
-                wanted.has(
-                    Subject.key({ ...relationship.object, relation: relationship.relation }),
+        // require an index or the primary key
+        if (!isIndexed && subjectColumn.definition.primaryKey !== true) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `subject set ${mapping.policy.definition.name}#${relation} needs an index on ${field.column}`,
+            );
+        }
+    }
+
+    /** Collect the keys of the permissions policies list as reserved, administrative or moving. */
+    static #listedPermissions(
+        types: readonly Policy[],
+        list: "reserved" | "administration" | "moving",
+    ): Set<string> {
+        return new Set(
+            types.flatMap((type) =>
+                (type.definition[list] ?? []).map((name) =>
+                    PermissionReference.key({
+                        packageId: type.definition.packageId,
+                        type: type.definition.name,
+                        name,
+                    }),
                 ),
-        )
-        .map((relationship) => relationship.subject);
+            ),
+        );
+    }
+
+    /** Key a policy by its package and its type name. */
+    static #policyKey(policy: Policy): string {
+        return ObjectTypeReference.key({
+            packageId: policy.definition.packageId,
+            type: policy.definition.name,
+        });
+    }
+
+    /** Read the members of subject sets: the subjects of their objects' set relation. */
+    static async #members(snapshot: Snapshot, sets: readonly Subject[]): Promise<Subject[]> {
+        // read nothing for no sets
+        if (sets.length === 0) {
+            return [];
+        }
+
+        // read the relationships of each set's relation
+        const wanted = new Set(sets.map((set) => Subject.key(set)));
+        const rows = await Relationship.readByObject(
+            snapshot,
+            sets.map((set) => ({
+                packageId: set.packageId,
+                type: set.type,
+                scope: set.scope,
+                id: set.id,
+            })),
+        );
+
+        return rows
+            .map((row) => Relationship.decode(row))
+            .filter(
+                (relationship) =>
+                    "relation" in relationship &&
+                    wanted.has(
+                        Subject.key({ ...relationship.object, relation: relationship.relation }),
+                    ),
+            )
+            .map((relationship) => relationship.subject);
+    }
 }

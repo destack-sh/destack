@@ -31,9 +31,9 @@ import { type Access, UNIVERSAL } from "./access.ts";
 import type { Authority } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { TupleCondition } from "./condition.ts";
-import { ANY_SCOPE, column, TableMapping } from "./mapping.ts";
+import { ANY_SCOPE, TableMapping } from "./mapping.ts";
 
-/** The resolved caller, the authority compiled and the alias allocation one predicate shares. */
+/** The resolved caller, compiled authority and alias allocation one predicate shares. */
 interface Compilation {
     /** The caller's resolved access in the query's scope. */
     readonly access: Access;
@@ -77,7 +77,7 @@ export class Compiler {
     /** Restrict a table's rows, the mapped one by default, to the caller's permitted ones. */
     where(permission: PermissionReference, access: Access, source?: Table): SQL {
         // deny a request its gate refuses
-        const mapping = this.#authorizer.mapping(permission);
+        const mapping = this.#authorizer.requireMapping(permission);
         const table = source ?? mapping.table;
         if (access.blocked(permission) !== undefined) {
             return sql`false`;
@@ -89,7 +89,10 @@ export class Compiler {
         ];
         if (access.context.grant !== undefined) {
             predicates.push(
-                this.#restricted(permission, column(table, mapping.id), access, { mapping, table }),
+                this.#restricted(permission, TableMapping.column(table, mapping.id), access, {
+                    mapping,
+                    table,
+                }),
             );
         }
 
@@ -97,7 +100,7 @@ export class Compiler {
         if (mapping.isShared === true) {
             const definition = mapping.policy.definition;
             predicates.push(
-                sql`${column(table, "packageId")} = ${definition.packageId} AND ${column(table, "type")} = ${definition.name}`,
+                sql`${TableMapping.column(table, "packageId")} = ${definition.packageId} AND ${TableMapping.column(table, "type")} = ${definition.name}`,
             );
         }
 
@@ -107,7 +110,7 @@ export class Compiler {
         const located =
             object === undefined
                 ? sql`${scope} = ${access.scope}`
-                : sql`(${scope} = ${access.scope} OR (${scope} = ${object.scope} AND ${column(table, mapping.id)} = ${object.id}))`;
+                : sql`(${scope} = ${access.scope} OR (${scope} = ${object.scope} AND ${TableMapping.column(table, mapping.id)} = ${object.id}))`;
 
         return sql`(${located} AND (${sql.join(predicates, sql` AND `)}))`;
     }
@@ -131,10 +134,15 @@ export class Compiler {
             }
 
             // evaluate the target's own permission where the credential allows it
-            const allowed = this.#restricted(permission, column(row, mapping.id), access, {
-                mapping,
-                table: row,
-            });
+            const allowed = this.#restricted(
+                permission,
+                TableMapping.column(row, mapping.id),
+                access,
+                {
+                    mapping,
+                    table: row,
+                },
+            );
             const granted = this.#permission(permission, mapping, row, compilation);
 
             return sql`(${allowed} AND ${granted})`;
@@ -152,15 +160,15 @@ export class Compiler {
         const isScope =
             object !== undefined && ObjectReference.key(object) === ObjectReference.key(target);
         if (target.scope !== access.scope && !isScope) {
-            throw new AccessError("INVALID_CONTEXT", "target lies outside the resolved scope");
+            throw new AccessError("INVALID_CONTEXT", "target is outside the resolved scope");
         }
-        const mapping = this.#authorizer.mapping(target);
+        const mapping = this.#authorizer.requireMapping(target);
         const row = alias(mapping.table, "access_target");
         const predicate = evaluate(mapping, row, Compiler.#compilation(access));
 
         return sql`EXISTS (
             SELECT 1 FROM ${from(row)}
-            WHERE ${column(row, mapping.id)} = ${target.id}
+            WHERE ${TableMapping.column(row, mapping.id)} = ${target.id}
                 AND ${TableMapping.scopeColumn(row, mapping)} = ${target.scope}
                 AND ${predicate}
         )`;
@@ -173,7 +181,7 @@ export class Compiler {
         access: Access,
         stored?: { readonly mapping: TableMapping; readonly table: Table },
     ): SQL {
-        // match the objects the grant names
+        // match the objects the grant lists
         const selected = GrantPermission.select(
             permission,
             access.scope,
@@ -185,7 +193,7 @@ export class Compiler {
         const named =
             selected.length === 0 ? sql`false` : listed(id, sql`${JSON.stringify(selected)}`);
 
-        // match a derivation as its source is matched: on the same object, or on the related one each row names
+        // match a derived permission when its source matches, on the same object or the related one
         const source = this.#authorizer.source(permission);
         if (source === undefined) {
             return named;
@@ -208,7 +216,11 @@ export class Compiler {
                 type: subject.type,
                 name: source.permission,
             };
-            const allowed = this.#restricted(derived, column(table, field.column), access);
+            const allowed = this.#restricted(
+                derived,
+                TableMapping.column(table, field.column),
+                access,
+            );
 
             // accept a single-typed relation in the caller's scope
             if (typed === undefined) {
@@ -219,9 +231,9 @@ export class Compiler {
             // accept a typed relation to this type in the caller's scope
             else {
                 const conditions = [
-                    sql`${column(table, typed.packageId)} = ${subject.packageId}`,
-                    sql`${column(table, typed.type)} = ${subject.type}`,
-                    sql`${column(table, typed.scope)} = ${access.scope}`,
+                    sql`${TableMapping.column(table, typed.packageId)} = ${subject.packageId}`,
+                    sql`${TableMapping.column(table, typed.type)} = ${subject.type}`,
+                    sql`${TableMapping.column(table, typed.scope)} = ${access.scope}`,
                     allowed,
                 ];
 
@@ -257,7 +269,7 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        return matchBinding(permission, compilation, (relationship) =>
+        return Compiler.#matchBinding(permission, compilation, (relationship) =>
             this.#covers(relationship, mapping, source, compilation),
         );
     }
@@ -270,7 +282,7 @@ export class Compiler {
         compilation: Compilation,
     ): SQL {
         // match the row itself or an object of the scope chain
-        const id = column(source, mapping.id);
+        const id = TableMapping.column(source, mapping.id);
         const scope = TableMapping.scopeColumn(source, mapping);
         const definition = mapping.policy.definition;
         const typed = sql`
@@ -295,11 +307,11 @@ export class Compiler {
         // climb to the owning parent and match it and its own ancestors
         else if (mapping.parent !== undefined) {
             const subject = this.#authorizer.onlySubject(mapping.policy, mapping.parent);
-            const target = this.#authorizer.mapping(subject);
+            const target = this.#authorizer.requireMapping(subject);
             const parent = alias(target.table, `access_owner_${compilation.aliases.next++}`);
             covering.push(sql`EXISTS (
                 SELECT 1 FROM ${from(parent)}
-                WHERE ${column(parent, target.id)} = ${column(source, TableMapping.field(mapping, mapping.parent).column)}
+                WHERE ${TableMapping.column(parent, target.id)} = ${TableMapping.column(source, TableMapping.field(mapping, mapping.parent).column)}
                     AND ${TableMapping.scopeColumn(parent, target)} = ${scope}
                     AND ${this.#covers(binding, target, parent, compilation)}
             )`);
@@ -323,11 +335,11 @@ export class Compiler {
     ): SQL {
         // find the owner the relation's field refers to
         const subject = this.#authorizer.onlySubject(mapping.policy, relation);
-        const target = this.#authorizer.mapping(subject);
-        const referred = column(source, TableMapping.field(mapping, relation).column);
+        const target = this.#authorizer.requireMapping(subject);
+        const referred = TableMapping.column(source, TableMapping.field(mapping, relation).column);
         const enclosing = alias(Scope.table, `access_enclosing_${compilation.aliases.next++}`);
 
-        // match a scope owner and the scopes enclosing it by its scope row alone
+        // match a scope owner and its enclosing scopes by its scope row only
         if (target.policy.definition.scope === true) {
             return sql`(
                 ${binding.objectId} = ${referred}
@@ -345,7 +357,7 @@ export class Compiler {
 
         return sql`EXISTS (
             SELECT 1 FROM ${from(owner)}
-            WHERE ${column(owner, target.id)} = ${referred}
+            WHERE ${TableMapping.column(owner, target.id)} = ${referred}
                 AND (
                     ${this.#covers(binding, target, owner, compilation)}
                     OR ${binding.objectId} = ${governing}
@@ -392,12 +404,12 @@ export class Compiler {
                 );
             case "resource":
             case "context": {
-                // grant nothing by attributes a database with only the object's scope row cannot read
+                // grant nothing by attributes when the database has only the object's scope row
                 const predicate = mapping.policy.resolve(expression);
                 if (expression.kind === "resource" && !TableMapping.decides(mapping, predicate)) {
                     return sql`false`;
                 }
-                const binding = bindAttributes(
+                const binding = Compiler.#bindAttributes(
                     expression,
                     mapping,
                     source,
@@ -431,7 +443,7 @@ export class Compiler {
         return isTyped;
     }
 
-    /** Match a row when the authority lives in its scope or the scope it is. */
+    /** Match a row when the authority lives in the row's scope, or in the row itself as a scope. */
     static #contained(
         expression: Extract<AccessExpression, { kind: "contained" }>,
         mapping: TableMapping,
@@ -451,7 +463,7 @@ export class Compiler {
                 packageId: sql`${definition.packageId}`,
                 type: sql`${definition.name}`,
                 scope: TableMapping.scopeColumn(source, mapping),
-                id: column(source, mapping.id),
+                id: TableMapping.column(source, mapping.id),
                 relation: sql`${CONTAINED}`,
             });
         }
@@ -479,7 +491,7 @@ export class Compiler {
             compilation.access.scopes,
         );
 
-        // match a chain scope whose containment set holds the authority of an admitted type
+        // match a chain scope with the authority in its containment set, for admitted types
         const { authority } = compilation;
         const isContained = steps.some(
             ({ object, contained }) =>
@@ -507,7 +519,7 @@ export class Compiler {
         }
 
         return sql`EXISTS (
-            SELECT 1 FROM ${current(compilation)} AS ${relationship}
+            SELECT 1 FROM ${Compiler.#current(compilation)} AS ${relationship}
             WHERE (${sql.join(matches, sql` OR `)})
         )`;
     }
@@ -534,12 +546,12 @@ export class Compiler {
 
             return [
                 sql`(
-                    ${column(source, columns.packageId)} = ${definition.packageId}
-                    AND ${column(source, columns.type)} = ${definition.name}
+                    ${TableMapping.column(source, columns.packageId)} = ${definition.packageId}
+                    AND ${TableMapping.column(source, columns.type)} = ${definition.name}
                     AND EXISTS (
                         SELECT 1 FROM ${from(row)}
-                        WHERE ${column(row, target.id)} = ${column(source, columns.id)}
-                            AND ${TableMapping.scopeColumn(row, target)} = ${column(source, columns.scope)}
+                        WHERE ${TableMapping.column(row, target.id)} = ${TableMapping.column(source, columns.id)}
+                            AND ${TableMapping.scopeColumn(row, target)} = ${TableMapping.column(source, columns.scope)}
                             AND ${this.#permission(grant, target, row, compilation)}
                     )
                 )`,
@@ -558,7 +570,7 @@ export class Compiler {
     ): SQL {
         // compile each type's visibility against its own alias of the referenced row
         const columns = TableMapping.reference(mapping, expression.reference);
-        const related = column(source, expression.relation);
+        const related = TableMapping.column(source, expression.relation);
         const branches = this.#authorizer.mappings().flatMap((target) => {
             // skip the row's own type, whose rows relate other objects
             if (target.policy === mapping.policy) {
@@ -592,12 +604,12 @@ export class Compiler {
 
             return [
                 sql`(
-                    ${column(source, columns.packageId)} = ${target.policy.definition.packageId}
-                    AND ${column(source, columns.type)} = ${target.policy.definition.name}
+                    ${TableMapping.column(source, columns.packageId)} = ${target.policy.definition.packageId}
+                    AND ${TableMapping.column(source, columns.type)} = ${target.policy.definition.name}
                     AND EXISTS (
                         SELECT 1 FROM ${from(row)}
-                        WHERE ${column(row, target.id)} = ${column(source, columns.id)}
-                            AND ${TableMapping.scopeColumn(row, target)} = ${column(source, columns.scope)}
+                        WHERE ${TableMapping.column(row, target.id)} = ${TableMapping.column(source, columns.id)}
+                            AND ${TableMapping.scopeColumn(row, target)} = ${TableMapping.column(source, columns.scope)}
                             AND (${sql.join([seen, ...hidden], sql` OR `)})
                     )
                 )`,
@@ -626,13 +638,13 @@ export class Compiler {
         const definition = mapping.policy.definition;
 
         return sql`EXISTS (
-            SELECT 1 FROM ${current(compilation)} AS ${relationship}
+            SELECT 1 FROM ${Compiler.#current(compilation)} AS ${relationship}
             WHERE ${relationship.objectScope} = ${TableMapping.scopeColumn(source, mapping)}
                 AND ${relationship.packageId} = ${definition.packageId}
                 AND ${relationship.type} = ${definition.name}
-                AND ${relationship.objectId} = ${column(source, mapping.id)}
+                AND ${relationship.objectId} = ${TableMapping.column(source, mapping.id)}
                 AND ${relationship.relation} = ${name}
-                AND ${accepted(relationship, relation)}
+                AND ${Compiler.#accepted(relationship, relation)}
         )`;
     }
 
@@ -653,11 +665,11 @@ export class Compiler {
 
             return keys.length === 0
                 ? sql`false`
-                : sql`coalesce(${listed(column(source, field.column), sql`${JSON.stringify(keys)}`)}, false)`;
+                : sql`coalesce(${listed(TableMapping.column(source, field.column), sql`${JSON.stringify(keys)}`)}, false)`;
         }
         // match a subject by the type, scope and relation in the row's columns
         else if (field.subject !== undefined) {
-            return matchTypedField(field, field.subject, source, authority);
+            return Compiler.#matchTypedField(field, field.subject, source, authority);
         }
 
         // match the one subject type of a field
@@ -669,7 +681,7 @@ export class Compiler {
                 field.scope === undefined
                     ? TableMapping.scopeColumn(source, mapping)
                     : sql`${field.scope}`,
-            id: column(source, field.column),
+            id: TableMapping.column(source, field.column),
             ...(type.relation === undefined ? {} : { relation: sql`${type.relation}` }),
         };
 
@@ -694,19 +706,25 @@ export class Compiler {
 
         // follow relationships to plain objects in the same scope
         if (!field) {
-            return followRelationships(expression, mapping, source, related, compilation);
+            return Compiler.#followRelationships(expression, mapping, source, related, compilation);
         }
-        // correlate the parent of whichever type the row's columns name, for a field with several types
+        // correlate the parent of the type in the row's columns, for a field with several types
         else if (field.subject !== undefined && !expression.transitive) {
-            return followTypedField(field, field.subject, mapping, source, related);
+            return Compiler.#followTypedField(field, field.subject, mapping, source, related);
         }
         // correlate the direct parent a field refers to
         else if (!expression.transitive) {
-            return followField(field, mapping, source, aligned(related, 0));
+            return Compiler.#followField(field, mapping, source, aligned(related, 0));
         }
 
         // join the indexed ancestors to their protected application rows
-        return followAncestors(expression, mapping, source, aligned(related, 0), compilation);
+        return Compiler.#followAncestors(
+            expression,
+            mapping,
+            source,
+            aligned(related, 0),
+            compilation,
+        );
     }
 
     /** Compile the target permission against a distinct alias of each type a relation relates. */
@@ -719,7 +737,7 @@ export class Compiler {
 
         return relation.subjects.map((subject) => {
             // alias the related type's table for its own correlated permission
-            const target = this.#authorizer.mapping(subject);
+            const target = this.#authorizer.requireMapping(subject);
             const parent = alias(target.table, `access_parent_${compilation.aliases.next++}`);
             const predicate = this.#permission(
                 target.policy.permission(expression.permission),
@@ -731,242 +749,260 @@ export class Compiler {
             return { subject, target, parent, predicate };
         });
     }
-}
 
-/** Match a subject by the type, scope and relation a field's columns keep. */
-function matchTypedField(
-    field: Field,
-    columns: NonNullable<Field["subject"]>,
-    source: Table,
-    authority: Authority,
-): SQL {
-    // match a plain subject when the columns keep no relation
-    const subject = {
-        packageId: column(source, columns.packageId),
-        type: column(source, columns.type),
-        scope: column(source, columns.scope),
-        id: column(source, field.column),
-    };
-    if (columns.relation === undefined) {
-        return sql`coalesce(${authority.match(subject)}, false)`;
+    /** Match a subject by the type, scope and relation in a field's columns. */
+    static #matchTypedField(
+        field: Field,
+        columns: NonNullable<Field["subject"]>,
+        source: Table,
+        authority: Authority,
+    ): SQL {
+        // match a plain subject when the columns have no relation
+        const subject = {
+            packageId: TableMapping.column(source, columns.packageId),
+            type: TableMapping.column(source, columns.type),
+            scope: TableMapping.column(source, columns.scope),
+            id: TableMapping.column(source, field.column),
+        };
+        if (columns.relation === undefined) {
+            return sql`coalesce(${authority.match(subject)}, false)`;
+        }
+
+        // match a plain subject or a subject set, as the relation column says
+        const relationColumn = TableMapping.column(source, columns.relation);
+
+        return sql`coalesce((
+            (${relationColumn} IS NULL AND ${authority.match(subject)})
+            OR (${relationColumn} IS NOT NULL AND ${authority.match({ ...subject, relation: relationColumn })})
+        ), false)`;
     }
 
-    // match a plain subject or a subject set, as the relation column says
-    const relationColumn = column(source, columns.relation);
+    /** Follow relationships to plain objects in the same scope. */
+    static #followRelationships(
+        expression: ThroughExpression,
+        mapping: TableMapping,
+        source: Table,
+        related: readonly RelationTarget[],
+        compilation: Compilation,
+    ): SQL {
+        // match each related type's row the relationship references
+        const scope = TableMapping.scopeColumn(source, mapping);
+        const relationship = alias(
+            accessRelationship,
+            `access_relationship_${compilation.aliases.next++}`,
+        );
+        const arrows = related.map(
+            ({ subject, target, parent, predicate }) => sql`(
+                ${relationship.subjectPackageId} = ${subject.packageId}
+                AND ${relationship.subjectType} = ${subject.type}
+                AND EXISTS (
+                    SELECT 1 FROM ${from(parent)}
+                    WHERE ${TableMapping.scopeColumn(parent, target)} = ${scope}
+                        AND ${TableMapping.column(parent, target.id)} = ${relationship.subjectId}
+                        AND ${predicate}
+                )
+            )`,
+        );
 
-    return sql`coalesce((
-        (${relationColumn} IS NULL AND ${authority.match(subject)})
-        OR (${relationColumn} IS NOT NULL AND ${authority.match({ ...subject, relation: relationColumn })})
-    ), false)`;
-}
+        // read the current relationships of the row through the relation
+        const definition = mapping.policy.definition;
 
-/** Follow relationships to plain objects in the same scope. */
-function followRelationships(
-    expression: ThroughExpression,
-    mapping: TableMapping,
-    source: Table,
-    related: readonly RelationTarget[],
-    compilation: Compilation,
-): SQL {
-    // match each related type's row the relationship names
-    const scope = TableMapping.scopeColumn(source, mapping);
-    const relationship = alias(
-        accessRelationship,
-        `access_relationship_${compilation.aliases.next++}`,
-    );
-    const arrows = related.map(
-        ({ subject, target, parent, predicate }) => sql`(
-            ${relationship.subjectPackageId} = ${subject.packageId}
-            AND ${relationship.subjectType} = ${subject.type}
-            AND EXISTS (
-                SELECT 1 FROM ${from(parent)}
-                WHERE ${TableMapping.scopeColumn(parent, target)} = ${scope}
-                    AND ${column(parent, target.id)} = ${relationship.subjectId}
-                    AND ${predicate}
-            )
-        )`,
-    );
-
-    // read the current relationships of the row through the relation
-    const definition = mapping.policy.definition;
-
-    return sql`EXISTS (
-        SELECT 1 FROM ${from(relationship)}
-        WHERE ${relationship.objectScope} = ${scope}
-            AND ${relationship.packageId} = ${definition.packageId}
-            AND ${relationship.type} = ${definition.name}
-            AND ${relationship.objectId} = ${column(source, mapping.id)}
-            AND ${relationship.relation} = ${expression.relation}
-            AND ${relationship.subjectScope} = ${scope}
-            AND ${relationship.subjectRelation} IS NULL
-            AND ${TupleCondition.where(relationship, TupleCondition.values(compilation.access.context))}
-            AND (${sql.join(arrows, sql` OR `)})
-    )`;
-}
-
-/** Correlate the parent of the row's typed columns' type, for a field with several types. */
-function followTypedField(
-    field: Field,
-    typed: NonNullable<Field["subject"]>,
-    mapping: TableMapping,
-    source: Table,
-    related: readonly RelationTarget[],
-): SQL {
-    const scope = TableMapping.scopeColumn(source, mapping);
-    const arrows = related.map(
-        ({ subject, target, parent, predicate }) => sql`(
-            ${column(source, typed.packageId)} = ${subject.packageId}
-            AND ${column(source, typed.type)} = ${subject.type}
-            AND EXISTS (
-                SELECT 1 FROM ${from(parent)}
-                WHERE ${TableMapping.scopeColumn(parent, target)} = ${scope}
-                    AND ${column(parent, target.id)} = ${column(source, field.column)}
-                    AND ${predicate}
-            )
-        )`,
-    );
-
-    return arrows.length === 0 ? sql`false` : sql`(${sql.join(arrows, sql` OR `)})`;
-}
-
-/** Correlate a field's direct parent, in the source object's scope or the field's scope. */
-function followField(
-    field: Field,
-    mapping: TableMapping,
-    source: Table,
-    related: RelationTarget,
-): SQL {
-    // match the parent in any scope, the field's scope or the source object's scope
-    const { target, parent, predicate } = related;
-    const scope = TableMapping.scopeColumn(source, mapping);
-    const targetScope = TableMapping.scopeColumn(parent, target);
-    const inScope =
-        field.scope === ANY_SCOPE
-            ? sql`true`
-            : sql`${targetScope} = ${field.scope === undefined ? scope : sql`${field.scope}`}`;
-
-    return sql`EXISTS (
-        SELECT 1 FROM ${from(parent)}
-        WHERE ${inScope}
-            AND ${column(parent, target.id)} = ${column(source, field.column)}
-            AND ${predicate}
-    )`;
-}
-
-/** Join the indexed ancestors of the source row to their protected application rows. */
-function followAncestors(
-    expression: ThroughExpression,
-    mapping: TableMapping,
-    source: Table,
-    related: RelationTarget,
-    compilation: Compilation,
-): SQL {
-    // alias the ancestor index of the relation
-    const { target, parent, predicate } = related;
-    const targetId = column(parent, target.id);
-    const targetScope = TableMapping.scopeColumn(parent, target);
-    const tree = TableMapping.tree(mapping, expression.relation);
-    const ancestor = alias(tree.ancestors, `access_ancestor_${compilation.aliases.next++}`);
-
-    return sql`EXISTS (
-        SELECT 1 FROM ${from(ancestor)} JOIN ${from(parent)}
-            ON ${targetId} = ${ancestor.ancestor} AND ${targetScope} = ${ancestor.scope}
-        WHERE ${ancestor.scope} = ${TableMapping.scopeColumn(source, mapping)}
-            AND ${ancestor.descendant} = ${column(source, mapping.id)}
-            AND ${ancestor.depth} > 0
-            AND ${predicate}
-    )`;
-}
-
-/** Match a current binding to the authority of a role granting the permission. */
-function matchBinding(
-    permission: PermissionReference,
-    compilation: Compilation,
-    covers: (relationship: RelationshipColumnMap) => SQL,
-): SQL {
-    // list the roles that grant the permission, or every one but reserved ones
-    const relationship = alias(accessRelationship, `access_binding_${compilation.aliases.next++}`);
-    const granted = sql.identifier(GRANTED);
-    const key = sql`${granted}.value ->> 0`;
-    const isNaming = sql`${key} = ${PermissionReference.key(permission)}`;
-    const isGranting = compilation.access.isReserved(permission)
-        ? isNaming
-        : sql`(${isNaming} OR ${key} = ${UNIVERSAL})`;
-
-    return sql`EXISTS (
-        SELECT 1 FROM ${current(compilation)} AS ${relationship}
-        WHERE EXISTS (
-                SELECT 1 FROM ${jsonElements(sql`${compilation.access.grantedRoles}`, GRANTED)}
-                WHERE ${isGranting}
-                    AND ${granted}.value ->> 1 = ${relationship.roleId}
-                    AND (${granted}.value ->> 2 IS NULL OR ${granted}.value ->> 2 = ${relationship.id})
-            )
-            AND ${covers(relationship)}
-    )`;
-}
-
-/** Require a relationship's subject to be of a type its relation accepts. */
-function accepted(relationship: RelationshipColumnMap, relation: RelationDescription): SQL {
-    const types = relation.subjects.map((type) => {
-        // match the subject set's relation, or none, and a wildcard only where the type accepts one
-        const set =
-            type.relation === undefined
-                ? sql`${relationship.subjectRelation} IS NULL`
-                : sql`${relationship.subjectRelation} = ${type.relation}`;
-        const wildcard = type.wildcard
-            ? sql`(${relationship.subjectId} = '*' OR ${relationship.subjectScope} = '*')`
-            : sql`${relationship.subjectId} <> '*' AND ${relationship.subjectScope} <> '*'`;
-
-        return sql`(
-            ${relationship.subjectPackageId} = ${type.packageId}
-            AND ${relationship.subjectType} = ${type.type}
-            AND ${set}
-            AND ${wildcard}
+        return sql`EXISTS (
+            SELECT 1 FROM ${from(relationship)}
+            WHERE ${relationship.objectScope} = ${scope}
+                AND ${relationship.packageId} = ${definition.packageId}
+                AND ${relationship.type} = ${definition.name}
+                AND ${relationship.objectId} = ${TableMapping.column(source, mapping.id)}
+                AND ${relationship.relation} = ${expression.relation}
+                AND ${relationship.subjectScope} = ${scope}
+                AND ${relationship.subjectRelation} IS NULL
+                AND ${TupleCondition.where(relationship, TupleCondition.values(compilation.access.context))}
+                AND (${sql.join(arrows, sql` OR `)})
         )`;
-    });
+    }
 
-    return sql`(${sql.join(types, sql` OR `)})`;
-}
+    /** Correlate the parent of the row's typed columns' type, for a field with several types. */
+    static #followTypedField(
+        field: Field,
+        typed: NonNullable<Field["subject"]>,
+        mapping: TableMapping,
+        source: Table,
+        related: readonly RelationTarget[],
+    ): SQL {
+        const arrows = related.map(
+            ({ subject, target, parent, predicate }) => sql`(
+                ${TableMapping.column(source, typed.packageId)} = ${subject.packageId}
+                AND ${TableMapping.column(source, typed.type)} = ${subject.type}
+                AND EXISTS (
+                    SELECT 1 FROM ${from(parent)}
+                    WHERE ${Compiler.#inScope(field, mapping, source, target, parent)}
+                        AND ${TableMapping.column(parent, target.id)} = ${TableMapping.column(source, field.column)}
+                        AND ${predicate}
+                )
+            )`,
+        );
 
-/** Bind a condition's fields to columns or request attributes, and placeholders to attributes. */
-function bindAttributes(
-    expression: ConditionExpression,
-    mapping: TableMapping,
-    source: Table,
-    context: AccessContext,
-): Binding<SQLWrapper> {
-    return {
-        field: (name) =>
-            expression.kind === "resource"
-                ? column(source, TableMapping.attribute(mapping, name))
-                : sql`${AccessContext.attribute(context, name)}`,
-        placeholder: (name) => AccessContext.attribute(context, name),
-        exists: (via) => {
-            throw new AccessError(
-                "INVALID_DECLARATION",
-                `policy conditions follow no relations: ${via}`,
-            );
-        },
-        search: () => {
-            throw new AccessError("INVALID_DECLARATION", "policy conditions search no text");
-        },
-    };
-}
+        return arrows.length === 0 ? sql`false` : sql`(${sql.join(arrows, sql` OR `)})`;
+    }
 
-/** Read the relationships current for a compiled authority, once per statement. */
-function current(compilation: Compilation): CommonTable {
-    // key the query by everything it reads of the request and the authority
-    const { access, authority } = compilation;
-    const bindings = TupleCondition.bindings(access.context);
-    const name = `access_current_${hashName(JSON.stringify([bindings, authority.subjects]))}`;
+    /** Match a field's parent where it lives: anywhere, the universe, or a correlated scope. */
+    static #inScope(
+        field: Field,
+        mapping: TableMapping,
+        source: Table,
+        target: TableMapping,
+        parent: Table,
+    ): SQL {
+        // match a parent in any scope, and a global type's parent at the universe it lives in
+        if (field.scope === ANY_SCOPE || target.scope === undefined) {
+            return sql`true`;
+        }
 
-    // keep the relationships whose conditions pass and whose subject the authority is
-    const relationship = alias(accessRelationship, "access_current");
+        // match the parent in the field's scope, else in the source object's scope
+        const scope =
+            field.scope === undefined
+                ? TableMapping.scopeColumn(source, mapping)
+                : sql`${field.scope}`;
 
-    return sql.common(
-        name,
-        sql`SELECT ${relationship}.* FROM ${from(relationship)}
-            WHERE ${TupleCondition.where(relationship, TupleCondition.values(access.context))}
-                AND ${authority.member(relationship)}`,
-    );
+        return sql`${TableMapping.scopeColumn(parent, target)} = ${scope}`;
+    }
+
+    /** Correlate a field's direct parent, in the source object's scope or the field's scope. */
+    static #followField(
+        field: Field,
+        mapping: TableMapping,
+        source: Table,
+        related: RelationTarget,
+    ): SQL {
+        // match the parent where it lives
+        const { target, parent, predicate } = related;
+
+        return sql`EXISTS (
+            SELECT 1 FROM ${from(parent)}
+            WHERE ${Compiler.#inScope(field, mapping, source, target, parent)}
+                AND ${TableMapping.column(parent, target.id)} = ${TableMapping.column(source, field.column)}
+                AND ${predicate}
+        )`;
+    }
+
+    /** Join the indexed ancestors of the source row to their protected application rows. */
+    static #followAncestors(
+        expression: ThroughExpression,
+        mapping: TableMapping,
+        source: Table,
+        related: RelationTarget,
+        compilation: Compilation,
+    ): SQL {
+        // alias the ancestor index of the relation
+        const { target, parent, predicate } = related;
+        const targetId = TableMapping.column(parent, target.id);
+        const targetScope = TableMapping.scopeColumn(parent, target);
+        const tree = TableMapping.tree(mapping, expression.relation);
+        const ancestor = alias(tree.ancestors, `access_ancestor_${compilation.aliases.next++}`);
+
+        return sql`EXISTS (
+            SELECT 1 FROM ${from(ancestor)} JOIN ${from(parent)}
+                ON ${targetId} = ${ancestor.ancestor} AND ${targetScope} = ${ancestor.scope}
+            WHERE ${ancestor.scope} = ${TableMapping.scopeColumn(source, mapping)}
+                AND ${ancestor.descendant} = ${TableMapping.column(source, mapping.id)}
+                AND ${ancestor.depth} > 0
+                AND ${predicate}
+        )`;
+    }
+
+    /** Match a current binding to the authority of a role granting the permission. */
+    static #matchBinding(
+        permission: PermissionReference,
+        compilation: Compilation,
+        covers: (relationship: RelationshipColumnMap) => SQL,
+    ): SQL {
+        // list the roles that grant the permission, or every one but reserved ones
+        const relationship = alias(
+            accessRelationship,
+            `access_binding_${compilation.aliases.next++}`,
+        );
+        const granted = sql.identifier(GRANTED);
+        const key = sql`${granted}.value ->> 0`;
+        const isNaming = sql`${key} = ${PermissionReference.key(permission)}`;
+        const isGranting = compilation.access.isReserved(permission)
+            ? isNaming
+            : sql`(${isNaming} OR ${key} = ${UNIVERSAL})`;
+
+        return sql`EXISTS (
+            SELECT 1 FROM ${Compiler.#current(compilation)} AS ${relationship}
+            WHERE EXISTS (
+                    SELECT 1 FROM ${jsonElements(sql`${compilation.access.grantedRoles}`, GRANTED)}
+                    WHERE ${isGranting}
+                        AND ${granted}.value ->> 1 = ${relationship.roleId}
+                        AND (${granted}.value ->> 2 IS NULL OR ${granted}.value ->> 2 = ${relationship.id})
+                )
+                AND ${covers(relationship)}
+        )`;
+    }
+
+    /** Require a relationship's subject to be of a type its relation accepts. */
+    static #accepted(relationship: RelationshipColumnMap, relation: RelationDescription): SQL {
+        const types = relation.subjects.map((type) => {
+            // match the subject set's relation, or none, and a wildcard only where the type accepts one
+            const set =
+                type.relation === undefined
+                    ? sql`${relationship.subjectRelation} IS NULL`
+                    : sql`${relationship.subjectRelation} = ${type.relation}`;
+            const wildcard = type.wildcard
+                ? sql`(${relationship.subjectId} = '*' OR ${relationship.subjectScope} = '*')`
+                : sql`${relationship.subjectId} <> '*' AND ${relationship.subjectScope} <> '*'`;
+
+            return sql`(
+                ${relationship.subjectPackageId} = ${type.packageId}
+                AND ${relationship.subjectType} = ${type.type}
+                AND ${set}
+                AND ${wildcard}
+            )`;
+        });
+
+        return sql`(${sql.join(types, sql` OR `)})`;
+    }
+
+    /** Bind a condition's fields to columns or attributes, and placeholders to attributes. */
+    static #bindAttributes(
+        expression: ConditionExpression,
+        mapping: TableMapping,
+        source: Table,
+        context: AccessContext,
+    ): Binding<SQLWrapper> {
+        return {
+            field: (name) =>
+                expression.kind === "resource"
+                    ? TableMapping.column(source, TableMapping.attribute(mapping, name))
+                    : sql`${AccessContext.attribute(context, name)}`,
+            placeholder: (name) => AccessContext.attribute(context, name),
+            exists: (via) => {
+                throw new AccessError(
+                    "INVALID_DECLARATION",
+                    `policy conditions cannot follow relations: ${via}`,
+                );
+            },
+            search: () => {
+                throw new AccessError("INVALID_DECLARATION", "policy conditions cannot search");
+            },
+        };
+    }
+
+    /** Read the relationships current for a compiled authority, once per statement. */
+    static #current(compilation: Compilation): CommonTable {
+        // key the query by everything it reads of the request and the authority
+        const { access, authority } = compilation;
+        const bindings = TupleCondition.bindings(access.context);
+        const name = `access_current_${hashName(JSON.stringify([bindings, authority.subjects]))}`;
+
+        // keep the relationships with passing conditions and the authority as subject
+        const relationship = alias(accessRelationship, "access_current");
+
+        return sql.common(
+            name,
+            sql`SELECT ${relationship}.* FROM ${from(relationship)}
+                WHERE ${TupleCondition.where(relationship, TupleCondition.values(access.context))}
+                    AND ${authority.member(relationship)}`,
+        );
+    }
 }

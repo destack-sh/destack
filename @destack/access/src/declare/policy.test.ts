@@ -20,7 +20,7 @@ test("include the policies declared policies reference, transitively", () => {
 });
 
 test("prefer a policy representing a principal and refuse two policies for one type", () => {
-    // reach the intrinsic user before the policy representing it
+    // list the intrinsic user before the policy representing it
     const user = new Policy(principal.user.package, {
         name: principal.user.name,
         permissions: { profile: none() },
@@ -38,8 +38,8 @@ test("prefer a policy representing a principal and refuse two policies for one t
     expect(new Authorizer([document]).policy(principal.user.reference("universe", "u"))).toBe(user);
 
     // refuse a second policy declaring the same type
-    const copy = new Policy(module1.package, { name: "document", permissions: {} });
-    expect(() => new Authorizer([document, copy])).toThrow(
+    const duplicate = new Policy(module1.package, { name: "document", permissions: {} });
+    expect(() => new Authorizer([document, duplicate])).toThrow(
         `duplicate object type: ${JSON.stringify([module1.package.id, "document"])}`,
     );
 });

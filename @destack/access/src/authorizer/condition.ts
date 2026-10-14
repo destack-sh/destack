@@ -31,7 +31,7 @@ export class TupleCondition {
     readonly createdAt: number;
     /** The relationship's expiry, null when it never expires. */
     readonly expiresAt: number | null;
-    /** The request the relationship applies to alone. */
+    /** The only request the relationship applies to. */
     readonly requestId: string | null;
     /** The key of the credential a call presents for the relationship to apply. */
     readonly credential: string | null;
@@ -65,9 +65,9 @@ export class TupleCondition {
         }
 
         // require its request, credential and link secret to match
-        if (!isBound(this.requestId, context.request)) {
+        if (!TupleCondition.#isBound(this.requestId, context.request)) {
             return "request";
-        } else if (!isBound(this.credential, Caller.credentialKey(context))) {
+        } else if (!TupleCondition.#isBound(this.credential, Caller.credentialKey(context))) {
             return "credential";
         } else if (
             this.linkSecret !== null &&
@@ -93,7 +93,7 @@ export class TupleCondition {
         return undefined;
     }
 
-    /** Read the next moment time alone changes whether the conditions pass, absent if never. */
+    /** Read the next time the conditions may start or stop passing, absent if never. */
     until(context: ConditionContext): number | undefined {
         return TupleCondition.until(this, context);
     }
@@ -123,14 +123,14 @@ export class TupleCondition {
     /** Require a relationship's conditions to pass for a request, as `failure` decides. */
     static where(relationship: RelationshipColumnMap, values: ConditionValues): SQL {
         // type the request time for engines that type parameters
-        const now = castInteger(values.now);
+        const now = TupleCondition.#castInteger(values.now);
 
         // require a started, unexpired relationship with a matching request, credential and link secret
         const conditions = [
             sql`${relationship.createdAt} <= ${now}`,
             sql`(${relationship.expiresAt} IS NULL OR ${relationship.expiresAt} > ${now})`,
-            sql`(${relationship.requestId} IS NULL OR ${relationship.requestId} = ${castText(values.request)})`,
-            sql`(${relationship.credential} IS NULL OR ${relationship.credential} = ${castText(values.credential)})`,
+            sql`(${relationship.requestId} IS NULL OR ${relationship.requestId} = ${TupleCondition.#castText(values.request)})`,
+            sql`(${relationship.credential} IS NULL OR ${relationship.credential} = ${TupleCondition.#castText(values.credential)})`,
             sql`(${relationship.linkSecret} IS NULL OR EXISTS (
                 SELECT 1 FROM ${jsonElements(values.linkSecrets, "link_secret")}
                 WHERE link_secret.value ->> 0 = ${relationship.linkSecret}
@@ -139,8 +139,8 @@ export class TupleCondition {
 
         // require the authentication it asks for
         conditions.push(
-            sql`(${relationship.assurance} IS NULL OR ${relationship.assurance} <= ${castInteger(values.level)})`,
-            sql`(${relationship.maxAge} IS NULL OR ${relationship.maxAge} >= ${now} - ${castInteger(values.authenticatedAt)})`,
+            sql`(${relationship.assurance} IS NULL OR ${relationship.assurance} <= ${TupleCondition.#castInteger(values.level)})`,
+            sql`(${relationship.maxAge} IS NULL OR ${relationship.maxAge} >= ${now} - ${TupleCondition.#castInteger(values.authenticatedAt)})`,
         );
 
         return sql`(${sql.join(conditions, sql` AND `)})`;
@@ -176,19 +176,19 @@ export class TupleCondition {
             authenticatedAt: value("authenticatedAt"),
         };
     }
-}
 
-/** Determine whether a request matches a relationship's binding, always for a null binding. */
-function isBound(value: string | null, actual: string | undefined): boolean {
-    return value === null || (actual !== undefined && value === actual);
-}
+    /** Determine whether a request matches a relationship's binding, always for a null binding. */
+    static #isBound(value: string | null, actual: string | undefined): boolean {
+        return value === null || (actual !== undefined && value === actual);
+    }
 
-/** Type a nullable SQL value as text for engines that type parameters. */
-function castText(value: SQLWrapper): SQL {
-    return sql`CAST(${value} AS TEXT)`;
-}
+    /** Type a nullable SQL value as text for engines that type parameters. */
+    static #castText(value: SQLWrapper): SQL {
+        return sql`CAST(${value} AS TEXT)`;
+    }
 
-/** Type a nullable SQL value as a big integer for engines that type parameters. */
-function castInteger(value: SQLWrapper): SQL {
-    return sql`CAST(${value} AS BIGINT)`;
+    /** Type a nullable SQL value as a big integer for engines that type parameters. */
+    static #castInteger(value: SQLWrapper): SQL {
+        return sql`CAST(${value} AS BIGINT)`;
+    }
 }
