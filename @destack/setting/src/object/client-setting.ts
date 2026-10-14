@@ -32,5 +32,5 @@ export const clientSetting = defineObject({
     delete: method.delete("write"),
 }));
 
-/** A client's setting value as its row holds it. */
+/** A client's setting value as its row stores it. */
 export type ClientSettingValue = Select<typeof clientSetting.table>;

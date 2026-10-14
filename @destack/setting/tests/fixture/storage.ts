@@ -21,7 +21,7 @@ import { ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 
 import { settingTables } from "../../src/stack/index.ts";
-import { serveSettings } from "../../src/server/index.ts";
+import { implementSetting } from "../../src/server/index.ts";
 import settingPackage from "../../src/package.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { type Setting, SettingCatalog } from "../../src/setting/index.ts";
@@ -58,7 +58,7 @@ export class Storage {
         this.objects = new ObjectStore({
             clock: Clock.system,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
-            objects: [serveSettings({ declared: this.catalog, after: [] })],
+            objects: [implementSetting({ declared: this.catalog, after: [] })],
             // decide access in the scopes the values live in
             policies: [user, space, account, organisation, machine].map((type) => type.policy),
             database: test.database,
@@ -70,9 +70,9 @@ export class Storage {
 
     /** Let Alice own a scope. */
     async own(scope: ObjectReference): Promise<void> {
-        const copies = new AccessFixture(this.database);
-        await copies.copyScope(scope);
-        await copies.copyOwner(scope, this.subject);
+        const access = new AccessFixture(this.database);
+        await access.replicateScope(scope);
+        await access.replicateOwner(scope, this.subject);
     }
 
     /** Send a call as Alice in a scope, its input unchecked until the store parses it. */
@@ -92,13 +92,13 @@ export class Storage {
             : this.objects.query(caller, call);
     }
 
-    /** Call a method as Alice in the scope its input names. */
+    /** Call a method as Alice in its input's scope. */
     async call<Type extends ObjectType, Name extends CallableName<Type>>(
         object: Type,
         name: Name,
         input: NoInfer<ObjectCallInput<Type, Name>> & { readonly scope: string },
     ): Promise<CallOutput<Type, Name>> {
-        // act in the scope the call names
+        // act in the call's scope
         const context = subjectContext(this.subject, input.scope);
         const call = object.call(name, input);
         const caller = context.caller();

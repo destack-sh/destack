@@ -1,29 +1,6 @@
 # @destack/setting
 
-`defineSetting` is a VS Code configuration contribution (`title`, `description`, a schema, `default`, a scope and the scopes that override it), stored as `setting` objects along a space's scope chain, and `mode` adds Chrome enterprise policy's recommended and mandatory values as `recommend` and `require`.
-
-```ts
-// contributes.configuration
-defineSetting({
-    name: "editor.mode",
-    title,
-    description,
-    schema,
-    default: "standard",
-    scope: "user",
-    overrides: ["space", "client"],
-    apply: "immediate",
-});
-// a Chrome recommended policy, "require" a mandatory one
-editor: { setting: editorMode, value: "vim", mode: "recommend" };
-// client, then user, account and default, as VS Code's workspace over user
-editorMode.resolve(selection, rows, chain, clientValues);
-merge: "key"; // each record key from its own nearest placement
-```
-
-## Declarations
-
-`defineSetting` declares a typed setting with its scope and the overrides it permits, and `convert` upgrades its earlier values by release.
+`@destack/setting` declares typed settings, keeps their values as `setting` rows along a scope chain, and resolves the value that applies.
 
 ```ts
 import { defineSetting } from "@destack/setting/declare";
@@ -40,44 +17,49 @@ export const editorMode = defineSetting({
 });
 ```
 
-## Reading
+## Values
 
-`resolve` reads a setting's value from the `setting` rows a client follows along the space's scope chain.
+A value is a `setting` row at a placement, with the mode `set`, `recommend` or `require`.
+
+```ts
+const placement = SettingPlacement.of({ scope: userId, space: spaceId });
+await client
+    .mutate(setting)
+    .create({ ...editorMode.reference, ...placement, mode: "set", value: "vim", release });
+```
+
+## Resolving
+
+`resolve` picks the value that applies to a selection from the values along its scope chain and a client's own values.
 
 ```ts
 const selection = SettingSelection.parse({ scope: userId, space: spaceId });
-const rows = await personal
-    .of({ setting })
-    .query.setting.findMany({ where: editorMode.condition(selection) });
-const mode = editorMode.resolve(selection, rows, await space.replica.chain(space.database));
-SettingResolution.observed(mode, "client"); // { id, revision } of the client's value, or null
+const resolution = editorMode.resolve(selection, values, chain, clientValues);
+resolution.value; // "vim"
+const mode = await SettingValue.resolve(database, editorMode, { ...selection, scope: userId });
 ```
 
-## Writing
+## Replicating
 
-The `setting` object's methods create, update and delete the row at a placement, and a `clientSetting` local object holds one client's value.
+`SettingValue.replicate` replicates a scope's values from the store serving them and yields them after each change.
 
 ```ts
-const placement = SettingPlacement.of({ ...selection, scope: userId });
-await personal
-    .mutate(setting)
-    .create({ ...editorMode.reference, ...placement, mode: "set", value: "vim", release })
-    .confirmed;
-await client.mutate(clientSetting).create({ ...editorMode.reference, value: "vim", release })
-    .confirmed;
+for await (const { chain, values } of SettingValue.replicate(
+    { endpoint, scope: userId, caller, database, settings: [editorMode.reference], clock },
+    signal,
+)) {
+    editorMode.resolve(selection, values, chain);
+}
 ```
 
 ## Server
 
-`serveSettings` serves the `setting` objects, checking each written value against the catalog of its release, and `settingTables` lists their tables.
+`settingExtension` adds the setting package to a store, checking each written value against its declaration.
 
 ```ts
-import { serveSettings } from "@destack/setting/server";
+import { settingExtension } from "@destack/setting/server";
 import { settingTables } from "@destack/setting/stack";
 
-const { setting } = serveSettings(SettingCatalog.cached((written) => open(written)));
-export const spaceDatabase = defineDatabase({
-    name: "main",
-    tables: [...settingTables, ...others],
-});
+const extension = settingExtension({ declared: SettingCatalog.cached(open), after: [] });
+const database = defineDatabase({ name: "main", tables: settingTables });
 ```

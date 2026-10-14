@@ -1,7 +1,7 @@
 import { Package } from "@destack/package";
 import { defineSchema, schema, canonicalize } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
-import type { ClientSettingValue } from "../object/client.ts";
+import type { ClientSettingValue } from "../object/client-setting.ts";
 import { SettingReference } from "./setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
 

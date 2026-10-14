@@ -12,7 +12,7 @@ export const alice = "user-019f5530-8000-7000-8000-000000000003";
 /** Bob's space, in which Alice acts. */
 export const space = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000000000003");
 
-/** Bob's account, holding his space. */
+/** Bob's account, with his space. */
 export const account = "account-019f5530-8000-7000-8000-000000000011";
 
 /** The scopes above Alice's values in Bob's space, nearest first. */
@@ -78,7 +78,7 @@ export const required: SettingValue = {
     mode: "require",
 };
 
-/** Read a setting's reference as the columns of its values hold it. */
+/** Read a setting's reference as the columns of its values store it. */
 export function named(declared: Setting): Pick<SettingValue, "packageId" | "name"> {
     return { packageId: declared.reference.packageId, name: declared.reference.name };
 }

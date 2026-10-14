@@ -6,11 +6,9 @@ import {
     type SettingReference,
     type SettingWrite,
 } from "../setting/index.ts";
-import settingPackage from "../package.ts";
 import { BuildCache } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import type { ObjectType } from "@destack/object";
-import { ObjectExtension } from "@destack/object/server";
 
 /** What a store serves its setting values with. */
 export interface SettingOptions {
@@ -22,13 +20,8 @@ export interface SettingOptions {
     readonly after: readonly ObjectType[];
 }
 
-/** Extend a store with its setting values, checked against their declarations. */
-export function implementSettings(options: SettingOptions): ObjectExtension {
-    return ObjectExtension.of(settingPackage, [serveSettings(options)]);
-}
-
-/** Serve values checked against their declarations. */
-export function serveSettings(options: SettingOptions) {
+/** Implement setting values, checked against their declarations. */
+export function implementSetting(options: SettingOptions) {
     // read each stack release's settings once
     const { declared, after } = options;
     const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));

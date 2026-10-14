@@ -50,7 +50,7 @@ export class SettingCatalog {
     /** The declared settings by key. */
     readonly #byKey: ReadonlyMap<string, Setting>;
 
-    /** Hold a build's settings. */
+    /** Keep a build's settings. */
     constructor(settings: readonly Setting[]) {
         this.settings = settings;
         this.#byKey = new Map(

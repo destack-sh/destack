@@ -4,7 +4,7 @@ import type { JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
-import type { ClientSettingValue } from "../object/client.ts";
+import type { ClientSettingValue } from "../object/client-setting.ts";
 import type { SettingResolution, SettingSource } from "./resolution.ts";
 import { SettingPlacement, type SettingSelection } from "./placement.ts";
 import type { SettingMode } from "./mode.ts";
@@ -26,7 +26,7 @@ const ENCLOSING_INSTALLATION_WEIGHT = 1;
 
 /** A set value for the consuming package follows one applying to every package. */
 const PACKAGE_WEIGHT = 1;
-/** A set value for the space follows the package override alone. */
+/** A set value for the space follows only the package override. */
 const SPACE_WEIGHT = 2;
 /** A set value for the installation follows one for its space. */
 const INSTALLATION_WEIGHT = 4;
@@ -53,7 +53,7 @@ export const SettingReference = Object.assign(SettingIdentity, {
         return `${reference.packageId}/${reference.name}`;
     },
 
-    /** Read the setting a key names, refusing a key of no package and name. */
+    /** Read the setting of a key, refusing a key without a package and name. */
     of(key: string): SettingReference {
         const separator = key.indexOf("/");
 
@@ -66,7 +66,7 @@ export const SettingReference = Object.assign(SettingIdentity, {
 /** The identity of a setting. */
 export type SettingReference = schema.Infer<typeof SettingIdentity>;
 
-/** A value written in a scope, as a write or a stack's declaration carries it. */
+/** A value written in a scope, from a write or a stack's declaration. */
 export type SettingWrite = Omit<SettingPlacement, "scope"> & {
     /** How the value applies. */
     readonly mode: SettingMode;
@@ -83,7 +83,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     /** The name, schema, default, scopes and conversions. */
     readonly definition: SettingDefinition<Value>;
 
-    /** Hold a checked declaration. */
+    /** Keep a checked declaration. */
     constructor(owner: Package, definition: SettingDefinition<Value>) {
         this.package = owner;
         this.definition = definition;
@@ -104,7 +104,10 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         // require the value its machine resolved
         const key = SettingReference.key(this.reference);
         if (!Object.hasOwn(settings, key)) {
-            throw new SettingError("UNDECLARED", `the installation's machine resolved no ${key}`);
+            throw new SettingError(
+                "UNDECLARED",
+                `the installation's machine did not resolve ${key}`,
+            );
         }
 
         return this.definition.schema.parse(settings[key]);
@@ -155,6 +158,13 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return this.definition.merge === "key"
             ? this.#mergeKeys(selection, ordinary, required, invalid)
             : this.#decide(selection, ordinary, required, invalid);
+    }
+
+    /** Report whether clients keep values of this setting. */
+    isClientKept(): boolean {
+        const { scope, overrides } = this.definition;
+
+        return scope === "client" || overrides.some((override) => override === "client");
     }
 
     /** Require a selection of the setting's scope, or an anonymous one of a user setting. */
@@ -336,7 +346,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         this.requirePlacement(write, position);
     }
 
-    /** Require a value to carry the mode and overrides its scope permits. */
+    /** Require a value to have the mode and overrides its scope permits. */
     requirePlacement(
         value: Omit<SettingPlacement, "scope"> & { readonly mode: SettingMode },
         position: "own" | "enclosing",
@@ -360,7 +370,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         if (value.installation !== undefined && value.space !== undefined) {
             throw new SettingError(
                 "INVALID_PLACEMENT",
-                "setting value carries both an installation and its space",
+                "setting value has both an installation and its space",
             );
         }
 
@@ -418,10 +428,10 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         // skip the values of other settings, and refuse one the setting keeps off clients
         if (value.packageId !== this.reference.packageId || value.name !== this.reference.name) {
             return undefined;
-        } else if (!this.#isClientKept()) {
+        } else if (!this.isClientKept()) {
             throw new SettingError(
                 "INVALID_PLACEMENT",
-                `clients keep no values of ${SettingReference.key(this.reference)}`,
+                `clients cannot keep values of ${SettingReference.key(this.reference)}`,
             );
         }
 
@@ -429,13 +439,6 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         const source = { kind: "client" as const, id: value.id, revision: value.revision };
 
         return this.#converted(value, [CLIENT_TIER, 0], source, "set");
-    }
-
-    /** Report whether clients keep values of this setting. */
-    #isClientKept(): boolean {
-        const { scope, overrides } = this.definition;
-
-        return scope === "client" || overrides.some((override) => override === "client");
     }
 
     /** Convert a stored value to this release as a candidate. */

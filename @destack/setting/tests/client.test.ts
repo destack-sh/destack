@@ -2,6 +2,7 @@ import { space } from "@destack/account/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { ACCESS_SHAPE } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
 import { canonicalize, Identifier, schema, Clock } from "@destack/schema";
@@ -10,7 +11,8 @@ import { Observable } from "@destack/runtime/observable";
 import { Server } from "@destack/runtime/server";
 
 import { expect, onTestFinished, test } from "@destack/test";
-import { clientSetting, setting, type SettingValue } from "../src/object/index.ts";
+import { clientSetting, setting, SettingValue } from "../src/object/index.ts";
+import { connectBunSqlite } from "@destack/db/bun";
 import {
     type Setting,
     SettingPlacement,
@@ -134,7 +136,7 @@ test.each(TEST_DIALECTS)(
         controller.abort();
         await watching.return?.(undefined);
 
-        // resolve the space's recommendation for an anonymous visitor from the space alone
+        // resolve the space's recommendation for an anonymous visitor only from the space
         const anonymous = SettingSelection.parse({ scope: null });
         const visited = acted.query.setting
             .findMany({ where: lineNumbers.condition(anonymous) })
@@ -202,7 +204,127 @@ test("resolve a value the client keeps over the user's own, keeping it off the s
     });
 });
 
-/** Serve a scope's values to Alice and follow them into a local copy. */
+test("replicate a person's values along their chain into a database, yielding each change, and fail with the replica's failure", async () => {
+    const storage = await Storage.open("sqlite");
+    onTestFinished(() => storage.close());
+    const server = serve(storage, alice);
+
+    // replicate Alice's values from the store serving them into a database of the setting tables
+    const replica = (fetch: (request: Request) => Promise<Response>) =>
+        connectBunSqlite(":memory:", ObjectClient.tables({ setting })).then((database) => {
+            onTestFinished(() => database.close());
+
+            return SettingValue.replicate(
+                {
+                    endpoint: { url: "https://settings.test", fetch },
+                    scope: alice,
+                    caller: storage.subject,
+                    database,
+                    settings: [editor.reference],
+                    clock: Clock.system,
+                },
+                AbortSignal.timeout(5000),
+            );
+        });
+    const replicated = await replica((request) => server.fetch(request));
+
+    // yield none, then Alice's value once she sets it
+    const first = await replicated.next();
+    await storage.call(setting, "create", {
+        scope: alice,
+        ...named(editor),
+        mode: "set",
+        value: "vim",
+        release: editor.package.version,
+    });
+    const second = await replicated.next();
+    await replicated.return(undefined);
+
+    // fail a replica whose store refuses it
+    const unavailable = {
+        defined: true,
+        code: "SERVICE_UNAVAILABLE",
+        status: 503,
+        message: "down",
+    };
+    const refused = await replica(async () => Response.json(unavailable, { status: 503 }));
+    const failure = await refused
+        .next()
+        .catch((error: unknown) => (error instanceof Error ? error.message : error));
+
+    expect({
+        first: first.done === true ? undefined : first.value,
+        second:
+            second.done === true
+                ? undefined
+                : second.value.values.map((row) => schema.string().parse(row.value)),
+        failure,
+    }).toEqual({
+        first: { chain: [alice, Scope.universe.id], values: [] },
+        second: ["vim"],
+        failure: "down",
+    });
+});
+
+test("yield a person's values set before the replica starts in its first yield, along their chain however late it arrives", async () => {
+    const storage = await Storage.open("sqlite");
+    onTestFinished(() => storage.close());
+    const server = serve(storage, alice);
+
+    // set Alice's editor before replicating her values
+    await storage.call(setting, "create", {
+        scope: alice,
+        ...named(editor),
+        mode: "set",
+        value: "vim",
+        release: editor.package.version,
+    });
+
+    // replicate them, the access rows carrying the scope chain arriving late, and read the first yield
+    const database = await connectBunSqlite(":memory:", ObjectClient.tables({ setting }));
+    onTestFinished(() => database.close());
+    const settingsServed = Promise.withResolvers<void>();
+    const late = async (request: Request) => {
+        // hold the access rows back until the setting rows were answered
+        const body = await request.clone().text();
+        if (body.includes(`"shape":"${ACCESS_SHAPE}"`)) {
+            await settingsServed.promise;
+
+            return server.fetch(request);
+        }
+
+        // answer the setting rows, then release the access rows
+        const response = await server.fetch(request);
+        settingsServed.resolve();
+
+        return response;
+    };
+    const replicated = SettingValue.replicate(
+        {
+            endpoint: { url: "https://settings.test", fetch: late },
+            scope: alice,
+            caller: storage.subject,
+            database,
+            settings: [editor.reference],
+            clock: Clock.system,
+        },
+        AbortSignal.timeout(5000),
+    );
+    const first = await replicated.next();
+    await replicated.return(undefined);
+
+    // yield the value already set along the chain, never an empty snapshot before them
+    expect(
+        first.done === true
+            ? undefined
+            : {
+                  chain: first.value.chain,
+                  values: first.value.values.map((row) => schema.string().parse(row.value)),
+              },
+    ).toEqual({ chain: [alice, Scope.universe.id], values: ["vim"] });
+});
+
+/** Serve a scope's values to Alice and follow them into a local replica. */
 async function follow(
     storage: Storage,
     scope: string,
@@ -210,6 +332,38 @@ async function follow(
     ObjectClient<{ readonly setting: typeof setting; readonly clientSetting: typeof clientSetting }>
 > {
     // serve the scope as Alice
+    const server = serve(storage, scope);
+
+    // replicate the scope's values into a local database beside the client's own values
+    const local = await TestDatabase.create("sqlite", []);
+    onTestFinished(() => local.close());
+    const client = await ObjectClient.open({
+        clock: Clock.system,
+        database: local.database,
+        objects: { setting, clientSetting },
+        scope,
+        caller: storage.subject,
+        client: principal.client.reference(Scope.universe.id, Identifier.create("client")),
+        endpoint: { url: "https://settings.test", fetch: (request) => server.fetch(request) },
+        reconnect: (cell) => {
+            throw new TypeError(`no scope moves in this test, yet one moved to ${cell}`);
+        },
+    });
+    const controller = new AbortController();
+    const running = client.run(controller.signal, (error) => {
+        throw error;
+    });
+    onTestFinished(async () => {
+        controller.abort();
+        await running;
+        await client.close();
+    });
+
+    return client;
+}
+
+/** Serve a scope's setting values as Alice, until the test ends. */
+function serve(storage: Storage, scope: string): Server {
     const server = Server.start({
         clock: Clock.system,
         ...storage.objects.implement(
@@ -237,30 +391,5 @@ async function follow(
     });
     onTestFinished(() => server.close());
 
-    // copy the scope's values into a local database beside the client's own values
-    const local = await TestDatabase.create("sqlite", []);
-    onTestFinished(() => local.close());
-    const client = await ObjectClient.open({
-        clock: Clock.system,
-        database: local.database,
-        objects: { setting, clientSetting },
-        scope,
-        caller: storage.subject,
-        client: principal.client.reference(Scope.universe.id, Identifier.create("client")),
-        endpoint: { url: "https://settings.test", fetch: (request) => server.fetch(request) },
-        reconnect: (cell) => {
-            throw new TypeError(`no scope moves in this test, yet one moved to ${cell}`);
-        },
-    });
-    const controller = new AbortController();
-    const running = client.run(controller.signal, (error) => {
-        throw error;
-    });
-    onTestFinished(async () => {
-        controller.abort();
-        await running;
-        await client.close();
-    });
-
-    return client;
+    return server;
 }

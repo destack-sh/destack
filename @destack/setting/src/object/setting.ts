@@ -1,9 +1,11 @@
 import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db";
-import { Scope } from "@destack/sync";
+import { Scope, type Subject } from "@destack/sync";
+import { ObjectClient } from "@destack/object/client";
+import type { ClientOptions } from "@destack/runtime/client";
 import type { Setting, SettingReference } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
-import { schema, Version } from "@destack/schema";
+import { type Clock, schema, Version } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { StackSetting } from "../declare/stack.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
@@ -22,7 +24,7 @@ export const setting = defineObject({
         /** The setting's name in its declaring package. */
         name: field.string(SettingName),
 
-        // hold the overrides kept in other databases as identifiers
+        // keep the overrides from other databases as identifiers
         /** The consuming package the value applies to. */
         package: field.string(PackageId).optional(),
         /** The space the value applies in. */
@@ -68,7 +70,7 @@ export const setting = defineObject({
     delete: method.delete("write"),
 }));
 
-/** A setting value as its row holds it. */
+/** A setting value as its row stores it. */
 export type SettingValue = Select<typeof setting.table>;
 
 /** Reads of the setting values placed in a database. */
@@ -114,6 +116,79 @@ export const SettingValue = {
                   });
 
         return { chain, values };
+    },
+
+    /** Replicate a scope's values from their store into a database, yielding each change. */
+    async *replicate(
+        options: {
+            /** The store serving the scope's setting values, such as the universe's. */
+            readonly endpoint: ClientOptions;
+            /** The scope whose values are replicated, such as a person. */
+            readonly scope: string;
+            /** The principal reading them. */
+            readonly caller: Subject;
+            /** The database keeping the replica, of `ObjectClient.tables({ setting })`. */
+            readonly database: DatabaseConnection;
+            /** The settings yielded. */
+            readonly settings: readonly SettingReference[];
+            /** The clock the replica runs at. */
+            readonly clock: Clock;
+        },
+        signal: AbortSignal,
+    ): AsyncGenerator<{ readonly chain: string[]; readonly values: SettingValue[] }> {
+        // open a client of the scope's values over the database
+        const { endpoint, scope, caller, database, clock } = options;
+        const client = await ObjectClient.open({
+            clock,
+            database,
+            objects: { setting },
+            scope,
+            caller,
+            endpoint,
+            reconnect: (machine) => {
+                throw new TypeError(
+                    `setting values of ${scope} never move, yet moved to ${machine}`,
+                );
+            },
+        });
+
+        // keep the first failure, which stops following
+        const failed = Promise.withResolvers<never>();
+        failed.promise.catch(() => {});
+        let failure: { readonly error: unknown } | undefined;
+        const stopping = new AbortController();
+        const following = AbortSignal.any([signal, stopping.signal]);
+
+        // run the client and subscribe to the values
+        const running = client.run(following, (error) => {
+            failure = { error };
+            failed.reject(error);
+            stopping.abort();
+        });
+        const live = client.query.setting.findMany({}).subscribe();
+
+        // yield once the values and the chain's access rows are replicated, and after each change
+        try {
+            await Promise.race([live.ready, failed.promise]);
+            await Promise.race([
+                database.log.until(
+                    async () => (await client.access.position(database)) !== undefined,
+                    following,
+                ),
+                failed.promise,
+            ]);
+            yield* SettingValue.follow(database, options.settings, scope, following);
+
+            // fail with the replica's failure, ending quietly once stopped
+            if (failure !== undefined) {
+                throw failure.error;
+            }
+        } finally {
+            stopping.abort();
+            await live.close();
+            await running;
+            await client.close();
+        }
     },
 
     /** Yield the values along a scope's chain for some settings, now and after each change. */

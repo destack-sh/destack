@@ -372,7 +372,7 @@ test("refuse placements and writes a setting does not permit", () => {
         unsupported,
         {
             code: "INVALID_PLACEMENT",
-            message: `clients keep no values of ${SettingReference.key(plain.reference)}`,
+            message: `clients cannot keep values of ${SettingReference.key(plain.reference)}`,
         },
         {
             code: "INVALID_PLACEMENT",
@@ -384,7 +384,7 @@ test("refuse placements and writes a setting does not permit", () => {
         },
         {
             code: "INVALID_PLACEMENT",
-            message: "setting value carries both an installation and its space",
+            message: "setting value has both an installation and its space",
         },
     ]);
 
@@ -640,6 +640,6 @@ test("read a setting's value among an installation's resolved settings, refusing
     expect(read).toBe("vim");
     expect(() => editor.read({ [key]: "emacs" })).toThrow(schema.Error);
     expect(() => editor.read({})).toThrow(
-        new SettingError("UNDECLARED", `the installation's machine resolved no ${key}`),
+        new SettingError("UNDECLARED", `the installation's machine did not resolve ${key}`),
     );
 });

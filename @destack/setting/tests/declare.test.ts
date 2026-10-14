@@ -9,7 +9,7 @@ import { schema, type JsonObject } from "@destack/schema";
 
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
-import { serveSettings } from "../src/server/index.ts";
+import { implementSetting } from "../src/server/index.ts";
 import { editor, notes } from "./fixture/setting/editor.ts";
 import { Storage } from "./fixture/storage.ts";
 
@@ -35,11 +35,11 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await Storage.open(dialect, [editor, template]);
         onTestFinished(() => storage.close());
-        await new AccessFixture(storage.database).copyScope(
+        await new AccessFixture(storage.database).replicateScope(
             space.reference(Scope.universe.id, spaceId),
             "own",
         );
-        const objects = [serveSettings({ declared: storage.catalog, after: [] })];
+        const objects = [implementSetting({ declared: storage.catalog, after: [] })];
         const apply = (settings: JsonObject) =>
             Stack.apply({
                 now: Date.now(),
