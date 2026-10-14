@@ -1,2 +1,2 @@
-/** The homepage's usage rates in US dollars: storage a GB-month and compute a GB-hour. */
-export const rates = { storage: 0.02025, compute: 0.06075 } as const;
+/** The homepage's usage rates in US dollars, per GB-month, GB-hour and million requests. */
+export const rates = { database: 0.25, files: 0.02, compute: 0.06, requests: 0.6 } as const;

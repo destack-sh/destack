@@ -7,8 +7,28 @@ export function Label(properties: { children: JSX.Element }) {
     return <p {...style.attrs(styles.label)}>{properties.children} ▸</p>;
 }
 
+/** Set a column's label with a control at the end of its row, such as a dial. */
+export function LabelRow(properties: { children: JSX.Element; end: JSX.Element }) {
+    return (
+        <div {...style.attrs(styles.row)}>
+            <div {...style.attrs(styles.start)}>{properties.children}</div>
+            {properties.end}
+        </div>
+    );
+}
+
 /** The label styles. */
 const styles = style.create({
+    row: {
+        alignItems: "baseline",
+        display: "flex",
+        gap: "0.75rem",
+        justifyContent: "space-between",
+        minWidth: 0,
+    },
+    start: {
+        minWidth: 0,
+    },
     label: {
         color: color.mutedForeground,
         fontFamily: font.code,

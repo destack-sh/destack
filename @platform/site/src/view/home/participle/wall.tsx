@@ -1,5 +1,13 @@
 import { media } from "@destack/style/media.stylex";
-import { monthlyOf, priceOf, type Price, type Workload, workloadOf } from "../figure/price";
+import {
+    flat,
+    monthlyOf,
+    priceOf,
+    type Price,
+    sumOf,
+    type Workload,
+    workloadOf,
+} from "../figure/price";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -9,6 +17,7 @@ import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
 import { accentOf, type Entry, type Line } from "../figure/item";
+import { ledgerSizes } from "../figure/ledger.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 
@@ -360,7 +369,7 @@ function subscriptionsOf(picked: readonly Tool[]): readonly string[] {
 }
 
 /** The price of a service the space works with. */
-const vendorBilled: Price = { kind: "fee", monthly: 0, basis: "billed by its vendor" };
+const vendorBilled: Price = flat(0, "billed by its vendor");
 
 /** Price one tally row: the subscriptions its tools add to those billed in the rows above it. */
 function rowPriceOf(doers: readonly Tool[], billed: ReadonlySet<string>): Price {
@@ -368,7 +377,7 @@ function rowPriceOf(doers: readonly Tool[], billed: ReadonlySet<string>): Price 
     const subscriptions = subscriptionsOf(doers);
     const [first] = subscriptions;
     if (first === undefined) {
-        return { kind: "fee", monthly: 0, basis: "nothing picked" };
+        return flat(0, "nothing picked");
     }
 
     // bill only the subscriptions new to this row
@@ -382,7 +391,7 @@ function rowPriceOf(doers: readonly Tool[], billed: ReadonlySet<string>): Price 
 
     return {
         kind: "fee",
-        monthly: monthlyOf(added.map(priceOf)),
+        monthlyAt: (scale) => monthlyOf(added.map(priceOf), scale),
         basis: `${added.length} subscriptions`,
     };
 }
@@ -471,6 +480,16 @@ export function ToolWall(properties: {
 
     return (
         <ol ref={wall} data-component="ToolWall" {...style.attrs(styles.wall)}>
+            {/* column heads, as tall as the bill's beside it so the rows line up */}
+            <li aria-hidden="true" {...style.attrs(styles.row, styles.head)}>
+                <span {...style.attrs(styles.label)}>Job</span>
+                <span {...style.attrs(styles.heading)}>
+                    <span {...style.attrs(styles.label)}>Tools</span>
+                    <span {...style.attrs(styles.label)}>
+                        {properties.isOpen ? "In your space" : "Pick the ones you use"}
+                    </span>
+                </span>
+            </li>
             {rows.map((row) => (
                 <li {...style.attrs(styles.row)}>
                     <span {...style.attrs(styles.label)}>{row.label}</span>
@@ -717,13 +736,7 @@ function entryOf(
 
 /** Sum the work a row's tools take: their storage and compute, a floor where any of them is. */
 function workloadOfRow(doers: readonly Tool[]): Workload {
-    const workloads = doers.map((tool) => workloadOf(tool.name));
-
-    return {
-        storage: workloads.reduce((sum, workload) => sum + workload.storage, 0),
-        compute: workloads.reduce((sum, workload) => sum + workload.compute, 0),
-        isAtLeast: workloads.some((workload) => workload.isAtLeast),
-    };
+    return sumOf(doers.map((tool) => workloadOf(tool.name)));
 }
 
 /** Write the prompt that sets up a space, brings in replaced tools and connects the rest. */
@@ -788,7 +801,20 @@ const styles = style.create({
         fontFamily: font.code,
         fontSize: "0.6875rem",
         letterSpacing: "0.12em",
+        lineHeight: "0.875rem",
         textTransform: "uppercase",
+    },
+    head: {
+        alignItems: "start",
+        borderBottomWidth: 0,
+        boxSizing: "border-box",
+        flexBasis: "auto",
+        flexGrow: 0,
+        height: ledgerSizes.head,
+        paddingBlock: "0.25rem",
+    },
+    heading: {
+        display: "grid",
     },
     marks: {
         alignItems: "center",

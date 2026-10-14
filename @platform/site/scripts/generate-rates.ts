@@ -2,13 +2,22 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
-import { durableObjectDuration, r2Storage } from "@platform/pricing/cloudflare";
+import {
+    CREDIT_PRICES,
+    databaseBytesUnit,
+    memoryUnit,
+    requestsUnit,
+    storageBytesUnit,
+} from "@platform/pricing";
 
-/** The markup over provider cost the homepage assumes, a typical reseller's 30 to 40 percent. */
-const MARKUP = 1.35;
-
-/** The seconds in an hour. */
+/** The GB-seconds in a GB-hour. */
 const SECONDS_PER_HOUR = 3600;
+
+/** The requests in a million, the quantity the site prices requests per. */
+const MILLION = 1_000_000;
+
+/** The minor units of credits in a credit. */
+const CREDIT_MINOR_UNITS = 100;
 
 /** The bytes in a gigabyte. */
 const GIGABYTE = 1_000_000_000;
@@ -23,30 +32,29 @@ const generatedFile = join(
 /** Whether this run checks the generated file instead of writing it. */
 const isCheck = process.argv.includes("--check");
 
-// price usage at the provider's list prices, in cents, with the markup on top
-/** The usage rates the site shows in US dollars: storage a GB-month and compute a GB-hour. */
+// price usage at Destack's own unit prices, in US dollars
+/** The site's usage rates in US dollars, per GB-month, GB-hour and million requests. */
 const rates = {
-    storage: roundOf(
-        (Number(r2Storage.definition.unitAmount) / 100) *
-            (GIGABYTE / r2Storage.definition.unitSize) *
-            MARKUP,
-    ),
-    compute: roundOf(
-        (Number(durableObjectDuration.definition.unitAmount) /
-            100 /
-            durableObjectDuration.definition.unitSize) *
-            SECONDS_PER_HOUR *
-            MARKUP,
-    ),
+    database: rateOf(databaseBytesUnit, GIGABYTE),
+    files: rateOf(storageBytesUnit, GIGABYTE),
+    compute: rateOf(memoryUnit, SECONDS_PER_HOUR),
+    requests: rateOf(requestsUnit, MILLION),
 };
 
 // render the generated module
 /** The generated rates module source. */
 const generatedSource = await formatSource(
     generatedFile,
-    `/** The homepage's usage rates in US dollars: storage a GB-month and compute a GB-hour. */\n` +
+    `/** The homepage's usage rates in US dollars, per GB-month, GB-hour and million requests. */\n` +
         `export const rates = ${JSON.stringify(rates)} as const;\n`,
 );
+
+/** Return a unit's price in US dollars for a quantity of its meter, such as a gigabyte of bytes. */
+function rateOf(unit: typeof memoryUnit, quantity: number): number {
+    const credits = Number(unit.definition.unitAmount) / CREDIT_MINOR_UNITS;
+
+    return roundOf(credits * (quantity / unit.definition.unitSize) * Number(CREDIT_PRICES.USD));
+}
 
 /** Round a dollar rate to the thousandth of a cent, past the noise of binary fractions. */
 function roundOf(amount: number): number {

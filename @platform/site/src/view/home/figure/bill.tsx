@@ -1,18 +1,34 @@
+import { present } from "@destack/schema";
 import type { JSX } from "@destack/view";
 
 import { isEmptyOf, type Item, type Lighting, type Line, marksOf } from "./item";
-import { type Cell, Ledger, type LedgerRow } from "./ledger";
-import { usageCostOf } from "./price";
+import { type Cell, type Column, Ledger, type LedgerRow } from "./ledger";
+import { type Scale, usageAt, usageCostOf } from "./price";
 import type { Stagger } from "./stagger";
 import { palette } from "../../palette.stylex";
 import { rates } from "../../content/generated/rates";
 
-/** The bytes in a gigabyte, the unit a bill counts storage in. */
+/** The bytes in a gigabyte. */
 const GB = 1_000_000_000;
 
-/** Draw a figure's bill as a ledger of equal blocks, each with its storage, compute and cost. */
+/** The ledger's columns, each headed once with its unit. */
+const columns: readonly Column[] = [
+    {
+        caption: "Database",
+        unit: "GB",
+        note: "Database storage, hot",
+        isWide: true,
+    },
+    { caption: "Files", unit: "GB", note: "File storage, cold", isWide: true },
+    { caption: "Compute", unit: "GB·h", note: "Memory time", isWide: true },
+    { caption: "Cost", unit: "$/mo", note: "US dollars a month", isWide: false },
+];
+
+/** Draw a figure's bill as a ledger of blocks: database, files, compute and cost. */
 export function Bill(properties: {
     lines: readonly Line[];
+    scale: Scale;
+    scales: readonly Scale[];
     isOpenAt: Stagger;
     lighting?: Lighting;
     onToggle?: (row: number) => void;
@@ -43,41 +59,31 @@ export function Bill(properties: {
                 marks: marksOf(item.mark),
                 tint: isOwned(index) ? palette.signal : line.tint,
                 note: item.note,
+                plan: isOwned(index) ? "Billed by use" : planOf(item),
                 isEmpty: isEmptyOf(line.entry.stacked.mark) && !isOwned(index),
                 badge: isOwned(index) ? properties.badgeOf?.(index + 1) : undefined,
-                cells: [
-                    figureOf(
-                        "Storage",
-                        "GB a month",
-                        amountOf(line.workload.storage / GB),
-                        true,
-                        true,
-                    ),
-                    {
-                        ...figureOf(
-                            "Compute",
-                            "GB·h of memory time",
-                            amountOf(line.workload.compute),
-                            true,
-                            true,
-                        ),
-                        isFloor: line.workload.isAtLeast,
-                    },
-                    figureOf(
-                        "Cost",
-                        "US dollars a month",
-                        isOwned(index)
-                            ? dollarsOf(usageCostOf(line.workload, rates))
-                            : costOf(line.entry.stacked),
-                        false,
-                        false,
-                    ),
-                ],
+                cells: cellsOf(line, properties.scale, isOwned(index)),
             };
         });
 
+    // size each column to its widest figure at every dial setting in both states, so nothing shifts
+    const widths = () =>
+        columns.map((_, column) =>
+            Math.max(
+                ...properties.scales.flatMap((scale) =>
+                    properties.lines.flatMap((line) =>
+                        [false, true].map((isInSpace) =>
+                            lengthOf(present(cellsOf(line, scale, isInSpace)[column], "cell")),
+                        ),
+                    ),
+                ),
+            ),
+        );
+
     return (
         <Ledger
+            columns={columns}
+            widths={widths()}
             rows={rows()}
             isWhole={isWhole()}
             lit={lightOf(properties.lighting)}
@@ -88,15 +94,35 @@ export function Bill(properties: {
     );
 }
 
-/** Return a ledger figure. */
-function figureOf(
-    caption: string,
-    unit: string,
-    value: string,
-    isQuiet: boolean,
-    isWide: boolean,
-): Cell {
-    return { caption, unit, value, isQuiet, isWide, isFloor: false };
+/** Return a meter's amount to the hundredth, a floor for what rounds to nothing, or a dash. */
+function meterOf(amount: number, isFloor: boolean): Cell {
+    // mark nothing with a dash and a trace with a floor
+    if (amount === 0) {
+        return { value: "—", isQuiet: true, isFloor: false };
+    } else if (amount < 0.01) {
+        return { value: "<0.01", isQuiet: true, isFloor: false };
+    }
+
+    return { value: decimalOf(amount), isQuiet: true, isFloor };
+}
+
+/** Return a line's figures for a team and audience, as rented or as run in your space. */
+function cellsOf(line: Line, scale: Scale, isOwned: boolean): readonly Cell[] {
+    // price the line's work at your space's rates, or at the vendor's list price
+    const usage = usageAt(line.workload, scale);
+    const cost = isOwned ? usageCostOf(usage, rates) : costOf(line.entry.stacked, scale);
+
+    return [
+        meterOf(usage.database / GB, false),
+        meterOf(usage.files / GB, false),
+        meterOf(usage.compute, line.workload.isAtLeast),
+        { value: dollarsOf(cost), isQuiet: false, isFloor: false },
+    ];
+}
+
+/** Return the characters a figure takes, its floor mark included. */
+function lengthOf(cell: Cell): number {
+    return cell.value.length + (cell.isFloor ? 1 : 0);
 }
 
 /** Return the ledger row a lighting's lit line sits on, counting from zero. */
@@ -109,25 +135,26 @@ function rowOf(index: number | undefined): number | undefined {
     return index === undefined ? undefined : index + 1;
 }
 
-/** Return an amount to the hundredth, a floor for what rounds to nothing, or a dash. */
-function amountOf(amount: number): string {
-    if (amount === 0) {
-        return "—";
-    } else if (amount < 0.01) {
-        return "<0.01";
-    }
-
-    return amount.toFixed(2);
-}
-
-/** Return dollars to the cent, so every amount takes the same width. */
+/** Return dollars to the cent with thousands separated, or a dash for nothing billed. */
 function dollarsOf(amount: number): string {
-    return `$${amount.toFixed(2)}`;
+    return amount > 0 ? decimalOf(amount) : "—";
 }
 
-/** Return what a rented item costs a month, or a dash for what is billed by use or apart. */
-function costOf(item: Item): string {
-    return item.price.kind === "fee" && item.price.monthly > 0
-        ? dollarsOf(item.price.monthly)
-        : "—";
+/** Return an amount to the hundredth with thousands separated, so decimal points line up. */
+function decimalOf(amount: number): string {
+    return amount.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+}
+
+/** Return the plan a rented item is on, set as the start of a sentence. */
+function planOf(item: Item): string {
+    // read the plan's basis, or say the item comes with the rest
+    const price = item.price;
+    const basis = price.kind === "included" ? "included" : price.basis;
+
+    return `${basis.charAt(0).toUpperCase()}${basis.slice(1)}`;
+}
+
+/** Return what a rented item costs a team a month, nothing for what is billed by use or apart. */
+function costOf(item: Item, scale: Scale): number {
+    return item.price.kind === "fee" ? item.price.monthlyAt(scale) : 0;
 }

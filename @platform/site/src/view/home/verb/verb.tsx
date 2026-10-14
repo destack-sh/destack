@@ -9,7 +9,8 @@ import { createVisibilityObserver } from "@destack/view/primitives/intersection-
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Fade } from "../figure/fade";
-import { Label } from "../entry/label";
+import { Label, LabelRow } from "../entry/label";
+import { Dial, teams } from "../figure/dial";
 import { Bill } from "../figure/bill";
 import { accentOf, type Item, marksOf } from "../figure/item";
 import {
@@ -22,7 +23,7 @@ import {
     type Viewer,
 } from "./space";
 import type { Stagger } from "../figure/stagger";
-import { workloadOf } from "../figure/price";
+import { BASE_USERS, workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
 import { screen } from "../../layout/screen.stylex";
 
@@ -73,6 +74,9 @@ export function Verb(properties: { isOpen: boolean }) {
             settling = setTimeout(() => setSettled(row), row === undefined ? settleOut : settleIn);
         },
     };
+
+    // read the bill for a team of the size the reader dials
+    const [people, setPeople] = createSignal<number>(1);
 
     // follow the motion the section shows, and whether it is on screen
     const [section, setSection] = createSignal<HTMLElement>();
@@ -161,10 +165,28 @@ export function Verb(properties: { isOpen: boolean }) {
                 />
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
-                <Fade isOpen={isOpenAt(0)}>
-                    <Label>{isOpenAt(0) ? "One bill" : "Eight bills"}</Label>
-                </Fade>
+                <LabelRow
+                    end={
+                        <Dial
+                            label="People"
+                            options={teams}
+                            value={people()}
+                            format={String}
+                            onChange={setPeople}
+                        />
+                    }
+                >
+                    <Fade isOpen={isOpenAt(0)}>
+                        <Label>
+                            {isOpenAt(0)
+                                ? "One cloud, one invoice"
+                                : "Eight clouds, eight invoices"}
+                        </Label>
+                    </Fade>
+                </LabelRow>
                 <Bill
+                    scale={{ people: people(), users: BASE_USERS }}
+                    scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
                     lines={holdings.map((entry) => ({
                         entry,
                         workload: workloadOf(entry.stacked.name),

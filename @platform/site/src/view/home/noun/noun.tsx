@@ -6,13 +6,14 @@ import { createSignal } from "@destack/view";
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Fade } from "../figure/fade";
-import { Label } from "../entry/label";
+import { Label, LabelRow } from "../entry/label";
+import { audienceOf, audiences, Dial } from "../figure/dial";
 import { Bill } from "../figure/bill";
 import { accentOf } from "../figure/item";
 import { XRay } from "./xray";
 import { services } from "./service";
 import { createSteps } from "../figure/stagger";
-import { workloadOf } from "../figure/price";
+import { BASE_USERS, workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
 import { screen } from "../../layout/screen.stylex";
 import { createReducedMotion } from "@destack/view/motion";
@@ -42,6 +43,9 @@ export function Noun(properties: { isOpen: boolean }) {
     // switch each service and its ledger row in order, after the space itself
     const steps = createSteps(() => properties.isOpen, services.length + 1, stepTime, isReduced);
     const isOpenAt = steps.isOpenAt;
+
+    // read the bill for an app with as many users as the reader dials
+    const [users, setUsers] = createSignal<number>(BASE_USERS);
 
     // hold the service pointed at, in the diagram or the bill
     const [lit, setLit] = createSignal<number | undefined>(undefined);
@@ -84,12 +88,24 @@ export function Noun(properties: { isOpen: boolean }) {
                 </div>
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
-                <div {...style.attrs(styles.keyHead)}>
+                <LabelRow
+                    end={
+                        <Dial
+                            label="Users"
+                            options={audiences}
+                            value={users()}
+                            format={audienceOf}
+                            onChange={setUsers}
+                        />
+                    }
+                >
                     <Fade isOpen={rented() === 0}>
                         <Label>{keyOf(rented())}</Label>
                     </Fade>
-                </div>
+                </LabelRow>
                 <Bill
+                    scale={{ people: 1, users: users() }}
+                    scales={audiences.map((audience) => ({ people: 1, users: audience }))}
                     lines={services.map((entry) => ({
                         entry,
                         workload: workloadOf(entry.stacked.name),
@@ -107,22 +123,16 @@ export function Noun(properties: { isOpen: boolean }) {
 /** Label the ledger by how much of the stack is rented: all of it, none of it, or some. */
 function keyOf(rented: number) {
     if (rented === services.length) {
-        return "Ten bills";
+        return "Ten services, ten vendors";
     } else if (rented === 0) {
-        return "One bill";
+        return "Ten services, one engine";
     }
 
-    return "Fewer bills";
+    return "Ten services, fewer vendors";
 }
 
 /** The noun section styles. */
 const styles = style.create({
-    keyHead: {
-        alignItems: "baseline",
-        display: "flex",
-        gap: "1rem",
-        justifyContent: "space-between",
-    },
     section: {
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },

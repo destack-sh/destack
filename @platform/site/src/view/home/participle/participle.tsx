@@ -5,9 +5,11 @@ import { createReducedMotion } from "@destack/view/motion";
 import { lattice } from "../../layout/lattice.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { Label } from "../entry/label";
+import { Label, LabelRow } from "../entry/label";
+import { Dial, teams } from "../figure/dial";
 import { StackSwitch } from "../entry/switch";
 import { Bill } from "../figure/bill";
+import { BASE_USERS } from "../figure/price";
 import { createSteps } from "../figure/stagger";
 import { InstallWays } from "./install";
 import { lineCount, tallyOf, ToolWall } from "./wall";
@@ -38,6 +40,9 @@ export function Participle(properties: {
     const [section, setSection] = createSignal<HTMLElement>();
     const isReduced = createReducedMotion(section);
     const { isOpenAt } = createSteps(() => properties.isOpen, lineCount, stepTime, isReduced);
+
+    // read the bill for a team of the size the reader dials
+    const [people, setPeople] = createSignal<number>(1);
 
     return (
         <>
@@ -71,8 +76,25 @@ export function Participle(properties: {
                     />
                 </div>
                 <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
-                    <Label>{properties.isOpen ? "Your space" : "Your stack"}</Label>
-                    <Bill lines={tallyOf(properties.picks)} isOpenAt={isOpenAt} />
+                    <LabelRow
+                        end={
+                            <Dial
+                                label="People"
+                                options={teams}
+                                value={people()}
+                                format={String}
+                                onChange={setPeople}
+                            />
+                        }
+                    >
+                        <Label>{properties.isOpen ? "Your space" : "Your stack"}</Label>
+                    </LabelRow>
+                    <Bill
+                        lines={tallyOf(properties.picks)}
+                        scale={{ people: people(), users: BASE_USERS }}
+                        scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
+                        isOpenAt={isOpenAt}
+                    />
                 </div>
             </section>
 
