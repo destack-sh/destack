@@ -17,6 +17,8 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/sync": "workspace:*",
+        "@destack/account": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/notification": "workspace:*",
@@ -29,10 +31,8 @@
         "uuid": "14.0.2"
     },
     "devDependencies": {
-        "@destack/account": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/setting": "workspace:*",
-        "@destack/sync": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2"
     }

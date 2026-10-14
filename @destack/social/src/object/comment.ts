@@ -13,7 +13,14 @@ import { CallError } from "@destack/runtime/error";
 import { type Select } from "@destack/db";
 import { activity, announcement, type Reason, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
-import { type Call, Chunk, defineObject, field, type ObjectType, Selection } from "@destack/object";
+import {
+    Call,
+    Containment,
+    defineObject,
+    field,
+    type ObjectType,
+    Selection,
+} from "@destack/object";
 import { schema } from "@destack/schema";
 
 import { reaction } from "./reaction.ts";
@@ -198,14 +205,21 @@ export const Comment = {
         const type = call.objects.find((object) => object.policy.is(host));
         const elements = [selection.anchor.element, selection.head.element];
 
-        // refuse unknown fields and elements
+        // refuse unknown fields
         if (type === undefined || !type.text.includes(selection.field)) {
             throw new CallError("BAD_REQUEST", {
                 message: `${host.type} has no text field ${selection.field}`,
             });
-        } else if (
-            !(await Chunk.contains(call.requireTransaction(), host, selection.field, elements))
-        ) {
+        }
+
+        // refuse elements the host's text lacks, as the caller reads it
+        const asked = Call.record(type, "contains", {
+            ...type.target(host),
+            field: selection.field,
+            elements,
+        });
+        const { isContained } = Containment.parse(await call.query(call.caller, asked));
+        if (!isContained) {
             throw new CallError("BAD_REQUEST", {
                 message: `${selection.field} has no such selection`,
             });
