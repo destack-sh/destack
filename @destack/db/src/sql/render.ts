@@ -131,7 +131,7 @@ interface Target {
     readonly bound: Map<string, number>;
     /** The bound values so far, absent to write literals. */
     readonly parameters: (DriverValue | Placeholder)[] | undefined;
-    /** The SQL names of the tables named so far, absent for a declaration. */
+    /** The SQL names of the tables referenced so far, absent for a declaration. */
     readonly tables: Set<string> | undefined;
 }
 
@@ -266,7 +266,7 @@ function driverValue(value: unknown): DriverValue {
 
     throw new DatabaseError(
         "INVALID_QUERY",
-        `bind a ${typeof value} through its column, since drivers take text, numbers, booleans, bytes and null`,
+        `bind a ${typeof value} through its column: drivers accept text, numbers, booleans, bytes and null`,
     );
 }
 
@@ -310,7 +310,10 @@ function define(table: CommonTable, target: Target): string {
     // refuse a common table in a declaration, which defines none
     const { commons } = target;
     if (commons === undefined) {
-        throw new DatabaseError("INVALID_QUERY", `declarations read no common table ${table.name}`);
+        throw new DatabaseError(
+            "INVALID_QUERY",
+            `declarations cannot read common table ${table.name}`,
+        );
     }
 
     // render its query at its first read

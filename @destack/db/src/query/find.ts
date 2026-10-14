@@ -72,7 +72,7 @@ export class RelationalQueryBuilder<Entity extends Model = Model> {
     readonly #connection: DatabaseConnection;
     /** The read table. */
     readonly #table: Table;
-    /** The schema's relations, which `with`, conditions and extras name. */
+    /** The schema's relations, which `with`, conditions and extras reference. */
     readonly #relations: Relations;
 
     /** Read a table through a connection by the schema's relations. */
@@ -276,14 +276,14 @@ class Level {
 class Join {
     /** The joined table and its join condition, absent for a key path. */
     readonly from: SQL | undefined;
-    /** The table of the column naming the parent. */
+    /** The table of the column with the parent. */
     readonly table: Table;
-    /** The column naming the parent, by property. */
+    /** The column with the parent, by property. */
     readonly name: string;
-    /** The column naming the parent. */
+    /** The column with the parent. */
     readonly column: Column;
 
-    /** Join through a table's column naming each row's parent. */
+    /** Join through a table's column with each row's parent. */
     constructor(from: SQL | undefined, table: Table, name: string, column: Column) {
         // keep the join and the parent column
         this.from = from;
@@ -299,14 +299,14 @@ class Join {
         if (path.kind === "key") {
             return new Join(undefined, table, path.column, definition.column(path.column));
         }
-        // name the parent by the junction rows naming the row
+        // find the parent by the junction rows referencing the row
         else if (path.kind === "junction") {
             const through = path.table[TABLE];
             const from = sql` INNER JOIN ${path.table} ON ${through.column(path.to.column)} = ${definition.column(path.to.key)}`;
 
             return new Join(from, path.table, path.from.column, through.column(path.from.column));
         }
-        // name the parent by the tree index rows naming the row
+        // find the parent by the tree index rows referencing the row
         else {
             return Join.#tree(table, path);
         }
@@ -333,7 +333,7 @@ class Join {
         return Condition.render({ [this.name]: { in: values } }, this.table);
     }
 
-    /** Name the parent a selected driver value names. */
+    /** Read the parent name of a selected driver value. */
     parent(value: unknown, dialect: Dialect): string {
         const definition = this.column.definition;
 
@@ -463,7 +463,7 @@ function parentValue(parent: Parent, entry: Read): Comparable | undefined {
 function treeOf(table: Table) {
     const tree = table[TABLE].tree;
     if (tree === undefined) {
-        throw new DatabaseError("INVALID_QUERY", `${table[TABLE].name} keeps no tree`);
+        throw new DatabaseError("INVALID_QUERY", `${table[TABLE].name} has no tree`);
     }
 
     return tree;

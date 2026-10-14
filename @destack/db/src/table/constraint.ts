@@ -125,7 +125,7 @@ export class ForeignKey {
             first === undefined ||
             definition.foreignColumns.some((column) => column.table !== first.table)
         ) {
-            throw new TypeError("a foreign key references columns of one table");
+            throw new TypeError("a foreign key must reference columns of one table");
         }
 
         // keep the columns and actions

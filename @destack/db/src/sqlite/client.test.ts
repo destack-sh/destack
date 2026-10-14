@@ -39,7 +39,7 @@ test("refuse work whose turn does not come within the wait", async () => {
     expect([failure, later]).toEqual([
         new DatabaseError(
             "CONNECTION_TIMEOUT",
-            "waited 1 ms for the connection, which a transaction still holds",
+            "waited 1 ms for the connection: a transaction still has it",
         ),
         "later",
     ]);

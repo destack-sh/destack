@@ -11,7 +11,7 @@ test("announce a commit's tables the database leaves unannounced, and nothing wh
     };
     const watch = new CommitWatch(channel, new Set(["log_note"]), ["log_note", "cache_note"]);
 
-    // commit a logged table with an unlogged one, then the logged one alone
+    // commit a logged table with an unlogged one, then only the logged one
     watch.notify(["log_note", "cache_note"]);
     watch.notify(["log_note"]);
     expect(announced).toEqual([{ kind: "commit", tables: ["cache_note"] }]);

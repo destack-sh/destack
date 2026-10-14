@@ -80,18 +80,21 @@ test("provision, plan, apply, measure and destroy a workload's database in a Dur
     ]);
 });
 
-test("write and read rows in statements binding more values than a Durable Object's storage takes at once", async () => {
+test("write and read rows in statements binding more values than a Durable Object's storage takes at once, or integers it cannot bind", async () => {
     const worker = await start();
 
-    // keep 80 rows written in one statement of 160 values and read in one of 80, quotes and markers in their text intact
+    // keep 80 rows written in one statement of 160 values and read in one of 80, quotes and markers in their text intact, and 2^62 exactly
     const response = await worker.dispatchFetch("https://notes.test/parameters");
-    expect([response.status, await response.json()]).toEqual([200, { isEqual: true }]);
+    expect([response.status, await response.json()]).toEqual([
+        200,
+        { isEqual: true, stored: { size: "4611686018427387904" } },
+    ]);
 });
 
 test("refuse a transaction's client kept past it, even while a later transaction is open", async () => {
     const worker = await start();
 
-    // keep the later transaction's write alone
+    // keep only the later transaction's write
     const response = await worker.dispatchFetch("https://notes.test/leaked");
     expect([response.status, await response.json()]).toEqual([
         200,
@@ -119,6 +122,23 @@ test("count the rows a Durable Object's statements write and read, each in the o
                 [0, 0],
             ],
             notes: 3,
+        },
+    ]);
+});
+
+test("read another object's database through its reader, refusing other operations and undoing a statement that writes", async () => {
+    const worker = await start();
+
+    // read one note and the file by its exact size and bytes, refuse a measure, and keep both notes after the refused delete
+    const response = await worker.dispatchFetch("https://notes.test/reader");
+    expect([response.status, await response.json()]).toEqual([
+        200,
+        {
+            found: { id: "b", title: "Note b" },
+            measured: "this object answers reads alone, not measure",
+            files: [["f", "9007199254740991", "0001feff"]],
+            deleted: "a read of another object wrote rows",
+            kept: ["a", "b"],
         },
     ]);
 });

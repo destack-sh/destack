@@ -7,7 +7,7 @@ import type { Aggregate } from "./option.ts";
 export interface Model {
     /** The fields conditions and orders compare. */
     readonly row: object;
-    /** The fields each result holds. */
+    /** The fields each result has. */
     readonly value: object;
     /** The relations, by name. */
     readonly relations: object;

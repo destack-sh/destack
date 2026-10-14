@@ -396,7 +396,7 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
         };
     }
 
-    /** Stop reaching the owner. */
+    /** Disconnect from the owner. */
     async close(): Promise<void> {
         this.party.close();
     }
@@ -442,7 +442,7 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
 
 /** One party of a channel, asking its owner to run steps. */
 export class Party {
-    /** The channel reaching the owner. */
+    /** The channel to the owner. */
     readonly #channel: Channel<Message>;
     /** This party's name on the channel. */
     readonly #name: string;

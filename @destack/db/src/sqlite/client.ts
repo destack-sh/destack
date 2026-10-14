@@ -85,7 +85,7 @@ export class SqliteWorkQueue {
             if (!isTurn) {
                 throw new DatabaseError(
                     "CONNECTION_TIMEOUT",
-                    `waited ${this.#wait} ms for the connection, which a transaction still holds`,
+                    `waited ${this.#wait} ms for the connection: a transaction still has it`,
                 );
             }
 

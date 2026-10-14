@@ -22,15 +22,15 @@ export type Path =
           readonly kind: "junction";
           /** The join table. */
           readonly table: Table;
-          /** The join table's column naming the row, and the row's column. */
+          /** The join table's column referencing the row, and the row's column. */
           readonly from: { readonly column: string; readonly key: string };
-          /** The join table's column naming the related row, and the related column. */
+          /** The join table's column referencing the related row, and the related column. */
           readonly to: { readonly column: string; readonly key: string };
       }
     | {
           /** Follow a tree's parent column down or up. */
           readonly kind: "descendants" | "ancestors";
-          /** The column naming a row's parent. */
+          /** The column with a row's parent. */
           readonly column: string;
       };
 
@@ -64,9 +64,9 @@ export interface RelationColumn {
     readonly table: Table;
     /** The column, by property. */
     readonly column: string;
-    /** The join table's column naming this column's rows. */
+    /** The join table's column referencing this column's rows. */
     readonly via?: RelationColumn;
-    /** Join through a join table's column naming this column's rows. */
+    /** Join through a join table's column referencing this column's rows. */
     through(column: RelationColumn): RelationColumn;
 }
 
@@ -134,7 +134,10 @@ export class Relations<
         for (const relations of schemas) {
             for (const [name, table] of Object.entries(relations.tables)) {
                 if (Object.hasOwn(named, name) && named[name] !== table) {
-                    throw new DatabaseError("INVALID_QUERY", `relations name two tables ${name}`);
+                    throw new DatabaseError(
+                        "INVALID_QUERY",
+                        `relations have two tables named ${name}`,
+                    );
                 }
                 named[name] = table;
             }
@@ -189,7 +192,7 @@ class Subquery {
 
             return sql`(${parent} IS NOT NULL AND ${parent} IN (${related(on.column)}))`;
         }
-        // test the row's key among the join rows naming a related value
+        // test the row's key among the join rows referencing a related value
         else {
             const through = on.table[TABLE];
             const parent = this.#table[TABLE].column(on.from.key);
@@ -200,7 +203,7 @@ class Subquery {
         }
     }
 
-    /** Read a column of the one related row a key names. */
+    /** Read a column of the one related row a key references. */
     lookup(
         via: string,
         column: string,
@@ -216,7 +219,7 @@ class Subquery {
         ) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `lookup ${via} of ${this.#table[TABLE].name} follows a key path onto another table's key`,
+                `lookup ${via} of ${this.#table[TABLE].name} must follow a key path onto another table's key`,
             );
         }
 
@@ -225,7 +228,7 @@ class Subquery {
         if (read === undefined) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `relation ${via} looks up no column ${column} of ${target.name}`,
+                `relation ${via} looks up unknown column ${column} of ${target.name}`,
             );
         }
 
@@ -247,7 +250,7 @@ class Subquery {
         if (relation.table === this.#table) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `rollup ${via} of ${this.#table[TABLE].name} measures another table`,
+                `rollup ${via} of ${this.#table[TABLE].name} must aggregate another table`,
             );
         }
 
@@ -257,7 +260,7 @@ class Subquery {
         if (column !== undefined && read === undefined) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `relation ${via} measures no column ${column} of ${target.name}`,
+                `relation ${via} aggregates unknown column ${column} of ${target.name}`,
             );
         }
 
@@ -276,7 +279,7 @@ class Subquery {
         if (on.kind !== "key" && on.kind !== "junction") {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `relation ${via} of ${this.#table[TABLE].name} follows a key or junction path`,
+                `relation ${via} of ${this.#table[TABLE].name} must follow a key or junction path`,
             );
         }
 
@@ -398,7 +401,7 @@ export function defineRelations<
     for (const [name, named] of Object.entries(declared)) {
         const table = tables[name];
         if (table === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `relations name no table ${name}`);
+            throw new DatabaseError("INVALID_QUERY", `relations have no table ${name}`);
         }
         if (named !== undefined) {
             relations.set(table, named);
@@ -467,7 +470,7 @@ function relationTo(table: Table, cardinality: "one" | "many"): RelationTo {
         if (to.table !== table) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `a relation to ${table[TABLE].name} joins a column of ${to.table[TABLE].name}`,
+                `a relation to ${table[TABLE].name} joins a column of another table: ${to.table[TABLE].name}`,
             );
         }
 
@@ -501,7 +504,7 @@ function pathOf(table: Table, from: RelationColumn, to: RelationColumn): Path {
     else {
         throw new DatabaseError(
             "INVALID_QUERY",
-            `a relation to ${table[TABLE].name} names a join table on one end only`,
+            `a relation to ${table[TABLE].name} has a join table on one end only`,
         );
     }
 }

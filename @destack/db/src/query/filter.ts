@@ -338,11 +338,11 @@ function escape(text: string): string {
     return text.replaceAll(/[\\%_]/gu, (character) => `\\${character}`);
 }
 
-/** Nest a field's comparison under the relations its path names. */
+/** Nest a field's comparison under the relations in its path. */
 function nest(path: readonly string[], entry: Comparable | JsonCondition): JsonCondition {
     const [name, ...rest] = path;
     if (name === undefined) {
-        throw new DatabaseError("INVALID_QUERY", "a filter restriction names no field");
+        throw new DatabaseError("INVALID_QUERY", "a filter restriction has no field");
     }
 
     return { [name]: rest.length === 0 ? entry : nest(rest, entry) };

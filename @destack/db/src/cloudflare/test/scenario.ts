@@ -1,13 +1,15 @@
 import { ModuleMetadata } from "@destack/package";
-import { eq, inArray } from "../../sql/index.ts";
+import { and, eq, inArray } from "../../sql/index.ts";
 import { Change } from "../../log/log.ts";
 import { defineDatabase } from "../../declare/database.ts";
 import { ResourceId, Plan } from "@destack/resource";
 import { durableObjectConnector } from "../connector.ts";
-import { DurableObjectDatabaseHost, DurableObjectMeasurement } from "../host.ts";
-import { defineTable } from "../../table/table.ts";
-import { text } from "../../table/column.ts";
+import { DATABASE_PATH, DurableObjectDatabaseHost, DurableObjectMeasurement } from "../host.ts";
+import { defineTable, TABLE } from "../../table/table.ts";
+import { bigint, binary, text } from "../../table/column.ts";
 import type { DurableObjectStorage } from "../client.ts";
+import { DurableObjectReader } from "../reader.ts";
+import { Snapshot } from "../../log/snapshot.ts";
 
 /** The module the scenario's table belongs to. */
 const MODULE = ModuleMetadata.parse({
@@ -26,6 +28,27 @@ const note = defineTable(
     MODULE,
 );
 
+/** Files the reader reads by their integer size and their bytes. */
+const file = defineTable(
+    "file",
+    {
+        id: text("id").primaryKey(),
+        size: bigint("size").notNull(),
+        content: binary("content").notNull(),
+    },
+    {},
+    MODULE,
+);
+
+/** The size of the file the reader reads, the largest integer a double keeps exact. */
+const FILE_SIZE = 2n ** 53n - 1n;
+
+/** A file size past the integers a number keeps exact, 2^62. */
+const LARGE_SIZE = 2n ** 62n;
+
+/** The bytes of the file the reader reads. */
+const FILE_CONTENT = new Uint8Array([0, 1, 254, 255]);
+
 /** Entries each namespaced database logs in the database's own scope. */
 const entry = defineTable(
     "entry",
@@ -41,13 +64,13 @@ export const entries = defineDatabase({ name: "entries", tables: [entry] }, MODU
 const RECORD = {
     id: ResourceId.parse("database-01996ab0-0000-7000-8000-00000000d002"),
     scope: "space-1",
-    spec: { copies: [] },
+    spec: { replicated: [] },
     reference: null,
 };
 
 /** The content keeper of operations that copy nothing, refusing every page. */
 const UNKEPT = () => ({
-    fetch: () => Promise.reject(new TypeError("the scenario keeps no content")),
+    fetch: () => Promise.reject(new TypeError("the scenario has no content")),
 });
 
 /** A Durable Object keeping notes in its SQLite storage through a Destack connection. */
@@ -60,7 +83,7 @@ export class Notes {
         this.databases = new DurableObjectDatabaseHost(state.storage);
     }
 
-    /** Answer the scenario a request's path names. */
+    /** Answer the scenario in a request's path. */
     async fetch(request: Request): Promise<Response> {
         const { pathname } = new URL(request.url);
         if (pathname === "/namespaces") {
@@ -73,6 +96,10 @@ export class Notes {
             return await this.leaked();
         } else if (pathname === "/rows") {
             return await this.rows();
+        } else if (pathname === "/reader") {
+            return await this.reader();
+        } else if (pathname === DATABASE_PATH) {
+            return await this.databases.read(request);
         }
 
         return await this.notes();
@@ -106,11 +133,11 @@ export class Notes {
         return Response.json({ refused, rows });
     }
 
-    /** Write and read rows in statements binding more values than the storage takes at once. */
+    /** Write rows binding more values or larger integers than the storage binds. */
     async parameters(): Promise<Response> {
         // write 80 notes with a quote and a marker in their titles in one statement of 160 values
-        const database = this.databases.connect([note]);
-        await database.migrate([note]);
+        const database = this.databases.connect([note, file]);
+        await database.migrate([note, file]);
         const notes = Array.from({ length: 80 }, (_, index) => ({
             id: `n${index.toString().padStart(2, "0")}`,
             title: `it's ${index}?`,
@@ -129,7 +156,13 @@ export class Notes {
             )
             .orderBy(note.id);
 
-        return Response.json({ isEqual: JSON.stringify(rows) === JSON.stringify(notes) });
+        // write a file whose size a number cannot keep exact, and read the stored integer as text
+        await database.insert(file).values({ id: "g", size: LARGE_SIZE, content: FILE_CONTENT });
+        const [stored] = this.databases.storage.sql
+            .exec(`SELECT CAST(size AS TEXT) AS size FROM "${file[TABLE].sqlName}"`)
+            .toArray();
+
+        return Response.json({ isEqual: JSON.stringify(rows) === JSON.stringify(notes), stored });
     }
 
     /** Provision, plan, apply, open, write, measure and destroy a workload database. */
@@ -211,6 +244,54 @@ export class Notes {
         const counts = [written, read, none].map((each) => [each.rowsRead, each.rowsWritten]);
 
         return Response.json({ counts, notes: rows.length });
+    }
+
+    /** Read notes and a file through a reader of this object's database, refusing a write. */
+    async reader(): Promise<Response> {
+        // keep two notes and a file
+        const database = this.databases.connect([note, file]);
+        await database.migrate([note, file]);
+        await database.insert(note).values(["a", "b"].map((id) => ({ id, title: `Note ${id}` })));
+        await database.insert(file).values({ id: "f", size: FILE_SIZE, content: FILE_CONTENT });
+
+        // read a note and the file by its size and bytes through the reader
+        const reader = DurableObjectReader.connect({ fetch: (sent) => this.fetch(sent) }, [
+            note,
+            file,
+        ]);
+        const found = await Snapshot.live(reader).row(note, { id: "b" });
+        const files = await reader
+            .select()
+            .from(file)
+            .where(and(eq(file.size, FILE_SIZE), eq(file.content, FILE_CONTENT)));
+
+        // try to delete the notes through it
+        const deleted = await new DurableObjectReader({ fetch: (sent) => this.fetch(sent) })
+            .values(`DELETE FROM "${note[TABLE].sqlName}" RETURNING id`, [])
+            .then(
+                () => "deleted",
+                (error: unknown) => (error instanceof Error ? error.message : String(error)),
+            );
+        const kept = await database.select().from(note).orderBy(note.id);
+
+        // refuse any other operation sent where reads arrive
+        const measured = await this.fetch(
+            new Request(`https://object.test${DATABASE_PATH}`, {
+                method: "POST",
+                body: JSON.stringify({ operation: "measure" }),
+            }),
+        ).then(
+            () => "measured",
+            (error: unknown) => (error instanceof Error ? error.message : String(error)),
+        );
+
+        return Response.json({
+            found,
+            measured,
+            files: files.map((row) => [row.id, row.size.toString(), row.content.toHex()]),
+            deleted,
+            kept: kept.map((row) => row.id),
+        });
     }
 
     /** Keep two databases of one declaration in the storage, each with namespace and log. */

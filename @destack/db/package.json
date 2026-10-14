@@ -19,7 +19,7 @@
     "imports": {
         "#connector": {
             "bun": "./src/bun/connector.ts",
-            "default": "./src/connector/none.ts"
+            "default": "./src/declare/connector.ts"
         }
     },
     "scripts": {

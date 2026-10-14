@@ -407,7 +407,7 @@ test.for(TEST_DIALECTS)(
         // refuse the conversion loudly and roll it back
         await expect(database.migrate([preferenceMisconverted])).rejects.toMatchObject({
             code: "MIGRATION_FAILED",
-            message: `conversion writes a value ${table(preferenceMisconverted)}.mode refuses: ✖ Invalid option: expected one of "standard"|"vim"`,
+            message: `conversion writes a value that ${table(preferenceMisconverted)}.mode refuses: ✖ Invalid option: expected one of "standard"|"vim"`,
         });
         expect(
             await database.execute(
@@ -835,9 +835,9 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "declare a copied table without its unique constraints or the foreign keys to it, on %s",
+    "declare a replicated table without its unique constraints or the foreign keys to it, on %s",
     (dialect) => {
-        // declare an owned list whose items reference it, both copied by a reader
+        // declare an owned list whose items reference it, both replicated by a reader
         const list = defineTable(
             "list",
             { id: text("id").primaryKey(), name: text("name").notNull() },
@@ -849,14 +849,16 @@ test.each(TEST_DIALECTS)(
                 .notNull()
                 .references(() => list.id, { onDelete: "cascade" }),
         });
-        const shape = (copies: readonly string[]) =>
-            declareState([list, item], dialect, { copies: new Set(copies) }).map((state) => [
-                state.table.name,
-                state.table.constraints.map((constraint) => constraint.kind),
-                state.table.indexes.map((described) => [described.name, described.unique]),
-            ]);
+        const shape = (replicated: readonly string[]) =>
+            declareState([list, item], dialect, { replicated: new Set(replicated) }).map(
+                (state) => [
+                    state.table.name,
+                    state.table.constraints.map((constraint) => constraint.kind),
+                    state.table.indexes.map((described) => [described.name, described.unique]),
+                ],
+            );
 
-        // keep the owner's keys, and leave a copy's to its owning package, SQLite checking its primary key is not null besides
+        // keep the owner's keys, and leave a replica's to its owning package, SQLite checking its primary key is not null besides
         const [lists, items] = [list[TABLE].sqlName, item[TABLE].sqlName];
         const checks = dialect === "sqlite" ? ["check"] : [];
         expect([shape([]), shape([lists])]).toEqual([

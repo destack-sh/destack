@@ -122,7 +122,7 @@ export class DatabaseDriver {
         );
     }
 
-    /** Run a statement returning rows, as a read or as a write of the tables it names. */
+    /** Run a statement returning rows, as a read or as a write of the tables it references. */
     #query<Value>(
         statement: DriverStatement,
         query: (session: Session) => Promise<Value>,
@@ -138,7 +138,7 @@ export class DatabaseDriver {
     #cascade(tables: readonly string[]): Set<string> {
         const written = new Set<string>();
         for (const table of tables) {
-            // add a declared table's cascade, and an undeclared table alone
+            // add a declared table's cascade, and only an undeclared table
             const cascade = this.state.cascades.get(table);
             if (cascade === undefined) {
                 written.add(table);

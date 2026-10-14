@@ -147,4 +147,11 @@ export const Key = {
     json(table: Table, property: string, value: ColumnValue): ColumnValue {
         return value === null ? null : table[TABLE].column(property).definition.toJson(value);
     },
+
+    /** Write a key's values in JSON form, in key order. */
+    tuple(table: Table, key: Key): ColumnValue[] {
+        return table[TABLE].key.map((property) =>
+            Key.json(table, property, Key.value(table, key, property)),
+        );
+    },
 };

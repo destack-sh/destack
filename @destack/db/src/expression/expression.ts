@@ -892,7 +892,7 @@ function kindOfRollup(
     else if (definition === undefined) {
         throw new DatabaseError(
             "INVALID_QUERY",
-            `rollup ${expression.function} of ${expression.via} measures a column`,
+            `rollup ${expression.function} of ${expression.via} needs a column`,
         );
     }
     // sum integers only
@@ -900,7 +900,7 @@ function kindOfRollup(
         if (definition.kind !== "integer") {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `rollup sum of ${expression.via} measures ${definition.kind} values; sums take integers`,
+                `rollup sum of ${expression.via} sums ${definition.kind} values: sums need integers`,
             );
         }
 
@@ -995,7 +995,7 @@ function requireRelation<Read>(
     if (read === undefined) {
         throw new DatabaseError(
             "INVALID_QUERY",
-            `expression ${verb} relation ${via}, which ${table[TABLE].name} does not declare`,
+            `expression ${verb} relation ${via}, but ${table[TABLE].name} does not declare it`,
         );
     }
 

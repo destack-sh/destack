@@ -16,7 +16,7 @@ import { BunSqliteDatabaseHost } from "./host.ts";
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
 
-/** A table a copy keeps beside the notes. */
+/** A table a replica keeps beside the notes. */
 const beside = defineTable("beside", { id: text("id").primaryKey() });
 
 /** The database with the notes. */
@@ -46,7 +46,7 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000001"),
         scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
-        spec: { copies: [] },
+        spec: { replicated: [] },
         reference: null,
     };
     const bound = (reference: string) => ({
@@ -94,7 +94,7 @@ test("open a provisioned SQLite database over its desired tables, migrating tabl
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000003"),
         scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
-        spec: { copies: [] },
+        spec: { replicated: [] },
         reference: null,
     };
     const record = { ...empty, ...(await provider.provision.provision(empty)) };
@@ -135,7 +135,7 @@ test("count a database's bytes as its file and its write-ahead log, and refuse a
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000003"),
         scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002"),
         kind: "database" as const,
-        spec: { copies: [] },
+        spec: { replicated: [] },
         reference: null,
     };
     const { reference } = await host.provision(record);

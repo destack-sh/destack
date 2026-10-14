@@ -22,7 +22,7 @@ export const tree = requireTree(node[TABLE].tree);
 /** Require the tree a table declares. */
 function requireTree(declared: Tree | undefined): Tree {
     if (declared === undefined) {
-        throw new TypeError("the node table declares no tree");
+        throw new TypeError("the node table has no tree");
     }
 
     return declared;

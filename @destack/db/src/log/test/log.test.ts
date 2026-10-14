@@ -468,6 +468,27 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "place a consumer's slot at the log's start once, and list the slots of a prefix on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+        const expiresAt = Date.now() + 60_000;
+
+        // place three slots, placing a moved one again
+        await database.log.place("usage:a", expiresAt);
+        await database.log.move("usage:a", 0, 3, expiresAt);
+        await database.log.place("usage:a", expiresAt);
+        await database.log.place("usage:b", expiresAt);
+        await database.log.place("rating", expiresAt);
+
+        // list the prefix's slots, the moved one where it moved and the new one at the start
+        expect({
+            slots: await database.log.slots("usage:"),
+            positions: [await database.log.slot("usage:a"), await database.log.slot("usage:b")],
+        }).toEqual({ slots: ["usage:a", "usage:b"], positions: [3, 0] });
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "keep the changes after a consumer's slot until it expires or is dropped, and read its position on %s",
     async (dialect) => {
         const { database } = await open(dialect);

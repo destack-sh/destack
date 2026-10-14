@@ -26,7 +26,7 @@ const FRAGMENT_MILLISECONDS = 60_000;
 /** The client codes of a connection that closed, which leaves nothing to unlisten. */
 const CLOSED_CODES: ReadonlySet<string> = new Set(["CONNECTION_DESTROYED", "CONNECTION_ENDED"]);
 
-/** The prefix of a payload carrying one fragment of a message, which no JSON text starts with. */
+/** The prefix of a payload with one fragment of a message, which no JSON text starts with. */
 const FRAGMENT = "#";
 
 /** Who writes a PostgreSQL database: pools announcing commits via LISTEN and NOTIFY, or one. */
@@ -39,7 +39,7 @@ export class PostgresDatabase<
     /** The PostgreSQL connection pool. */
     readonly $client: postgres.Sql;
 
-    /** Bind tables to a connection pool, listening to other writers' commits unless alone. */
+    /** Bind tables to a pool, listening to other writers' commits unless it is the sole writer. */
     constructor(
         client: postgres.Sql,
         tables: declaration.Database<Models> | readonly Table[],
@@ -61,7 +61,7 @@ export class PostgresDatabase<
                     announcer: "database",
                     tables: declared,
                     dialect: "postgresql",
-                    copies: "tables" in tables ? tables.copied : new Set(),
+                    replicated: "tables" in tables ? tables.replicated : new Set(),
                 }),
             ),
             declared,

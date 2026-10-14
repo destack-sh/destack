@@ -1,6 +1,6 @@
 import { DatabaseError } from "../error/error.ts";
 
-/** What splits text into words: any run of characters that is no letter or digit. */
+/** What splits text into words: any run of characters that are not letters or digits. */
 const SEPARATOR = /[^\p{L}\p{N}]+/u;
 
 /** The characters of a gram, three as trigram indexes take them. */
@@ -14,7 +14,7 @@ const MAX_SEARCH_WORDS = 32;
 
 /** Text as search reads it, alike in SQLite, PostgreSQL and memory: case-folded words. */
 export const SearchText = {
-    /** Split text into its lowercase words, empty for text holding none. */
+    /** Split text into its lowercase words, empty for text without words. */
     words(text: string): string[] {
         return text
             .toLowerCase()
@@ -28,14 +28,14 @@ export const SearchText = {
         if (words.length === 0 || words.length > MAX_SEARCH_WORDS) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `a search takes 1 to ${MAX_SEARCH_WORDS} words, not ${words.length}: ${text}`,
+                `a search needs 1 to ${MAX_SEARCH_WORDS} words, not ${words.length}: ${text}`,
             );
         }
 
         return words;
     },
 
-    /** Report whether some texts hold each query word as the prefix of a word. */
+    /** Report whether some texts contain each query word as the prefix of a word. */
     matches(texts: readonly unknown[], query: readonly string[]): boolean {
         const words = texts.flatMap((text) =>
             typeof text === "string" ? SearchText.words(text) : [],

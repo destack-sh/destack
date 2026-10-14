@@ -11,7 +11,7 @@ import {
     COMMIT_LOCK,
 } from "../log/schema.ts";
 
-/** The transaction-local setting naming the already stamped transaction. */
+/** The transaction-local setting with the already stamped transaction. */
 const STAMPED_SETTING = "destack.stamped";
 
 /** The bytes of table names in one commit notification. */

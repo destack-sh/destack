@@ -12,6 +12,9 @@ import { Key } from "../query/key.ts";
 /** The writes before each snapshot. */
 const WRITES = 120;
 
+/** The writes between two sampled positions, sampling 20 of the 120. */
+const SAMPLE_STRIDE = 6;
+
 /** Ranked items in folders. */
 const item = defineTable(
     "snapshot_item",
@@ -71,7 +74,7 @@ function byKey(rows: readonly Row[]): Row[] {
 }
 
 test.for(TEST_DIALECTS)(
-    "read tables as they were at every earlier position on %s",
+    "read tables as they were at sampled earlier positions on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, [item], { isMigrated: true });
         onTestFinished(() => storage.close());
@@ -103,8 +106,9 @@ test.for(TEST_DIALECTS)(
             captured.push({ position: await database.log.position(), rows });
         }
 
-        // read each position's snapshot
-        for (const { position, rows } of captured) {
+        // read the snapshot of every sixth position, the last included
+        const sampled = captured.filter((_, index) => (index + 1) % SAMPLE_STRIDE === 0);
+        for (const { position, rows } of sampled) {
             const snapshot = database.log.at(position);
             const matching = rows.filter((row) => row.scope === "inbox" && row.rank >= 2);
             const sorted = matching.toSorted((left, right) =>

@@ -6,7 +6,7 @@ import { defineTable } from "../table/table.ts";
 import { defineDatabase } from "../declare/database.ts";
 import { defineRelations } from "./relation.ts";
 
-/** Projects holding tasks. */
+/** Projects with tasks. */
 const project = defineTable("project", {
     /** The project identity. */
     id: text("id").primaryKey(),

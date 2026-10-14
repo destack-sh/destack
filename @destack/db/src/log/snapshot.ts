@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { CHAIN_TERMS, and, inArray, sql, type SQL } from "../sql/index.ts";
+import { and, inArray, sql, type SQL } from "../sql/index.ts";
 import { Projection } from "../query/selection.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { Condition, Scalar } from "../query/condition.ts";
@@ -26,9 +26,6 @@ const HEAD_COLUMNS = ["epoch", "logged", "horizon"] as const;
 
 /** The head of a read: the epoch, the newest logged and the highest compacted sequence. */
 const HEAD = schema.tuple([schema.string(), LogInteger.nullable(), LogInteger]);
-
-/** The most keys one read selects by key. */
-const KEYS_PER_READ = CHAIN_TERMS;
 
 /** A read of the first matching rows in an order. */
 export interface WindowRead<Read = Row> {
@@ -60,7 +57,7 @@ interface Head {
 export interface Partition {
     /** The column, by property. */
     readonly column: string;
-    /** The values, each naming one partition. */
+    /** The values, each for one partition. */
     readonly values: readonly ColumnValue[];
 }
 
@@ -171,7 +168,7 @@ export class Snapshot {
         return logged(kept);
     }
 
-    /** Read a table's rows at the position with text columns that have one of some tuples. */
+    /** Read a table's rows at the position whose columns have one of some tuples in JSON form. */
     async select<Definition extends Table>(
         table: Definition,
         columns: readonly string[],
@@ -452,26 +449,11 @@ export class Snapshot {
     async #rowsOf(table: Table, keys: readonly Row[]): Promise<Map<string, Row | null>> {
         // start every key as missing
         const found = new Map<string, Row | null>(keys.map((key) => [Key.name(table, key), null]));
-        const definition = table[TABLE];
-        const isText = definition.key.every(
-            (property) => definition.column(property).definition.kind === "text",
-        );
 
-        // read text keys in one statement, and others a chain at a time
-        if (isText) {
-            const tuples = keys.map((key) =>
-                definition.key.map((property) => Key.value(table, key, property)),
-            );
-            for (const row of await this.select(table, definition.key, tuples)) {
-                found.set(Key.name(table, row), row);
-            }
-        } else {
-            for (let start = 0; start < keys.length; start += KEYS_PER_READ) {
-                const matches = Key.any(table, keys.slice(start, start + KEYS_PER_READ));
-                for (const row of await this.rows(table, matches)) {
-                    found.set(Key.name(table, row), row);
-                }
-            }
+        // read the keys' rows in one statement
+        const tuples = keys.map((key) => Key.tuple(table, key));
+        for (const row of await this.select(table, table[TABLE].key, tuples)) {
+            found.set(Key.name(table, row), row);
         }
 
         return found;
@@ -656,7 +638,7 @@ async function decides(
     row: Row,
     relations: RelationView | undefined,
 ): Promise<boolean> {
-    // decide by the fields alone
+    // decide only by the fields
     const binding = {
         field: (name: string) => row[name],
         placeholder: Predicate.unbound,

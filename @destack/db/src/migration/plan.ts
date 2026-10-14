@@ -820,7 +820,7 @@ function changeValues(
             continue;
         }
 
-        // plan the change, leaving convert steps to the row conversions, which a table without rows needs none of
+        // plan the change, leaving convert steps to the row conversions, which an empty table does not need
         const isConverted =
             isEmpty ||
             releases.some((release) => state.conversions?.[release]?.[column.name] !== undefined);

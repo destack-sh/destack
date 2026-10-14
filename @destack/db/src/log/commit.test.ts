@@ -120,7 +120,7 @@ test.each(TEST_DIALECTS)(
         });
         const seen = await view.layer(changes.overlay()).rows(task, { scope: "inbox" });
 
-        // commit, keeping the changed rows alone
+        // commit, keeping only the changed rows
         await changes.commit(database, base, reads, async () => {});
         expect({
             seen: seen

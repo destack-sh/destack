@@ -18,8 +18,8 @@ import type { Model } from "../query/model.ts";
 /** A database's resource settings. */
 export const DatabaseSpec = defineSchema(
     schema.object({
-        /** The SQL names of the tables the database copies from their owning package. */
-        copies: schema.array(schema.string().min(1)),
+        /** The SQL names of the tables the database replicates from their owning package. */
+        replicated: schema.array(schema.string().min(1)),
     }),
 );
 /** A database's resource settings. */
@@ -48,12 +48,12 @@ export interface DatabaseConnector {
 export class Database<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > extends ResourceDeclaration<DatabaseConnection<Models>, DatabaseDescription> {
-    /** The tables of the database, its own and copies, without foreign keys to others. */
+    /** The tables of the database, its own and replicated ones, without foreign keys to others. */
     readonly tables: readonly Table[];
     /** The relations of the tables, which relational reads name. */
     readonly relations: Relations<Models>;
-    /** The SQL names of the tables the database copies from their owning package. */
-    readonly copied: ReadonlySet<string>;
+    /** The SQL names of the tables the database replicates from their owning package. */
+    readonly replicated: ReadonlySet<string>;
     /** The required tables' description, described on first read. */
     #state: DatabaseState | undefined;
 
@@ -64,11 +64,11 @@ export class Database<
         tables: readonly Table[],
         relations: Relations<Models>,
     ) {
-        // keep the tables, their relations and the copied tables' names
+        // keep the tables, their relations and the replicated tables' names
         super(owner, description);
         this.tables = tables;
         this.relations = relations;
-        this.copied = new Set(description.spec.copies);
+        this.replicated = new Set(description.spec.replicated);
     }
 
     /** The connectors opening databases on the running runtime. */
@@ -78,14 +78,14 @@ export class Database<
         return connectors;
     }
 
-    /** Decide whether the database keeps a table's rows as copies. */
-    copies(table: Table): boolean {
-        return this.copied.has(table[TABLE].sqlName);
+    /** Decide whether the database keeps a table's rows as a replica. */
+    replicates(table: Table): boolean {
+        return this.replicated.has(table[TABLE].sqlName);
     }
 
     /** Describe the required tables once, since the declaration never changes. */
     override state(): DatabaseState {
-        this.#state ??= DatabaseState.of(this.tables, { copies: this.copied });
+        this.#state ??= DatabaseState.of(this.tables, { replicated: this.replicated });
 
         return this.#state;
     }
@@ -109,21 +109,21 @@ export interface DatabaseDefinition<
     readonly name: string;
     /** The tables the database owns, referencing tables kept elsewhere without foreign keys. */
     readonly tables: readonly Table[];
-    /** The tables the database copies from their owning package, filled by follows. */
-    readonly copies?: readonly Table[];
+    /** The tables the database replicates from their owning package, filled by follows. */
+    readonly replicated?: readonly Table[];
     /** The relations of the tables. */
     readonly relations?: Relations<Models>;
 }
 
-/** Declare a database of the tables it owns and the tables it copies from their owning package. */
+/** Declare a database of the tables it owns and those it replicates from their owning package. */
 export function defineDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(definition: DatabaseDefinition<Models>, module?: ModuleMetadata): Database<Models> {
-    // reject duplicate SQL names within and across the owned and copied tables
+    // reject duplicate SQL names within and across the owned and replicated tables
     const owner = ModuleMetadata.require(module, "defineDatabase").package;
     const names = new Map<string, Table>();
-    const copies = expandTrees(definition.copies ?? []);
-    for (const table of [...expandTrees(definition.tables), ...copies]) {
+    const replicated = expandTrees(definition.replicated ?? []);
+    for (const table of [...expandTrees(definition.tables), ...replicated]) {
         const { sqlName } = table[TABLE];
         if (names.has(sqlName)) {
             throw new TypeError(`duplicate SQL table: ${sqlName}`);
@@ -136,7 +136,9 @@ export function defineDatabase<
     const kept = new Set(names.values());
     for (const [name, table] of Object.entries(relations.tables)) {
         if (!kept.has(table)) {
-            throw new TypeError(`relations name table ${name}, which the database does not keep`);
+            throw new TypeError(
+                `relations reference table ${name}, but the database does not declare it`,
+            );
         }
     }
 
@@ -144,7 +146,7 @@ export function defineDatabase<
     const description = DatabaseKind.description.parse({
         name: definition.name,
         kind: "database",
-        spec: { copies: copies.map((table) => table[TABLE].sqlName) },
+        spec: { replicated: replicated.map((table) => table[TABLE].sqlName) },
     });
 
     return new Database(owner, description, [...names.values()], relations);

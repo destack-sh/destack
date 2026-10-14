@@ -314,7 +314,7 @@ test("decide relations through the binding, unknown until the relation is read",
 
     // refuse undeclared relations
     expect(() => Predicate.render(predicate, Predicate.bind(sample))).toThrow(
-        "condition follows relation marks, which condition_sample does not declare",
+        "condition follows relation marks, but condition_sample does not declare it",
     );
 });
 

@@ -57,7 +57,7 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
             const text = await response.text();
             throw new DatabaseError(
                 "CONTENT_UNAVAILABLE",
-                `the object keeping content refused ${method} ${digest}: ${response.status} ${text}`,
+                `the content object refused ${method} ${digest}: ${response.status} ${text}`,
             );
         }
 

@@ -112,7 +112,7 @@ export class TestDatabase<
         const declared = "tables" in tables ? tables.tables : tables;
         const state = declareState(declared, dialect, {
             isReplica: false,
-            copies: copiesOf(tables),
+            replicated: replicatedOf(tables),
         });
         const key = JSON.stringify([dialect, state]);
         const written =
@@ -160,7 +160,7 @@ export class TestDatabase<
         const declared = "tables" in tables ? tables.tables : tables;
         const directory = await mkdtemp(join(tmpdir(), "destack-seed-"));
         const file = join(directory, "seed.db");
-        await copyFile(await sqliteTemplate(declared, false, copiesOf(tables)), file);
+        await copyFile(await sqliteTemplate(declared, false, replicatedOf(tables)), file);
         const value = await TestDatabase.#write(
             seed,
             await TestDatabase.#sqliteAt(file, tables, async () => {}),
@@ -193,7 +193,7 @@ export class TestDatabase<
         if (options.isMigrated === true) {
             const state = declareState(declared, "postgresql", {
                 isReplica: options.isReplica ?? false,
-                copies: copiesOf(tables),
+                replicated: replicatedOf(tables),
             });
             const schema = await cluster.claim(state, tables, template);
             const open: TestConnector = (connected) => schema.connect(connected);
@@ -227,7 +227,7 @@ export class TestDatabase<
         const source =
             template ??
             (options.isMigrated === true
-                ? await sqliteTemplate(declared, options.isReplica ?? false, copiesOf(tables))
+                ? await sqliteTemplate(declared, options.isReplica ?? false, replicatedOf(tables))
                 : undefined);
         if (source !== undefined) {
             await copyFile(source, file);
@@ -295,7 +295,7 @@ export interface TestDatabaseOptions {
     readonly storage?: "memory" | "file";
     /** Whether the database starts migrated to its tables. */
     readonly isMigrated?: boolean;
-    /** Whether it migrates as a copy, without trees and references. */
+    /** Whether it migrates as a replica, without trees and references. */
     readonly isReplica?: boolean;
 }
 
@@ -606,7 +606,7 @@ class TestCluster {
             FROM ${this.administration(name)}.${this.administration(STATE)}`.values()
         )[0]?.[0];
         if (typeof digest !== "string" && digest !== null) {
-            throw new TypeError("the applied state digest is no text");
+            throw new TypeError("the applied state digest is not text");
         }
 
         return { relations, fingerprint: JSON.stringify([relations, digest]) };
@@ -711,19 +711,19 @@ interface TestRelation {
     readonly kind: "r" | "p" | "S";
 }
 
-/** Read the SQL names of the tables a declared database copies, none for bare tables. */
-function copiesOf(tables: declaration.Database | readonly Table[]): ReadonlySet<string> {
-    return "tables" in tables ? tables.copied : new Set<string>();
+/** Read the SQL names of the tables a declared database replicates, none for bare tables. */
+function replicatedOf(tables: declaration.Database | readonly Table[]): ReadonlySet<string> {
+    return "tables" in tables ? tables.replicated : new Set<string>();
 }
 
 /** Migrate a SQLite template once per process and return its path. */
 function sqliteTemplate(
     tables: readonly Table[],
     isReplica: boolean,
-    copies: ReadonlySet<string>,
+    replicated: ReadonlySet<string>,
 ): Promise<string> {
     // reuse the template of the same state
-    const key = JSON.stringify(declareState(tables, "sqlite", { isReplica, copies }));
+    const key = JSON.stringify(declareState(tables, "sqlite", { isReplica, replicated }));
     const known = templates.get(key);
     if (known !== undefined) {
         return known;
@@ -735,7 +735,7 @@ function sqliteTemplate(
         const directory = await mkdtemp(join(tmpdir(), "destack-template-"));
         const file = join(directory, "template.db");
         const database = await sqlite.connectBunSqlite(file, tables);
-        await database.migrate(tables, { isReplica, copies });
+        await database.migrate(tables, { isReplica, replicated });
         await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
         await database.close();
 

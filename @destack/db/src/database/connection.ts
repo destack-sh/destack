@@ -1,5 +1,5 @@
 import { canonicalize, schema } from "@destack/schema";
-import { CHAIN_TERMS, exists, fill, or, render, sql, type SQLWrapper } from "../sql/index.ts";
+import { exists, fill, render, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
 import type { Session } from "./session.ts";
@@ -30,6 +30,7 @@ import { LOG_TOPIC } from "../log/schema.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
+import { elementValue, jsonElements } from "../query/statement.ts";
 import { qualify, relation } from "../table/namespace.ts";
 import { Relations } from "../query/relation.ts";
 import { RelationalQueryBuilder, type Queries } from "../query/find.ts";
@@ -47,7 +48,7 @@ export class DatabaseConnection<
     readonly driver: DatabaseDriver;
     /** The tables the database declares, in declaration order. */
     readonly tables: readonly Table[];
-    /** The relations the database declares, which relational reads name. */
+    /** The relations the database declares, which relational reads reference. */
     readonly relations: Relations<Models>;
     /** The physical connection state. */
     readonly state: ConnectionState;
@@ -76,16 +77,16 @@ export class DatabaseConnection<
         if (open === undefined) {
             throw new DatabaseError(
                 "NO_CHANNEL",
-                `the connection is its database's sole writer, without a channel ${name}`,
+                `the connection is its database's only writer and has no channel ${name}`,
             );
         }
 
         return open(name);
     }
 
-    /** Decide whether the database keeps a table's rows as copies, as its declaration lists. */
-    copies(table: Table): boolean {
-        return this.state.copies.has(table[TABLE].sqlName);
+    /** Decide whether the database keeps a table's rows as a replica, as its declaration lists. */
+    replicates(table: Table): boolean {
+        return this.state.replicated.has(table[TABLE].sqlName);
     }
 
     /** The database's SQL dialect. */
@@ -184,18 +185,26 @@ export class DatabaseConnection<
         }
     }
 
-    /** Delete rows by key, a chain of keys per statement. */
+    /** Delete rows by key in one statement, binding the keys as one JSON array. */
     async remove<Definition extends Table>(
         table: Definition,
         rows: readonly Key<Definition>[],
     ): Promise<void> {
-        // delete each chain of keys
-        for (let start = 0; start < rows.length; start += CHAIN_TERMS) {
-            const matches = rows
-                .slice(start, start + CHAIN_TERMS)
-                .map((row) => Key.match(table, row));
-            await this.delete(table).where(or(...matches));
+        // skip the round trip of no keys
+        if (rows.length === 0) {
+            return;
         }
+
+        // match each key column against its value in the JSON array's tuples
+        const definition = table[TABLE];
+        const columns = definition.key.map((property) => definition.column(property));
+        const values = columns.map((column, index) => elementValue(column, index, this.dialect));
+        const tuples = sql.param(JSON.stringify(rows.map((row) => Key.tuple(table, row))));
+
+        // delete the matching rows
+        await this.delete(table).where(
+            sql`(${sql.join(columns, sql`, `)}) IN (SELECT ${sql.join(values, sql`, `)} FROM ${jsonElements(tuples, "wanted")})`,
+        );
     }
 
     /** Execute a SQL script in one round trip as a write of every declared table. */
@@ -253,9 +262,9 @@ export class DatabaseConnection<
             readonly others?: "keep" | "drop";
         } = {},
     ): Promise<TablePlan> {
-        // declare the tables, its copies as copies
+        // declare the tables, its replicated tables as replicas
         const declared = declareState(tables, this.dialect, {
-            copies: this.state.copies,
+            replicated: this.state.replicated,
             ...options,
         });
 
@@ -280,7 +289,7 @@ export class DatabaseConnection<
     async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
         const { namespace } = this.state;
         const declared = declareState(tables, this.dialect, {
-            copies: this.state.copies,
+            replicated: this.state.replicated,
             ...options,
         });
 
@@ -292,7 +301,7 @@ export class DatabaseConnection<
 
     /** Plan the migration from applied to declared tables, within the database's namespace. */
     async plan(state: Pick<Merge, "declared"> & Partial<Merge>): Promise<TablePlan> {
-        // read the applied tables a declaration changes that hold no rows
+        // read the applied tables a declaration changes that have no rows
         const { namespace } = this.state;
         const applied = await readState(this);
         const declared = state.declared.map((entry) => namespaceState(entry, namespace));
@@ -425,8 +434,8 @@ export interface ConnectionOptions {
     readonly tables: readonly Table[];
     /** The dialect the tables render in. */
     readonly dialect: Dialect;
-    /** The SQL names of the tables the database copies from elsewhere. */
-    readonly copies: ReadonlySet<string>;
+    /** The SQL names of the tables the database replicates from elsewhere. */
+    readonly replicated: ReadonlySet<string>;
     /** The namespace of the database's relations, absent for none. */
     readonly namespace?: string;
 }
@@ -435,8 +444,8 @@ export interface ConnectionOptions {
 export class ConnectionState {
     /** Where the connection's database runs. */
     readonly locality: Locality;
-    /** The SQL names of the tables the database copies, empty for a connection over bare tables. */
-    readonly copies: ReadonlySet<string>;
+    /** The SQL names of the tables the database replicates, empty over bare tables. */
+    readonly replicated: ReadonlySet<string>;
     /** The SQL tables a write to each declared table changes, itself first, through cascades. */
     readonly cascades: ReadonlyMap<string, readonly string[]>;
     /** The commits this connection's readers wait for. */
@@ -463,7 +472,7 @@ export class ConnectionState {
         // keep the channels, the namespace and what writes to the declared tables change
         const { openChannel, tables } = options;
         this.locality = options.locality;
-        this.copies = options.copies;
+        this.replicated = options.replicated;
         this.openChannel = openChannel;
         this.namespace = options.namespace;
         this.cascades = listCascades(tables, options.dialect);

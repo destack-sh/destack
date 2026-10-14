@@ -107,7 +107,7 @@ test.for(TEST_DIALECTS)(
 
         // refuse a search of no words
         expect(() => Condition.render({ SEARCH: " - " }, note)).toThrow(
-            "a search takes 1 to 32 words, not 0:  - ",
+            "a search needs 1 to 32 words, not 0:  - ",
         );
     },
 );

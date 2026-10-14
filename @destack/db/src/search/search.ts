@@ -10,13 +10,13 @@ import { TABLE, type Table } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
 import { SearchText } from "./text.ts";
 
-/** The suffix naming a table's full-text table in SQLite and its index in PostgreSQL. */
+/** The suffix of a table's full-text table in SQLite and its index in PostgreSQL. */
 const SUFFIX = "__search";
 
 /** The PostgreSQL collation folding case and classing letters and digits by Unicode. */
 const COLLATION = "pg_c_utf8";
 
-/** What PostgreSQL splits text into words at: any run of characters that is no letter or digit. */
+/** What PostgreSQL splits text into words at: any run of characters but letters and digits. */
 const SEPARATOR = "[^[:alnum:]]+";
 
 /** The SQLite FTS5 tokenizer: Unicode words, case-folded, their diacritics kept. */

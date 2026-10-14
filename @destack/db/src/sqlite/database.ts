@@ -42,7 +42,7 @@ export class SqliteDatabase<
                     announcer: "connection",
                     tables: declared,
                     dialect: "sqlite",
-                    copies: "tables" in tables ? tables.copied : new Set(),
+                    replicated: "tables" in tables ? tables.replicated : new Set(),
                     ...(namespace === undefined ? {} : { namespace }),
                 }),
             ),

@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { DatabaseError } from "../error/error.ts";
 
-/** A channel reaching every party of one topic, as PostgreSQL's LISTEN and NOTIFY. */
+/** A channel to every party of one topic, as PostgreSQL's LISTEN and NOTIFY. */
 export interface Channel<Message> {
     /** Send a message to every other party. */
     notify(message: Message): void;

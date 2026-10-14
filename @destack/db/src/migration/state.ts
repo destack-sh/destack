@@ -97,10 +97,10 @@ export type DatabaseState = schema.Infer<typeof DatabaseState>;
 
 /** The options of a table declaration. */
 export interface DeclareOptions {
-    /** Whether the database keeps a partial copy, without foreign keys and tree indexes. */
+    /** Whether the whole database is a replica, without foreign keys and tree indexes. */
     readonly isReplica?: boolean;
-    /** The SQL names of copied tables, which keep no unique constraints or foreign keys. */
-    readonly copies?: ReadonlySet<string>;
+    /** The SQL names of replicated tables, which keep no unique constraints or foreign keys. */
+    readonly replicated?: ReadonlySet<string>;
     /** The package whose tables to describe, the others' only placing them, every table without. */
     readonly package?: PackageId;
 }
@@ -186,7 +186,7 @@ export function declareState(
     // keep foreign keys to tables this database has and leave other references logical
     const declared = isReplica ? tables : expandTrees(tables);
     const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
-    const copies = options.copies ?? new Set<string>();
+    const replicated = options.replicated ?? new Set<string>();
     const owned =
         options.package === undefined
             ? declared
@@ -202,13 +202,13 @@ export function declareState(
         const dependents = isReplica ? [] : describeDependents(table, tables);
         const aggregated = aggregates.get(definition.sqlName);
 
-        // leave a copied table's uniqueness and references to its owning package
-        const described = withinDatabase(describeTable(table, dialect), local, copies);
-        const kept = copies.has(definition.sqlName) ? copied(described) : described;
+        // leave a replicated table's uniqueness and references to its owning package
+        const described = withinDatabase(describeTable(table, dialect), local, replicated);
+        const kept = replicated.has(definition.sqlName) ? asReplicated(described) : described;
 
         return {
             package: definition.package,
-            table: isReplica ? replicated(table, kept) : kept,
+            table: isReplica ? asReplica(table, kept) : kept,
             ...(log === undefined ? {} : { log }),
             ...(tree === undefined ? {} : { tree }),
             ...(aggregated === undefined ? {} : { aggregates: aggregated }),
@@ -320,7 +320,7 @@ export async function readTables(database: DatabaseConnection): Promise<string[]
     return rows.map((row) => row.name);
 }
 
-/** List the tables among some that hold no rows, in one statement. */
+/** List the tables among some that have no rows, in one statement. */
 export async function readEmpty(
     database: DatabaseConnection,
     tables: readonly string[],
@@ -480,7 +480,7 @@ function describeAggregates(
                     continue;
                 }
                 throw new TypeError(
-                    `aggregate of ${definition.name} into ${holder[TABLE].name} names undeclared table ${missing[TABLE].name}`,
+                    `aggregate of ${definition.name} into ${holder[TABLE].name} references undeclared table ${missing[TABLE].name}`,
                 );
             }
 
@@ -530,7 +530,7 @@ function describeDependents(table: Table, tables: readonly Table[]): DependentDe
         const source = dependent.from();
         if (!tables.includes(source)) {
             throw new TypeError(
-                `dependents of ${definition.name} name undeclared table ${source[TABLE].name}`,
+                `dependents of ${definition.name} reference undeclared table ${source[TABLE].name}`,
             );
         }
         const [id, ...rest] = loggedKey(table);
@@ -552,8 +552,8 @@ function describeDependents(table: Table, tables: readonly Table[]): DependentDe
     });
 }
 
-/** Let a replica's copy leave out the columns its log never records: sensitive ones. */
-function replicated(table: Table, described: TableDescription): TableDescription {
+/** Let a replica leave out the columns its log never records: sensitive ones. */
+function asReplica(table: Table, described: TableDescription): TableDescription {
     const logged = new Set(
         Object.values(table[TABLE].logged).map((column) => column.definition.name),
     );
@@ -566,24 +566,24 @@ function replicated(table: Table, described: TableDescription): TableDescription
     };
 }
 
-/** Keep a table's foreign keys to the database's own tables, leaving copy references logical. */
+/** Keep a table's foreign keys to the database's own tables, leaving replica references logical. */
 function withinDatabase(
     table: TableDescription,
     local: ReadonlySet<string>,
-    copies: ReadonlySet<string>,
+    replicated: ReadonlySet<string>,
 ): TableDescription {
     return {
         ...table,
         constraints: table.constraints.filter(
             (constraint) =>
                 constraint.kind !== "foreignKey" ||
-                (local.has(constraint.table) && !copies.has(constraint.table)),
+                (local.has(constraint.table) && !replicated.has(constraint.table)),
         ),
     };
 }
 
-/** Describe a copied table as its copy keeps it: unique keys as plain indexes, no foreign keys. */
-function copied(table: TableDescription): TableDescription {
+/** Describe a replicated table as kept: unique keys as plain indexes, no foreign keys. */
+function asReplicated(table: TableDescription): TableDescription {
     // turn unique constraints into plain indexes over the same columns
     const unique = table.constraints.flatMap((constraint) =>
         constraint.kind === "unique"

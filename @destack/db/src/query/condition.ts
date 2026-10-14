@@ -96,7 +96,7 @@ export type FieldCondition<Value extends Comparable = Comparable> = {
     readonly startsWith?: Value & string;
     /** Match text ending with a suffix. */
     readonly endsWith?: Value & string;
-    /** Match text of these characters alone: letters, digits, ranges of them, and `._+/=:@*-`. */
+    /** Match text of only these characters: letters, digits, ranges of them, and `._+/=:@*-`. */
     readonly characters?: string;
     /** Match text whose length in characters is this one or meets a comparison. */
     readonly length?: number | LengthCondition;
@@ -329,7 +329,7 @@ function resolveEntry(name: string, entry: OpenEntry, fields: ReadonlySet<string
     // search the row's text for every word of a query
     else if (name === "SEARCH") {
         if (typeof entry !== "string") {
-            throw new DatabaseError("INVALID_QUERY", "a search takes text");
+            throw new DatabaseError("INVALID_QUERY", "a search needs text");
         }
 
         return { kind: "search", words: SearchText.query(entry) };
@@ -366,9 +366,9 @@ function resolveRelation(name: string, entry: OpenEntry): Predicate {
     if (entry === true) {
         return { kind: "exists", via: name, where: {} };
     }
-    // refuse a value for a name that is no field
+    // refuse a value for a name that is not a field
     else if (typeof entry !== "object" || isList(entry) || entry instanceof Placeholder) {
-        throw new DatabaseError("INVALID_QUERY", `condition names no field ${name}`);
+        throw new DatabaseError("INVALID_QUERY", `condition has no field ${name}`);
     }
     // follow a relation to the related rows meeting a condition
     else {
@@ -487,7 +487,7 @@ function comparisonsOf(name: string, entry: OpenEntry): FieldCondition {
     if (!parsed.success) {
         throw new DatabaseError(
             "INVALID_QUERY",
-            `condition field ${name} takes a value or comparisons`,
+            `condition field ${name} needs a value or comparisons`,
         );
     }
 
@@ -497,7 +497,7 @@ function comparisonsOf(name: string, entry: OpenEntry): FieldCondition {
 /** Read an entry as one condition. */
 function conditionOf(name: string, entry: OpenEntry): OpenCondition {
     if (typeof entry !== "object" || isList(entry) || entry instanceof Placeholder) {
-        throw new DatabaseError("INVALID_QUERY", `condition ${name} takes a condition`);
+        throw new DatabaseError("INVALID_QUERY", `condition ${name} needs a condition`);
     }
 
     return entry;
@@ -506,14 +506,17 @@ function conditionOf(name: string, entry: OpenEntry): OpenCondition {
 /** Read an entry as a list of conditions. */
 function conditionsOf(name: string, entry: OpenEntry): readonly OpenCondition[] {
     if (typeof entry !== "object" || !isList(entry)) {
-        throw new DatabaseError("INVALID_QUERY", `condition ${name} takes a list of conditions`);
+        throw new DatabaseError("INVALID_QUERY", `condition ${name} needs a list of conditions`);
     }
 
     // require each element to be a condition
     const conditions: OpenCondition[] = [];
     for (const element of entry) {
         if (typeof element !== "object" || element instanceof Placeholder) {
-            throw new DatabaseError("INVALID_QUERY", `condition ${name} lists a value`);
+            throw new DatabaseError(
+                "INVALID_QUERY",
+                `condition ${name} lists a value, not a condition`,
+            );
         }
         conditions.push(element);
     }

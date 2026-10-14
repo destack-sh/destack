@@ -88,7 +88,7 @@ export class ReadSet {
 
     /** Report whether a committed change touches a read row, or a row a scan would select. */
     touches(change: Change): boolean {
-        // let an update of unlogged columns alone pass reads of logged images
+        // let an update of only unlogged columns pass reads of logged images
         const name = change.table[TABLE].sqlName;
         const encoded = (image: Row | null) =>
             canonicalize(image === null ? null : change.table[TABLE].encode(image));
@@ -238,7 +238,7 @@ export class ChangeSet {
         );
     }
 
-    /** Group consecutive inserts, plain updates or deletes of one table, any other update alone. */
+    /** Group consecutive inserts, plain updates or deletes of one table, other updates one each. */
     static #runs(changes: Iterable<RowChange>, dialect: Dialect): RowChange[][] {
         const runs: RowChange[][] = [];
         for (const change of changes) {
@@ -404,7 +404,7 @@ export class ChangeSet {
                 if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
                     throw new DatabaseError(
                         "CONCURRENT_UPDATE",
-                        "the log no longer keeps what the transaction read against",
+                        "the log no longer has the changes the transaction read",
                     );
                 }
                 throw error;
@@ -508,7 +508,7 @@ export class Transaction {
     /** The log position the transaction started at, refusing a transaction that only reads. */
     get base(): LogPosition {
         if (this.#base === null) {
-            throw new TypeError("a reading transaction starts at no position");
+            throw new TypeError("a reading transaction has no start position");
         }
 
         return this.#base;

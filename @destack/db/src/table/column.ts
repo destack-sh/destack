@@ -160,7 +160,7 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         });
     }
 
-    /** Reference a column in another table holding the same values. */
+    /** Reference a column in another table with the same values. */
     references(
         column: () => Column<ColumnDefinition<ValueOf<Definition>>>,
         actions: ReferenceAction = {},

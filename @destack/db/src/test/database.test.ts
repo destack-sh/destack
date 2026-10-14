@@ -37,7 +37,7 @@ test.for(TEST_DIALECTS)(
         const rows = async (database: typeof first.database) =>
             database.select().from(tally).orderBy(asc(tally.name));
 
-        // read the seed's row in both copies and the first copy's own row in it alone
+        // read the seed's row in both copies, and only the first copy's own row in it
         expect({
             writes,
             values: [first.value, second.value],

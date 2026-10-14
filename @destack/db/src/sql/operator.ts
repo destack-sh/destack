@@ -8,8 +8,8 @@ import {
 } from "../table/column.ts";
 import { type Alias, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from "./sql.ts";
 
-/** The most predicates one flat chain joins. */
-export const CHAIN_TERMS = 90;
+/** Terms per chain: two levels cover 30,000 values at depth 600, SQLITE_MAX_EXPR_DEPTH 1,000. */
+export const CHAIN_TERMS = 300;
 
 /** A typed operand: a column reading the value, a fragment or a named fragment. */
 type Operand<Value> =

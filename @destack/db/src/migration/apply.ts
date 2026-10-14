@@ -165,7 +165,7 @@ async function requireConverted(
             if (parsed !== undefined && !parsed.success) {
                 throw new DatabaseError(
                     "MIGRATION_FAILED",
-                    `conversion writes a value ${converted.table}.${column.name} refuses: ${schema.prettifyError(parsed.error)}`,
+                    `conversion writes a value that ${converted.table}.${column.name} refuses: ${schema.prettifyError(parsed.error)}`,
                     { cause: parsed.error },
                 );
             }

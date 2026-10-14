@@ -55,7 +55,7 @@ export interface Binding<Value, Decision = Value> {
     placeholder(name: string): Scalar;
     /** Resolve whether a related row meets a condition. */
     exists(via: string, where: Condition): Decision;
-    /** Resolve whether the row's searched text holds each word as a word's prefix. */
+    /** Resolve whether the row's searched text contains each word as a word's prefix. */
     search(words: readonly string[]): Decision;
 }
 
@@ -112,7 +112,7 @@ function characters(set: string): string {
     if (!CHARACTER_SET.test(set)) {
         throw new DatabaseError(
             "INVALID_QUERY",
-            `character set ${set} takes letters, digits, their ranges and ._+/=:@*- alone`,
+            `character set ${set} accepts only letters, digits, their ranges and ._+/=:@*-`,
         );
     }
 
@@ -322,7 +322,7 @@ function bind(
             if (namespace.exists === undefined) {
                 throw new DatabaseError(
                     "INVALID_QUERY",
-                    `condition follows relation ${via}, which ${table[TABLE].name} does not declare`,
+                    `condition follows relation ${via}, but ${table[TABLE].name} does not declare it`,
                 );
             }
 

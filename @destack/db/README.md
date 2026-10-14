@@ -61,7 +61,7 @@ note[TABLE].requireFullText().matches(row, SearchText.query("lov ada")); // the 
 
 ## Databases
 
-`defineDatabase` declares the tables a package owns and the tables it copies, and `defineRelations` relates them as Drizzle's `defineRelations` does.
+`defineDatabase` declares the tables a package owns and the tables it replicates, and `defineRelations` relates them as Drizzle's `defineRelations` does.
 
 ```ts
 export const relations = defineRelations({ project, task }, (r) => ({

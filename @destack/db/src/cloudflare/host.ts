@@ -10,10 +10,12 @@ import { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
 import type { Model } from "../query/model.ts";
 import { SqliteWorkQueue } from "../sqlite/client.ts";
+import { SQLStatement, SQLValue } from "../sql/json.ts";
 import { type SqliteConnectOptions, SqliteDatabase } from "../sqlite/database.ts";
 import {
     type DurableObjectCursor,
     DurableObjectClient,
+    DurableObjectQuery,
     type DurableObjectStorage,
 } from "./client.ts";
 import { DurableObjectContentStore } from "./content.ts";
@@ -85,12 +87,18 @@ const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
         desired: schema.array(DatabaseState),
         /** The copy's digest. */
         digest: Digest,
-        /** The digest of the copy the database holds already, absent for an empty database. */
+        /** The digest of the copy the database has already, absent for an empty database. */
         base: Digest.exactOptional(),
     }),
     schema.object({
         /** Count the object's database bytes, and take the rows they read and wrote. */
         operation: schema.literal("measure"),
+    }),
+    SQLStatement.extend({
+        /** Read rows of the object's storage, refusing a statement that writes. */
+        operation: schema.literal("read"),
+        /** Whether the rows come as arrays of values or as objects by column name. */
+        rows: schema.enum(["values", "objects"]),
     }),
 ]);
 /** An operation on the databases an object keeps, as another object sends it. */
@@ -312,7 +320,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         request: Request,
         keeper: (scope: string) => DurableObjectStub,
     ): Promise<Response> {
-        // run the operation the body names
+        // run the operation in the body
         const body = DurableObjectDatabaseOperation.parse(await request.json());
         const content = (scope: string) => {
             const authorization = request.headers.get("authorization");
@@ -354,7 +362,38 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             }
             case "measure":
                 return Response.json(this.measure());
+            case "read":
+                return Response.json({ rows: await this.#read(body) });
         }
+    }
+
+    /** Answer a read another object sends, refusing every other operation. */
+    async read(request: Request): Promise<Response> {
+        const body = DurableObjectDatabaseOperation.parse(await request.json());
+        if (body.operation !== "read") {
+            throw new DatabaseError(
+                "INVALID_QUERY",
+                `this object answers reads alone, not ${body.operation}`,
+            );
+        }
+
+        return Response.json({ rows: await this.#read(body) });
+    }
+
+    /** Read a statement's rows in JSON form, undoing and refusing a statement that writes. */
+    #read(statement: SQLStatement & { readonly rows: "values" | "objects" }): Promise<unknown[]> {
+        const parameters = (statement.parameters ?? []).map((value) => SQLValue.toDriver(value));
+
+        return this.transaction(async (transaction) => {
+            // read the rows in the open transaction, which the refusal undoes
+            const query = new DurableObjectQuery(this, { kind: "joined", transaction });
+            const read = await query.read(statement.sql, parameters, statement.rows);
+            if (read.rowsWritten > 0) {
+                throw new DatabaseError("INVALID_QUERY", "a read of another object wrote rows");
+            }
+
+            return read.rows.map(encoded);
+        });
     }
 
     /** Open a database for one copy, closing it when disposed. */
@@ -444,7 +483,18 @@ export class DurableObjectDatabase {
     }
 }
 
-/** Keep the parts of a plan its reviewers see, which its digest covers. */
+/** Write a row of values, or of columns by name, in JSON form. */
+function encoded(row: unknown): SQLValue[] | Record<string, SQLValue> {
+    return Array.isArray(row)
+        ? row.map((value) => SQLValue.fromDriver(value))
+        : Object.fromEntries(
+              Object.entries(schema.record(schema.string(), schema.unknown()).parse(row)).map(
+                  ([column, value]) => [column, SQLValue.fromDriver(value)],
+              ),
+          );
+}
+
+/** Keep the plan fields its reviewers see, which its digest covers. */
 function reviewed(plan: Plan): Plan {
     const { steps, deferred } = plan;
 

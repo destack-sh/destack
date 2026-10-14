@@ -117,7 +117,7 @@ export interface ChangeSelection<Definition extends Table> {
     readonly tables: readonly Definition[];
     /** The consumed sequence, zero for the start. */
     readonly after: number;
-    /** The most changes a page carries before completing its last transaction. */
+    /** The most changes a page has before completing its last transaction. */
     readonly limit?: number;
     /** The scopes to read. */
     readonly scopes?: readonly string[];
@@ -182,6 +182,9 @@ const KeptRow = SequenceRow.extend({ horizon: LogInteger });
 
 /** A consumer's slot position. */
 const SlotRow = schema.looseObject({ sequence: LogInteger });
+
+/** A consumer's slot name. */
+const SlotNameRow = schema.looseObject({ name: schema.string() });
 
 /** The first change of a transaction a compaction would split, null for none. */
 const SplitRow = schema.looseObject({ first: LogInteger.nullable() });
@@ -581,6 +584,26 @@ export class Log {
             VALUES (${slot}, ${sequence}, ${expiresAt})
             ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at
         `);
+    }
+
+    /** Place a consumer's slot at the log's start unless placed, keeping changes until a time. */
+    async place(slot: string, expiresAt: number): Promise<void> {
+        await this.database.execute(sql`
+            INSERT INTO ${sql.relation(LOG_SLOT)} (name, sequence, expires_at)
+            VALUES (${slot}, 0, ${expiresAt})
+            ON CONFLICT (name) DO NOTHING
+        `);
+    }
+
+    /** List the names of the slots starting with a prefix, in name order. */
+    async slots(prefix: string): Promise<string[]> {
+        const rows = await this.database.execute(sql`
+            SELECT name FROM ${sql.relation(LOG_SLOT)}
+            WHERE substr(name, 1, ${prefix.length}) = ${prefix}
+            ORDER BY name
+        `);
+
+        return rows.map((row) => SlotNameRow.parse(row).name);
     }
 
     /** Move a consumer's slot from the position it read to another. */

@@ -1,7 +1,9 @@
 import { defineSchema, schema } from "@destack/schema";
+import { DatabaseError } from "../error/error.ts";
+import type { DriverValue } from "../table/column.ts";
 
-/** Driver values as JSON, keeping signed 64-bit integers and bytes exact. */
-export const SQLValue = defineSchema(
+/** The schema of driver values as JSON, keeping signed 64-bit integers and bytes exact. */
+const sqlValueSchema = defineSchema(
     schema.union([
         schema.string(),
         schema.number(),
@@ -11,8 +13,45 @@ export const SQLValue = defineSchema(
         schema.object({ bytes: schema.base64() }),
     ]),
 );
-/** A driver value as JSON carries it. */
-export type SQLValue = schema.Infer<typeof SQLValue>;
+/** A driver value in JSON form. */
+export type SQLValue = schema.Infer<typeof sqlValueSchema>;
+
+/** Driver values as JSON, keeping signed 64-bit integers and bytes exact. */
+export const SQLValue = Object.assign(sqlValueSchema, {
+    /** Write a driver value, or bytes a driver returns, in JSON form. */
+    fromDriver(value: unknown): SQLValue {
+        // keep scalars JSON writes exactly
+        if (
+            value === null ||
+            typeof value === "string" ||
+            typeof value === "number" ||
+            typeof value === "boolean"
+        ) {
+            return value;
+        }
+        // tag integers and bytes
+        else if (typeof value === "bigint") {
+            return { integer: value.toString() };
+        } else if (value instanceof Uint8Array || value instanceof ArrayBuffer) {
+            return { bytes: new Uint8Array(value).toBase64() };
+        }
+
+        throw new DatabaseError(
+            "INVALID_QUERY",
+            `a ${typeof value} has no JSON form: SQL values are text, numbers, booleans, integers, bytes or null`,
+        );
+    },
+
+    /** Read a driver value from its JSON form. */
+    toDriver(value: SQLValue): DriverValue {
+        // untag integers and bytes
+        if (value !== null && typeof value === "object") {
+            return "integer" in value ? BigInt(value.integer) : Uint8Array.fromBase64(value.bytes);
+        }
+
+        return value;
+    },
+});
 
 /** One SQL statement with its positional parameters. */
 export const SQLStatement = defineSchema(
@@ -25,19 +64,3 @@ export const SQLStatement = defineSchema(
 );
 /** One SQL statement with its positional parameters. */
 export type SQLStatement = schema.Infer<typeof SQLStatement>;
-
-/** A statement's returned rows in column order with duplicate names, and its changed rows. */
-export const SQLResult = defineSchema(
-    schema.object({
-        /** The column names in result order. */
-        columns: schema.array(schema.string()),
-        /** The cells in matching column order. */
-        rows: schema.array(schema.array(SQLValue)),
-        /** Whether the server's row or byte limit stopped collecting rows. */
-        truncated: schema.boolean(),
-        /** The rows the statement inserted, updated or deleted. */
-        changed: schema.number().int().min(0),
-    }),
-);
-/** The rows a statement returned and the rows it changed. */
-export type SQLResult = schema.Infer<typeof SQLResult>;

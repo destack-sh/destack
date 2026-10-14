@@ -12,6 +12,7 @@ import type { Column, DriverValue } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
 import type { Dialect } from "../dialect/dialect.ts";
+import { DatabaseError } from "../error/error.ts";
 
 /** A statement rendered once per dialect and namespace and run with named values. */
 export class Statement {
@@ -90,13 +91,21 @@ export function elementValue(column: Column, index: number, dialect: Dialect): S
           })
         : sql`wanted.value ->> ${position}`;
     const type = column.definition.types.postgresql;
+    const isBinary = column.definition.kind === "binary";
 
+    // refuse SQLite bytes, which SQLite cannot decode from their base64 JSON form
+    if (dialect === "sqlite" && isBinary) {
+        throw new DatabaseError(
+            "INVALID_QUERY",
+            `SQLite reads no bytes from JSON: ${column.definition.name} is binary`,
+        );
+    }
     // read SQLite values and PostgreSQL text as they are
-    if (dialect === "sqlite" || type === "text") {
+    else if (dialect === "sqlite" || type === "text") {
         return element;
     }
     // decode PostgreSQL bytes from base64
-    else if (column.definition.kind === "binary") {
+    else if (isBinary) {
         return sql`decode(${element}, 'base64')`;
     }
     // cast any other PostgreSQL value from its text or JSON

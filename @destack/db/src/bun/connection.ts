@@ -33,7 +33,7 @@ export async function connectBunSqlite<
             }
         }
 
-        // reach the database's other connections on the given channels, or none as the sole writer
+        // connect to the database's other connections on the given channels, or to none as the only writer
         const { openChannel } = options;
 
         return new SqliteDatabase(new BunClient(database), tables, "embedded", openChannel);

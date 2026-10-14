@@ -17,7 +17,7 @@ const ORDERED_KINDS: ReadonlyMap<ColumnKind, "text" | "number" | "boolean"> = ne
     ["bigint", "number"],
 ]);
 
-/** The most keys one order and each of its keyset cursors hold, where orders use one to four. */
+/** The most keys one order and each of its keyset cursors have, where orders use one to four. */
 const ORDER_KEYS = 16;
 
 /** The direction a field sorts in, missing values lowest either way. */

@@ -13,7 +13,7 @@ import { Table } from "../table/table.ts";
 export class BunSqliteDatabaseHost implements DatabaseHost {
     /** The provider code of SQLite files. */
     readonly provider: string = "sqlite";
-    /** The directory URL holding a folder per space. */
+    /** The directory URL with a folder per space. */
     readonly root: URL;
 
     /** Keep databases below a file directory URL. */

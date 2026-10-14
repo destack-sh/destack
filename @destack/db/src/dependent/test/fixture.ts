@@ -1,6 +1,6 @@
 import { defineTable, text } from "../../index.ts";
 
-/** Remarks naming their subject's type and identifier. */
+/** Remarks with their subject's type and identifier. */
 export const remark = defineTable("dependent_remark", {
     /** The remark's identifier. */
     id: text("id").primaryKey(),

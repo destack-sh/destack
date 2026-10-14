@@ -1,8 +1,11 @@
-import { CHAIN_TERMS, asc } from "../sql/index.ts";
+import { asc } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { integer, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
+
+/** The counters one upsert writes and one remove deletes. */
+const COUNTERS = 201;
 
 /** Counters by owner and name. */
 const counter = defineTable(
@@ -33,7 +36,7 @@ function counters(count: number, value: number) {
 }
 
 test.for(TEST_DIALECTS)(
-    "upsert rows as they are and remove them by key across several statements on %s",
+    "upsert rows as they are and remove them by key in one statement on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, [counter], { isMigrated: true });
         onTestFinished(() => storage.close());
@@ -41,23 +44,22 @@ test.for(TEST_DIALECTS)(
         const read = () =>
             database.select().from(counter).orderBy(asc(counter.owner), asc(counter.name));
 
-        // insert and update more rows than one key chain matches
-        const count = 2 * CHAIN_TERMS + 1;
-        await database.upsert(counter, counters(count, 1));
+        // insert and update the counters
+        await database.upsert(counter, counters(COUNTERS, 1));
         const inserted = await database.log.position();
         const bob = { scope: "s", owner: "bob", name: "c0000", value: 7 };
-        await database.upsert(counter, [...counters(count, 2), bob]);
+        await database.upsert(counter, [...counters(COUNTERS, 2), bob]);
         const page = await database.log.read({ tables: [counter], after: inserted.sequence });
         expect([
             (await read()).map((row) => row.value),
             page.changes.map((change) => change.operation).toSorted(),
         ]).toEqual([
-            [...counters(count, 2).map(() => 2), 7],
-            [...counters(count, 2).map(() => "update"), "insert"].toSorted(),
+            [...counters(COUNTERS, 2).map(() => 2), 7],
+            [...counters(COUNTERS, 2).map(() => "update"), "insert"].toSorted(),
         ]);
 
-        // remove every row but one across several chains
-        await database.remove(counter, counters(count, 0));
+        // remove every row but one
+        await database.remove(counter, counters(COUNTERS, 0));
         expect(await read()).toEqual([bob]);
     },
 );

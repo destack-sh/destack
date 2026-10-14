@@ -31,6 +31,17 @@ export interface DurableObjectStorage {
 /** The most parameters Durable Object SQLite storage binds to a statement, as Cloudflare limits. */
 const MAX_PARAMETERS = 100;
 
+/** The largest integer a number keeps exact, 2^53 - 1. */
+const MAX_EXACT = BigInt(Number.MAX_SAFE_INTEGER);
+
+/** The rows a statement returned and the rows it wrote. */
+export interface StatementRows<Rows extends unknown[] = unknown[]> {
+    /** The returned rows. */
+    readonly rows: Rows;
+    /** The rows the statement wrote. */
+    readonly rowsWritten: number;
+}
+
 /** How a client's statements run: behind the storage's queue, or in one open transaction. */
 export type DurableObjectMode =
     | { readonly kind: "queued" }
@@ -56,16 +67,28 @@ export class DurableObjectQuery implements SqliteQueryClient {
 
     /** Read every row as an array of values, integers as the storage returns them. */
     values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
-        return this.#schedule(async () =>
-            this.#read(this.#exec(sql, parameters), (cursor) => [...cursor.raw()]),
+        return this.#schedule(
+            async () => this.#read(this.#exec(sql, parameters), (cursor) => [...cursor.raw()]).rows,
         );
     }
 
     /** Read every row by column name. */
     all(sql: string, parameters: readonly DriverValue[]): Promise<unknown[]> {
-        return this.#schedule(async () =>
-            this.#read(this.#exec(sql, parameters), (cursor) => cursor.toArray()),
+        return this.#schedule(
+            async () => this.#read(this.#exec(sql, parameters), (cursor) => cursor.toArray()).rows,
         );
+    }
+
+    /** Read every row in a form, with the rows the statement wrote. */
+    read(
+        sql: string,
+        parameters: readonly DriverValue[],
+        rows: "values" | "objects",
+    ): Promise<StatementRows> {
+        const read: (cursor: DurableObjectCursor) => unknown[] =
+            rows === "values" ? (cursor) => [...cursor.raw()] : (cursor) => cursor.toArray();
+
+        return this.#schedule(async () => this.#read(this.#exec(sql, parameters), read));
     }
 
     /** Run a statement for its effect. */
@@ -92,19 +115,33 @@ export class DurableObjectQuery implements SqliteQueryClient {
         return this.storage.transaction(() => operation(this));
     }
 
-    /** Execute a statement, inlining its values when it binds more than the storage takes. */
+    /** Execute a statement, inlining its values when the storage cannot bind them all. */
     #exec(sql: string, parameters: readonly DriverValue[]): DurableObjectCursor {
-        return parameters.length <= MAX_PARAMETERS
-            ? this.storage.sql.exec(sql, ...parameters)
-            : this.storage.sql.exec(inlined(sql, parameters));
+        // bind exact integers as numbers, since the storage binds no bigints
+        const values = parameters.map((value) =>
+            typeof value === "bigint" && value >= -MAX_EXACT && value <= MAX_EXACT
+                ? Number(value)
+                : value,
+        );
+
+        // inline more values than the storage binds, or an integer past a number's exact range
+        const isBound =
+            values.length <= MAX_PARAMETERS && values.every((value) => typeof value !== "bigint");
+
+        return isBound
+            ? this.storage.sql.exec(sql, ...values)
+            : this.storage.sql.exec(inlined(sql, values));
     }
 
     /** Read a statement's rows, then count the rows it read and wrote. */
-    #read<Rows>(cursor: DurableObjectCursor, read: (cursor: DurableObjectCursor) => Rows): Rows {
+    #read<Rows extends unknown[]>(
+        cursor: DurableObjectCursor,
+        read: (cursor: DurableObjectCursor) => Rows,
+    ): StatementRows<Rows> {
         const rows = read(cursor);
         this.host.count(cursor);
 
-        return rows;
+        return { rows, rowsWritten: cursor.rowsWritten };
     }
 
     /** Run work behind the queue, or at once in the open transaction of a joined client. */
@@ -190,5 +227,5 @@ function literalOf(value: DriverValue | undefined): string {
         return `X'${value.toHex()}'`;
     }
 
-    throw new TypeError("a statement numbers a marker it binds no value for");
+    throw new TypeError("a statement has a numbered marker without a bound value");
 }
