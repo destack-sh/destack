@@ -118,3 +118,43 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
         },
     ]);
 });
+
+test("post each signal below a target's endpoint through the target's fetch", async () => {
+    // record each request the target's fetch posts
+    const posted: { url: string; method: string | undefined; type: string | null }[] = [];
+    const exporter = OtlpExporter.http(
+        {
+            endpoint: "http://machine.test/observability",
+            fetch: async (url, options) => {
+                posted.push({
+                    url,
+                    method: options.method,
+                    type: new Headers(options.headers).get("content-type"),
+                });
+
+                return new Response(null, { status: 200 });
+            },
+        },
+        (error) => {
+            throw error;
+        },
+    );
+    const telemetry = await startTelemetry(exporter.options(source));
+
+    // log once and export it
+    try {
+        telemetry.scope(source).log.info("note.saved", { length: 5 });
+        await telemetry.flush();
+    } finally {
+        await telemetry.shutdown();
+    }
+
+    // post the logs below the endpoint as OTLP/JSON
+    expect(posted).toEqual([
+        {
+            url: "http://machine.test/observability/v1/logs",
+            method: "POST",
+            type: "application/json",
+        },
+    ]);
+});

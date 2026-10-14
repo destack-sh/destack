@@ -81,6 +81,18 @@ export interface OtlpReceiver {
     receive(emitter: OtlpEmitter, signal: OtlpSignal, body: unknown): Promise<void>;
 }
 
+/** Where an exporter posts OTLP/HTTP requests, as OpenTelemetry's endpoint and headers. */
+export interface OtlpTarget {
+    /** The base URL each signal posts below at `/v1/<signal>`, as OTEL_EXPORTER_OTLP_ENDPOINT. */
+    readonly endpoint: string;
+    /** Read the headers of each request, such as a current authorization. */
+    readonly headers?: () => Record<string, string>;
+    /** Whether a request outlives its page, as a page's exports must when it hides. */
+    readonly isKeepalive?: boolean;
+    /** Send a request, `fetch` by default, or a local client such as a machine's. */
+    readonly fetch?: (url: string, options: RequestInit) => Promise<Response>;
+}
+
 /** Deliver one OTLP/JSON export request of a signal, rejecting a refused delivery. */
 export type OtlpSend = (signal: OtlpSignal, body: Uint8Array) => Promise<void>;
 
@@ -128,31 +140,9 @@ export class OtlpExporter {
         this.#report = report;
     }
 
-    /** Export over OTLP/HTTP to an endpoint with a current authorization header. */
-    static http(
-        endpoint: string,
-        authorization: () => string,
-        report: (error: Error) => void,
-    ): OtlpExporter {
-        return new OtlpExporter(
-            (signal, body) =>
-                post(fetch, `${endpoint}/v1/${signal}`, signal, body, {
-                    headers: { authorization: authorization() },
-                }),
-            report,
-        );
-    }
-
-    /** Export a page's signals over OTLP/HTTP to its own origin, as its session. */
-    static origin(
-        report: (error: Error) => void,
-        send: (url: string, options: RequestInit) => Promise<Response> = fetch,
-    ): OtlpExporter {
-        return new OtlpExporter(
-            (signal, body) =>
-                post(send, `${OTLP_ORIGIN_PATH}/v1/${signal}`, signal, body, { keepalive: true }),
-            report,
-        );
+    /** Export over OTLP/HTTP below a target's endpoint, each signal at its `/v1/<signal>` path. */
+    static http(target: OtlpTarget, report: (error: Error) => void): OtlpExporter {
+        return new OtlpExporter((signal, body) => post(target, signal, body), report);
     }
 
     /** Build telemetry options that sample an owner's traces. */
@@ -220,14 +210,8 @@ export class OtlpExporter {
     }
 }
 
-/** Post one OTLP/JSON request of a signal. */
-async function post(
-    send: (url: string, options: RequestInit) => Promise<Response>,
-    url: string,
-    signal: OtlpSignal,
-    body: Uint8Array,
-    delivery: { readonly headers?: Record<string, string>; readonly keepalive?: boolean },
-): Promise<void> {
+/** Post one OTLP/JSON request of a signal to its path below a target. */
+async function post(target: OtlpTarget, signal: OtlpSignal, body: Uint8Array): Promise<void> {
     // view the serialized bytes over their ArrayBuffer
     const buffer = body.buffer;
     if (!(buffer instanceof ArrayBuffer)) {
@@ -236,11 +220,12 @@ async function post(
     const bytes = new Uint8Array(buffer, body.byteOffset, body.byteLength);
 
     // post the request to the signal's path
-    const response = await send(url, {
+    const send = target.fetch ?? fetch;
+    const response = await send(`${target.endpoint}/v1/${signal}`, {
         method: "POST",
-        headers: { "content-type": "application/json", ...delivery.headers },
+        headers: { "content-type": "application/json", ...target.headers?.() },
         body: bytes,
-        ...(delivery.keepalive === undefined ? {} : { keepalive: delivery.keepalive }),
+        ...(target.isKeepalive === true ? { keepalive: true } : {}),
     });
 
     // refuse a delivery the endpoint refused

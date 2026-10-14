@@ -31,18 +31,29 @@ telemetry.startSession(); // a handled exception marks it errored, an escaped on
 
 ## Export
 
-`OtlpExporter.http` exports every signal as OTLP/JSON naming only the service and its release, and the receiver at the instance's host stamps the scope, installation, instance and build it verified.
+`OtlpExporter.http` exports every signal as OTLP/JSON below an endpoint, naming only the service and its release, and the receiver at the instance's host stamps the scope, installation, instance and build it verified.
 
 ```ts
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 
+// a workload's signals to its host, under the runner's secret
 const exporter = OtlpExporter.http(
-    new URL(OTLP_ORIGIN_PATH, start.egress).href,
-    () => `Bearer ${start.secret}`,
+    {
+        endpoint: new URL(OTLP_ORIGIN_PATH, start.egress).href,
+        headers: () => ({ authorization: `Bearer ${start.secret}` }),
+    },
     report,
 );
-// a page's signals to /.destack/telemetry on its origin
-const browser = OtlpExporter.origin(reportToDevtools);
+// a page's signals to /.destack/telemetry on its origin, outliving the page
+const browser = OtlpExporter.http(
+    { endpoint: OTLP_ORIGIN_PATH, isKeepalive: true },
+    reportToDevtools,
+);
+// the desktop's signals to its machine's observability package, through the machine's loopback client
+const desktop = OtlpExporter.http(
+    { endpoint: intake, fetch: (url, options) => Endpoint.send(home, new Request(url, options)) },
+    report,
+);
 ```
 
 ## Trace identifiers

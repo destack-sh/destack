@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
-import { OtlpExporter } from "../otlp/index.ts";
+import { OTLP_ORIGIN_PATH, OtlpExporter } from "../otlp/index.ts";
 import { startTelemetry } from "./browser.ts";
 
 /** The instrumented package. */
@@ -138,9 +138,12 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
 
     // start the page's telemetry on its window
     const page = new PageWindow();
-    const exporter = OtlpExporter.origin((error) => {
-        throw error;
-    }, send);
+    const exporter = OtlpExporter.http(
+        { endpoint: OTLP_ORIGIN_PATH, isKeepalive: true, fetch: send },
+        (error) => {
+            throw error;
+        },
+    );
     const telemetry = await startTelemetry(exporter.options(source), page);
     try {
         // fail with an uncaught error and with an unhandled rejection
