@@ -10,7 +10,7 @@ import {
 import type { DependencyResolution } from "@destack/package";
 import type { Plugin } from "@destack/package/build";
 import { runtimeConditions } from "@destack/package/build";
-import { PackageLocator } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/locator";
 import { modulePlugin } from "@destack/package/vite";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
 import { entryPlugin } from "./entry.ts";
