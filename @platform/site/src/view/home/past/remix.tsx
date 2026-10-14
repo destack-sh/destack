@@ -935,11 +935,11 @@ export function Remix(properties: {
                     const own = calls.filter((call) => call.id === card.id);
                     own.forEach((call) => {
                         // find the service cell, or skip a service its band does not show
-                        const service = item(call.service);
+                        const service = item(call.self);
                         if (!service) {
                             return;
                         }
-                        const key = `drop:${card.id}:${call.service}`;
+                        const key = `drop:${card.id}:${call.self}`;
                         kept.add(key);
                         const place = places.get(card.id);
                         const anchor = {

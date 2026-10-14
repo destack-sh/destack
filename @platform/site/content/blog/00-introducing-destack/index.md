@@ -5,26 +5,26 @@ date: "2026-10-19"
 author: "Florian"
 ---
 
-Software is entering its Cambrian Explosion, and - it is worth remembering - that means most specimen will go extinct, and the survivors will look very different.
-Both products and processes will evolve under intense competition, with free migrations enabling the full exploration of the space of all possible software - until a new optima is found.
+Software is entering its Cambrian Explosion, and - it is worth remembering - that means most specimen will go extinct, and the survivors will look rather different.
+Both products and processes will undergo intense evolutionary pressure, with fast migrations enabling the full exploration of the space of all possible software until a new optimum emerges.
 
 :::figure width="600" src="./cambrian-sea.jpg" alt="Illustration of a Cambrian ecosystem, with Kylinxia, trilobites, worms, and colourful sponges beneath deep blue water."
 [Cambrian marine life](https://www.eurekalert.org/multimedia/686747) — Huang Diying, Chinese Academy of Sciences.
 :::
 
 The contemporary stack is architecturally broken:
-We have a thousand little software silos, each with their own slightly incompatible slice of the stack with its own terms and standards.
-The "stack" was never really designed, and never re-designed; it's an evolved mosaic of different technologies and services where nothing _quite_ fits together. 
+We have a thousand little software silos, each with their own slightly incompatible slice of the stack with its own terms and standards and formats.
+The "stack" was never really designed, and certainly never re-designed; it's an evolved mosaic of different technologies and services where nothing _quite_ fits together. 
 
-Now, the technical debt accumulated over decades of organic software growth is coming due.
+Today, the technical debt accumulated over decades of organic software growth is coming due.
 Probabilistic computing is finally here and we _could_ infuse AI into all software, but we can't, because software is stuck on an opaque stack that rejects integration and modification at every layer.
-Instead, we get "APIs" and "MCPs".
+Instead, we got "APIs" and now "MCPs".
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
 > — Edsger Dijkstra, *The Humble Programmer* (1972)
 
-The familiar features that make modern software "modern" - APIs, SaaS, multiplayer, multi-vendor, multi-cloud, heterogenous stacks - also make it hostile to agents. 
+The familiar features that make modern software "modern" - SaaS, multiplayer, multi-vendor, multi-cloud, heterogeneity - also make it hostile to agents. 
 Our new class of machine user requires the broadest possible access to the entire software stack, with as many degrees of freedom as we can safely provide, up and down and left and right. 
 
 So, half a century after the last software crisis, the computing stack is once again buckling under the weight, volume and speed of a more powerful machine.
