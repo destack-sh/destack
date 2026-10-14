@@ -56,6 +56,7 @@ export class Storage {
         this.reader = release(declarations);
         this.catalog = SettingCatalog.cached(() => this.reader);
         this.objects = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
             objects: [implementSetting({ declared: this.catalog, after: [] })],
