@@ -1,1 +1,1 @@
-export * from "./comment.ts";
+export { default } from "./server.ts";

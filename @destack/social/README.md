@@ -1,25 +1,6 @@
 # @destack/social
 
-`@destack/social` is Liveblocks' comments, reactions, presence and inbox notifications as object types any object attaches: `comment` threads with mentions and text anchors, resolved like a Liveblocks thread, plus `reaction`, `receipt`, `favourite` and `presence`.
-
-```ts
-attachments: [
-    comment.attach({ by: "comment" }),
-    reaction.attach({ by: "comment" }),
-    presence.attach({ by: "read" }),
-]; // a Liveblocks room's features
-client
-    .mutate(comment)
-    // createThread with a mention
-    .create({ parent, body: { text: "@bob, shorten this", mentions }, selection });
-// createComment
-client.mutate(comment).create({ parent, body: { text: "Done", mentions: [] }, threadId });
-client.mutate(comment).resolve({ id: threadId }); // markThreadAsResolved
-```
-
-## Attachments
-
-`attach` adds a social type to an object type under a permission, and counts such as `commentCount` keep its totals.
+`@destack/social` adds comments, reactions, read receipts, favourites and presence to any object type.
 
 ```ts
 export const article = defineObject({
@@ -27,36 +8,46 @@ export const article = defineObject({
     plural: "articles",
     scope: space,
     fields: { title: field.string(schema.string().min(1)), commentCount: field.count() },
-    shareable: {},
     attachments: [
         comment.attach({ by: "comment" }),
+        reaction.attach({ by: "comment" }),
         receipt.attach({ by: "read" }),
         favourite.attach({ by: "read" }),
+        presence.attach({ by: "read" }),
     ],
-}).methods((method) => ({ get: method.get("read"), list: method.list("read") }));
+}).methods((method) => ({ create: method.create("manage") }));
 ```
 
-## Notifications
+## Comments
 
-`comment` from `@destack/social/server` sends the `mention`, `thread` and `reply` notifications through `@destack/notification`.
+A comment starts a thread on its parent or replies in one, mentions principals at spans of its text, and its thread is resolved and reopened through the first comment.
 
 ```ts
-import { comment } from "@destack/social/server";
+const thread = await client
+    .mutate(comment)
+    .create({ parent, body: { text: "Shorten this", mentions } }).confirmed;
+await client
+    .mutate(comment)
+    .create({ parent, body: { text: "Done", mentions: [] }, threadId: thread.id });
+await client.mutate(comment).resolve({ id: thread.id });
+```
 
-const objects = {
-    ...serveActivities({ notifications: [mention, thread, reply] }),
-    comment,
-    reaction,
-    subscription,
-};
+## Server
+
+The package's server, its default export of `./server`, implements comments that send the `mention`, `thread` and `reply` notifications.
+
+```ts
+import socialServer from "@destack/social/server";
+
+const { store } = ObjectExtension.compose([socialServer, notificationServer], options);
 ```
 
 ## Tables
 
-`socialTables` lists the comment, reaction, receipt and favourite tables a space database includes.
+`socialTables` lists the tables of comments, reactions, receipts and favourites.
 
 ```ts
 import { socialTables } from "@destack/social/stack";
 
-const space = defineDatabase({ name: "space", tables: [...socialTables, journal] });
+const database = defineDatabase({ name: "main", tables: socialTables });
 ```

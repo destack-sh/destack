@@ -30,7 +30,6 @@ export const reaction = defineObject({
         },
     },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
     delete: method.delete("write"),
 }));

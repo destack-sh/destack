@@ -70,12 +70,12 @@ test.for(TEST_DIALECTS)(
         await call(presence, "delete", { id: editing.id });
         expect(await rows(bob)).toEqual([[Subject.key(actors.bob), "viewing", null, false]]);
 
-        // refuse a second presence of one principal's writer, and let another principal copy the writer only for its own row
+        // refuse a second presence of one principal's writer, and let another principal reuse the writer only for its own row
         as("bob");
         expect(
             await refusal(call(presence, "create", { ...host(article, draft.id), status: "idle" })),
         ).toEqual(["CONFLICT", "another presence has the same parent, principal, and writerId"]);
-        const copied = await call(presence, "create", {
+        const reused = await call(presence, "create", {
             ...host(article, draft.id),
             status: "idle",
             writerId: "writer-alice",
@@ -86,7 +86,7 @@ test.for(TEST_DIALECTS)(
         ]);
         as("alice");
         expect(
-            await refusal(call(presence, "update", { id: copied.id, status: "editing" })),
+            await refusal(call(presence, "update", { id: reused.id, status: "editing" })),
         ).toEqual(["FORBIDDEN", "permission denied: write"]);
     },
 );

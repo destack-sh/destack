@@ -34,8 +34,6 @@ export const article = defineObject({
     ],
 })
     .methods((method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
         create: method.create("manage"),
         update: method.update("edit", { fields: ["title"] }),
         delete: method.delete("manage"),

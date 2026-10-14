@@ -18,8 +18,8 @@ export const receipt = defineObject({
         owner: { kind: "unique", on: ["parentPackageId", "parentType", "parentId", "owner"] },
     },
 }).methods((method) => ({
-    list: method.list("own"),
     create: method.create("own"),
+    list: method.list("own"),
     update: method.update("own"),
     delete: method.delete("own"),
 }));

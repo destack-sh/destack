@@ -10,7 +10,7 @@ import { type Actor, actors, serveArticles } from "./fixture/server.ts";
 test.for(TEST_DIALECTS)(
     "record activities for mentioned principals, announce threads and replies to their subscribers, and answer a mention with a reply, on %s",
     async (dialect) => {
-        const { call, list, host, as, expand } = await serveArticles(dialect);
+        const { call, list, host, as, expand, send } = await serveArticles(dialect);
         const activities = async (actor: Actor) => {
             as(actor);
 
@@ -110,9 +110,41 @@ test.for(TEST_DIALECTS)(
             action: "reply",
             text: "Shipping",
         });
+        await send();
         const replies = (await list(comment))
             .filter((row) => row.threadId === first.id)
             .map((row) => [row.author, Body.parse(row.body).text]);
         expect(replies.at(-1)).toEqual([Subject.key(actors.bob), "Shipping"]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "notify a principal mentioned twice in one comment once, and answer a reply with the reply it creates, on %s",
+    async (dialect) => {
+        const { call, list, host, as, expand } = await serveArticles(dialect);
+
+        // share an article with a commenter, and mention them twice in one comment
+        const draft = await call(article, "create", { title: "Launch plan" });
+        await call(article, "grant", { id: draft.id, relation: "commenter", subject: actors.bob });
+        const first = await call(comment, "create", {
+            ...host(article, draft.id),
+            body: {
+                text: "@bob, @bob: tighten the intro",
+                mentions: [
+                    { offset: 0, length: 4, principal: actors.bob },
+                    { offset: 6, length: 4, principal: actors.bob },
+                ],
+            },
+        });
+        await expand();
+
+        // give bob one mention activity
+        as("bob");
+        const mentions = (await list(activity)).filter((row) => row.name === "mention");
+        expect(mentions.length).toBe(1);
+
+        // reply in the thread, answered with the new reply and not the thread's first comment
+        const replied = await call(comment, "reply", { id: first.id, text: "Done" });
+        expect([replied.threadId, Body.parse(replied.body).text]).toEqual([first.id, "Done"]);
     },
 );

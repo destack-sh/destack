@@ -33,7 +33,6 @@ export const presence = defineObject({
         },
     },
 }).methods((method) => ({
-    list: method.list("read"),
     create: method.create("write"),
     update: method.update("write"),
     delete: method.delete("write"),
