@@ -412,6 +412,19 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return encodeRow(this.entries, this.conceal(row, concealed));
     }
 
+    /** Keep a row's logged columns, as log readers see it. */
+    image(row: Row): Row {
+        // pass the row on when the table logs every column
+        const logged = this.logged;
+        if (Object.keys(logged).length === this.entries.length) {
+            return row;
+        }
+
+        return Object.fromEntries(
+            Object.entries(row).filter(([property]) => Object.hasOwn(logged, property)),
+        );
+    }
+
     /** Write a row's logged columns as JSON without concealed ones, as log readers see it. */
     encodeLogged(row: Row, concealed: readonly string[]): Record<string, JsonValue> {
         return encodeRow(Object.entries(this.logged), this.conceal(row, concealed));

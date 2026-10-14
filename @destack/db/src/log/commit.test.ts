@@ -48,6 +48,20 @@ const label = defineTable(
     },
 );
 
+/** Tokens in folders, with a sensitive secret. */
+const token = defineTable(
+    "commit_token",
+    {
+        /** The token's key. */
+        id: text("id").primaryKey(),
+        /** The folder the token lives in. */
+        scope: text("scope").notNull(),
+        /** The secret, kept out of the log. */
+        secret: text("secret").notNull().sensitive(),
+    },
+    { log: {} },
+);
+
 /** Pins a person keeps, unique by the person and the place they pin. */
 const pin = defineTable(
     "commit_pin",
@@ -241,6 +255,37 @@ test.each(TEST_DIALECTS)(
         });
     },
 );
+
+test("keep only logged columns in a transaction's images and its view, committed or written", async () => {
+    const storage = await TestDatabase.create("sqlite", [token], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await storage.database.insert(token).values({ id: "a", scope: "inbox", secret: "first" });
+
+    // write a second token, then read both as images and through the view
+    const transaction = await Transaction.open(storage.database);
+    await transaction.write({
+        table: token,
+        before: null,
+        after: { id: "b", scope: "inbox", secret: "second" },
+    });
+    const seen = {
+        image: await transaction.image(token, { id: "a" }),
+        images: await transaction.images(token, { scope: "inbox" }, { orderBy: { id: "asc" } }),
+        view: await transaction.view().rows(token, { scope: "inbox" }),
+    };
+
+    expect(seen).toEqual({
+        image: { id: "a", scope: "inbox" },
+        images: [
+            { id: "a", scope: "inbox" },
+            { id: "b", scope: "inbox" },
+        ],
+        view: [
+            { id: "a", scope: "inbox" },
+            { id: "b", scope: "inbox" },
+        ],
+    });
+});
 
 test("drop a failed step's writes and records as a savepoint does, keeping the writes before it", async () => {
     const { database } = await open("sqlite");

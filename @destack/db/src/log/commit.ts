@@ -160,7 +160,8 @@ export class ChangeSet {
             for (const change of this.#rows.values()) {
                 const image = change.after ?? change.before;
                 if (change.table[TABLE].sqlName === name && image !== null) {
-                    keyed.set(Key.name(change.table, image), change.after);
+                    const after = change.after === null ? null : table[TABLE].image(change.after);
+                    keyed.set(Key.name(change.table, image), after);
                 }
             }
 
@@ -641,7 +642,7 @@ export class Transaction {
         this.reads.image(table, key);
         const row = await this.#row(table, key);
 
-        return row === null ? null : aligned(images<Definition>([row]), 0);
+        return row === null ? null : aligned(images(table, [row]), 0);
     }
 
     /** Read matching rows' logged columns with the transaction's writes, ordered and bounded. */
@@ -652,7 +653,8 @@ export class Transaction {
     ): Promise<RowImage<Definition>[]> {
         this.reads.images(table, where);
 
-        return images<Definition>(
+        return images(
+            table,
             await this.#rows(table, Condition.resolve(where, Namespace.fields(table)), options),
         );
     }
@@ -860,15 +862,18 @@ function selected(rows: readonly Row[]): Row[] {
     return [...rows];
 }
 
-/** Type whole rows of a table as its logged records, which keep a subset of their columns. */
-function images<Definition extends Table>(rows: readonly Row[]): (RowImage<Definition> & Row)[];
+/** Keep the logged columns of a table's whole rows, as its logged records. */
+function images<Definition extends Table>(
+    table: Definition,
+    rows: readonly Row[],
+): (RowImage<Definition> & Row)[];
 /**
- * Pass the rows on, whose columns include every logged column of their table.
+ * Keep each row's logged columns.
  *
- * @construct every row is a whole row, and RowImage maps the table's logged columns, a subset.
+ * @construct every row is a whole row, and RowImage maps the table's logged columns.
  */
-function images(rows: readonly Row[]): Row[] {
-    return [...rows];
+function images(table: Table, rows: readonly Row[]): Row[] {
+    return rows.map((row) => table[TABLE].image(row));
 }
 
 /** What a read took: a whole row, or the logged image change readers see. */
