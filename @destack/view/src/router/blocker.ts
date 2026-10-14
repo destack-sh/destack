@@ -44,7 +44,7 @@ export function useBlocker(shouldBlock: boolean | BlockerFunction): Blocker {
                 ? shouldBlock({
                       currentLocation: event.from,
                       nextLocation: event.to,
-                      historyAction: historyActionOf(event),
+                      historyAction: readHistoryAction(event),
                   })
                 : shouldBlock;
         if (!isBlocked || event.defaultPrevented) {
@@ -73,7 +73,7 @@ export function useBlocker(shouldBlock: boolean | BlockerFunction): Blocker {
 }
 
 /** Read how a navigation moves through history. */
-function historyActionOf(event: BeforeLeaveEventArgs): HistoryAction {
+function readHistoryAction(event: BeforeLeaveEventArgs): HistoryAction {
     if (typeof event.to === "number") {
         return "POP";
     } else if (event.options?.replace === true) {

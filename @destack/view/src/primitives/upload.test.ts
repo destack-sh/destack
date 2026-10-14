@@ -27,7 +27,7 @@ function file(name = "picture.png"): File {
 class StubFileList implements FileList {
     [index: number]: File;
 
-    /** How many files the list holds. */
+    /** How many files the list has. */
     readonly length: number;
 
     /** Hold the files by index. */
@@ -69,7 +69,7 @@ function choose(input: HTMLInputElement, files: FileList): void {
     input.dispatchEvent(new Event("change"));
 }
 
-/** Dispatch a drag event, carrying files on drop. */
+/** Dispatch a drag event, with files on drop. */
 function drag(target: EventTarget, type: string, files?: FileList): DragEvent {
     const event = new DragEvent(type, { bubbles: true, cancelable: true });
     if (files !== undefined) {

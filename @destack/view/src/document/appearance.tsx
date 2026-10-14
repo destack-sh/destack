@@ -21,7 +21,7 @@ export interface AppearanceOptions {
 
 /** Restore a visitor's stored appearance before the page paints. */
 export function AppearanceScript(properties: AppearanceOptions): JSX.Element {
-    // set the stored or default scheme on the root, keeping the system's when storage holds none or refuses
+    // set the stored or default scheme on the root, keeping the system's when storage has none or refuses
     const key = JSON.stringify(properties.storageKey ?? STORAGE_KEY);
     const fallback = JSON.stringify(properties.defaultAppearance ?? "system");
     const code = `try{const a=localStorage.getItem(${key})??${fallback};if(a==="light"||a==="dark")document.documentElement.style.colorScheme=a}catch{}`;
@@ -84,7 +84,7 @@ export function createColorScheme(element: Accessor<Element | undefined>): Acces
     const isDeviceDark = createPrefersDark();
     const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
     createMutationObserver(
-        () => rootsOf(element()),
+        () => findRoots(element()),
         { attributes: true, attributeFilter: ["style", "class"] },
         () => setMutations((count) => count + 1),
     );
@@ -105,7 +105,7 @@ export function createColorScheme(element: Accessor<Element | undefined>): Acces
 }
 
 /** List an element and the elements enclosing it, the theme roots that may set its scheme. */
-function rootsOf(element: Element | undefined): Element[] {
+function findRoots(element: Element | undefined): Element[] {
     const roots: Element[] = [];
     for (let root = element ?? null; root !== null; root = root.parentElement) {
         roots.push(root);

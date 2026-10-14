@@ -134,7 +134,7 @@ export function createInputMask(
 
     return (event) => {
         // mask the field's value and keep its selection
-        const field = fieldOf(event);
+        const field = readField(event);
         const [value, selection] = masked(field.value, [
             field.selectionStart ?? field.value.length,
             field.selectionEnd ?? field.value.length,
@@ -156,7 +156,7 @@ export function createMaskPattern<
     return (event) => {
         // mask the value, then find the element before the field
         const value = inputMask(event);
-        const label = fieldOf(event).previousElementSibling;
+        const label = readField(event).previousElementSibling;
         if (label === null) {
             throw new TypeError("a mask pattern needs an element right before its field");
         }
@@ -175,7 +175,7 @@ export function createMaskPattern<
 }
 
 /** Read the field an event happened on. */
-function fieldOf(event: EventLike): HTMLInputElement | HTMLTextAreaElement {
+function readField(event: EventLike): HTMLInputElement | HTMLTextAreaElement {
     const field = event.currentTarget ?? event.target;
     if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) {
         throw new TypeError("an input mask handles events of an input or a text area");

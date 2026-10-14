@@ -27,7 +27,9 @@ export async function renderOnServer(module: string): Promise<Record<string, str
         const render: unknown = Reflect.get(runtime, "renderToString");
         const create: unknown = Reflect.get(runtime, "createComponent");
         if (!isRenderer(render) || !isCreator(create)) {
-            throw new TypeError("the server runtime exports no renderToString or createComponent");
+            throw new TypeError(
+                "the server runtime has no renderToString or createComponent export",
+            );
         }
 
         // render each exported component in turn, past the exports the compiler adds
@@ -37,7 +39,7 @@ export async function renderOnServer(module: string): Promise<Record<string, str
                 continue;
             }
             if (!isFunction(component)) {
-                throw new TypeError(`${module} exports ${name}, which is no component`);
+                throw new TypeError(`${module} exports ${name}, which is not a component`);
             }
             rendered[name] = await render(() => create(component, {}));
         }

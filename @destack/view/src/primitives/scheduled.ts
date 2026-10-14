@@ -125,7 +125,7 @@ export function leading<Args extends unknown[]>(
     callback: (...args: Args) => void,
     wait?: number,
 ): Scheduled<Args> {
-    // run the first call alone on the server
+    // run only the first call on the server
     if (isServer) {
         return Object.assign(once(callback), { clear: () => {} });
     }
@@ -159,7 +159,7 @@ export function leadingAndTrailing<Args extends unknown[]>(
     callback: (...args: Args) => void,
     wait?: number,
 ): Scheduled<Args> {
-    // run the first call alone on the server
+    // run only the first call on the server
     if (isServer) {
         return Object.assign(once(callback), { clear: () => {} });
     }
@@ -225,7 +225,7 @@ export function createScheduled(schedule: (callback: () => void) => () => void):
     };
 }
 
-/** Wrap a callback to run on its first call alone. */
+/** Wrap a callback to run only on its first call. */
 function once<Args extends unknown[]>(callback: (...args: Args) => void): (...args: Args) => void {
     let isCalled = false;
 

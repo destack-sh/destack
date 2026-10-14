@@ -209,7 +209,7 @@ export function createPerPointerListeners(
                     (handler: Handler): void => {
                         if (!isInitial) {
                             throw new TypeError(
-                                "pointer listeners are added while the pointer's first event runs",
+                                "pointer listeners must be added while the pointer's first event runs",
                             );
                         }
                         if (type === "pointerleave") {
@@ -256,7 +256,7 @@ export function createPerPointerListeners(
                     (handler: Handler): void => {
                         if (!isInitial) {
                             throw new TypeError(
-                                "pointer listeners are added while the pointer's first event runs",
+                                "pointer listeners must be added while the pointer's first event runs",
                             );
                         }
                         register(handler);
@@ -468,11 +468,11 @@ function toState(event: PointerEvent): PointerState {
         width: event.width,
         height: event.height,
         twist: event.twist,
-        pointerType: pointerTypeOf(event.pointerType),
+        pointerType: parsePointerType(event.pointerType),
     };
 }
 
 /** Read a reported pointer kind, null for one the platform does not name. */
-function pointerTypeOf(type: string): PointerType | null {
+function parsePointerType(type: string): PointerType | null {
     return type === "mouse" || type === "touch" || type === "pen" ? type : null;
 }

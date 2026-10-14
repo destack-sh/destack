@@ -84,7 +84,7 @@ export function renderExample<Properties extends object>(
             createComponent(LocaleContext, {
                 value: localization,
                 get children() {
-                    return renderedOf(frame);
+                    return renderFrame(frame);
                 },
             }),
         container,
@@ -97,7 +97,7 @@ export function renderExample<Properties extends object>(
 }
 
 /** Render what an example shows. */
-function renderedOf<Properties extends object>(frame: ExampleFrame<Properties>): JSX.Element {
+function renderFrame<Properties extends object>(frame: ExampleFrame<Properties>): JSX.Element {
     const { example } = frame;
     if (example.of instanceof View) {
         return createComponent(ViewExample, { view: example.of, objects: example.objects });

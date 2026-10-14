@@ -66,7 +66,7 @@ class StubObserver implements IntersectionObserver {
 
     /** Report a change of every observed element. */
     change(change: Change = {}): void {
-        const entries = this.elements.map((target) => entryOf(target, change));
+        const entries = this.elements.map((target) => readEntry(target, change));
         this.onChange(entries, this);
     }
 }
@@ -83,7 +83,7 @@ afterAll(() => {
 });
 
 /** Build an element's entry for a change. */
-function entryOf(target: Element, change: Change): IntersectionObserverEntry {
+function readEntry(target: Element, change: Change): IntersectionObserverEntry {
     const rectangle = change.boundingClientRect ?? target.getBoundingClientRect();
 
     return {

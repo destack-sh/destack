@@ -14,7 +14,7 @@ export interface Options {
 
 /** Read and write one value of the URL's query as text. */
 export interface Parser<Value> {
-    /** Read a value from its text, null for text that names none. */
+    /** Read a value from its text, null for text without one. */
     parse(text: string): Value | null;
     /** Write a value as its text. */
     serialize(value: Value): string;
@@ -35,7 +35,7 @@ export class ParserBuilder<Value> implements Parser<Value> {
         this.options = options;
     }
 
-    /** Read a value from its text, null for text that names none. */
+    /** Read a value from its text, null for text without one. */
     parse(text: string): Value | null {
         return this.parser.parse(text);
     }
@@ -48,6 +48,16 @@ export class ParserBuilder<Value> implements Parser<Value> {
     /** Report whether two values are the same, which decides whether a value is its default. */
     eq(left: Value, right: Value): boolean {
         return this.parser.eq(left, right);
+    }
+
+    /** Read a query text's value, null for none or for text the parser refuses. */
+    read(text: string | undefined): Value | null {
+        return text === undefined ? null : this.parse(text);
+    }
+
+    /** Write a value as the text the query has for it, none for null. */
+    write(value: Value | null | undefined, _options: Options): string | undefined {
+        return value === null || value === undefined ? undefined : this.serialize(value);
     }
 
     /** Give the value a default, which reading answers in place of a missing or invalid value. */
@@ -70,6 +80,27 @@ export class ParserWithDefault<Value> extends ParserBuilder<Value> {
     constructor(parser: Parser<Value>, options: Options, defaultValue: Value) {
         super(parser, options);
         this.defaultValue = defaultValue;
+    }
+
+    /** Read a query text's value, the default for none or for text the parser refuses. */
+    override read(text: string | undefined): Value {
+        return super.read(text) ?? this.defaultValue;
+    }
+
+    /** Write a value as its query text, none for null or a default left out. */
+    override write(value: Value | null | undefined, options: Options): string | undefined {
+        // leave out a value at its default unless told to keep defaults
+        const isCleared = this.options.clearOnDefault ?? options.clearOnDefault ?? true;
+        if (
+            isCleared &&
+            value !== null &&
+            value !== undefined &&
+            this.eq(value, this.defaultValue)
+        ) {
+            return undefined;
+        }
+
+        return super.write(value, options);
     }
 
     /** Give the value the options setting it applies, keeping its default. */
@@ -148,7 +179,7 @@ export const parseAsInteger: ParserBuilder<number> = createParser({
     parse: (text) => (/^-?\d+$/u.test(text) ? Number(text) : null),
     serialize: (value) => {
         if (!Number.isInteger(value)) {
-            throw new RangeError(`${value} is no whole number`);
+            throw new RangeError(`${value} is not a whole number`);
         }
 
         return String(value);
@@ -170,7 +201,7 @@ export const parseAsHex: ParserBuilder<number> = createParser({
     parse: (text) => (/^[0-9a-f]+$/iu.test(text) ? Number.parseInt(text, 16) : null),
     serialize: (value) => {
         if (!Number.isInteger(value)) {
-            throw new RangeError(`${value} is no whole number`);
+            throw new RangeError(`${value} is not a whole number`);
         }
         const hex = value.toString(16);
 
@@ -186,14 +217,14 @@ export const parseAsBoolean: ParserBuilder<boolean> = createParser({
 
 /** Read a date as its calendar day, `2026-10-08`, refusing other text. */
 export const parseAsIsoDate: ParserBuilder<Date> = createParser({
-    parse: (text) => dateOf(/^\d{4}-\d{2}-\d{2}$/u.test(text) ? text : ""),
+    parse: (text) => parseDate(/^\d{4}-\d{2}-\d{2}$/u.test(text) ? text : ""),
     serialize: (value) => value.toISOString().slice(0, 10),
     eq: (left, right) => left.getTime() === right.getTime(),
 });
 
 /** Read an instant as its ISO 8601 date and time, refusing other text. */
 export const parseAsIsoDateTime: ParserBuilder<Date> = createParser({
-    parse: (text) => dateOf(text),
+    parse: (text) => parseDate(text),
     serialize: (value) => value.toISOString(),
     eq: (left, right) => left.getTime() === right.getTime(),
 });
@@ -260,7 +291,7 @@ export function parseAsJson<Value>(checked: schema.Schema<Value>): ParserBuilder
     return createParser({
         parse: (text) => {
             // read the JSON and check it
-            const parsed = checked.safeParse(jsonOf(text));
+            const parsed = checked.safeParse(parseJson(text));
 
             return parsed.success ? parsed.data : null;
         },
@@ -289,9 +320,9 @@ export function createSerializer(
     return (...args) => {
         // merge each written value over the base's query
         const [base, values] = args.length === 1 ? ["", args[0]] : args;
-        const query = new URLSearchParams(queryOf(base));
+        const query = new URLSearchParams(readQuery(base));
         for (const [key, text] of Object.entries(
-            textsOf(parsers, values ?? cleared(parsers), options),
+            writeUpdates(parsers, values ?? cleared(parsers), options),
         )) {
             if (text === undefined) {
                 query.delete(key);
@@ -322,7 +353,7 @@ export function createLoader<Built extends Parsers>(
     return (input) => {
         // read each key's texts from the address or query
         const query = new URLSearchParams(
-            queryOf(input instanceof Request ? new URL(input.url) : input),
+            readQuery(input instanceof Request ? new URL(input.url) : input),
         );
         const texts = Object.fromEntries(
             [...new Set(query.keys())].map((key) => [key, query.getAll(key)] as const),
@@ -342,9 +373,9 @@ export function useQueryStates<Built extends Parsers>(
     const [, setSearchParams] = useSearchParams();
     const values = createMemo(() => readValues(parsers, location.query, options));
 
-    // replace a query holding an invalid value, or a value set to its default, by its canonical form once hydrated
+    // replace a query with an invalid value, or a value set to its default, by its canonical form once hydrated
     createEffect(
-        () => canonicalOf(parsers, location.query, values(), options),
+        () => canonicalChanges(parsers, location.query, values(), options),
         (canonical) => {
             if (Object.keys(canonical).length > 0) {
                 setSearchParams(canonical, { replace: true, scroll: false });
@@ -361,8 +392,8 @@ export function useQueryStates<Built extends Parsers>(
             const next = resolved ?? cleared(parsers);
 
             // write the values, pushing when the call or a changed value's parser asks to
-            const texts = textsOf(parsers, next, options);
-            const isPush = (overrides.history ?? historyOf(parsers, next, options)) === "push";
+            const texts = writeUpdates(parsers, next, options);
+            const isPush = (overrides.history ?? historyMode(parsers, next, options)) === "push";
             setSearchParams(texts, {
                 replace: !isPush,
                 scroll: overrides.scroll ?? options.scroll ?? false,
@@ -442,13 +473,13 @@ function readValues(
     return Object.fromEntries(
         Object.entries(parsers).map(([key, parser]) => [
             key,
-            parsedOf(parser, textOf(query[urlKeyOf(key, options)])) ?? defaultOf(parser),
+            parser.read(firstText(query[urlKey(key, options)])),
         ]),
     );
 }
 
 /** Find the query changes that make the query canonical. */
-function canonicalOf<Built extends Parsers>(
+function canonicalChanges<Built extends Parsers>(
     parsers: Built,
     query: Readonly<Record<string, string | string[] | undefined>>,
     values: Values<Built>,
@@ -456,12 +487,12 @@ function canonicalOf<Built extends Parsers>(
 ): Record<string, string | undefined> {
     const changes: Record<string, string | undefined> = {};
     for (const [key, parser] of Object.entries(parsers)) {
-        // write the value as the canonical text the query should hold
-        const urlKey = urlKeyOf(key, options);
-        const text = textOf(query[urlKey]);
-        const canonical = canonicalText(parser, values[key], options);
+        // write the value as the canonical text the query should have
+        const queryKey = urlKey(key, options);
+        const text = firstText(query[queryKey]);
+        const canonical = parser.write(values[key], options);
         if (text !== undefined && text !== canonical) {
-            changes[urlKey] = canonical;
+            changes[queryKey] = canonical;
         }
     }
 
@@ -469,7 +500,7 @@ function canonicalOf<Built extends Parsers>(
 }
 
 /** Write each update as its query text, removing nulls and defaults left out. */
-function textsOf<Built extends Parsers>(
+function writeUpdates<Built extends Parsers>(
     parsers: Built,
     updates: Updates<Built>,
     options: QueryStatesOptions<Built>,
@@ -481,34 +512,13 @@ function textsOf<Built extends Parsers>(
                 throw new TypeError(`no parser reads the query value ${key}`);
             }
 
-            return [[urlKeyOf(key, options), canonicalText(parser, value, options)]];
+            return [[urlKey(key, options), parser.write(value, options)]];
         }),
     );
 }
 
-/** Write a value as the text the query holds for it, none for null or a default left out. */
-function canonicalText(
-    parser: ParserBuilder<unknown>,
-    value: unknown,
-    options: Options,
-): string | undefined {
-    // leave out null, and a value at its default unless told to keep defaults
-    const clearOnDefault = parser.options.clearOnDefault ?? options.clearOnDefault ?? true;
-    if (value === null || value === undefined) {
-        return undefined;
-    } else if (
-        clearOnDefault &&
-        parser instanceof ParserWithDefault &&
-        parser.eq(value, parser.defaultValue)
-    ) {
-        return undefined;
-    }
-
-    return parser.serialize(value);
-}
-
 /** Read whether any update's parser pushes a history entry. */
-function historyOf<Built extends Parsers>(
+function historyMode<Built extends Parsers>(
     parsers: Built,
     updates: Updates<Built>,
     options: Options,
@@ -518,18 +528,8 @@ function historyOf<Built extends Parsers>(
     return pushes ? "push" : (options.history ?? "replace");
 }
 
-/** Parse a query text, null for none or for text the parser refuses. */
-function parsedOf(parser: Parser<unknown>, text: string | undefined): unknown {
-    return text === undefined ? null : parser.parse(text);
-}
-
-/** Read a parser's default, or null without one. */
-function defaultOf(parser: ParserBuilder<unknown>): unknown {
-    return parser instanceof ParserWithDefault ? parser.defaultValue : null;
-}
-
 /** Read the query of a base: an address's or a path's, or the query itself. */
-function queryOf(base: string | URL | URLSearchParams): URLSearchParams {
+function readQuery(base: string | URL | URLSearchParams): URLSearchParams {
     if (base instanceof URLSearchParams) {
         return base;
     }
@@ -554,24 +554,24 @@ function isUpdater(value: unknown): value is (old: unknown) => unknown {
 }
 
 /** Read the first text of a query value, which repeats a key as a list. */
-function textOf(value: string | string[] | undefined): string | undefined {
+function firstText(value: string | string[] | undefined): string | undefined {
     return Array.isArray(value) ? value[0] : value;
 }
 
 /** Read the query key of a value, its own key by default. */
-function urlKeyOf<Built extends Parsers>(key: string, options: QueryStatesOptions<Built>): string {
+function urlKey<Built extends Parsers>(key: string, options: QueryStatesOptions<Built>): string {
     return options.urlKeys?.[key] ?? key;
 }
 
 /** Read a date from its text, null for an invalid one. */
-function dateOf(text: string): Date | null {
+function parseDate(text: string): Date | null {
     const date = new Date(text);
 
     return text === "" || Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** Read JSON, undefined for text that is no JSON. */
-function jsonOf(text: string): unknown {
+/** Read JSON, undefined for text that is not JSON. */
+function parseJson(text: string): unknown {
     try {
         return JSON.parse(text);
     } catch {

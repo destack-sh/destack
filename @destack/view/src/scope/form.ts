@@ -23,7 +23,7 @@ export interface FormOptions<Input extends object> {
 
 /** One input field of a form. */
 export interface FormField<Value> {
-    /** The value the form holds now: the edited one, else the starting one. */
+    /** The value the form has now: the edited one, else the starting one. */
     readonly value: Accessor<Value>;
     /** Edit the value, checked against the method's input schema, and submit in change mode. */
     set(value: Value): void;
@@ -41,7 +41,7 @@ export interface Form<Input extends object> {
     readonly problems: Accessor<ReadonlyMap<string, string>>;
     /** Where the last submission stands. */
     readonly status: Accessor<FormStatus>;
-    /** Whether a field holds an edited value. */
+    /** Whether a field has an edited value. */
     readonly isEdited: Accessor<boolean>;
     /** Drop the edits and refusals, back to the starting input. */
     reset(): void;
@@ -85,7 +85,7 @@ export function useSchemaForm<Input extends object>(
 
     // check the input against the schema, showing refusals of edited values until the first submit
     const check = (held: Input): boolean => {
-        // refuse the issues of the fields the form holds, leaving the rest to the caller
+        // refuse the issues of the form's fields, leaving the rest to the caller
         const parsed = input.safeParse(schema.defined(held));
         const issues = (parsed.success ? [] : parsed.error.issues)
             .filter((issue) => String(issue.path[0] ?? "") in held)
@@ -94,7 +94,7 @@ export function useSchemaForm<Input extends object>(
         // show the first refusal at each pointer of an edited value, or of every value once submitted
         const refused = new Map<string, string>();
         for (const issue of issues) {
-            const pointer = pointerOf(issue.path);
+            const pointer = jsonPointer(issue.path);
             const isShown = isSubmitted || touched.has(pointer);
             if (isShown && !refused.has(pointer)) {
                 refused.set(pointer, explain(issue, valueAt(held, issue.path), locale));
@@ -141,7 +141,7 @@ export function useSchemaForm<Input extends object>(
                     check(held);
                 }
             },
-            problem: () => firstUnder(problems(), pointerOf([name])),
+            problem: () => firstUnder(problems(), jsonPointer([name])),
         }),
         submit: () => {
             // show every refusal from the first submit on
@@ -165,13 +165,13 @@ export function useSchemaForm<Input extends object>(
 }
 
 /** Write a value's path as a JSON Pointer (RFC 6901), escaping `~` and `/`. */
-function pointerOf(path: readonly PropertyKey[]): string {
+function jsonPointer(path: readonly PropertyKey[]): string {
     return path
         .map((key) => `/${String(key).replaceAll("~", "~0").replaceAll("/", "~1")}`)
         .join("");
 }
 
-/** Mark the pointers of the values an edit changes, and of the values holding them. */
+/** Mark the pointers of the values an edit changes, and of the values containing them. */
 function touch(
     touched: Set<string>,
     before: unknown,
@@ -183,8 +183,8 @@ function touch(
         return;
     }
 
-    // mark the value, then descend into the entries of an object or list it now holds
-    touched.add(pointerOf(path));
+    // mark the value, then descend into the entries of an object or list it now has
+    touched.add(jsonPointer(path));
     if (isContainer(after)) {
         const previous = isContainer(before) ? before : {};
         const keys = new Set([...Object.keys(previous), ...Object.keys(after)]);
@@ -194,7 +194,7 @@ function touch(
     }
 }
 
-/** Report whether a value holds entries by key: an object or a list. */
+/** Report whether a value has entries by key: an object or a list. */
 function isContainer(value: unknown): value is Readonly<Record<string, unknown>> {
     return typeof value === "object" && value !== null;
 }

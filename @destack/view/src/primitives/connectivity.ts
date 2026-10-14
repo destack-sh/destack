@@ -92,7 +92,7 @@ export function makeNetworkInformation(callback: (state: NetworkState) => void):
 
     // report on online and offline, and on connection changes where the browser has a connection
     const report = (): void => callback(readNetworkState());
-    const connection = connectionOf();
+    const connection = readConnection();
     const stops = [
         makeEventListener(window, "online", report),
         makeEventListener(window, "offline", report),
@@ -160,7 +160,7 @@ export const useNetworkInformation: () => NetworkInformationReturn =
 
 /** Read the network's state now. */
 function readNetworkState(): NetworkState {
-    const connection = connectionOf();
+    const connection = readConnection();
 
     return {
         online: navigator.onLine,
@@ -174,7 +174,7 @@ function readNetworkState(): NetworkState {
 }
 
 /** Read the browser's connection, absent where the browser has no Network Information API. */
-function connectionOf(): NetworkInformationConnection | undefined {
+function readConnection(): NetworkInformationConnection | undefined {
     const connection: unknown = Reflect.get(navigator, "connection");
 
     return isConnection(connection) ? connection : undefined;

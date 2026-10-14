@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "@destack/test";
 import { createRoot, createSignal, flush, resolve } from "solid-js";
 import { copyToClipboard, createClipboard, input, writeClipboard } from "./clipboard.ts";
 
-/** A stand-in clipboard holding text items in memory. */
+/** A stand-in clipboard keeping text items in memory. */
 class StubClipboard extends EventTarget implements Clipboard {
     /** The texts written, the latest last. */
     readonly texts: string[] = ["initial"];

@@ -54,7 +54,7 @@ export function createStream(streamSource: StreamSourceDescription): StreamRetur
     const [stream, setStream] = createSignal<MediaStream | undefined>(undefined, {
         ownedWrite: true,
     });
-    const constraints = createMemo(() => constraintsOf(access(streamSource)), TRANSPARENT);
+    const constraints = createMemo(() => mediaConstraints(access(streamSource)), TRANSPARENT);
     followStream(
         constraints,
         async (current) => navigator.mediaDevices.getUserMedia(current),
@@ -62,7 +62,7 @@ export function createStream(streamSource: StreamSourceDescription): StreamRetur
         setStream,
     );
 
-    return [stream, controlsOf(stream, setStream)];
+    return [stream, readControls(stream, setStream)];
 }
 
 /** Capture the screen, a window or a tab, again as the options change. */
@@ -83,7 +83,7 @@ export function createScreen(
         setStream,
     );
 
-    return [stream, controlsOf(stream, setStream)];
+    return [stream, readControls(stream, setStream)];
 }
 
 /** Follow a stream's loudness, from zero to a hundred, every frame until stopped or cleaned up. */
@@ -217,7 +217,7 @@ function followStream<Source>(
 }
 
 /** Make a stream's stop and mute controls. */
-function controlsOf(
+function readControls(
     stream: Accessor<MediaStream | undefined>,
     setStream: (next: MediaStream | undefined) => void,
 ): StreamControls {
@@ -235,7 +235,7 @@ function controlsOf(
 }
 
 /** Read the constraints of a source. */
-function constraintsOf(
+function mediaConstraints(
     source: MediaDeviceInfo | MediaStreamConstraints | FalsyValue,
 ): MediaStreamConstraints | undefined {
     if (

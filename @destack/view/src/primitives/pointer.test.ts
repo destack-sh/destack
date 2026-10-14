@@ -137,7 +137,7 @@ test("refuse handlers a followed pointer registers after its first event", () =>
     });
 
     expect(thrown).toEqual(
-        new TypeError("pointer listeners are added while the pointer's first event runs"),
+        new TypeError("pointer listeners must be added while the pointer's first event runs"),
     );
 });
 

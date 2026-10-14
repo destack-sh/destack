@@ -160,7 +160,7 @@ test("generate the module mounting a view from the export declaring it, and desc
         throw new TypeError("expected the view's module source");
     }
 
-    // describe the view with the camera alone, leaving the network to the workloads' sandbox
+    // describe the view with only the camera, leaving the network to the workloads' sandbox
     const described = viewExtension.describe(compilation, {
         exports: { "./view/main": "output/browser/view-main.js" },
         declarations: () => [],

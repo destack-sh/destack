@@ -261,13 +261,13 @@ export function createViewportObserver(
     if (isElementSource(first)) {
         if (typeof second === "function") {
             initial = () =>
-                elementsOf(access(first)).map((element): [Element, EntryCallback] => [
+                listElements(access(first)).map((element): [Element, EntryCallback] => [
                     element,
                     second,
                 ]);
             options = third;
         } else {
-            initial = () => pairsOf(access(first));
+            initial = () => listPairs(access(first));
             options = second;
         }
     } else {
@@ -501,12 +501,12 @@ function isElementSource(
 }
 
 /** Keep the elements of a list of elements. */
-function elementsOf(list: Element[] | [Element, EntryCallback][]): Element[] {
+function listElements(list: Element[] | [Element, EntryCallback][]): Element[] {
     return list.filter((item) => item instanceof Element);
 }
 
 /** Keep the pairs of a list of pairs. */
-function pairsOf(list: Element[] | [Element, EntryCallback][]): [Element, EntryCallback][] {
+function listPairs(list: Element[] | [Element, EntryCallback][]): [Element, EntryCallback][] {
     return list.filter((item) => Array.isArray(item));
 }
 

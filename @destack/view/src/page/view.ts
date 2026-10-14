@@ -23,7 +23,7 @@ export interface ViewMount {
     readonly context: ViewContext;
     /** The clients of the scopes the view opens, by scope. */
     readonly clients: ReadonlyMap<string, ObjectClient>;
-    /** How the view reaches the packages it declares, by package identifier. */
+    /** How the view calls the packages it declares, by package identifier. */
     readonly packages: ReadonlyMap<string, ClientOptions>;
     /** Reach a path below the page's origin with the page's credential. */
     readonly origin: (path: string) => ClientOptions;
@@ -38,17 +38,17 @@ export function useView(): ViewContext {
 }
 
 /** Read the identifier of one of a view's scopes, refusing a home the host opens none for. */
-export function scopeOf(context: ViewContext, scope: PermissionScope): string {
+export function requireScope(context: ViewContext, scope: PermissionScope): string {
     // require a scope the host opens
     const found = context[scope];
     if (found === undefined) {
-        throw new TypeError(`the host opens no ${scope} for this view`);
+        throw new TypeError(`the host does not open ${scope} for this view`);
     }
 
     return found;
 }
 
-/** Read how the mounted view reaches a path below its page's origin with the page's credential. */
+/** Read how the mounted view calls a path below its page's origin with the page's credential. */
 export function useOrigin(): (path: string) => ClientOptions {
     return useContext(ViewMountContext).origin;
 }
@@ -57,7 +57,7 @@ export function useOrigin(): (path: string) => ClientOptions {
 export function useClient(scope: string): ObjectClient {
     const client = useContext(ViewMountContext).clients.get(scope);
     if (client === undefined) {
-        throw new TypeError(`the view opens no objects in ${scope}`);
+        throw new TypeError(`the view does not open objects in ${scope}`);
     }
 
     return client;
@@ -70,7 +70,7 @@ export function usePackage<Definition extends ProcedureRouter>(
     // connect where the host mounted the declared package
     const options = useContext(ViewMountContext).packages.get(handle.id);
     if (options === undefined) {
-        throw new TypeError(`the view declares no package ${handle.name}`);
+        throw new TypeError(`the view does not declare package ${handle.name}`);
     }
 
     return createClient(handle, options);
@@ -90,7 +90,7 @@ export function mountPackages(
 }
 
 /** Write the same-origin address where the host opens an object. */
-export function urlOf(
+export function objectUrl(
     reference: ObjectReference,
     options: { readonly view?: string } = {},
 ): string {

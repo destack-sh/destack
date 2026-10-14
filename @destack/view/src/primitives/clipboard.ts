@@ -172,7 +172,7 @@ async function readClipboardItems(): Promise<ClipboardResourceItem[]> {
             // read the item's last type and its data
             const type = item.types.at(-1);
             if (type === undefined) {
-                throw new TypeError("a clipboard item holds no type");
+                throw new TypeError("a clipboard item has no type");
             }
             const blob = await item.getType(type);
 

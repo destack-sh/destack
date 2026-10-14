@@ -81,7 +81,7 @@ test("write links to values, leaving defaults out and keeping the base's other v
     ]);
 
     // refuse to write a fraction as a whole number, a caller's mistake rounding would hide
-    expect(() => serialize({ page: 1.5 })).toThrow(new RangeError("1.5 is no whole number"));
+    expect(() => serialize({ page: 1.5 })).toThrow(new RangeError("1.5 is not a whole number"));
 });
 
 /** Render a router over a memory history at a path. */

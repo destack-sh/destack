@@ -81,7 +81,7 @@ async function openSample(
                 const object = opened.find((type) => type.name === call.object.name);
                 if (object === undefined) {
                     throw new TypeError(
-                        `view ${view.name} opens no ${call.object.name} in its ${name}`,
+                        `view ${view.name} does not open ${call.object.name} in its ${name}`,
                     );
                 }
                 await client.call(object, call.method, call.input).predicted;

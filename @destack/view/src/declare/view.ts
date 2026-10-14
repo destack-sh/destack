@@ -104,7 +104,7 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
     if (unopened !== undefined) {
         const { type, name } = unopened.permission;
         throw new TypeError(
-            `view ${definition.name} requests ${type} ${name} but opens no ${type} objects`,
+            `view ${definition.name} requests ${type} ${name} but does not open ${type} objects`,
         );
     }
 
@@ -124,7 +124,7 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
     );
     if (unpresentable !== undefined) {
         throw new TypeError(
-            `view ${definition.name} presents ${unpresentable.object.name} but opens no ${unpresentable.object.name} objects`,
+            `view ${definition.name} presents ${unpresentable.object.name} but does not open ${unpresentable.object.name} objects`,
         );
     }
 

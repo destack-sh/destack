@@ -71,10 +71,10 @@ export const CommandReference = Object.assign(
         }),
     ),
     {
-        /** The key naming a command in settings: its package and name, as `<package>/<name>`. */
+        /** The key of a command in settings: its package and name, as `<package>/<name>`. */
         key: defineSchema(schema.templateLiteral([PackageId, "/", DeclarationName])),
 
-        /** Write the key naming a command in settings. */
+        /** Write the key of a command in settings. */
         format(reference: CommandReference): string {
             return `${reference.packageId}/${reference.name}`;
         },

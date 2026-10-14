@@ -1,7 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import type { JSX } from "@solidjs/web";
 import type { ObjectReference } from "@destack/sync";
-import { urlOf } from "../page/view.ts";
+import { objectUrl } from "../page/view.ts";
 import { omit } from "../solid/reactive.ts";
 
 /** Where a link goes: a path or URL, or an object opened in the view presenting it. */
@@ -29,7 +29,7 @@ export function Link(properties: LinkProperties): JSX.Element {
     const href = () =>
         typeof properties.href === "string"
             ? properties.href
-            : urlOf(
+            : objectUrl(
                   properties.href,
                   properties.view === undefined ? {} : { view: properties.view },
               );

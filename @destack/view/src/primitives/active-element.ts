@@ -22,7 +22,7 @@ export function makeActiveElementListener(callback: (element: Element | null) =>
     };
 }
 
-/** Follow the focused element, null while the body holds the focus. */
+/** Follow the focused element, null while the body has the focus. */
 export function createActiveElement(): Accessor<Element | null> {
     // follow nothing on the server
     if (isServer) {
@@ -34,7 +34,7 @@ export function createActiveElement(): Accessor<Element | null> {
     return active;
 }
 
-/** Report whether the element a ref receives holds the focus. */
+/** Report whether the element a ref receives has the focus. */
 export function focus(callback: (isActive: boolean) => void): (target: Element) => void {
     // report nothing on the server
     if (isServer) {
@@ -51,7 +51,7 @@ export function focus(callback: (isActive: boolean) => void): (target: Element) 
     };
 }
 
-/** Read the focused element, null while the body holds the focus. */
+/** Read the focused element, null while the body has the focus. */
 function activeElement(): Element | null {
     return document.activeElement === document.body ? null : document.activeElement;
 }

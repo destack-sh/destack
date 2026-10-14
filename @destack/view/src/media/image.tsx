@@ -71,7 +71,7 @@ export function Picture(properties: ImageProperties): JSX.Element {
     const sources = () =>
         PICTURE_FORMATS.map((format) => ({
             type: `image/${format}`,
-            srcset: srcsetOf(files().filter((file) => file.format === format)),
+            srcset: writeSrcset(files().filter((file) => file.format === format)),
         })).filter((source) => source.srcset !== "");
 
     return (
@@ -129,7 +129,7 @@ function ImageElement(properties: {
             decoding="async"
             {...rest}
             src={typeof image.src === "string" ? image.src : image.src.src}
-            srcset={srcsetOf(chosen()) || undefined}
+            srcset={writeSrcset(chosen()) || undefined}
             alt={image.alt}
             width={size().width}
             height={size().height}
@@ -155,6 +155,6 @@ function original(image: ImageMetadata): ImageMetadata["srcSet"] {
 }
 
 /** Write files as a width-described source set, empty for none. */
-function srcsetOf(files: ImageMetadata["srcSet"]): string {
+function writeSrcset(files: ImageMetadata["srcSet"]): string {
     return files.map((file) => `${file.src} ${file.width}w`).join(", ");
 }

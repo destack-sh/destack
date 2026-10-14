@@ -12,7 +12,7 @@ export function createReducedMotion(element: Accessor<Element | undefined>): Acc
     const isPreferred = createMediaQuery(REDUCED_MOTION_QUERY);
     const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
     createMutationObserver(
-        () => rootsOf(element()),
+        () => findRoots(element()),
         { attributes: true, attributeFilter: ["style", "class"] },
         () => setMutations((count) => count + 1),
     );
@@ -27,13 +27,13 @@ export function createReducedMotion(element: Accessor<Element | undefined>): Acc
     });
 }
 
-/** Report whether the theme holds an element's motion still now, for code that reads it once. */
+/** Report whether the theme keeps an element's motion still now, for code that reads it once. */
 export function isMotionReduced(element: Element): boolean {
     return getComputedStyle(element).getPropertyValue(MOTION_VARIABLE).trim() === "0";
 }
 
 /** List an element and its ancestors, the theme roots that may set its motion scale. */
-function rootsOf(element: Element | undefined): Element[] {
+function findRoots(element: Element | undefined): Element[] {
     const roots: Element[] = [];
     for (let root = element ?? null; root !== null; root = root.parentElement) {
         roots.push(root);

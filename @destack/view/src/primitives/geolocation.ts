@@ -94,7 +94,7 @@ export function createGeolocation(
 ): [location: Accessor<GeolocationCoordinates>, refetch: () => void] {
     // answer the seed on the server, else stay pending
     if (isServer) {
-        const seed = initialLocation === undefined ? undefined : coordinatesOf(initialLocation);
+        const seed = initialLocation === undefined ? undefined : readCoordinates(initialLocation);
 
         return [
             () => {
@@ -130,7 +130,7 @@ export function createGeolocationWatcher(
 } {
     // hold the position, the seed, or nothing until the first fix, and the latest error
     const [current, setCurrent] = createSignal<GeolocationCoordinates | undefined>(
-        initialLocation === undefined ? undefined : coordinatesOf(initialLocation),
+        initialLocation === undefined ? undefined : readCoordinates(initialLocation),
         { ownedWrite: true },
     );
     const [error, setError] = createSignal<GeolocationPositionError | null>(null, {
@@ -248,7 +248,7 @@ async function currentPosition(options?: PositionOptions): Promise<GeolocationCo
 }
 
 /** Stand a seed position in for measured coordinates. */
-function coordinatesOf(seed: GeolocationCoord): GeolocationCoordinates {
+function readCoordinates(seed: GeolocationCoord): GeolocationCoordinates {
     const coordinates = {
         latitude: seed.latitude,
         longitude: seed.longitude,

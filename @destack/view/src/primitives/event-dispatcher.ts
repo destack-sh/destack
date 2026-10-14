@@ -66,7 +66,7 @@ export function createEventDispatcher(
     };
 }
 
-/** Check whether a property holds an event handler. */
+/** Check whether a property is an event handler. */
 function isHandler(value: unknown): value is (event: CustomEvent) => void {
     return typeof value === "function";
 }

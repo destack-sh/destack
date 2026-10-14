@@ -98,7 +98,7 @@ export const Accelerator = Object.assign(
 
         /** Report whether a key press presses an accelerator. */
         matches(accelerator: string, event: KeyPress, isCommand: boolean): boolean {
-            // read the modifiers and the key the accelerator names
+            // read the modifiers and the accelerator's key
             const parts = accelerator.split("+");
             const modifiers = new Set(parts.slice(0, -1));
             const hasMod = modifiers.has("mod");

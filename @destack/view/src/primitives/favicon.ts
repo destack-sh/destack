@@ -182,7 +182,7 @@ export function makeFaviconAnimation(
 ): FaviconAnimationController {
     // cycle nothing on the server
     const { interval = FRAME_INTERVAL, autoplay = true, loop = true, ...faviconOptions } = options;
-    const first = frameOf(frames, 0);
+    const first = readFrame(frames, 0);
     if (isServer) {
         return {
             href: first,
@@ -208,7 +208,7 @@ export function makeFaviconAnimation(
             pause();
         } else {
             frame = next;
-            favicon.setHref(frameOf(frames, next));
+            favicon.setHref(readFrame(frames, next));
         }
     };
     const play = (): void => {
@@ -254,7 +254,7 @@ export function createFaviconAnimation(
 
     // show the next frame each interval, stopping after the last unless looping
     let list = untrack(() => access(frames));
-    const favicon = makeFavicon(frameOf(list, 0), faviconOptions);
+    const favicon = makeFavicon(readFrame(list, 0), faviconOptions);
     let handle: ReturnType<typeof setInterval> | undefined;
     let current = 0;
     const pause = (): void => {
@@ -269,7 +269,7 @@ export function createFaviconAnimation(
         } else {
             current = next;
             setFrame(next);
-            favicon.setHref(frameOf(list, next));
+            favicon.setHref(readFrame(list, next));
         }
     };
     const play = (): void => {
@@ -288,7 +288,7 @@ export function createFaviconAnimation(
                 list = next;
                 current = 0;
                 setFrame(0);
-                favicon.setHref(frameOf(list, 0));
+                favicon.setHref(readFrame(list, 0));
                 if (list.length <= 1) {
                     pause();
                 } else if (autoplay) {
@@ -474,7 +474,7 @@ function bindFaviconLink(rel: FaviconRel, href: string): FaviconController {
 }
 
 /** Read a frame of a favicon animation, refusing a list without it. */
-function frameOf(frames: readonly string[], index: number): string {
+function readFrame(frames: readonly string[], index: number): string {
     const frame = frames[index];
     if (frame === undefined) {
         throw new RangeError(`the favicon animation has no frame ${index}`);

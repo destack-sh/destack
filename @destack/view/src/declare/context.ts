@@ -17,7 +17,7 @@ export const DISPLAY_PATH = "/.destack/display";
 /** The same-origin host path below which a browser registers its client. */
 export const CLIENT_PATH = "/.destack/client";
 
-/** The same-origin host path below which a view reaches the home of a scope, `<path>/<scope>`. */
+/** The same-origin host path below which a view calls the home of a scope, `<path>/<scope>`. */
 export const HOME_PATH = "/.destack/home";
 
 /** The same-origin host path below which a view calls the platform services it declares. */
@@ -29,7 +29,7 @@ export const COMMAND_PATH = "/.destack/command";
 /** The header the command palette's page sends its page token in. */
 export const PAGE_TOKEN_HEADER = "Destack-Page-Token";
 
-/** The name of the meta element carrying the command palette's page token in its document. */
+/** The name of the meta element with the command palette's page token in its document. */
 export const PAGE_TOKEN_META = "destack-page-token";
 
 /** The query parameter of the command palette's path with the link of the window it opens over. */
@@ -85,7 +85,7 @@ export const ViewContext = defineSchema(
 /** What the host gives a view. */
 export type ViewContext = schema.Infer<typeof ViewContext>;
 
-/** A catalog a view's launch names. */
+/** A catalog a view's launch lists. */
 export const CatalogReference = defineSchema(
     schema.object({
         /** The package whose messages it translates. */
@@ -96,7 +96,7 @@ export const CatalogReference = defineSchema(
         url: SameOriginPath,
     }),
 );
-/** A catalog a view's launch names. */
+/** A catalog a view's launch lists. */
 export type CatalogReference = schema.Infer<typeof CatalogReference>;
 
 /** What the host shows a view in, pushed again whenever the person changes it. */

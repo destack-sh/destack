@@ -13,7 +13,7 @@ import { onMount } from "./utils.ts";
 export interface StaticStoreSetter<State extends object> {
     /** Write the keys an update derives from the current state. */
     (update: (previous: State) => Partial<State>): State;
-    /** Write the keys an update holds. */
+    /** Write the keys an update has. */
     (update: Partial<State>): State;
     /** Write one key, or derive it from its current value. */
     <Key extends keyof State>(

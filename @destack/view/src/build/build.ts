@@ -17,7 +17,7 @@ const PREFIX = "virtual:@destack/view/view/";
 /** Compile Solid components wherever modules compile. */
 export const viewExtension: BuildExtension = {
     transform(context) {
-        // compile Solid, as the application an output names when it names one
+        // compile Solid, as the output's application when it has one
         const application = context.options[VIEW_PACKAGE];
 
         return [
@@ -25,7 +25,7 @@ export const viewExtension: BuildExtension = {
                 context.server,
                 application === undefined ? undefined : SolidApplication.parse(application),
             ),
-            imagePlugin(),
+            imagePlugin(context.cache),
             fontPlugin(),
         ];
     },

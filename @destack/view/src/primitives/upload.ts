@@ -186,7 +186,7 @@ export function createFilePicker(options: FilePickerOptions = {}): FilePicker {
                 // keep the event from the page
                 event.preventDefault();
                 event.stopPropagation();
-                const chosen = uploadFilesOf(input.files);
+                const chosen = readUploadFiles(input.files);
                 input.remove();
                 setFiles(chosen);
                 void run(callback, chosen, setError, setIsLoading);
@@ -252,7 +252,7 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
                 event.preventDefault();
                 depth = 0;
                 setIsDragging(false);
-                const dropped = uploadFilesOf(event.dataTransfer?.files ?? null);
+                const dropped = readUploadFiles(event.dataTransfer?.files ?? null);
                 setFiles(dropped);
                 void run(options.onDrop, dropped, setError, setIsLoading);
             };
@@ -488,7 +488,7 @@ export function fileUploader(options: FileUploaderDirective): (element: HTMLInpu
         if (target === undefined) {
             return;
         }
-        const chosen = uploadFilesOf(target.files);
+        const chosen = readUploadFiles(target.files);
         options.setFiles(chosen);
         try {
             await options.userCallback(chosen);
@@ -546,7 +546,7 @@ function createFileList(): {
 }
 
 /** Wrap a file list's files, each with an object URL. */
-function uploadFilesOf(list: FileList | null): UploadFile[] {
+function readUploadFiles(list: FileList | null): UploadFile[] {
     return [...(list ?? [])].map((file) => ({
         source: URL.createObjectURL(file),
         name: file.name,

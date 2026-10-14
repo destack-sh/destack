@@ -124,7 +124,7 @@ function iconHref(rel = "icon"): string | null {
 }
 
 /** Read the overlay a favicon address draws. */
-function overlayOf(href: string | null | undefined): string {
+function readOverlay(href: string | null | undefined): string {
     const number = /^data:drawn,(\d+)$/u.exec(href ?? "")?.[1];
 
     return number === undefined ? "plain" : (drawn[Number(number)] ?? []).slice(1).join(";");
@@ -284,7 +284,7 @@ test("draw a count, a capped count, a text or a dot as a badge, and nothing for 
     for (const value of values) {
         const badge = makeFaviconBadge("/base.png", value, { position: "top-left" });
         await settle();
-        hrefs.push(overlayOf(iconHref()));
+        hrefs.push(readOverlay(iconHref()));
         badge.dispose();
     }
 
@@ -335,7 +335,7 @@ test("draw a progress ring's track, and its arc from the top for a positive shar
             trackColor: "gray",
         });
         await settle();
-        hrefs.push(overlayOf(iconHref()));
+        hrefs.push(readOverlay(iconHref()));
         ring.dispose();
     }
 
@@ -361,7 +361,11 @@ test("redraw a reactive badge and ring, applying only the latest drawing", async
         setProgress(undefined);
         flush();
         await settle();
-        const read = [overlayOf(iconHref()).split(";").at(-1), badge().startsWith("data:"), ring()];
+        const read = [
+            readOverlay(iconHref()).split(";").at(-1),
+            badge().startsWith("data:"),
+            ring(),
+        ];
         disposeRoot();
 
         return read;

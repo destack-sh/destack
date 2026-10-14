@@ -3,7 +3,7 @@ import { For, Show } from "../solid/flow.ts";
 import type { FallbackMetrics, FontFile } from "../build/font.ts";
 import { Link, Style } from "./head.ts";
 
-/** The generic families CSS names without quotes. */
+/** The generic families CSS writes without quotes. */
 const GENERIC_FAMILIES = new Set([
     "serif",
     "sans-serif",
@@ -78,7 +78,7 @@ export function defineFont(definition: FontDefinition): Font {
     const first = sources[0]?.path;
     const family = definition.family ?? first?.family;
     if (family === undefined || first === undefined) {
-        throw new TypeError("a font names no file");
+        throw new TypeError("a font has no file");
     }
 
     // adjust the chosen local font to the first file's metrics
@@ -121,7 +121,7 @@ export function Font(properties: FontProperties): JSX.Element {
                         <Link
                             rel="preload"
                             as="font"
-                            type={formatOf(source.path.url).type}
+                            type={requireFormat(source.path.url).type}
                             href={source.path.url}
                             crossorigin="anonymous"
                         />
@@ -138,7 +138,7 @@ function faceRules(font: Font): string {
     const faces = font.sources.map((source) =>
         rule({
             "font-family": quote(font.family),
-            src: `url("${source.path.url}") format("${formatOf(source.path.url).format}")`,
+            src: `url("${source.path.url}") format("${requireFormat(source.path.url).format}")`,
             "font-weight": source.weight ?? "400",
             "font-style": source.style ?? "normal",
             "font-display": font.display,
@@ -177,18 +177,18 @@ function fallbackFamily(family: string): string {
     return `${family} Fallback`;
 }
 
-/** Quote a family name that is no generic family. */
+/** Quote a family name that is not a generic family. */
 function quote(family: string): string {
     return GENERIC_FAMILIES.has(family) ? family : `"${family}"`;
 }
 
 /** Read a font file's format and media type from its extension. */
-function formatOf(url: string): { readonly format: string; readonly type: string } {
+function requireFormat(url: string): { readonly format: string; readonly type: string } {
     // look up the extension's format
     const extension = new URL(url, "file:///").pathname.split(".").at(-1) ?? "";
     const format = FORMATS[extension];
     if (format === undefined) {
-        throw new TypeError(`a font file of type ${extension} is no woff2, woff, ttf or otf`);
+        throw new TypeError(`a font file of type ${extension} is not woff2, woff, ttf or otf`);
     }
 
     return format;

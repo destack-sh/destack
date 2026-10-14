@@ -67,7 +67,7 @@ test("render an example in its environment's locale, direction, width and theme 
         { example: greetingLoud, environment: { locale: "en", direction: "rtl" } },
     );
 
-    // the frame carries the environment, and the example reads its locale, the frame's direction and its properties
+    // the frame passes the environment, and the example reads its locale, the frame's direction and its properties
     expect(
         [arabic, plain, mirrored].map((element) => [
             element?.textContent,

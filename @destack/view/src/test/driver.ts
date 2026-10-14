@@ -16,7 +16,7 @@ import {
 } from "../scenario/index.ts";
 import { stubPopovers } from "./dom.ts";
 
-/** The modifiers a key step names before its key, with the keyboard event flag each sets. */
+/** The modifiers a key step lists before its key, with the keyboard event flag each sets. */
 const MODIFIERS = new Map([
     ["Control", "ctrlKey"],
     ["Meta", "metaKey"],
@@ -122,11 +122,11 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
             case "name":
                 return computeAccessibleName(this.locate(observation.target));
             case "text":
-                return textOf(this.locate(observation.target));
+                return readText(this.locate(observation.target));
             case "texts":
-                return this.locateAll(observation.target).map(textOf);
+                return this.locateAll(observation.target).map(readText);
             case "value":
-                return valueOf(this.locate(observation.target));
+                return readValue(this.locate(observation.target));
             case "attribute":
                 return this.locate(observation.target).getAttribute(observation.name);
             case "state":
@@ -190,7 +190,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
         const examples = [...this.#examples];
         const found = name === undefined ? examples[0] : examples.find(([key]) => key === name);
         if (found === undefined || (name === undefined && examples.length !== 1)) {
-            throw new TypeError(`no one example ${name ?? ""} to set properties of`);
+            throw new TypeError(`no single example ${name ?? ""} to set properties of`);
         }
 
         // refuse properties the example does not declare
@@ -199,7 +199,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
             (key) => !rendered.declared.includes(key),
         );
         if (undeclared.length > 0) {
-            throw new TypeError(`example ${example} declares no ${undeclared.join(", ")}`);
+            throw new TypeError(`example ${example} does not declare ${undeclared.join(", ")}`);
         }
         rendered.set(properties);
     }
@@ -262,7 +262,7 @@ function press(shortcut: string): void {
         target.dispatchEvent(
             new KeyboardEvent(type, {
                 key,
-                code: codeOf(key),
+                code: keyCode(key),
                 ...flags,
                 bubbles: true,
                 cancelable: true,
@@ -272,7 +272,7 @@ function press(shortcut: string): void {
 }
 
 /** Read the physical key a key value sits on in a US layout, such as `KeyT` for `t`. */
-function codeOf(key: string): string {
+function keyCode(key: string): string {
     if (/^[a-z]$/iu.test(key)) {
         return `Key${key.toUpperCase()}`;
     } else if (/^[0-9]$/u.test(key)) {
@@ -300,12 +300,12 @@ function focusedName(): string | null {
 }
 
 /** Read an element's text with its whitespace collapsed. */
-function textOf(element: Element): string {
+function readText(element: Element): string {
     return (element.textContent ?? "").replaceAll(/\s+/gu, " ").trim();
 }
 
-/** Read a field's value, refusing an element that is no field. */
-function valueOf(element: HTMLElement): string {
+/** Read a field's value, refusing an element that is not a field. */
+function readValue(element: HTMLElement): string {
     if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) {
         throw new TypeError("only a field has a value");
     }
@@ -351,9 +351,10 @@ function isLabelled(element: HTMLElement): boolean {
     );
 }
 
-/** Report whether an element holds exactly a text and none of its children does. */
+/** Report whether an element contains exactly a text and none of its children does. */
 function isInnermostText(element: HTMLElement, text: string): boolean {
     return (
-        textOf(element) === text && [...element.children].every((child) => textOf(child) !== text)
+        readText(element) === text &&
+        [...element.children].every((child) => readText(child) !== text)
     );
 }

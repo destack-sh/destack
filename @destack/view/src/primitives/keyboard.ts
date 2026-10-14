@@ -62,7 +62,7 @@ export const useKeyDownList: () => Accessor<string[]> = createSingletonRoot(() =
     // add each newly pressed key, with the modifiers held before listening began
     makeEventListener(window, "keydown", (event) => {
         // read the newly pressed key
-        const key = keyOf(event);
+        const key = readKey(event);
         const current = pressed();
         if (event.repeat || key === undefined || current.includes(key)) {
             return;
@@ -72,7 +72,7 @@ export const useKeyDownList: () => Accessor<string[]> = createSingletonRoot(() =
 
     // drop released keys, and everything once Meta goes, as some platforms send no other key-up while it is held
     makeEventListener(window, "keyup", (event) => {
-        const key = keyOf(event);
+        const key = readKey(event);
         if (key === undefined) {
             return;
         }
@@ -143,7 +143,7 @@ export function createKeyHold(
     // prevent the key's default right in the event, which signals read only after the batch
     if (options.preventDefault ?? true) {
         makeEventListener(window, "keydown", (event) => {
-            if (keyOf(event) === wanted) {
+            if (readKey(event) === wanted) {
                 event.preventDefault();
             }
         });
@@ -183,7 +183,7 @@ export function createShortcut(
     // record each newly pressed key, then match the held sets against the shortcut
     makeEventListener(window, "keydown", (event) => {
         // skip repeats, unnamed keys and fields when told to
-        const key = keyOf(event);
+        const key = readKey(event);
         if (
             event.repeat ||
             key === undefined ||
@@ -255,7 +255,7 @@ export function createShortcut(
     // drop released keys, and everything once Meta goes, keeping the held keys to press again
     makeEventListener(window, "keyup", (event) => {
         // read the released key
-        const key = keyOf(event);
+        const key = readKey(event);
         if (key === undefined) {
             return;
         }
@@ -312,7 +312,7 @@ export function createKeyDown(
 }
 
 /** Read an event's key upper-cased, as the primitives track keys. */
-function keyOf(event: KeyboardEvent): string | undefined {
+function readKey(event: KeyboardEvent): string | undefined {
     // read nothing from an event without a key
     if (typeof event.key !== "string") {
         return undefined;
@@ -353,7 +353,7 @@ function isHoldSequence(sequence: string[][], model: string[]): boolean {
     return sequence.every((held, index) => isEqual(held, model.slice(0, index + 1)));
 }
 
-/** Check whether two key lists hold the same keys in the same order. */
+/** Check whether two key lists have the same keys in the same order. */
 function isEqual(first: readonly string[], second: readonly string[]): boolean {
     return first.length === second.length && first.every((key, index) => key === second[index]);
 }
@@ -363,7 +363,7 @@ function isSubset(subset: readonly string[], superset: readonly string[]): boole
     return subset.every((key) => superset.includes(key));
 }
 
-/** Check whether two key lists hold the same keys in any order. */
+/** Check whether two key lists have the same keys in any order. */
 function isSameSet(first: readonly string[], second: readonly string[]): boolean {
     return new Set(first).size === new Set(second).size && isSubset(first, second);
 }

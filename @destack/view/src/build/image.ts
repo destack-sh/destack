@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import sharp from "sharp";
-import type { Plugin } from "@destack/package/build";
+import type { Plugin, TransformCache } from "@destack/package/build";
+import { Digest } from "@destack/schema";
 import { ImageFormat } from "../media/asset.ts";
 
 /** The widths a build renders images at by default, Next.js's device sizes. */
@@ -15,6 +16,9 @@ const BLUR_WIDTH = 16;
 
 /** The WebP quality of an image's blurred rendition, which its blur hides. */
 const BLUR_QUALITY = 40;
+
+/** The version of how renditions render, part of each cache key so a change renders them again. */
+const RENDITION_VERSION = 1;
 
 /** The raster images an import turns into image metadata, by extension. */
 const RASTER = /\.(?:png|jpe?g|webp|avif|gif)$/u;
@@ -61,10 +65,11 @@ export function imageFiles(
     return widths.flatMap((entry) => formats.map((each) => ({ width: entry, format: each })));
 }
 
-/** Read an image's size and format. */
+/** Render an image's planned files, reading and keeping each rendition in a build's cache. */
 export async function transformImage(
-    bytes: Uint8Array,
+    bytes: Uint8Array<ArrayBuffer>,
     options: ImageOptions = {},
+    cache?: TransformCache,
 ): Promise<TransformedImage> {
     // read the intrinsic size and format
     const metadata = await sharp(bytes).metadata();
@@ -73,19 +78,15 @@ export async function transformImage(
         throw new TypeError(`image of format ${metadata.format} has no raster size`);
     }
 
-    // render each planned file, keeping the original's own bytes at its own width and format
+    // render each planned file once per image, keeping the original's own bytes at its own width and format
+    const digest = await Digest.of(bytes);
     const files = await Promise.all(
         imageFiles(metadata.width, format.data, options).map(async (file) => ({
             ...file,
             data:
                 file.width === metadata.width && file.format === format.data
                     ? bytes
-                    : new Uint8Array(
-                          await sharp(bytes)
-                              .resize({ width: file.width })
-                              .toFormat(file.format)
-                              .toBuffer(),
-                      ),
+                    : await rendition(bytes, digest, file, cache),
         })),
     );
 
@@ -105,8 +106,8 @@ export async function transformImage(
     };
 }
 
-/** Turn raster image imports into image metadata. */
-export function imagePlugin(): Plugin {
+/** Turn raster image imports into image metadata, keeping renditions in a build's cache. */
+export function imagePlugin(cache?: TransformCache): Plugin {
     // remember whether the plugin builds or serves
     let isBuild = true;
 
@@ -123,9 +124,12 @@ export function imagePlugin(): Plugin {
             }
 
             // describe the image, its source set emitted as hashed assets when building
-            // NOTE #Performance: keep rendered files in the build's content-addressed cache by the image's digest
             const bytes = new Uint8Array(await readFile(id));
-            const image = await transformImage(bytes, isBuild ? {} : { widths: [], formats: [] });
+            const image = await transformImage(
+                bytes,
+                isBuild ? {} : { widths: [], formats: [] },
+                cache,
+            );
             const stem = basename(id, extname(id));
             const reference = (name: string, source: Uint8Array) =>
                 `import.meta.ROLLUP_FILE_URL_${this.emitFile({ type: "asset", name, source })}`;
@@ -149,4 +153,27 @@ export function imagePlugin(): Plugin {
             return `export default { ...${JSON.stringify(metadata)}, src: ${original}, srcSet: [${entries.join(", ")}] };\n`;
         },
     };
+}
+
+/** Render one file of an image, reading it from a build's cache by digest, width and format. */
+async function rendition(
+    bytes: Uint8Array<ArrayBuffer>,
+    digest: Digest,
+    file: ImageFile,
+    cache: TransformCache | undefined,
+): Promise<Uint8Array<ArrayBuffer>> {
+    // read the rendition a build kept before
+    const key = await Digest.of(`${RENDITION_VERSION} ${digest} ${file.width} ${file.format}`);
+    const kept = await cache?.read(key);
+    if (kept !== undefined) {
+        return kept;
+    }
+
+    // render it and keep it for later builds
+    const rendered = new Uint8Array(
+        await sharp(bytes).resize({ width: file.width }).toFormat(file.format).toBuffer(),
+    );
+    await cache?.write(key, rendered);
+
+    return rendered;
 }

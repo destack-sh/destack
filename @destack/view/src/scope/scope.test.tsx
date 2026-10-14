@@ -10,7 +10,7 @@ import { Errored, For, Loading } from "../solid/flow.ts";
 import { useQuery, useSpace } from "./index.ts";
 import { changed } from "../test/dom.ts";
 
-/** A page origin reaching nothing, as a test page has none. */
+/** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
     throw new TypeError(`a test page reaches no ${path}`);
 }
@@ -18,7 +18,7 @@ function noOrigin(path: string): never {
 /** The longest a test waits for a render, far above the few microtasks a local resource takes. */
 const RENDER_MILLISECONDS = 2000;
 
-/** A board holding cards. */
+/** A board with cards. */
 const board = defineObject({
     name: "board",
     plural: "boards",
@@ -53,7 +53,7 @@ const CONTEXT = {
     user: principal.user.reference(Scope.universe.id, "alice"),
 };
 
-/** Open a board's cards offline, as a view's page holds them, predicting every change locally. */
+/** Open a board's cards offline, as a view's page keeps them, predicting every change locally. */
 async function openClient(): Promise<ObjectClient<{ readonly card: typeof card }>> {
     // keep the cards in a local database whose server never answers
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ card }));

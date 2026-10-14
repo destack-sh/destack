@@ -20,13 +20,13 @@ const RoleMatch = schema.object({
 
 /** A locator matching a control by its label. */
 const LabelMatch = schema.object({
-    /** The text of the label, aria-label or aria-labelledby naming a control, matched exactly. */
+    /** The text of the label, aria-label or aria-labelledby of a control, matched exactly. */
     label: schema.string().min(1),
 });
 
 /** A locator matching by text. */
 const TextMatch = schema.object({
-    /** The whole text of the innermost element holding it, matched exactly. */
+    /** The whole text of the innermost element containing it, matched exactly. */
     text: schema.string().min(1),
 });
 

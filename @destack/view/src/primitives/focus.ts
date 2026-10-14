@@ -22,14 +22,14 @@ export function makeFocusListener(
     };
 }
 
-/** Follow whether an element holds the focus. */
+/** Follow whether an element has the focus. */
 export function createFocusSignal(target: MaybeAccessor<Element>): Accessor<boolean> {
     // follow nothing on the server
     if (isServer) {
         return () => false;
     }
 
-    // start from whether the element holds the focus, then follow its focus and blur
+    // start from whether the element has the focus, then follow its focus and blur
     const [isActive, setIsActive] = createHydratableSignal(
         false,
         () => document.activeElement === access(target),

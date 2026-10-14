@@ -34,7 +34,7 @@ export function createSelection(): [Accessor<HTMLSelection>, (selection: HTMLSel
     const [current, setCurrent] = createSignal<HTMLSelection>(NO_SELECTION, { ownedWrite: true });
     const [wanted, setWanted] = createSignal<HTMLSelection>(NO_SELECTION, { ownedWrite: true });
 
-    // read the selection from the focused field, or from the editable element holding the range
+    // read the selection from the focused field, or from the editable element containing the range
     const read = (): void => {
         const active = document.activeElement;
         if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
@@ -82,7 +82,7 @@ export function createSelection(): [Accessor<HTMLSelection>, (selection: HTMLSel
     return [current, setWanted];
 }
 
-/** Read a document range as offsets into the editable element holding it, or no selection. */
+/** Read a document range as offsets into the editable element containing it, or no selection. */
 function rangeSelection(selection: Selection | null): HTMLSelection {
     // read nothing without a range inside an editable element
     if (selection === null || selection.rangeCount === 0) {
@@ -102,7 +102,7 @@ function rangeSelection(selection: Selection | null): HTMLSelection {
     return start === undefined || end === undefined ? NO_SELECTION : [parent, start, end];
 }
 
-/** Find the nearest editable element holding a node, null outside any. */
+/** Find the nearest editable element containing a node, null outside any. */
 function editableAncestor(node: Node | null): HTMLElement | null {
     for (let current = node; current !== null; current = current.parentNode) {
         if (current instanceof HTMLElement && current.contentEditable === "true") {

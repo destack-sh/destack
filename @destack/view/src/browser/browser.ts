@@ -8,7 +8,7 @@ import type { Subject } from "@destack/sync";
 import { PermissionScope } from "@destack/access";
 import type { ClientOptions } from "@destack/runtime/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
-import { OtlpExporter } from "@destack/telemetry/otlp";
+import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import {
     type CatalogReference,
     CLIENT_PATH,
@@ -43,7 +43,10 @@ export async function mount(view: View): Promise<() => Promise<void>> {
     );
 
     // export the page's telemetry and uncaught failures to its origin, which stamps the build it serves
-    const exporter = OtlpExporter.origin(reportToDevtools);
+    const exporter = OtlpExporter.http(
+        { endpoint: OTLP_ORIGIN_PATH, isKeepalive: true },
+        reportToDevtools,
+    );
     const telemetry = await startTelemetry(
         exporter.options({ name: view.package.name, version: release }),
     );
@@ -261,7 +264,7 @@ function restyle(display: ViewDisplay): void {
     root.lang = display.locale;
 }
 
-/** Fetch the catalogs a launch names. */
+/** Fetch the catalogs a launch lists. */
 async function fetchCatalogs(references: readonly CatalogReference[]): Promise<Catalog[]> {
     return Promise.all(
         references.map(async (reference) => {
@@ -271,11 +274,11 @@ async function fetchCatalogs(references: readonly CatalogReference[]): Promise<C
                 throw new TypeError(`the catalog at ${reference.url} answered ${response.status}`);
             }
 
-            // require the package and language the launch names
+            // require the package and language the launch lists
             const catalog = Catalog.parse(await response.json());
             if (catalog.package !== reference.package || catalog.locale !== reference.locale) {
                 throw new TypeError(
-                    `the catalog at ${reference.url} is not the one the launch names`,
+                    `the catalog at ${reference.url} differs from the launch's catalog`,
                 );
             }
 
@@ -303,7 +306,7 @@ async function openTabs(
         }
     }
 
-    // open each scope's tab over the origin's endpoint, reaching other scopes' homes below the origin's home path
+    // open each scope's tab over the origin's endpoint, calling other scopes' homes below the origin's home path
     const url = new URL(endpoint, location.origin).href;
 
     return new Map(
@@ -330,7 +333,7 @@ async function openTabs(
     );
 }
 
-/** Reach a path below the page's origin with the token a shell page carries, else its cookies. */
+/** Call a path below the page's origin with the shell page's token, else its cookies. */
 function pageOrigin(): (path: string) => ClientOptions {
     // read the token the machine writes into a shell page
     const token = document.querySelector<HTMLMetaElement>(`meta[name="${PAGE_TOKEN_META}"]`);

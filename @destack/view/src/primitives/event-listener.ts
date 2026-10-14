@@ -178,7 +178,7 @@ export type EventHandlersMap<EventMap> = {
     [EventName in keyof EventMap]: (event: EventMap[EventName]) => void;
 };
 
-/** Listen to one more event of a stack, returning how to stop it alone. */
+/** Listen to one more event of a stack, returning the stop of that listener. */
 export type EventListenerStackOn<EventMap extends object> = <EventType extends keyof EventMap>(
     type: EventType,
     handler: (event: EventMap[EventType]) => void,
@@ -507,7 +507,7 @@ function listenToProperties(target: EventTarget, properties: object): void {
     }
 }
 
-/** Check whether a property holds an event handler. */
+/** Check whether a property is an event handler. */
 function isHandler(value: unknown): value is (event: Event) => void {
     return typeof value === "function";
 }

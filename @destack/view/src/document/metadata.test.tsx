@@ -123,7 +123,7 @@ test("render the pages inside metadata once, inside its defaults", async () => {
 });
 
 test("show the site's default title and preview for a page naming none", async () => {
-    // render the site's metadata alone
+    // render only the site's metadata
     await mount(() => <Metadata {...site} />);
 
     // keep the default title, description and the image against the base

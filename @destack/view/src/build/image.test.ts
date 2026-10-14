@@ -6,16 +6,41 @@ import sharp from "sharp";
 import { build } from "vite";
 import { schema } from "@destack/schema";
 import { ImageMetadata } from "../media/asset.ts";
+import type { TransformCache } from "@destack/package/build";
 import { imagePlugin, imageFiles, transformImage } from "./image.ts";
 
 /** A 1200 by 600 PNG of one color. */
-async function hero(): Promise<Uint8Array> {
+async function hero(): Promise<Uint8Array<ArrayBuffer>> {
     const image = sharp({
         create: { width: 1200, height: 600, channels: 3, background: "#3366ff" },
     });
 
     return new Uint8Array(await image.png().toBuffer());
 }
+
+test("render each rendition of an image once, reading it from the build's cache by digest, width and format", async () => {
+    // render a wide PNG twice through one cache, counting what each pass writes
+    const kept = new Map<string, Uint8Array<ArrayBuffer>>();
+    const written: string[] = [];
+    const cache: TransformCache = {
+        read: async (key) => kept.get(key),
+        write: async (key, bytes) => {
+            kept.set(key, bytes);
+            written.push(key);
+        },
+    };
+    const bytes = await hero();
+    const first = await transformImage(bytes, {}, cache);
+    const firstWrites = written.length;
+    const second = await transformImage(bytes, {}, cache);
+
+    // keep every rendition but the original once, and read the same bytes back
+    expect({
+        firstWrites,
+        secondWrites: written.length - firstWrites,
+        isSame: second.files.every((file, index) => file.data === first.files[index]?.data),
+    }).toEqual({ firstWrites: first.files.length - 1, secondWrites: 0, isSame: true });
+});
 
 test("render an image's source set up to its own width in AVIF, WebP and its format, with a blurred rendition", async () => {
     // transform a wide PNG

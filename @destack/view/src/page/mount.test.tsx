@@ -16,7 +16,7 @@ import { useLocale } from "./locale.ts";
 import type { Catalog } from "@destack/locale";
 import { changed } from "../test/dom.ts";
 
-/** A page origin reaching nothing, as a test page has none. */
+/** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
     throw new TypeError(`a test page reaches no ${path}`);
 }
@@ -30,7 +30,7 @@ const OPEN = String.fromCodePoint(0x2068);
 /** The pop directional isolate closing a string value. */
 const CLOSE = String.fromCodePoint(0x2069);
 
-/** What a host gives a view mounted in a test, before naming the person's locale. */
+/** What a host gives a view mounted in a test, before setting the person's locale. */
 const CONTEXT: ViewContext = {
     installation: "installation-notes",
     space: "space-personal",
@@ -55,7 +55,7 @@ function Status() {
 }
 
 /** Render the status into a detached element and read its text. */
-function textOf(context: ViewContext): string {
+function readText(context: ViewContext): string {
     const element = document.createElement("div");
     const dispose = renderView(
         Status,
@@ -70,7 +70,7 @@ function textOf(context: ViewContext): string {
 }
 
 test("render in the person's locale from the view's context with the launch's catalogs, the source language when the host names none", () => {
-    expect([textOf(CONTEXT), textOf({ ...CONTEXT, locale: "de-AT" })]).toEqual([
+    expect([readText(CONTEXT), readText({ ...CONTEXT, locale: "de-AT" })]).toEqual([
         `en: Saved ${OPEN}3${CLOSE} notes`,
         `de-AT: ${OPEN}3${CLOSE} Notizen gespeichert`,
     ]);
@@ -161,6 +161,8 @@ test("call a package the view declares where the host mounts it, and refuse it t
         { context: CONTEXT, clients: new Map(), packages: new Map(), origin: noOrigin },
         [],
     );
-    expect(refused.textContent).toBe("TypeError: the view declares no package @example/counter");
+    expect(refused.textContent).toBe(
+        "TypeError: the view does not declare package @example/counter",
+    );
     disposeRefused();
 });

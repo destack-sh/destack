@@ -116,7 +116,7 @@ export function sortBreakpoints(breakpoints: Breakpoints): Breakpoints {
     return Object.fromEntries(sorted);
 }
 
-/** Add the hidden `key` getter naming the last matching breakpoint. */
+/** Add the hidden `key` getter with the last matching breakpoint. */
 function withKey(
     matches: Readonly<Record<string, boolean>>,
     key: () => string | undefined,

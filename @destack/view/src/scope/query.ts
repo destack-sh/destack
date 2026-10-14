@@ -1,7 +1,7 @@
 import type { RelationalQuery } from "@destack/object/client";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
 
-/** Follow a relational query, pending until the scope's copy has it. */
+/** Follow a relational query, pending until the scope's replica has it. */
 export function useQuery<Value>(
     query: RelationalQuery<Value> | Accessor<RelationalQuery<Value>>,
 ): Accessor<Value> {

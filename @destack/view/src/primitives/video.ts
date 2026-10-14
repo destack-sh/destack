@@ -131,7 +131,7 @@ export function makeVideo(
     }
 
     // configure the player and listen to each handler's event until cleaned up
-    const player = playerOf(source);
+    const player = resolvePlayer(source);
     configure(player, options);
     const stops = Object.entries(handlers).map(([name, handler]) => {
         const listener: EventListenerObject = { handleEvent: handler };
@@ -210,7 +210,7 @@ export function createVideo(
     if (isServer) {
         return serverVideo();
     }
-    const player = playerOf(access(source));
+    const player = resolvePlayer(access(source));
     configure(player, options);
     onCleanup(() => player.pause());
     const seek = (time: number): void => {
@@ -493,7 +493,7 @@ export function createVideoFrameCallback(
 }
 
 /** Take an existing player, or make one of a video. */
-function playerOf(source: VideoSource | HTMLVideoElement): HTMLVideoElement {
+function resolvePlayer(source: VideoSource | HTMLVideoElement): HTMLVideoElement {
     if (source instanceof HTMLVideoElement) {
         return source;
     }

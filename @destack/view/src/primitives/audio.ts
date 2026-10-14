@@ -56,7 +56,7 @@ export function makeAudio(
     }
 
     // listen to each handler's event until cleaned up
-    const player = playerOf(source);
+    const player = resolvePlayer(source);
     const stops = Object.entries(handlers).map(([name, handler]) => {
         const listener: EventListenerObject = { handleEvent: handler };
         player.addEventListener(name, listener);
@@ -123,7 +123,7 @@ export function createAudio(source: AudioSource | Accessor<AudioSource>): AudioR
             seek: () => {},
         };
     }
-    const player = playerOf(access(source));
+    const player = resolvePlayer(access(source));
     const [controls, cleanup] = makeAudioPlayer(player);
     onCleanup(cleanup);
 
@@ -181,7 +181,7 @@ export function createAudio(source: AudioSource | Accessor<AudioSource>): AudioR
 }
 
 /** Take an existing player, or make one of a sound. */
-function playerOf(source: AudioSource | HTMLAudioElement): HTMLAudioElement {
+function resolvePlayer(source: AudioSource | HTMLAudioElement): HTMLAudioElement {
     if (source instanceof HTMLAudioElement) {
         return source;
     }

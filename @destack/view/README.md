@@ -1,16 +1,25 @@
 # @destack/view
 
-`@destack/view` is Solid 2, `/router` is Solid Router 2 with nuqs' `useQueryState` and React Router's `useBlocker`, `/primitives/*` is solid-primitives, `/document` is Next.js's `Metadata`, `Viewport`, `next/font` and `next/script` with next-themes, `/media` is `next/image`, and `/test` is Testing Library's `render`.
+`@destack/view` renders a package's views in the shell with Solid, and gives them their space's objects, the person's settings and the shell's commands.
 
 ```tsx
-// page() is an accessor
+const space = useSpace({ notebook, note });
+const notes = useQuery(() => space.query.note.findMany({ where: { parentId: notebook() } }));
+await space.mutate.note.update({ id, title: "Groceries" });
+```
+
+## Prior art
+
+`@destack/view` is Solid 2, `/router` is Solid Router 2 with nuqs' `useQueryState` and React Router's `useBlocker`, `/document` follows Next.js's `Metadata`, `next/font` and next-themes, `/media` follows `next/image`, and `/test` follows Testing Library's `render`.
+
+```tsx
 const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
-const blocker = useBlocker(() => form.isEdited()); // blocker.state(), "unblocked" | "blocked"
-const sans = defineFont({ src: plexSans, fallback: ["sans-serif"] }); // next/font/local's localFont
-<Font font={sans} />; // writes the faces next/font injects
-const { resolvedAppearance } = createAppearance(); // next-themes' resolvedTheme
-<Image src={cover} alt="" placeholder="blur" />; // next/image with AVIF and WebP variants
-render(() => <Notes />, { container, hydrate: true }); // Testing Library's render
+const blocker = useBlocker(() => form.isEdited());
+const sans = defineFont({ src: plexSans, fallback: ["sans-serif"] });
+<Font font={sans} />;
+const { resolvedAppearance } = createAppearance();
+<Image src={cover} alt="" placeholder="blur" />;
+render(() => <Notes />, { container, hydrate: true });
 ```
 
 ## Views
@@ -52,7 +61,7 @@ const spans = createMemo(() => observability.span.list({ scope, where: `trace = 
 
 ## Page origin
 
-`useOrigin` reaches a path below the page's origin with the page's credential: a shell page's token, else its cookies; the machine forwards each path as the person.
+`useOrigin` calls a path below the page's origin with the page's credential: a shell page's token, else its cookies; the machine forwards each path as the person.
 
 ```ts
 import { useOrigin } from "@destack/view";
@@ -133,7 +142,7 @@ const [open, setOpen] = createControllableSignal({
 
 ## Motion
 
-`createReducedMotion` follows whether the theme holds an element's motion still, from the person's motion setting or the device's preference, where Framer Motion's `useReducedMotion` reads the device alone.
+`createReducedMotion` follows whether the theme keeps an element's motion still, from the person's motion setting or the device's preference, where Framer Motion's `useReducedMotion` reads only the device.
 
 ```tsx
 const isStill = createReducedMotion(canvas);
@@ -273,7 +282,7 @@ const style = theme.variables(appearance, preferences);
 
 ## Styles
 
-`@destack/view/styles` loads a document's base styles: Preflight, the theme's element defaults and the StyleX rules; import it from the app module that server and browser both load, as SolidStart's `app.tsx`, so the browser bundle carries it.
+`@destack/view/styles` loads a document's base styles: Preflight, the theme's element defaults and the StyleX rules; import it from the app module that server and browser both load, as SolidStart's `app.tsx`, so the browser bundle includes it.
 
 ```tsx
 import "@destack/view/styles";

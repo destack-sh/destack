@@ -16,7 +16,7 @@ export interface MetadataImage {
     readonly alt?: string;
 }
 
-/** An icon a page names, with its sizes and media type. */
+/** An icon a page lists, with its sizes and media type. */
 export interface MetadataIcon {
     /** The icon's address. */
     readonly url: string;
@@ -139,14 +139,16 @@ export type MetadataProperties = Metadata & {
 export function Metadata(properties: MetadataProperties): JSX.Element {
     // merge each field over the enclosing metadata, keeping the enclosing title template
     const enclosing = useContext(MetadataContext);
-    const merged = (): Metadata => ({ ...enclosing, ...fieldsOf(properties) });
-    const title = () => titleOf(properties.title, enclosing.title);
+    const merged = (): Metadata => ({ ...enclosing, ...omitChildren(properties) });
+    const title = () => resolveTitle(properties.title, enclosing.title);
 
     return (
-        <MetadataContext value={inherited(merged(), templateOf(properties.title, enclosing.title))}>
+        <MetadataContext
+            value={inherited(merged(), inheritedTemplate(properties.title, enclosing.title))}
+        >
             <Head>
                 <Show when={title()}>{(text) => <Title>{text()}</Title>}</Show>
-                <For each={tagsOf(merged(), title())}>
+                <For each={resolveTags(merged(), title())}>
                     {(tag) =>
                         tag.tag === "meta" ? (
                             <Meta {...tag.attributes} />
@@ -189,7 +191,7 @@ export function Viewport(properties: Viewport): JSX.Element {
 }
 
 /** Resolve metadata into its head tags. */
-function tagsOf(metadata: Metadata, title: string | undefined): HeadTag[] {
+function resolveTags(metadata: Metadata, title: string | undefined): HeadTag[] {
     // resolve addresses and the previews' shared text
     const absolute = (path: string) =>
         metadata.metadataBase === undefined ? path : new URL(path, metadata.metadataBase).href;
@@ -239,7 +241,7 @@ function tagsOf(metadata: Metadata, title: string | undefined): HeadTag[] {
                   ...property("og:locale", graph.locale),
                   ...property("og:title", sharedTitle),
                   ...property("og:description", sharedDescription),
-                  ...imagesOf(graph.images, absolute).flatMap((image) => [
+                  ...absoluteImages(graph.images, absolute).flatMap((image) => [
                       ...property("og:image", image.url),
                       ...property("og:image:width", image.width?.toString()),
                       ...property("og:image:height", image.height?.toString()),
@@ -261,20 +263,22 @@ function tagsOf(metadata: Metadata, title: string | undefined): HeadTag[] {
                   ...named("twitter:creator", card.creator),
                   ...named("twitter:title", card.title ?? sharedTitle),
                   ...named("twitter:description", card.description ?? sharedDescription),
-                  ...imagesOf(card.images ?? graph?.images, absolute).flatMap((image) => [
+                  ...absoluteImages(card.images ?? graph?.images, absolute).flatMap((image) => [
                       ...named("twitter:image", image.url),
                       ...named("twitter:image:alt", image.alt),
                   ]),
               ]),
 
         // link the icons and the manifest
-        ...iconsOf(metadata.icons?.icon).map((icon) => link({ rel: "icon", ...icon })),
+        ...iconLinks(metadata.icons?.icon).map((icon) => link({ rel: "icon", ...icon })),
         ...(metadata.icons?.shortcut === undefined
             ? []
             : [link({ rel: "shortcut icon", href: metadata.icons.shortcut })]),
-        ...iconsOf(metadata.icons?.apple).map((icon) => link({ rel: "apple-touch-icon", ...icon })),
+        ...iconLinks(metadata.icons?.apple).map((icon) =>
+            link({ rel: "apple-touch-icon", ...icon }),
+        ),
         ...(metadata.icons?.other ?? []).map((icon) =>
-            link({ ...iconsOf([icon])[0], rel: icon.rel }),
+            link({ ...iconLinks([icon])[0], rel: icon.rel }),
         ),
         ...(metadata.manifest === undefined
             ? []
@@ -319,7 +323,7 @@ function link(attributes: Readonly<Record<string, string>>): HeadTag {
 }
 
 /** Read images as absolute images with their dimensions and descriptions. */
-function imagesOf(
+function absoluteImages(
     images: readonly (string | MetadataImage)[] | undefined,
     absolute: (path: string) => string,
 ): MetadataImage[] {
@@ -331,7 +335,7 @@ function imagesOf(
 }
 
 /** Read icons as link attributes with their sizes and media types. */
-function iconsOf(icons: string | readonly MetadataIcon[] | undefined): Record<string, string>[] {
+function iconLinks(icons: string | readonly MetadataIcon[] | undefined): Record<string, string>[] {
     const list = typeof icons === "string" ? [{ url: icons }] : (icons ?? []);
 
     return list.map((icon) => ({
@@ -342,7 +346,7 @@ function iconsOf(icons: string | readonly MetadataIcon[] | undefined): Record<st
 }
 
 /** Read a page's title: its own through the enclosing template, or the enclosing default. */
-function titleOf(own: Metadata["title"], enclosing: Metadata["title"]): string | undefined {
+function resolveTitle(own: Metadata["title"], enclosing: Metadata["title"]): string | undefined {
     // take an absolute title as is, and fill the enclosing template with a plain one
     const template = typeof enclosing === "object" ? enclosing.template : undefined;
     if (typeof own === "object" && own.absolute !== undefined) {
@@ -356,7 +360,10 @@ function titleOf(own: Metadata["title"], enclosing: Metadata["title"]): string |
 }
 
 /** Read the title template inner pages inherit: an own template, or the enclosing one. */
-function templateOf(own: Metadata["title"], enclosing: Metadata["title"]): Metadata["title"] {
+function inheritedTemplate(
+    own: Metadata["title"],
+    enclosing: Metadata["title"],
+): Metadata["title"] {
     return typeof own === "object" ? own : enclosing;
 }
 
@@ -368,6 +375,6 @@ function inherited(merged: Metadata, title: Metadata["title"]): Metadata {
 }
 
 /** Drop a metadata component's children without rendering them, keeping its fields. */
-function fieldsOf(properties: MetadataProperties): Metadata {
+function omitChildren(properties: MetadataProperties): Metadata {
     return omit(properties, "children");
 }

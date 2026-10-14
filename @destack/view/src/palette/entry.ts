@@ -12,7 +12,7 @@ const MATCHES = { start: 3, word: 2, inside: 1 } as const;
 /** How much higher an entry ranks for the focused window. */
 const BOOSTS = { space: 0.25, installation: 0.5, object: 1 } as const;
 
-/** The identity of a space, which entries name their space by. */
+/** The identity of an entry's space. */
 const SpaceId = schema.identifier("space");
 
 /** A source of the palette's entries, as the person turns it on or off: a kind, or a package. */
@@ -115,12 +115,12 @@ export const PaletteFocus = Object.assign(
             }
             const url = new URL(location);
 
-            // read the installation its origin names
+            // read the installation of its origin
             const origin = InstallationOrigin.parse(url.hostname, domain);
 
-            // read the object an opening names or the one a view opens for
+            // read the object of an opening or the one a view opens for
             const parameter = url.pathname === OPEN_PATH ? OBJECT_PARAMETER : TARGET_PARAMETER;
-            const object = referenceOf(url.searchParams.get(parameter));
+            const object = readReference(url.searchParams.get(parameter));
 
             return {
                 space,
@@ -252,6 +252,6 @@ export type SpaceEntry = Extract<PaletteEntry, { readonly kind: "space" }>;
 export type ObjectEntry = Extract<PaletteEntry, { readonly kind: "object" }>;
 
 /** Read an object reference written as JSON, absent for none. */
-function referenceOf(json: string | null): ObjectReference | undefined {
+function readReference(json: string | null): ObjectReference | undefined {
     return json === null ? undefined : ObjectReference.parse(JSON.parse(json));
 }

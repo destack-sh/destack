@@ -79,11 +79,11 @@ function openPalette(command: string | undefined, localization: Localization): v
     dialog.dataset["slot"] = "command-palette";
     const name = localization.render(t`Command palette`);
     dialog.setAttribute("aria-label", name);
-    dialog.className = classOf(styles.dialog);
+    dialog.className = readClass(styles.dialog);
     const frame = document.createElement("iframe");
     frame.src = url;
     frame.title = name;
-    frame.className = classOf(styles.frame);
+    frame.className = readClass(styles.frame);
     dialog.append(frame);
     document.body.append(dialog);
     dialog.showModal();
@@ -112,7 +112,7 @@ function openPalette(command: string | undefined, localization: Localization): v
 }
 
 /** Read the class names of a StyleX style, which always compiles to some. */
-function classOf(styled: style.Styles): string {
+function readClass(styled: style.Styles): string {
     const { class: names } = style.attrs(styled);
     if (names === undefined) {
         throw new TypeError("a palette style compiled to no class");

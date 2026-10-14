@@ -11,7 +11,7 @@ import {
 /** A seed position in Paris. */
 const PARIS = { latitude: 48.8566, longitude: 2.3522 };
 
-/** Read an accessor, naming a pending read. */
+/** Read an accessor, reporting a pending read. */
 function read(accessor: () => { latitude: number }): number | string {
     try {
         return accessor().latitude;

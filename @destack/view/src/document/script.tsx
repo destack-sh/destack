@@ -47,7 +47,7 @@ const loaded = new Set<string>();
 
 /** Add a script to the body once per address, telling a later mount it is ready once loaded. */
 function add(properties: ScriptProperties): void {
-    // tell a later mount the script is ready, and skip a script the page holds already
+    // tell a later mount the script is ready, and skip a script the page has already
     const added = [...document.scripts].some(
         (script) => script.getAttribute("src") === properties.src,
     );

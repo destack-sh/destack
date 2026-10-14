@@ -2,7 +2,7 @@ import type { ObjectType } from "@destack/object";
 import type { Mutation, ObjectAccess, ObjectClient, Submission } from "@destack/object/client";
 import type { JsonObject } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { scopeOf, useClient, useView } from "../page/view.ts";
+import { requireScope, useClient, useView } from "../page/view.ts";
 
 /** An object of a scope: its type and its identifier. */
 export interface ScopeObject {
@@ -14,7 +14,7 @@ export interface ScopeObject {
 
 /** The commands of a scope that refer to objects and methods at run time. */
 export interface ScopeCommands {
-    /** Check whether the person holds a permission on an object, the view's target by default. */
+    /** Check whether the person has a permission on an object, the view's target by default. */
     check(permission: string, object?: ScopeObject): Promise<boolean>;
     /** Call an object type's mutating method by name as one mutation. */
     call(object: ObjectType, method: string, input: JsonObject): Submission<unknown>;
@@ -37,7 +37,7 @@ export function useSpace<const Objects extends Readonly<Record<string, ObjectTyp
 ): ScopeAccess<Objects> {
     const view = useView();
 
-    return access(useClient(scopeOf(view, "space")), objects, view.target);
+    return access(useClient(requireScope(view, "space")), objects, view.target);
 }
 
 /** Read and change object types of the view's account by key, as its account permissions grant. */
@@ -46,14 +46,14 @@ export function useAccount<const Objects extends Readonly<Record<string, ObjectT
 ): ScopeAccess<Objects> {
     const view = useView();
 
-    return access(useClient(scopeOf(view, "account")), objects, view.target);
+    return access(useClient(requireScope(view, "account")), objects, view.target);
 }
 
 /** Read and change object types of the person's home by key. */
 export function useHome<const Objects extends Readonly<Record<string, ObjectType>>>(
     objects: Objects,
 ): ScopeAccess<Objects> {
-    return access(useClient(scopeOf(useView(), "home")), objects, undefined);
+    return access(useClient(requireScope(useView(), "home")), objects, undefined);
 }
 
 /** Give one scope's client as the access to some of its object types. */
@@ -68,7 +68,7 @@ function access<const Objects extends Readonly<Record<string, ObjectType>>>(
         undo: () => client.undo(),
         redo: () => client.redo(),
         check: (permission, object) => {
-            const checked = object ?? targetOf(objects, target);
+            const checked = object ?? findTarget(objects, target);
 
             return client.check(checked.type, checked.id, permission);
         },
@@ -77,7 +77,7 @@ function access<const Objects extends Readonly<Record<string, ObjectType>>>(
 }
 
 /** Find the view's target among a scope's object types. */
-function targetOf(
+function findTarget(
     objects: Readonly<Record<string, ObjectType>>,
     target: ObjectReference | undefined,
 ): ScopeObject {
