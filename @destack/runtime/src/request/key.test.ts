@@ -1,19 +1,24 @@
+import { Derivation } from "@destack/identity";
 import { expect, test } from "@destack/test";
+import { InstallationRoot } from "../workload/root.ts";
 import { CallKey } from "./key.ts";
 
-test("derive an installation's secrets alike on each of its instances and apart from another installation's", async () => {
-    // derive each installation's key from one host key, twice for the first
-    const host = await CallKey.import(new Uint8Array(32).fill(7));
-    const derive = async (installation: string) => {
-        const key = await CallKey.import(await CallKey.derive(host, installation));
-        const deriver = await CallKey.deriver(key);
+test("derive an installation's journal key alike on each of its hosts and apart from another installation's", async () => {
+    // derive each installation's journal key from its root, twice for the first
+    const space = Derivation.of(await Derivation.root(new Uint8Array(32).fill(7)));
+    const fingerprint = async (installation: string) => {
+        const keys = await InstallationRoot.open(
+            await InstallationRoot.derive(space, installation),
+        );
+        const key = await CallKey.of(keys);
+        const signed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode("input"));
 
-        return (await deriver.derive("destack watch v1 channel-1")).toHex();
+        return new Uint8Array(signed).toHex();
     };
     const [first, again, other] = await Promise.all([
-        derive("installation-a"),
-        derive("installation-a"),
-        derive("installation-b"),
+        fingerprint("installation-a"),
+        fingerprint("installation-a"),
+        fingerprint("installation-b"),
     ]);
 
     expect({ isRepeated: first === again, isApart: first !== other }).toEqual({

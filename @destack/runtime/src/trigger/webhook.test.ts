@@ -5,8 +5,7 @@ import { ResourceContext } from "@destack/resource/context";
 import { WebhookOn } from "./webhook.ts";
 import { defineTrigger, Trigger } from "./trigger.ts";
 import { StandardSignature, type WebhookDelivery } from "./webhook.ts";
-import { CallKey } from "../request/index.ts";
-import { testCallKey } from "../test/index.ts";
+import { testKeys } from "../test/index.ts";
 
 /** The package-qualified repository type the calls call. */
 const REPOSITORY = {
@@ -138,7 +137,7 @@ test("receive a delivery with its path's parameters and the secret they resolve,
     }
     const context = {
         resources: new ResourceContext(),
-        deriver: await CallKey.deriver(await testCallKey()),
+        keys: await testKeys(),
     };
 
     // accept the repository's signed delivery

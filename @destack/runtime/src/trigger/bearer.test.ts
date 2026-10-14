@@ -3,8 +3,7 @@ import { schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { exportJWK, generateKeyPair } from "jose";
 import { defineHttps } from "../declare/index.ts";
-import { CallKey } from "../request/index.ts";
-import { testCallKey } from "../test/index.ts";
+import { testKeys } from "../test/index.ts";
 import { BearerSignature } from "./bearer.ts";
 
 /** The sender's API, whose key set the scheme reads. */
@@ -44,7 +43,7 @@ test("verify a bearer token against the key set read through the installation's 
     });
     const context = {
         resources,
-        deriver: await CallKey.deriver(await testCallKey()),
+        keys: await testKeys(),
     };
 
     // sign two pushes as the issuer, and one for another audience

@@ -23,19 +23,14 @@ export function reportError(error: unknown): CallError<string, unknown> {
             cause: failure.cause,
         });
     }
-    // pass client failures on
-    else if (failure !== undefined && failure.status < 500) {
+    // pass deliberate refusals on, such as a client failure or a declared unavailability
+    else if (failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR") {
         return failure;
     }
 
-    // capture unexpected failures as escaping their request
+    // capture unexpected failures as escaping their request, and hide them
     trace.getActiveSpan()?.recordException(error instanceof Error ? error : String(error));
     instruments.captureException(error, { isEscaped: true });
-
-    // pass deliberate unavailability on and hide the rest
-    if (failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR") {
-        return failure;
-    }
 
     return new CallError("INTERNAL_SERVER_ERROR", {
         message: "internal server error",

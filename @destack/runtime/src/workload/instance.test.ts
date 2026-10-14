@@ -4,7 +4,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
 import { Clock, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { defineWorkload, type InstallationContext } from "./workload.ts";
+import { defineWorkload, type ServerContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { Package } from "@destack/package";
 import { PackageHandle } from "../declare/index.ts";
@@ -45,13 +45,17 @@ const publisher = {
     receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
 } satisfies Uplink;
 
-/** The fixture's installation. */
-const installation: InstallationContext = {
-    id: "installation-01996ab0-0000-7000-8000-000000000002",
-    scope: "space-01996ab0-0000-7000-8000-000000000001",
+/** The fixture installation's server context. */
+const server: ServerContext = {
+    installation: "installation-01996ab0-0000-7000-8000-000000000002",
+    space: "space-01996ab0-0000-7000-8000-000000000001",
     build: await MemoryBuild.write(new Map(), { package: first }),
     settings: {},
     resources: new ResourceContext(),
+    keys: {
+        derive: () => Promise.reject(new Error("the fixture derives no secret")),
+        derivePrivateKey: () => Promise.reject(new Error("the fixture derives no private key")),
+    },
     fetch: (request) => Promise.reject(new Error(`the fixture sends no request to ${request.url}`)),
     publisher,
     publisherAt: () => publisher,
@@ -106,9 +110,9 @@ test("release startup resources when the workload shuts down during startup", as
                     throw error;
                 },
                 resources: hosting.resources,
-                installation,
+                server,
                 runs,
-                server: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+                serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
             },
         ),
     ).rejects.toMatchObject({ name: "AbortError" });
@@ -152,9 +156,9 @@ test("start two packages and drain accepted requests before shared cleanup", asy
                 throw error;
             },
             resources: hosting.resources,
-            installation,
+            server,
             runs,
-            server: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
+            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
         },
     );
 
@@ -213,9 +217,9 @@ test("retain shared resources until an overdue request observes cancellation", a
                 throw error;
             },
             resources: hosting.resources,
-            installation,
+            server,
             runs,
-            server: (handle) => ({ ...hosting, package: handle, drainTimeout: 5 }),
+            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 5 }),
         },
     );
 
@@ -262,9 +266,9 @@ test("reject a package served twice and release startup resources", async () => 
                     throw error;
                 },
                 resources: hosting.resources,
-                installation,
+                server,
                 runs,
-                server: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
+                serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
             },
         ),
     ).rejects.toThrow(`duplicate workload package: ${first.name}`);
@@ -281,9 +285,9 @@ test("list the triggers a workload receives and find each by its package and nam
                 throw error;
             },
             resources: hosting.resources,
-            installation,
+            server,
             runs,
-            server: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
+            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
         },
     );
 
@@ -315,24 +319,24 @@ test("reject a trigger registered twice and release startup resources", async ()
                     throw error;
                 },
                 resources: hosting.resources,
-                installation,
+                server,
                 runs,
-                server: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
+                serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
             },
         ),
     ).rejects.toThrow(`duplicate workload trigger: ${github.package.id}/github`);
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("give a starting workload its installation and the machine recording its runs", async () => {
-    // start a workload that keeps the installation and the machine
-    let received: InstallationContext | undefined;
+test("give a starting workload its server context and the machine recording its runs", async () => {
+    // start a workload that keeps its server context and the machine
+    let received: ServerContext | undefined;
     let recording: RunClient | undefined;
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",
             start: async (context) => {
-                received = context.installation;
+                received = context.server;
                 recording = context.runs;
 
                 return { packages: [] };
@@ -345,12 +349,12 @@ test("give a starting workload its installation and the machine recording its ru
                 throw error;
             },
             resources: hosting.resources,
-            installation,
+            server,
             runs,
-            server: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
         },
     );
-    expect([instance.triggers, received, recording]).toEqual([[], installation, runs]);
+    expect([instance.triggers, received, recording]).toEqual([[], server, runs]);
 });
 
 test("serve the next start once a reload starts it, then release the previous start's resources", async () => {
@@ -376,9 +380,9 @@ test("serve the next start once a reload starts it, then release the previous st
                 throw error;
             },
             resources: hosting.resources,
-            installation,
+            server,
             runs,
-            server: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
         },
     );
     expect(instance.packages).toEqual([first]);

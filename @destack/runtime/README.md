@@ -78,14 +78,15 @@ export const workload = defineWorkload({
 });
 
 // a room's partition: accept a socket in a route, answer its messages through the host
-start: async ({ installation, hibernation }) => ({
+start: async ({ server, hibernation }) => ({
     packages: [
         { package: rooms, router: {}, fetch: async () => hibernation.accept({ id, attachment }) },
     ],
     sockets: { message: async (socket, bytes) => socket.send(bytes), close: async () => {} },
 });
-installation.partition; // the one partition the instance serves, from the Destack-Partition header
-installation.at(Egress.address(installationId, spaceId)); // another installation, through the egress
+server.partition; // the one partition the instance serves, from the Destack-Partition header
+server.at(Egress.address(installationId, spaceId)); // another installation, through the egress
+await server.keys.derivePrivateKey("vapid"); // a key of the package's own, rooted in its space's identity
 request.headers.get(FORWARDED_URL_HEADER); // a route's request at ROUTE_PATH, handed to the workload's own package
 await instance.fetch(rooms, request); // a request to one served package
 ```

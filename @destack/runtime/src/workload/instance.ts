@@ -11,7 +11,7 @@ import { CallError } from "../error/index.ts";
 import type {
     EphemeralHost,
     HookHandler,
-    InstallationContext,
+    ServerContext,
     Workload,
     WorkloadContext,
 } from "./workload.ts";
@@ -192,12 +192,9 @@ class Generation {
             // start the workload
             const implementation = await workload.start({
                 resources: options.resources,
-                ...(options.installation === undefined
-                    ? {}
-                    : { installation: options.installation }),
+                ...(options.server === undefined ? {} : { server: options.server }),
                 ...(options.runs === undefined ? {} : { runs: options.runs }),
                 callKey: options.callKey,
-                deriver: await CallKey.deriver(await options.callKey()),
                 clock: options.clock,
                 ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
                 ...(options.hibernation === undefined ? {} : { hibernation: options.hibernation }),
@@ -250,7 +247,7 @@ class Generation {
 
         // start the server, reporting its controllers' failures to the host
         const server = Server.start({
-            ...options.server(handle),
+            ...options.serverOptions(handle),
             ...served,
             health: new Health(handle.name),
             resources: options.resources,
@@ -371,8 +368,8 @@ class Generation {
 export interface WorkloadInstanceOptions {
     /** The installation's resources. */
     readonly resources: ResourceContext;
-    /** The installation the workload runs as, absent outside a space. */
-    readonly installation?: InstallationContext;
+    /** The server context of the installation the workload runs as, absent outside a space. */
+    readonly server?: ServerContext;
     /** The machine recording the installation's runs, absent outside a space. */
     readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
@@ -388,7 +385,7 @@ export interface WorkloadInstanceOptions {
     /** The clock the workload runs at. */
     readonly clock: Clock;
     /** Select the server options of one served package. */
-    server(
+    serverOptions(
         handle: PackageHandle,
     ): Omit<
         ServerOptions,

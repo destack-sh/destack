@@ -1,4 +1,7 @@
 import { Caller } from "@destack/access";
+import type { Deriver } from "@destack/identity";
+import { InstallationRoot } from "./root.ts";
+import { Symbolicator } from "@destack/package/stack";
 import { Clock } from "@destack/schema";
 import { copyRequest } from "../request/request.ts";
 import type { Uplink } from "@destack/sync";
@@ -32,7 +35,7 @@ import {
 } from "../trigger/index.ts";
 import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
-import type { InstallationContext, EphemeralHost, Workload } from "./workload.ts";
+import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../request/index.ts";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
@@ -124,14 +127,15 @@ export class WorkloadRunner implements AsyncDisposable {
     ): Promise<WorkloadRunner> {
         // export the package's telemetry to its host
         const running = await startTelemetry(
-            WorkloadRunner.#telemetryOptions(runner, start, report),
+            WorkloadRunner.#telemetryOptions(runner, start, build, report),
         );
 
         // start the instance on the bound resources
         const connections = new AsyncDisposableStack();
         try {
             const resources = await WorkloadRunner.#connect(runner, start, connections);
-            const callKey = CallKey.import(Uint8Array.fromHex(start.callKey));
+            const keys = await InstallationRoot.open(Uint8Array.fromHex(start.root));
+            const callKey = CallKey.of(keys);
             const stack = Egress.url(start.egress, STACK_ADDRESS);
             const runs = runner.runs(stack, start);
             const host = runner.socketHost ?? {
@@ -141,11 +145,7 @@ export class WorkloadRunner implements AsyncDisposable {
             const hibernation = new Hibernation(host, start.secret, report);
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
-                installation: WorkloadRunner.#installation(runner, start, {
-                    build,
-                    stack,
-                    resources,
-                }),
+                server: WorkloadRunner.#server(runner, start, { build, stack, resources, keys }),
                 runs,
                 callKey: () => callKey,
                 clock: runner.clock,
@@ -153,7 +153,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
                 ephemeral: runner.ephemeral,
                 hibernation,
-                server: () => WorkloadRunner.#serve(runner, start),
+                serverOptions: () => WorkloadRunner.#serve(runner, start),
             });
 
             // index the served packages
@@ -171,7 +171,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 packages,
                 running,
                 runner.workload.package.id,
-                { resources, deriver: await CallKey.deriver(await callKey) },
+                { resources, keys },
                 connections,
                 runs,
                 hibernation,
@@ -184,39 +184,42 @@ export class WorkloadRunner implements AsyncDisposable {
         }
     }
 
-    /** Export a workload's telemetry to its host under the runner's secret. */
+    /** Export a workload's telemetry to its host, symbolicated by its build. */
     static #telemetryOptions(
         runner: RunnerOptions,
         start: WorkloadStart,
+        build: BuildReader,
         report: (error: unknown) => void,
     ): TelemetryOptions {
-        // post to the host's OTLP path with the runner's secret
+        // post to the host's OTLP path with the runner's secret, resolving frames through the build
         const endpoint = Egress.beside(start.egress, OTLP_ORIGIN_PATH);
         const headers = () => ({ authorization: `Bearer ${start.secret}` });
-        const exporter = OtlpExporter.http({ endpoint, headers }, report);
+        const exporter = OtlpExporter.http({ endpoint, headers }, report, new Symbolicator(build));
 
         return exporter.options(runner.workload.package, { ratio: start.sampling });
     }
 
-    /** Describe a started workload's installation. */
-    static #installation(
+    /** Build the server context of a started workload. */
+    static #server(
         runner: RunnerOptions,
         start: WorkloadStart,
         bound: {
             readonly build: BuildReader;
             readonly stack: string;
             readonly resources: ResourceContext;
+            readonly keys: Deriver;
         },
-    ): InstallationContext {
-        const { build, stack, resources } = bound;
+    ): ServerContext {
+        const { build, stack, resources, keys } = bound;
 
         return {
-            id: start.installation,
-            scope: start.scope,
+            installation: start.installation,
+            space: start.space,
             ...(start.partition === undefined ? {} : { partition: start.partition }),
             build,
             settings: start.settings,
             resources,
+            keys,
             publisher: runner.publisher(stack, start.secret),
             publisherAt: (address, packageId) =>
                 runner.publisher(
@@ -427,7 +430,7 @@ export class WorkloadRunner implements AsyncDisposable {
     static #serve(runner: RunnerOptions, start: WorkloadStart) {
         return {
             clock: runner.clock,
-            scope: start.scope,
+            scope: start.space,
             instance: start.instance,
             drainTimeout: DRAIN_MILLISECONDS,
             authenticate: async (request: Request) => Caller.forwarded(request),

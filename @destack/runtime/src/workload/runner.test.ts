@@ -102,9 +102,9 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 
 /** The host's start message. */
 const start: WorkloadStart = {
-    callKey: "00".repeat(32),
+    root: "00".repeat(32),
     instance: schema.identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
-    scope: spaceId,
+    space: spaceId,
     installation: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-000000000003"),
@@ -171,7 +171,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
                 {
                     name: "main",
                     start: async (started) => {
-                        settings = started.installation?.settings;
+                        settings = started.server?.settings;
 
                         return {
                             packages: [notes, events].map((handle) => ({

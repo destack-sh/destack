@@ -1,12 +1,8 @@
-import { Derivation, type Deriver } from "@destack/identity";
 /** Read the deployment's key that sensitive call inputs are fingerprinted under. */
 export type CallKey = () => Promise<CryptoKey>;
 
-/** The label a deployment's call key derives from its keyring under. */
+/** The label the call key derives under. */
 const CALL_KEY_LABEL = "destack call key v1";
-
-/** The label an installation's root secret derives from its call key under. */
-const ROOT_LABEL = "destack installation root v1";
 
 /** Import and derive the keys sensitive call inputs are fingerprinted under. */
 export const CallKey = {
@@ -17,25 +13,10 @@ export const CallKey = {
         ]);
     },
 
-    /** Derive a deployment's key from its keyring. */
+    /** Derive the call key from a keyring or an installation's root. */
     async of(keyring: {
         derive(label: string): Promise<Uint8Array<ArrayBuffer>>;
     }): Promise<CryptoKey> {
         return CallKey.import(await keyring.derive(CALL_KEY_LABEL));
-    },
-
-    /** Derive the key of one installation from the host's key. */
-    async derive(key: CryptoKey, installation: string): Promise<Uint8Array<ArrayBuffer>> {
-        const label = new TextEncoder().encode(`call:${installation}`);
-
-        return new Uint8Array(await crypto.subtle.sign("HMAC", key, label));
-    },
-
-    /** Derive an installation's own secrets from its call key. */
-    async deriver(key: CryptoKey): Promise<Deriver> {
-        const label = new TextEncoder().encode(ROOT_LABEL);
-        const root = new Uint8Array(await crypto.subtle.sign("HMAC", key, label));
-
-        return Derivation.of(await Derivation.root(root));
     },
 };

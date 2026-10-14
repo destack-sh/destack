@@ -45,8 +45,8 @@ export type WebhookDelivery = schema.Infer<typeof WebhookDelivery>;
 export interface WebhookContext {
     /** The installation's resources, such as a bound vault secret. */
     readonly resources: ResourceContext;
-    /** Derive the installation's own secrets. */
-    readonly deriver: Deriver;
+    /** Derive the installation's own secrets from its root. */
+    readonly keys: Deriver;
 }
 
 /** The signed webhook deliveries a trigger fires on, as the manifest describes them. */

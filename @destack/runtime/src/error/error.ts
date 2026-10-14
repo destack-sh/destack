@@ -171,12 +171,16 @@ export function describeIssues(issues: readonly SchemaIssue[]): string {
     return `invalid input: ${described.join("; ")}`;
 }
 
-/** Rebuild the call error a failure records, with its code, status, message and details. */
-export function errorOf(failure: Failure): ORPCError<string, JsonValue | undefined> {
+/** Rebuild the call error a failure records, with its code, status, message, details and cause. */
+export function errorOf(
+    failure: Failure,
+    cause?: Error,
+): ORPCError<string, JsonValue | undefined> {
     return new ORPCError<string, JsonValue | undefined>(failure.code, {
         status: failure.status,
         message: failure.message,
         ...(failure.data === undefined ? {} : { data: failure.data }),
+        ...(cause === undefined ? {} : { cause }),
     });
 }
 

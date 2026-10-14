@@ -57,16 +57,14 @@ export interface EphemeralHost {
 export interface WorkloadContext {
     /** The installation's resource and package clients. */
     readonly resources: ResourceContext;
-    /** The installation the workload runs as, absent outside a space. */
-    readonly installation?: InstallationContext;
+    /** The server context of the installation the workload runs as, absent outside a space. */
+    readonly server?: ServerContext;
     /** The machine that records the installation's runs. */
     readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
     /** The clock the workload runs at. */
     readonly clock: Clock;
-    /** Derive the installation's own secrets under labels. */
-    readonly deriver: Deriver;
     /** Where the instance keeps its ephemeral objects, absent outside a runner. */
     readonly ephemeral?: EphemeralHost;
     /** The WebSockets the host keeps open for the instance, absent where the host keeps none. */
@@ -83,12 +81,12 @@ export interface WorkloadContext {
     defer(dispose: () => void | PromiseLike<void>): void;
 }
 
-/** The installation a workload runs as. */
-export interface InstallationContext {
+/** The context a package's server runs in: its installation, bindings, keys and egress. */
+export interface ServerContext {
     /** The installation's identifier. */
-    readonly id: string;
+    readonly installation: string;
     /** The installation's space. */
-    readonly scope: string;
+    readonly space: string;
     /** The one partition of the installation's database the instance serves. */
     readonly partition?: string;
     /** The build the installation's deployment runs. */
@@ -97,6 +95,8 @@ export interface InstallationContext {
     readonly settings: Readonly<Record<string, JsonValue>>;
     /** The installation's bound resources and secrets, each read through its declaration. */
     readonly resources: ResourceContext;
+    /** Derive the installation's keys and secrets from its root, rooted in its space's identity. */
+    readonly keys: Deriver;
     /** The publisher of the replicas of the space's chain and the universe's rows it reads. */
     readonly publisher: Uplink;
     /** Connect to the replicas an installation at `<installation>--<space>` publishes. */

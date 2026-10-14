@@ -23,7 +23,7 @@ export const WorkloadStart = defineSchema(
         /** The instance, the holder name of its leases. */
         instance: schema.identifier("instance"),
         /** The space the installation serves. */
-        scope: schema.identifier("space"),
+        space: schema.identifier("space"),
         /** The installation the workload runs. */
         installation: schema.identifier("installation"),
         /** The one partition of the installation's database the instance serves. */
@@ -38,8 +38,8 @@ export const WorkloadStart = defineSchema(
         egress: schema.url(),
         /** The share of traces the workload keeps beside every failed or slow one, from 0 to 1. */
         sampling: schema.number().min(0).max(1),
-        /** The installation's journal key as 32 hexadecimal bytes, which the host derives. */
-        callKey: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/u)),
+        /** The installation's root as 32 hexadecimal bytes, derived from its space's identity. */
+        root: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/u)),
     }),
 );
 /** The first line a host writes to a runner's input. */
