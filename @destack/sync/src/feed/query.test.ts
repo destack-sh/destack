@@ -246,18 +246,18 @@ test.for(TEST_DIALECTS)(
     "page catch-up changes at transaction boundaries on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, TABLES, { clock: Clock.system });
+        const feed = new Feed(database, TABLES, { clock: Clock.system, pageSize: 4 });
         await database.insert(project).values({ id: "p1", scope: "inbox", name: "a" });
         const start = await database.log.position();
         const signal = AbortSignal.timeout(5000);
         const tasks = (from: number, count: number) =>
             Array.from({ length: count }, (_, index) => ({ ...TASK, id: `t${from + index}` }));
 
-        // commit one transaction of 1500 tasks and two of 700
+        // commit one transaction of more tasks than a page and two of fewer
         for (const [from, count] of [
-            [0, 1500],
-            [1500, 700],
-            [2200, 700],
+            [0, 6],
+            [6, 3],
+            [9, 3],
         ] as const) {
             await database.transaction(async (transaction) => {
                 await transaction.insert(task).values(tasks(from, count));
@@ -267,8 +267,8 @@ test.for(TEST_DIALECTS)(
         // send the large transaction whole and split pages at transaction ends
         const pages: Page[] = await take(
             feed.subscribe({ tasks: { table: task, scopes: ["inbox"] } }, start, signal),
-            (sent) => sent.changes.some((change) => change.row["id"] === "t2899"),
+            (sent) => sent.changes.some((change) => change.row["id"] === "t11"),
         );
-        expect(pages.map((sent) => sent.changes.length)).toEqual([1500, 1400]);
+        expect(pages.map((sent) => sent.changes.length)).toEqual([6, 6]);
     },
 );

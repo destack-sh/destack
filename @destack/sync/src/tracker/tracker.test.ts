@@ -1,9 +1,11 @@
-import { Clock } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { defineTable, eq, integer, text, type DatabaseConnection, type Channel } from "@destack/db";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Tracker, type TrackerMessage } from "./tracker.ts";
+
+/** The heartbeat interval of the test trackers, in milliseconds of their clocks. */
+const HEARTBEAT = 5;
 
 /** The longest a test waits for another instance's rows, far above a few in-memory message hops. */
 const SETTLE_MILLISECONDS = 2000;
@@ -65,21 +67,22 @@ test("replicate rows between instances, and remove them with their owner", async
 });
 
 test("hand a late instance the rows, and drop those of stopped and silent instances", async () => {
+    const clock = new TestClock(0);
     const join = channelHub<TrackerMessage>();
-    const east = await open(join());
+    const east = await open(join(), clock);
     await write(east, "alice", (database) =>
         database.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
     );
 
     // answer a late instance with the earlier rows
-    const west = await open(join());
+    const west = await open(join(), clock);
     await counted(west, 1);
 
     // drop a stopped instance's rows at once
     east.close();
     await counted(west, 0);
 
-    // drop a silent instance's rows after three missed heartbeats
+    // drop a silent instance's rows once the clock passes three missed heartbeats
     let isCrashed = false;
     const channel = join();
     const silenced: Channel<TrackerMessage> = {
@@ -90,12 +93,13 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
         },
         listen: (receive, resume) => channel.listen(receive, resume),
     };
-    const crashing = await open(silenced);
+    const crashing = await open(silenced, clock);
     await write(crashing, "bob", (database) =>
         database.insert(cursor).values({ id: "b", scope: "space", position: 1 }),
     );
     await counted(west, 1);
     isCrashed = true;
+    clock.advance(HEARTBEAT * 4);
     await counted(west, 0);
 });
 
@@ -148,12 +152,12 @@ test("skip the instance's own messages a channel echoes back, as PostgreSQL's do
     expect(await read(east)).toEqual([]);
 });
 
-/** Track the cursors of an in-memory database on a channel. */
-async function open(channel: Channel<unknown>): Promise<Tracker> {
+/** Track the cursors of an in-memory database on a channel, by a stopped clock unless given one. */
+async function open(channel: Channel<unknown>, clock = new TestClock(0)): Promise<Tracker> {
     const storage = await TestDatabase.create("sqlite", [cursor], { isMigrated: true });
     const tracker = new Tracker(storage.database, [cursor], channel, {
-        clock: Clock.system,
-        heartbeat: 5,
+        clock,
+        heartbeat: HEARTBEAT,
     });
     onTestFinished(async () => {
         tracker.close();

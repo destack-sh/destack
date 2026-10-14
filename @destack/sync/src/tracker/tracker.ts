@@ -109,8 +109,8 @@ export class Tracker {
     readonly #heartbeat: number;
     /** The clock heartbeats are timed by. */
     readonly #clock: Clock;
-    /** The heartbeat timer. */
-    readonly #beat: ReturnType<typeof setInterval>;
+    /** Stops the heartbeat loop. */
+    readonly #closing = new AbortController();
     /** Stop listening to the channel. */
     readonly #stop: () => void;
     /** The pending applications of other instances' messages. */
@@ -161,16 +161,8 @@ export class Tracker {
             () => this.#channel.notify({ kind: "hello", instance: this.instance }),
         );
 
-        // announce this instance and drop silent ones
-        this.#beat = setInterval(() => {
-            channel.notify({ kind: "heartbeat", instance: this.instance });
-            const deadline = this.#clock.now() - this.#heartbeat * MISSED_HEARTBEATS;
-            for (const [instance, seen] of this.#instances) {
-                if (seen < deadline) {
-                    this.#applied = this.#applied.then(() => this.#drop(instance));
-                }
-            }
-        }, this.#heartbeat);
+        // announce this instance and drop silent ones each heartbeat
+        void this.#beat(channel);
     }
 
     /** Read the rows an open transaction wrote to the tracked tables. */
@@ -265,9 +257,29 @@ export class Tracker {
         return this.#applied;
     }
 
+    /** Announce this instance and drop silent ones at each heartbeat of the clock until closed. */
+    async #beat(channel: Channel<unknown>): Promise<void> {
+        const { signal } = this.#closing;
+        while (
+            await this.#clock.sleep(this.#heartbeat, signal).then(
+                () => true,
+                () => false,
+            )
+        ) {
+            // announce this instance, and drop the instances silent for too many heartbeats
+            channel.notify({ kind: "heartbeat", instance: this.instance });
+            const deadline = this.#clock.now() - this.#heartbeat * MISSED_HEARTBEATS;
+            for (const [instance, seen] of this.#instances) {
+                if (seen < deadline) {
+                    this.#applied = this.#applied.then(() => this.#drop(instance));
+                }
+            }
+        }
+    }
+
     /** Stop tracking and tell the others to drop this instance's rows. */
     close(): void {
-        clearInterval(this.#beat);
+        this.#closing.abort();
         this.#channel.notify({ kind: "stop", instance: this.instance });
         this.#stop();
     }

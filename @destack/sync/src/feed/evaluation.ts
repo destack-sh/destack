@@ -12,9 +12,6 @@ import type { Feed } from "./feed.ts";
 /** The recent sequences whose decided pages an evaluation keeps. */
 const DECIDED_RECENT = 4;
 
-/** The longest timer delay, 2^31 - 1 milliseconds. */
-const LONGEST_DELAY = 2_147_483_647;
-
 /** One set of queries evaluated for one audience over a feed. */
 export class Evaluation {
     /** The feed the evaluation reads. */
@@ -119,16 +116,17 @@ export class Evaluation {
             return this.#feed.next(sequence, signal);
         }
 
-        // wake at the expiry too
+        // wake at the expiry on the feed's clock too
         const expired = new AbortController();
-        const timer = setTimeout(
+        const sleeping = new AbortController();
+        this.#feed.clock.sleep(until - this.#feed.clock.now(), sleeping.signal).then(
             () => expired.abort(),
-            Math.min(until - this.#feed.clock.now(), LONGEST_DELAY),
+            () => {},
         );
         try {
             await this.#feed.next(sequence, AbortSignal.any([signal, expired.signal]));
         } finally {
-            clearTimeout(timer);
+            sleeping.abort();
         }
     }
 

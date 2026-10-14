@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { aligned, schema, Clock } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
@@ -17,6 +17,37 @@ import {
     until,
 } from "../test/fixture.ts";
 import type { Item, Query } from "../query/query.ts";
+
+test.for(TEST_DIALECTS)(
+    "repeat a caught-up stream's position at each heartbeat as the clock advances on %s",
+    async (dialect) => {
+        // follow the notes of a scope to their snapshot on a stopped clock
+        const database = await open(dialect);
+        const clock = new TestClock(1000);
+        const feed = new Feed(database, [note], { clock, heartbeat: 60_000 });
+        const signal = AbortSignal.timeout(5000);
+        const pages = feed.subscribe(
+            { notes: { table: note, scopes: ["inbox"] } },
+            undefined,
+            signal,
+        );
+        let snapshot = await nextValue(pages);
+        while (!snapshot.complete) {
+            snapshot = await nextValue(pages);
+        }
+
+        // advance the clock past one heartbeat, and read the repeated position as the next page
+        const repeated = nextValue(pages);
+        clock.advance(60_000);
+        expect(await repeated).toEqual({
+            reset: false,
+            complete: true,
+            changes: [],
+            position: snapshot.position,
+        });
+        await pages.return(undefined);
+    },
+);
 
 test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async (dialect) => {
     const database = await open(dialect);
@@ -72,14 +103,11 @@ test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async
 });
 
 test.for(TEST_DIALECTS)(
-    "page a large snapshot and continue after its first page on %s",
+    "page a snapshot of more rows than a page and continue after its first page on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const feed = new Feed(database, [note], { clock: Clock.system });
-        const ids = Array.from(
-            { length: 2500 },
-            (_, index) => `n${String(index).padStart(4, "0")}`,
-        );
+        const feed = new Feed(database, [note], { clock: Clock.system, pageSize: 4 });
+        const ids = Array.from({ length: 10 }, (_, index) => `n${String(index).padStart(2, "0")}`);
         await database.insert(note).values(ids.map((id) => ({ ...first, id })));
 
         // read three key-ordered pages
@@ -89,9 +117,9 @@ test.for(TEST_DIALECTS)(
             (page) => page.complete,
         );
         expect(pages.map((page) => [page.reset, page.complete, page.changes.length])).toEqual([
-            [true, false, 1000],
-            [false, false, 1000],
-            [false, true, 500],
+            [true, false, 4],
+            [false, false, 4],
+            [false, true, 2],
         ]);
         expect(pages.flatMap((page) => page.changes.map((change) => change.row["id"]))).toEqual(
             ids,

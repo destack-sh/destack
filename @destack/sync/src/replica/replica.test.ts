@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, test, TestClock } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     asc,
@@ -17,7 +17,6 @@ import {
     Transaction,
 } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { setTimeout } from "node:timers/promises";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { aligned, schema, Clock } from "@destack/schema";
@@ -40,12 +39,14 @@ import {
 } from "../test/fixture.ts";
 import type { AggregateRow, Query } from "../query/query.ts";
 import type { Page } from "../query/page.ts";
-import { PAGE_SIZE } from "../dataflow/selection.ts";
 import { SyncError } from "../error/error.ts";
 import { Scope } from "../scope/scope.ts";
 
+/** The rows of a feed's page in the paging scenarios, a few to cross pages with few rows. */
+const PAGE_SIZE = 4;
+
 /** The notes of a snapshot spanning two pages. */
-const SNAPSHOT_NOTES = PAGE_SIZE + 500;
+const SNAPSHOT_NOTES = PAGE_SIZE + 2;
 
 /** The rows one insert writes, within every dialect's parameter limit. */
 const INSERT_BATCH = 500;
@@ -170,25 +171,30 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "follow two databases each replicating the other's table, reaching each other's rows and going quiet once neither sends the other bare positions of its own replicated writes, on %s",
     async (dialect) => {
-        // keep the notes on one database and the projects on the other
+        // keep the notes on one database and the projects on the other, on a clock that stands still
+        const clock = new TestClock(0);
         const home = await open(dialect);
         const other = await open(dialect);
         await home.insert(note).values(first);
         await other.insert(project).values({ id: "p", scope: "inbox", name: "Launch" });
 
-        // follow each database's table from the other, with the follower's own origin
+        // follow each database's table from the other, with the follower's own origin, recording the pages
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const projects = new Replica({ name: "projects", scope: "inbox", tables: [project] });
-        const homeFeed = new Feed(home, [note, replicaPosition], { clock: Clock.system });
-        const otherFeed = new Feed(other, [project, replicaPosition], { clock: Clock.system });
+        const homeFeed = new Feed(home, [note, replicaPosition], { clock });
+        const otherFeed = new Feed(other, [project, replicaPosition], { clock });
+        const received: { notes: Page[]; projects: Page[] } = { notes: [], projects: [] };
         const controller = new AbortController();
         const following = Promise.all([
-            notes.follow(other, followFrom(homeFeed, notes), controller.signal, {
-                clock: Clock.system,
+            notes.follow(other, recordFrom(homeFeed, notes, received.notes), controller.signal, {
+                clock,
             }),
-            projects.follow(home, followFrom(otherFeed, projects), controller.signal, {
-                clock: Clock.system,
-            }),
+            projects.follow(
+                home,
+                recordFrom(otherFeed, projects, received.projects),
+                controller.signal,
+                { clock },
+            ),
         ]);
 
         // reach the latest change of each database the other did not originate
@@ -202,17 +208,20 @@ test.for(TEST_DIALECTS)(
             );
         expect([await reach(other, home), await reach(home, other)]).toEqual([true, true]);
 
-        // go quiet once the last records of the reached positions commit
-        await setTimeout(100);
-        const settled = [await home.log.position(), await other.log.position()];
-        await setTimeout(300);
-        expect([await home.log.position(), await other.log.position()]).toEqual(settled);
+        // write once more on each side, and receive each write as the next page, never a bare position first
+        received.notes.length = 0;
+        received.projects.length = 0;
+        await home.insert(note).values({ ...first, id: "b" });
+        await other.insert(project).values({ id: "q", scope: "inbox", name: "Ship" });
+        expect([await reach(other, home), await reach(home, other)]).toEqual([true, true]);
         controller.abort();
         await following;
         expect([
+            changedIds(received.notes),
+            changedIds(received.projects),
             (await other.select().from(note)).map((row) => row.id),
             (await home.select().from(project)).map((row) => row.id),
-        ]).toEqual([["a"], ["p"]]);
+        ]).toEqual([[["b"]], [["q"]], ["a", "b"], ["p", "q"]]);
     },
 );
 
@@ -885,13 +894,13 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const source = await open(dialect);
         const local = await openReplica(dialect);
-        const feed = new Feed(source, [note, replicaPosition], { clock: Clock.system });
+        const feed = new Feed(source, [note, replicaPosition], {
+            clock: Clock.system,
+            pageSize: PAGE_SIZE,
+        });
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const ids = Array.from({ length: SNAPSHOT_NOTES }, (_, index) => `n${index}`);
-        for (let start = 0; start < ids.length; start += INSERT_BATCH) {
-            const batch = ids.slice(start, start + INSERT_BATCH);
-            await source.insert(note).values(batch.map((id) => ({ ...first, id })));
-        }
+        await source.insert(note).values(ids.map((id) => ({ ...first, id })));
 
         // drain the first stream at its first page as at a lapse, and end the second after one page
         const requested: (LogPosition | undefined)[] = [];
@@ -1445,6 +1454,21 @@ function followFrom(feed: Feed, replica: Replica) {
             signal,
             from.origin === undefined ? {} : { origin: from.origin },
         );
+}
+
+/** List the identifiers each page changes. */
+function changedIds(pages: readonly Page[]): unknown[][] {
+    return pages.map((page) => page.changes.map((change) => change.row["id"]));
+}
+
+/** Follow a replica's queries from a feed as its database does, recording each page it receives. */
+function recordFrom(feed: Feed, replica: Replica, received: Page[]) {
+    return async function* (from: Resumption, signal: AbortSignal): AsyncGenerator<Page> {
+        for await (const page of followFrom(feed, replica)(from, signal)) {
+            received.push(page);
+            yield page;
+        }
+    };
 }
 
 test("stream through a client's replica procedures as the follower, and send a forwarded change as its signer", async () => {

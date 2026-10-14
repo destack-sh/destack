@@ -66,6 +66,10 @@ export class Feed implements Cache {
     readonly upstream: Upstream | undefined;
     /** The clock the feed's streams and decisions run at. */
     readonly clock: Clock;
+    /** The signal ending every caught-up stream's wait for its next heartbeat at once. */
+    #beating = new AbortController();
+    /** The beats so far, which streams compare to repeat a beat they missed. */
+    #beats = 0;
     /** The recent changes in commit order. */
     #changes: Change[];
     /** The sequence before the oldest kept change. */
@@ -144,6 +148,42 @@ export class Feed implements Cache {
         this.#memory = options.changes ?? FEED_CHANGES;
         this.observe = options.observe;
         this.heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
+    }
+
+    /** The signal ending caught-up streams' current wait for their heartbeat. */
+    get beating(): AbortSignal {
+        return this.#beating.signal;
+    }
+
+    /** The beats so far. */
+    get beats(): number {
+        return this.#beats;
+    }
+
+    /** Beat at each heartbeat of the feed's clock until the reading stops. */
+    async #beat(signal: AbortSignal): Promise<void> {
+        for (;;) {
+            // wait a heartbeat, ending with the reading
+            const isBeating = await this.clock.sleep(this.heartbeat, signal).then(
+                () => true,
+                (error: unknown) => {
+                    if (!signal.aborted) {
+                        throw error;
+                    }
+
+                    return false;
+                },
+            );
+            if (!isBeating) {
+                return;
+            }
+
+            // count the beat, and end the caught-up streams' wait with a fresh signal for the next
+            const beating = this.#beating;
+            this.#beats++;
+            this.#beating = new AbortController();
+            beating.abort();
+        }
     }
 
     /** Describe the feed. */
@@ -611,7 +651,7 @@ export class Feed implements Cache {
             const reading = new AbortController();
             this.#reading = reading;
             this.#failure = undefined;
-            this.#follow(reading.signal).catch((error: unknown) => {
+            const fail = (error: unknown) => {
                 // report the failure to this reading's subscribers
                 if (this.#reading === reading) {
                     this.#failure =
@@ -620,7 +660,9 @@ export class Feed implements Cache {
                             : new TypeError("feed reading failed", { cause: error });
                     this.#wake();
                 }
-            });
+            };
+            this.#follow(reading.signal).catch(fail);
+            this.#beat(reading.signal).catch(fail);
         }
     }
 

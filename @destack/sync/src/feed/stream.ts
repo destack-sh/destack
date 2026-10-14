@@ -21,6 +21,8 @@ export class Stream {
     readonly #every: number | undefined;
     /** The subscriber's origin, whose replicated writes never advance its bare positions. */
     readonly #origin: string | undefined;
+    /** The feed's beats when the stream last published, a later one repeating its position. */
+    #heard: number;
 
     /** Create the stream of a subscriber. */
     constructor(
@@ -37,6 +39,7 @@ export class Stream {
         this.#queries = queries;
         this.#audience = audience;
         this.#evaluation = new Evaluation(feed, queries, audience);
+        this.#heard = feed.beats;
     }
 
     /** Stream the queries from a position until aborted, or to a completed page once drained. */
@@ -128,15 +131,22 @@ export class Stream {
                 await Evaluation.nextTask();
                 for (const page of pages) {
                     published = page.position.sequence;
+                    this.#heard = this.#feed.beats;
                     yield page;
                 }
 
-                // wait for a commit, or repeat the published position at a heartbeat
+                // wait for a commit, or repeat the published position at the feed's next beat
                 if (sequence === position.sequence) {
-                    const beat = AbortSignal.timeout(this.#feed.heartbeat);
-                    await this.#evaluation.wait(sequence, AbortSignal.any([waking, beat]));
-                    if (beat.aborted && !waking.aborted) {
+                    const beat = this.#feed.beating;
+                    if (this.#feed.beats === this.#heard) {
+                        await this.#evaluation.wait(sequence, AbortSignal.any([waking, beat]));
+                    }
+
+                    // repeat the position once the feed beat since it published
+                    const isBeat = beat.aborted || this.#feed.beats !== this.#heard;
+                    if (isBeat && !waking.aborted) {
                         const repeated = { epoch: position.epoch, sequence: published };
+                        this.#heard = this.#feed.beats;
                         yield { reset: false, complete: true, changes: [], position: repeated };
                     }
                 }
@@ -148,6 +158,7 @@ export class Stream {
                     this.#feed.isOriginated(published, sequence, this.#origin);
                 if (sequence >= this.#feed.sequence && sequence > published && !isOwn) {
                     published = sequence;
+                    this.#heard = this.#feed.beats;
                     yield { reset: false, complete: true, changes: [], position };
                 }
             }
@@ -270,22 +281,20 @@ export class Stream {
         let next = Stream.#settle(pages.next());
         try {
             for (;;) {
-                // race the next page with the interval's end
+                // race the next page with the interval's end on the clock
                 const due = published + every;
-                let timer: ReturnType<typeof setTimeout> | undefined;
+                const sleeping = new AbortController();
                 const arrived =
                     pending === undefined
                         ? await next
                         : await Promise.race([
                               next,
-                              new Promise<undefined>((resolve) => {
-                                  timer = setTimeout(
-                                      () => resolve(undefined),
-                                      Math.max(0, due - clock.now()),
-                                  );
-                              }),
+                              clock.sleep(due - clock.now(), sleeping.signal).then(
+                                  () => undefined,
+                                  () => undefined,
+                              ),
                           ]);
-                clearTimeout(timer);
+                sleeping.abort();
 
                 // publish the merged page at the interval's end
                 if (arrived === undefined) {
