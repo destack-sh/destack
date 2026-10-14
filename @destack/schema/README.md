@@ -18,11 +18,11 @@ const date: PlainDate = { year: 2026, month: 10, day: 3 }; // Temporal.PlainDate
 
 ## Clocks
 
-`Clock` is the current time a long-lived owner reads, `Clock.system` the system's, and a test passes one it sets.
+`Clock` is the time a long-lived owner reads and waits on, `Clock.system` the system's, and a test passes one it moves.
 
 ```ts
-const clock: Clock = { now: () => 1_760_000_000_000 }; // a test's fixed time
 Clock.system.now(); // Date.now()
+await Clock.system.sleep(30_000, signal); // rejects with the signal's reason once it aborts
 ```
 
 ## Comparisons
