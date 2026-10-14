@@ -31,8 +31,8 @@ export const ResourceRecord = {
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
 export const ResourceBinding = defineSchema(
     schema.object({
-        /** The resource. */
-        resource: ResourceId,
+        /** The bound resource's identifier, which its kind's connector reads. */
+        resource: schema.string().min(1),
         /** The resource kind, such as database. */
         kind: schema.string().min(1),
         /** The provider that keeps the resource, such as sqlite. */
