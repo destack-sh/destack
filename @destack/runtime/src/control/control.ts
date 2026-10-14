@@ -209,7 +209,7 @@ export class ControlLoop {
 
     /** Settle once no key is due now or reconciling, or at a deadline. */
     idle(deadline?: number): Promise<void> {
-        // settle at once once the loop stopped
+        // settle at once when the loop stopped
         if (this.#isStopped) {
             return Promise.resolve();
         }
@@ -496,7 +496,9 @@ export class ControlLoop {
                 if (controller.mode === "follow") {
                     await controller.reconcile(key, reconciliation);
                     if (!reconciliation.signal.aborted) {
-                        throw new Error(`${controller.name} stopped following ${key} unasked`);
+                        throw new Error(
+                            `${controller.name} stopped following ${key} without an abort`,
+                        );
                     }
 
                     return stopped.aborted ? undefined : 0;

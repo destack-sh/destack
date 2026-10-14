@@ -1,5 +1,6 @@
 import { schema } from "@destack/schema";
 import { Observable } from "../observable/index.ts";
+import { defineProcedure, eventIterator } from "../runtime/runtime.ts";
 
 /** The health of a package's server. */
 export class Health {
@@ -82,3 +83,13 @@ export const HealthDescription = schema.object({
     /** The status. */
     status: HealthStatus,
 });
+
+/** The health procedures. */
+export const health = {
+    check: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        .route({ method: "GET", path: "/health" })
+        .output(HealthDescription),
+    watch: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        .route({ method: "GET", path: "/health/watch" })
+        .output(eventIterator(HealthDescription)),
+};

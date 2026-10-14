@@ -11,6 +11,7 @@
     },
     "exports": {
         ".": "./src/index.ts",
+        "./destack.json": "./destack.json",
         "./authentication": "./src/authentication/index.ts",
         "./bookmark": "./src/bookmark/index.ts",
         "./bun": "./src/bun/index.ts",

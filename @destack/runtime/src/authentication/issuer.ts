@@ -22,7 +22,7 @@ export class TokenIssuer {
         Caller.requireCurrent(caller, credential.audience, now, credential.scope);
         if (caller.subject === undefined) {
             throw new CallError("UNAUTHORIZED", {
-                message: "an anonymous caller gets no token",
+                message: "an anonymous caller cannot get a token",
             });
         }
         const expiresAt = Math.floor(credential.expiresAt / 1000);
@@ -33,7 +33,7 @@ export class TokenIssuer {
             });
         }
 
-        // encode the verified identity and the delegation it carries
+        // encode the verified identity and its delegation
         TokenIssuerAuthority.require(this.options.authority, caller);
         const identity = TokenIdentity.parse(
             schema.defined({

@@ -1,6 +1,5 @@
 import { implement } from "./handler.ts";
-import type { Health } from "../health/health.ts";
-import { health } from "../health/procedure.ts";
+import { type Health, health } from "../health/health.ts";
 
 /** Implement the health procedures. */
 export function implementHealth(readiness: Health) {

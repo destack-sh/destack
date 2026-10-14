@@ -1,24 +1,29 @@
 # @destack/runtime
 
-`defineProcedure` is oRPC's contract builder `oc` with a permission and an audit per procedure, `/server` is oRPC's `implement` served as OpenAPI, `CallError` is `ORPCError`, `defineTrigger` is a Kubernetes CronJob, a Standard Webhooks receiver and a change trigger, `/outbox` is the transactional outbox, and `/authentication` is a JSON Web Token with an RFC 8693 actor chain and an RFC 9396 grant, exchanged for a subject under its grant.
+`@destack/runtime` declares a package's procedures, triggers and workloads, serves them over oRPC, and issues the tokens its calls carry.
 
 ```ts
-// oc
 const list = defineProcedure({
     authentication: "identity",
     permission: page.permission("read"),
     audit: false,
 });
-list.route({ method: "GET", path: "/pages" }).output(PageList); // oc.route().output()
-const implementation = implement(pages.router).$context<RequestContext>(); // oRPC's implement
-throw new CallError("NOT_FOUND", { message: `no page ${id}` }); // ORPCError
-await CallError.read(response, "MISDIRECTED_REQUEST"); // the 421's declared data: { scope, machine } or { scope, partition }
-// CronJob's concurrencyPolicy and startingDeadlineSeconds
+list.route({ method: "GET", path: "/pages" }).output(PageList);
+const implementation = implement(pages.router).$context<RequestContext>();
+throw new CallError("NOT_FOUND", { message: `no page ${id}` });
+await CallError.read(response, "MISDIRECTED_REQUEST");
+await outbox.append(inbox, deliveryId, delivery, transaction);
+await issuer.issue({ ...person, delegates: [installation], grant }, now);
+client.notes.list({}, { context: { exchange: Exchange.of(served) } });
+```
+
+## Prior art
+
+`defineProcedure` is oRPC's `oc`, `CallError` is `ORPCError`, a schedule trigger is a Kubernetes CronJob, `/outbox` is a transactional outbox, and a token carries an RFC 8693 actor chain and an RFC 9396 grant.
+
+```ts
 on: { schedule: { timing, concurrency: "forbid", deadline: 60_000, call } };
-await new StandardSignature().sign(message, secret); // Standard Webhooks' webhook-signature headers
-await outbox.append(inbox, deliveryId, delivery, transaction); // transactional outbox
-await issuer.issue({ ...person, delegates: [installation], grant }, now); // RFC 8693 act, RFC 9396 details
-client.notes.list({}, { context: { exchange: Exchange.of(served) } }); // RFC 8693 token exchange at the egress
+await new StandardSignature().sign(message, secret);
 ```
 
 ## Packages
@@ -27,7 +32,11 @@ client.notes.list({}, { context: { exchange: Exchange.of(served) } }); // RFC 86
 
 ```ts
 export const npm = defineAdapter("npm", { path: "/npm" });
-export default definePackage({ objects: { repository, release }, adapters: { npm }, since: "2026.8.0" });
+export default definePackage({
+    objects: { repository, release },
+    adapters: { npm },
+    since: "2026.8.0",
+});
 
 const forge = createClient(forgePackage, { url: PackageMount.url(origin, forgePackage.id) });
 await forge.release.list({ scope });
@@ -70,10 +79,12 @@ export const workload = defineWorkload({
 
 // a room's partition: accept a socket in a route, answer its messages through the host
 start: async ({ installation, hibernation }) => ({
-    packages: [{ package: rooms, router: {}, fetch: async () => hibernation.accept({ id, attachment }) }],
+    packages: [
+        { package: rooms, router: {}, fetch: async () => hibernation.accept({ id, attachment }) },
+    ],
     sockets: { message: async (socket, bytes) => socket.send(bytes), close: async () => {} },
 });
-installation.partition; // the one partition the instance serves, as Destack-Partition names it
+installation.partition; // the one partition the instance serves, from the Destack-Partition header
 installation.at(Egress.address(installationId, spaceId)); // another installation, through the egress
 request.headers.get(FORWARDED_URL_HEADER); // a route's request at ROUTE_PATH, handed to the workload's own package
 await instance.fetch(rooms, request); // a request to one served package
@@ -84,7 +95,9 @@ await instance.fetch(rooms, request); // a request to one served package
 `defineInstallationBinding` declares a dependency on an installation of another package, and `defineHttps` on an external HTTPS API, both called through the host's egress.
 
 ```ts
-export const pages = defineInstallationBinding("pages", pagesPackage, { calls: [pagesPackage.router.page.update] });
+export const pages = defineInstallationBinding("pages", pagesPackage, {
+    calls: [pagesPackage.router.page.update],
+});
 export const github = defineHttps("github", { url: "https://api.github.com" });
 
 const result = await safe(pages.get(context.resources).page.update(input)); // oRPC's safe

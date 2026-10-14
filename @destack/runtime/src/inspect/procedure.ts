@@ -26,7 +26,7 @@ function visit(
 
     // describe a procedure
     if (isContractProcedure(router)) {
-        const definition = definitionOf(router);
+        const definition = readDefinition(router);
         const errors = Object.fromEntries(
             Object.entries(definition.errorMap).map(([code, error]) => {
                 return [
@@ -101,7 +101,7 @@ const Definition = schema.looseObject({
 });
 
 /** Read a procedure's definition, refusing one oRPC did not build. */
-function definitionOf(procedure: object) {
+function readDefinition(procedure: object) {
     return Definition.parse(Object.getOwnPropertyDescriptor(procedure, "~orpc")?.value);
 }
 

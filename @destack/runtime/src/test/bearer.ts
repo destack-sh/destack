@@ -12,7 +12,7 @@ export const TestBearer = {
     read(request: Request): string {
         const header = request.headers.get("authorization");
         if (header === null || !header.startsWith(BEARER_PREFIX)) {
-            throw new TypeError("a test request carries no authorization");
+            throw new TypeError("a test request has no authorization");
         }
 
         return header.slice(BEARER_PREFIX.length);

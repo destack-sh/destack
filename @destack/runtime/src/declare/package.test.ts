@@ -47,7 +47,7 @@ test("declare a package handle with its identity, the router its objects derive,
 test("refuse adapters at an empty path, and adapters at or below another's path", () => {
     // refuse an adapter at the mount itself
     expect(() => defineAdapter("root", { path: "/" })).toThrow(
-        new PackageError("INVALID_DEFINITION", "adapter root answers no path below the mount: /"),
+        new PackageError("INVALID_DEFINITION", "adapter root has no path below the mount: /"),
     );
 
     // refuse an adapter at another's path, and one below it
@@ -66,7 +66,7 @@ test("refuse a declaration listed under another name, and a name taken twice", (
     const npm = defineAdapter("npm", { path: "/npm" });
 
     expect(() => definePackage({ adapters: { git: npm } })).toThrow(
-        new PackageError("INVALID_DEFINITION", "declaration npm is listed as git"),
+        new PackageError("INVALID_DEFINITION", "declaration npm is listed under another name: git"),
     );
     expect(() => definePackage({ adapters: { npm }, views: { npm } })).toThrow(
         new PackageError("INVALID_DEFINITION", "duplicate declaration: npm"),

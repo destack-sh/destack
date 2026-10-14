@@ -115,7 +115,7 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#current.has(handle);
     }
 
-    /** What the workload does with its held sockets' events, refusing a workload holding none. */
+    /** What the workload does with its held sockets' events, refusing a workload without them. */
     requireSocketHandler(): SocketHandler {
         return this.#current.requireSocketHandler();
     }
@@ -168,7 +168,7 @@ class Generation {
     readonly #controller = new AbortController();
     /** The resources released after draining. */
     readonly #cleanup = new AsyncDisposableStack();
-    /** What the start does with its held sockets' events, absent for a start holding none. */
+    /** What the start does with its held sockets' events, absent for a start without them. */
     #sockets: SocketHandler | undefined;
     /** What the start does with its store's hook requests, absent for a start serving none. */
     #hooks: HookHandler | undefined;
@@ -248,13 +248,14 @@ class Generation {
             throw new TypeError(`duplicate workload package: ${handle.name}`);
         }
 
-        // start the server
+        // start the server, reporting its controllers' failures to the host
         const server = Server.start({
             ...options.server(handle),
             ...served,
             health: new Health(handle.name),
             resources: options.resources,
             clock: options.clock,
+            report: (error) => options.report(error),
             ...(clock === undefined ? {} : { alarm: clock.alarm() }),
         });
         this.#packages.set(handle.id, { handle, server });
@@ -289,10 +290,10 @@ class Generation {
         return this.#packages.has(handle.id);
     }
 
-    /** What the start does with its held sockets' events, refusing a start holding none. */
+    /** What the start does with its held sockets' events, refusing a start without them. */
     requireSocketHandler(): SocketHandler {
         if (this.#sockets === undefined) {
-            throw new CallError("NOT_FOUND", { message: "the workload handles no sockets" });
+            throw new CallError("NOT_FOUND", { message: "the workload has no socket handler" });
         }
 
         return this.#sockets;
@@ -301,7 +302,7 @@ class Generation {
     /** What the start does with its store's hook requests, refusing a start serving none. */
     requireHookHandler(): HookHandler {
         if (this.#hooks === undefined) {
-            throw new CallError("NOT_FOUND", { message: "the workload serves no hooks" });
+            throw new CallError("NOT_FOUND", { message: "the workload has no hooks" });
         }
 
         return this.#hooks;
@@ -389,7 +390,10 @@ export interface WorkloadInstanceOptions {
     /** Select the server options of one served package. */
     server(
         handle: PackageHandle,
-    ): Omit<ServerOptions, keyof PackageImplementation | "health" | "resources" | "clock">;
+    ): Omit<
+        ServerOptions,
+        keyof PackageImplementation | "health" | "resources" | "clock" | "report"
+    >;
 }
 
 /** Key a trigger by its package and name. */

@@ -42,7 +42,7 @@ function called(caller: Omit<Caller, "subjects">): Caller {
     return { ...caller, subjects: [] };
 }
 
-/** Read an ask whose header is no JSON. */
+/** Read an ask with a header that is not JSON. */
 function malformed() {
     return Exchange.asking(
         new Request("https://egress.test", { headers: { [Exchange.header]: "ada" } }),

@@ -32,7 +32,7 @@ test("call a lent HTTPS API below its egress address with the instance's credent
 
     // refuse a binding without the instance's credential
     await expect(github.connectors.connection.connect(binding, github)).rejects.toThrow(
-        new TypeError("https binding github holds no credential"),
+        new TypeError("https binding github has no credential"),
     );
     expect({
         calls,

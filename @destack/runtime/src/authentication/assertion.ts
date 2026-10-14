@@ -21,12 +21,12 @@ import {
 import { decodeJwt, decodeProtectedHeader, errors, jwtVerify, SignJWT } from "jose";
 import { CallError } from "../error/index.ts";
 import { Bearer } from "./bearer.ts";
-import { INSTALLATION_KEY, MACHINE_KEY } from "./token.ts";
+import { INSTALLATION_KEY, MACHINE_KEY, SPACE_KEY } from "./token.ts";
 
 /** The JWT type of a key-signed assertion, after RFC 7523bis's explicit typing. */
 export const ASSERTION_TYPE = "client-authentication+jwt";
 
-/** The longest an assertion lives from its issue time: five minutes, as RFC 7523 suggests short. */
+/** The longest an assertion lives from its issue time: five minutes, short as RFC 7523 suggests. */
 export const ASSERTION_LIFETIME_MILLISECONDS = 300_000;
 
 /** How long a signed assertion lives by default: a minute, one request and its retries. */
@@ -61,6 +61,15 @@ type AssertedCaller = Caller & Required<Pick<Caller, "subject" | "credential">>;
 
 /** Key-signed assertions principals exchange at a token endpoint (RFC 7523 jwt-bearer). */
 export const Assertion = {
+    /** Report whether a bearer token is a key-signed assertion, by its JWT type. */
+    is(token: string): boolean {
+        try {
+            return decodeProtectedHeader(token).typ === ASSERTION_TYPE;
+        } catch {
+            return false;
+        }
+    },
+
     /** Sign an assertion of a principal under a key for a token endpoint, living a minute. */
     async sign(
         privateKey: CryptoKey,
@@ -127,7 +136,7 @@ export class AssertionVerifier {
             throw new CallError("UNAUTHORIZED", { message: "invalid assertion" });
         } else if ((exp - iat) * 1000 > ASSERTION_LIFETIME_MILLISECONDS) {
             throw new CallError("UNAUTHORIZED", {
-                message: "assertion outlives five minutes",
+                message: "assertion lifetime exceeds five minutes",
             });
         }
 
@@ -188,19 +197,21 @@ function asserted(
     now: number,
     expiresAt: number,
 ): AssertedCaller {
-    // take the key's own machine or installation, or an installation its space signs for
+    // take the key's own machine, space or installation, or an installation its space signs for
     const subject = assertedSubject(key, sub);
     const isMachine = principal.machine.is(subject);
+    const isSpace = principal.space.is(subject);
 
     return {
         subject,
         subjects: [subject],
         assurance: { level: KEY_ASSURANCE, authenticatedAt: now },
         credential: {
-            kind: isMachine ? MACHINE_KEY : INSTALLATION_KEY,
+            kind: isMachine ? MACHINE_KEY : isSpace ? SPACE_KEY : INSTALLATION_KEY,
             id: key.id,
             audience,
-            ...(isMachine ? {} : { scope: subject.scope }),
+            // bind an installation to its space, while a machine or a space acts as itself
+            ...(isMachine || isSpace ? {} : { scope: subject.scope }),
             verifiedAt: now,
             expiresAt,
         },
@@ -209,12 +220,14 @@ function asserted(
 
 /** Read the principal an assertion's subject claim asserts under a key, refusing another. */
 function assertedSubject(key: AssertionKey, sub: string): Subject {
-    // take the key's own machine or installation
+    // take the key's own machine, space or installation
     const { subject } = key;
     const installation = schema.identifier("installation").safeParse(sub);
     if (
         sub === subject.id &&
-        (principal.machine.is(subject) || principal.installation.is(subject))
+        (principal.machine.is(subject) ||
+            principal.space.is(subject) ||
+            principal.installation.is(subject))
     ) {
         return subject;
     }
@@ -224,10 +237,12 @@ function assertedSubject(key: AssertionKey, sub: string): Subject {
     }
 
     // refuse any other subject
-    throw new CallError("UNAUTHORIZED", { message: "assertion subject exceeds its key" });
+    throw new CallError("UNAUTHORIZED", {
+        message: "assertion subject is outside its key's authority",
+    });
 }
 
-/** Read an assertion's header, refusing one that is no compact JWS. */
+/** Read an assertion's header, refusing one that is not a compact JWS. */
 function refused<Value>(read: () => Value): Value {
     try {
         return read();

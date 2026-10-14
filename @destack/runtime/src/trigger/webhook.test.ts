@@ -14,7 +14,7 @@ const REPOSITORY = {
     type: "repository",
 };
 
-/** Push the delivered branch to the repository its path names. */
+/** Push the delivered branch to the repository in its path. */
 function push(delivery: WebhookDelivery) {
     // require the path's repository
     const repository = delivery.parameters["repository"];

@@ -32,12 +32,7 @@ import {
 } from "../trigger/index.ts";
 import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
-import type {
-    InstallationDirectory,
-    InstallationContext,
-    EphemeralHost,
-    Workload,
-} from "./workload.ts";
+import type { InstallationContext, EphemeralHost, Workload } from "./workload.ts";
 import { CallKey } from "../request/index.ts";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
@@ -55,15 +50,13 @@ export interface RunnerOptions {
     readonly workload: Workload;
     /** The package's resource declarations by name. */
     readonly resources: Readonly<Record<string, ResourceDeclaration<unknown>>>;
-    /** Connect to a publisher of an installation's copies. */
+    /** Connect to a publisher of an installation's replicas. */
     publisher(url: string, secret: string): Uplink;
-    /** Connect to the directory through the space's machine. */
-    directory(url: string, secret: string): InstallationDirectory;
     /** Connect to the machine that records the installation's runs. */
     runs(url: string, start: WorkloadStart): RunClient;
     /** Keep a wake-up for the workload's earliest due controller key. */
     readonly alarm?: Alarm;
-    /** Where the instance reaches the sockets its host keeps open. */
+    /** Where the instance connects to the sockets its host keeps open. */
     readonly socketHost?: SocketHost;
     /** Where the runtime keeps the instance's ephemeral objects. */
     readonly ephemeral: EphemeralHost;
@@ -83,7 +76,7 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly #packages: ReadonlyMap<string, PackageHandle>;
     /** The running package, whose triggers the webhooks target. */
     readonly #packageId: PackageId;
-    /** The installation's resources and derived secrets, which webhooks read their secrets from. */
+    /** The installation's resources and derived secrets, the source of webhook secrets. */
     readonly #webhooks: WebhookContext;
     /** The bound resources' clients, disposed once the instance drains. */
     readonly #connections: AsyncDisposableStack;
@@ -148,7 +141,11 @@ export class WorkloadRunner implements AsyncDisposable {
             const hibernation = new Hibernation(host, start.secret, report);
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
-                installation: WorkloadRunner.#installation(runner, start, build, stack),
+                installation: WorkloadRunner.#installation(runner, start, {
+                    build,
+                    stack,
+                    resources,
+                }),
                 runs,
                 callKey: () => callKey,
                 clock: runner.clock,
@@ -193,8 +190,10 @@ export class WorkloadRunner implements AsyncDisposable {
         start: WorkloadStart,
         report: (error: unknown) => void,
     ): TelemetryOptions {
-        const host = Egress.beside(start.egress, OTLP_ORIGIN_PATH);
-        const exporter = OtlpExporter.http(host, () => `Bearer ${start.secret}`, report);
+        // post to the host's OTLP path with the runner's secret
+        const endpoint = Egress.beside(start.egress, OTLP_ORIGIN_PATH);
+        const headers = () => ({ authorization: `Bearer ${start.secret}` });
+        const exporter = OtlpExporter.http({ endpoint, headers }, report);
 
         return exporter.options(runner.workload.package, { ratio: start.sampling });
     }
@@ -203,21 +202,28 @@ export class WorkloadRunner implements AsyncDisposable {
     static #installation(
         runner: RunnerOptions,
         start: WorkloadStart,
-        build: BuildReader,
-        stack: string,
+        bound: {
+            readonly build: BuildReader;
+            readonly stack: string;
+            readonly resources: ResourceContext;
+        },
     ): InstallationContext {
+        const { build, stack, resources } = bound;
+
         return {
             id: start.installation,
             scope: start.scope,
             ...(start.partition === undefined ? {} : { partition: start.partition }),
             build,
             settings: start.settings,
+            resources,
             publisher: runner.publisher(stack, start.secret),
             publisherAt: (address, packageId) =>
                 runner.publisher(
                     `${Egress.url(start.egress, address)}${PackageMount.path(packageId)}`,
                     start.secret,
                 ),
+            fetch: (request) => fetch(request),
             at: (address) => ({
                 url: Egress.url(start.egress, address),
                 fetch: (request) => {
@@ -227,7 +233,6 @@ export class WorkloadRunner implements AsyncDisposable {
                     return fetch(copyRequest(request, { headers }));
                 },
             }),
-            directory: runner.directory(stack, start.secret),
         };
     }
 
@@ -356,7 +361,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 this.#webhooks,
             );
 
-            // record the delivery's run under the request derived from the trigger and the delivery, one however often delivered
+            // record the delivery's run once, under a request derived from the trigger and the delivery
             const event = { delivery: { id: delivery.id, path } };
             const requestId = await RunEvent.derive(this.#packageId, name, event, receivedAt);
             await this.#runs.send(
@@ -433,7 +438,7 @@ export class WorkloadRunner implements AsyncDisposable {
             }) => {
                 if (access.authentication === "machine") {
                     throw new CallError("FORBIDDEN", {
-                        message: "a workload serves no machine procedures",
+                        message: "a workload cannot serve machine procedures",
                     });
                 }
             },

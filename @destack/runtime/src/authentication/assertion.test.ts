@@ -11,7 +11,7 @@ import { MACHINE_KEY } from "./token.ts";
 
 /** The package serving the token endpoint. */
 const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000031");
-/** The token endpoint every assertion names as its audience. */
+/** The token endpoint every assertion has as its audience. */
 const endpoint = "https://account.example/oauth2/token";
 
 /** Generate a P-256 key pair. */
@@ -125,7 +125,7 @@ test("authenticate an installation within its space", async () => {
     ]);
 });
 
-test("authenticate an installation by its space's key, refusing a subject the key cannot assert", async () => {
+test("authenticate a space and its installation by the space's key, refusing a subject the key cannot assert", async () => {
     const storage = await TestDatabase.create("sqlite", [proofReplay], { isMigrated: true });
     onTestFinished(() => storage.close());
 
@@ -149,18 +149,21 @@ test("authenticate an installation by its space's key, refusing a subject the ke
     const installationId = Identifier.create("installation");
     const sign = (subject: string) => Assertion.sign(pair.privateKey, key, endpoint, now, subject);
     const caller = await verifier.verify(await sign(installationId), now);
-    const refusals = [
-        await refusal(verifier.verify(await sign(spaceId), now)),
-        await refusal(verifier.verify(await sign(Identifier.create("machine")), now)),
-    ];
+    const itself = await verifier.verify(await sign(spaceId), now);
+    const refused = await refusal(verifier.verify(await sign(Identifier.create("machine")), now));
 
-    // answer the installation within its space, refusing what the space's key cannot assert
-    expect({ subject: caller.subject, scope: caller.credential.scope, refusals }).toEqual({
-        subject: principal.installation.reference(spaceId, installationId),
-        scope: spaceId,
-        refusals: [
-            ["UNAUTHORIZED", "assertion subject exceeds its key"],
-            ["UNAUTHORIZED", "assertion subject exceeds its key"],
+    // bind the installation to the space and let the space act as itself, refusing what its key cannot assert
+    expect({
+        installation: [caller.subject, caller.credential.kind, caller.credential.scope],
+        space: [itself.subject, itself.credential.kind, itself.credential.scope],
+        refused,
+    }).toEqual({
+        installation: [
+            principal.installation.reference(spaceId, installationId),
+            "installation-key",
+            spaceId,
         ],
+        space: [principal.space.reference(Scope.universe.id, spaceId), "space-key", undefined],
+        refused: ["UNAUTHORIZED", "assertion subject is outside its key's authority"],
     });
 });

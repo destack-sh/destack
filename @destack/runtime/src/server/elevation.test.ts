@@ -51,7 +51,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database).copyScope({
+    await new AccessFixture(storage.database).replicateScope({
         packageId: hosting.package.id,
         type: "space",
         scope: "universe",
@@ -129,7 +129,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
     await expect(client.rename({ id: "main" })).rejects.toMatchObject({
         code: "INSUFFICIENT_AUTHENTICATION",
         status: 401,
-        message: "authenticate again at the required assurance",
+        message: "authentication assurance is too low: authenticate again",
         data: RECENT,
     });
     level = 2;

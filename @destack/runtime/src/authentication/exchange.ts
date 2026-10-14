@@ -28,7 +28,7 @@ export const Exchange = {
 
     /** Read the exchange of calls for a served call's person, or its subject under its grant. */
     of(caller: Caller | undefined): ExchangeAsk | undefined {
-        // act for the subject under the grant a delegated call carries
+        // act for the subject under the grant of a delegated call
         const subject = caller?.subject;
         if (subject !== undefined && caller?.grant !== undefined) {
             return { subject, grant: caller.grant.id };

@@ -10,7 +10,7 @@ export interface AdapterDeclaration extends Declaration {
     readonly path: `/${string}`;
 }
 
-/** An object type's declaration, which derives its procedures. */
+/** An object type's declaration, with its derived procedures. */
 export interface ObjectDeclaration {
     /** The package declaring it. */
     readonly package: { readonly name: string };
@@ -88,49 +88,54 @@ export function definePackage(input: PackageInput, module?: ModuleMetadata): unk
 }
 
 /** The handles packages declare, and the ones hosts rebuild from installed descriptions. */
-export const PackageHandle = { of: handleOf };
+export const PackageHandle = {
+    /** Build a package's handle from its identity and what it declares. */
+    of(owner: Package, input: PackageInput): PackageHandle {
+        // read what the package declares, each kind it leaves out empty
+        const { objects = {}, views = {}, adapters = {}, resources = {}, secrets = {} } = input;
 
-/** Build a package's handle from its identity and what it declares. */
-function handleOf(owner: Package, input: PackageInput): PackageHandle {
-    // read what the package declares, each kind it leaves out empty
-    const { objects = {}, views = {}, adapters = {}, resources = {}, secrets = {} } = input;
+        // key each named declaration by its own name, once across the handle
+        const names = new Set<string>();
+        const named = [views, adapters, resources, secrets].flatMap((map) => Object.entries(map));
+        for (const [key, declaration] of named) {
+            if (key !== declaration.name) {
+                throw new PackageError(
+                    "INVALID_DEFINITION",
+                    `declaration ${declaration.name} is listed under another name: ${key}`,
+                );
+            } else if (names.has(key)) {
+                throw new PackageError("INVALID_DEFINITION", `duplicate declaration: ${key}`);
+            }
+            names.add(key);
+        }
 
-    // key each named declaration by its own name, once across the handle
-    const names = new Set<string>();
-    const named = [views, adapters, resources, secrets].flatMap((map) => Object.entries(map));
-    for (const [key, declaration] of named) {
-        if (key !== declaration.name) {
+        // refuse an adapter answering at or below another's path
+        const paths = Object.values(adapters).map((adapter) => adapter.path);
+        const overlap = paths.find((path, index) =>
+            paths.some(
+                (other, at) => at !== index && (path === other || path.startsWith(`${other}/`)),
+            ),
+        );
+        if (overlap !== undefined) {
             throw new PackageError(
                 "INVALID_DEFINITION",
-                `declaration ${declaration.name} is listed as ${key}`,
+                `adapter path ${overlap} overlaps another`,
             );
-        } else if (names.has(key)) {
-            throw new PackageError("INVALID_DEFINITION", `duplicate declaration: ${key}`);
         }
-        names.add(key);
-    }
 
-    // refuse an adapter answering at or below another's path
-    const paths = Object.values(adapters).map((adapter) => adapter.path);
-    const overlap = paths.find((path, index) =>
-        paths.some((other, at) => at !== index && (path === other || path.startsWith(`${other}/`))),
-    );
-    if (overlap !== undefined) {
-        throw new PackageError("INVALID_DEFINITION", `adapter path ${overlap} overlaps another`);
-    }
-
-    return Object.freeze({
-        [PACKAGE]: owner,
-        ...owner,
-        ...(input.since === undefined ? {} : { since: Version.parse(input.since) }),
-        router: routeObjects(owner, objects),
-        objects,
-        views,
-        adapters,
-        resources,
-        secrets,
-    });
-}
+        return Object.freeze({
+            [PACKAGE]: owner,
+            ...owner,
+            ...(input.since === undefined ? {} : { since: Version.parse(input.since) }),
+            router: routeObjects(owner, objects),
+            objects,
+            views,
+            adapters,
+            resources,
+            secrets,
+        });
+    },
+};
 
 /** Declare an adapter of a protocol others define, answered below the package's mount. */
 export function defineAdapter(
@@ -143,7 +148,7 @@ export function defineAdapter(
     if (!AdapterPath.safeParse(declaration.path).success) {
         throw new PackageError(
             "INVALID_DEFINITION",
-            `adapter ${name} answers no path below the mount: ${declaration.path}`,
+            `adapter ${name} has no path below the mount: ${declaration.path}`,
         );
     }
 

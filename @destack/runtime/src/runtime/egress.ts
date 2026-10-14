@@ -21,7 +21,7 @@ export const Egress = {
     /** The path of a host's egress on its loopback origin. */
     path: EGRESS_PATH,
 
-    /** Write the URL at which a workload reaches an address through its host's egress. */
+    /** Write the URL at which a workload calls an address through its host's egress. */
     url(egress: string, address: string): string {
         return `${egress.replace(/\/$/u, "")}/${address}`;
     },

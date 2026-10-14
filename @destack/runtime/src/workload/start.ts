@@ -5,13 +5,13 @@ import { defineSchema, schema } from "@destack/schema";
 /** The path below which an installation's origin receives webhook requests. */
 export const WEBHOOK_PATH = "/.destack/webhook";
 
-/** The path below which a host hands the workload's own package the requests a route sends it. */
+/** The path below which a host passes route requests to the workload's own package. */
 export const ROUTE_PATH = "/.destack/route";
 
 /** The header that gives the partition of an installation a call goes to. */
 export const PARTITION_HEADER = "Destack-Partition";
 
-/** The header with the URL that a request a front door hands on asked for. */
+/** The header with the original URL of a request a front door forwards. */
 export const FORWARDED_URL_HEADER = "Destack-Forwarded-Url";
 
 /** The path at which a runner takes its space store's requests to run its objects' hooks. */
@@ -34,7 +34,7 @@ export const WorkloadStart = defineSchema(
         settings: schema.record(schema.string().min(1), schema.json()),
         /** The secret the host and the runner prove each other's requests with. */
         secret: schema.string().min(1),
-        /** The host's egress, below which the workload reaches addresses as its installation. */
+        /** The host's egress, below which the workload calls addresses as its installation. */
         egress: schema.url(),
         /** The share of traces the workload keeps beside every failed or slow one, from 0 to 1. */
         sampling: schema.number().min(0).max(1),

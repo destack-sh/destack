@@ -77,6 +77,6 @@ test("verify a bearer token against the key set read through the installation's 
             ["m-2", "push"],
         ],
         reads: 1,
-        refused: ["UNAUTHORIZED", "webhook bearer token is not the issuer's for this endpoint"],
+        refused: ["UNAUTHORIZED", "webhook bearer token does not belong to this endpoint's issuer"],
     });
 });

@@ -1,3 +1,4 @@
+import { ResourceContext } from "@destack/resource/context";
 import { StandardSignature } from "../trigger/index.ts";
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
@@ -36,10 +37,10 @@ const second = PackageHandle.of(
     }),
     {},
 );
-/** A publisher streaming no copies. */
+/** A publisher streaming no replicas. */
 const publisher = {
     stream: () => {
-        throw new Error("the fixture publisher streams no copies");
+        throw new Error("the fixture publisher streams no replicas");
     },
     receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
 } satisfies Uplink;
@@ -50,16 +51,14 @@ const installation: InstallationContext = {
     scope: "space-01996ab0-0000-7000-8000-000000000001",
     build: await MemoryBuild.write(new Map(), { package: first }),
     settings: {},
+    resources: new ResourceContext(),
+    fetch: (request) => Promise.reject(new Error(`the fixture sends no request to ${request.url}`)),
     publisher,
     publisherAt: () => publisher,
     at: (address) => ({
         url: address,
-        fetch: () => Promise.reject(new Error("the fixture installation reaches no address")),
+        fetch: () => Promise.reject(new Error("the fixture installation cannot call an address")),
     }),
-    directory: {
-        locale: (subject) => Promise.reject(new TypeError(`the fixture knows no ${subject}`)),
-        messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
-    },
 };
 
 /** A machine the fixture workloads record no runs in. */

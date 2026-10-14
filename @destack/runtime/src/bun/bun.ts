@@ -88,7 +88,7 @@ export async function serveProcess(options: BunProcessOptions): Promise<void> {
 
 /** Listen on an endpoint's socket or port, keeping open the WebSockets its answers accept. */
 function listen(endpoint: BunEndpoint): Listener {
-    // answer each request plainly on an endpoint keeping no sockets
+    // answer each request plainly on an endpoint without sockets
     const { hibernation } = endpoint;
     const address =
         "unix" in endpoint

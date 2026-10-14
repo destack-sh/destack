@@ -709,7 +709,7 @@ test("refuse starting a server whose procedures carry payloads the HTTP layer ca
 });
 
 test("refuse a caller authenticated for another package as unauthenticated, auditing the denial", async () => {
-    // serve an audited procedure to a caller whose credential names another package
+    // serve an audited procedure to a caller with a credential for another package
     const procedures = {
         get: defineProcedure({ authentication: "public", permission: "anyone", audit: "access" })
             .route({ method: "GET", path: "/work" })

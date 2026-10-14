@@ -3,7 +3,7 @@ import { AsyncIteratorClass } from "@orpc/shared";
 import type { ProcedureAccess } from "../procedure/procedure.ts";
 import { reportError } from "./error.ts";
 import type { HandlerOptions } from "./handler.ts";
-import { denialOf, CallError } from "../error/index.ts";
+import { findDenial, CallError } from "../error/index.ts";
 
 /** A procedure call. */
 export interface ProcedureCall<State extends Context> {
@@ -29,48 +29,51 @@ export interface ProcedureAudit<State extends Context> {
     error?: unknown;
 }
 
-/** Authorize a call and audit it after it ends. */
-export async function invokeProcedure<State extends Context>(
-    call: ProcedureCall<State>,
-    next: () => Promise<unknown>,
-    options: Pick<HandlerOptions<State>, "authorize" | "audit">,
-): Promise<unknown> {
-    // tell a denial from a failure
-    const audit = options.audit;
-    try {
-        if (options.authorize) {
-            await options.authorize(call);
+/** Procedure calls as the server runs them. */
+export const ProcedureCall = {
+    /** Authorize a call and audit it after it ends. */
+    async invoke<State extends Context>(
+        call: ProcedureCall<State>,
+        next: () => Promise<unknown>,
+        options: Pick<HandlerOptions<State>, "authorize" | "audit">,
+    ): Promise<unknown> {
+        // tell a denial from a failure
+        const audit = options.audit;
+        try {
+            if (options.authorize) {
+                await options.authorize(call);
+            }
+        } catch (error) {
+            const failure = reportError(error);
+            if (audit) {
+                await recordAudit({ call, outcome: auditOutcome(failure), error: failure }, audit);
+            }
+            throw failure;
         }
-    } catch (error) {
-        const failure = reportError(error);
+
+        // record the handler's outcome
+        let result: unknown;
+        try {
+            result = await next();
+        } catch (error) {
+            const failure = reportError(error);
+            if (audit) {
+                await recordAudit({ call, outcome: auditOutcome(failure), error: failure }, audit);
+            }
+            throw failure;
+        }
+
+        // record a stream when it closes
+        if (isAsyncIterable(result)) {
+            return streamProcedure(result, call, options);
+        }
         if (audit) {
-            await recordAudit({ call, outcome: outcomeOf(failure), error: failure }, audit);
+            await recordAudit({ call, outcome: "success" }, audit);
         }
-        throw failure;
-    }
 
-    // record the handler's outcome
-    let result: unknown;
-    try {
-        result = await next();
-    } catch (error) {
-        const failure = reportError(error);
-        if (audit) {
-            await recordAudit({ call, outcome: outcomeOf(failure), error: failure }, audit);
-        }
-        throw failure;
-    }
-
-    // record a stream when it closes
-    if (isAsyncIterable(result)) {
-        return streamProcedure(result, call, options);
-    }
-    if (audit) {
-        await recordAudit({ call, outcome: "success" }, audit);
-    }
-
-    return result;
-}
+        return result;
+    },
+};
 
 /** Authorize and audit a stream. */
 function streamProcedure<State extends Context>(
@@ -103,7 +106,7 @@ function streamProcedure<State extends Context>(
             } catch (error) {
                 const reported = reportError(error);
                 failure = reported;
-                outcome = outcomeOf(reported);
+                outcome = auditOutcome(reported);
                 throw reported;
             }
         },
@@ -145,8 +148,8 @@ async function recordAudit<State extends Context>(
 }
 
 /** Classify a failure as a denial, concealed or not, or a failure. */
-function outcomeOf(failure: CallError<string, unknown>): "denied" | "failure" {
-    return denialOf(failure) === undefined ? "failure" : "denied";
+function auditOutcome(failure: CallError<string, unknown>): "denied" | "failure" {
+    return findDenial(failure) === undefined ? "failure" : "denied";
 }
 
 /** Report whether a procedure's result is a stream. */

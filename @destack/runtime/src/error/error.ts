@@ -78,7 +78,7 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
             return undefined;
         }
 
-        // read the failure the body answers, skipping one that is no JSON, such as another origin's
+        // read the failure in the body, skipping a body that is not JSON, such as another origin's
         const body: unknown = await response
             .clone()
             .json()
@@ -192,14 +192,14 @@ export async function failureOf(response: Response): Promise<Failure> {
 }
 
 /** Read the denial of a failure: itself for a 401 or 403, the cause of a concealed one. */
-export function denialOf(
+export function findDenial(
     failure: ORPCError<string, unknown>,
 ): ORPCError<string, unknown> | undefined {
     // take a refusal of access, or the refusal a missing resource conceals
     if (failure.status === 401 || failure.status === 403) {
         return failure;
     } else if (failure.status === 404 && isCallError(failure.cause)) {
-        return denialOf(failure.cause);
+        return findDenial(failure.cause);
     }
 
     return undefined;

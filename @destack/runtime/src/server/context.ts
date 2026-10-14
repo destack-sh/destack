@@ -5,7 +5,7 @@ import { AccessContext, Authorization, type Authorizer, Caller } from "@destack/
 import { type DatabaseConnection, Transaction } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
 import { CallError } from "../error/index.ts";
-import type { ProcedureCall } from "./access.ts";
+import type { ProcedureCall } from "./procedure-call.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
 import { Clock } from "@destack/schema";
 
@@ -40,7 +40,7 @@ export class RequestContext {
     readonly authorization: Authorization | undefined;
     /** The object the call's permission is decided on. */
     target?: ObjectReference;
-    /** The verified caller the request presented, absent for an anonymous request. */
+    /** The verified caller the request or its host presented, for any package, absent for none. */
     readonly presented: Caller | undefined;
 
     /** Create the context of a request. */
@@ -51,14 +51,14 @@ export class RequestContext {
 
         // require no caller after a failed authentication
         if (caller !== undefined && authenticationError !== undefined) {
-            throw new TypeError("a failed authentication leaves no caller");
+            throw new TypeError("a failed authentication has no caller");
         }
 
         // keep the request and caller
         this.request = request;
         this.audience = audience;
         this.scope = scope;
-        this.presented = caller;
+        this.presented = options.presented ?? caller;
         this.resources = resources;
         this.authenticationError = authenticationError;
         this.linkSecrets = linkSecrets;
@@ -75,7 +75,7 @@ export class RequestContext {
                 return AccessContext.of(authorized, this.clock.now());
             });
 
-        // bind methods for middleware context copies
+        // bind methods for cloned middleware contexts
         this.requireCaller = this.requireCaller.bind(this);
         this.requireAuthorization = this.requireAuthorization.bind(this);
         this.caller = this.caller.bind(this);
@@ -128,10 +128,10 @@ export class RequestContext {
         return caller;
     }
 
-    /** Read the caller's authorization, which a package declared with access always has. */
+    /** Read the caller's authorization, present for every package declared with access. */
     requireAuthorization(): Authorization {
         if (this.authorization === undefined) {
-            throw new TypeError(`package ${this.audience} runs without authorization`);
+            throw new TypeError(`package ${this.audience} has no authorization`);
         }
 
         return this.authorization;
@@ -162,6 +162,8 @@ export interface RequestContextOptions {
     readonly scope?: string;
     /** The verified caller, absent for an anonymous request. */
     readonly caller?: Caller;
+    /** The verified caller as presented, which a mount forwarding below the package hands on. */
+    readonly presented?: Caller;
     /** The resource clients bound by the host. */
     readonly resources: ResourceContext;
     /** The package's policies. */

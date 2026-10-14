@@ -24,13 +24,13 @@ import {
 /** The instruments capturing the failures of the workloads instances run. */
 const instruments = telemetry.scope(import.meta.destack.package);
 
-/** The export of a workerd output's workload entry holding the class of its instances' objects. */
+/** The export of a workerd output's workload entry with the class of its instances' objects. */
 export const WORKLOAD_EXPORT = "Workload";
 
 /** The path a partition's object posts its workload's start to. */
 export const START_PATH = "/.destack/start";
 
-/** The path a partition's object asks its workload to drain and forget its start at. */
+/** The path where a partition's object asks its workload to drain and forget its start. */
 export const STOP_PATH = "/.destack/stop";
 
 /** The path where a partition's object rings an instance's alarm. */
@@ -39,7 +39,7 @@ export const ALARM_PATH = "/.destack/alarm";
 /** The path below which an instance reads its build's files through its partition's object. */
 export const BUILD_PATH = "/.destack/build";
 
-/** The key of the start an instance keeps, which it resumes after an eviction. */
+/** The key of the stored start an instance resumes after an eviction. */
 const START_KEY = "start";
 
 /** The namespace of the database an instance keeps only while it runs. */
@@ -125,7 +125,7 @@ export class DurableObjectRunner {
         try {
             const { pathname } = new URL(request.url);
 
-            // run a database operation, copying through the partition's object
+            // run a database operation, reading content through the partition's object
             if (pathname === DATABASE_PATH) {
                 return await this.#databases.answer(request, () => this.#partition);
             }
@@ -185,7 +185,7 @@ export class DurableObjectRunner {
             );
             if (!response.ok) {
                 throw new CallError("SERVICE_UNAVAILABLE", {
-                    message: `the partition serves no build file ${path}: ${response.status}`,
+                    message: `the partition has no build file ${path}: ${response.status}`,
                 });
             }
 
@@ -235,7 +235,7 @@ export class DurableObjectRunner {
         await response.arrayBuffer();
         if (!response.ok) {
             throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `the partition kept no wake-up: ${response.status}`,
+                message: `the partition did not store the wake-up: ${response.status}`,
             });
         }
     }

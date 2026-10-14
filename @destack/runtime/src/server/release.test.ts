@@ -74,7 +74,7 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
     ]).toEqual([
         { query: "notes", limit: 50 },
         { query: "tasks", limit: 5 },
-        `CONFLICT: package @destack/fixture serves ${served.version}, the caller speaks 2026.10.0`,
+        `CONFLICT: package @destack/fixture serves ${served.version}, but the caller uses 2026.10.0`,
         "CONFLICT: package @destack/fixture no longer serves releases before 2026.8.0",
         "BAD_REQUEST: package @destack/fixture requires Destack-Version",
         "BAD_REQUEST: invalid Destack-Version: next",

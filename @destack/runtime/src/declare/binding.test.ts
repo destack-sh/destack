@@ -91,7 +91,7 @@ test("list a binding's calls by their paths in the package's router, and refuse 
     // keep the dotted paths in the binding's spec and refuse the stray procedure
     expect(binding.spec.calls).toEqual(["note.check", "note.watch"]);
     expect(stray).toThrow(
-        "installation binding notes calls a procedure its package does not route",
+        "installation binding notes calls a procedure outside its package's routes",
     );
 });
 
@@ -100,5 +100,5 @@ test("refuse connecting an installation binding the host lends no credential", a
 
     await expect(
         binding.connectors.http.connect(bound("http://127.0.0.1"), binding),
-    ).rejects.toThrow("installation binding notes holds no credential");
+    ).rejects.toThrow("installation binding notes has no credential");
 });

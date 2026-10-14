@@ -138,7 +138,7 @@ type WrittenTrigger = { readonly name: string } & (
 export const Trigger = {
     /** Read the kind of event a trigger fires on. */
     kind(on: TriggerOn | Trigger["on"] | TriggerOnDefinition): TriggerKind {
-        // read the key holding the kind
+        // read the key with the kind
         if ("schedule" in on) {
             return "schedule";
         } else if ("change" in on) {
@@ -216,13 +216,13 @@ export const RunEvent = Object.assign(event, {
         }
     },
 
-    /** Derive the journal request of the run an event fires of a package's trigger. */
+    /** Derive the journal request of a trigger's run for an event. */
     derive(packageId: string, triggerName: string, fired: RunEvent, at: number): Promise<string> {
         return RequestId.derive(at, `${packageId}/${triggerName} ${RunEvent.requestId(fired)}`);
     },
 });
 
-/** A call sent to run later, for the subject whose call sent it under its grant. */
+/** A call sent to run later, for the subject that sent it under its grant. */
 const SENT = schema.object({
     /** The object method call the run makes. */
     call: Call,
@@ -252,7 +252,7 @@ export const RunRequest = Object.assign(defineSchema(schema.union([SENT, FIRED])
 /** A call to run later. */
 export type RunRequest = schema.Infer<typeof RunRequest>;
 
-/** How a request reaches the machine. */
+/** The delivery of a run to the machine. */
 export interface RunDelivery {
     /** The request recording the run once however often it is delivered, a new one when absent. */
     readonly requestId?: string;
@@ -260,7 +260,7 @@ export interface RunDelivery {
     readonly signal?: AbortSignal;
 }
 
-/** The machine recording an installation's runs, as its workload reaches it. */
+/** The machine recording an installation's runs, as its workload connects to it. */
 export interface RunClient {
     /** Record a call to run later, once per request and per event of a trigger. */
     send(request: RunRequest, delivery?: RunDelivery): Promise<void>;
@@ -319,7 +319,7 @@ export function defineTrigger(definition: WrittenTrigger, module?: ModuleMetadat
     }
     // require a change trigger
     else if (!Trigger.is(definition, "change")) {
-        throw new TypeError(`trigger ${name} fires on no known event`);
+        throw new TypeError(`trigger ${name} has no known event`);
     }
 
     // default where a change trigger starts and how far it may lag
@@ -331,7 +331,7 @@ export function defineTrigger(definition: WrittenTrigger, module?: ModuleMetadat
     });
     if (change.from === "snapshot" && !change.operations.includes("create")) {
         throw new TypeError(
-            `trigger ${name} starts with a snapshot, whose rows are created, but fires on no creations`,
+            `trigger ${name} starts with a snapshot of created rows but does not fire on creations`,
         );
     }
 

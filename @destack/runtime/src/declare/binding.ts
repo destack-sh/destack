@@ -70,12 +70,10 @@ export class InstallationBinding<
                     // require the credential the host lends the binding
                     const credential = binding.credential;
                     if (credential === undefined) {
-                        throw new TypeError(
-                            `installation binding ${this.name} holds no credential`,
-                        );
+                        throw new TypeError(`installation binding ${this.name} has no credential`);
                     }
 
-                    // ask for an exchange for the subject a call's context names
+                    // ask for an exchange for the subject in a call's context
                     const client = createClient<Router, ExchangeContext>(this.handle, {
                         url: binding.reference,
                         headers: (options) => ({
@@ -140,7 +138,7 @@ function procedurePath(router: ProcedureRouter, procedure: unknown, binding: str
     const found = visit(router, []);
     if (found === undefined || found === "") {
         throw new TypeError(
-            `installation binding ${binding} calls a procedure its package does not route`,
+            `installation binding ${binding} calls a procedure outside its package's routes`,
         );
     }
 

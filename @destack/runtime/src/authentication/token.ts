@@ -9,7 +9,7 @@ import {
     type JWTVerifyGetKey,
 } from "jose";
 import { type Identifier, schema } from "@destack/schema";
-import { Subject } from "@destack/sync";
+import { Scope, Subject } from "@destack/sync";
 import {
     Caller,
     CallerCredential,
@@ -24,7 +24,7 @@ import { CallError } from "../error/index.ts";
 export const KEY_CACHE_MILLISECONDS = 60000;
 /** The longest key discovery wait and the pause after a failed one, in milliseconds. */
 export const KEY_TIMEOUT_MILLISECONDS = 5000;
-/** The longest lifetime of a token and the verified identity and membership records it carries. */
+/** The longest lifetime of a token and of the verified identity and membership records in it. */
 export const TOKEN_LIFETIME_MILLISECONDS = 60000;
 /** The credential kind of a machine's key. */
 export const MACHINE_KEY = "machine-key";
@@ -64,6 +64,7 @@ export const AccessToken = schema
             schema.identifier("installation"),
             schema.identifier("space"),
             schema.identifier("token"),
+            schema.literal(Scope.universe.id),
         ]),
         /** The granted scopes, space separated. */
         scope: schema.string().exactOptional(),
@@ -269,7 +270,7 @@ function clientOf(token: AccessToken): { readonly client?: Identifier<"client"> 
     return undefined;
 }
 
-/** Require a space key's claims to assert the space or its installations alone. */
+/** Require a space key's claims to assert only the space or its installations. */
 function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly Subject[]): void {
     const isOwn = (subject: Subject) =>
         (principal.space.is(subject) && subject.id === space) ||

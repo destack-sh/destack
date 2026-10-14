@@ -11,7 +11,6 @@ import type { Declaration } from "@destack/package/declare";
 import { type BuildReader, WorkloadDefinition } from "@destack/package/manifest";
 import type { Permission, PermissionRequest, PermissionScope } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
-import type { LocaleTag } from "@destack/locale";
 import type { PackageImplementation } from "../server/index.ts";
 import type { RunClient, Trigger } from "../trigger/index.ts";
 import type { Deriver } from "@destack/identity";
@@ -96,22 +95,16 @@ export interface InstallationContext {
     readonly build: BuildReader;
     /** The installation's resolved value of each setting its package declares. */
     readonly settings: Readonly<Record<string, JsonValue>>;
-    /** The publisher of the copies of the space's chain and the universe's rows it reads. */
+    /** The installation's bound resources and secrets, each read through its declaration. */
+    readonly resources: ResourceContext;
+    /** The publisher of the replicas of the space's chain and the universe's rows it reads. */
     readonly publisher: Uplink;
-    /** Connect to the copies an installation at `<installation>--<space>` publishes. */
+    /** Connect to the replicas an installation at `<installation>--<space>` publishes. */
     publisherAt(address: string, packageId: PackageId): Publisher;
-    /** Reach the packages at an address through the host's egress as the installation. */
+    /** Call the packages at an address through the host's egress as the installation. */
     at(address: string): { readonly url: string; fetch(request: Request): Promise<Response> };
-    /** The directory, through the space's machine. */
-    readonly directory: InstallationDirectory;
-}
-
-/** The directory as an installation sees it through its machine. */
-export interface InstallationDirectory {
-    /** Read the language and region a person reads. */
-    locale(subject: string): Promise<LocaleTag>;
-    /** Read the public key the messages of a space are sealed to, its identity's message key. */
-    messageKey(space: string): Promise<string>;
+    /** Send a request to any other origin, such as a Git remote, through the host. */
+    fetch(request: Request): Promise<Response>;
 }
 
 /** The packages and triggers of one workload. */

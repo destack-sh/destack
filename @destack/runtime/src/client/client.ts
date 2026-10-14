@@ -10,7 +10,7 @@ import { ClientRetryPlugin } from "@orpc/client/plugins";
 import type { Client, ProcedureRouter } from "../runtime/index.ts";
 import type { PackageHandle } from "../declare/package.ts";
 import { VERSION_HEADER } from "../request/request.ts";
-import { CallTelemetry } from "../telemetry/index.ts";
+import { CallTelemetry } from "../procedure/call-telemetry.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
 import { wait } from "../timer/index.ts";
 
@@ -59,7 +59,7 @@ export function createClient<
                     headers.set(BOOKMARK_HEADER, bookmark.format());
                 }
 
-                // send a copy of the request each time, retrying a starting server after its pause
+                // send a clone of the request each time, retrying a starting server after its pause
                 const deadline = Date.now() + STARTING_WAIT_MILLISECONDS;
                 const { url, method } = call.request;
                 const body = call.request.body === null ? null : await call.request.arrayBuffer();

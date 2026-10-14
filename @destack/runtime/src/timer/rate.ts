@@ -29,7 +29,7 @@ export interface Admission {
 export class RateLimit {
     /** The tokens refilled each second. */
     readonly rate: number;
-    /** The most tokens a bucket holds, the requests it takes at once after a quiet spell. */
+    /** The most tokens a bucket has: the burst of requests it admits after a quiet spell. */
     readonly burst: number;
 
     /** Limit a bucket to a rate a second with a burst. */

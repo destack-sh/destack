@@ -32,10 +32,10 @@ const ticket = defineTable("controller_ticket", {
     id: text("id").primaryKey(),
 });
 
-/** Read a reported failure's message, refusing a failure that is no error. */
+/** Read a reported failure's message, refusing a failure that is not an error. */
 function message(error: unknown): string {
     if (!(error instanceof Error)) {
-        throw new TypeError("a reconciliation failed with a value that is no error");
+        throw new TypeError("a reconciliation failed with a value that is not an error");
     }
 
     return error.message;
@@ -432,7 +432,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     await expect.poll(() => reported.length).toBe(2);
     stopping.abort();
     await running;
-    const failure = "brief: brief stopped following brief unasked";
+    const failure = "brief: brief stopped following brief without an abort";
     expect({ isBackedOff: aligned(started, 1) - aligned(started, 0) >= 50, reported }).toEqual({
         isBackedOff: true,
         reported: [failure, failure],

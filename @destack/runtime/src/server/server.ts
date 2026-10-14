@@ -8,7 +8,7 @@ import type { ProcedureRouter } from "../runtime/index.ts";
 import { CallError } from "../error/index.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
-import type { ProcedureCall } from "./access.ts";
+import type { ProcedureCall } from "./procedure-call.ts";
 import { reportError, reportReconciliation } from "./error.ts";
 import { type Alarm, ControlLoop, type Controller } from "../control/index.ts";
 import { MAX_TIMER_DELAY } from "../timer/index.ts";
@@ -85,11 +85,11 @@ export class Server implements AsyncDisposable {
         const controllers = options.controllers ?? [];
         const access = options.access;
         if (controllers.length > 0 && access === undefined) {
-            throw new TypeError("a server running controllers needs the database of its access");
+            throw new TypeError("a server with controllers needs its access database");
         } else if (controllers.length > 0 && access !== undefined) {
             const loop = new ControlLoop(access.database, controllers, {
                 report: (controller, key, error) => {
-                    // record the failure, and report it naming the controller and the key it failed on
+                    // record the failure, and report it with the controller and the failed key
                     reportReconciliation(controller, key, error);
                     options.report?.(
                         new Error(`${controller.name} failed to reconcile ${key}`, {
@@ -110,7 +110,7 @@ export class Server implements AsyncDisposable {
         return this.#loop === undefined ? Promise.resolve() : this.#loop.idle(deadline);
     }
 
-    /** Start the server: run its controllers, which keep its copies, and serve once it is ready. */
+    /** Start the server: run the controllers that keep its replicas, and serve once it is ready. */
     static start(options: ServerOptions): Server {
         // create the server, run its controllers and wait for its readiness in the background
         const server = new Server(options);
@@ -119,7 +119,7 @@ export class Server implements AsyncDisposable {
             server.#serve(),
         ]).then(() => undefined);
 
-        // stop serving once readiness or the controllers fail unasked
+        // stop serving once readiness or the controllers fail
         server.#controlled.catch((error: unknown) => {
             reportError(error);
             options.report?.(error);
@@ -133,7 +133,7 @@ export class Server implements AsyncDisposable {
 
     /** Serve at once without a readiness wait, else once ready. */
     async #serve(): Promise<void> {
-        // serve at once a server that waits for nothing
+        // serve at once without a readiness wait
         const signal = this.#reconciling.signal;
         const { ready } = this.#options;
         if (ready === undefined) {
@@ -275,9 +275,11 @@ export class Server implements AsyncDisposable {
     ): Promise<RequestContext> {
         // take the given caller, else authenticate the request, and require it current here
         let authenticated: Caller | undefined;
+        let presented: Caller | undefined;
         let authenticationError: Error | undefined;
         try {
             const verified = caller ?? (await options.authenticate(request));
+            presented = verified;
             if (verified !== undefined) {
                 const scope = options.scope ?? verified.credential?.scope;
                 Caller.requireCurrent(verified, options.package.id, options.clock.now(), scope);
@@ -301,6 +303,7 @@ export class Server implements AsyncDisposable {
             audience: options.package.id,
             ...(scope === undefined ? {} : { scope }),
             ...(authenticated === undefined ? {} : { caller: authenticated }),
+            ...(presented === undefined ? {} : { presented }),
             resources: options.resources,
             ...(options.access === undefined ? {} : { access: options.access }),
             ...(authenticationError === undefined ? {} : { authenticationError }),

@@ -79,7 +79,7 @@ export function defineProcedure(
     // refuse anyone on a procedure requiring credentials
     const { permission } = meta;
     if (permission === "anyone" && meta.authentication !== "public") {
-        throw new TypeError("a procedure anyone calls takes public authentication");
+        throw new TypeError("a procedure for anyone needs public authentication");
     }
 
     // keep the principal kinds by reference

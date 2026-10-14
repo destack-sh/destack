@@ -42,7 +42,7 @@ export class HttpsBinding extends ResourceDeclaration<HttpsClient, HttpsDescript
                     // require the instance credential the host's egress identifies the call by
                     const credential = binding.credential;
                     if (credential === undefined) {
-                        throw new TypeError(`https binding ${this.name} holds no credential`);
+                        throw new TypeError(`https binding ${this.name} has no credential`);
                     }
 
                     // call below the bound address, disposing nothing

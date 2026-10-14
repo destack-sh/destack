@@ -34,7 +34,7 @@ export const Bearer = {
         return token;
     },
 
-    /** Read a token's issuer without verifying it, absent for a token that is no JSON Web Token. */
+    /** Read a token's issuer without verifying it, absent for a token that is not a JWT. */
     issuer(token: string): unknown {
         try {
             return decodeJwt(token).iss;

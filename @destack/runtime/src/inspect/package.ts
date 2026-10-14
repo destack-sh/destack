@@ -11,11 +11,14 @@ import {
 import type { ObjectDeclaration } from "../declare/package.ts";
 import type { PackageHandle } from "../declare/package.ts";
 
-/** The releases a procedure converts earlier callers' inputs at. */
+/** The releases at which a procedure converts earlier callers' inputs. */
 const CONVERSIONS = schema.record(schema.string(), schema.json());
 
 /** The address of a package's API in its release plans. */
 const API_TARGET = "api";
+
+/** The address of a package's adapters in its release plans. */
+const ADAPTER_TARGET = "adapter";
 
 /** Describe a package: the API its objects derive, its objects, adapters and views. */
 export function describePackage(handle: PackageHandle): PackageDescription {
@@ -30,7 +33,7 @@ export function describePackage(handle: PackageHandle): PackageDescription {
     });
 }
 
-/** Describe the object types a package routes, with hooks for its own types alone. */
+/** Describe the object types a package routes, with hooks for its own types only. */
 export function describeObjects(
     packageId: string,
     objects: Readonly<Record<string, ObjectDeclaration>>,
@@ -57,15 +60,69 @@ export function describeRouter(name: string, router: ProcedureRouter): RouterDes
     return RouterDescription.parse({ name, procedures: describeProcedures(router) });
 }
 
-/** Plan a package's API changes between releases. */
+/** Plan a package's API and adapter changes between releases. */
 export const comparePackage: Comparator = (earlier, later) => {
-    return compareApi(
-        PackageDescription.parse(earlier.description),
-        PackageDescription.parse(later.description),
-        API_TARGET,
-        { from: earlier.symbol.package.version, release: later.symbol.package.version },
-    );
+    // read both releases
+    const before = PackageDescription.parse(earlier.description);
+    const after = PackageDescription.parse(later.description);
+    const releases = {
+        from: earlier.symbol.package.version,
+        release: later.symbol.package.version,
+    };
+
+    return Plan.join([
+        () => compareApi(before, after, API_TARGET, releases),
+        () => compareAdapters(before.adapters, after.adapters),
+    ]);
 };
+
+/** Plan the adapter changes between releases for the callers of earlier ones. */
+function compareAdapters(
+    before: PackageDescription["adapters"],
+    after: PackageDescription["adapters"],
+): Plan {
+    // plan each adapter either release declares
+    const names = new Set([...Object.keys(before), ...Object.keys(after)]);
+    const steps = [...names].toSorted().flatMap((name): Step[] => {
+        // read the adapter in both releases
+        const previous = before[name];
+        const next = after[name];
+        const target = Address.join(ADAPTER_TARGET, name);
+
+        // add a new adapter
+        if (previous === undefined) {
+            return [{ action: "create", target, risk: "safe", detail: `add adapter ${name}` }];
+        }
+        // remove an adapter
+        else if (next === undefined) {
+            return [
+                {
+                    action: "delete",
+                    target,
+                    risk: "backward-incompatible",
+                    detail: `remove adapter ${name}`,
+                },
+            ];
+        }
+        // move an adapter to another path
+        else if (previous.path !== next.path) {
+            return [
+                {
+                    action: "update",
+                    target,
+                    risk: "backward-incompatible",
+                    detail: `move adapter ${name} from ${previous.path} to ${next.path}`,
+                },
+            ];
+        }
+        // keep an unchanged adapter
+        else {
+            return [];
+        }
+    });
+
+    return { steps };
+}
 
 /** List a package's procedures as its member symbols, each served by the package. */
 export function packageSymbols(handle: PackageHandle): graph.MemberSymbol[] {

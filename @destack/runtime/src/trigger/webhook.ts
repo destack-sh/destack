@@ -4,7 +4,7 @@ import { aligned, defineSchema, Instant, schema, type JsonValue } from "@destack
 import { CallError } from "../error/index.ts";
 import { RequestBody } from "../request/body.ts";
 
-/** A path template of literal and `{name}` segments, or `/` alone. */
+/** A path template of literal and `{name}` segments, or only `/`. */
 const PATH_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/u;
 
 /** The Standard Webhooks timestamp tolerance, five minutes as in the reference libraries. */
@@ -180,7 +180,7 @@ export const WebhookSignature = {
     secret(secret: string | undefined, scheme: string): string {
         if (secret === undefined) {
             throw new CallError("UNAUTHORIZED", {
-                message: `${scheme} webhooks verify with a secret the trigger reads`,
+                message: `${scheme} webhooks need a secret on the trigger`,
             });
         }
 
@@ -270,7 +270,7 @@ export class StandardSignature implements WebhookSignature {
             .safeParse(payload);
         if (!event.success) {
             throw new CallError("BAD_REQUEST", {
-                message: "standard webhook payload names no type",
+                message: "standard webhook payload has no type",
             });
         }
 
@@ -286,7 +286,7 @@ export class StandardSignature implements WebhookSignature {
     /** Import a whsec_ secret as an HMAC key. */
     static #key(secret: string, usage: "sign" | "verify"): Promise<CryptoKey> {
         if (!secret.startsWith(STANDARD_SECRET_PREFIX)) {
-            throw new TypeError("standard webhook secrets start with whsec_");
+            throw new TypeError("standard webhook secret must start with whsec_");
         }
 
         return WebhookSignature.key(

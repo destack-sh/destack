@@ -10,7 +10,7 @@ test("read back the installation an address writes, and no installation from oth
     const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e2");
     const address = Egress.address(installationId, spaceId);
 
-    // read nothing from a binding's name, a space alone, three identifiers, or swapped identifiers
+    // read nothing from a binding's name, only a space, three identifiers, or swapped identifiers
     const others = ["notes", spaceId, `${address}--${spaceId}`, `${spaceId}--${installationId}`];
 
     expect([

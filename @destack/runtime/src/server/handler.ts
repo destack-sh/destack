@@ -17,8 +17,8 @@ import type { PackageHandle } from "../declare/package.ts";
 import { VERSION_HEADER } from "../request/request.ts";
 import { CallError } from "../error/index.ts";
 import type { Health } from "../health/health.ts";
-import { invokeProcedure, type ProcedureCall, type ProcedureAudit } from "./access.ts";
-import { CallTelemetry } from "../telemetry/index.ts";
+import { ProcedureCall, type ProcedureAudit } from "./procedure-call.ts";
+import { CallTelemetry } from "../procedure/call-telemetry.ts";
 import { SmartCoercionPlugin } from "@orpc/json-schema";
 import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
 
@@ -33,19 +33,19 @@ const schemaConverter: ConditionalSchemaConverter = {
             throw new TypeError("expected a Destack schema");
         }
 
-        return [true, openApiSchemaOf(toJsonSchema(validator))];
+        return [true, toOpenApiSchema(toJsonSchema(validator))];
     },
 };
 
 /** Read a Destack JSON Schema as oRPC's declaration of the same draft 2020-12 document. */
-function openApiSchemaOf(description: JsonSchema): JSONSchema;
+function toOpenApiSchema(description: JsonSchema): JSONSchema;
 /**
  * Pass the document through unchanged.
  *
  * @construct Zod and oRPC declare the same JSON Schema draft 2020-12 document.
  * They differ only in how they type `$defs`.
  */
-function openApiSchemaOf(description: JsonSchema): unknown {
+function toOpenApiSchema(description: JsonSchema): unknown {
     return description;
 }
 
@@ -129,7 +129,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                     ...(interception.signal === undefined ? {} : { signal: interception.signal }),
                 };
 
-                return invokeProcedure(call, () => interception.next(), options);
+                return ProcedureCall.invoke(call, () => interception.next(), options);
             },
         ];
     }
@@ -147,16 +147,16 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         return super.handle(...args);
     }
 
-    /** Read the release a request speaks for telemetry, bounded to releases and two markers. */
+    /** Read a request's release for telemetry, bounded to releases and two markers. */
     static #observedRelease(request: Request): string {
         const header = request.headers.get(VERSION_HEADER);
 
         return header === null ? "absent" : Version.safeParse(header).success ? header : "invalid";
     }
 
-    /** Require a request's release to lie within the releases the package serves. */
+    /** Require a request's release to be within the releases the package serves. */
     static #requireRelease(request: Request, served: PackageHandle): Version {
-        // read the release the caller speaks
+        // read the caller's release
         const header = request.headers.get(VERSION_HEADER);
         const caller = header === null ? undefined : Version.safeParse(header).data;
         const { name, version, since } = served;
@@ -167,7 +167,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                 message: `package ${name} requires ${VERSION_HEADER}`,
             });
         }
-        // refuse a header that is no release
+        // refuse a header that is not a release
         else if (caller === undefined) {
             throw new CallError("BAD_REQUEST", {
                 message: `invalid ${VERSION_HEADER}: ${header}`,
@@ -176,7 +176,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         // refuse a release newer than this one
         else if (Version.compare(caller, version) > 0) {
             throw new CallError("CONFLICT", {
-                message: `package ${name} serves ${version}, the caller speaks ${caller}`,
+                message: `package ${name} serves ${version}, but the caller uses ${caller}`,
             });
         }
         // refuse a retired release
@@ -280,7 +280,7 @@ export type RequestState = Context & { readonly request: Request };
 
 /** The options of a request handler. */
 export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOptions<State> {
-    /** The package the handler serves, whose release callers must speak. */
+    /** The package the handler serves, with the release callers must use. */
     package: PackageHandle;
     /** The health. */
     health: Health;

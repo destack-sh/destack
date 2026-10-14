@@ -8,7 +8,7 @@ import {
     SocketAcceptance,
 } from "../workload/socket.ts";
 
-/** The most bytes one WebSocket message carries: 1 MiB. */
+/** The most bytes in one WebSocket message: 1 MiB. */
 const MESSAGE_BYTES = 1024 * 1024;
 
 /** Hand an instance a request its host makes at a path below its origin. */
@@ -53,14 +53,14 @@ export class BunHibernation {
         };
     }
 
-    /** Keep a WebSocket that the instance a machine gives accepted in its answer to an upgrade. */
+    /** Keep a WebSocket that an instance accepted in its answer to an upgrade. */
     upgrade(server: Server<Held>, request: Request, answer: Response): boolean {
         // read the instance's acceptance
         const accepted = answer.headers.get(SOCKET_HEADER);
         const instanceId = answer.headers.get(SOCKET_INSTANCE_HEADER);
         if (accepted === null || instanceId === null) {
             throw new CallError("BAD_GATEWAY", {
-                message: "the answer accepts no socket for a named instance",
+                message: "the answer has no socket acceptance for a named instance",
             });
         }
         const acceptance = SocketAcceptance.parse(JSON.parse(accepted));

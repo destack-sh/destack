@@ -11,7 +11,7 @@ import { startTelemetry } from "@destack/telemetry/bun";
 import { WorkloadRunner } from "./runner.ts";
 import type { RequestContext } from "../server/index.ts";
 import type { WorkloadStart } from "./start.ts";
-import { defineWorkload, type EphemeralHost, type InstallationDirectory } from "./workload.ts";
+import { defineWorkload, type EphemeralHost } from "./workload.ts";
 import { FORWARDED_URL_HEADER, ROUTE_PATH, WEBHOOK_PATH } from "./start.ts";
 import { SOCKET_HEADER, SOCKET_PATH } from "./socket.ts";
 import { defineTrigger, type WebhookParameters } from "../trigger/index.ts";
@@ -69,7 +69,7 @@ const LogsExport = schema
     })
     .loose();
 
-/** The ephemeral host of runners whose workloads keep no ephemeral objects. */
+/** The ephemeral host of runners with workloads that have no ephemeral objects. */
 const refusingEphemeral: EphemeralHost = {
     open: () => Promise.reject(new Error("the fixture runner keeps no ephemeral objects")),
     channel: () => {
@@ -159,7 +159,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     let settings: unknown;
     const publisher: Uplink = {
         stream: () => {
-            throw new Error("the fixture publisher streams no copies");
+            throw new Error("the fixture publisher streams no replicas");
         },
         receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
     };
@@ -191,7 +191,6 @@ test("start the workload with its installation's settings, serve a forwarded cal
             ),
             resources: {},
             publisher: () => publisher,
-            directory: () => directory,
             runs: () => ({
                 send: async () => {
                     throw new Error("the fixture records no runs");
@@ -328,12 +327,11 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
             resources: {},
             publisher: () => ({
                 stream: () => {
-                    throw new Error("the fixture publisher streams no copies");
+                    throw new Error("the fixture publisher streams no replicas");
                 },
                 receive: () =>
                     Promise.reject(new Error("the fixture publisher receives no changes")),
             }),
-            directory: () => directory,
             runs: () => ({
                 send: async (request) => {
                     recorded.push(request);
@@ -412,16 +410,6 @@ test("verify a webhook trigger's deliveries with each route's secret and record 
     ]);
 });
 
-/** The directory as the fixture's workloads see it. */
-const directory: InstallationDirectory = {
-    locale: async (subject) => {
-        throw new Error(`no person ${subject} reads a locale here`);
-    },
-    messageKey: async (space) => {
-        throw new Error(`no space ${space} is sent messages here`);
-    },
-};
-
 test("accept a held socket, hand its messages and close to the workload, and send its answers in order through the host", async () => {
     // start a workload echoing each message and recording each close, its host kept in memory
     const sent: (readonly [string, string, string])[] = [];
@@ -470,12 +458,11 @@ test("accept a held socket, hand its messages and close to the workload, and sen
             resources: {},
             publisher: () => ({
                 stream: () => {
-                    throw new Error("the fixture publisher streams no copies");
+                    throw new Error("the fixture publisher streams no replicas");
                 },
                 receive: () =>
                     Promise.reject(new Error("the fixture publisher receives no changes")),
             }),
-            directory: () => directory,
             runs: () => ({ send: async () => {} }),
             socketHost: host,
         },
@@ -548,12 +535,11 @@ test("hand a routed request to the workload's own package at the route path, und
                 resources: {},
                 publisher: () => ({
                     stream: () => {
-                        throw new Error("the fixture publisher streams no copies");
+                        throw new Error("the fixture publisher streams no replicas");
                     },
                     receive: () =>
                         Promise.reject(new Error("the fixture publisher receives no changes")),
                 }),
-                directory: () => directory,
                 runs: () => ({ send: async () => {} }),
             },
             start,
@@ -575,7 +561,7 @@ test("hand a routed request to the workload's own package at the route path, und
         return [response.status, await response.text()];
     };
 
-    // route to a workload serving its own package and to one serving another package alone
+    // route to a workload serving its own package and to one serving only another package
     expect([await routed(notes), await routed(events)]).toEqual([
         [200, `${ROUTE_PATH} https://notes.acme.com/blog?page=2`],
         [

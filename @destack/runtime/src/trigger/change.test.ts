@@ -58,7 +58,7 @@ test("describe a declared change trigger with its object reference, condition, o
             call: summarize,
         }),
     ).toThrow(
-        "trigger removed starts with a snapshot, whose rows are created, but fires on no creations",
+        "trigger removed starts with a snapshot of created rows but does not fire on creations",
     );
 });
 

@@ -5,7 +5,7 @@ import type { Fetch } from "../runtime/fetch.ts";
 /** The path at which a host and an instance exchange a held socket's messages, closes and sends. */
 export const SOCKET_PATH = "/.destack/socket";
 
-/** The header that carries a held socket beside its event. */
+/** The header with a held socket beside its event. */
 export const SOCKET_HEADER = "Destack-Socket";
 
 /** The header that identifies the instance that accepted an upgrade. */
@@ -66,7 +66,7 @@ export interface SocketHandler {
     close(socket: HeldSocket): Promise<void>;
 }
 
-/** Where an instance reaches the sockets its host keeps open. */
+/** Where an instance connects to the sockets its host keeps open. */
 export interface SocketHost {
     /** The URL of the held sockets. */
     readonly url: string;
@@ -80,12 +80,12 @@ export class Hibernation {
     readonly #host: SocketHost;
     /** The secret the host and the instance prove each other's requests with. */
     readonly #secret: string;
-    /** Report a failed send or close, which no caller awaits. */
+    /** Report a failed send or close that no caller awaits. */
     readonly #report: (error: unknown) => void;
     /** The last send or close of each socket, which the next one follows. */
     readonly #pending = new Map<string, Promise<void>>();
 
-    /** Reach the sockets at a host with an instance's secret. */
+    /** Connect to the sockets at a host with an instance's secret. */
     constructor(host: SocketHost, secret: string, report: (error: unknown) => void) {
         this.#host = host;
         this.#secret = secret;
@@ -107,7 +107,7 @@ export class Hibernation {
         );
         if (!response.ok) {
             throw new CallError("BAD_GATEWAY", {
-                message: `the host lists no held sockets: ${response.status}`,
+                message: `the host cannot list held sockets: ${response.status}`,
             });
         }
 

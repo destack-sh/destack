@@ -160,6 +160,48 @@ test("plan a package's API changes between releases, converting narrowed inputs 
     ]);
 });
 
+test("plan a package's adapter changes: adding is safe, removing or moving breaks callers", () => {
+    // describe a release of the package's adapters
+    const release = (adapters: Readonly<Record<string, `/${string}`>>) =>
+        describePackage(
+            definePackage(
+                {
+                    adapters: Object.fromEntries(
+                        Object.entries(adapters).map(([name, path]) => [
+                            name,
+                            defineAdapter(name, { path }, MODULE),
+                        ]),
+                    ),
+                },
+                MODULE,
+            ),
+        );
+    const before = release({ feed: "/feed", npm: "/npm", retired: "/retired" });
+    const after = release({ feed: "/feed", npm: "/registry", archive: "/archive" });
+
+    // plan the added, moved and removed adapters
+    expect(comparePackage(entry(before, "2026.8.0"), entry(after, RELEASE)).steps).toEqual([
+        {
+            action: "create",
+            target: "adapter/archive",
+            risk: "safe",
+            detail: "add adapter archive",
+        },
+        {
+            action: "update",
+            target: "adapter/npm",
+            risk: "backward-incompatible",
+            detail: "move adapter npm from /npm to /registry",
+        },
+        {
+            action: "delete",
+            target: "adapter/retired",
+            risk: "backward-incompatible",
+            detail: "remove adapter retired",
+        },
+    ]);
+});
+
 test("list a package's procedures as members the package serves", () => {
     // describe a package with a nested procedure
     const handle = definePackage(

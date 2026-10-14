@@ -28,7 +28,7 @@ const TOKEN_SECONDS = 300;
 /** The signing algorithm of the bearer tokens this scheme signs (RFC 7518 3.4). */
 const ALGORITHM = "ES256";
 
-/** A private signing key in JWK form (RFC 7517), as a bearer scheme's signing secret holds it. */
+/** A private signing key in JWK form (RFC 7517), as a bearer scheme's signing secret stores it. */
 const SigningKey = schema.looseObject({
     kty: schema.string(),
     kid: schema.string().exactOptional(),
@@ -36,9 +36,9 @@ const SigningKey = schema.looseObject({
 
 /** What a JWT bearer webhook scheme checks. */
 export interface BearerOptions {
-    /** The issuers the token may carry, the first signing (RFC 7519 4.1.1). */
+    /** The issuers the token may have, the first signing (RFC 7519 4.1.1). */
     readonly issuer: string | readonly [string, ...string[]];
-    /** The audience the token must carry, the receiving endpoint (RFC 7519 4.1.3). */
+    /** The audience the token must have, the receiving endpoint (RFC 7519 4.1.3). */
     readonly audience: string;
     /** The sender's key set (RFC 7517 5): an https resource and the path below it. */
     readonly keys: { readonly resource: HttpsBinding; readonly path: string };
@@ -65,7 +65,7 @@ export class BearerSignature implements WebhookSignature {
 
     /** Sign a message as the issuer with a private JWK, as a sender's bearer token. */
     async sign(message: WebhookMessage, secret: string): Promise<Headers> {
-        // sign a short-lived token carrying the message for the audience
+        // sign a short-lived token with the message for the audience
         const jwk = SigningKey.parse(JSON.parse(secret));
         const key = await importJWK(jwk, ALGORITHM);
         const issuer =
@@ -96,7 +96,7 @@ export class BearerSignature implements WebhookSignature {
         // require a bearer token
         const token = Bearer.token(request.headers.get("authorization"));
         if (token === undefined) {
-            throw new CallError("UNAUTHORIZED", { message: "webhook carries no bearer token" });
+            throw new CallError("UNAUTHORIZED", { message: "webhook has no bearer token" });
         }
 
         // verify it against the sender's keys
@@ -113,7 +113,7 @@ export class BearerSignature implements WebhookSignature {
                 throw error;
             }
             throw new CallError("UNAUTHORIZED", {
-                message: "webhook bearer token is not the issuer's for this endpoint",
+                message: "webhook bearer token does not belong to this endpoint's issuer",
             });
         }
 
@@ -135,7 +135,7 @@ export class BearerSignature implements WebhookSignature {
             return kept;
         }
 
-        // read through the client, which carries the instance's credential
+        // read through the client with the instance's credential
         const { path } = this.options.keys;
         const keys = createRemoteJWKSet(new URL(`${https.url}${path}`), {
             cacheMaxAge: KEY_CACHE_MILLISECONDS,

@@ -1,9 +1,9 @@
 import { expect, test } from "@destack/test";
-import type { Subject } from "@destack/sync";
+import { Scope, type Subject } from "@destack/sync";
 import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
 import { ACCESS_TOKEN_TYPE, INSTALLATION_KEY, SPACE_KEY, TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
-import { principal, GrantPermission, Caller } from "@destack/access";
+import { principal, GrantPermission, Caller, universe } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 
@@ -393,6 +393,50 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         spaceId,
     );
     expect([spaceKeyedCaller.subject, spaceKeyedCaller.deployments]).toEqual([actor, undefined]);
+});
+
+test("issue the universe a token of its own key, verified without a separate client", async () => {
+    // sign as the universe's authority
+    const keys = await generateKeyPair("ES256");
+    const publicKey = { ...(await exportJWK(keys.publicKey)), kid: "current", alg: "ES256" };
+    const issuer = "https://account.example";
+    const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
+    const authority = new TokenIssuer({
+        authority: { kind: "universe" },
+        issuer,
+        sign: async (payload: JWTPayload, header: { readonly typ: string }) =>
+            new SignJWT(payload)
+                .setProtectedHeader({ alg: "ES256", kid: "current", ...header })
+                .sign(keys.privateKey),
+    });
+
+    // issue a token to the universe calling a package as itself
+    const now = Date.now();
+    const subject: Subject = universe.reference(Scope.universe.id, Scope.universe.id);
+    const issued = await authority.issue(
+        {
+            subject,
+            subjects: [subject],
+            credential: {
+                kind: "universe-key",
+                id: Scope.universe.id,
+                audience,
+                verifiedAt: now,
+                expiresAt: now + 60_000,
+            },
+        },
+        now,
+    );
+
+    // verify it as the universe with no separate client
+    const verifier = new TokenVerifier({
+        authority: { kind: "universe" },
+        issuer,
+        audience,
+        keys: { keys: [publicKey] },
+    });
+    const caller = await verifier.verify(issued.accessToken, now);
+    expect([caller.subject, caller.credential.client]).toEqual([subject, undefined]);
 });
 
 /** Require a verified caller current for an audience at a time in a scope, and answer it. */
