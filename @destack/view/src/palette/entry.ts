@@ -30,7 +30,7 @@ export const PaletteEntry = defineSchema(
             kind: schema.literal("command"),
             /** The space of the installation declaring it. */
             space: SpaceId,
-            /** The installation declaring it, by alias. */
+            /** The installation declaring it, by name. */
             installation: DeclarationName,
             /** The declaring package. */
             packageId: PackageId,
@@ -52,7 +52,7 @@ export const PaletteEntry = defineSchema(
             kind: schema.literal("view"),
             /** The space of the installation declaring it. */
             space: SpaceId,
-            /** The installation declaring it, by alias. */
+            /** The installation declaring it, by name. */
             installation: DeclarationName,
             /** The declaring package. */
             packageId: PackageId,
@@ -100,7 +100,7 @@ export const PaletteFocus = Object.assign(
         schema.object({
             /** The space of the window's view or object. */
             space: SpaceId.exactOptional(),
-            /** The installation of the window's view, by alias. */
+            /** The installation of the window's view, by name. */
             installation: DeclarationName.exactOptional(),
             /** The object the window presents. */
             object: ObjectReference.exactOptional(),
@@ -126,7 +126,7 @@ export const PaletteFocus = Object.assign(
                 space,
                 ...(origin === undefined
                     ? {}
-                    : { installation: DeclarationName.parse(origin.alias) }),
+                    : { installation: DeclarationName.parse(origin.name) }),
                 ...(object === undefined ? {} : { object }),
             };
         },

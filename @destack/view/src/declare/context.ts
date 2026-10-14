@@ -44,7 +44,7 @@ export const OBJECT_PARAMETER = "object";
 /** The query parameter of the open path with the view asked for. */
 export const VIEW_PARAMETER = "view";
 
-/** The query parameter of the open path with the installation of the view asked for, by alias. */
+/** The query parameter of the open path with the installation of the view asked for, by name. */
 export const INSTALLATION_PARAMETER = "installation";
 
 /** The query parameter of the open path with the address of the space of the view asked for. */
