@@ -35,7 +35,8 @@
         "postgres": "3.4.9",
         "uuid": "14.0.2",
         "@destack/fs": "workspace:*",
-        "@destack/error": "workspace:*"
+        "@destack/error": "workspace:*",
+        "@noble/ciphers": "2.4.0"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

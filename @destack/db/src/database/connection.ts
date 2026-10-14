@@ -2,6 +2,7 @@ import { canonicalize, schema } from "@destack/schema";
 import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
+import type { ColumnCipher } from "./cipher.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
 import { SelectBuilder } from "../query/select.ts";
@@ -198,6 +199,15 @@ export class DatabaseConnection<
         return this.select().from(table).where(this.#keyed(table, rows));
     }
 
+    /** Key the database's sensitive columns once, as SQLCipher's `PRAGMA key` does. */
+    key(cipher: ColumnCipher): void {
+        // refuse a second key, which would mix the sealing of stored values
+        if (this.state.cipher !== undefined && this.state.cipher !== cipher) {
+            throw new TypeError("the database is keyed already");
+        }
+        this.state.cipher = cipher;
+    }
+
     /** Delete rows by key in one statement, binding the keys as one JSON array. */
     async remove<Definition extends Table>(
         table: Definition,
@@ -239,7 +249,7 @@ export class DatabaseConnection<
      */
     async execute(statement: SQLWrapper, row?: schema.Schema): Promise<unknown[]> {
         const rows = await this.driver.all(
-            fill(render(statement, this.dialect, this.state.namespace)),
+            fill(render(statement, this.dialect, this.state.namespace, this.state.cipher)),
         );
 
         return row === undefined ? rows : rows.map((value) => row.parse(value));
@@ -259,12 +269,16 @@ export class DatabaseConnection<
 
     /** Run SQL and read its rows as an array of values. */
     values(statement: SQLWrapper): Promise<unknown[][]> {
-        return this.driver.values(fill(render(statement, this.dialect, this.state.namespace)));
+        return this.driver.values(
+            fill(render(statement, this.dialect, this.state.namespace, this.state.cipher)),
+        );
     }
 
     /** Run a SQL write. */
     run(statement: SQLWrapper): Promise<void> {
-        return this.driver.execute(fill(render(statement, this.dialect, this.state.namespace)));
+        return this.driver.execute(
+            fill(render(statement, this.dialect, this.state.namespace, this.state.cipher)),
+        );
     }
 
     /** Plan and apply tables at once, beside declared states, such as a resource's desired ones. */
@@ -474,6 +488,8 @@ export class ConnectionState {
     readonly namespace: string | undefined;
     /** The searched tables whose full-text rows SQLite writes keep, by SQL name. */
     readonly searched: ReadonlyMap<string, Table>;
+    /** The cipher of sensitive columns, absent until the database is keyed. */
+    cipher: ColumnCipher | undefined = undefined;
     /** Whether the database keeps a log. */
     isLogged = false;
     /** The submitted statements and transactions. */

@@ -506,7 +506,7 @@ export class Snapshot {
                     WHERE ${sql.identifier("ranked")}.${sql.identifier(RANK)} <= ${limit}`;
         const read = await this.database.values(statement);
 
-        return this.#take(projection.decode(read, dialect, new Set()));
+        return this.#take(projection.decode(read, dialect, new Set(), this.database.state.cipher));
     }
 
     /** Select a table's logged columns and computed values beside the log's head. */

@@ -2,6 +2,7 @@ import { Alias, SQL, sql } from "../sql/index.ts";
 import { Column, type ColumnDefinition, type ValueOf } from "../table/column.ts";
 import { type Select, TABLE, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
+import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
 
 /** The fields of a selection: columns, fragments, whole tables or nested groups. */
 export interface Selection {
@@ -90,6 +91,7 @@ export class Projection<Selected extends Selection = Selection> {
         rows: readonly (readonly unknown[])[],
         dialect: Dialect,
         nullable: ReadonlySet<string>,
+        cipher: ColumnCipher | undefined,
     ): SelectionResult<Selected>[];
     /**
      * Decode driver rows into records shaped as the selection.
@@ -100,8 +102,9 @@ export class Projection<Selected extends Selection = Selection> {
         rows: readonly (readonly unknown[])[],
         dialect: Dialect,
         nullable: ReadonlySet<string>,
+        cipher: ColumnCipher | undefined,
     ): unknown[] {
-        return rows.map((values) => decodeGroup(this.#root, values, dialect, nullable));
+        return rows.map((values) => decodeGroup(this.#root, values, dialect, nullable, cipher));
     }
 }
 
@@ -128,11 +131,12 @@ function decodeGroup(
     values: readonly unknown[],
     dialect: Dialect,
     nullable: ReadonlySet<string>,
+    cipher: ColumnCipher | undefined,
 ): Record<string, unknown> {
     return Object.fromEntries(
         shape.entries.map(([property, entry]) => [
             property,
-            decodeEntry(entry, values, dialect, nullable),
+            decodeEntry(entry, values, dialect, nullable, cipher),
         ]),
     );
 }
@@ -143,10 +147,11 @@ function decodeEntry(
     values: readonly unknown[],
     dialect: Dialect,
     nullable: ReadonlySet<string>,
+    cipher: ColumnCipher | undefined,
 ): unknown {
     // decode a field
     if ("field" in entry) {
-        return decodeValue(entry.field, values[entry.index], dialect);
+        return decodeValue(entry.field, values[entry.index], dialect, cipher);
     }
     // read a missing nested group as null
     else if (isMissingGroup(entry, values, nullable)) {
@@ -154,7 +159,7 @@ function decodeEntry(
     }
     // decode a nested group
     else {
-        return decodeGroup(entry, values, dialect, nullable);
+        return decodeGroup(entry, values, dialect, nullable, cipher);
     }
 }
 
@@ -176,14 +181,29 @@ function isMissingGroup(
     );
 }
 
-/** Decode one selected driver value by its column or fragment decoder, keeping null. */
-function decodeValue(field: Column | SQL | Alias, value: unknown, dialect: Dialect): unknown {
+/** Decode one selected driver value by its column or fragment decoder, opening a sealed one. */
+function decodeValue(
+    field: Column | SQL | Alias,
+    value: unknown,
+    dialect: Dialect,
+    cipher: ColumnCipher | undefined,
+): unknown {
+    // read the column definition decoding the value: a column's, or a fragment's mapped to one
+    const decoder = field instanceof Column ? field.definition : field.getSQL().decoder;
+    const definition = typeof decoder === "object" ? decoder : undefined;
     if (value === undefined) {
         throw new TypeError("the database driver returned fewer values than the query selects");
     } else if (value === null) {
         return null;
-    } else if (field instanceof Column) {
-        return field.definition.decode(value, dialect);
+    }
+    // open a sealed column's value, also a mutation's returned column
+    else if (definition?.sealing !== undefined) {
+        return definition.decode(
+            ColumnCipher.require(cipher, { definition }).open(value, definition.name),
+            SEALED_DIALECT,
+        );
+    } else if (definition !== undefined) {
+        return definition.decode(value, dialect);
     }
 
     return field.getSQL().decode(value, dialect);

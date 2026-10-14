@@ -3,6 +3,12 @@ import { assertNever } from "../error/error.ts";
 import { defineSchema, schema, type Identifier, type JsonValue } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 
+/** How a sensitive value is sealed: randomly, or alike for a column looked up by value. */
+export type Sealing = "random" | "deterministic";
+
+/** The SQL type of a sensitive column, which keeps its value sealed as text. */
+const SEALED_TYPES = { sqlite: "text", postgresql: "text" } as const;
+
 /** The logical value types of columns. */
 export const COLUMN_KINDS = [
     "text",
@@ -133,11 +139,16 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         });
     }
 
-    /** Keep the value out of logs, audits, sync and fingerprints, marked secret in schemas. */
-    sensitive(): ColumnBuilder<Definition & { readonly classification: "sensitive" }> {
+    /** Seal the value at rest and keep it out of logs, audits, sync and fingerprints. */
+    sensitive(
+        sealing: Sealing = "random",
+    ): ColumnBuilder<Definition & { readonly classification: "sensitive" }> {
         return new ColumnBuilder({
             ...this.definition,
+            // keep the sealed text, whatever the value's own type
+            types: SEALED_TYPES,
             classification: "sensitive" as const,
+            sealing,
             schema: schema.sensitive(this.definition.schema.clone()),
             json: schema.sensitive(this.definition.json.clone()),
         });
@@ -230,6 +241,8 @@ export interface ColumnDefinition<
     };
     /** The protection: sensitive values stay in the row and out of the log. */
     readonly classification?: "sensitive";
+    /** How a sensitive value is sealed, absent for an opaque copy of sealed text. */
+    readonly sealing?: Sealing;
     /** Encode an application value as a driver parameter. */
     encode(value: unknown, dialect: Dialect): DriverValue;
     /** Decode a driver value as an application value. */

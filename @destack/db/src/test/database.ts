@@ -12,6 +12,7 @@ import { declareState } from "../migration/state.ts";
 import * as sqlite from "../bun/connection.ts";
 import * as postgresql from "../postgres/connection.ts";
 import { PostgresDatabase } from "../postgres/database.ts";
+import { ColumnCipher } from "../database/cipher.ts";
 import { LOG_EPOCH, LOG_HORIZON, LOG_TABLES } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
 import { sql } from "../sql/index.ts";
@@ -24,6 +25,9 @@ export const TEST_DIALECTS: readonly Dialect[] = [
     "sqlite",
     ...((process.env["DESTACK_TEST_POSTGRES"] ?? "") === "" ? [] : (["postgresql"] as const)),
 ];
+
+/** The cipher of every test database, a fixed key so schemas reused across test processes open. */
+export const TEST_CIPHER = new ColumnCipher(new Uint8Array(32).fill(7));
 
 /** The connections each test database pools: ten workers stay within a server's hundred. */
 const TEST_POOL_CONNECTIONS = 4;
@@ -93,7 +97,7 @@ export class TestDatabase<
             return TestDatabase.#postgres(declared, tables, options);
         } else if (options.isMigrated !== true && (options.storage ?? "memory") === "memory") {
             return new TestDatabase(
-                await sqlite.connectBunSqlite(":memory:", tables),
+                keyed(await sqlite.connectBunSqlite(":memory:", tables)),
                 undefined,
                 async () => {},
             );
@@ -207,7 +211,7 @@ export class TestDatabase<
         const schema = `test_${crypto.randomUUID().replaceAll("-", "")}`;
         await cluster.administration.unsafe(`CREATE SCHEMA "${schema}"`);
         const open: TestConnector = (connected) =>
-            postgresql.connectPostgres(cluster.connect(schema), connected);
+            postgresql.connectPostgres(cluster.connect(schema), connected).then(keyed);
 
         return new TestDatabase(await open(tables), open, async () => {
             await cluster.administration.unsafe(`DROP SCHEMA "${schema}" CASCADE`);
@@ -251,7 +255,7 @@ export class TestDatabase<
             return party();
         };
         const open: TestConnector = (connected) =>
-            sqlite.connectBunSqlite(file, connected, { openChannel });
+            sqlite.connectBunSqlite(file, connected, { openChannel }).then(keyed);
 
         // start a logged copy's own epoch as a restore does
         const database = await open(tables);
@@ -684,6 +688,7 @@ class PoolDatabase<
         idle: postgres.Sql[],
     ) {
         super(client, tables);
+        this.key(TEST_CIPHER);
         this.#idle = idle;
     }
 
@@ -755,3 +760,10 @@ type TestConnection<
 type TestConnector = <Models extends Readonly<Record<string, Model>>>(
     tables: declaration.Database<Models> | readonly Table[],
 ) => Promise<TestConnection<Models>>;
+
+/** Key a test database's sensitive columns with the test cipher. */
+function keyed<Database extends DatabaseConnection>(database: Database): Database {
+    database.key(TEST_CIPHER);
+
+    return database;
+}

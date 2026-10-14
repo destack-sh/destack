@@ -201,7 +201,12 @@ export class MutationQuery<
         // render the mutation for the driver's dialect
         const state = this.state;
         const statement = fill(
-            render(this.#sql(), state.driver.dialect, state.driver.state.namespace),
+            render(
+                this.#sql(),
+                state.driver.dialect,
+                state.driver.state.namespace,
+                state.driver.state.cipher,
+            ),
         );
 
         // run without rows, or read and decode the returned rows
@@ -216,7 +221,7 @@ export class MutationQuery<
             statement.tables,
         );
 
-        return projection.decode(rows, state.driver.dialect, new Set());
+        return projection.decode(rows, state.driver.dialect, new Set(), state.driver.state.cipher);
     }
 
     /** Run the mutation and return the first changed row. */

@@ -91,8 +91,9 @@ export class Table<
         const columns = Object.fromEntries(
             description.columns.map((column) => {
                 const isUnlogged = state.log !== undefined && !logged.has(column.name);
+                // keep an unlogged column's sealed text opaque, as a copy never opens it
                 const definition = {
-                    ...COLUMNS[column.kind](column.name).definition,
+                    ...COLUMNS[isUnlogged ? "text" : column.kind](column.name).definition,
                     nullable: column.nullable,
                     ...(keyed.has(column.name) ? { primaryKey: true } : {}),
                     ...(isUnlogged ? { classification: "sensitive" as const } : {}),

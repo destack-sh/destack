@@ -2,6 +2,7 @@ import { aligned, canonicalize } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { type Dialect, PARAMETER_BUDGET } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
+import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
 import { sql } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import { Condition, Scalar } from "../query/condition.ts";
@@ -370,13 +371,39 @@ export class ChangeSet {
 
                 return [
                     ...key.map((column) => jsonOf(table, column, before)),
-                    ...changed.map((column) => jsonOf(table, column, after)),
+                    ...changed.map((column) =>
+                        ChangeSet.#element(transaction, table, column, after),
+                    ),
                 ];
             });
             await tupleUpdate(table, key, changed, transaction.dialect).all(transaction, {
                 tuples: JSON.stringify(tuples),
             });
         }
+    }
+
+    /** Write a changed column's JSON array element, sealing a sensitive value. */
+    static #element(
+        transaction: DatabaseConnection,
+        table: Table,
+        column: string,
+        row: Row,
+    ): unknown {
+        // take a value without sealing as its JSON form
+        const { definition } = table[TABLE].column(column);
+        const value = row[column];
+        if (definition.sealing === undefined || value === undefined || value === null) {
+            return jsonOf(table, column, row);
+        }
+
+        // seal the driver value under the transaction's cipher
+        const cipher = ColumnCipher.require(transaction.state.cipher, { definition });
+
+        return cipher.seal(
+            definition.encode(value, SEALED_DIALECT),
+            definition.name,
+            definition.sealing,
+        );
     }
 
     /** Refuse with `CONCURRENT_UPDATE` once a later commit touched a transaction's reads. */

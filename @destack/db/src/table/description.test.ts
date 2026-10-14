@@ -6,7 +6,7 @@ import { index, unique } from "./constraint.ts";
 import { describeTable } from "./description.ts";
 import { declareState } from "../migration/state.ts";
 import { present, schema } from "@destack/schema";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TEST_CIPHER, TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import { DatabaseError } from "../error/error.ts";
 
 /** Lamps with an enumerated state. */
@@ -95,16 +95,22 @@ test.for(TEST_DIALECTS)(
             wiring_key: "wiringKey",
         });
 
-        // describe its columns as the declared ones, keep the unlogged column sensitive and read its rows by property
+        // describe its columns as the declared ones, and read its rows by property
+        const [copied] = await storage.database.select().from(rebuilt);
         expect([
             describeTable(rebuilt, dialect).columns,
             Object.keys(rebuilt[TABLE].logged),
-            await storage.database.select().from(rebuilt),
+            { ...copied, wiringKey: undefined },
         ]).toEqual([
             describeTable(light, dialect).columns,
             ["id", "scope", "switchedAt"],
-            [{ id: "a", scope: "space-1", switchedAt: 1_790_000_000_000, wiringKey: "secret" }],
+            { id: "a", scope: "space-1", switchedAt: 1_790_000_000_000, wiringKey: undefined },
         ]);
+
+        // carry the unlogged column's sealed text as it is, which the database's cipher opens
+        expect(TEST_CIPHER.open(present(copied, "the copied row")["wiringKey"], "wiring_key")).toBe(
+            "secret",
+        );
     },
 );
 

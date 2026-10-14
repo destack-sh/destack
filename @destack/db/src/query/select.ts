@@ -154,6 +154,7 @@ export class SelectQuery<
                     this.#sql(projection),
                     this.state.driver.dialect,
                     this.state.driver.state.namespace,
+                    this.state.driver.state.cipher,
                 ),
             ),
         );
@@ -163,7 +164,12 @@ export class SelectQuery<
                 .map((join) => join.table[TABLE].sqlName),
         );
 
-        return projection.decode(rows, this.state.driver.dialect, nullable);
+        return projection.decode(
+            rows,
+            this.state.driver.dialect,
+            nullable,
+            this.state.driver.state.cipher,
+        );
     }
 
     /** Embed the query as a subquery, such as in `inArray` or `exists`. */

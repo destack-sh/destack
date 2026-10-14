@@ -1,4 +1,5 @@
 import type { Dialect } from "../dialect/dialect.ts";
+import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
 import { Column, type DriverValue } from "../table/column.ts";
 import { TABLE, Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -51,6 +52,7 @@ export function render(
     fragment: SQLWrapper,
     dialect: Dialect,
     namespace?: string,
+    cipher?: ColumnCipher,
 ): StatementTemplate {
     // render the statement, then define the common tables it reads at its start
     const parameters: (DriverValue | Placeholder)[] = [];
@@ -59,6 +61,7 @@ export function render(
     const text = renderChunk(fragment, {
         dialect,
         namespace,
+        cipher,
         parameters,
         bound: new Map(),
         commons,
@@ -81,6 +84,7 @@ export function inline(value: SQLWrapper | DriverValue, dialect: Dialect): strin
     return renderChunk(isSQLWrapper(value) ? value : new Parameter(value), {
         dialect,
         namespace: undefined,
+        cipher: undefined,
         parameters: undefined,
         bound: new Map(),
         commons: undefined,
@@ -125,6 +129,8 @@ interface Target {
     readonly dialect: Dialect;
     /** The database's namespace in a shared store, absent for a database of its own. */
     readonly namespace: string | undefined;
+    /** The cipher sealing sensitive columns' values, absent for a database without them. */
+    readonly cipher: ColumnCipher | undefined;
     /** The common tables the statement reads, by name, absent for a declaration. */
     readonly commons: Map<string, string> | undefined;
     /** The SQLite marker number of each bound value by key, for later occurrences. */
@@ -209,7 +215,7 @@ function renderChunk(chunk: Chunk, target: Target): string {
 function bind(chunk: Parameter | Placeholder, target: Target): string {
     // write a literal into a declaration, or bind a parameter
     const { dialect } = target;
-    const value = chunk instanceof Placeholder ? chunk : encoded(chunk, dialect);
+    const value = chunk instanceof Placeholder ? chunk : encoded(chunk, target);
     if (target.parameters === undefined) {
         if (value instanceof Placeholder) {
             throw new DatabaseError(
@@ -239,16 +245,22 @@ function bind(chunk: Parameter | Placeholder, target: Target): string {
     return `?${target.parameters.length}`;
 }
 
-/** Encode a parameter's value through its column, null and a value without a column as they are. */
-function encoded(parameter: Parameter, dialect: Dialect): DriverValue {
+/** Encode a parameter's value through its column, sealing a sensitive column's value. */
+function encoded(parameter: Parameter, target: Target): DriverValue {
     // take null and a value without a column as they are
-    if (parameter.encoder === undefined || parameter.value === null) {
+    const { encoder } = parameter;
+    if (encoder === undefined || parameter.value === null) {
         return driverValue(parameter.value);
     }
-    // encode through the column
-    else {
-        return parameter.encoder.definition.encode(parameter.value, dialect);
+
+    // encode through the column, or seal a sensitive value's text-stored form
+    const { classification, sealing, name } = encoder.definition;
+    if (classification !== "sensitive" || sealing === undefined) {
+        return encoder.definition.encode(parameter.value, target.dialect);
     }
+    const value = encoder.definition.encode(parameter.value, SEALED_DIALECT);
+
+    return ColumnCipher.require(target.cipher, encoder).seal(value, name, sealing);
 }
 
 /** Require a value bound without a column to be one the drivers take as it is. */

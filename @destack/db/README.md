@@ -83,6 +83,20 @@ const pool = await connectPostgres(url, work);
 const storage = new DurableObjectDatabaseHost(state.storage).connect(work, { namespace: "work" });
 ```
 
+## Sealed columns
+
+`sensitive()` columns are sealed at rest with AES-GCM-SIV under a key derived from the database's scope identity, `sensitive("deterministic")` alike for equal values so a lookup finds them, and a database is keyed once before it reads or writes them.
+
+```ts
+const credential = defineTable("credential", {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull().sensitive(),
+    token: text("token").notNull().sensitive("deterministic"),
+});
+database.key(await ColumnCipher.derive(spaceIdentity));
+await database.select().from(credential).where(eq(credential.token, token));
+```
+
 ## Migrations
 
 `plan` lists the steps from the applied tables to the declared ones, and `apply` runs them.
