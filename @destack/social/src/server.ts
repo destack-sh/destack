@@ -1,8 +1,8 @@
 import { defineServer } from "@destack/object/server";
 import { CallError } from "@destack/runtime/error";
 import { ObjectReference, Subject } from "@destack/sync";
-import { Comment, comment, reply, thread } from "../object/comment.ts";
-import socialPackage from "../package.ts";
+import { Comment, comment, reply, thread } from "./object/comment.ts";
+import socialPackage from "./package.ts";
 
 /** The social package's server, whose comments notify the principals they mention. */
 export default defineServer(socialPackage, {

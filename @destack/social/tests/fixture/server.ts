@@ -20,16 +20,15 @@ import { notificationExtension } from "@destack/notification/server";
 import { EphemeralStorage, ObjectExtension, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/runtime";
 import { callTables, TestRunClient, testEvents } from "@destack/object/test";
-import { reconciliation } from "@destack/runtime/test";
 import { aligned, type Identifier, present, schema, Clock } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
-import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { reconciliation, subjectContext, testCallKey, testKeys } from "@destack/runtime/test";
 
 import { onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
 import { comment, mention, presence, reply, thread } from "../../src/index.ts";
-import socialServer from "../../src/server/index.ts";
+import socialServer from "../../src/server.ts";
 import { article } from "./article.ts";
 import { ResourceContext } from "@destack/resource/context";
 
@@ -209,15 +208,16 @@ async function serveInstallation(
         events: await testEvents(database),
         origin: { package: space.package },
         runs: new TestRunClient(() => composed.store),
-        installation: {
-            id: INSTALLATION,
-            scope: spaceId,
+        server: {
+            installation: INSTALLATION,
+            space: spaceId,
             build: await MemoryBuild.write(new Map(), { package: article.package }),
             publisher: silent,
             settings: {},
             publisherAt: () => silent,
             at: unfetched,
             resources: new ResourceContext(),
+            keys: await testKeys(),
             fetch: () => Promise.reject(new Error("the test installation fetches nothing")),
         },
     });
