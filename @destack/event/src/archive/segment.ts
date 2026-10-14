@@ -3,7 +3,7 @@ import { ByteWriter, parquetWrite } from "hyparquet-writer";
 import { schema } from "@destack/schema";
 import { KEY_INDEX_LIMIT, type KeyIndex } from "./catalog.ts";
 import type { Event, EventKeyType, EventKind } from "../kind/kind.ts";
-import { EventFilter } from "../query/query.ts";
+import { EventFilter } from "../store/filter.ts";
 
 /** The rows of one Parquet row group: small enough that a time-pruned read stays cheap. */
 const ROW_GROUP_ROWS = 8192;

@@ -38,7 +38,7 @@ const reading = testKind({
     policy: { flush: { maxAge: 60 * MINUTE, maxRows: 3 }, retention: DAY },
 });
 
-/** Calls of a space, locked, copied upwards, the caller's address sealed. */
+/** Calls of a space, locked, the caller's address sealed. */
 const call = testKind({
     package: meters,
     name: "call",
@@ -164,7 +164,7 @@ test.for(TEST_DIALECTS)(
             where: Filter.parse("value != 4"),
         });
 
-        // one event reads back by its identity alone, flushed or hot, and an unknown one reads none
+        // one event reads back only by its identity, flushed or hot, and an unknown one reads none
         const gotten = await Promise.all(
             ["r2", "r5", "r9"].map((id) => store.get(reading, { scopes: ["space-1"], id })),
         );
@@ -185,7 +185,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "read a %s scope's own events and the copies of scopes within it it keeps, hot and flushed, in one time order",
+    "read the events of several %s scopes, hot and flushed, in one time order",
     async (dialect) => {
         const fixture = await open(dialect);
         const { store } = fixture;
@@ -203,7 +203,7 @@ test.for(TEST_DIALECTS)(
         await fixture.settle();
         await store.append(reading, [within("w4", 6), own("o1", 2), own("o2", 4)]);
 
-        // read the organisation alone, and with the space within it
+        // read only the organisation, and with the space within it
         const ids = async (scopes: readonly [string, ...string[]]) =>
             (await store.query(reading, { scopes })).events.map((event) => [event.scope, event.id]);
         expect([await ids(["organisation-1"]), await ids(["organisation-1", "space-2"])]).toEqual([
@@ -285,7 +285,7 @@ test.for(TEST_DIALECTS)(
         const { store, bucket } = fixture;
         const directory = `events/${meters.id}/reading/space-1`;
 
-        // flush a segment, then leave a file no catalog row names, as a write that crashed before cataloguing it
+        // flush a segment, then leave a file no catalog row references, as a write that crashed before cataloguing it
         await store.append(
             reading,
             [1, 2, 3].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
@@ -527,7 +527,7 @@ test.for(TEST_DIALECTS)(
             refused,
         ]).toEqual([
             ["kept"],
-            `event kind ${line.key} is kept at most once, never in a caller's transaction`,
+            `event kind ${line.key} is kept at most once and cannot join a caller's transaction`,
         ]);
     },
 );
@@ -667,7 +667,7 @@ test.for(TEST_DIALECTS)("refuse a %s condition naming a key the kind lacks", asy
 
     await expect(
         store.query(reading, { scopes: ["space-1"], where: Filter.parse('owner = "x"') }),
-    ).rejects.toThrow("condition names no field owner");
+    ).rejects.toThrow("condition has no field owner");
 });
 
 test("read a row of a kind's table as its event with the kind's keys, refusing a key outside them", () => {
@@ -703,10 +703,10 @@ test("refuse an event kind whose subject is not a text key or whose distribution
             });
 
     expect(declare({ actor: schema.number() }, { subject: "actor" })).toThrow(
-        "event kind reading names its subject by a text key",
+        "event kind reading must have a text subject key",
     );
     expect(declare({}, { distribution: "histogram" })).toThrow(
-        "event kind reading records its distribution in no data entry histogram",
+        "event kind reading has no data entry histogram for its distribution",
     );
 });
 
@@ -797,8 +797,8 @@ test.for(TEST_DIALECTS)(
                 ["load", [[at(0), 0, 1]]],
                 ["save", [[at(0), 2 ** 3.5, 3]]],
             ],
-            `TypeError: a p50 series reads distributions, which ${reading.key} records none of`,
-            "TypeError: a p50 series reads distributions, measuring no key",
+            `TypeError: a p50 series reads distributions, but ${reading.key} records none`,
+            "TypeError: a p50 series reads distributions and cannot measure a key",
         ]);
     },
 );

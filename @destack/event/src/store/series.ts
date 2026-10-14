@@ -54,7 +54,7 @@ export interface SeriesRequest<Shape extends EventKeyShape> {
 export interface Series {
     /** The value of each grouping key. */
     readonly group: Readonly<Record<string, string | number | null>>;
-    /** The steps holding events. */
+    /** The steps with events. */
     readonly steps: readonly SeriesStep[];
 }
 
@@ -112,9 +112,11 @@ export class SeriesFold<Shape extends EventKeyShape> {
         // require a measure for every fold but count and quantiles, which read distributions
         const isQuantile = Fold.isQuantile(request.fold);
         if (isQuantile && request.measure !== undefined) {
-            throw new TypeError(`a ${request.fold} series reads distributions, measuring no key`);
+            throw new TypeError(
+                `a ${request.fold} series reads distributions and cannot measure a key`,
+            );
         } else if (!isQuantile && request.measure === undefined && request.fold !== "count") {
-            throw new TypeError(`a ${request.fold} series folds a measured key`);
+            throw new TypeError(`a ${request.fold} series needs a measured key`);
         }
         this.measure = request.measure;
         this.group = request.group ?? [];
@@ -130,7 +132,7 @@ export class SeriesFold<Shape extends EventKeyShape> {
 
     /** Fold a partial fold into the step of its group, as SQL folds hot events. */
     add(keys: Readonly<Record<string, unknown>>, start: number, fold: StepFold): void {
-        // merge the fold into the step of the group its keys' values name
+        // merge the fold into the step of the group of its keys' values
         const values = Object.fromEntries(this.group.map((name) => [name, scalarOf(keys[name])]));
         const key = JSON.stringify(values);
         const held = this.#groups.get(key) ?? { group: values, steps: new Map<number, StepFold>() };
@@ -216,7 +218,7 @@ function merged(left: StepFold | undefined, right: StepFold): StepFold {
     };
 }
 
-/** Close a step's fold, absent for a step holding no value of it. */
+/** Close a step's fold, absent for a step without a value of it. */
 function folded(fold: Fold, step: StepFold): number | undefined {
     switch (fold) {
         case "sum":

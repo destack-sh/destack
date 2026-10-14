@@ -171,7 +171,7 @@ export class EventKind<
     readonly keys: readonly string[];
     /** The column type of each query key. */
     readonly keyTypes: Readonly<Record<string, EventKeyType>>;
-    /** The names of the keys holding maps of entries. */
+    /** The names of the keys with maps of entries. */
     readonly mapKeys: readonly string[];
 
     /** Keep a kind, refusing keys, a subject or a distribution the engine cannot keep. */
@@ -298,7 +298,7 @@ export class EventKind<
         const kind = definition.table[TABLE].column(name).definition.kind;
         if (kind !== "text" && kind !== "integer" && kind !== "real" && kind !== "json") {
             throw new TypeError(
-                `event kind ${definition.name} keeps key ${name} in a ${kind} column, not text, a number or a map`,
+                `event kind ${definition.name} keeps key ${name} in a ${kind} column: keys must be text, numbers or maps`,
             );
         }
 
@@ -314,22 +314,22 @@ export class EventKind<
             EventKind.#keyType(definition, name);
         }
 
-        // require the subject to name a text key
+        // require the subject to be a text key
         const { subject } = definition;
         if (
             subject !== undefined &&
             (!Object.hasOwn(definition.keys.shape, subject) ||
                 EventKind.#keyType(definition, subject) !== "text")
         ) {
-            throw new TypeError(`event kind ${definition.name} names its subject by a text key`);
+            throw new TypeError(`event kind ${definition.name} must have a text subject key`);
         }
 
-        // require the distribution to name an entry of the data
+        // require the distribution to be an entry of the data
         const { distribution } = definition;
         const entries = toJsonSchema(definition.data).properties ?? {};
         if (distribution !== undefined && !Object.hasOwn(entries, distribution)) {
             throw new TypeError(
-                `event kind ${definition.name} records its distribution in no data entry ${distribution}`,
+                `event kind ${definition.name} has no data entry ${distribution} for its distribution`,
             );
         }
     }
@@ -351,6 +351,6 @@ function keyValueOf(type: EventKeyType | undefined, value: unknown): EventKeyVal
     }
     // refuse any other value
     else {
-        throw new TypeError(`an event key holds text, a number or a map, not ${typeof value}`);
+        throw new TypeError(`an event key must be text, a number or a map, not ${typeof value}`);
     }
 }

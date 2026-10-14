@@ -17,7 +17,7 @@ export interface PersonalKeyring {
     forget(subject: string): Promise<void>;
 }
 
-/** The keys of the people a database's events name, each encrypted under the host's keyring. */
+/** The keys of the people in a database's events, each encrypted under the host's keyring. */
 export const personalKey = defineTable("personal_key", {
     /** The person. */
     subject: text("subject").primaryKey(),
@@ -118,7 +118,7 @@ export const PersonalSeal = {
             return marked;
         }
 
-        // encrypt each personal value's JSON under the person's current key, naming the key
+        // encrypt each personal value's JSON under the person's current key, with the key's identifier
         const { id, key } = await required(keyring, kind).currentKey(subject, transaction);
         const sealed = new Map<object, JsonValue>();
         for (const [marker, value] of held) {
@@ -164,7 +164,7 @@ export const PersonalSeal = {
             return marked;
         }
 
-        // decrypt each under the key it names, leaving it out once the key is forgotten
+        // decrypt each under its key, leaving it out once the key is forgotten
         const opened = new Map<object, JsonValue | undefined>();
         for (const [marker, ciphertext] of held) {
             const id = present(Ciphertext.keyId(ciphertext), "a sealed value's key");
@@ -235,7 +235,7 @@ function valueContext(kind: string, subject: string): Uint8Array<ArrayBuffer> {
 function required(personal: PersonalKeyring | undefined, kind: EventKind): PersonalKeyring {
     if (personal === undefined) {
         throw new TypeError(
-            `event kind ${kind.key} seals personal fields, which needs personal keys`,
+            `event kind ${kind.key} seals personal fields, so it needs personal keys`,
         );
     }
 

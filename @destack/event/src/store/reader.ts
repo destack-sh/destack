@@ -19,13 +19,13 @@ export class EventReader {
     }
 
     /** Place the reader at the log's position now, so it reads only what commits from here on. */
-    async start(database: DatabaseConnection, now: number): Promise<void> {
+    async start(now: number, database: DatabaseConnection): Promise<void> {
         const { sequence } = await database.log.position();
         await database.log.advance(this.name, sequence, now + this.hold);
     }
 
     /** Move the reader's place past a sequence, in the transaction that read up to it. */
-    async move(database: DatabaseConnection, from: number, to: number, now: number): Promise<void> {
+    async move(from: number, to: number, now: number, database: DatabaseConnection): Promise<void> {
         await database.log.move(this.name, from, to, now + this.hold);
     }
 

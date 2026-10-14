@@ -82,7 +82,7 @@ export const FilterText = Object.assign(schema.string().min(1).max(1000), {
 
 /** The events of some scopes a query selects. */
 export interface EventFilter {
-    /** The scopes, at least one: a scope's own, and the copies of the scopes within it it keeps. */
+    /** The scopes, at least one: a scope's own, and its kept replicas of the scopes within it. */
     readonly scopes: readonly [string, ...string[]];
     /** The condition over `id`, `time` and the keys, map entries as `<key>.<entry>`. */
     readonly where?: JsonCondition;
@@ -98,7 +98,7 @@ export interface EventRange {
 
 /** The selection of events by a filter: its condition's fields, its equalities and its match. */
 export const EventFilter = {
-    /** List the fields a filter's condition may name. */
+    /** List the fields a filter's condition may compare. */
     fields(kind: EventKind, filter: EventFilter): ReadonlySet<string> {
         const maps = new Set(kind.mapKeys);
         const scalars = kind.keys.filter((name) => !maps.has(name));
@@ -106,7 +106,7 @@ export const EventFilter = {
         return new Set(["scope", "id", "time", ...scalars, ...EventFilter.entries(kind, filter)]);
     },
 
-    /** List the map key entries a filter's condition names, as `<key>.<entry>`. */
+    /** List the map key entries a filter's condition references, as `<key>.<entry>`. */
     entries(kind: EventKind, filter: EventFilter): readonly string[] {
         const maps = kind.mapKeys;
 
@@ -115,7 +115,7 @@ export const EventFilter = {
         );
     },
 
-    /** Render the map entries a condition and a series name as SQL values. */
+    /** Render the map entries a condition and a series reference as SQL values. */
     namespace(
         kind: EventKind,
         filter: EventFilter,
@@ -124,7 +124,7 @@ export const EventFilter = {
             numeric: [],
         },
     ): Namespace {
-        // read the entries compared with numbers or measured, and every entry named
+        // read the entries compared with numbers or measured, and every referenced entry
         const numeric = new Set([
             ...series.numeric,
             ...(filter.where === undefined
@@ -178,7 +178,7 @@ export const EventFilter = {
         return flat;
     },
 
-    /** Refuse a filter whose condition names a field the kind's events lack. */
+    /** Refuse a filter with a condition on a field the kind's events lack. */
     check(kind: EventKind, filter: EventFilter): void {
         if (filter.where === undefined) {
             return;

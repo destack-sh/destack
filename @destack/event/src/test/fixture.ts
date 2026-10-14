@@ -13,7 +13,7 @@ import { present, schema, toJsonSchema, type JsonValue } from "@destack/schema";
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
 import { MemoryBucket } from "@destack/bucket/test";
-import { DatabasePersonalKeyring } from "../personal/personal.ts";
+import { DatabasePersonalKeyring } from "../store/personal-keyring.ts";
 import {
     EventKind,
     type EventKeyShape,
@@ -176,7 +176,7 @@ function keyTypeOf(key: schema.Schema): EventKeyType {
     // map text, whole numbers, numbers and maps of entries to their columns
     const [type] = types;
     if (types.length !== 1) {
-        throw new TypeError(`an event key holds one type of value: ${JSON.stringify(described)}`);
+        throw new TypeError(`an event key has one type of value: ${JSON.stringify(described)}`);
     } else if (type === "object") {
         return "json";
     } else if (type === "string") {
@@ -187,7 +187,7 @@ function keyTypeOf(key: schema.Schema): EventKeyType {
         return "real";
     } else {
         throw new TypeError(
-            `an event key holds text, a number or a map: ${JSON.stringify(described)}`,
+            `an event key must be text, a number or a map: ${JSON.stringify(described)}`,
         );
     }
 }

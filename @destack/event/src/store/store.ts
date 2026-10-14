@@ -28,14 +28,14 @@ import type { Controller } from "@destack/runtime/control";
 import { ArchiveController } from "../archive/controller.ts";
 import { EventArchive } from "../archive/archive.ts";
 import type { Event, EventKeyShape, EventKind, EventPolicy } from "../kind/kind.ts";
-import { type PersonalKeyring, PersonalSeal } from "../personal/personal.ts";
-import { EventCursor, EventFilter, type EventOrder } from "../query/query.ts";
+import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
+import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
 
-/** The bucket key prefix segments are written under unless a host names another. */
+/** The bucket key prefix segments are written under unless a host sets another. */
 const SEGMENT_PREFIX = "events";
 
-/** The events one query page holds unless it asks for another number. */
+/** The events one query page has unless it asks for another number. */
 const PAGE_EVENTS = 100;
 
 /** The reads a query retries while flushes and compactions change the catalog under it. */
@@ -123,7 +123,7 @@ export class EventStore {
         this.kind(kind.key);
         if (transaction !== undefined && kind.delivery === "at-most-once") {
             throw new TypeError(
-                `event kind ${kind.key} is kept at most once, never in a caller's transaction`,
+                `event kind ${kind.key} is kept at most once and cannot join a caller's transaction`,
             );
         }
 
@@ -222,7 +222,7 @@ export class EventStore {
         const isQuantile = Fold.isQuantile(fold);
         if (isQuantile && kind.distribution === undefined) {
             throw new TypeError(
-                `a ${fold} series reads distributions, which ${kind.key} records none of`,
+                `a ${fold} series reads distributions, but ${kind.key} records none`,
             );
         }
 
@@ -293,7 +293,7 @@ export class EventStore {
     /** Forget a person, erasing their personal values in every event sealed under their keys. */
     async forget(subject: string): Promise<void> {
         if (this.#personal === undefined) {
-            throw new TypeError("a store without a personal keyring seals no personal values");
+            throw new TypeError("a store without a personal keyring cannot seal personal values");
         }
         await this.#personal.forget(subject);
     }
@@ -579,7 +579,7 @@ export class EventStore {
     kind(key: string): EventKind {
         const kind = this.#kinds.get(key);
         if (kind === undefined) {
-            throw new TypeError(`this store keeps no event kind ${key}`);
+            throw new TypeError(`this store has no event kind ${key}`);
         }
 
         return kind;

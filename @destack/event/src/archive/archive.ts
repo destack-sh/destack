@@ -16,11 +16,10 @@ import {
 } from "@destack/db";
 import { present } from "@destack/schema";
 import { SearchText, TABLE } from "@destack/db";
-import { Replica } from "@destack/sync";
 import type { AsyncBuffer } from "hyparquet";
 import { BloomFilter, type ChosenSegment, chosenSegment, eventSegment } from "./catalog.ts";
 import { type Event, type EventPolicy, type EventKind, EventTime } from "../kind/kind.ts";
-import { EventCursor, EventFilter, type EventOrder } from "../query/query.ts";
+import { EventCursor, EventFilter, type EventOrder } from "../store/filter.ts";
 import { SegmentFile } from "./segment.ts";
 
 /** The events one pruning statement deletes, far below every dialect's bound on parameters. */
@@ -34,7 +33,7 @@ const SMALL_SHARE = 0.5;
 
 /** The failure to read a segment file a compaction deleted after a read chose it. */
 class DeletedSegment extends Error {
-    /** Name the deleted file. */
+    /** Create the failure for the deleted file. */
     constructor(key: string) {
         super(`segment file ${key} was deleted`);
     }
@@ -126,15 +125,10 @@ export class EventArchive {
         // write the segment, chained to the scope's previous one when the kind is locked
         const previous = kind.isLocked ? await this.#latestDigest(kind, scope) : null;
         await this.#write(kind, scope, events, now, policy, previous, async (transaction) => {
-            // prune exactly the flushed events and release the copies among them
+            // prune exactly the flushed events
             for (let start = 0; start < events.length; start += PRUNE_BATCH) {
                 const batch = events.slice(start, start + PRUNE_BATCH).map((event) => event.id);
                 await transaction.delete(kind.table).where(inArray(kind.table.id, batch));
-                await Replica.release(
-                    transaction,
-                    kind.table,
-                    batch.map((id) => ({ id })),
-                );
             }
         });
 
@@ -418,7 +412,7 @@ export class EventArchive {
             .orderBy(asc(eventSegment.from));
     }
 
-    /** Name the bucket directory of a scope's segments of a kind. */
+    /** Build the bucket directory of a scope's segments of a kind. */
     #directory(kind: EventKind, scope: string): string {
         return `${this.#prefix}/${kind.package.id}/${kind.name}/${scope}`;
     }

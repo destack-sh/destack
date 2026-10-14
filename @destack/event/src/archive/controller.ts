@@ -11,7 +11,7 @@ const UPKEEP_MILLISECONDS = 24 * 60 * 60 * 1000;
 export class ArchiveController implements Controller {
     /** The controller's name in reports. */
     readonly name = "event-segments";
-    /** The kinds' hot tables, whose appends name the scopes to flush. */
+    /** The kinds' hot tables, whose appends list the scopes to flush. */
     readonly watches;
     /** The segments of the store's scopes. */
     readonly #archive: EventArchive;
@@ -31,7 +31,7 @@ export class ArchiveController implements Controller {
         this.#clock = clock;
     }
 
-    /** Name the kind and scope an appended event belongs to. */
+    /** Read the kind and scope an appended event belongs to. */
     keys(change: Change): readonly string[] {
         const kind = [...this.#kinds.values()].find((each) => Change.of(change, each.table));
         const scope: unknown = Change.image(change)["scope"];
@@ -52,7 +52,7 @@ export class ArchiveController implements Controller {
 
     /** Keep a scope's segments up, returning the wait until the next due work. */
     async reconcile(key: string): Promise<number | undefined> {
-        // find the kind and scope the key names
+        // find the kind and scope of the key
         const [name = "", scope = ""] = key.split(" ");
         const kind = this.#kinds.get(name);
         if (kind === undefined) {

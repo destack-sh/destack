@@ -53,7 +53,7 @@ export type KeyIndex = schema.Infer<typeof KeyIndex>;
 export const eventSegment = defineTable(
     "segment",
     {
-        /** The segment's identity, which names its file. */
+        /** The segment's identity, the name of its file. */
         id: text("id").primaryKey(),
         /** The event kind, by its package and name. */
         kind: text("kind").notNull(),
