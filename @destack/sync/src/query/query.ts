@@ -13,7 +13,7 @@ export interface Query extends QueryOptions {
     readonly table: Table;
     /** The scopes whose rows the query selects, or every scope. */
     readonly scopes: readonly string[] | "every";
-    /** The schema's relations, which `with`, `exists`, lookups and rollups name. */
+    /** The schema's relations, which `with`, `exists`, lookups and rollups reference. */
     readonly relations?: Relations;
 }
 

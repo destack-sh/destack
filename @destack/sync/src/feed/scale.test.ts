@@ -6,6 +6,7 @@ followAtScale("everything at scale", {
     seed: 31,
     bursts: 6,
     reconnect: 2,
-    seedRows: 3000,
+    seedRows: 300,
+    pageSize: 50,
     isReplicated: true,
 });

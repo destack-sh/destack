@@ -200,7 +200,7 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
                 result: undefined,
             })),
         ).rejects.toThrow(
-            "a prediction runs on SQLite, whose log sequences changes within a transaction",
+            "a prediction must run on SQLite, which sequences log changes within a transaction",
         );
     },
 );
@@ -309,7 +309,7 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
     await replicate(notes, client, [announced], prediction);
     const received = await titles();
 
-    // write on the main line below the branch and show the main line alone
+    // write on the main line below the branch and show only the main line
     await add(IDS[2], "n", true);
     const below = await titles();
     await prediction.checkout(client, undefined);

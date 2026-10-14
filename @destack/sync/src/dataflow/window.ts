@@ -11,9 +11,9 @@ export class Window {
     /** The most rows the window has. */
     readonly #limit: number;
     /** The known rows in order, in chunks, the present ones first. */
-    readonly #chunks: Entry[][] = [];
+    readonly #chunks: Entry[][];
     /** The row each known key sorts as. */
-    readonly #rows = new Map<string, Row>();
+    readonly #rows: Map<string, Row>;
     /** The partition's join value, absent for a root. */
     readonly value: ColumnValue;
     /** Whether the window keeps every candidate. */
@@ -29,6 +29,10 @@ export class Window {
         entries: readonly Entry[],
         isArranged: boolean,
     ) {
+        // start with empty state
+        this.#chunks = [];
+        this.#rows = new Map<string, Row>();
+
         // keep the order, limit and exhaustion
         this.#compare = compare;
         this.#limit = limit;

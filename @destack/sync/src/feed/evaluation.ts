@@ -4,7 +4,6 @@ import type { Query } from "../query/query.ts";
 import type { Page } from "../query/page.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { Run, type Walk } from "../dataflow/run.ts";
-import { PAGE_ROWS } from "../dataflow/selection.ts";
 import { Patch } from "../dataflow/sink.ts";
 import { View } from "../dataflow/view.ts";
 import type { Audience } from "./audience.ts";
@@ -23,14 +22,18 @@ export class Evaluation {
     /** Who the evaluation serves. */
     readonly #audience: Audience;
     /** The decided pages after each recent sequence. */
-    readonly #decided = new Map<number, Promise<Advance>>();
+    readonly #decided: Map<number, Promise<Advance>>;
     /** The sequences with final decisions and their expiry. */
-    readonly #idle = new Map<number, number | undefined>();
+    readonly #idle: Map<number, number | undefined>;
     /** The queries' dataflow. */
     readonly #dataflow: Dataflow;
 
     /** Compile queries for an audience over a feed. */
     constructor(feed: Feed, queries: Readonly<Record<string, Query>>, audience: Audience) {
+        // start with empty state
+        this.#decided = new Map<number, Promise<Advance>>();
+        this.#idle = new Map<number, number | undefined>();
+
         // compile the queries
         this.#feed = feed;
         this.#audience = audience;
@@ -41,6 +44,7 @@ export class Evaluation {
             changesThrough: (watches, after, through) =>
                 feed.changesThrough(watches, after, through),
             capacity: feed.capacity,
+            pageSize: feed.pageSize,
             ...(feed.observe === undefined ? {} : { observe: feed.observe }),
         });
 
@@ -82,7 +86,7 @@ export class Evaluation {
                 (until !== undefined && until <= this.#feed.clock.now()));
         if (known !== undefined && !isStale) {
             return known;
-        } else if (!isSame(this.position, position)) {
+        } else if (!Evaluation.#isSame(this.position, position)) {
             return undefined;
         }
 
@@ -109,7 +113,7 @@ export class Evaluation {
 
     /** Wait until the feed passes a sequence, the decisions expire, or the signal aborts. */
     async wait(sequence: number, signal: AbortSignal): Promise<void> {
-        // wait for the feed alone without expiry
+        // wait only for the feed, without expiry
         const until = await this.#audience.until();
         if (until === undefined) {
             return this.#feed.next(sequence, signal);
@@ -179,12 +183,12 @@ export class Evaluation {
 
         // step each run of whole transactions
         let from = sequence;
-        for (const changes of chunks(read.changes)) {
+        for (const changes of Evaluation.#chunks(read.changes, this.#feed.pageSize)) {
             if (signal.aborted) {
                 break;
             }
             const position = { epoch, sequence: aligned(changes, changes.length - 1).sequence };
-            await nextTask();
+            await Evaluation.nextTask();
 
             // decide every row again across a change of access, sending the difference
             if (await this.#decides(changes)) {
@@ -228,8 +232,8 @@ export class Evaluation {
         // select each root's rows and results
         const batches = this.#dataflow.hydrate(run);
         while ((await batches.next()).done !== true) {
-            if (walk === "snapshot" && run.patch.size >= PAGE_ROWS) {
-                await nextTask();
+            if (walk === "snapshot" && run.patch.size >= this.#feed.pageSize) {
+                await Evaluation.nextTask();
                 yield await run.patch.page(view.position, this.#audience, this.#feed, {
                     reset: isFirst,
                     complete: false,
@@ -306,6 +310,43 @@ export class Evaluation {
     #view(position: LogPosition): View {
         return new View(this.#feed.database, position, this.#feed);
     }
+
+    /** Let other work run before deciding more. */
+    static nextTask(): Promise<void> {
+        return new Promise((resolve) => {
+            setTimeout(resolve, 0);
+        });
+    }
+
+    /** Split changes into runs of about a page that end with whole transactions. */
+    static #chunks(changes: readonly Change[], pageSize: number): Change[][] {
+        // close a run when it has a page and a transaction ends
+        const runs: Change[][] = [];
+        let run: Change[] = [];
+        for (const [index, change] of changes.entries()) {
+            run.push(change);
+            const next = changes[index + 1];
+            if (
+                next === undefined ||
+                (run.length >= pageSize && !Evaluation.#isSameTransaction(change, next))
+            ) {
+                runs.push(run);
+                run = [];
+            }
+        }
+
+        return runs;
+    }
+
+    /** Whether two changes belong to one transaction. */
+    static #isSameTransaction(change: Change, next: Change): boolean {
+        return change.transaction !== null && change.transaction === next.transaction;
+    }
+
+    /** Whether two positions are the same. */
+    static #isSame(left: LogPosition | undefined, right: LogPosition): boolean {
+        return left !== undefined && left.epoch === right.epoch && left.sequence === right.sequence;
+    }
 }
 
 /** The pages decided after a sequence. */
@@ -316,38 +357,4 @@ export interface Advance {
     readonly sequence: number;
     /** When the audience's decisions expire. */
     readonly until: number | undefined;
-}
-
-/** Let other work run before deciding more. */
-export function nextTask(): Promise<void> {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
-}
-
-/** Split changes into runs of about a page that end with whole transactions. */
-function chunks(changes: readonly Change[]): Change[][] {
-    // close a run when it has a page and a transaction ends
-    const runs: Change[][] = [];
-    let run: Change[] = [];
-    for (const [index, change] of changes.entries()) {
-        run.push(change);
-        const next = changes[index + 1];
-        if (next === undefined || (run.length >= PAGE_ROWS && !isSameTransaction(change, next))) {
-            runs.push(run);
-            run = [];
-        }
-    }
-
-    return runs;
-}
-
-/** Whether two changes belong to one transaction. */
-function isSameTransaction(change: Change, next: Change): boolean {
-    return change.transaction !== null && change.transaction === next.transaction;
-}
-
-/** Whether two positions are the same. */
-function isSame(left: LogPosition | undefined, right: LogPosition): boolean {
-    return left !== undefined && left.epoch === right.epoch && left.sequence === right.sequence;
 }

@@ -7,6 +7,7 @@ import {
     Namespace,
     Order,
     Predicate,
+    type Match,
     Scalar,
     type Rollup,
     Expression,
@@ -29,6 +30,9 @@ interface Level extends QueryOptions {
     /** How the level's rows join the rows above, absent for a root. */
     readonly on?: Path;
 }
+
+/** The compiled condition of each query or include level, compiled once. */
+const MATCHES = new WeakMap<Level, Match>();
 
 /** What a subscriber should have. */
 export interface Contents {
@@ -70,7 +74,7 @@ export async function evaluate(
     return contents;
 }
 
-/** Name a group of an aggregate query, as a copy names it. */
+/** Build the name of a group of an aggregate query, as a replica does. */
 export function groupName(query: string, group: Readonly<Record<string, unknown>>): string {
     return JSON.stringify(query) + canonicalize(group);
 }
@@ -294,7 +298,7 @@ function keepChains(
     scopes: Query["scopes"],
     evaluation: Evaluation,
 ): void {
-    // skip an include that is no limited or filtered tree
+    // skip an include that is not a limited or filtered tree
     const path = include.on;
     const isChained =
         (path.kind === "descendants" || path.kind === "ancestors") &&
@@ -374,7 +378,7 @@ function meets(
         return true;
     }
     const exists = (via: string, where: Condition) => {
-        // reach the related rows in the relation's own scopes
+        // find the related rows in the relation's own scopes
         const include = relationOf(query, relations, via, where);
         const scope = "scope";
         const nested = scopesOf(include.on, scopes);
@@ -387,9 +391,13 @@ function meets(
         );
     };
 
-    // decide the condition against the query's columns and computed values
-    const fields = Namespace.fields(query.table, { extras: query.extras ?? {} });
-    const match = Predicate.compile(Condition.resolve(query.where, fields), query.table);
+    // decide the condition against the query's columns and computed values, compiled once per level
+    let match = MATCHES.get(query);
+    if (match === undefined) {
+        const fields = Namespace.fields(query.table, { extras: query.extras ?? {} });
+        match = Predicate.compile(Condition.resolve(query.where, fields), query.table);
+        MATCHES.set(query, match);
+    }
 
     return (
         match({
@@ -412,7 +420,7 @@ function relatedOf(
     tables: Rows,
     audience: ConditionAudience,
 ): Row[] {
-    // reach the related rows in the relation's own scopes
+    // find the related rows in the relation's own scopes
     const include = relationOf(query, relations, via, where);
     const scope = "scope";
     const nested = scopesOf(include.on, scopes);
@@ -640,7 +648,7 @@ function reach(
             partition: { name: path.column, value: json(table, path.parent, parent[path.parent]) },
         };
     }
-    // join through the join rows naming the parent row
+    // join through the join rows referencing the parent row
     else if (path.kind === "junction") {
         const joins = tables
             .where(path.table, path.from.column, parent[path.from.key])

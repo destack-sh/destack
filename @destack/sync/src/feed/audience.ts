@@ -43,7 +43,7 @@ export interface Audience {
         rows: readonly Row[],
         position: LogPosition,
     ): Promise<readonly (readonly string[])[]>;
-    /** Read when the decisions next change by time alone. */
+    /** Read when the decisions next change on their own. */
     until(): Promise<number | undefined>;
     /** Decide as of now once the `until` moment passed. */
     refresh(): Promise<void>;
@@ -57,15 +57,25 @@ export interface Watch {
     readonly table: Table;
     /** The scopes whose changes matter, or every scope. */
     readonly scopes: Query["scopes"];
-    /** The rows whose changes matter, absent for every row. */
-    readonly where?: Condition;
+    /** The compiled condition of the rows whose changes matter, absent for every row. */
+    readonly match?: Match;
 }
-
-/** The compiled row conditions of watches. */
-const MATCHES = new WeakMap<Watch, Match>();
 
 /** Watches of logged tables. */
 export const Watch = {
+    /** Watch a table's changes in some scopes, of the rows a condition matches, compiled once. */
+    of(table: Table, scopes: Query["scopes"], where?: Condition): Watch {
+        // watch every row without a condition
+        if (where === undefined) {
+            return { table, scopes };
+        }
+
+        // compile the condition once for every change the watch sees
+        const predicate = Condition.resolve(where, Namespace.fields(table));
+
+        return { table, scopes, match: Predicate.compile(predicate, table) };
+    },
+
     /** Decide whether a change is of a watched table, scope and row. */
     matches(watches: readonly Watch[], change: Change): boolean {
         return watches.some((entry) => {
@@ -75,36 +85,32 @@ export const Watch = {
                 (entry.scopes !== "every" && !entry.scopes.includes(change.scope))
             ) {
                 return false;
-            } else if (entry.where === undefined) {
-                return true;
             }
 
             // require the row to match before or after the change
-            let match = MATCHES.get(entry);
-            if (match === undefined) {
-                const predicate = Condition.resolve(entry.where, Namespace.fields(entry.table));
-                match = Predicate.compile(predicate, entry.table);
-                MATCHES.set(entry, match);
-            }
+            const { match } = entry;
 
-            return [Change.before(change), Change.after(change)].some(
-                (image) => image !== null && Predicate.matches(match, image),
+            return (
+                match === undefined ||
+                [Change.before(change), Change.after(change)].some(
+                    (image) => image !== null && Predicate.matches(match, image),
+                )
             );
         });
     },
+
+    /** Join the scopes some watches read for one log read, absent when one reads every scope. */
+    scopes(watches: readonly Watch[]): string[] | undefined {
+        const scopes = new Set<string>();
+        for (const { scopes: watched } of watches) {
+            if (watched === "every") {
+                return undefined;
+            }
+            for (const scope of watched) {
+                scopes.add(scope);
+            }
+        }
+
+        return [...scopes];
+    },
 };
-
-/** Join the scopes some watches read for one log read, absent when one reads every scope. */
-export function watchedScopes(watches: readonly Watch[]): string[] | undefined {
-    const scopes = new Set<string>();
-    for (const { scopes: watched } of watches) {
-        if (watched === "every") {
-            return undefined;
-        }
-        for (const scope of watched) {
-            scopes.add(scope);
-        }
-    }
-
-    return [...scopes];
-}

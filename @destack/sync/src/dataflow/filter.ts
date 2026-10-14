@@ -9,7 +9,7 @@ import {
     DatabaseError,
     TABLE,
 } from "@destack/db";
-import { measureName, type Node } from "../query/node.ts";
+import { Node } from "../query/node.ts";
 import type { Run } from "./run.ts";
 
 /** Decide a node's rows: compute their values and keep the visible candidates. */
@@ -23,12 +23,16 @@ export class Filter {
     /** The node's compiled scopes and condition. */
     readonly #match: Match;
     /** Each row with its computed values, for nodes without lookups. */
-    readonly #computed = new WeakMap<Row, Row>();
+    readonly #computed: WeakMap<Row, Row>;
     /** The rows with their computed values. */
-    readonly #resolved = new WeakSet<Row>();
+    readonly #resolved: WeakSet<Row>;
 
     /** Create the filter of a node. */
     constructor(node: Node, arrangement: Arrangement) {
+        // start with empty state
+        this.#computed = new WeakMap<Row, Row>();
+        this.#resolved = new WeakSet<Row>();
+
         // compile the computed values and condition
         this.node = node;
         this.#arrangement = arrangement;
@@ -68,7 +72,7 @@ export class Filter {
                     const relation = this.node.relation(via, where);
                     const measured = this.#arrangement.measured(
                         relation,
-                        relation.valueOf(row),
+                        relation.partitionValue(row),
                         run,
                     );
                     const count = measured["count"];
@@ -113,14 +117,22 @@ export class Filter {
             lookup: (via, column) => {
                 // read the related row's column as the minimum over its one related row
                 const relation = node.relation(via, {});
-                const measured = this.#arrangement.measured(relation, relation.valueOf(row), run);
+                const measured = this.#arrangement.measured(
+                    relation,
+                    relation.partitionValue(row),
+                    run,
+                );
 
-                return relation.fromJson(column, measured[measureName("min", column)] ?? null);
+                return relation.fromJson(column, measured[Node.measureName("min", column)] ?? null);
             },
             rollup: (measure, via, column, where) => {
                 // read the relation's measures of the row
                 const relation = node.relation(via, where);
-                const measured = this.#arrangement.measured(relation, relation.valueOf(row), run);
+                const measured = this.#arrangement.measured(
+                    relation,
+                    relation.partitionValue(row),
+                    run,
+                );
 
                 // count the related rows as zero without a group
                 if (measure === "count") {
@@ -135,7 +147,10 @@ export class Filter {
                     );
                 }
 
-                return relation.fromJson(column, measured[measureName(measure, column)] ?? null);
+                return relation.fromJson(
+                    column,
+                    measured[Node.measureName(measure, column)] ?? null,
+                );
             },
         };
     }

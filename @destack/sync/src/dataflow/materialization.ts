@@ -24,11 +24,19 @@ interface PartitionOrder {
 /** The entries a selection's last read built, kept so a read rebuilds only what changed. */
 export class Materialization {
     /** The built entries, by row key. */
-    readonly #built = new Map<string, ResultRow>();
+    readonly #built: Map<string, ResultRow>;
     /** The last order of each partition, by name. */
-    readonly #ordered = new Map<string, PartitionOrder>();
+    readonly #ordered: Map<string, PartitionOrder>;
     /** The last list of each partition's entries, by name. */
-    readonly #listed = new Map<string, readonly Item[]>();
+    readonly #listed: Map<string, readonly Item[]>;
+
+    /** Start empty. */
+    constructor() {
+        // start with empty state
+        this.#built = new Map<string, ResultRow>();
+        this.#ordered = new Map<string, PartitionOrder>();
+        this.#listed = new Map<string, readonly Item[]>();
+    }
 
     /** Order a partition's selected keys, placing only rows that changed since the last read. */
     order(
@@ -154,7 +162,7 @@ export class Materialization {
         // take identical values, and compare objects by their fields
         if (Object.is(left, right)) {
             return true;
-        } else if (!isObject(left) || !isObject(right)) {
+        } else if (!Materialization.#isObject(left) || !Materialization.#isObject(right)) {
             return false;
         }
         const leftKeys = Object.keys(left);
@@ -187,9 +195,9 @@ export class Materialization {
 
         return low;
     }
-}
 
-/** Report whether a value is an object or array whose fields compare one by one. */
-function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
-    return typeof value === "object" && value !== null;
+    /** Report whether a value is an object or array whose fields compare one by one. */
+    static #isObject(value: unknown): value is Readonly<Record<string, unknown>> {
+        return typeof value === "object" && value !== null;
+    }
 }

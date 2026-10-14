@@ -9,7 +9,6 @@ import {
     type SQL,
     type Table,
     DatabaseError,
-    CHAIN_TERMS,
     Condition,
     Predicate,
     type Scalar,
@@ -25,7 +24,7 @@ import type { RowChange } from "../query/page.ts";
 import type { Run } from "./run.ts";
 import { Tally } from "./tally.ts";
 
-/** The most values one batched read names, bounded by the parameter budget. */
+/** The most values in one batched read, bounded by the parameter budget. */
 const BATCH_VALUES = 500;
 
 /** The database as of a log position, with batched reads shared among its readers. */
@@ -84,9 +83,11 @@ export class View {
         const sequence = this.position.sequence;
         const columns = Object.keys(first);
         const named = matches.map((match) => {
-            const tuple = tupleOf(table, columns, match);
+            const tuple = View.#tuple(table, columns, match);
 
-            return tuple === undefined ? undefined : { key: rowsKey(table, columns, tuple), tuple };
+            return tuple === undefined
+                ? undefined
+                : { key: View.#rowsKey(table, columns, tuple), tuple };
         });
 
         // read the unread matches a batch at a time
@@ -106,9 +107,9 @@ export class View {
             ).then((rows) => {
                 const byKey = new Map<string, Row[]>(batch.map(([key]) => [key, []]));
                 for (const row of rows) {
-                    const tuple = tupleOf(table, columns, row);
+                    const tuple = View.#tuple(table, columns, row);
                     if (tuple !== undefined) {
-                        byKey.get(rowsKey(table, columns, tuple))?.push(row);
+                        byKey.get(View.#rowsKey(table, columns, tuple))?.push(row);
                     }
                 }
 
@@ -176,8 +177,8 @@ export class View {
         relations: RelationView | undefined,
     ): Promise<(readonly Row[])[]> {
         // read fresh partitions of a key path together in ranked batches
-        const read = (segment: Segment) => orderedKey(node, segment, count, audience);
-        const options = orderedOptions(node, count, audience, run, relations);
+        const read = (segment: Segment) => View.#orderedKey(node, segment, count, audience);
+        const options = View.#orderedOptions(node, count, audience, run, relations);
         const fresh = segments.filter(
             (segment) =>
                 segment.after === undefined &&
@@ -266,7 +267,7 @@ export class View {
         audience: Audience,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
         // admit rows in memory when the audience decides none in SQL
-        const admitted = (table: Table) => admittedSQL(audience, table);
+        const admitted = (table: Table) => View.#admittedSQL(audience, table);
         const current = audience.where(node.table);
         const selection = Predicate.render(
             node.resolve({ AND: [node.condition(), within] }),
@@ -307,12 +308,12 @@ export class View {
             }
             // refuse relations of other paths
             else {
-                throw new TypeError(`relation ${relation.name} follows no key or junction path`);
+                throw new TypeError(`relation ${relation.name} has no key or junction path`);
             }
 
             // read the node's rows with each value then and now
             const column = relation.link().parentColumn;
-            const present = presentValues(values);
+            const present = View.#presentValues(values);
             const read = await this.lookup(
                 node.table,
                 present.map((value) => ({ [column]: value })),
@@ -321,7 +322,7 @@ export class View {
                 ...read.flat(),
                 ...(await this.#current(node.table, column, present)),
             ]) {
-                rows.set(node.keyOf(row), row);
+                rows.set(node.keyName(row), row);
             }
         }
 
@@ -357,7 +358,7 @@ export class View {
         const rows = [...images.values()].filter((image): image is Row => image !== null);
         const keys = [...images.keys()].map((name) => Key.parse(table, name));
 
-        // read the current rows by a single-column key at once or by a chain of keys at a time
+        // read the current rows by a single-column key in batches, or by every key in one statement
         const [column, ...rest] = table[TABLE].key;
         if (column !== undefined && rest.length === 0) {
             rows.push(
@@ -368,15 +369,7 @@ export class View {
                 )),
             );
         } else {
-            for (let start = 0; start < keys.length; start += CHAIN_TERMS) {
-                const matches = Key.any(table, keys.slice(start, start + CHAIN_TERMS));
-                rows.push(
-                    ...(await this.#database
-                        .select()
-                        .from(table)
-                        .where(Condition.render(matches, table))),
-                );
-            }
+            rows.push(...(await this.#database.get(table, keys)));
         }
 
         return rows;
@@ -392,7 +385,9 @@ export class View {
         const definition = table[TABLE].column(column).definition;
         const present = [
             ...new Set(
-                presentValues(values).map((value) => scalarOf(definition.toJson(value), column)),
+                View.#presentValues(values).map((value) =>
+                    View.#scalar(definition.toJson(value), column),
+                ),
             ),
         ];
         const rows: Row[] = [];
@@ -408,6 +403,85 @@ export class View {
 
         return rows;
     }
+
+    /** Write a row's values in some columns in JSON form, absent when one is missing. */
+    static #tuple(table: Table, columns: readonly string[], row: Row): Tuple | undefined {
+        const tuple: Tuple = [];
+        for (const column of columns) {
+            const value = row[column];
+            if (value === null || value === undefined) {
+                return undefined;
+            }
+            tuple.push(View.#scalar(table[TABLE].column(column).definition.toJson(value), column));
+        }
+
+        return tuple;
+    }
+
+    /** Require a column's JSON form to be a present scalar, as keys and joins are. */
+    static #scalar(json: unknown, column: string): Exclude<Scalar, null> {
+        if (typeof json !== "string" && typeof json !== "number" && typeof json !== "boolean") {
+            throw new TypeError(`${column} has no scalar value to read by`);
+        }
+
+        return json;
+    }
+
+    /** Keep the present values. */
+    static #presentValues(
+        values: readonly (ColumnValue | undefined)[],
+    ): Exclude<ColumnValue, null>[] {
+        return values.filter(
+            (value): value is Exclude<ColumnValue, null> => value !== null && value !== undefined,
+        );
+    }
+
+    /** Key the shared read of a tuple. */
+    static #rowsKey(table: Table, columns: readonly string[], tuple: Tuple): string {
+        return `rows:${table[TABLE].sqlName}.${columns.join(",")}=${JSON.stringify(tuple)}`;
+    }
+
+    /** Build the key of one partition's shared ordered read. */
+    static #orderedKey(node: Node, segment: Segment, count: number, audience: Audience): string {
+        const after = segment.after === undefined ? "" : Key.name(node.table, segment.after);
+
+        return `ordered:${node.selection}:${node.partition(segment.value)}:${after}:${count}:${audience.key}`;
+    }
+
+    /** Build the options every ordered read of a node's partitions shares. */
+    static #orderedOptions(
+        node: Node,
+        count: number,
+        audience: Audience,
+        run: Run,
+        relations: RelationView | undefined,
+    ): Omit<WindowRead, "where"> {
+        return {
+            orderBy: node.orderBy,
+            namespace: node.namespace((table: Table) => View.#admittedSQL(audience, table)),
+            limit: count,
+            admits: {
+                ...(audience.where(node.table) === "memory"
+                    ? {}
+                    : { current: View.#admittedSQL(audience, node.table) }),
+                image: async (row: Row) => (await run.seen(node.table, [row])).length > 0,
+            },
+            ...(relations === undefined ? {} : { relations }),
+        };
+    }
+
+    /** Match the rows of a related table an audience admits in SQL. */
+    static #admittedSQL(audience: Audience, table: Table): SQL {
+        const where = audience.where(table);
+        if (where === "memory") {
+            throw new DatabaseError(
+                "INVALID_QUERY",
+                `relations cannot read rows of ${table[TABLE].name}: the audience decides them in memory`,
+            );
+        }
+
+        return where;
+    }
 }
 
 /** Values computed once per log sequence and key, kept for a few recent sequences. */
@@ -415,10 +489,13 @@ export class Memo<Value> {
     /** The most sequences kept. */
     readonly #sequences: number;
     /** The values by sequence and key. */
-    readonly #values = new Map<number, Map<string, Value>>();
+    readonly #values: Map<number, Map<string, Value>>;
 
     /** Keep the values of some recent sequences. */
     constructor(sequences: number) {
+        // start with empty state
+        this.#values = new Map<number, Map<string, Value>>();
+
         this.#sequences = sequences;
     }
 
@@ -491,7 +568,7 @@ export interface Cache {
 export interface Window {
     /** The rows. */
     readonly rows: readonly Row[];
-    /** The moment the audience's decisions change by time alone, absent if never. */
+    /** The time the audience's decisions change on their own, absent if never. */
     readonly until: number | undefined;
 }
 
@@ -506,20 +583,28 @@ export interface Segment {
 /** A view's own shared reads, with images from the log. */
 class ViewCache implements Cache {
     /** The shared reads of rows. */
-    readonly rows = new Memo<Promise<readonly Row[]>>(1);
+    readonly rows: Memo<Promise<readonly Row[]>>;
     /** The shared ordered windows. */
-    readonly windows = new Memo<Promise<Window>>(1);
+    readonly windows: Memo<Promise<Window>>;
     /** The system clock deciding when windows expire. */
-    readonly clock = Clock.system;
+    readonly clock: Clock;
     /** The shared reads of single rows. */
-    readonly row = new Memo<Promise<Row | null>>(1);
+    readonly row: Memo<Promise<Row | null>>;
     /** The shared encodings. */
-    readonly encodings = new Memo<RowChange>(1);
+    readonly encodings: Memo<RowChange>;
     /** The images of the log's changes, read once. */
     readonly #rewind: Rewind;
 
     /** Create the memory of a database's views. */
     constructor(database: DatabaseConnection) {
+        // start with empty state
+        this.rows = new Memo<Promise<readonly Row[]>>(1);
+        this.windows = new Memo<Promise<Window>>(1);
+        this.clock = Clock.system;
+        this.row = new Memo<Promise<Row | null>>(1);
+        this.encodings = new Memo<RowChange>(1);
+
+        // read images through the log
         this.#rewind = database.log.rewind();
     }
 
@@ -531,80 +616,3 @@ class ViewCache implements Cache {
 
 /** The JSON forms of a row's present values in some columns. */
 type Tuple = Exclude<Scalar, null>[];
-
-/** Write a row's values in some columns in JSON form, absent when one is missing. */
-function tupleOf(table: Table, columns: readonly string[], row: Row): Tuple | undefined {
-    const tuple: Tuple = [];
-    for (const column of columns) {
-        const value = row[column];
-        if (value === null || value === undefined) {
-            return undefined;
-        }
-        tuple.push(scalarOf(table[TABLE].column(column).definition.toJson(value), column));
-    }
-
-    return tuple;
-}
-
-/** Require a column's JSON form to be a present scalar, as keys and joins are. */
-function scalarOf(json: unknown, column: string): Exclude<Scalar, null> {
-    if (typeof json !== "string" && typeof json !== "number" && typeof json !== "boolean") {
-        throw new TypeError(`${column} has no scalar value to read by`);
-    }
-
-    return json;
-}
-
-/** Keep the present values. */
-function presentValues(values: readonly (ColumnValue | undefined)[]): Exclude<ColumnValue, null>[] {
-    return values.filter(
-        (value): value is Exclude<ColumnValue, null> => value !== null && value !== undefined,
-    );
-}
-
-/** Key the shared read of a tuple. */
-function rowsKey(table: Table, columns: readonly string[], tuple: Tuple): string {
-    return `rows:${table[TABLE].sqlName}.${columns.join(",")}=${JSON.stringify(tuple)}`;
-}
-
-/** Build the key of one partition's shared ordered read. */
-function orderedKey(node: Node, segment: Segment, count: number, audience: Audience): string {
-    const after = segment.after === undefined ? "" : Key.name(node.table, segment.after);
-
-    return `ordered:${node.selection}:${node.partition(segment.value)}:${after}:${count}:${audience.key}`;
-}
-
-/** Build the options every ordered read of a node's partitions shares. */
-function orderedOptions(
-    node: Node,
-    count: number,
-    audience: Audience,
-    run: Run,
-    relations: RelationView | undefined,
-): Omit<WindowRead, "where"> {
-    return {
-        orderBy: node.orderBy,
-        namespace: node.namespace((table: Table) => admittedSQL(audience, table)),
-        limit: count,
-        admits: {
-            ...(audience.where(node.table) === "memory"
-                ? {}
-                : { current: admittedSQL(audience, node.table) }),
-            image: async (row: Row) => (await run.seen(node.table, [row])).length > 0,
-        },
-        ...(relations === undefined ? {} : { relations }),
-    };
-}
-
-/** Match the rows of a related table an audience admits in SQL. */
-function admittedSQL(audience: Audience, table: Table): SQL {
-    const where = audience.where(table);
-    if (where === "memory") {
-        throw new DatabaseError(
-            "INVALID_QUERY",
-            `relations read no rows of ${table[TABLE].name}, which the audience decides in memory`,
-        );
-    }
-
-    return where;
-}

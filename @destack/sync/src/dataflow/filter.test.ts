@@ -36,7 +36,7 @@ test.for(TEST_DIALECTS)(
         await database.insert(note).values({ ...first, id: "b", title: "Open" });
         await kept;
 
-        // ask the audience about the kept note alone
+        // ask the audience only about the kept note
         expect(audience.decided).toBe(1);
     },
 );

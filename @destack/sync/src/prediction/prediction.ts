@@ -70,7 +70,7 @@ export const mutation = defineTable("mutation", {
     error: json("error", Failure),
 });
 
-/** The predictions applied over a client's copy, one row per layer in the order applied. */
+/** The predictions applied over a client's replica, one row per layer in the order applied. */
 export const layer = defineTable("layer", {
     /** The layer: a queued mutation's identifier, or the checked-out branch's. */
     key: text("key").primaryKey(),
@@ -82,7 +82,7 @@ export const layer = defineTable("layer", {
     tables: text("tables").notNull(),
 });
 
-/** The branch a client's copy shows over the main line. */
+/** The branch a client's replica shows over the main line. */
 export const checkout = defineTable("checkout", {
     /** The one row's key. */
     id: integer("id").primaryKey(),
@@ -93,13 +93,13 @@ export const checkout = defineTable("checkout", {
 /** The tables of a client's queue and predictions. */
 export const predictionTables = [mutation, layer, checkout] as const;
 
-/** The rows branches change on the server, as the client's copy has them. */
+/** The rows branches change on the server, as the client's replica has them. */
 export interface BranchSource {
     /** The SQL names of the tables keeping branches and their rows. */
     readonly tables: readonly string[];
-    /** Report whether a branch is open, as the copy has it. */
+    /** Report whether a branch is open, as the replica has it. */
     isOpen(transaction: DatabaseConnection, branch: string): Promise<boolean>;
-    /** Write a branch's rows over the copy's. */
+    /** Write a branch's rows over the replica's. */
     apply(transaction: DatabaseConnection, branch: string): Promise<void>;
 }
 
@@ -118,7 +118,7 @@ type Layer =
           readonly branch: string;
       };
 
-/** What a client's copy shows over the server's rows: queued mutations and the branch. */
+/** What a client's replica shows over the server's rows: queued mutations and the branch. */
 export class Prediction {
     /** The tables predictions change. */
     readonly tables: ReadonlyMap<string, Table>;
@@ -193,7 +193,7 @@ export class Prediction {
         return row?.branch;
     }
 
-    /** Show a branch over the main line, or the main line alone. */
+    /** Show a branch over the main line, or only the main line. */
     async checkout(database: DatabaseConnection, branch: string | undefined): Promise<void> {
         await database.transaction(async (transaction) => {
             // revert, switch the branch shown, and predict again
@@ -230,7 +230,7 @@ export class Prediction {
         await this.#revertFrom(transaction, 1);
     }
 
-    /** Settle the queue a completed page covers and predict the stack again over the copy. */
+    /** Settle the queue a completed page covers and predict the stack again over the replica. */
     async replay(
         transaction: DatabaseConnection,
         reached?: { readonly position: LogPosition; readonly isSnapshot: boolean },
@@ -260,12 +260,16 @@ export class Prediction {
         const queued = await this.#queued(transaction);
 
         return [
-            ...queued.filter((entry) => entry.branch === null).map(layered),
+            ...queued
+                .filter((entry) => entry.branch === null)
+                .map((entry) => Prediction.#layered(entry)),
             ...(branch === undefined
                 ? []
                 : [
                       { kind: "branch" as const, branch },
-                      ...queued.filter((entry) => entry.branch === branch).map(layered),
+                      ...queued
+                          .filter((entry) => entry.branch === branch)
+                          .map((entry) => Prediction.#layered(entry)),
                   ]),
         ];
     }
@@ -347,10 +351,10 @@ export class Prediction {
         readonly changes: RowChange[];
         readonly sequence: number;
     }> {
-        // require SQLite, whose log sequences changes within a transaction
+        // require SQLite, which sequences log changes within a transaction
         if (transaction.dialect !== "sqlite") {
             throw new TypeError(
-                "a prediction runs on SQLite, whose log sequences changes within a transaction",
+                "a prediction must run on SQLite, which sequences log changes within a transaction",
             );
         }
 
@@ -367,7 +371,7 @@ export class Prediction {
                 after: sequence,
                 limit: RECORD_CHANGES,
             });
-            changes.push(...page.changes.map((change) => predictedChange(change)));
+            changes.push(...page.changes.map((change) => Prediction.#predictedChange(change)));
             sequence = page.sequence;
             if (page.changes.length < RECORD_CHANGES) {
                 break;
@@ -473,9 +477,11 @@ export class Prediction {
         // count each state in one pass with pending as the push reads it
         const [counts] = await database
             .select({
-                pending: countWhen(and(isNull(mutation.epoch), isNull(mutation.error))),
-                executed: countWhen(and(isNotNull(mutation.epoch), isNull(mutation.error))),
-                rejected: countWhen(isNotNull(mutation.error)),
+                pending: Prediction.#countWhen(and(isNull(mutation.epoch), isNull(mutation.error))),
+                executed: Prediction.#countWhen(
+                    and(isNotNull(mutation.epoch), isNull(mutation.error)),
+                ),
+                rejected: Prediction.#countWhen(isNotNull(mutation.error)),
             })
             .from(mutation);
         if (counts === undefined) {
@@ -515,20 +521,20 @@ export class Prediction {
         const [reached] = await transaction
             .select({ id: mutation.id })
             .from(mutation)
-            .where(acknowledged(position))
+            .where(Prediction.#acknowledged(position))
             .limit(1);
 
         return reached !== undefined;
     }
 
-    /** Drop executed mutations a copy's position covers, and push again what a snapshot lost. */
+    /** Drop executed mutations a replica's position covers, and push again what a snapshot lost. */
     async #settle(
         transaction: DatabaseConnection,
         position: LogPosition,
         isSnapshot: boolean,
     ): Promise<void> {
-        // drop the mutations whose changes the copy has
-        await transaction.delete(mutation).where(acknowledged(position));
+        // drop the mutations whose changes the replica has
+        await transaction.delete(mutation).where(Prediction.#acknowledged(position));
 
         // push again what an earlier epoch executed
         if (isSnapshot) {
@@ -550,7 +556,7 @@ export class Prediction {
             .where(inArray(mutation.id, [...ids]));
         const errors = new Map(rows.map((row) => [row.id, row.error]));
 
-        return new Map(ids.map((id) => [id, mutationState(errors.get(id))]));
+        return new Map(ids.map((id) => [id, Prediction.#mutationState(errors.get(id))]));
     }
 
     /** Read the origins with queued mutations. */
@@ -572,62 +578,62 @@ export class Prediction {
                 ),
             );
     }
-}
 
-/** Layer a queued mutation's calls. */
-function layered(queued: Mutation): Layer {
-    return { kind: "mutation", mutation: queued };
-}
-
-/** Record a logged change as its predicted row change. */
-function predictedChange(change: Change): RowChange {
-    // take the row after the change or before a deletion
-    const definition = change.table[TABLE];
-    const row = Change.image(change);
-    const written = {
-        table: definition.sqlName,
-        operation: change.operation,
-        row: definition.encode(row),
-    };
-
-    // keep an update's row before
-    if (change.operation !== "update") {
-        return written;
-    } else if (change.before === undefined) {
-        throw new TypeError(`a logged update of ${definition.name} lacks its before`);
+    /** Layer a queued mutation's calls. */
+    static #layered(queued: Mutation): Layer {
+        return { kind: "mutation", mutation: queued };
     }
 
-    return { ...written, before: definition.encode(change.before) };
-}
+    /** Record a logged change as its predicted row change. */
+    static #predictedChange(change: Change): RowChange {
+        // take the row after the change or before a deletion
+        const definition = change.table[TABLE];
+        const row = Change.image(change);
+        const written = {
+            table: definition.sqlName,
+            operation: change.operation,
+            row: definition.encode(row),
+        };
 
-/** Match the executed mutations whose changes a position reaches. */
-function acknowledged(position: LogPosition): SQL | undefined {
-    return and(
-        isNull(mutation.error),
-        eq(mutation.epoch, position.epoch),
-        lte(mutation.sequence, position.sequence),
-    );
-}
+        // keep an update's row before
+        if (change.operation !== "update") {
+            return written;
+        } else if (change.before === undefined) {
+            throw new TypeError(`a logged update of ${definition.name} lacks its before`);
+        }
 
-/** Count the rows meeting a condition. */
-function countWhen(condition: SQL | undefined): SQL<number> {
-    return count(sql`CASE WHEN ${condition} THEN 1 END`);
-}
-
-/** Read a mutation's state from its error: executed without a row, pending without an error. */
-function mutationState(
-    error: Extract<MutationState, { kind: "rejected" }>["error"] | null | undefined,
-): MutationState {
-    // read an executed mutation
-    if (error === undefined) {
-        return { kind: "executed" };
+        return { ...written, before: definition.encode(change.before) };
     }
-    // read a pending one
-    else if (error === null) {
-        return { kind: "pending" };
+
+    /** Match the executed mutations whose changes a position reaches. */
+    static #acknowledged(position: LogPosition): SQL | undefined {
+        return and(
+            isNull(mutation.error),
+            eq(mutation.epoch, position.epoch),
+            lte(mutation.sequence, position.sequence),
+        );
     }
-    // read a rejected one
-    else {
-        return { kind: "rejected", error };
+
+    /** Count the rows meeting a condition. */
+    static #countWhen(condition: SQL | undefined): SQL<number> {
+        return count(sql`CASE WHEN ${condition} THEN 1 END`);
+    }
+
+    /** Read a mutation's state from its error: executed without a row, pending without an error. */
+    static #mutationState(
+        error: Extract<MutationState, { kind: "rejected" }>["error"] | null | undefined,
+    ): MutationState {
+        // read an executed mutation
+        if (error === undefined) {
+            return { kind: "executed" };
+        }
+        // read a pending one
+        else if (error === null) {
+            return { kind: "pending" };
+        }
+        // read a rejected one
+        else {
+            return { kind: "rejected", error };
+        }
     }
 }

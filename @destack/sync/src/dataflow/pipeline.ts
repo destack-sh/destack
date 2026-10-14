@@ -26,14 +26,19 @@ export abstract class Pipeline {
     /** The pipeline of the parent node, absent for a root. */
     parent: Pipeline | undefined;
     /** The pipelines of the node's children, absent for stateless children. */
-    children: readonly (Pipeline | undefined)[] = [];
+    children: readonly (Pipeline | undefined)[];
     /** The open partitions, by name. */
-    readonly partitions = new Map<string, Partition>();
+    readonly partitions: Map<string, Partition>;
     /** The rows the node selects, by key. */
-    readonly members = new Map<string, Member>();
+    readonly members: Map<string, Member>;
 
     /** Create the pipeline of a node. */
     constructor(node: Node, context: Context, hasTreeIndex: boolean) {
+        // start with empty state
+        this.children = [];
+        this.partitions = new Map<string, Partition>();
+        this.members = new Map<string, Member>();
+
         // read and decide the node's rows
         this.node = node;
         this.context = context;
@@ -56,7 +61,7 @@ export abstract class Pipeline {
     /** Open a root's one partition, starting after a row when given one. */
     openRoot(start?: Row): void {
         this.partitions.set("", {
-            ...partitionOf(null, 1),
+            ...Pipeline.#partition(null, 1),
             ...(start === undefined ? {} : { start }),
         });
     }
@@ -66,11 +71,11 @@ export abstract class Pipeline {
         // key the partition and the run's work
         const name = this.node.partition(value);
         const partition = this.partitions.get(name);
-        const work = run.workOf(this);
+        const work = run.work(this);
 
         // open a partition for its first holder
         if (step > 0 && partition === undefined) {
-            this.partitions.set(name, partitionOf(value, 1));
+            this.partitions.set(name, Pipeline.#partition(value, 1));
             work.opened.set(name, value);
         } else if (step > 0 && partition !== undefined) {
             partition.holders += 1;
@@ -211,7 +216,9 @@ export abstract class Pipeline {
                 // answer by the relation's count of rows that reference the row
                 const relation = node.relation(via, where);
                 await arrangement.prepare(node, [row], run);
-                const count = arrangement.measured(relation, relation.valueOf(row), run)["count"];
+                const count = arrangement.measured(relation, relation.partitionValue(row), run)[
+                    "count"
+                ];
 
                 return typeof count === "number" && count > 0;
             },
@@ -223,6 +230,20 @@ export abstract class Pipeline {
             },
         };
     }
+
+    /** Create a partition. */
+    static #partition(value: ColumnValue, holders: number): Partition {
+        return { value, holders, members: new Set(), window: undefined, sequence: -1 };
+    }
+
+    /** Copy a set of partitions without one. */
+    protected static without(names: ReadonlySet<string>, name: string): Set<string> {
+        // copy the set without the name
+        const next = new Set(names);
+        next.delete(name);
+
+        return next;
+    }
 }
 
 /** The shared state of a dataflow's pipelines. */
@@ -233,12 +254,14 @@ export interface Context {
     readonly sink: Sink;
     /** The groups of the relations filters look up. */
     readonly arrangement: Arrangement;
-    /** What a copy knows of its source. */
+    /** What a replica knows of its source. */
     readonly upstream: Upstream | undefined;
     /** The database read. */
     readonly database: DatabaseConnection;
     /** Whether selections keep their rows. */
     readonly isMaterialized: boolean;
+    /** The most rows one page of a snapshot reads. */
+    readonly pageSize: number;
     /** Read the watched changes between two sequences, absent once compacted. */
     changesThrough(
         watches: readonly Watch[],
@@ -271,23 +294,4 @@ export interface Member {
     joins: readonly ColumnValue[];
     /** The row with its computed values, kept when the dataflow materializes. */
     row?: Row;
-}
-
-/** Create a partition. */
-export function partitionOf(value: ColumnValue, holders: number): Partition {
-    return { value, holders, members: new Set(), window: undefined, sequence: -1 };
-}
-
-/** Copy a set of partitions without one. */
-export function without(names: ReadonlySet<string>, name: string): Set<string> {
-    // copy the set without the name
-    const next = new Set(names);
-    next.delete(name);
-
-    return next;
-}
-
-/** Key rows of a node. */
-export function keyed(node: Node, rows: readonly Row[]): Map<string, Row> {
-    return new Map(rows.map((row) => [node.keyOf(row), row]));
 }

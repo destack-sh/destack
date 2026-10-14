@@ -20,21 +20,21 @@ const query: Query = {
 };
 // ElectricSQL's shape log
 for await (const page of feed.subscribe({ board: query }, after, signal, { audience })) send(page);
-await copy.follow(local, follow, signal, { prediction }); // Replicache's pull into a local database
+await board.follow(local, follow, signal, { prediction }); // Replicache's pull into a local database
 await prediction.add(local, mutationId, origin, mutate); // Replicache's pending mutation
 await prediction.acknowledge(local, mutationId, position); // Replicache's lastMutationID
 ```
 
 ## Shapes
 
-`defineShape` declares a shape that machines and clients subscribe to, and its `replica` copies the shape's rows into a local database.
+`defineShape` declares a shape that machines and clients subscribe to, and its `replica` replicates the shape's rows into a local database.
 
 ```ts
 const board = defineShape({
     name: "board",
     parameters: schema.object({ board: schema.string() }),
     audience: "reader",
-    isReadinessGate: true, // the follower serves once the copy holds a snapshot
+    isReadinessGate: true, // the follower serves once the replica has a snapshot
     replica: ({ name, scope, parameters }) =>
         new Replica({
             name,
@@ -80,20 +80,20 @@ for await (const rows of feed.watch("board", board, signal)) {
 }
 ```
 
-## Copies
+## Replicas
 
-A `Replica` copies one scope's query results into another database, and keeps a row until no replica includes it.
+A `Replica` replicates one scope's query results into another database, and keeps a row until no replica includes it.
 
 ```ts
-const copy = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await Replica.isSynced(local, "board", spaceId); // true once the copy took its first snapshot
+const board = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
+await Replica.isSynced(local, "board", spaceId); // true once the replica took its first snapshot
 await local.select().from(task).where(Replica.includes("board", task));
-await copy.drop(local);
+await board.drop(local);
 ```
 
 ## Predictions
 
-A `Prediction` shows a client's queued mutations and checked-out branch over its copy.
+A `Prediction` shows a client's queued mutations and checked-out branch over its replica.
 
 ```ts
 const prediction = new Prediction({ tables: [project, task], predict, reads, branches });

@@ -10,9 +10,16 @@ import type { Result } from "./tally.ts";
 /** What the subscriber has: each row with its table and count, and each shown group. */
 export class Sink {
     /** Each row's table and how many members and chains keep it, by key. */
-    readonly #rows = new Map<string, { readonly table: Table; readonly count: number }>();
+    readonly #rows: Map<string, { readonly table: Table; readonly count: number }>;
     /** The aggregate groups the subscriber has, by query and group. */
-    readonly #groups = new Set<string>();
+    readonly #groups: Set<string>;
+
+    /** Start empty. */
+    constructor() {
+        // start with empty state
+        this.#rows = new Map<string, { readonly table: Table; readonly count: number }>();
+        this.#groups = new Set<string>();
+    }
 
     /** Decide whether the subscriber has a row. */
     has(key: string): boolean {
@@ -100,7 +107,7 @@ export class Sink {
             else if (isPresent && !touched.wasPresent) {
                 run.patch.rows.set(key, {
                     table,
-                    row: touchedRow(key, touched),
+                    row: Sink.#touchedRow(key, touched),
                     operation: "insert",
                 });
             }
@@ -116,7 +123,7 @@ export class Sink {
             else if (isPresent && run.changed.has(key)) {
                 run.patch.rows.set(key, {
                     table,
-                    row: touchedRow(key, touched),
+                    row: Sink.#touchedRow(key, touched),
                     operation: "update",
                 });
             }
@@ -129,16 +136,33 @@ export class Sink {
         this.#rows.clear();
         this.#groups.clear();
     }
+
+    /** Read the row a touched present row keeps at the run's position. */
+    static #touchedRow(key: string, touched: Touch): Row {
+        if (touched.row === null) {
+            throw new TypeError(`present row ${key} is sent before it is read`);
+        }
+
+        return touched.row;
+    }
 }
 
 /** The row and group decisions of a page. */
 export class Patch {
     /** The row decisions, by row key. */
-    readonly rows = new Map<string, Decision>();
+    readonly rows: Map<string, Decision>;
     /** The group results, by query and group. */
-    readonly results = new Map<string, ResultChange>();
+    readonly results: Map<string, ResultChange>;
     /** The groups the page shows first. */
-    readonly #entered = new Set<string>();
+    readonly #entered: Set<string>;
+
+    /** Start empty. */
+    constructor() {
+        // start with empty state
+        this.rows = new Map<string, Decision>();
+        this.results = new Map<string, ResultChange>();
+        this.#entered = new Set<string>();
+    }
 
     /** The decisions of the patch. */
     get size(): number {
@@ -216,9 +240,16 @@ export class Patch {
                         ? {
                               table: table[TABLE].sqlName,
                               operation: "delete",
-                              row: table[TABLE].encode(keyOf(table, decision.row)),
+                              row: table[TABLE].encode(Patch.#key(table, decision.row)),
                           }
-                        : encode(table, key, decision, aligned(hidden, index++), position, cache),
+                        : Patch.#encode(
+                              table,
+                              key,
+                              decision,
+                              aligned(hidden, index++),
+                              position,
+                              cache,
+                          ),
                 );
             }
         }
@@ -267,6 +298,34 @@ export class Patch {
 
         return patch;
     }
+
+    /** Encode a selected row's logged columns at a position without concealed ones. */
+    static #encode(
+        table: Table,
+        key: string,
+        decision: Decision,
+        concealed: readonly string[],
+        position: LogPosition,
+        cache: Cache,
+    ): RowChange {
+        return cache.encodings.share(
+            position.sequence,
+            `encoded:${key}:${decision.operation}:${concealed.join(",")}`,
+            () => ({
+                table: table[TABLE].sqlName,
+                operation: decision.operation,
+                row: table[TABLE].encodeLogged(decision.row, concealed),
+                ...(concealed.length === 0 ? {} : { concealed: [...concealed] }),
+            }),
+        );
+    }
+
+    /** Read the values of a row's key. */
+    static #key(table: Table, row: Row): Row {
+        return Object.fromEntries(
+            table[TABLE].key.map((column) => [column, Key.value(table, row, column)]),
+        );
+    }
 }
 
 /** One row decision of a page. */
@@ -277,41 +336,4 @@ export interface Decision {
     readonly row: Row;
     /** Whether the row enters, changes or leaves. */
     readonly operation: RowChange["operation"];
-}
-
-/** Encode a selected row's logged columns at a position without concealed ones. */
-function encode(
-    table: Table,
-    key: string,
-    decision: Decision,
-    concealed: readonly string[],
-    position: LogPosition,
-    cache: Cache,
-): RowChange {
-    return cache.encodings.share(
-        position.sequence,
-        `encoded:${key}:${decision.operation}:${concealed.join(",")}`,
-        () => ({
-            table: table[TABLE].sqlName,
-            operation: decision.operation,
-            row: table[TABLE].encodeLogged(decision.row, concealed),
-            ...(concealed.length === 0 ? {} : { concealed: [...concealed] }),
-        }),
-    );
-}
-
-/** Read the values of a row's key. */
-function keyOf(table: Table, row: Row): Row {
-    return Object.fromEntries(
-        table[TABLE].key.map((column) => [column, Key.value(table, row, column)]),
-    );
-}
-
-/** Read the row a touched present row keeps at the run's position. */
-function touchedRow(key: string, touched: Touch): Row {
-    if (touched.row === null) {
-        throw new TypeError(`present row ${key} is sent before it is read`);
-    }
-
-    return touched.row;
 }

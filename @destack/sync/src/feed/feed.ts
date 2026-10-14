@@ -17,11 +17,12 @@ import { SyncError } from "../error/error.ts";
 import type { Page, RowChange } from "../query/page.ts";
 import type { Query, Item, AggregateRow } from "../query/query.ts";
 import { Node } from "../query/node.ts";
-import { EVERYONE, watchedScopes, type Audience, Watch } from "./audience.ts";
+import { EVERYONE, type Audience, Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Stream } from "./stream.ts";
 import type { Upstream } from "../dataflow/upstream.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
+import { PAGE_SIZE } from "../dataflow/selection.ts";
 import { Run, type RunCost } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
 
@@ -53,44 +54,46 @@ export class Feed implements Cache {
     readonly #limit: number;
     /** The most rows and groups one evaluation knows. */
     readonly capacity: number;
+    /** The most rows one page of a snapshot or a catch-up reads. */
+    readonly pageSize: number;
     /** The count of recent changes kept in memory. */
     readonly #memory: number;
     /** Report each run's cost. */
     readonly observe: ((cost: RunCost) => void) | undefined;
     /** The wait before a caught-up stream repeats its position, in milliseconds. */
     readonly heartbeat: number;
-    /** What a copy knows of its source. */
+    /** What a replica knows of its source. */
     readonly upstream: Upstream | undefined;
     /** The clock the feed's streams and decisions run at. */
     readonly clock: Clock;
     /** The recent changes in commit order. */
-    #changes: Change[] = [];
+    #changes: Change[];
     /** The sequence before the oldest kept change. */
-    #start = Number.POSITIVE_INFINITY;
+    #start: number;
     /** The sequence the kept changes reach, below zero before reading. */
-    #sequence = -1;
+    #sequence: number;
     /** The subscribers waiting for the feed to pass a sequence. */
-    readonly #waiting = new Set<() => void>();
+    readonly #waiting: Set<() => void>;
     /** The subscriber count. */
-    #subscribers = 0;
+    #subscribers: number;
     /** Stop reading after the last subscriber. */
     #reading: AbortController | undefined;
     /** The failure that stopped reading. */
     #failure: Error | undefined;
     /** The shared evaluations by key. */
-    readonly #evaluations = new Map<string, Evaluation>();
+    readonly #evaluations: Map<string, Evaluation>;
     /** Each shared evaluation's key and the streams sharing it. */
-    readonly #shares = new Map<Evaluation, { key: string; streams: number }>();
+    readonly #shares: Map<Evaluation, { key: string; streams: number }>;
     /** The shared reads of rows by sequence and key. */
-    readonly rows = new Memo<Promise<readonly Row[]>>(MEMO_SEQUENCES);
+    readonly rows: Memo<Promise<readonly Row[]>>;
     /** The shared ordered windows by sequence and key. */
-    readonly windows = new Memo<Promise<Window>>(MEMO_SEQUENCES);
+    readonly windows: Memo<Promise<Window>>;
     /** The shared reads of single rows by sequence and key. */
-    readonly row = new Memo<Promise<Row | null>>(MEMO_SEQUENCES);
+    readonly row: Memo<Promise<Row | null>>;
     /** The shared encodings by sequence and key. */
-    readonly encodings = new Memo<RowChange>(MEMO_SEQUENCES);
+    readonly encodings: Memo<RowChange>;
     /** The shared images by sequence and range. */
-    readonly #images = new Memo<Promise<ReadonlyMap<string, Row | null>>>(MEMO_SEQUENCES);
+    readonly #images: Memo<Promise<ReadonlyMap<string, Row | null>>>;
 
     /** Serve a database's logged tables within the limits. */
     constructor(
@@ -99,6 +102,7 @@ export class Feed implements Cache {
         options: {
             readonly subscribers?: number;
             readonly capacity?: number;
+            readonly pageSize?: number;
             readonly changes?: number;
             readonly upstream?: Upstream;
             readonly observe?: (cost: RunCost) => void;
@@ -106,6 +110,22 @@ export class Feed implements Cache {
             readonly clock: Clock;
         },
     ) {
+        // start with empty state
+        this.#changes = [];
+        this.#start = Number.POSITIVE_INFINITY;
+        this.#sequence = -1;
+        this.#waiting = new Set<() => void>();
+        this.#subscribers = 0;
+        this.#evaluations = new Map<string, Evaluation>();
+
+        // start the rest of the state empty
+        this.#shares = new Map<Evaluation, { key: string; streams: number }>();
+        this.rows = new Memo<Promise<readonly Row[]>>(MEMO_SEQUENCES);
+        this.windows = new Memo<Promise<Window>>(MEMO_SEQUENCES);
+        this.row = new Memo<Promise<Row | null>>(MEMO_SEQUENCES);
+        this.encodings = new Memo<RowChange>(MEMO_SEQUENCES);
+        this.#images = new Memo<Promise<ReadonlyMap<string, Row | null>>>(MEMO_SEQUENCES);
+
         // keep the logged tables and the limits
         this.database = database;
         this.upstream = options.upstream;
@@ -120,6 +140,7 @@ export class Feed implements Cache {
             .filter((table) => describeLog(table) !== undefined);
         this.#limit = options.subscribers ?? FEED_SUBSCRIBERS;
         this.capacity = options.capacity ?? CAPACITY;
+        this.pageSize = options.pageSize ?? PAGE_SIZE;
         this.#memory = options.changes ?? FEED_CHANGES;
         this.observe = options.observe;
         this.heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
@@ -218,7 +239,7 @@ export class Feed implements Cache {
                     seal === undefined
                         ? rows
                         : await Promise.all(rows.map((row) => seal(query.table, row)));
-                let rest = sealed.map((row) => captured(query.table, row));
+                let rest = sealed.map((row) => Feed.#captured(query.table, row));
 
                 // fill the page, sending a full one once more rows follow it
                 while (rest.length > 0) {
@@ -250,7 +271,7 @@ export class Feed implements Cache {
         if (query.with !== undefined) {
             throw new SyncError(
                 "INVALID_SCOPE",
-                `capture reads no tables across scopes: ${query.table[TABLE].name}`,
+                `capture cannot read tables across scopes: ${query.table[TABLE].name}`,
             );
         }
         const table = query.table;
@@ -304,6 +325,7 @@ export class Feed implements Cache {
                 changesThrough: (watches, after, through) =>
                     this.changesThrough(watches, after, through),
                 isMaterialized: true,
+                pageSize: this.pageSize,
             },
         );
         if (this.#subscribers >= this.#limit) {
@@ -443,7 +465,7 @@ export class Feed implements Cache {
         watches: readonly Watch[],
         sequence: number,
     ): Promise<{ readonly changes: readonly Change[]; readonly sequence: number } | undefined> {
-        const scopes = watchedScopes(watches);
+        const scopes = Watch.scopes(watches);
         try {
             const read = await this.database.log.read({
                 tables: [...new Set(watches.map((entry) => entry.table))],
@@ -655,18 +677,18 @@ export class Feed implements Cache {
             wake();
         }
     }
-}
 
-/** Encode a captured row as an inserting change. */
-function captured(table: Table, row: Row): RowChange {
-    return { table: table[TABLE].sqlName, operation: "insert", row: table[TABLE].encode(row) };
+    /** Encode a captured row as an inserting change. */
+    static #captured(table: Table, row: Row): RowChange {
+        return { table: table[TABLE].sqlName, operation: "insert", row: table[TABLE].encode(row) };
+    }
 }
 
 /** How a subscriber follows a feed's queries. */
 export interface FeedOptions {
     /** The audience the rows are decided for, everyone by default. */
     readonly audience?: Audience;
-    /** The queries the subscriber's copy reflects, which the first page is a difference from. */
+    /** The queries the subscriber's replica reflects, which the first page is a difference from. */
     readonly previous?: Readonly<Record<string, Query>>;
     /** The interval pages at the head merge within, in milliseconds. */
     readonly every?: number;
@@ -704,9 +726,15 @@ class Handoff<Value> {
     /** The wake-up of a consumer waiting for a value. */
     #waiting: (() => void) | undefined;
     /** Whether the producer ended. */
-    #isEnded = false;
+    #isEnded: boolean;
     /** The producer's failure. */
     #failure: { readonly error: unknown } | undefined;
+
+    /** Start empty. */
+    constructor() {
+        // start with empty state
+        this.#isEnded = false;
+    }
 
     /** Give a value, resolving once the consumer took it, refusing once the consumer stopped. */
     give(value: Value): Promise<void> {

@@ -16,23 +16,29 @@ import type { Feed } from "../feed.ts";
 import { groupName, type Contents } from "./oracle.ts";
 
 /** What a subscriber has after applying its pages. */
-export class Copy implements Contents {
-    /** The tables the copy's rows belong to. */
+export class MemoryReplica implements Contents {
+    /** The tables the replica's rows belong to. */
     readonly #tables: ReadonlyMap<string, Table>;
     /** The rows by table and key, concealed columns missing. */
-    readonly rows = new Map<string, Record<string, unknown>>();
+    readonly rows: Map<string, Record<string, unknown>>;
     /** The aggregate groups by query and group. */
-    readonly results = new Map<string, Record<string, Scalar>>();
+    readonly results: Map<string, Record<string, Scalar>>;
     /** The pages applied, in order. */
-    readonly pages: Page[] = [];
+    readonly pages: Page[];
     /** The position of the last complete page. */
     position: LogPosition | undefined;
     /** The waiters for the next page. */
-    readonly #waiting = new Set<() => void>();
+    readonly #waiting: Set<() => void>;
 
     /** Keep rows of some tables. */
     constructor(tables: readonly Table[]) {
+        // keep the tables, with no rows, groups or pages yet
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
+        this.rows = new Map();
+        this.results = new Map();
+        this.pages = [];
+        this.position = undefined;
+        this.#waiting = new Set();
     }
 
     /** Apply one page. */
@@ -50,10 +56,10 @@ export class Copy implements Contents {
             if (table === undefined) {
                 throw new TypeError(`page changes an unknown table: ${change.table}`);
             }
-            const key = Key.name(table, keyOf(table, change.row));
+            const key = Key.name(table, MemoryReplica.#key(table, change.row));
             if ((change.operation === "insert") === this.rows.has(key)) {
                 throw new Error(
-                    `page ${change.operation}s a row the copy ${this.rows.has(key) ? "has" : "lacks"}: ${key}`,
+                    `page ${change.operation}s a row the replica ${this.rows.has(key) ? "has" : "lacks"}: ${key}`,
                 );
             }
             if (change.operation === "delete") {
@@ -78,7 +84,7 @@ export class Copy implements Contents {
             } else if (result.values === null) {
                 if (!this.results.has(groupName(result.query, result.group))) {
                     throw new Error(
-                        `page removes a group the copy lacks: ${groupName(result.query, result.group)}`,
+                        `page removes a group the replica lacks: ${groupName(result.query, result.group)}`,
                     );
                 }
                 this.results.delete(groupName(result.query, result.group));
@@ -103,26 +109,36 @@ export class Copy implements Contents {
             this.#waiting.add(resolve);
         });
     }
+
+    /** Read a row's key from its JSON form. */
+    static #key(table: Table, row: Readonly<Record<string, unknown>>): Row {
+        return Object.fromEntries(
+            table[TABLE].key.map((property) => [
+                property,
+                table[TABLE].column(property).definition.fromJson(row[property]),
+            ]),
+        );
+    }
 }
 
-/** A subscriber following a feed's queries into a copy. */
+/** A subscriber following a feed's queries into a replica. */
 export class Follower {
     /** The feed followed. */
     readonly #feed: Feed;
     /** The subscriber's audience. */
     readonly #audience: Audience | undefined;
-    /** The replica and its database. */
-    readonly #replica:
+    /** The persisted replica and its database. */
+    readonly #persisted:
         | { readonly replica: Replica; readonly database: DatabaseConnection }
         | undefined;
     /** What the subscriber has. */
-    readonly copy: Copy;
+    readonly replica: MemoryReplica;
     /** The queries followed. */
     #queries: Readonly<Record<string, Query>>;
     /** Stop the current stream. */
-    #stop = new AbortController();
+    #stop: AbortController;
     /** The current stream's loop. */
-    #running: Promise<void> = Promise.resolve();
+    #running: Promise<void>;
     /** The failure that stopped a stream. */
     #failure: Error | undefined;
 
@@ -140,29 +156,31 @@ export class Follower {
         this.#feed = feed;
         this.#queries = queries;
         this.#audience = options.audience;
-        this.#replica = options.replica;
-        this.copy = new Copy(tables);
+        this.#persisted = options.replica;
+        this.replica = new MemoryReplica(tables);
+        this.#stop = new AbortController();
+        this.#running = Promise.resolve();
     }
 
-    /** Follow from the copy's position. */
+    /** Follow from the replica's position. */
     start(previous?: Readonly<Record<string, Query>>): void {
-        // subscribe from the copy's position
+        // subscribe from the replica's position
         this.#stop = new AbortController();
         const signal = this.#stop.signal;
-        const pages = this.#feed.subscribe(this.#queries, this.copy.position, signal, {
+        const pages = this.#feed.subscribe(this.#queries, this.replica.position, signal, {
             ...(this.#audience === undefined ? {} : { audience: this.#audience }),
             ...(previous === undefined ? {} : { previous }),
         });
         const applied =
-            this.#replica === undefined
+            this.#persisted === undefined
                 ? pages
-                : this.#replica.replica.apply(this.#replica.database, pages, {
+                : this.#persisted.replica.apply(this.#persisted.database, pages, {
                       clock: Clock.system,
                   });
         this.#running = (async () => {
             try {
                 for await (const page of applied) {
-                    this.copy.apply(page);
+                    this.replica.apply(page);
                 }
             } catch (error) {
                 if (!signal.aborted) {
@@ -175,7 +193,7 @@ export class Follower {
         })();
     }
 
-    /** Reconnect from the copy's position, to other queries when given them. */
+    /** Reconnect from the replica's position, to other queries when given them. */
     async reconnect(queries?: Readonly<Record<string, Query>>): Promise<void> {
         // stop and follow the new queries
         await this.stop();
@@ -190,13 +208,13 @@ export class Follower {
         await this.#running;
     }
 
-    /** Wait until the copy reaches a position. */
+    /** Wait until the replica reaches a position. */
     async wait(position: LogPosition): Promise<void> {
         for (;;) {
             if (this.#failure !== undefined) {
                 throw this.#failure;
             }
-            const reached = this.copy.position;
+            const reached = this.replica.position;
             if (
                 reached !== undefined &&
                 reached.epoch === position.epoch &&
@@ -204,17 +222,7 @@ export class Follower {
             ) {
                 return;
             }
-            await Promise.race([this.copy.next(), this.#running]);
+            await Promise.race([this.replica.next(), this.#running]);
         }
     }
-}
-
-/** Read a row's key from its JSON form. */
-function keyOf(table: Table, row: Readonly<Record<string, unknown>>): Row {
-    return Object.fromEntries(
-        table[TABLE].key.map((property) => [
-            property,
-            table[TABLE].column(property).definition.fromJson(row[property]),
-        ]),
-    );
 }

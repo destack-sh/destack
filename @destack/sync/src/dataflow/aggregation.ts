@@ -1,9 +1,8 @@
 import { Change, type ColumnValue, type Row, Condition, Predicate, type Scalar } from "@destack/db";
 import { canonicalize, found, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
-import { NOWHERE, Pipeline, keyed, without, type Context } from "./pipeline.ts";
+import { NOWHERE, Pipeline, type Context } from "./pipeline.ts";
 import type { Run, Work } from "./run.ts";
-import { PAGE_ROWS } from "./selection.ts";
 import { Tally, type Result } from "./tally.ts";
 import type { Group } from "./upstream.ts";
 
@@ -13,22 +12,30 @@ const COUNTED_PARTITIONS = 500;
 /** The aggregate groups of a node's rows per partition with their measures in tallies. */
 export class Aggregation extends Pipeline {
     /** The tallies, by group name. */
-    readonly tallies = new Map<string, Tally>();
+    readonly tallies: Map<string, Tally>;
     /** What each tracked member adds, by key. */
-    readonly contributions = new Map<string, readonly Contribution[]>();
+    readonly contributions: Map<string, readonly Contribution[]>;
     /** Whether the aggregate decides its rows one by one. */
     readonly isTracked: boolean;
     /** The groups the run changed, by name, with their results before the change. */
-    readonly #changed = new Map<
+    readonly #changed: Map<
         string,
         { readonly group: Record<string, Scalar>; readonly before: string }
-    >();
+    >;
     /** The groups that lost an extreme in the run, by name. */
-    readonly #lost = new Set<string>();
+    readonly #lost: Set<string>;
 
     /** Create the aggregation of a node. */
     constructor(node: Node, context: Context, hasTreeIndex: boolean) {
+        // create the pipeline with empty state
         super(node, context, hasTreeIndex);
+        this.tallies = new Map<string, Tally>();
+        this.contributions = new Map<string, readonly Contribution[]>();
+        this.#changed = new Map<
+            string,
+            { readonly group: Record<string, Scalar>; readonly before: string }
+        >();
+        this.#lost = new Set<string>();
         this.isTracked =
             (node.path !== undefined && node.path.kind !== "key") ||
             node.relations.length > 0 ||
@@ -64,7 +71,12 @@ export class Aggregation extends Pipeline {
                 continue;
             }
             for (const key of this.isTracked ? partition.members : []) {
-                this.#assign(key, null, without(found(this.members, key).partitions, name), run);
+                this.#assign(
+                    key,
+                    null,
+                    Pipeline.without(found(this.members, key).partitions, name),
+                    run,
+                );
             }
             if (!this.isTracked) {
                 this.#release(partition.value, run);
@@ -83,13 +95,13 @@ export class Aggregation extends Pipeline {
             );
             for (const [[name], rows] of zip(opened, read)) {
                 for (const row of rows) {
-                    const key = this.node.keyOf(row);
+                    const key = this.node.keyName(row);
                     const partitions = this.members.get(key)?.partitions ?? NOWHERE;
                     this.#assign(key, row, new Set([...partitions, name]), run);
                 }
             }
         } else if (opened.length > 0) {
-            await this.pages(run, (rows) => this.decide(keyed(this.node, rows), run));
+            await this.pages(run, (rows) => this.decide(this.node.keyed(rows), run));
         }
 
         // decide the dirty rows again
@@ -131,7 +143,7 @@ export class Aggregation extends Pipeline {
                 [Change.before(change), -1],
                 [Change.after(change), 1],
             ] as const) {
-                const value = image === null ? undefined : joinedOf(node, image);
+                const value = image === null ? undefined : Aggregation.#joined(node, image);
                 const sequence = image === null ? undefined : countedAt(value);
                 if (
                     image === null ||
@@ -142,7 +154,7 @@ export class Aggregation extends Pipeline {
                     continue;
                 }
                 const resolved = this.filter.resolve(image, run);
-                const group = node.groupOf(resolved, value);
+                const group = node.rowGroup(resolved, value);
                 const name = JSON.stringify(group);
                 if (!this.tallies.has(name) && sign < 0) {
                     throw new TypeError(`tally of ${node.name} lost group ${name}`);
@@ -157,9 +169,9 @@ export class Aggregation extends Pipeline {
 
         // count again the groups of rows the audience decides again
         for (const row of affected) {
-            const value = joinedOf(node, row);
+            const value = Aggregation.#joined(node, row);
             if (countedAt(value) !== undefined) {
-                const group = node.groupOf(this.filter.resolve(row, run), value);
+                const group = node.rowGroup(this.filter.resolve(row, run), value);
                 const name = JSON.stringify(group);
                 this.#note(name, group);
                 this.#lost.add(name);
@@ -208,7 +220,7 @@ export class Aggregation extends Pipeline {
             if (tally?.isEmpty === true) {
                 this.tallies.delete(name);
             }
-            if (signatureOf(tally) !== before) {
+            if (Aggregation.#signature(tally) !== before) {
                 this.result(group, tally, run);
                 moved.push(group);
             }
@@ -240,7 +252,7 @@ export class Aggregation extends Pipeline {
             const [rows] = await run.view.ordered(
                 this.node,
                 [after === undefined ? { value: null } : { value: null, after }],
-                PAGE_ROWS,
+                this.context.pageSize,
                 this.context.audience,
                 run,
                 this.node.relations.length === 0 ? undefined : this.relationView(run),
@@ -248,7 +260,7 @@ export class Aggregation extends Pipeline {
             if (rows === undefined) {
                 throw new RangeError("an ordered read lacks its one window");
             }
-            isDone = rows.length < PAGE_ROWS;
+            isDone = rows.length < this.context.pageSize;
             after = rows.at(-1);
             await each(rows);
         }
@@ -269,7 +281,12 @@ export class Aggregation extends Pipeline {
             row === null
                 ? (this.contributions.get(key) ?? []).filter((entry) => names.has(entry.partition))
                 : [...names].map((partition) =>
-                      contributionOf(node, row, partition, found(this.partitions, partition).value),
+                      Aggregation.contribution(
+                          node,
+                          row,
+                          partition,
+                          found(this.partitions, partition).value,
+                      ),
                   ),
             run,
         );
@@ -287,7 +304,10 @@ export class Aggregation extends Pipeline {
     /** Note a group's result before the run first changes it. */
     #note(name: string, group: Record<string, Scalar>): void {
         if (!this.#changed.has(name)) {
-            this.#changed.set(name, { group, before: signatureOf(this.tallies.get(name)) });
+            this.#changed.set(name, {
+                group,
+                before: Aggregation.#signature(this.tallies.get(name)),
+            });
         }
     }
 
@@ -354,7 +374,7 @@ export class Aggregation extends Pipeline {
                       group,
                   )
                 : await this.tallyRows(run, group, {
-                      value: node.parentValueOf(node.partitionOf(group)),
+                      value: node.parentValue(node.groupPartition(group)),
                   });
         this.tallies.set(
             name,
@@ -373,7 +393,9 @@ export class Aggregation extends Pipeline {
         const read = await run.view.measure(node, within, this.context.audience);
         const tallies = new Map(
             read.tallies
-                .filter((tally) => only === undefined || sameGroup(tally.group, only))
+                .filter(
+                    (tally) => only === undefined || Aggregation.#isSameGroup(tally.group, only),
+                )
                 .map((tally) => [JSON.stringify(tally.group), tally]),
         );
 
@@ -432,8 +454,8 @@ export class Aggregation extends Pipeline {
                     continue;
                 }
                 const resolved = this.filter.resolve(image, run);
-                const group = node.groupOf(resolved, joinedOf(node, image));
-                if (only !== undefined && !sameGroup(group, only)) {
+                const group = node.rowGroup(resolved, Aggregation.#joined(node, image));
+                if (only !== undefined && !Aggregation.#isSameGroup(group, only)) {
                     continue;
                 }
                 const name = JSON.stringify(group);
@@ -489,11 +511,11 @@ export class Aggregation extends Pipeline {
         // tally them by group
         const tallies = new Map<string, Tally>();
         for (const row of rows) {
-            const group = node.groupOf(
+            const group = node.rowGroup(
                 row,
-                "value" in selected ? selected.value : joinedOf(node, row),
+                "value" in selected ? selected.value : Aggregation.#joined(node, row),
             );
-            if (only !== undefined && !sameGroup(group, only)) {
+            if (only !== undefined && !Aggregation.#isSameGroup(group, only)) {
                 continue;
             }
             const name = JSON.stringify(group);
@@ -505,24 +527,62 @@ export class Aggregation extends Pipeline {
         return tallies;
     }
 
-    /** Let go of the groups of a partition no selected row names. */
+    /** Let go of the groups of a partition no selected row references. */
     #release(value: ColumnValue, run: Run): void {
         // let go of each group of the partition
         const node = this.node;
         const partition = node.partition(value);
         for (const [name, tally] of this.tallies) {
-            if (JSON.stringify(node.partitionOf(tally.group)) === partition) {
+            if (JSON.stringify(node.groupPartition(tally.group)) === partition) {
                 this.tallies.delete(name);
                 this.result(tally.group, undefined, run);
             }
         }
+    }
+
+    /** Whether two groups have the same values. */
+    static #isSameGroup(
+        left: Readonly<Record<string, Scalar>>,
+        right: Readonly<Record<string, Scalar>>,
+    ): boolean {
+        return canonicalize(left) === canonicalize(right);
+    }
+
+    /** Write a group's result as text, empty once the group is empty. */
+    static #signature(tally: Tally | undefined): string {
+        return tally === undefined || tally.isEmpty
+            ? ""
+            : JSON.stringify([tally.rows, tally.values(), tally.averages()]);
+    }
+
+    /** Build what a row adds to its group in one partition. */
+    protected static contribution(
+        node: Node,
+        row: Row,
+        partition: string,
+        value: ColumnValue | undefined,
+    ): Contribution {
+        const group = node.rowGroup(row, value);
+
+        return { partition, group, name: JSON.stringify(group), row };
+    }
+
+    /** Read the parent value a row of a root or key-joined node joins. */
+    static #joined(node: Node, row: Row): ColumnValue | undefined {
+        return node.path?.kind === "key" ? row[node.path.column] : undefined;
     }
 }
 
 /** The measures of a relation the node's condition and computed values read, by parent value. */
 export class Relation extends Aggregation {
     /** The log sequence a linear relation's count read at. */
-    #sequence = -1;
+    #sequence: number;
+
+    /** Measure a relation of a node in a dataflow, before any count read. */
+    constructor(node: Node, context: Context, hasTreeIndex: boolean) {
+        super(node, context, hasTreeIndex);
+        this.#sequence = -1;
+    }
 
     /** Forget every group. */
     override forget(): void {
@@ -530,13 +590,13 @@ export class Relation extends Aggregation {
         this.#sequence = -1;
     }
 
-    /** Decide whether the subscriber is shown a group: one a selected row of the parent names. */
+    /** Decide whether the subscriber is shown a group a selected row of the parent references. */
     override isShown(group: Readonly<Record<string, Scalar>>): boolean {
         const node = this.node;
 
         return (
             node.link().parent.hasRows &&
-            (this.partitions.get(JSON.stringify(node.partitionOf(group)))?.holders ?? 0) > 0
+            (this.partitions.get(JSON.stringify(node.groupPartition(group)))?.holders ?? 0) > 0
         );
     }
 
@@ -553,7 +613,7 @@ export class Relation extends Aggregation {
         }
 
         // decide every related row a page at a time
-        await this.pages(run, (rows) => this.#measure(keyed(this.node, rows), run));
+        await this.pages(run, (rows) => this.#measure(this.node.keyed(rows), run));
         this.settleHydration();
     }
 
@@ -572,23 +632,23 @@ export class Relation extends Aggregation {
         const node = this.node;
         const link = node.link();
         const values = (await this.regroup(run))
-            .map((group) => node.partitionOf(group))
+            .map((group) => node.groupPartition(group))
             .filter((value) => value !== null)
-            .map((value) => node.parentValueOf(value));
+            .map((value) => node.parentValue(value));
         const parent = this.requireParent();
         const holders = await run.view.lookup(
             parent.node.table,
             values.map((value) => ({ [link.parentColumn]: value })),
         );
-        const dirty = run.workOf(parent).dirty;
+        const dirty = run.work(parent).dirty;
         for (const row of holders.flat()) {
-            dirty.set(parent.node.keyOf(row), row);
+            dirty.set(parent.node.keyName(row), row);
         }
     }
 
-    /** Send the groups selected rows newly name, and let go of the others. */
+    /** Send the groups selected rows newly reference, and let go of the others. */
     show(work: Work, run: Run): void {
-        // let go of the groups no selected row names
+        // let go of the groups no selected row references
         const node = this.node;
         for (const name of work.closed) {
             const partition = this.partitions.get(name);
@@ -598,7 +658,7 @@ export class Relation extends Aggregation {
             }
         }
 
-        // send the newly named groups
+        // send the newly referenced groups
         for (const [name, value] of work.opened) {
             if (this.partitions.has(name)) {
                 const group = node.groupFor(value);
@@ -626,7 +686,7 @@ export class Relation extends Aggregation {
                 this.count(
                     key,
                     named.map((value) =>
-                        contributionOf(node, resolved, node.partition(value), value),
+                        Aggregation.contribution(node, resolved, node.partition(value), value),
                     ),
                     run,
                 );
@@ -635,10 +695,16 @@ export class Relation extends Aggregation {
     }
 }
 
-/** The aggregate groups of a node as a copy's source measured them, with the copy's predictions. */
+/** A node's aggregate groups as a replica's source measured them, with its predictions. */
 export class Mirror extends Pipeline {
     /** The shown groups by name, with their measures and canonical text. */
-    readonly #shown = new Map<string, Group>();
+    readonly #shown: Map<string, Group>;
+
+    /** Mirror a node's groups in a dataflow, showing none yet. */
+    constructor(node: Node, context: Context, hasTreeIndex: boolean) {
+        super(node, context, hasTreeIndex);
+        this.#shown = new Map<string, Group>();
+    }
 
     /** The groups shown. */
     get size(): number {
@@ -669,11 +735,11 @@ export class Mirror extends Pipeline {
         const groups = new Map<string, Group>();
         const upstream = this.context.upstream;
         if (upstream === undefined) {
-            throw new TypeError(`mirror of ${node.name} reads no upstream`);
+            throw new TypeError(`mirror of ${node.name} has no upstream`);
         }
         for (const group of await upstream.groups(node)) {
             const partition =
-                node.path === undefined ? "" : JSON.stringify(node.partitionOf(group.group));
+                node.path === undefined ? "" : JSON.stringify(node.groupPartition(group.group));
             if (this.partitions.has(partition)) {
                 groups.set(canonicalize(group.group), group);
             }
@@ -690,7 +756,7 @@ export class Mirror extends Pipeline {
             const shown = this.#shown.get(name);
             if (shown === undefined || canonicalize(shown.values) !== canonicalize(group.values)) {
                 this.#shown.set(name, group);
-                this.context.sink.result(run, node, group.group, resultOf(group));
+                this.context.sink.result(run, node, group.group, Mirror.#result(group));
             }
         }
     }
@@ -702,6 +768,16 @@ export class Mirror extends Pipeline {
 
     /** Admit no rows. */
     protected admit(): void {}
+
+    /** Read a source's group as a result. */
+    static #result(group: Group): Result {
+        return {
+            rows: group.rows,
+            isEmpty: group.rows === 0,
+            values: () => group.values,
+            averages: () => group.averages,
+        };
+    }
 }
 
 /** What one row adds to an aggregate in one partition. */
@@ -714,46 +790,4 @@ interface Contribution {
     readonly name: string;
     /** The row with its computed values. */
     readonly row: Row;
-}
-
-/** Read a source's group as a result. */
-function resultOf(group: Group): Result {
-    return {
-        rows: group.rows,
-        isEmpty: group.rows === 0,
-        values: () => group.values,
-        averages: () => group.averages,
-    };
-}
-
-/** Whether two groups have the same values. */
-function sameGroup(
-    left: Readonly<Record<string, Scalar>>,
-    right: Readonly<Record<string, Scalar>>,
-): boolean {
-    return canonicalize(left) === canonicalize(right);
-}
-
-/** Write a group's result as text, empty once the group is empty. */
-function signatureOf(tally: Tally | undefined): string {
-    return tally === undefined || tally.isEmpty
-        ? ""
-        : JSON.stringify([tally.rows, tally.values(), tally.averages()]);
-}
-
-/** Build what a row adds to its group in one partition. */
-function contributionOf(
-    node: Node,
-    row: Row,
-    partition: string,
-    value: ColumnValue | undefined,
-): Contribution {
-    const group = node.groupOf(row, value);
-
-    return { partition, group, name: JSON.stringify(group), row };
-}
-
-/** Read the parent value a row of a root or key-joined node joins. */
-function joinedOf(node: Node, row: Row): ColumnValue | undefined {
-    return node.path?.kind === "key" ? row[node.path.column] : undefined;
 }

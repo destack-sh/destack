@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
 import { TABLE } from "@destack/db";
 import type { Page, RowChange } from "../query/page.ts";
 import { note } from "../test/fixture.ts";
-import { coalesce } from "./stream.ts";
+import { Stream } from "./stream.ts";
 
 /** The interval between published pages, in milliseconds. */
 const EVERY = 1000;
@@ -18,7 +18,7 @@ afterEach(() => {
 
 test("publish a page at once after a quiet interval, and merge the pages within it at its end", async () => {
     const source = pages();
-    const published = coalesce(source.pages, EVERY, [note], Clock.system);
+    const published = Stream.coalesce(source.pages, EVERY, [note], Clock.system);
 
     // publish the first page at once
     source.push(page(1, [change("update", "a")]));
@@ -52,7 +52,7 @@ test("publish a page at once after a quiet interval, and merge the pages within 
 
 test("publish the buffered page once the pages end", async () => {
     const source = pages();
-    const published = coalesce(source.pages, EVERY, [note], Clock.system);
+    const published = Stream.coalesce(source.pages, EVERY, [note], Clock.system);
 
     // publish the first page and buffer the second within the interval
     source.push(page(1, [change("insert", "a")]));
@@ -70,7 +70,7 @@ test("publish the buffered page once the pages end", async () => {
 
 test("stop the pages once the consumer stops, after the page read ahead", async () => {
     const source = pages();
-    const published = coalesce(source.pages, EVERY, [note], Clock.system);
+    const published = Stream.coalesce(source.pages, EVERY, [note], Clock.system);
 
     // publish the first page and stop while reading the second ahead
     source.push(page(1, [change("insert", "a")]));

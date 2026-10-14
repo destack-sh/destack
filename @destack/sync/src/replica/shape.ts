@@ -11,19 +11,21 @@ const PARAMETERS = schema.record(schema.string(), schema.json());
 /** A follower's subscription to a declared shape over a scope, from the position it reached. */
 export const Subscription = defineSchema(
     schema.object({
-        /** The copy's name, shared with a relaying source's own copy. */
+        /** The replica's name, shared with a relaying source's own replica. */
         name: schema.string().min(1),
-        /** The declared shape the copy follows. */
+        /** The declared shape the replica follows. */
         shape: schema.string().min(1),
-        /** The copied scope. */
+        /** The replicated scope. */
         scope: schema.string().min(1),
         /** The scope the follower serves, whose principal the source decides for. */
         below: schema.string().min(1),
+        /** The key of the principal the source decides the rows for on the follower's behalf. */
+        subject: schema.string().min(1).exactOptional(),
         /** The shape's parameters, which its declaration parses. */
         parameters: PARAMETERS,
-        /** The log position the copy reached, absent before its first snapshot. */
+        /** The log position the replica reached, absent before its first snapshot. */
         after: LogPosition.exactOptional(),
-        /** The parameters the copy reflects at its position, if they differ from the subscribed. */
+        /** The parameters the replica reflects at its position, if other than the subscribed. */
         previous: PARAMETERS.exactOptional(),
         /** How often merged pages arrive, absent for one page per change. */
         refresh: schema.object({ every: Duration.schema }).exactOptional(),
@@ -34,21 +36,23 @@ export const Subscription = defineSchema(
 /** A follower's subscription to a declared shape over one scope, from the position it reached. */
 export type Subscription = schema.Infer<typeof Subscription>;
 
-/** Where a copy resumes its subscription, and the origin it follows as. */
+/** Where a replica resumes its subscription, and the origin it follows as. */
 export type Resumption = Pick<Subscription, "after" | "previous" | "origin">;
 
-/** Who a shape's copy is for, which admits its followers and decides its rows. */
-export type ShapeAudience = "contained" | "reader" | "caller";
+/** Who a shape's replica is for, which admits its followers and decides its rows. */
+export const ShapeAudience = schema.enum(["contained", "reader", "caller"]);
+/** Who a shape's replica is for, which admits its followers and decides its rows. */
+export type ShapeAudience = schema.Infer<typeof ShapeAudience>;
 
-/** A shape a server serves and follows: the copy its parameters build and its audience. */
+/** A shape a server serves and follows: the replica its parameters build and its audience. */
 export interface Shape {
-    /** The shape's name, which requests name. */
+    /** The shape's name, as requests give it. */
     readonly name: string;
     /** Whose access decides the rows. */
     readonly audience: ShapeAudience;
-    /** Whether the copy must hold a complete snapshot before its follower serves. */
+    /** Whether the replica must have a complete snapshot before its follower serves. */
     readonly isReadinessGate: boolean;
-    /** Build the copy a subscription follows. */
+    /** Build the replica a subscription follows. */
     replica(subscription: Subscription): Replica;
 }
 
@@ -62,7 +66,7 @@ export interface ShapeOf<Parameters> extends Shape {
     ): Subscription;
 }
 
-/** Declare a shape: its name, parameter schema, audience and the copy they build. */
+/** Declare a shape: its name, parameter schema, audience and the replica they build. */
 export function defineShape<Parameters extends object>(definition: {
     /** The shape's name. */
     readonly name: string;
@@ -70,9 +74,9 @@ export function defineShape<Parameters extends object>(definition: {
     readonly parameters: schema.Schema<Parameters>;
     /** Whose access decides the rows. */
     readonly audience: ShapeAudience;
-    /** Whether the copy must hold a complete snapshot before its follower serves. */
+    /** Whether the replica must have a complete snapshot before its follower serves. */
     readonly isReadinessGate: boolean;
-    /** Build the copy of a scope for parsed parameters. */
+    /** Build the replica of a scope for parsed parameters. */
     readonly replica: (request: {
         readonly name: string;
         readonly scope: string;
@@ -97,7 +101,7 @@ export function defineShape<Parameters extends object>(definition: {
     };
 }
 
-/** Serves a copy's subscriptions one step closer to its rows' home. */
+/** Serves a replica's subscriptions one step closer to its rows' home. */
 export interface Publisher {
     /** Stream a subscription's pages from its position, or a snapshot without one. */
     stream(subscription: Subscription, signal: AbortSignal): AsyncIterable<Page>;
@@ -111,7 +115,7 @@ export interface Uplink extends Publisher {
 
 /** A publisher that also receives the changes its follower's server sends to the rows' home. */
 export const Uplink = {
-    /** Copy and send through a client's replica procedures, as follower or a change's signer. */
+    /** Replicate and send through a client's replica procedures, as follower or change signer. */
     of(
         replica: (signer?: Subject) => {
             stream(

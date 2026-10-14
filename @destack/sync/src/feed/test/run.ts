@@ -3,18 +3,26 @@ import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Key, TABLE, type DatabaseConnection, type Dialect, type Table } from "@destack/db";
 import { Feed } from "../feed.ts";
-import { PAGE_ROWS } from "../../dataflow/selection.ts";
 import type { Query } from "../../query/query.ts";
 import { Replica, replicaResult } from "../../replica/replica.ts";
-import { comment, open, openCopy, page, project, tag, task, taskTag } from "../../test/fixture.ts";
-import { Follower } from "./copy.ts";
+import {
+    comment,
+    open,
+    openReplica,
+    page,
+    project,
+    tag,
+    task,
+    taskTag,
+} from "../../test/fixture.ts";
+import { Follower } from "./replica.ts";
 import { evaluate, type Contents } from "./oracle.ts";
 import type { ConditionAudience } from "./audience.ts";
 import { AUDIENCE } from "./query.ts";
 import { Random } from "./random.ts";
 import { Workload } from "./workload.ts";
 
-/** The tables the workload writes and subscribers copy. */
+/** The tables the workload writes and subscribers replicate. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
 
 /** The writes of each burst. */
@@ -42,6 +50,8 @@ export interface Run {
     readonly isReplicated?: boolean;
     /** The tasks and comments inserted before following. */
     readonly seedRows?: number;
+    /** The most rows one page reads, a few dozen to cross pages with few rows. */
+    readonly pageSize?: number;
     /** The deciding audience. */
     readonly audience?: ConditionAudience;
 }
@@ -84,15 +94,18 @@ export function seededRuns(
 async function matchExactly(run: Run, dialect: Dialect): Promise<void> {
     // open the source and seed its rows
     const source = await open(dialect);
-    const feed = new Feed(source, TABLES, { clock: Clock.system });
+    const feed = new Feed(source, TABLES, {
+        clock: Clock.system,
+        ...(run.pageSize === undefined ? {} : { pageSize: run.pageSize }),
+    });
     const workload = new Workload(new Random(run.seed));
     if (run.seedRows !== undefined) {
         await workload.seed(source, run.seedRows);
     }
 
     // follow the queries
-    const client = run.isReplicated === true ? await openCopy(dialect) : undefined;
-    const replica = new Replica({ name: "copy", scope: "inbox", tables: TABLES });
+    const client = run.isReplicated === true ? await openReplica(dialect) : undefined;
+    const replica = new Replica({ name: "replica", scope: "inbox", tables: TABLES });
     const audience = run.audience ?? AUDIENCE;
     const follower = new Follower(feed, run.queries, TABLES, {
         audience,
@@ -111,12 +124,12 @@ async function matchExactly(run: Run, dialect: Dialect): Promise<void> {
 
         // seed more than a page of rows
         if (run.seedRows !== undefined) {
-            expect(follower.copy.rows.size).toBeGreaterThan(PAGE_ROWS);
+            expect(follower.replica.rows.size).toBeGreaterThan(feed.pageSize);
         }
 
         // match exactly the oracle's selection
         const expected = sorted(await evaluate(source, queries, audience));
-        expect([burst, ...sorted(follower.copy)]).toEqual([burst, ...expected]);
+        expect([burst, ...sorted(follower.replica)]).toEqual([burst, ...expected]);
         if (client !== undefined) {
             expect([burst, ...sorted(await replicated(client))]).toEqual([burst, ...expected]);
         }
@@ -146,7 +159,7 @@ function sorted(contents: Contents): [Record<string, unknown>, Record<string, un
 
 /** Read what a replica database has. */
 async function replicated(database: DatabaseConnection): Promise<Contents> {
-    // read every copied row
+    // read every replicated row
     const rows = new Map<string, Record<string, unknown>>();
     for (const table of TABLES) {
         for (const row of await database.select().from(table)) {
@@ -154,7 +167,7 @@ async function replicated(database: DatabaseConnection): Promise<Contents> {
         }
     }
 
-    // read every copied group
+    // read every replicated group
     const results = new Map(
         (await database.select().from(replicaResult)).map((row) => [
             JSON.stringify(row.query) + row.group,

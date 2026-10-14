@@ -142,7 +142,7 @@ export const PATHS: Readonly<Record<string, Query>> = {
     },
 };
 
-/** Queries of limited tree includes whose members hold chains. */
+/** Queries of limited tree includes with member chains. */
 export const CHAINS: Readonly<Record<string, Query>> = {
     roots: {
         table: page,

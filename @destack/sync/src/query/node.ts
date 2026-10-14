@@ -77,17 +77,17 @@ export class Node {
     /** What the node's rows are to its parent: included rows, join rows or relation witnesses. */
     readonly kind: "include" | "join" | "relation";
     /** The relations the condition and computed values follow, by name and condition. */
-    readonly #relations = new Map<string, Node>();
+    readonly #relations: Map<string, Node>;
     /** The relations by name and condition object, forgetting conditions no longer read. */
-    readonly #found = new Map<string, WeakMap<Condition, Node>>();
+    readonly #found: Map<string, WeakMap<Condition, Node>>;
     /** The relations computed values look up. */
     readonly #lookups: ReadonlySet<string>;
     /** The relations and conditions computed values measure. */
     readonly #rollups: ReadonlySet<string>;
     /** The columns the parent node reads through this relation node. */
-    readonly #looks = new Set<string>();
+    readonly #looks: Set<string>;
 
-    /** The schema's relations, which the node's includes, conditions and computed values name. */
+    /** The schema's relations, which includes, conditions and computed values reference. */
     readonly schema: Relations;
 
     /** The node's aggregates. */
@@ -111,13 +111,18 @@ export class Node {
         parent?: Node,
         kind: Node["kind"] = "include",
     ) {
+        // start with empty state
+        this.#relations = new Map<string, Node>();
+        this.#found = new Map<string, WeakMap<Condition, Node>>();
+        this.#looks = new Set<string>();
+
         // name relations by the root's schema and read every scope for rows joined by scope
         const table = query.table;
         this.schema =
             parent?.schema ??
             ("relations" in query ? query.relations : undefined) ??
             new Relations();
-        const scopes = scopesOf(query, within);
+        const scopes = Node.#scopes(query, within);
         this.name = name;
         this.kind = kind;
         this.table = table;
@@ -138,7 +143,7 @@ export class Node {
         // order and limit the rows
         this.orderBy = query.orderBy ?? {};
         this.order = Order.complete(Order.of(this.orderBy), table);
-        this.limit = limitOf(query, name);
+        this.limit = Node.#limit(query, name);
         this.isArranged = query.limit !== undefined && this.#isOrderedByRelations();
 
         // place the node below its parent along its path, selecting rows unless measuring them
@@ -159,7 +164,7 @@ export class Node {
             rollups: this.#rollups,
         } = this.#measured(query));
 
-        // require key lookups, logged comparable columns, and aggregates alone
+        // require key lookups, logged comparable columns, and only aggregates
         this.#requireLookups();
         this.#requireColumns();
         this.#requireAggregate(query);
@@ -184,7 +189,7 @@ export class Node {
         return {
             children: [...includes, ...relations].flatMap((child) => [
                 child,
-                ...this.#joinOf(child),
+                ...this.#joinNode(child),
             ]),
             lookups: new Set(lookups.map(({ via }) => via)),
             rollups: new Set(rollups.map(({ via, where }) => JSON.stringify([via, where]))),
@@ -198,7 +203,7 @@ export class Node {
             this.extras,
             this.#selection,
             query.orderBy ?? {},
-            "on" in query ? describePath(query.on) : null,
+            "on" in query ? Node.#describePath(query.on) : null,
             this.#followed(condition),
         ]);
     }
@@ -215,7 +220,7 @@ export class Node {
         lookups: ReturnType<typeof Expression.lookups>,
         rollups: ReturnType<typeof Expression.rollups>,
     ): Node[] {
-        const uses = measuredRelations(this.where, lookups, rollups);
+        const uses = Node.#measuredRelations(this.where, lookups, rollups);
 
         return [...uses.entries()].map(([key, use]) => {
             const node = this.#measure(use, rollups);
@@ -272,7 +277,7 @@ export class Node {
         // join the relation's condition and the selection's
         const relation = this.schema.get(this.table, child);
         const options = selected === true ? {} : selected;
-        const where = joinedCondition(relation.where, options.where);
+        const where = Node.#joinedCondition(relation.where, options.where);
 
         return new Node(
             `${this.name}.${child}`,
@@ -295,21 +300,21 @@ export class Node {
         if (relation.on.kind !== "key" && relation.on.kind !== "junction") {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `relation ${via} of ${this.name} follows a key or junction path`,
+                `relation ${via} of ${this.name} must follow a key or junction path`,
             );
         } else if (relation.table === this.table && rollups.some((rollup) => rollup.via === via)) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `rollup ${via} of ${this.name} measures another table`,
+                `rollup ${via} of ${this.name} must aggregate another table`,
             );
         }
 
         return new Node(
-            relationName(this.name, via, where),
+            Node.#relationName(this.name, via, where),
             {
                 table: relation.table,
                 on: relation.on,
-                where: joinedCondition(relation.where, where) ?? where,
+                where: Node.#joinedCondition(relation.where, where) ?? where,
                 aggregate: { values },
             },
             this.scopes,
@@ -331,14 +336,14 @@ export class Node {
             if (!isKeyLookup) {
                 throw new DatabaseError(
                     "INVALID_QUERY",
-                    `lookup ${via} of ${this.name} follows a key path onto another table's key`,
+                    `lookup ${via} of ${this.name} must follow a key path onto another table's key`,
                 );
             }
         }
     }
 
     /** Build the join row node of a junction include, none for any other child. */
-    #joinOf(child: Node): Node[] {
+    #joinNode(child: Node): Node[] {
         if (child.path?.kind !== "junction" || child.kind !== "include") {
             return [];
         }
@@ -378,9 +383,9 @@ export class Node {
         const names = [
             ...Predicate.fields(this.where),
             ...this.order.map((key) => key.column),
-            ...(this.path === undefined ? [] : columnsOf(this.path, "included")),
+            ...(this.path === undefined ? [] : Node.#pathColumns(this.path, "included")),
             ...this.children.flatMap((child) =>
-                child.path === undefined ? [] : columnsOf(child.path, "parent"),
+                child.path === undefined ? [] : Node.#pathColumns(child.path, "parent"),
             ),
             ...this.grouping,
             ...Object.values(this.aggregate?.values ?? {}).flatMap((measure) =>
@@ -389,11 +394,11 @@ export class Node {
             ...this.#looks,
         ];
 
-        return [...new Set(names.flatMap((name) => this.columnsOf(name)))];
+        return [...new Set(names.flatMap((name) => this.columnsRead(name)))];
     }
 
     /** List the logged columns a column or computed value reads. */
-    columnsOf(name: string): string[] {
+    columnsRead(name: string): string[] {
         const expression = this.extras[name];
 
         return expression === undefined ? [name] : [...Expression.columns(expression)];
@@ -404,8 +409,13 @@ export class Node {
         return [this, ...this.children.flatMap((child) => child.nodes())];
     }
 
+    /** Key some rows by their names. */
+    keyed(rows: readonly Row[]): Map<string, Row> {
+        return new Map(rows.map((row) => [this.keyName(row), row]));
+    }
+
     /** Name a row by its table and its key's values. */
-    keyOf(row: Row): string {
+    keyName(row: Row): string {
         return Key.name(this.table, row);
     }
 
@@ -424,7 +434,7 @@ export class Node {
         }
     }
 
-    /** The group field naming the selected row of a group, absent for a root. */
+    /** The group field with the selected row of a group, absent for a root. */
     get partitionName(): string | undefined {
         switch (this.path?.kind) {
             case undefined:
@@ -447,8 +457,8 @@ export class Node {
         return { [link.partitionName]: link.parent.scalar(link.parentColumn, value) };
     }
 
-    /** Read the value naming a selected parent row's partition. */
-    valueOf(parent: Row): ColumnValue | undefined {
+    /** Read the partition value of a selected parent row. */
+    partitionValue(parent: Row): ColumnValue | undefined {
         return parent[this.link().parentColumn];
     }
 
@@ -475,7 +485,7 @@ export class Node {
     }
 
     /** Read the values a row sorts by, refusing a row without one. */
-    orderOf(row: Row): Row {
+    sortValues(row: Row): Row {
         const values: Record<string, ColumnValue> = {};
         for (const { column } of this.order) {
             const value = row[column];
@@ -489,10 +499,10 @@ export class Node {
     }
 
     /** Read the logged columns a row's place in the order is decided by, as a cursor keeps them. */
-    positionOf(row: Row): Row {
+    position(row: Row): Row {
         const values: Record<string, ColumnValue> = {};
         for (const { column } of this.order) {
-            for (const name of this.columnsOf(column)) {
+            for (const name of this.columnsRead(column)) {
                 const value = row[name];
                 if (value === undefined) {
                     throw new TypeError(`${this.name} row has no ${name} to place it by`);
@@ -550,7 +560,7 @@ export class Node {
         // find it once
         const found = this.#relations.get(JSON.stringify([via, where]));
         if (found === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `${this.name} follows no relation ${via}`);
+            throw new DatabaseError("INVALID_QUERY", `${this.name} has no relation ${via}`);
         }
         const byCondition = this.#found.get(via) ?? new WeakMap<Condition, Node>();
         this.#found.set(via, byCondition.set(where, found));
@@ -599,7 +609,7 @@ export class Node {
         if (!Object.hasOwn(this.columns, column)) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `relation ${this.name} reads no logged column ${column} of ${this.table[TABLE].name}`,
+                `relation ${this.name} has no logged column ${column} of ${this.table[TABLE].name}`,
             );
         }
         this.#looks.add(column);
@@ -629,7 +639,9 @@ export class Node {
         }
 
         // refuse partitions of other paths
-        throw new TypeError(`a ${this.path.kind} path selects its partitions through other rows`);
+        throw new TypeError(
+            `a ${this.path.kind} path cannot select its partitions through other rows`,
+        );
     }
 
     /** The group columns, the key-joined column first for an include. */
@@ -641,7 +653,7 @@ export class Node {
     }
 
     /** Read a row's group within a partition, in JSON form. */
-    groupOf(row: Row, value?: ColumnValue): Record<string, Scalar> {
+    rowGroup(row: Row, value?: ColumnValue): Record<string, Scalar> {
         // group by the declared columns and by the partition below a root
         const grouped = (this.aggregate?.groupBy ?? []).map((name): [string, Scalar] => [
             name,
@@ -669,24 +681,24 @@ export class Node {
             ? value
             : this.column(name).definition.toJson(value);
         if ((typeof json === "object" && json !== null) || typeof json === "bigint") {
-            throw new TypeError(`${this.name}.${name} is no scalar to group or partition by`);
+            throw new TypeError(`${this.name}.${name} is not a scalar to group or partition by`);
         }
 
         return json === 0 ? 0 : json;
     }
 
-    /** Read the partition value a group names, in JSON form, failing for a root. */
-    partitionOf(group: Readonly<Record<string, Scalar>>): Scalar {
+    /** Read a group's partition value, in JSON form, failing for a root. */
+    groupPartition(group: Readonly<Record<string, Scalar>>): Scalar {
         const value = group[this.link().partitionName];
         if (value === undefined) {
-            throw new TypeError(`${this.name} group names no partition`);
+            throw new TypeError(`${this.name} group has no partition`);
         }
 
         return value;
     }
 
-    /** Read the parent value a partition's JSON form names, failing for a root. */
-    parentValueOf(json: Scalar): ColumnValue {
+    /** Read the parent value of a partition's JSON form, failing for a root. */
+    parentValue(json: Scalar): ColumnValue {
         const link = this.link();
 
         return link.parent.fromJson(link.parentColumn, json);
@@ -700,7 +712,7 @@ export class Node {
     }
 
     /** Read the kind of a column or computed value. */
-    kindOf(name: string): string {
+    columnKind(name: string): string {
         const expression = this.extras[name];
 
         return expression === undefined
@@ -721,7 +733,7 @@ export class Node {
     column(name: string): Column {
         const column = this.columns[name];
         if (column === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `${this.name} reads no column ${name}`);
+            throw new DatabaseError("INVALID_QUERY", `${this.name} does not read column ${name}`);
         }
 
         return column;
@@ -778,7 +790,7 @@ export class Node {
         if (key === undefined || this.key.length !== 1) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `${this.name} follows a tree by one key column`,
+                `${this.name} must follow a tree by one key column`,
             );
         }
 
@@ -788,7 +800,7 @@ export class Node {
     /** Read the node's aggregate, failing for a node that selects rows. */
     #aggregate(): Aggregate {
         if (this.aggregate === undefined) {
-            throw new TypeError(`${this.name} measures no rows`);
+            throw new TypeError(`${this.name} aggregates no rows`);
         }
 
         return this.aggregate;
@@ -835,7 +847,7 @@ export class Node {
         else if (parent.table !== this.table || this.key.length !== 1) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `a ${path.kind} path follows one table keyed by one column: ${this.name}`,
+                `a ${path.kind} path must follow one table keyed by one column: ${this.name}`,
             );
         } else if (
             this.table[TABLE].tree?.definition.parent !== path.column ||
@@ -843,7 +855,7 @@ export class Node {
         ) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `a ${path.kind} path follows the tree index of its table's parent column: ${this.name}`,
+                `a ${path.kind} path must follow the tree index of its table's parent column: ${this.name}`,
             );
         } else {
             this.#requireLogged(new Set([path.column]));
@@ -868,7 +880,7 @@ export class Node {
             return [
                 via,
                 relation.table[TABLE].sqlName,
-                describePath(relation.on),
+                Node.#describePath(relation.on),
                 relation.where ?? null,
             ];
         });
@@ -885,7 +897,7 @@ export class Node {
         if (query.with !== undefined || query.orderBy !== undefined || query.limit !== undefined) {
             throw new DatabaseError(
                 "INVALID_QUERY",
-                `aggregate query holds no rows to order or include: ${this.name}`,
+                `aggregate query has no rows to order or include: ${this.name}`,
             );
         }
 
@@ -904,68 +916,131 @@ export class Node {
                     this.namespace(),
                 );
                 this.#requireLogged(new Set([measure.column]));
-                const kind = this.kindOf(measure.column);
+                const kind = this.columnKind(measure.column);
                 if (
                     (measure.function === "sum" || measure.function === "avg") &&
                     !SUMMED_KINDS.has(kind)
                 ) {
                     throw new DatabaseError(
                         "INVALID_QUERY",
-                        `measure ${name} adds up a non-numeric column`,
+                        `measure ${name} sums a non-numeric column`,
                     );
                 }
             }
         }
     }
+
+    /** Build the name of a measure of a relation's rows. */
+    static measureName(measure: string, column: string): string {
+        return `${measure}(${column})`;
+    }
+
+    /** Read the scopes of a node's rows. */
+    static #scopes(query: Query | Include, within: Query["scopes"]): Query["scopes"] {
+        return "on" in query && query.on.kind === "key" && query.on.column === "scope"
+            ? "every"
+            : within;
+    }
+
+    /** Read a query's positive integer limit. */
+    static #limit(query: Query | Include, name: string): number | undefined {
+        if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 1)) {
+            throw new DatabaseError(
+                "INVALID_QUERY",
+                `query limit must be a positive integer: ${name}`,
+            );
+        }
+
+        return query.limit;
+    }
+
+    /** Name the aggregate of a relation under a condition. */
+    static #relationName(name: string, via: string, where: Condition): string {
+        return `${name}?${via}${canonicalize(where)}`;
+    }
+
+    /** Describe a path in JSON. */
+    static #describePath(path: Path): unknown {
+        return path.kind === "junction" ? { ...path, table: path.table[TABLE].sqlName } : path;
+    }
+
+    /** List the columns a path reads on one side. */
+    static #pathColumns(path: Path, side: "included" | "parent"): string[] {
+        const isIncluded = side === "included";
+        switch (path.kind) {
+            case "key":
+                return [isIncluded ? path.column : path.parent];
+            case "junction":
+                return [isIncluded ? path.to.key : path.from.key];
+            case "descendants":
+            case "ancestors":
+                return isIncluded ? [path.column] : [];
+        }
+    }
+
+    /** Collect each relation and condition the node's condition, lookups and rollups measure. */
+    static #measuredRelations(
+        where: Predicate,
+        lookups: readonly { readonly via: string; readonly column: string }[],
+        rollups: readonly {
+            readonly function: Measure["function"];
+            readonly via: string;
+            readonly column?: string | undefined;
+            readonly where: Condition;
+        }[],
+    ): Map<string, RelationMeasure> {
+        // count each relation's rows and add what a use reads
+        const uses = new Map<string, RelationMeasure>();
+        const use = (via: string, related: Condition, measured?: [string, Measure]) => {
+            // keep one entry per relation and condition
+            const key = JSON.stringify([via, related]);
+            const entry = uses.get(key) ?? {
+                via,
+                where: related,
+                values: { count: { function: "count" } },
+            };
+            uses.set(key, entry);
+            if (measured !== undefined) {
+                entry.values[measured[0]] = measured[1];
+            }
+        };
+
+        // measure the condition's relations, the lookups' least values and the rollups' measures
+        for (const { via, where: related } of Predicate.relations(where)) {
+            use(via, related);
+        }
+        for (const { via, column } of lookups) {
+            use(via, {}, [Node.measureName("min", column), { function: "min", column }]);
+        }
+        for (const { function: measure, via, column, where: related } of rollups) {
+            if (measure === "count" || column === undefined) {
+                use(via, related);
+            } else {
+                use(via, related, [
+                    Node.measureName(measure, column),
+                    { function: measure, column },
+                ]);
+            }
+        }
+
+        return uses;
+    }
+
+    /** Join a relation's condition and a selection's, absent when neither has one. */
+    static #joinedCondition(
+        relation: Condition | undefined,
+        selected: Condition | undefined,
+    ): Condition | undefined {
+        if (relation === undefined || selected === undefined) {
+            return relation ?? selected;
+        }
+
+        return { AND: [relation, selected] };
+    }
 }
 
 /** The SQL admitting the visible rows of a table. */
 export type Visibility = (table: Table) => SQL | undefined;
-
-/** Name a measure of a relation's rows. */
-export function measureName(measure: string, column: string): string {
-    return `${measure}(${column})`;
-}
-
-/** Read the scopes of a node's rows. */
-function scopesOf(query: Query | Include, within: Query["scopes"]): Query["scopes"] {
-    return "on" in query && query.on.kind === "key" && query.on.column === "scope"
-        ? "every"
-        : within;
-}
-
-/** Read a query's positive integer limit. */
-function limitOf(query: Query | Include, name: string): number | undefined {
-    if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 1)) {
-        throw new DatabaseError("INVALID_QUERY", `query limit must be a positive integer: ${name}`);
-    }
-
-    return query.limit;
-}
-
-/** Name the aggregate of a relation under a condition. */
-function relationName(name: string, via: string, where: Condition): string {
-    return `${name}?${via}${canonicalize(where)}`;
-}
-
-/** Describe a path in JSON. */
-function describePath(path: Path): unknown {
-    return path.kind === "junction" ? { ...path, table: path.table[TABLE].sqlName } : path;
-}
-
-/** List the columns a path reads on one side. */
-function columnsOf(path: Path, side: "included" | "parent"): string[] {
-    const isIncluded = side === "included";
-    switch (path.kind) {
-        case "key":
-            return [isIncluded ? path.column : path.parent];
-        case "junction":
-            return [isIncluded ? path.to.key : path.from.key];
-        case "descendants":
-        case "ancestors":
-            return isIncluded ? [path.column] : [];
-    }
-}
 
 /** A relation and condition a node measures, with the measures its uses read. */
 interface RelationMeasure {
@@ -975,61 +1050,4 @@ interface RelationMeasure {
     readonly where: Condition;
     /** The measures, by name, a count among them. */
     readonly values: Record<string, Measure>;
-}
-
-/** Collect each relation and condition a node's condition, lookups and rollups measure, once. */
-function measuredRelations(
-    where: Predicate,
-    lookups: readonly { readonly via: string; readonly column: string }[],
-    rollups: readonly {
-        readonly function: Measure["function"];
-        readonly via: string;
-        readonly column?: string | undefined;
-        readonly where: Condition;
-    }[],
-): Map<string, RelationMeasure> {
-    // count each relation's rows and add what a use reads
-    const uses = new Map<string, RelationMeasure>();
-    const use = (via: string, related: Condition, measured?: [string, Measure]) => {
-        // keep one entry per relation and condition
-        const key = JSON.stringify([via, related]);
-        const entry = uses.get(key) ?? {
-            via,
-            where: related,
-            values: { count: { function: "count" } },
-        };
-        uses.set(key, entry);
-        if (measured !== undefined) {
-            entry.values[measured[0]] = measured[1];
-        }
-    };
-
-    // measure the condition's relations, the lookups' least values and the rollups' measures
-    for (const { via, where: related } of Predicate.relations(where)) {
-        use(via, related);
-    }
-    for (const { via, column } of lookups) {
-        use(via, {}, [measureName("min", column), { function: "min", column }]);
-    }
-    for (const { function: measure, via, column, where: related } of rollups) {
-        if (measure === "count" || column === undefined) {
-            use(via, related);
-        } else {
-            use(via, related, [measureName(measure, column), { function: measure, column }]);
-        }
-    }
-
-    return uses;
-}
-
-/** Join a relation's condition and a selection's, absent when neither has one. */
-function joinedCondition(
-    relation: Condition | undefined,
-    selected: Condition | undefined,
-): Condition | undefined {
-    if (relation === undefined || selected === undefined) {
-        return relation ?? selected;
-    }
-
-    return { AND: [relation, selected] };
 }

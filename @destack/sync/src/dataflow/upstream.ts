@@ -8,41 +8,54 @@ import { Input } from "./input.ts";
 import type { Run } from "./run.ts";
 import type { Average } from "./tally.ts";
 
-/** What a copy knows of its source: the source's groups with the copy's predictions. */
+/** What a replica knows of its source: the source's groups with the replica's predictions. */
 export interface Upstream {
     /** The tables and scopes whose changes move the groups. */
     readonly watches: readonly Watch[];
     /** Read every group of an aggregate or relation node with rows. */
     groups(node: Node): Promise<Group[]>;
-    /** Name the group a change of a watched table moves. */
-    groupOf(
+    /** Read the group a change of a watched table moves. */
+    group(
         change: Change,
     ): { readonly query: string; readonly group: Readonly<Record<string, Scalar>> } | undefined;
     /** Report whether the source measured an aggregate node. */
     readonly isMeasured?: (node: Node) => boolean;
 }
 
-/** The arrangement of a copy's relations as its source measured them, with its predictions. */
+/** The arrangement of a replica's relations as its source measured them, with its predictions. */
 export class Trace implements Arrangement {
-    /** What the copy knows of its source. */
+    /** What the replica knows of its source. */
     readonly #upstream: Upstream;
     /** Each relation's measures by group name, read once per run. */
-    readonly #read = new WeakMap<
+    readonly #read: WeakMap<
         Run,
         Map<Node, Promise<ReadonlyMap<string, Readonly<Record<string, Scalar>>>>>
-    >();
+    >;
     /** The same measures once read. */
-    readonly #loaded = new WeakMap<
+    readonly #loaded: WeakMap<
         Run,
         Map<Node, ReadonlyMap<string, Readonly<Record<string, Scalar>>>>
-    >();
+    >;
     /** The measures last seen for each parent value, by relation and partition. */
-    readonly #seen = new Map<Node, Map<string, string>>();
+    readonly #seen: Map<Node, Map<string, string>>;
     /** Each relation's input. */
-    readonly #inputs = new Map<Node, Input>();
+    readonly #inputs: Map<Node, Input>;
 
-    /** Create the trace of a copy. */
+    /** Create the trace of a replica. */
     constructor(upstream: Upstream) {
+        // start with empty state
+        this.#read = new WeakMap<
+            Run,
+            Map<Node, Promise<ReadonlyMap<string, Readonly<Record<string, Scalar>>>>>
+        >();
+        this.#loaded = new WeakMap<
+            Run,
+            Map<Node, ReadonlyMap<string, Readonly<Record<string, Scalar>>>>
+        >();
+        this.#seen = new Map<Node, Map<string, string>>();
+        this.#inputs = new Map<Node, Input>();
+
+        // keep what the replica knows of its source
         this.#upstream = upstream;
     }
 
@@ -56,7 +69,7 @@ export class Trace implements Arrangement {
         await Promise.all(relations.map((relation) => this.#groups(relation, run)));
     }
 
-    /** Look up a relation's measures of the rows naming a parent value. */
+    /** Look up a relation's measures of the rows referencing a parent value. */
     measured(
         relation: Node,
         value: ColumnValue | undefined,
@@ -92,7 +105,7 @@ export class Trace implements Arrangement {
     /** Collect the parent values the run's changes touch for a relation. */
     async #changedValues(node: Node, run: Run): Promise<Map<string, ColumnValue>> {
         // collect the values the run's rows locate
-        const input = this.#inputOf(node);
+        const input = this.#input(node);
         const path = node.path;
         if (path === undefined) {
             throw new TypeError(`relation ${node.name} has no path`);
@@ -122,7 +135,7 @@ export class Trace implements Arrangement {
                     name(image[path.from.column]);
                 }
             }
-            const moved = this.#upstream.groupOf(change);
+            const moved = this.#upstream.group(change);
             const value = moved?.query === node.name ? moved.group[link.partitionName] : undefined;
             if (value !== null && value !== undefined) {
                 name(link.parent.fromJson(link.parentColumn, value));
@@ -133,7 +146,7 @@ export class Trace implements Arrangement {
     }
 
     /** Read a relation's input and start it on first use. */
-    #inputOf(node: Node): Input {
+    #input(node: Node): Input {
         let input = this.#inputs.get(node);
         if (input === undefined) {
             input = Input.of(node, false);
@@ -143,7 +156,7 @@ export class Trace implements Arrangement {
         return input;
     }
 
-    /** Decide again the parent rows holding the values whose measures changed since last seen. */
+    /** Decide again the parent rows with values whose measures changed since last seen. */
     async #redecideHolders(
         node: Node,
         parent: Pipeline,
@@ -169,9 +182,9 @@ export class Trace implements Arrangement {
             parent.node.table,
             moved.map((value) => ({ [column]: value })),
         );
-        const dirty = run.workOf(parent).dirty;
+        const dirty = run.work(parent).dirty;
         for (const row of holders.flat()) {
-            dirty.set(parent.node.keyOf(row), row);
+            dirty.set(parent.node.keyName(row), row);
         }
     }
 
@@ -217,7 +230,7 @@ export class Trace implements Arrangement {
     }
 }
 
-/** One aggregate group as a copy's source measured it. */
+/** One aggregate group as a replica's source measured it. */
 export interface Group {
     /** The group's values in JSON form. */
     readonly group: Record<string, Scalar>;

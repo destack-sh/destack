@@ -3,6 +3,14 @@ import { defineSchema, schema } from "@destack/schema";
 /** The lowercase kebab case of declared type names. */
 const TYPE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
+/** The parts of an object's key in order: package, type, scope and identifier. */
+const OBJECT_KEY = schema.tuple([
+    schema.string(),
+    schema.string(),
+    schema.string(),
+    schema.string(),
+]);
+
 /** The schema of an object reference. */
 const objectReference = defineSchema(
     schema.object({
@@ -24,6 +32,13 @@ export const ObjectReference = Object.assign(objectReference, {
     /** Key an object without collisions. */
     key(reference: ObjectReference): string {
         return JSON.stringify([reference.packageId, reference.type, reference.scope, reference.id]);
+    },
+
+    /** Read the object a key refers to, refusing a malformed key. */
+    read(key: string): ObjectReference {
+        const [packageId, type, scope, id] = OBJECT_KEY.parse(JSON.parse(key));
+
+        return objectReference.parse({ packageId, type, scope, id });
     },
 
     /** Read the parent a nested row refers to, in the row's scope. */

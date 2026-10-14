@@ -16,23 +16,23 @@ export class Run {
     /** The committed changes the step applies, in commit order. */
     readonly changes: readonly Change[];
     /** The page the run fills. */
-    readonly patch = new Patch();
+    readonly patch: Patch;
     /** The rows the audience decides again, by table and key. */
-    readonly affected = new Map<Table, Map<string, Row>>();
+    readonly affected: Map<Table, Map<string, Row>>;
     /** The keys of rows whose readable columns or access the run changed. */
-    readonly changed = new Set<string>();
+    readonly changed: Set<string>;
     /** What each pipeline has to do. */
-    readonly work = new Map<Pipeline, Work>();
+    readonly pipelines: Map<Pipeline, Work>;
     /** The rows whose presence the run touched, by key. */
-    readonly touched = new Map<string, Touch>();
+    readonly touched: Map<string, Touch>;
     /** The rows the run's pipelines decided. */
-    decided = 0;
+    decided: number;
     /** The pending visibility decision of each row. */
-    readonly #deciding = new WeakMap<Row, Promise<void>>();
+    readonly #deciding: WeakMap<Row, Promise<void>>;
     /** Each row's decided visibility. */
-    readonly #visible = new WeakMap<Row, boolean>();
+    readonly #visible: WeakMap<Row, boolean>;
     /** The rows each relation-reading filter resolved in this run. */
-    readonly #resolved = new Map<Filter, WeakMap<Row, Row>>();
+    readonly #resolved: Map<Filter, WeakMap<Row, Row>>;
 
     /** Start a run as of a view. */
     constructor(
@@ -41,6 +41,19 @@ export class Run {
         walk: Walk | undefined,
         changes: readonly Change[] = [],
     ) {
+        // start with empty state
+        this.patch = new Patch();
+        this.affected = new Map<Table, Map<string, Row>>();
+        this.changed = new Set<string>();
+        this.pipelines = new Map<Pipeline, Work>();
+        this.touched = new Map<string, Touch>();
+        this.decided = 0;
+
+        // start the rest of the state empty
+        this.#deciding = new WeakMap<Row, Promise<void>>();
+        this.#visible = new WeakMap<Row, boolean>();
+        this.#resolved = new Map<Filter, WeakMap<Row, Row>>();
+
         // keep the view, the audience and the changes
         this.view = view;
         this.#audience = audience;
@@ -71,7 +84,7 @@ export class Run {
                 rows.map((row) => {
                     const decision = this.#deciding.get(row);
                     if (decision === undefined) {
-                        throw new TypeError("a row waits for a decision never asked");
+                        throw new TypeError("a row waits for a decision nobody asked for");
                     }
 
                     return decision;
@@ -98,11 +111,11 @@ export class Run {
     }
 
     /** Read a pipeline's work in this run. */
-    workOf(pipeline: Pipeline): Work {
-        let work = this.work.get(pipeline);
+    work(pipeline: Pipeline): Work {
+        let work = this.pipelines.get(pipeline);
         if (work === undefined) {
             work = { opened: new Map(), closed: new Set(), dirty: new Map() };
-            this.work.set(pipeline, work);
+            this.pipelines.set(pipeline, work);
         }
 
         return work;
@@ -125,9 +138,9 @@ export type Walk = "snapshot" | "rebuild" | "collect";
 
 /** What a run has one pipeline do. */
 export interface Work {
-    /** The newly named partitions, with the value naming each. */
+    /** The new partitions, with the value of each. */
     readonly opened: Map<string, ColumnValue>;
-    /** The partitions no selected parent row names. */
+    /** The partitions no selected parent row references. */
     readonly closed: Set<string>;
     /** The rows to decide again, by key, null once gone. */
     readonly dirty: Map<string, Row | null>;

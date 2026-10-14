@@ -14,7 +14,7 @@ import { Replica } from "../replica/replica.ts";
 import {
     comment,
     open,
-    openCopy,
+    openReplica,
     page,
     project,
     relations,
@@ -22,7 +22,7 @@ import {
     task,
     taskTag,
 } from "../test/fixture.ts";
-import { Follower } from "./test/copy.ts";
+import { Follower } from "./test/replica.ts";
 import { ConditionAudience } from "./test/audience.ts";
 import {
     AUDIENCE,
@@ -43,7 +43,7 @@ const WARMUP_WRITES = 20;
 /** The queries of the snapshot budget. */
 const SNAPSHOT_QUERIES = { ...FILTERS, ...WINDOWS, ...TREE, ...TALLIES, ...PATHS };
 
-/** The tables the workload writes and subscribers copy. */
+/** The tables the workload writes and subscribers replicate. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
 
 /** The most database operations a snapshot of every query set may cost. */
@@ -98,7 +98,7 @@ const RANKED_OPERATIONS = 12;
 const FLIP_OPERATIONS = 60;
 
 test.for(TEST_DIALECTS)(
-    "snapshot and copy thousands of rows within an operation budget on %s",
+    "snapshot and replicate thousands of rows within an operation budget on %s",
     { timeout: 30_000 },
     async (dialect, { annotate }) => {
         const source = await open(dialect);
@@ -117,16 +117,16 @@ test.for(TEST_DIALECTS)(
             return {
                 milliseconds: cpuTime() - start,
                 operations: source.driver.state.operations - operations,
-                rows: follower.copy.rows.size,
+                rows: follower.replica.rows.size,
             };
         };
         await snapshotOnce();
         const { milliseconds: snapshot, operations, rows } = await snapshotOnce();
 
         // snapshot them through a replica
-        const copyOnce = async () => {
-            const client = await openCopy(dialect);
-            const replica = new Replica({ name: "copy", scope: "inbox", tables: TABLES });
+        const replicateOnce = async () => {
+            const client = await openReplica(dialect);
+            const replica = new Replica({ name: "replica", scope: "inbox", tables: TABLES });
             const start = cpuTime();
             const applied = client.driver.state.operations;
             const replicated = new Follower(feed, SNAPSHOT_QUERIES, TABLES, {
@@ -142,15 +142,15 @@ test.for(TEST_DIALECTS)(
                 operations: client.driver.state.operations - applied,
             };
         };
-        await copyOnce();
-        const copied = await copyOnce();
+        await replicateOnce();
+        const replicated = await replicateOnce();
 
         // stay within the budgets and report the time per row
         await report(annotate, "snapshot CPU µs per row", (snapshot * 1000) / rows);
-        await report(annotate, "replica CPU µs per row", (copied.milliseconds * 1000) / rows);
+        await report(annotate, "replica CPU µs per row", (replicated.milliseconds * 1000) / rows);
         expect(rows).toBeGreaterThan(2000);
         expect(operations, "operations per snapshot").toBeLessThan(SNAPSHOT_OPERATIONS);
-        expect(copied.operations, "operations per replicated snapshot").toBeLessThan(
+        expect(replicated.operations, "operations per replicated snapshot").toBeLessThan(
             REPLICA_OPERATIONS,
         );
     },
@@ -219,12 +219,12 @@ test.for(TEST_DIALECTS)(
         });
         follower.start();
         await follower.wait(await source.log.position());
-        const sent = follower.copy.pages.length;
+        const sent = follower.replica.pages.length;
         await follower.reconnect();
         await follower.wait(await source.log.position());
 
         // rebuild the windows without rows or a snapshot
-        const resumed = follower.copy.pages.slice(sent);
+        const resumed = follower.replica.pages.slice(sent);
         expect([
             resumed.some((resent) => resent.reset),
             resumed.flatMap((resent) => resent.changes),

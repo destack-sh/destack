@@ -30,10 +30,10 @@ export abstract class Input {
         }
     }
 
-    /** Read each partition's rows, aligned with the parent values naming them. */
+    /** Read each partition's rows, aligned with their parent values. */
     abstract members(values: readonly ColumnValue[], run: Run): Promise<Row[][]>;
 
-    /** Read the parent values naming each row's partitions. */
+    /** Read the parent values of each row's partitions. */
     abstract locate(rows: readonly Row[], run: Run): Promise<ColumnValue[][]>;
 
     /** Add the rows a changed row moves beyond itself to the rows to decide again. */
@@ -52,6 +52,32 @@ export abstract class Input {
             table,
             rows.filter((row) => Node.isScoped(row, this.node.scopes)),
         );
+    }
+
+    /** Read a row's value of a column, which the row's table declares. */
+    protected static value(row: Row, column: string): ColumnValue {
+        const value = row[column];
+        if (value === undefined) {
+            throw new TypeError(`row has no column ${column}`);
+        }
+
+        return value;
+    }
+
+    /** Split a flat list into groups as long as some lists. */
+    protected static unflatten<Entry>(
+        flat: readonly Entry[],
+        lists: readonly (readonly unknown[])[],
+    ): Entry[][] {
+        // take each list's length of items in turn
+        let offset = 0;
+
+        return lists.map((list) => {
+            const group = flat.slice(offset, offset + list.length);
+            offset += list.length;
+
+            return group;
+        });
     }
 }
 
@@ -101,7 +127,7 @@ class KeyJoin extends Input {
     }
 }
 
-/** A junction path: the rows a selected row's visible join rows name. */
+/** A junction path: the rows a selected row's visible join rows reference. */
 class JunctionJoin extends Input {
     /** The path. */
     readonly #path: JunctionPath;
@@ -112,9 +138,9 @@ class JunctionJoin extends Input {
         this.#path = path;
     }
 
-    /** Read the rows each value's visible join rows name, once each. */
+    /** Read the rows each value's visible join rows reference, once each. */
     async members(values: readonly ColumnValue[], run: Run): Promise<Row[][]> {
-        // read the visible join rows naming each value
+        // read the visible join rows with each value
         const path = this.#path;
         const joins = await run.view.lookup(
             path.table,
@@ -123,24 +149,24 @@ class JunctionJoin extends Input {
         const passable = new Set(await this.passable(path.table, joins.flat(), run));
         const named = joins.map((rows) => rows.filter((join) => passable.has(join)));
 
-        // read the named rows at once
+        // read the referenced rows at once
         const targets = await run.view.lookup(
             this.node.table,
-            named.flat().map((join) => ({ [path.to.key]: valueOf(join, path.to.column) })),
+            named.flat().map((join) => ({ [path.to.key]: Input.value(join, path.to.column) })),
         );
 
-        return unflatten(targets, named).map((reached) => [
-            ...new Map(reached.flat().map((row) => [this.node.keyOf(row), row])).values(),
+        return Input.unflatten(targets, named).map((reached) => [
+            ...new Map(reached.flat().map((row) => [this.node.keyName(row), row])).values(),
         ]);
     }
 
     /** Name the parent values each row's visible join rows join. */
     async locate(rows: readonly Row[], run: Run): Promise<ColumnValue[][]> {
-        // read the visible join rows naming each row
+        // read the visible join rows for each row
         const path = this.#path;
         const joins = await run.view.lookup(
             path.table,
-            rows.map((row) => ({ [path.to.column]: valueOf(row, path.to.key) })),
+            rows.map((row) => ({ [path.to.column]: Input.value(row, path.to.key) })),
         );
         const passable = new Set(await this.passable(path.table, joins.flat(), run));
 
@@ -158,7 +184,7 @@ class JunctionJoin extends Input {
         });
     }
 
-    /** Decide again the rows a changed join row names. */
+    /** Decide again the rows a changed join row references. */
     override async moves(
         table: Table,
         before: Row | null,
@@ -175,10 +201,10 @@ class JunctionJoin extends Input {
         const images = [before, after].filter((image): image is Row => image !== null);
         const named = await run.view.lookup(
             this.node.table,
-            images.map((image) => ({ [path.to.key]: valueOf(image, path.to.column) })),
+            images.map((image) => ({ [path.to.key]: Input.value(image, path.to.column) })),
         );
         for (const row of named.flat()) {
-            dirty.set(this.node.keyOf(row), row);
+            dirty.set(this.node.keyName(row), row);
         }
     }
 }
@@ -187,9 +213,9 @@ class JunctionJoin extends Input {
 export class TreeJoin extends Input {
     /** Whether the database has the tree index. */
     readonly #isIndexed: boolean;
-    /** Whether the path reaches down, to descendants. */
+    /** Whether the path goes down to descendants. */
     readonly #isDown: boolean;
-    /** The column naming a row's parent. */
+    /** The column with a row's parent. */
     readonly #column: string;
     /** The table's one key column. */
     readonly #key: string;
@@ -200,7 +226,7 @@ export class TreeJoin extends Input {
         super(node);
         const [key] = node.key;
         if (key === undefined || node.key.length !== 1) {
-            throw new TypeError(`${node.name} follows a tree by one key column`);
+            throw new TypeError(`${node.name} must follow a tree by one key column`);
         }
         this.#isIndexed = isIndexed;
         this.#isDown = path.kind === "descendants";
@@ -228,7 +254,7 @@ export class TreeJoin extends Input {
     async locate(rows: readonly Row[], run: Run): Promise<ColumnValue[][]> {
         const reached = this.#isDown ? await this.above(rows, run) : await this.below(rows, run);
 
-        return reached.map((entries) => entries.map((entry) => valueOf(entry, this.#key)));
+        return reached.map((entries) => entries.map((entry) => Input.value(entry, this.#key)));
     }
 
     /** Decide again the rows below a changed row along a tree. */
@@ -240,7 +266,7 @@ export class TreeJoin extends Input {
         run: Run,
         dirty: Map<string, Row | null>,
     ): Promise<void> {
-        // follow a copy's tree row
+        // follow a replica's tree row
         const node = this.node;
         const end = this.#isDown ? "descendant" : "ancestor";
         if (!this.#isIndexed && table === node.table) {
@@ -257,14 +283,14 @@ export class TreeJoin extends Input {
                 ? await this.below(images, run)
                 : await this.above(images, run);
             for (const row of reached.flat()) {
-                dirty.set(node.keyOf(row), row);
+                dirty.set(node.keyName(row), row);
             }
         }
         // follow a tree index row
         else if (this.#isIndexed && table === node.closure) {
             const ends = [before, after]
                 .filter((image): image is Row => image !== null && image["depth"] !== 0)
-                .map((image) => valueOf(image, end));
+                .map((image) => Input.value(image, end));
             await this.#mark(ends, run, dirty);
         }
         // follow a tree row whose visibility may change
@@ -281,7 +307,7 @@ export class TreeJoin extends Input {
             const [paths = []] = await run.view.lookup(this.#closure(), [node.paths(image, other)]);
             const ends = paths
                 .filter((path) => path["depth"] !== 0)
-                .map((path) => valueOf(path, end));
+                .map((path) => Input.value(path, end));
             await this.#mark(ends, run, dirty);
         }
     }
@@ -334,10 +360,10 @@ export class TreeJoin extends Input {
             this.#closure(),
             rows.map((row) => node.paths(row, "descendant")),
         );
-        const nearest = paths.map((entries) => byDepth(entries));
+        const nearest = paths.map((entries) => TreeJoin.#byDepth(entries));
         const ancestors = await run.view.keyed(
             node.table,
-            nearest.flat().map((path) => ({ [this.#key]: valueOf(path, "ancestor") })),
+            nearest.flat().map((path) => ({ [this.#key]: Input.value(path, "ancestor") })),
         );
         const passable = new Set(
             await this.passable(
@@ -348,7 +374,7 @@ export class TreeJoin extends Input {
         );
 
         // keep ancestors up to the first impassable row
-        return unflatten(ancestors, nearest).map((entries) => {
+        return Input.unflatten(ancestors, nearest).map((entries) => {
             const kept: Row[] = [];
             for (const ancestor of entries) {
                 if (ancestor === null || !passable.has(ancestor)) {
@@ -374,10 +400,10 @@ export class TreeJoin extends Input {
             this.#closure(),
             rows.map((row) => node.paths(row, "ancestor")),
         );
-        const shallowest = paths.map((entries) => byDepth(entries));
+        const shallowest = paths.map((entries) => TreeJoin.#byDepth(entries));
         const descendants = await run.view.keyed(
             node.table,
-            shallowest.flat().map((path) => ({ [this.#key]: valueOf(path, "descendant") })),
+            shallowest.flat().map((path) => ({ [this.#key]: Input.value(path, "descendant") })),
         );
         const passable = new Set(
             await this.passable(
@@ -388,7 +414,7 @@ export class TreeJoin extends Input {
         );
 
         // keep each descendant whose parent the path reached
-        return zip(rows, unflatten(descendants, shallowest)).map(([row, entries]) => {
+        return zip(rows, Input.unflatten(descendants, shallowest)).map(([row, entries]) => {
             // start from the parent row
             const reached = new Set<ColumnValue | undefined>([row[this.#key]]);
             const kept: Row[] = [];
@@ -488,12 +514,12 @@ export class TreeJoin extends Input {
             const parents = walks.flatMap((walk) => walk.level);
             const children = await run.view.lookup(
                 this.node.table,
-                parents.map((parent) => ({ [this.#column]: valueOf(parent, key) })),
+                parents.map((parent) => ({ [this.#column]: Input.value(parent, key) })),
             );
             const passable = new Set(await this.passable(this.node.table, children.flat(), run));
 
             // take each walk's next level once
-            const levels = unflatten(
+            const levels = Input.unflatten(
                 children,
                 walks.map((walk) => walk.level),
             );
@@ -530,47 +556,21 @@ export class TreeJoin extends Input {
             dirty.set(Key.name(this.node.table, key), row);
         }
     }
-}
 
-/** Read a row's value of a column, which the row's table declares. */
-function valueOf(row: Row, column: string): ColumnValue {
-    const value = row[column];
-    if (value === undefined) {
-        throw new TypeError(`row has no column ${column}`);
+    /** Keep the strict tree index paths, nearest first. */
+    static #byDepth(paths: readonly Row[]): Row[] {
+        return paths
+            .filter((path) => TreeJoin.#depth(path) > 0)
+            .toSorted((left, right) => TreeJoin.#depth(left) - TreeJoin.#depth(right));
     }
 
-    return value;
-}
+    /** Read a tree index path's depth. */
+    static #depth(path: Row): number {
+        const depth = path["depth"];
+        if (typeof depth !== "number") {
+            throw new TypeError("a tree index path has no depth");
+        }
 
-/** Keep the strict tree index paths, nearest first. */
-function byDepth(paths: readonly Row[]): Row[] {
-    return paths
-        .filter((path) => depthOf(path) > 0)
-        .toSorted((left, right) => depthOf(left) - depthOf(right));
-}
-
-/** Read a tree index path's depth. */
-function depthOf(path: Row): number {
-    const depth = path["depth"];
-    if (typeof depth !== "number") {
-        throw new TypeError("a tree index path has no depth");
+        return depth;
     }
-
-    return depth;
-}
-
-/** Split a flat list into groups as long as some lists. */
-function unflatten<Entry>(
-    flat: readonly Entry[],
-    lists: readonly (readonly unknown[])[],
-): Entry[][] {
-    // take each list's length of items in turn
-    let offset = 0;
-
-    return lists.map((list) => {
-        const group = flat.slice(offset, offset + list.length);
-        offset += list.length;
-
-        return group;
-    });
 }

@@ -263,8 +263,8 @@ export async function open(
     return test.database;
 }
 
-/** Open a migrated copy database without trees and references. */
-export async function openCopy(
+/** Open a migrated replica database without trees and references. */
+export async function openReplica(
     dialect: (typeof TEST_DIALECTS)[number],
     tables: Database | readonly Table[] = TABLES,
 ): Promise<DatabaseConnection> {
@@ -312,14 +312,14 @@ export async function nextValue<Value>(generator: AsyncGenerator<Value, unknown>
     return read.value;
 }
 
-/** Apply pages to a copy as one stream. */
+/** Apply pages to a replica as one stream. */
 export async function replicate(
-    copy: Replica,
+    replica: Replica,
     database: DatabaseConnection,
     pages: readonly Page[],
     prediction?: Prediction,
 ): Promise<void> {
-    const applied = copy.apply(database, pages, {
+    const applied = replica.apply(database, pages, {
         clock: Clock.system,
         ...(prediction === undefined ? {} : { prediction }),
     });

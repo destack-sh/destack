@@ -94,7 +94,7 @@ test.for(TEST_DIALECTS)(
             "query query reads concealable columns of task: title",
             "feed does not read note",
             "query query reads concealable columns of task: title",
-            "relations read no rows of task, which the audience decides in memory",
+            "relations cannot read rows of task: the audience decides them in memory",
         ]);
     },
 );
@@ -127,7 +127,7 @@ test.for(TEST_DIALECTS)(
         const feed = new Feed(database, [...TABLES, note], { clock: Clock.system });
         await database.insert(task).values([TASK, { ...TASK, id: "t2" }]);
 
-        // see the tasks a note names
+        // see the tasks a note references
         const audience: Audience = {
             ...EVERYONE,
             watches: [{ table: note, scopes: ["grants"] }],
@@ -225,7 +225,7 @@ test.for(TEST_DIALECTS)(
             AbortSignal.timeout(5000),
         );
         const refused = await refusal(take(pages, (sent) => sent.complete));
-        expect(refused).toEqual(["OVER_CAPACITY", "queries hold 4 rows and groups, more than 3"]);
+        expect(refused).toEqual(["OVER_CAPACITY", "queries have 4 rows and groups, more than 3"]);
     },
 );
 

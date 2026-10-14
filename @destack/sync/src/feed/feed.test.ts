@@ -3,7 +3,7 @@ import { aligned, schema, Clock } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
-import { nextTask } from "./evaluation.ts";
+import { Evaluation } from "./evaluation.ts";
 import type { Page } from "../query/page.ts";
 import {
     first,
@@ -253,7 +253,7 @@ test.for(TEST_DIALECTS)(
         // close the database under both, wait for the feed to fail, and let rejections surface
         await database.close();
         const failure = await failureOf(feed.next(feed.sequence, signal));
-        await nextTask();
+        await Evaluation.nextTask();
 
         // end both subscribers with the closed connection, leaving no rejection unhandled
         const ended = await Promise.all([plain, merged].map((pages) => failureOf(pages.next())));
@@ -421,7 +421,7 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-/** Boards whose JSON columns hold an object and a list of objects. */
+/** Boards with JSON columns of an object and a list of objects. */
 const board = defineTable(
     "board",
     {

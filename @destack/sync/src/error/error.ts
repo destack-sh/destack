@@ -1,6 +1,6 @@
 import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
 
-/** The call error code per sync failure: capacity, unready copy, bad stream or scope, cycle. */
+/** The call error code per sync failure: capacity, unready replica, bad stream or scope, cycle. */
 const CALL_CODES = {
     OVERLOADED: "SERVICE_UNAVAILABLE",
     OVER_CAPACITY: "UNPROCESSABLE_CONTENT",
@@ -11,10 +11,10 @@ const CALL_CODES = {
     CYCLE: "CONFLICT",
 } as const satisfies Readonly<Record<string, CallErrorCode>>;
 
-/** A failure code of copies, subscriptions and scopes. */
+/** A failure code of replicas, subscriptions and scopes. */
 export type SyncErrorCode = keyof typeof CALL_CODES;
 
-/** A copy, subscription or scope the source cannot serve. */
+/** A replica, subscription or scope the source cannot serve. */
 export class SyncError extends Error implements DomainError {
     /** The error classification. */
     readonly code: SyncErrorCode;

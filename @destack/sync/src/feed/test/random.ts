@@ -29,7 +29,7 @@ export class Random {
     pick<Value>(values: readonly Value[]): Value {
         const value = values[this.integer(values.length)];
         if (value === undefined) {
-            throw new RangeError("a pick from no values");
+            throw new RangeError("cannot pick from an empty list");
         }
 
         return value;

@@ -3,11 +3,11 @@ import type { Page, ResultChange, RowChange } from "../query/page.ts";
 import { canonicalize, type Clock } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Audience } from "./audience.ts";
-import { Evaluation, nextTask } from "./evaluation.ts";
+import { Evaluation } from "./evaluation.ts";
 import type { Feed } from "./feed.ts";
 import { View } from "../dataflow/view.ts";
 
-/** One subscriber's queries over a feed, alone behind the head and shared at the head. */
+/** One subscriber's queries over a feed, on their own behind the head and shared at the head. */
 export class Stream {
     /** The feed the stream reads. */
     readonly #feed: Feed;
@@ -30,7 +30,7 @@ export class Stream {
         every?: number,
         origin?: string,
     ) {
-        // evaluate the queries alone
+        // evaluate the queries on their own
         this.#feed = feed;
         this.#every = every;
         this.#origin = origin;
@@ -57,7 +57,7 @@ export class Stream {
                         if (after?.epoch !== epoch) {
                             sequence = yield* this.#snapshot(epoch, signal);
                         }
-                        // reshape the copy of previous queries
+                        // reshape the replica of previous queries
                         else if (previous !== undefined) {
                             sequence = yield* this.#reshape(previous, after, signal);
                         }
@@ -71,7 +71,12 @@ export class Stream {
                     const following = this.#follow({ epoch, sequence }, signal, drain);
                     yield* this.#every === undefined
                         ? following
-                        : coalesce(following, this.#every, this.#feed.tables, this.#feed.clock);
+                        : Stream.coalesce(
+                              following,
+                              this.#every,
+                              this.#feed.tables,
+                              this.#feed.clock,
+                          );
                     return;
                 } catch (error) {
                     // start over after a lost position or epoch
@@ -110,7 +115,7 @@ export class Stream {
             this.#evaluation = this.#feed.join(this.#evaluation, position);
             const decided = this.#evaluation.after(position);
 
-            // catch up alone once the shared evaluation moved on
+            // catch up on its own once the shared evaluation moved on
             if (decided === undefined) {
                 this.#alone();
                 await this.#audience.refresh();
@@ -120,7 +125,7 @@ export class Stream {
             // publish the decided pages before waiting or moving on
             else {
                 const { pages, sequence } = await decided;
-                await nextTask();
+                await Evaluation.nextTask();
                 for (const page of pages) {
                     published = page.position.sequence;
                     yield page;
@@ -251,145 +256,145 @@ export class Stream {
             this.#evaluation = new Evaluation(this.#feed, this.#queries, this.#audience);
         }
     }
-}
 
-/** Publish pages at most once per interval, merging those within it, and stop the pages after. */
-export async function* coalesce(
-    pages: AsyncGenerator<Page>,
-    every: number,
-    tables: readonly Table[],
-    clock: Clock,
-): AsyncGenerator<Page> {
-    // read the next page ahead, keeping its failure for the next take
-    let pending: Page | undefined;
-    let published = Number.NEGATIVE_INFINITY;
-    let next = settle(pages.next());
-    try {
-        for (;;) {
-            // race the next page with the interval's end
-            const due = published + every;
-            let timer: ReturnType<typeof setTimeout> | undefined;
-            const arrived =
-                pending === undefined
-                    ? await next
-                    : await Promise.race([
-                          next,
-                          new Promise<undefined>((resolve) => {
-                              timer = setTimeout(
-                                  () => resolve(undefined),
-                                  Math.max(0, due - clock.now()),
-                              );
-                          }),
-                      ]);
-            clearTimeout(timer);
-
-            // publish the merged page at the interval's end
-            if (arrived === undefined) {
-                if (pending === undefined) {
-                    throw new TypeError("an interval ended without a pending page");
-                }
-                yield pending;
-                pending = undefined;
-                published = clock.now();
-            }
-            // rethrow the failure of the pages
-            else if (arrived.status === "rejected") {
-                throw arrived.reason;
-            }
-            // publish what remains at the end
-            else if (arrived.value.done === true) {
-                if (pending !== undefined) {
-                    yield pending;
-                }
-
-                return;
-            }
-            // merge each page, or publish at once after a quiet interval
-            else {
-                next = settle(pages.next());
-                pending =
+    /** Publish pages at most once per interval, merging those within it. */
+    static async *coalesce(
+        pages: AsyncGenerator<Page>,
+        every: number,
+        tables: readonly Table[],
+        clock: Clock,
+    ): AsyncGenerator<Page> {
+        // read the next page ahead, keeping its failure for the next take
+        let pending: Page | undefined;
+        let published = Number.NEGATIVE_INFINITY;
+        let next = Stream.#settle(pages.next());
+        try {
+            for (;;) {
+                // race the next page with the interval's end
+                const due = published + every;
+                let timer: ReturnType<typeof setTimeout> | undefined;
+                const arrived =
                     pending === undefined
-                        ? arrived.value.value
-                        : merge(pending, arrived.value.value, tables);
-                if (clock.now() >= due) {
+                        ? await next
+                        : await Promise.race([
+                              next,
+                              new Promise<undefined>((resolve) => {
+                                  timer = setTimeout(
+                                      () => resolve(undefined),
+                                      Math.max(0, due - clock.now()),
+                                  );
+                              }),
+                          ]);
+                clearTimeout(timer);
+
+                // publish the merged page at the interval's end
+                if (arrived === undefined) {
+                    if (pending === undefined) {
+                        throw new TypeError("an interval ended without a pending page");
+                    }
                     yield pending;
                     pending = undefined;
                     published = clock.now();
                 }
+                // rethrow the failure of the pages
+                else if (arrived.status === "rejected") {
+                    throw arrived.reason;
+                }
+                // publish what remains at the end
+                else if (arrived.value.done === true) {
+                    if (pending !== undefined) {
+                        yield pending;
+                    }
+
+                    return;
+                }
+                // merge each page, or publish at once after a quiet interval
+                else {
+                    next = Stream.#settle(pages.next());
+                    pending =
+                        pending === undefined
+                            ? arrived.value.value
+                            : Stream.#merge(pending, arrived.value.value, tables);
+                    if (clock.now() >= due) {
+                        yield pending;
+                        pending = undefined;
+                        published = clock.now();
+                    }
+                }
+            }
+        } finally {
+            // stop the pages once the consumer stops, after the read ahead
+            await pages.return(undefined);
+        }
+    }
+
+    /** Merge two consecutive pages. */
+    static #merge(earlier: Page, later: Page, tables: readonly Table[]): Page {
+        // net each row's changes, by table and key
+        const changes = new Map<string, RowChange>();
+        for (const change of [...earlier.changes, ...later.changes]) {
+            const table = tables.find((entry) => entry[TABLE].sqlName === change.table);
+            if (table === undefined) {
+                throw new TypeError(`a merged page has an unknown table: ${change.table}`);
+            }
+            const key = JSON.stringify([
+                change.table,
+                ...table[TABLE].key.map((name) => change.row[name]),
+            ]);
+            const known = changes.get(key);
+            const net = known === undefined ? change : Stream.#netChange(known, change);
+            if (net === undefined) {
+                changes.delete(key);
+            } else {
+                changes.set(key, net);
             }
         }
-    } finally {
-        // stop the pages once the consumer stops, after the read ahead
-        await pages.return(undefined);
-    }
-}
 
-/** Merge two consecutive pages. */
-function merge(earlier: Page, later: Page, tables: readonly Table[]): Page {
-    // net each row's changes, by table and key
-    const changes = new Map<string, RowChange>();
-    for (const change of [...earlier.changes, ...later.changes]) {
-        const table = tables.find((entry) => entry[TABLE].sqlName === change.table);
-        if (table === undefined) {
-            throw new TypeError(`a merged page names an unknown table: ${change.table}`);
-        }
-        const key = JSON.stringify([
-            change.table,
-            ...table[TABLE].key.map((name) => change.row[name]),
-        ]);
-        const known = changes.get(key);
-        const net = known === undefined ? change : netChange(known, change);
-        if (net === undefined) {
-            changes.delete(key);
-        } else {
-            changes.set(key, net);
-        }
-    }
-
-    // keep each group's last values
-    const results = new Map<string, ResultChange>();
-    for (const result of [...(earlier.results ?? []), ...(later.results ?? [])]) {
-        if (result.group === null) {
-            for (const key of [...results.keys()].filter((entry) =>
-                entry.startsWith(`${result.query}\n`),
-            )) {
-                results.delete(key);
+        // keep each group's last values
+        const results = new Map<string, ResultChange>();
+        for (const result of [...(earlier.results ?? []), ...(later.results ?? [])]) {
+            if (result.group === null) {
+                for (const key of [...results.keys()].filter((entry) =>
+                    entry.startsWith(`${result.query}\n`),
+                )) {
+                    results.delete(key);
+                }
             }
+            results.set(`${result.query}\n${canonicalize(result.group)}`, result);
         }
-        results.set(`${result.query}\n${canonicalize(result.group)}`, result);
+
+        return {
+            reset: earlier.reset,
+            complete: later.complete,
+            changes: [...changes.values()],
+            ...(results.size === 0 ? {} : { results: [...results.values()] }),
+            position: later.position,
+        };
     }
 
-    return {
-        reset: earlier.reset,
-        complete: later.complete,
-        changes: [...changes.values()],
-        ...(results.size === 0 ? {} : { results: [...results.values()] }),
-        position: later.position,
-    };
-}
+    /** Net two changes of one row. */
+    static #netChange(earlier: RowChange, later: RowChange): RowChange | undefined {
+        // forget a row that entered and left
+        if (earlier.operation === "insert" && later.operation === "delete") {
+            return undefined;
+        }
 
-/** Net two changes of one row. */
-function netChange(earlier: RowChange, later: RowChange): RowChange | undefined {
-    // forget a row that entered and left
-    if (earlier.operation === "insert" && later.operation === "delete") {
-        return undefined;
+        // net the two operations
+        let operation = later.operation;
+        if (earlier.operation === "insert" && later.operation === "update") {
+            operation = "insert";
+        } else if (earlier.operation === "delete" && later.operation !== "delete") {
+            operation = "update";
+        }
+
+        return { ...later, operation };
     }
 
-    // net the two operations
-    let operation = later.operation;
-    if (earlier.operation === "insert" && later.operation === "update") {
-        operation = "insert";
-    } else if (earlier.operation === "delete" && later.operation !== "delete") {
-        operation = "update";
+    /** Settle a read into its outcome, so a failure waits for its take. */
+    static #settle<Value>(read: Promise<Value>): Promise<PromiseSettledResult<Value>> {
+        return read.then(
+            (value) => ({ status: "fulfilled", value }),
+            (reason: unknown) => ({ status: "rejected", reason }),
+        );
     }
-
-    return { ...later, operation };
-}
-
-/** Settle a read into its outcome, so a failure waits for its take. */
-function settle<Value>(read: Promise<Value>): Promise<PromiseSettledResult<Value>> {
-    return read.then(
-        (value) => ({ status: "fulfilled", value }),
-        (reason: unknown) => ({ status: "rejected", reason }),
-    );
 }

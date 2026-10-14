@@ -2,11 +2,9 @@ import { Clock, schema, type JsonValue } from "@destack/schema";
 import {
     Change,
     Key,
-    or,
     TABLE,
     type DatabaseConnection,
     type Table,
-    CHAIN_TERMS,
     type Channel,
     typedChannel,
 } from "@destack/db";
@@ -93,20 +91,20 @@ export class Tracker {
     readonly database: DatabaseConnection;
     /** The tracked tables by SQL name. */
     readonly #tables: ReadonlyMap<string, Table>;
-    /** The channel reaching the other instances. */
+    /** The channel to the other instances. */
     readonly #channel: Channel<TrackerMessage>;
     /** Each owner's rows and their last writing instance. */
-    readonly #owners = new Map<string, { instance: string; keys: Set<string> }>();
+    readonly #owners: Map<string, { instance: string; keys: Set<string> }>;
     /** The owner of each row, by row name. */
-    readonly #rows = new Map<string, string>();
+    readonly #rows: Map<string, string>;
     /** The last heartbeat of each other instance, in UTC epoch milliseconds. */
-    readonly #instances = new Map<string, number>();
+    readonly #instances: Map<string, number>;
     /** The instances tracking each owner. */
-    readonly #tracked = new Map<string, Set<string>>();
+    readonly #tracked: Map<string, Set<string>>;
     /** The listeners of owner tracking changes. */
-    readonly #watchers = new Set<(owner: string, isTracked: boolean) => void>();
+    readonly #watchers: Set<(owner: string, isTracked: boolean) => void>;
     /** The listeners of each broadcast topic. */
-    readonly #listeners = new Map<string, Set<(event: JsonValue) => void>>();
+    readonly #listeners: Map<string, Set<(event: JsonValue) => void>>;
     /** The heartbeat interval, in milliseconds. */
     readonly #heartbeat: number;
     /** The clock heartbeats are timed by. */
@@ -116,7 +114,7 @@ export class Tracker {
     /** Stop listening to the channel. */
     readonly #stop: () => void;
     /** The pending applications of other instances' messages. */
-    #applied: Promise<void> = Promise.resolve();
+    #applied: Promise<void>;
 
     /** Track tables of a database on a channel. */
     constructor(
@@ -125,6 +123,17 @@ export class Tracker {
         channel: Channel<unknown>,
         options: TrackerOptions,
     ) {
+        // start with empty state
+        this.#owners = new Map<string, { instance: string; keys: Set<string> }>();
+        this.#rows = new Map<string, string>();
+        this.#instances = new Map<string, number>();
+        this.#tracked = new Map<string, Set<string>>();
+        this.#watchers = new Set<(owner: string, isTracked: boolean) => void>();
+        this.#listeners = new Map<string, Set<(event: JsonValue) => void>>();
+
+        // start the rest of the state empty
+        this.#applied = Promise.resolve();
+
         // require every column in the log
         for (const table of tables) {
             const { columns, logged, name } = table[TABLE];
@@ -132,7 +141,7 @@ export class Tracker {
                 (property) => !Object.hasOwn(logged, property),
             );
             if (unlogged !== undefined) {
-                throw new TypeError(`tracked table ${name} leaves ${unlogged} out of its log`);
+                throw new TypeError(`tracked table ${name} does not log ${unlogged}`);
             }
         }
 
@@ -373,18 +382,15 @@ export class Tracker {
             this.#rows.delete(key);
         }
 
-        // delete them, a chain of keys per statement
-        const byTable = Map.groupBy(entry.keys, (key) => tableOf(key));
+        // delete them, one statement per table
+        const byTable = Map.groupBy(entry.keys, (key) => Tracker.#tableName(key));
         await this.database.transaction(async (transaction) => {
             for (const [name, keys] of byTable) {
                 const table = this.#table(name);
-                const matches = keys.map((key) => Key.match(table, Key.parse(table, key)));
-                for (let start = 0; start < matches.length; start += CHAIN_TERMS) {
-                    const [first, ...rest] = matches.slice(start, start + CHAIN_TERMS);
-                    if (first !== undefined) {
-                        await transaction.delete(table).where(or(first, ...rest));
-                    }
-                }
+                await transaction.remove(
+                    table,
+                    keys.map((key) => Key.parse(table, key)),
+                );
             }
         });
     }
@@ -410,7 +416,7 @@ export class Tracker {
                 continue;
             }
             for (const key of entry.keys) {
-                const table = this.#table(tableOf(key));
+                const table = this.#table(Tracker.#tableName(key));
                 const [row] = await this.database
                     .select()
                     .from(table)
@@ -472,11 +478,11 @@ export class Tracker {
             listener(event);
         }
     }
-}
 
-/** Read the SQL name of the table a row's name starts with. */
-function tableOf(key: string): string {
-    const [table] = KeyName.parse(JSON.parse(key));
+    /** Read the SQL name of the table a row's name starts with. */
+    static #tableName(key: string): string {
+        const [table] = KeyName.parse(JSON.parse(key));
 
-    return table;
+        return table;
+    }
 }

@@ -1,35 +1,42 @@
 import { Key, type ColumnValue, type Row, Order } from "@destack/db";
 import { found, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
-import { NOWHERE, Pipeline, keyed, without, type Context } from "./pipeline.ts";
+import { NOWHERE, Pipeline, type Context } from "./pipeline.ts";
 import { TreeJoin } from "./input.ts";
 import type { Run, Work } from "./run.ts";
 import type { Segment } from "./view.ts";
 import { Window } from "./window.ts";
 
 /** The most rows of one root read: about 1 MB at about 1 KB a row. */
-export const PAGE_ROWS = 1000;
+export const PAGE_SIZE = 1000;
 
 /** The rows a node selects per partition: every candidate, or a window of the first ones. */
 export class Selection extends Pipeline {
     /** The partitions arranging each candidate row, by key. */
-    readonly #arranged = new Map<string, Set<string>>();
+    readonly #arranged: Map<string, Set<string>>;
     /** The rows the open partitions' windows know. */
-    #windowed = 0;
+    #windowed: number;
     /** The windows that lost rows and wait for a refill. */
-    readonly #refills = new Set<string>();
+    readonly #refills: Set<string>;
     /** The tree path whose members keep chains of the rows between. */
     readonly #chaining: TreeJoin | undefined;
     /** The rows between each member and its partitions' selected rows, by member and partition. */
-    readonly #chains = new Map<string, Map<string, readonly Row[]>>();
+    readonly #chains: Map<string, Map<string, readonly Row[]>>;
     /** How many chains keep each row, by key. */
-    readonly #chained = new Map<string, number>();
+    readonly #chained: Map<string, number>;
     /** The members whose chains the run moved. */
-    readonly #rechains = new Map<string, Row | null>();
+    readonly #rechains: Map<string, Row | null>;
 
     /** Create the selection of a node. */
     constructor(node: Node, context: Context, hasTreeIndex: boolean) {
+        // create the pipeline with empty state
         super(node, context, hasTreeIndex);
+        this.#arranged = new Map<string, Set<string>>();
+        this.#windowed = 0;
+        this.#refills = new Set<string>();
+        this.#chains = new Map<string, Map<string, readonly Row[]>>();
+        this.#chained = new Map<string, number>();
+        this.#rechains = new Map<string, Row | null>();
         this.#chaining =
             this.input instanceof TreeJoin && (node.limit !== undefined || node.where !== undefined)
                 ? this.input
@@ -62,7 +69,12 @@ export class Selection extends Pipeline {
                 continue;
             }
             for (const key of partition.members) {
-                this.#assign(key, null, without(found(this.members, key).partitions, name), run);
+                this.#assign(
+                    key,
+                    null,
+                    Pipeline.without(found(this.members, key).partitions, name),
+                    run,
+                );
             }
             for (const key of partition.window?.isArranged === true
                 ? partition.window.known()
@@ -87,11 +99,15 @@ export class Selection extends Pipeline {
             await this.filter.measure([after], run);
         }
         const start = after === undefined ? undefined : this.filter.resolve(after, run);
-        const [rows] = await this.ordered([segmentOf(null, start)], PAGE_ROWS, run);
+        const [rows] = await this.ordered(
+            [Selection.#segment(null, start)],
+            this.context.pageSize,
+            run,
+        );
         if (rows === undefined) {
             throw new RangeError("a page read lacks its one window");
         }
-        await this.decide(keyed(this.node, rows), run);
+        await this.decide(this.node.keyed(rows), run);
         await this.settle(run);
 
         return rows;
@@ -124,7 +140,7 @@ export class Selection extends Pipeline {
             // select every candidate of an unlimited node
             if (limit === undefined) {
                 for (const row of rows) {
-                    this.#join(this.node.keyOf(row), row, name, run);
+                    this.#join(this.node.keyName(row), row, name, run);
                 }
             }
             // order a window or arrange every candidate
@@ -154,7 +170,7 @@ export class Selection extends Pipeline {
         // read each window's first rows
         if (limit !== undefined && !node.isArranged) {
             const segments = zip(opened, starts).map(([[, value], start]) =>
-                segmentOf(value, start),
+                Selection.#segment(value, start),
             );
 
             return this.ordered(segments, limit, run);
@@ -182,14 +198,14 @@ export class Selection extends Pipeline {
     ): void {
         // order a window or arrange every candidate
         const node = this.node;
-        const byKey = keyed(node, rows);
+        const byKey = node.keyed(rows);
         const window = new Window(
             (left, right) => node.compare(left, right),
             limit,
             value,
             [...byKey].map(([key, row]) => ({
                 key,
-                row: node.isArranged ? node.orderOf(row) : row,
+                row: node.isArranged ? node.sortValues(row) : row,
             })),
             node.isArranged,
         );
@@ -238,7 +254,7 @@ export class Selection extends Pipeline {
                 }
                 const wasPresent = window.has(key);
                 const size = window.size;
-                const placed = window.place(key, window.isArranged ? node.orderOf(row) : row);
+                const placed = window.place(key, window.isArranged ? node.sortValues(row) : row);
                 this.#windowed += window.size - size;
                 if (window.isArranged) {
                     this.#arrange(key, name);
@@ -274,7 +290,7 @@ export class Selection extends Pipeline {
     #evict(evictedKey: string | undefined, name: string, isArranged: boolean, run: Run): void {
         const evicted = evictedKey === undefined ? undefined : this.members.get(evictedKey);
         if (evictedKey !== undefined && evicted !== undefined) {
-            this.#assign(evictedKey, null, without(evicted.partitions, name), run);
+            this.#assign(evictedKey, null, Pipeline.without(evicted.partitions, name), run);
         } else if (evictedKey !== undefined && !isArranged) {
             throw new TypeError(`window of ${this.node.name} pushed out absent row ${evictedKey}`);
         }
@@ -298,7 +314,7 @@ export class Selection extends Pipeline {
         const joins =
             row === null
                 ? (member?.joins ?? [])
-                : node.children.map((child) => child.valueOf(row) ?? null);
+                : node.children.map((child) => child.partitionValue(row) ?? null);
         if (names.size === 0) {
             if (member !== undefined) {
                 this.members.delete(key);
@@ -321,7 +337,7 @@ export class Selection extends Pipeline {
             if (this.context.isMaterialized && row !== null) {
                 member.row = row;
             }
-            if (!sameValues(member.joins, joins)) {
+            if (!Selection.#isSameValues(member.joins, joins)) {
                 this.#retainChildren(member.joins, -1, run);
                 this.#retainChildren(joins, 1, run);
                 member.joins = joins;
@@ -334,7 +350,7 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Retain or let go of the children's partitions a member names. */
+    /** Retain or let go of the children's partitions a member references. */
     #retainChildren(joins: readonly ColumnValue[], step: 1 | -1, run: Run): void {
         for (const [child, value] of zip(this.children, joins)) {
             if (child !== undefined && value !== null) {
@@ -375,7 +391,7 @@ export class Selection extends Pipeline {
 
     /** Select the arranged rows that moved into their windows. */
     async #joinPromoted(promoted: readonly (readonly [string, string])[], run: Run): Promise<void> {
-        const promotedRows = await this.#rowsOf(
+        const promotedRows = await this.#readRows(
             promoted.map(([, key]) => key),
             run,
         );
@@ -404,19 +420,23 @@ export class Selection extends Pipeline {
         for (const { name, window, missing, rows } of read) {
             const size = window.size;
             window.extend(
-                rows.map((row) => ({ key: this.node.keyOf(row), row })),
+                rows.map((row) => ({ key: this.node.keyName(row), row })),
                 missing,
             );
             this.#windowed += window.size - size;
             for (const row of rows) {
-                this.#join(this.node.keyOf(row), row, name, run);
+                this.#join(this.node.keyName(row), row, name, run);
             }
         }
     }
 
     /** Read a window's missing rows after its last row. */
     async #readMissing(window: Window, missing: number, run: Run): Promise<Row[]> {
-        const [rows] = await this.ordered([segmentOf(window.value, window.last)], missing, run);
+        const [rows] = await this.ordered(
+            [Selection.#segment(window.value, window.last)],
+            missing,
+            run,
+        );
 
         // require the one window's rows
         if (rows === undefined) {
@@ -427,7 +447,7 @@ export class Selection extends Pipeline {
     }
 
     /** Read arranged candidate rows by key with their computed values. */
-    async #rowsOf(keys: readonly string[], run: Run): Promise<Row[]> {
+    async #readRows(keys: readonly string[], run: Run): Promise<Row[]> {
         // read and decide the rows
         const node = this.node;
         const read = await run.view.keyed(
@@ -436,7 +456,7 @@ export class Selection extends Pipeline {
         );
         const rows = read.map((row, index) => {
             if (row === null) {
-                throw new TypeError(`arrangement of ${node.name} keeps missing row ${keys[index]}`);
+                throw new TypeError(`arrangement of ${node.name} has missing row ${keys[index]}`);
             }
 
             return row;
@@ -447,7 +467,7 @@ export class Selection extends Pipeline {
         return rows.map((row, index) => {
             if (!candidates.has(row)) {
                 throw new TypeError(
-                    `arrangement of ${node.name} keeps non-candidate row ${keys[index]}`,
+                    `arrangement of ${node.name} has non-candidate row ${keys[index]}`,
                 );
             }
 
@@ -564,7 +584,7 @@ export class Selection extends Pipeline {
     #chain(row: Row, step: 1 | -1, run: Run): void {
         // keep the row with its first chain and let go after its last
         const node = this.node;
-        const key = node.keyOf(row);
+        const key = node.keyName(row);
         const count = (this.#chained.get(key) ?? 0) + step;
         if (count === 0) {
             this.#chained.delete(key);
@@ -576,17 +596,17 @@ export class Selection extends Pipeline {
             }
         }
     }
-}
 
-/** Read one partition's rows after an optional start row. */
-function segmentOf(value: ColumnValue, after: Row | undefined): Segment {
-    return after === undefined ? { value } : { value, after };
-}
+    /** Read one partition's rows after an optional start row. */
+    static #segment(value: ColumnValue, after: Row | undefined): Segment {
+        return after === undefined ? { value } : { value, after };
+    }
 
-/** Whether two lists have equal values in order. */
-function sameValues(left: readonly unknown[], right: readonly unknown[]): boolean {
-    return (
-        left.length === right.length &&
-        left.every((value, index) => Order.missingFirst(value, right[index]) === 0)
-    );
+    /** Whether two lists have equal values in order. */
+    static #isSameValues(left: readonly unknown[], right: readonly unknown[]): boolean {
+        return (
+            left.length === right.length &&
+            left.every((value, index) => Order.missingFirst(value, right[index]) === 0)
+        );
+    }
 }
