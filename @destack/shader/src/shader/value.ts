@@ -30,23 +30,31 @@ export async function resolveValues(
     values: ShaderValues,
     element: Element,
 ): Promise<ShaderUniforms> {
+    // compute every color in one style pass, then resolve each value
+    const texts = Object.values(values).flatMap((value) =>
+        typeof value === "string" ? [value] : isColorList(value) ? value : [],
+    );
+    const colors = colorsOf(texts, element);
     const entries = await Promise.all(
         Object.entries(values).map(async ([name, value]): Promise<[string, ShaderUniform]> => [
             name,
-            await resolveValue(value, element),
+            await resolveValue(value, colors),
         ]),
     );
 
     return Object.fromEntries(entries);
 }
 
-/** Resolve one value. */
-async function resolveValue(value: ShaderValue, element: Element): Promise<ShaderUniform> {
+/** Resolve one value, its colors from the colors computed for it. */
+async function resolveValue(
+    value: ShaderValue,
+    colors: ReadonlyMap<string, Rgba>,
+): Promise<ShaderUniform> {
     // resolve colors and lists of colors
     if (typeof value === "string") {
-        return colorOf(value, element);
+        return present(colors, value);
     } else if (isColorList(value)) {
-        return value.map((entry) => colorOf(entry, element));
+        return value.map((entry) => present(colors, entry));
     }
     // load images
     else if (typeof value === "object" && "image" in value) {
@@ -61,21 +69,47 @@ function isColorList(value: ShaderValue): value is readonly ShaderColor[] {
     return Array.isArray(value) && value.length > 0 && typeof value[0] === "string";
 }
 
-/** Compute a CSS color as the element draws it, as red, green, blue and alpha from 0 to 1. */
-export function colorOf(value: string, element: Element): [number, number, number, number] {
-    // refuse text that is no CSS color
-    if (!CSS.supports("color", value)) {
-        throw new TypeError(`${value} is not a CSS color`);
+/** A color as red, green, blue and alpha from 0 to 1. */
+type Rgba = [number, number, number, number];
+
+/** Return a computed color, which every color text has. */
+function present(colors: ReadonlyMap<string, Rgba>, text: string): Rgba {
+    const color = colors.get(text);
+    if (color === undefined) {
+        throw new TypeError(`${text} was not computed`);
     }
 
-    // let the browser compute the color on a probe inside the element
-    const probe = element.ownerDocument.createElement("span");
-    probe.style.color = value;
-    element.append(probe);
-    const computed = getComputedStyle(probe).color;
-    probe.remove();
+    return color;
+}
 
-    // read rgb() channels, and paint any other syntax such as oklch() to read its pixel
+/** Compute CSS colors as the element draws them, all in one style pass. */
+export function colorsOf(values: readonly string[], element: Element): Map<string, Rgba> {
+    // refuse text that is no CSS color
+    const texts = [...new Set(values)];
+    for (const text of texts) {
+        if (!CSS.supports("color", text)) {
+            throw new TypeError(`${text} is not a CSS color`);
+        }
+    }
+
+    // let the browser compute every color on probes inside the element, then read them together
+    const probes = texts.map((text) => {
+        const probe = element.ownerDocument.createElement("span");
+        probe.style.color = text;
+
+        return { text, probe };
+    });
+    element.append(...probes.map(({ probe }) => probe));
+    const computed = probes.map(({ text, probe }) => ({ text, color: getComputedStyle(probe).color }));
+    for (const { probe } of probes) {
+        probe.remove();
+    }
+
+    return new Map(computed.map(({ text, color }) => [text, rgbaOf(color, element)]));
+}
+
+/** Read a computed color's channels, painting syntax such as oklch() to read its pixel. */
+function rgbaOf(computed: string, element: Element): Rgba {
     const channels = /^rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?\)$/u.exec(
         computed,
     );
