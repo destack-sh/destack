@@ -85,6 +85,8 @@ export interface WorkloadContext {
 export interface ServerContext {
     /** The installation's identifier. */
     readonly installation: string;
+    /** The installation's name in its space, its address there as `<name>--<space>`. */
+    readonly name: string;
     /** The installation's space. */
     readonly space: string;
     /** The one partition of the installation's database the instance serves. */

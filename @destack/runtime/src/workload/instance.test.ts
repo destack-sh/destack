@@ -48,6 +48,7 @@ const publisher = {
 /** The fixture installation's server context. */
 const server: ServerContext = {
     installation: "installation-01996ab0-0000-7000-8000-000000000002",
+    name: "notes",
     space: "space-01996ab0-0000-7000-8000-000000000001",
     build: await MemoryBuild.write(new Map(), { package: first }),
     settings: {},

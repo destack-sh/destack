@@ -87,7 +87,7 @@ export const ClientMount = {
 
 /** The paths where machines take calls to their installations. */
 export const InstallationMount = {
-    /** Build the path an installation of a space is served at, by its identifier or its alias. */
+    /** Build the path an installation of a space is served at, by its identifier or its name. */
     path(spaceId: string, installation: string): `/spaces/${string}/installations/${string}` {
         return `${SpaceMount.path(spaceId)}/installations/${installation}`;
     },

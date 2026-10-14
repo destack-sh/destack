@@ -85,7 +85,7 @@ start: async ({ server, hibernation }) => ({
     sockets: { message: async (socket, bytes) => socket.send(bytes), close: async () => {} },
 });
 server.partition; // the one partition the instance serves, from the Destack-Partition header
-server.at(Egress.address(installationId, spaceId)); // another installation, through the egress
+server.at(Egress.address(alias, spaceId)); // another installation by its alias, through the egress
 await server.keys.derivePrivateKey("vapid"); // a key of the package's own, rooted in its space's identity
 request.headers.get(FORWARDED_URL_HEADER); // a route's request at ROUTE_PATH, handed to the workload's own package
 await instance.fetch(rooms, request); // a request to one served package

@@ -214,6 +214,7 @@ export class WorkloadRunner implements AsyncDisposable {
 
         return {
             installation: start.installation,
+            name: start.name,
             space: start.space,
             ...(start.partition === undefined ? {} : { partition: start.partition }),
             build,

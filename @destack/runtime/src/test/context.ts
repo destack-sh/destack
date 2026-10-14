@@ -26,6 +26,8 @@ export interface SubjectContextOptions extends Pick<
     readonly signal?: AbortSignal;
     /** The clock calls run at, the system clock by default. */
     readonly clock?: Clock;
+    /** The subject sets the subject's token states beside it, such as its containment. */
+    readonly sets?: readonly Subject[];
 }
 
 /** Build the request context of a subject calling in a scope or in none. */
@@ -35,7 +37,7 @@ export function subjectContext(
     options: SubjectContextOptions = {},
 ): RequestContext {
     // sign the subject in for a minute with its delegates, grant and assurance
-    const { signal, clock = Clock.system, ...restrictions } = options;
+    const { signal, clock = Clock.system, sets = [], ...restrictions } = options;
     const now = clock.now();
     const caller: Caller = {
         ...restrictions,
@@ -47,7 +49,7 @@ export function subjectContext(
             expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
         },
         subject,
-        subjects: [subject],
+        subjects: [subject, ...sets],
     };
     const request = new Request("https://test.local", signal === undefined ? {} : { signal });
 

@@ -25,6 +25,7 @@ export function testKeys(): Promise<Deriver> {
 export async function testServerContext(owner: Package, space: string): Promise<ServerContext> {
     return {
         installation: "installation-019f5530-8000-7000-8000-00000000f001",
+        name: "fixture",
         space,
         build: await MemoryBuild.write(new Map(), { package: owner }),
         settings: {},

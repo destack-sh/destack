@@ -3,20 +3,24 @@ import { expect, test } from "@destack/test";
 import { Egress } from "./egress.ts";
 
 test("read back the installation an address writes, and no installation from other addresses", () => {
-    // write an installation's address and read its identifiers back
-    const installationId = schema
-        .identifier("installation")
-        .parse("installation-01996ab0-0000-7000-8000-0000000000e1");
+    // write an installation's address by its name and read the name and space back
+    const name = "notes";
     const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e2");
-    const address = Egress.address(installationId, spaceId);
+    const address = Egress.address(name, spaceId);
 
-    // read nothing from a binding's name, only a space, three identifiers, or swapped identifiers
-    const others = ["notes", spaceId, `${address}--${spaceId}`, `${spaceId}--${installationId}`];
+    // read nothing from a binding's name, only a space, three parts, swapped parts, or the punycode prefix
+    const others = [
+        "notes",
+        spaceId,
+        `${address}--${spaceId}`,
+        `${spaceId}--${name}`,
+        `xn--${spaceId}`,
+    ];
 
     expect([
         Egress.installation(address),
         others.map((other) => Egress.installation(other)),
-    ]).toEqual([{ installationId, spaceId }, [undefined, undefined, undefined, undefined]]);
+    ]).toEqual([{ name, spaceId }, [undefined, undefined, undefined, undefined, undefined]]);
 });
 
 test("split a request to the egress into its address and the request below it", () => {

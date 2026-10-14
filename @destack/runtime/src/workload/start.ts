@@ -1,4 +1,5 @@
 import { DeclarationName } from "@destack/package";
+import { InstallationName } from "../runtime/egress.ts";
 import { ResourceBinding } from "@destack/resource";
 import { defineSchema, schema } from "@destack/schema";
 
@@ -26,6 +27,8 @@ export const WorkloadStart = defineSchema(
         space: schema.identifier("space"),
         /** The installation the workload runs. */
         installation: schema.identifier("installation"),
+        /** The installation's name in its space. */
+        name: InstallationName,
         /** The one partition of the installation's database the instance serves. */
         partition: schema.string().min(1).exactOptional(),
         /** The resources the installation binds, by the package's resource name. */

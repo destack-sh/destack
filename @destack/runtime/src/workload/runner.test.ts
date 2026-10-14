@@ -108,6 +108,7 @@ const start: WorkloadStart = {
     installation: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-000000000003"),
+    name: "notes",
     bindings: {},
     settings: { [`${notes.id}/language`]: "de" },
     secret: "forwarding",
