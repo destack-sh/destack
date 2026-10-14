@@ -13,7 +13,7 @@ export const CREDENTIALS = { accessKeyId: "AKIDLOCAL", secretAccessKey: "local-s
 /** The region the test server signs for. */
 export const REGION = "us-east-1";
 
-/** Two local buckets served over S3, and clients reaching them in-process. */
+/** Two local buckets served over S3, and clients calling them in-process. */
 export class S3Fixture implements AsyncDisposable {
     /** The served buckets by name. */
     readonly buckets: Map<string, LocalBucket>;

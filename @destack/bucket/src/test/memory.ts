@@ -76,7 +76,7 @@ export class MemoryBucket implements Bucket {
         );
     }
 
-    /** Store a file, refusing a failed precondition or a lock holding the current one. */
+    /** Store a file, refusing a failed precondition or a lock keeping the current one. */
     async put(
         key: string,
         body: BucketBody | null,
@@ -135,7 +135,7 @@ export class MemoryBucket implements Bucket {
         // check every key and lock before deleting any
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw new BucketError("INVALID_LIMIT", "a delete takes at most 1000 files");
+            throw new BucketError("INVALID_LIMIT", "a delete accepts at most 1000 files");
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -200,16 +200,16 @@ export class MemoryBucket implements Bucket {
     /** Refuse a multipart upload, which a memory bucket does not keep. */
     createMultipartUpload(): Promise<MultipartUpload> {
         return Promise.reject(
-            new BucketError("UNSUPPORTED", "a memory bucket keeps no multipart uploads"),
+            new BucketError("UNSUPPORTED", "a memory bucket does not support multipart uploads"),
         );
     }
 
     /** Refuse a multipart upload, which a memory bucket does not keep. */
     resumeMultipartUpload(): MultipartUpload {
-        throw new BucketError("UNSUPPORTED", "a memory bucket keeps no multipart uploads");
+        throw new BucketError("UNSUPPORTED", "a memory bucket does not support multipart uploads");
     }
 
-    /** Refuse to replace or delete a file its lock holds. */
+    /** Refuse to replace or delete a file its lock keeps. */
     #requireUnlocked(file: BucketFile | null): void {
         if (file?.isLocked(this.#clock.now()) === true) {
             throw new BucketError("LOCKED", `file ${file.key} is locked`);

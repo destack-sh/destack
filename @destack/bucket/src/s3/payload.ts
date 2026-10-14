@@ -34,7 +34,7 @@ interface Checksum {
 
 /** A checksum a request declares, verified over the decoded body. */
 interface Check {
-    /** The header or trailer holding the expected value. */
+    /** The header or trailer with the expected value. */
     readonly name: string;
     /** The running digest. */
     readonly digest: Hasher;
@@ -108,7 +108,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
             this.#length = readLength(contentLength);
         }
 
-        // collect the declared checksums, one of which the trailer may carry
+        // collect the declared checksums, one of which may come in the trailer
         this.#checks = readChecks(headers);
         const trailer = headers.get("x-amz-trailer")?.toLowerCase();
         this.#hasTrailer = trailer !== undefined;
@@ -212,7 +212,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         for (const check of this.#checks) {
             const expected = check.expected ?? this.#trailers.get(check.name);
             if (expected === undefined) {
-                throw new S3Error("InvalidRequest", `the trailer does not carry ${check.name}`);
+                throw new S3Error("InvalidRequest", `the trailer has no ${check.name}`);
             }
             if (check.digest.digest().toBase64() !== expected) {
                 throw new S3Error(

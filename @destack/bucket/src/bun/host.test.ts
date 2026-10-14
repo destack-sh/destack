@@ -54,7 +54,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
     );
     const response = await server.fetch(presigned);
 
-    // refuse locating a bucket of a space the host keeps no credentials of
+    // refuse locating a bucket of a space without credentials on the host
     const foreign = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
     const refused = await buckets
         .locate({ ...reference, scope: foreign }, "read")
@@ -70,7 +70,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
         "http://s3.localhost:4200",
         200,
         "first",
-        new BucketError("NO_SUCH_BUCKET", `this host keeps no credentials of ${foreign}`),
+        new BucketError("NO_SUCH_BUCKET", `this host has no credentials of ${foreign}`),
     ]);
 });
 
@@ -94,7 +94,7 @@ test("sweep a host's open buckets daily, again a minute later while a copy holds
     await writeFile(join(files, digestOf("abandoned")), "abandoned");
     const sweep = new SweepController(buckets);
 
-    // keep every blob while a copy holds the blobs it fetched, and sweep the abandoned one once released
+    // keep every blob while a copy keeps the blobs it fetched, and sweep the abandoned one once released
     const held = await bucket.database().hold();
     const busy = [await sweep.reconcile(), (await readdir(files)).toSorted()];
     await held[Symbol.asyncDispose]();

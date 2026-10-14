@@ -12,7 +12,7 @@ const Cursor = schema.object({
     continuation: schema.string(),
 });
 
-/** A listed file: the metadata a listing carries of it, as S3's ListObjectsV2 lists it. */
+/** A listed file: the metadata a listing has of it, as S3's ListObjectsV2 lists it. */
 export interface BucketEntry {
     /** The exact file key. */
     readonly key: string;
@@ -26,7 +26,7 @@ export interface BucketEntry {
     readonly storageClass: StorageClass;
 }
 
-/** A listed file: the metadata a listing carries of it, as S3's ListObjectsV2 lists it. */
+/** A listed file: the metadata a listing has of it, as S3's ListObjectsV2 lists it. */
 export const BucketEntry = { of };
 
 /** A lexicographically ordered page of files. */

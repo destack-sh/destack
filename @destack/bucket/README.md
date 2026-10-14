@@ -55,7 +55,7 @@ const provider = bucketProvider(buckets, serveBuckets(buckets));
 
 ## S3
 
-`S3Server` serves the path-style S3 API over any `S3Bucket`, and `S3Client` is a `Bucket` over it, as a workload reaches its bound buckets at its machine's egress.
+`S3Server` serves the path-style S3 API over any `S3Bucket`, and `S3Client` is a `Bucket` over it, as a workload calls its bound buckets at its machine's egress.
 
 ```ts
 import { S3Client, S3Server } from "@destack/bucket/s3";

@@ -28,7 +28,7 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
     readonly endpoint: URL;
     /** The region requests are signed for. */
     readonly region: string;
-    /** Read the S3 credentials of a scope, absent for a scope the host keeps no credentials of. */
+    /** Read the S3 credentials of a scope, absent for a scope without credentials on the host. */
     readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
     /** The opening and opened buckets, by resource. */
     readonly #buckets = new Map<Identifier<"bucket">, Promise<Opened>>();
@@ -103,7 +103,7 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
         if (credentials === undefined) {
             throw new BucketError(
                 "NO_SUCH_BUCKET",
-                `this host keeps no credentials of ${bucket.scope}`,
+                `this host has no credentials of ${bucket.scope}`,
             );
         }
 

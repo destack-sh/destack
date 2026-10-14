@@ -33,7 +33,7 @@ const UNSIGNED_HEADERS: ReadonlySet<string> = new Set([
 ]);
 /** The header declaring the payload hash a signature covers. */
 export const PAYLOAD_HASH_HEADER = "x-amz-content-sha256";
-/** The query parameter carrying a presigned URL's signature. */
+/** The query parameter with a presigned URL's signature. */
 const SIGNATURE_PARAMETER = "X-Amz-Signature";
 /** The query parameter listing the headers a presigned URL signs. */
 const SIGNED_HEADERS_PARAMETER = "X-Amz-SignedHeaders";

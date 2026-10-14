@@ -43,7 +43,7 @@ test("follow presigned GET and PUT URLs and refuse forged or expired ones", asyn
     await using fixture = await S3Fixture.open();
     const client = fixture.client();
 
-    // upload through a presigned PUT carrying user metadata in its query
+    // upload through a presigned PUT with user metadata in its query
     const upload = await getSignedUrl(
         client,
         new PutObjectCommand({

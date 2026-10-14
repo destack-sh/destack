@@ -199,7 +199,7 @@ async function keepUnderFailedPreconditions(bucket: Bucket, first: BucketFile): 
 
 /** Accept one of two competing replacements of the previous entity tag. */
 async function replaceOnce(bucket: Bucket, first: BucketFile): Promise<void> {
-    // race two replacements naming the same entity tag
+    // race two replacements with the same entity tag
     const replacements = await Promise.allSettled([
         bucket.put("📁/one", "second", { onlyIf: { etagMatches: first.etag } }),
         bucket.put("📁/one", "third", { onlyIf: { etagMatches: first.etag } }),

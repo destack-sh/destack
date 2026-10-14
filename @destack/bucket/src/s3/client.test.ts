@@ -15,7 +15,7 @@ const ACCESS_KEY_ID = "space-test";
 /** A customer key encrypting a file, as 64 hexadecimal digits. */
 const CUSTOMER_KEY = "07".repeat(32);
 
-/** Describe a file as plain values, its upload time in the whole seconds HTTP carries. */
+/** Describe a file as plain values, its upload time in whole seconds as HTTP sends it. */
 function describe(file: BucketFile | null) {
     if (file === null) {
         return null;
@@ -88,7 +88,7 @@ test("roundtrip every bucket operation through S3, answering as the bucket answe
         server.serve(request, ACCESS_KEY_ID),
     );
 
-    // store files with metadata, a storage class, a checksum and a customer key, as the bucket then holds them
+    // store files with metadata, a storage class, a checksum and a customer key, as the bucket then keeps them
     const body = "Hello, world!";
     const expiry = new Date(Date.UTC(2027, 0, 1));
     const stored = await client.put("documents/readme.txt", body, {

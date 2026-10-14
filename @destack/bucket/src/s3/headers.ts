@@ -28,7 +28,7 @@ export const S3_STORAGE_CLASSES: Record<StorageClass, string> = {
     InfrequentAccess: "STANDARD_IA",
 };
 
-/** The digests S3 carries as checksum headers, by their header. */
+/** The digests S3 sends as checksum headers, by their header. */
 export const CHECKSUM_HEADERS = [
     ["sha1", "x-amz-checksum-sha1"],
     ["sha256", "x-amz-checksum-sha256"],
@@ -37,7 +37,7 @@ export const CHECKSUM_HEADERS = [
 /** The header asking a read to answer the file's checksums. */
 export const CHECKSUM_MODE_HEADER = "x-amz-checksum-mode";
 
-/** The header naming the stored version of a file. */
+/** The header with the stored version of a file. */
 const VERSION_HEADER = "x-amz-version-id";
 
 /** The prefix of user metadata headers. */
@@ -97,12 +97,12 @@ function write(file: BucketFile, isChecksummed: boolean): Headers {
 
 /** Read the file a response describes, of a size the caller reads from the response. */
 function read(key: string, size: number, headers: Headers): BucketFile {
-    // require the version, entity tag and upload time every file answer carries
+    // require the version, entity tag and upload time every file answer has
     const version = headers.get(VERSION_HEADER);
     const etag = headers.get("etag");
     const modified = headers.get("last-modified");
     if (version === null || etag === null || modified === null) {
-        throw new TypeError(`the answer for ${key} describes no file version`);
+        throw new TypeError(`the answer for ${key} has no file version`);
     }
     const unquoted = etag.replace(/^"(.*)"$/u, "$1");
 
@@ -211,13 +211,13 @@ function customMetadata(headers: Headers): Record<string, string> {
 
 /** Read the retain-until date of a compliance-mode object lock, else undefined. */
 function retainUntil(headers: Headers): Date | undefined {
-    // read the optional headers, accepting the compliance mode alone
+    // read the optional headers, accepting only the compliance mode
     const value = headers.get("x-amz-object-lock-retain-until-date");
     const mode = headers.get("x-amz-object-lock-mode");
     if (value === null) {
         return undefined;
     } else if (mode !== null && mode !== "COMPLIANCE") {
-        throw new S3Error("InvalidArgument", "object lock supports the COMPLIANCE mode alone");
+        throw new S3Error("InvalidArgument", "object lock supports only the COMPLIANCE mode");
     }
 
     // read the ISO 8601 date
@@ -236,7 +236,7 @@ function storageClass(headers: Headers): StorageClass | undefined {
     return value === null ? undefined : storageClassNamed(value);
 }
 
-/** Read the storage class S3 names, refusing a class this server does not offer. */
+/** Read the S3 storage class, refusing a class this server does not offer. */
 function storageClassNamed(name: string): StorageClass {
     const found = STORAGE_CLASSES.find((entry) => S3_STORAGE_CLASSES[entry] === name);
     if (found === undefined) {

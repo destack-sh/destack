@@ -186,7 +186,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         // stream the file from its source
         const response = await fetch(url);
         if (!response.ok) {
-            throw new BucketError("WRITE_FAILED", `fetching ${key} answered ${response.status}`);
+            throw new BucketError("WRITE_FAILED", `fetching ${key} returned ${response.status}`);
         }
         await this.restore(key, response.body, identity);
     }

@@ -358,7 +358,7 @@ test("match If-Match entity-tag lists on reads and writes through the AWS SDK", 
     );
     expect(stored.ETag).toBe(file.httpEtag);
 
-    // refuse reads and writes when the list names only other tags
+    // refuse reads and writes when the list has only other tags
     expect(await failure(get(`"other", ${etag}`))).toEqual({
         name: "PreconditionFailed",
         status: 412,
@@ -497,7 +497,7 @@ test("store and read objects under customer keys through the AWS SDK", async () 
         SSECustomerKeyMD5: createHash("md5").update(key).digest("base64"),
     };
 
-    // store an object under the key, which its metadata names
+    // store an object under the key in its metadata
     await client.send(
         new PutObjectCommand({ Bucket: "files", Key: "sealed.txt", Body: "hidden", ...customer }),
     );
@@ -584,7 +584,7 @@ test("keep the SHA-256 checksum a write declares as the stored file's, refusing 
     });
 });
 
-/** Read a body's SHA-256 checksum as S3 headers carry it. */
+/** Read a body's SHA-256 checksum as S3 headers send it. */
 function checksum(body: string): string {
     return createHash("sha256").update(body).digest("base64");
 }

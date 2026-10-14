@@ -38,7 +38,7 @@ export class CustomerKey {
         if (bytes === undefined || bytes.byteLength !== KEY_BYTES) {
             throw new BucketError(
                 "INVALID_CUSTOMER_KEY",
-                "a customer key is 32 bytes or 64 hexadecimal digits",
+                "a customer key must be 32 bytes or 64 hexadecimal digits",
             );
         }
 

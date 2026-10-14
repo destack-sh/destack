@@ -16,13 +16,13 @@ import { writeErrorXml } from "./xml.ts";
 /** The package serving buckets over S3, which a workload's calls to its buckets address. */
 export const S3_PACKAGE = import.meta.destack.package;
 
-/** How an S3 server authenticates requests and reaches buckets. */
+/** How an S3 server authenticates requests and opens buckets. */
 export interface S3ServerOptions {
     /** The region clients sign requests for. */
     region: string;
     /** Look up the credentials of an access key, or undefined when none exists. */
     credentials: (accessKeyId: string) => Promise<S3Credentials | undefined>;
-    /** Open a bucket an access key reaches, or undefined when it reaches no bucket of that name. */
+    /** Open a bucket an access key can use, or undefined when it has no bucket of that name. */
     open: (bucketName: string, accessKeyId: string) => Promise<S3Bucket | undefined>;
     /** The CORS rules of every bucket. */
     cors?: CorsRule[];
@@ -36,7 +36,7 @@ export class S3Server {
     readonly cors: CorsRule[];
     /** Look up the credentials of an access key. */
     readonly #credentials: S3ServerOptions["credentials"];
-    /** Open a bucket an access key reaches. */
+    /** Open a bucket an access key can use. */
     readonly #open: S3ServerOptions["open"];
 
     /** Serve buckets in a region. */
@@ -119,7 +119,7 @@ export class S3Server {
             throw new S3Error("NotImplemented", "listing buckets is not supported");
         }
 
-        // authorize the request, then open the bucket its access key reaches
+        // authorize the request, then open the bucket its access key can use
         const call = new S3Request(request, bucketName, key, await authorize());
         const bucket = await this.#bucket(call, bucketName);
 
@@ -210,7 +210,7 @@ export class S3Server {
         }
     }
 
-    /** Open a bucket the request's access key reaches. */
+    /** Open a bucket the request's access key can use. */
     async #bucket(call: S3Request, bucketName: string): Promise<S3Bucket> {
         const bucket = await this.#open(bucketName, call.authorization.accessKeyId);
         if (bucket === undefined) {
@@ -251,7 +251,7 @@ export class S3Server {
     }
 }
 
-/** Answer a failure with an S3 error document, or with its status alone for HEAD requests. */
+/** Answer a failure with an S3 error document, or with only its status for HEAD requests. */
 function failureResponse(
     failure: S3Error,
     request: Request,

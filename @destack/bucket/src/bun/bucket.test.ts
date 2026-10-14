@@ -325,7 +325,7 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
             ["INVALID_CUSTOMER_KEY", "the file is encrypted with another customer key"],
             ["INVALID_CUSTOMER_KEY", "the file is encrypted with another customer key"],
             ["INVALID_CUSTOMER_KEY", "the file is not encrypted with a customer key"],
-            ["INVALID_CUSTOMER_KEY", "a customer key is 32 bytes or 64 hexadecimal digits"],
+            ["INVALID_CUSTOMER_KEY", "a customer key must be 32 bytes or 64 hexadecimal digits"],
         ]);
 
         // upload parts under the upload's key, refusing a part without it

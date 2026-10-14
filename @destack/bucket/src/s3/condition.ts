@@ -6,7 +6,7 @@ import { BucketPreconditionError } from "../error/index.ts";
 export interface EntityTag {
     /** The unquoted tag. */
     etag: string;
-    /** Whether the tag carries the W/ weakness prefix. */
+    /** Whether the tag has the W/ weakness prefix. */
     isWeak: boolean;
 }
 
@@ -33,7 +33,7 @@ export const S3Condition = { matches, resolve, failed };
 
 /** Read an HTTP entity-tag list, or an asterisk, accepting unquoted tags as S3 does. */
 function readList(value: string): EntityTag[] | "*" {
-    // match the asterisk alone
+    // match only the asterisk
     if (value.trim() === "*") {
         return "*";
     }

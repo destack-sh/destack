@@ -39,7 +39,7 @@ export class BucketError extends Error implements DomainError {
         this.code = code;
     }
 
-    /** Report whether a value names a failure code of file storage. */
+    /** Report whether a value is a failure code of file storage. */
     static isCode(value: string): value is BucketErrorCode {
         return Object.hasOwn(CALL_CODES, value);
     }

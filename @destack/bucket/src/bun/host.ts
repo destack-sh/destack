@@ -18,7 +18,7 @@ export interface LocalBucketHostOptions {
     readonly endpoint: URL;
     /** The region requests are signed for. */
     readonly region: string;
-    /** Read the S3 credentials of a scope, absent for a scope the host keeps no credentials of. */
+    /** Read the S3 credentials of a scope, absent for a scope without credentials on the host. */
     readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
 }
 

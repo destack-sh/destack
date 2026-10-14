@@ -18,7 +18,7 @@ export class S3Request {
     readonly request: Request;
     /** The request URL. */
     readonly url: URL;
-    /** The request headers, with the x-amz headers a presigned query carries. */
+    /** The request headers, with the x-amz headers of a presigned query. */
     readonly headers: Headers;
     /** The decoded query parameters, except those of authentication. */
     readonly query: Map<string, string>;
@@ -153,7 +153,7 @@ export class S3Request {
         return readRange(first, last);
     }
 
-    /** Read the copy source range, which must name both ends. */
+    /** Read the copy source range, which must have both ends. */
     copySourceRange(): BucketRange | undefined {
         // read the optional header
         const value = this.headers.get("x-amz-copy-source-range");
@@ -180,7 +180,7 @@ export class S3Request {
         // refuse versioned sources and customer keys of the source
         const value = this.headers.get("x-amz-copy-source");
         if (value === null) {
-            throw new TypeError("a copy reads its source without the x-amz-copy-source header");
+            throw new TypeError("a copy has no x-amz-copy-source header");
         }
         const parts = value.split("?");
         if (parts.length > 1) {

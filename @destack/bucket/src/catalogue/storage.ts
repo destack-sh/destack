@@ -41,7 +41,7 @@ const REFERENCE_BATCH_SIZE = 500;
 /** A catalogue transaction. */
 export type CatalogueTransaction = Parameters<Parameters<DatabaseConnection["transaction"]>[0]>[0];
 
-/** A bucket's catalogue database, opened by its host for it alone, and its blob store. */
+/** A bucket's catalogue database, opened by its host only for it, and its blob store. */
 export interface Catalogue extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
     readonly blobs: BlobStore;
@@ -537,7 +537,7 @@ function addEntries(
         readonly prefix: string;
         /** The delimiter grouping keys, empty for none. */
         readonly delimiter: string;
-        /** The most files and groups a page holds. */
+        /** The most files and groups a page has. */
         readonly limit: number;
         /** The last key or group listed before. */
         readonly after: string | undefined;

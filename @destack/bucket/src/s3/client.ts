@@ -34,7 +34,7 @@ import {
 import { encodeUri } from "./uri.ts";
 import { writeXml, XmlNode } from "./xml.ts";
 
-/** The provider code of buckets a workload reaches over S3 at its host's egress. */
+/** The provider code of buckets a workload calls over S3 at its host's egress. */
 export const S3_PROVIDER = "s3";
 
 /** The headers a write answers with, which describe the stored file beside what the client sent. */
@@ -73,7 +73,7 @@ export class S3Client implements Bucket {
             // require the credential the egress identifies the instance by
             const credential = binding.credential;
             if (credential === undefined) {
-                throw new TypeError(`bucket ${binding.resource} holds no credential`);
+                throw new TypeError(`bucket ${binding.resource} has no credential`);
             }
 
             // send every request with the credential
@@ -199,7 +199,7 @@ export class S3Client implements Bucket {
 
         // delete several files with one document, checking every key first
         if (key.length > MAX_BATCH_FILES) {
-            throw new BucketError("INVALID_LIMIT", "a delete takes at most 1000 files");
+            throw new BucketError("INVALID_LIMIT", "a delete accepts at most 1000 files");
         }
         for (const each of key) {
             BucketKey.check(each);
@@ -316,7 +316,7 @@ export class S3Client implements Bucket {
         // read the part's entity tag
         const etag = (await this.#expect(answer)).headers.get("etag");
         if (etag === null) {
-            throw new TypeError(`the part ${partNumber} of ${uploadId} answered no entity tag`);
+            throw new TypeError(`the part ${partNumber} of ${uploadId} returned no entity tag`);
         }
 
         return { partNumber, etag: etag.replace(/^"(.*)"$/u, "$1") };
@@ -376,7 +376,7 @@ export class S3Client implements Bucket {
     }
 }
 
-/** Read the refusal an answer carries. */
+/** Read an answer's refusal. */
 async function refusal(answer: Response): Promise<Error> {
     // read an S3 error document
     const text = await answer.text();
@@ -390,7 +390,7 @@ async function refusal(answer: Response): Promise<Error> {
     return new CallError(refused.code, { status: refused.status, message: refused.message });
 }
 
-/** Read the storage failure an S3 error element names, else the S3 error itself. */
+/** Read the storage failure of an S3 error element, else the S3 error itself. */
 function readFailure(element: XmlNode): Error {
     const failure = S3Error.named(required(element, "Code"), required(element, "Message"));
 
@@ -409,7 +409,7 @@ function required(element: XmlNode, name: string): string {
 
 /** Read a file's whole size: the total of a returned range, else the body's length. */
 function sizeOf(headers: Headers): number {
-    // take the total a range names
+    // take the total of a range
     const range = headers.get("content-range");
     if (range !== null) {
         return Number(range.slice(range.lastIndexOf("/") + 1));
@@ -418,7 +418,7 @@ function sizeOf(headers: Headers): number {
     // take the length of the whole body
     const length = headers.get("content-length");
     if (length === null) {
-        throw new TypeError("the answer states no content length");
+        throw new TypeError("the answer has no content length");
     }
 
     return Number(length);
@@ -426,7 +426,7 @@ function sizeOf(headers: Headers): number {
 
 /** Read the returned range of a partial answer, absent for a whole body. */
 function rangeOf(headers: Headers): { offset: number; length: number } | undefined {
-    // read the first and last byte a partial answer names
+    // read the first and last byte of a partial answer
     const match = /^bytes (\d+)-(\d+)\/\d+$/u.exec(headers.get("content-range") ?? "");
     if (match === null) {
         return undefined;
@@ -453,14 +453,14 @@ function rangeHeader(range: BucketRange): string {
 
 /** Write preconditions as conditional headers, which compare upload times in whole seconds. */
 function writeCondition(headers: Headers, condition: BucketCondition | undefined): void {
-    // refuse a time HTTP dates cannot carry, unless the caller compares whole seconds
+    // refuse a time HTTP dates cannot express, unless the caller compares whole seconds
     if (condition === undefined) {
         return;
     }
     const times = [condition.uploadedBefore, condition.uploadedAfter];
     const isWhole = times.every((time) => time === undefined || time.getTime() % 1000 === 0);
     if (!isWhole && condition.secondsGranularity !== true) {
-        throw new BucketError("UNSUPPORTED", "conditions over S3 compare whole seconds");
+        throw new BucketError("UNSUPPORTED", "conditions over S3 compare only whole seconds");
     }
 
     // write each condition the caller sets

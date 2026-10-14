@@ -80,7 +80,7 @@ const STORAGE_FAILURES: ReadonlyMap<S3ErrorCode, BucketErrorCode> = new Map(
     }),
 );
 
-/** The S3 error code of each status a document-less answer, such as HEAD's, carries. */
+/** The S3 error code of each status of a document-less answer, such as HEAD's. */
 const STATUS_ERROR_CODES: Readonly<Record<number, S3ErrorCode>> = {
     400: "BadRequest",
     403: "AccessDenied",
@@ -117,7 +117,7 @@ export class S3Error extends Error implements DomainError {
         return { code: CALL_CODES[S3_ERROR_STATUS[this.code]], message: this.message };
     }
 
-    /** Read the S3 error an error document names, refusing a code S3 does not define. */
+    /** Read the S3 error of an error document, refusing a code S3 does not define. */
     static named(code: string, message: string): S3Error {
         if (!isCode(code)) {
             throw new TypeError(`the bucket answered the unknown S3 error ${code}`);
@@ -159,7 +159,7 @@ export class S3Error extends Error implements DomainError {
     }
 }
 
-/** Report whether a value names an S3 error code. */
+/** Report whether a value is an S3 error code. */
 function isCode(value: string): value is S3ErrorCode {
     return Object.hasOwn(S3_ERROR_STATUS, value);
 }
