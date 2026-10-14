@@ -126,14 +126,14 @@ export class SeriesFold<Shape extends EventKeyShape> {
     }
 
     /** Read the start of the step a time falls in. */
-    startOf(time: number): number {
+    stepStart(time: number): number {
         return this.width === undefined ? this.#from : Math.floor(time / this.width) * this.width;
     }
 
     /** Fold a partial fold into the step of its group, as SQL folds hot events. */
     add(keys: Readonly<Record<string, unknown>>, start: number, fold: StepFold): void {
         // merge the fold into the step of the group of its keys' values
-        const values = Object.fromEntries(this.group.map((name) => [name, scalarOf(keys[name])]));
+        const values = Object.fromEntries(this.group.map((name) => [name, toScalar(keys[name])]));
         const key = JSON.stringify(values);
         const held = this.#groups.get(key) ?? { group: values, steps: new Map<number, StepFold>() };
         held.steps.set(start, merged(held.steps.get(start), fold));
@@ -148,7 +148,7 @@ export class SeriesFold<Shape extends EventKeyShape> {
     }): void {
         // read the measured value and the event's step
         const value = this.measure === undefined ? 0 : event.keys[this.measure];
-        const start = this.startOf(event.time);
+        const start = this.stepStart(event.time);
         const step = { events: 1, sum: 0, min: 0, max: 0, last: undefined, distinct: undefined };
 
         // merge a distribution for a quantile
@@ -188,7 +188,7 @@ export class SeriesFold<Shape extends EventKeyShape> {
 }
 
 /** Read a key's value as a group keeps it. */
-function scalarOf(value: unknown): string | number | null {
+function toScalar(value: unknown): string | number | null {
     return typeof value === "string" || typeof value === "number" ? value : null;
 }
 

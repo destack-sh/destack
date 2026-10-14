@@ -24,6 +24,11 @@ export class EventReader {
         await database.log.advance(this.name, sequence, now + this.hold);
     }
 
+    /** Place the reader at the log's start unless placed, as its first events append. */
+    async place(now: number, database: DatabaseConnection): Promise<void> {
+        await database.log.place(this.name, now + this.hold);
+    }
+
     /** Move the reader's place past a sequence, in the transaction that read up to it. */
     async move(from: number, to: number, now: number, database: DatabaseConnection): Promise<void> {
         await database.log.move(this.name, from, to, now + this.hold);
@@ -32,5 +37,18 @@ export class EventReader {
     /** Let the log go of the events after the reader's place. */
     async release(database: DatabaseConnection): Promise<void> {
         await database.log.drop(this.name);
+    }
+
+    /** Read one key of the reader's family at its own place, like a partition's offset. */
+    at(key: string): EventReader {
+        return new EventReader(`${this.name}:${key}`, this.hold);
+    }
+
+    /** List the keys of the reader's family placed so far, in order. */
+    async keys(database: DatabaseConnection): Promise<string[]> {
+        const prefix = `${this.name}:`;
+        const slots = await database.log.slots(prefix);
+
+        return slots.map((slot) => slot.slice(prefix.length));
     }
 }

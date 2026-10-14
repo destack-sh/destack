@@ -221,7 +221,7 @@ export class EventKind<
     }
 
     /** Read the distribution an event's data records, absent where it records none. */
-    distributionOf(data: JsonValue): Histogram | undefined {
+    readDistribution(data: JsonValue): Histogram | undefined {
         // read the kind's distribution entry of the data
         const entry = this.#definition.distribution;
         const recorded = entry === undefined || !JsonValue.isObject(data) ? undefined : data[entry];
@@ -286,7 +286,7 @@ export class EventKind<
     /** Read the query keys' values from a record, null where absent, with map entries parsed. */
     keyValues(values: Readonly<Record<string, unknown>>): Readonly<Record<string, EventKeyValue>> {
         return Object.fromEntries(
-            this.keys.map((name) => [name, keyValueOf(this.keyTypes[name], values[name])]),
+            this.keys.map((name) => [name, toKeyValue(this.keyTypes[name], values[name])]),
         );
     }
 
@@ -336,7 +336,7 @@ export class EventKind<
 }
 
 /** Read one query key's value as its column keeps it: null if absent, map entries parsed. */
-function keyValueOf(type: EventKeyType | undefined, value: unknown): EventKeyValue {
+function toKeyValue(type: EventKeyType | undefined, value: unknown): EventKeyValue {
     // an absent key
     if (value === null || value === undefined) {
         return null;

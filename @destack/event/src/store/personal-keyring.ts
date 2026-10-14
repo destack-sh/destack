@@ -63,7 +63,7 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
         // create a key and keep it encrypted under the keyring
         const id = v7();
         const bytes = crypto.getRandomValues(new Uint8Array(32));
-        const sealed = await this.#keyring.encrypt(bytes, contextOf(subject, id));
+        const sealed = await this.#keyring.encrypt(bytes, encryptionContext(subject, id));
         await connection.insert(personalKey).values({ subject, id, sealed, createdAt: Date.now() });
 
         return { id, key: await importKey(bytes) };
@@ -87,7 +87,7 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
     /** Decrypt a kept key under the keyring. */
     async #open(subject: string, id: string, sealed: string): Promise<CryptoKey> {
         return importKey(
-            await this.#keyring.decrypt(Ciphertext.parse(sealed), contextOf(subject, id)),
+            await this.#keyring.decrypt(Ciphertext.parse(sealed), encryptionContext(subject, id)),
         );
     }
 }
@@ -222,7 +222,7 @@ function importKey(bytes: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
 }
 
 /** Bind a person's key to the person and its identity. */
-function contextOf(subject: string, id: string): Uint8Array<ArrayBuffer> {
+function encryptionContext(subject: string, id: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(`personal-key ${subject} ${id}`);
 }
 

@@ -23,6 +23,7 @@ import {
 } from "@destack/db";
 import { canonicalize, Clock, type JsonValue, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
+import { telemetry } from "@destack/telemetry";
 import type { Bucket } from "@destack/bucket";
 import type { Controller } from "@destack/runtime/control";
 import { ArchiveController } from "../archive/controller.ts";
@@ -31,6 +32,9 @@ import type { Event, EventKeyShape, EventKind, EventPolicy } from "../kind/kind.
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
 import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
+
+/** The instruments capturing the dropped writes of events kept at most once. */
+const instruments = telemetry.scope(import.meta.destack.package);
 
 /** The bucket key prefix segments are written under unless a host sets another. */
 const SEGMENT_PREFIX = "events";
@@ -65,8 +69,6 @@ export interface EventStoreOptions {
     readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy>;
     /** The clock segments flush, compact and expire by. */
     readonly clock: Clock;
-    /** Report the failed write of events kept at most once, which were dropped. */
-    readonly report: (error: unknown) => void;
 }
 
 /** The append-only events of the scopes a host keeps. */
@@ -81,8 +83,6 @@ export class EventStore {
     readonly #archive: EventArchive;
     /** The keyring sealing personal values. */
     readonly #personal: PersonalKeyring | undefined;
-    /** Report a dropped write of events kept at most once. */
-    readonly #report: (error: unknown) => void;
 
     /** Keep events of some kinds over a host's database and buckets. */
     constructor(options: EventStoreOptions) {
@@ -109,7 +109,6 @@ export class EventStore {
             policy: policy ?? (async (kind) => kind.policy),
         });
         this.#personal = options.personal;
-        this.#report = options.report;
         this.controllers = [new ArchiveController(this.#archive, kinds, options.clock)];
     }
 
@@ -139,7 +138,7 @@ export class EventStore {
             await write(transaction);
         } else if (kind.delivery === "at-most-once") {
             await this.database.transaction(write).catch((error: unknown) => {
-                this.#report(error);
+                instruments.captureException(error);
             });
         } else {
             await this.database.transaction(write);
@@ -236,7 +235,7 @@ export class EventStore {
                 () => this.#hotSeries(kind, filter, series),
             );
             for (const row of hot) {
-                series.add(row.keys, row.start ?? series.startOf(0), row.fold);
+                series.add(row.keys, row.start ?? series.stepStart(0), row.fold);
             }
             flushed.forEach((event) => {
                 series.addEvent({
@@ -252,7 +251,7 @@ export class EventStore {
                 series.addEvent({
                     time: event.time,
                     keys: EventFilter.flatten(kind, event),
-                    distribution: kind.distributionOf(event.data),
+                    distribution: kind.readDistribution(event.data),
                 });
             }
         }
@@ -369,12 +368,12 @@ export class EventStore {
             rows.map((row) => {
                 const event = kind.event(row);
 
-                return [event.id, contentsOf(kind, event)];
+                return [event.id, searchedText(kind, event)];
             }),
         );
 
         // refuse an identity stored with other contents
-        const changed = repeated.find((event) => kept.get(event.id) !== contentsOf(kind, event));
+        const changed = repeated.find((event) => kept.get(event.id) !== searchedText(kind, event));
         if (changed !== undefined) {
             throw new CallError("CONFLICT", {
                 message: `event ${changed.id} of ${kind.key} was stored with other contents`,
@@ -598,7 +597,7 @@ function sameSegments(
 }
 
 /** Write an event's time, keys and data without personal values, which each seal writes anew. */
-function contentsOf(kind: EventKind, event: Event): string {
+function searchedText(kind: EventKind, event: Event): string {
     const data = kind.mapSensitive(event.data, (value, sensitivity) =>
         sensitivity === "personal" ? undefined : value,
     );

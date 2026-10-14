@@ -246,7 +246,7 @@ export const EventFilter = {
     range(filter: EventFilter): EventRange {
         // read each bound on time the condition and its top conjunction require
         const bounds = Condition.conjuncts(filter.where).flatMap((condition) =>
-            boundsOf(condition["time"]),
+            readBounds(condition["time"]),
         );
         const froms = bounds.flatMap((bound) => (bound.from === undefined ? [] : [bound.from]));
         const befores = bounds.flatMap((bound) =>
@@ -261,7 +261,7 @@ export const EventFilter = {
 };
 
 /** Read the time range one entry on time requires: an equality, or comparisons. */
-function boundsOf(entry: unknown): readonly EventRange[] {
+function readBounds(entry: unknown): readonly EventRange[] {
     // bound an exact time to its microsecond, and skip an entry that bounds nothing
     if (typeof entry === "number") {
         return [{ from: entry, before: entry + 1 }];

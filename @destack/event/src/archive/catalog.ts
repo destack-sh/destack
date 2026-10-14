@@ -25,7 +25,7 @@ export const BloomFilter = {
             Math.max(1, Math.ceil((values.length * FILTER_BITS_PER_VALUE) / 8)),
         );
         for (const value of values) {
-            for (const position of positionsOf(value, bits.length * 8)) {
+            for (const position of bitPositions(value, bits.length * 8)) {
                 bits[position >>> 3] = (bits[position >>> 3] ?? 0) | (1 << (position & 7));
             }
         }
@@ -35,7 +35,7 @@ export const BloomFilter = {
 
     /** Report whether a filter may contain a text. */
     mayHold(bits: Uint8Array, value: string): boolean {
-        return positionsOf(value, bits.length * 8).every(
+        return bitPositions(value, bits.length * 8).every(
             (position) => ((bits[position >>> 3] ?? 0) & (1 << (position & 7))) !== 0,
         );
     },
@@ -91,7 +91,7 @@ export const eventSegment = defineTable(
 );
 
 /** List the bit positions of a text, by double hashing two FNV-1a hashes. */
-function positionsOf(value: string, size: number): number[] {
+function bitPositions(value: string, size: number): number[] {
     // hash the text twice, the second hash seeded by the first
     const bytes = ENCODER.encode(value);
     const first = fnv(bytes, FNV.offset);

@@ -16,6 +16,7 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/telemetry": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",

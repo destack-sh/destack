@@ -1,4 +1,4 @@
-import { Filter } from "@destack/db";
+import { Filter, sql } from "@destack/db";
 import type { JsonCondition } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Package } from "@destack/package";
@@ -62,6 +62,15 @@ const line = testKind({
     delivery: "at-most-once",
     policy: { flush: { maxAge: 60 * MINUTE, maxRows: 100 }, retention: DAY },
 });
+
+/** The driver's failure writing a log line once its table is gone, by dialect. */
+const MISSING_LINE_TABLE = {
+    sqlite: { name: "SQLiteError", message: "no such table: acme__meters__event_line" },
+    postgresql: {
+        name: "PostgresError",
+        message: 'relation "acme__meters__event_line" does not exist',
+    },
+};
 
 /** Open events of some kinds, closed as the test finishes. */
 async function open(
@@ -483,6 +492,31 @@ test.for(TEST_DIALECTS)(
                 ["known", 9],
                 ["unknown", null],
             ],
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "drop an at-most-once event whose write fails, capturing the failure, on %s",
+    async (dialect) => {
+        const fixture = await open(dialect, [line]);
+        const { store, database } = fixture;
+
+        // append a log line once its table is gone
+        await database.database.execute(sql`DROP TABLE ${line.table}`);
+        await store.append(line, [
+            {
+                scope: "space-1",
+                id: "l",
+                time: at(1),
+                keys: { severity: 9 },
+                data: { message: "hi" },
+            },
+        ]);
+
+        // capture the failed write as the event package's exception
+        expect(fixture.telemetry.take()).toEqual([
+            { scope: "@destack/event", ...MISSING_LINE_TABLE[dialect] },
         ]);
     },
 );

@@ -29,10 +29,13 @@ const store = new EventStore({
 
 ## Reading in order
 
-`changes` reads the events appended after a log position, and an `EventReader` keeps its place in a log slot.
+`changes` reads the events appended after a log position, and an `EventReader` keeps its place in a log slot, one per key of its family.
 
 ```ts
-const reader = new EventReader(`metering:${accountId}`, 7 * DAY);
+const metering = new EventReader("metering", 7 * DAY);
+await metering.at(accountId).place(now, database); // in the appending transaction
+const accountIds = await metering.keys(database);
+const reader = metering.at(accountId);
 const after = await reader.after(database);
 const { events, sequence } = await store.changes(kind, { scopes: [accountId] }, after, 100);
 await reader.move(after, sequence, now, database);

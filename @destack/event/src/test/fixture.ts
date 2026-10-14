@@ -1,3 +1,4 @@
+import { TestTelemetry } from "@destack/telemetry/test";
 import { TestClock } from "@destack/test";
 import {
     type ColumnBuilder,
@@ -45,7 +46,7 @@ export function testKind<Shape extends EventKeyShape, Data extends JsonValue>(
         keys.map(([key, value]) => {
             // declare the column of the key's type under its snake-case name
             const column = snake(key);
-            const type = keyTypeOf(value);
+            const type = readKeyType(value);
             const built =
                 type === "text"
                     ? text(column)
@@ -71,7 +72,7 @@ export function testKind<Shape extends EventKeyShape, Data extends JsonValue>(
             constraints: (built) => [
                 index(`${name}_time`).on(built.scope, built.time, built.id),
                 ...keys
-                    .filter(([, value]) => keyTypeOf(value) !== "json")
+                    .filter(([, value]) => readKeyType(value) !== "json")
                     .map(([key]) =>
                         index(`${name}_${snake(key)}`).on(
                             built.scope,
@@ -102,6 +103,8 @@ export class EventFixture implements AsyncDisposable {
     readonly clock = new TestClock(Date.UTC(2026, 9, 1));
     /** The memory bucket keeping the segments, its locks on the fixture's clock. */
     readonly bucket = new MemoryBucket(this.clock);
+    /** The telemetry keeping the exceptions the store captures. */
+    readonly telemetry = TestTelemetry.register();
 
     /** Hold opened events. */
     private constructor(open: (fixture: EventFixture) => EventStore, database: TestDatabase) {
@@ -132,10 +135,6 @@ export class EventFixture implements AsyncDisposable {
                     personal: new DatabasePersonalKeyring(database.database, keyring),
                     ...(options.policy === undefined ? {} : { policy: options.policy }),
                     clock: fixture.clock,
-                    // fail the test on a dropped event
-                    report: (error) => {
-                        throw error;
-                    },
                 }),
             database,
         );
@@ -162,11 +161,12 @@ export class EventFixture implements AsyncDisposable {
     /** Close the database. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.database.close();
+        this.telemetry[Symbol.dispose]();
     }
 }
 
 /** Read the column type a test key's schema keeps its values in, from its JSON type. */
-function keyTypeOf(key: schema.Schema): EventKeyType {
+function readKeyType(key: schema.Schema): EventKeyType {
     // read the described types of the key and each of its alternatives, ignoring null
     const described = toJsonSchema(key);
     const types = [described, ...(described.anyOf ?? [])]
