@@ -16,6 +16,7 @@ import {
     type BuildExtension,
     type Compilation,
     type Pass,
+    type TransformCache,
     type TransformContext,
 } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
@@ -48,6 +49,8 @@ export class OutputPass implements Pass {
     readonly runtimes: RuntimeCompiler;
     /** The extensions of the package's dependency closure. */
     readonly extensions: readonly BuildExtension[];
+    /** The build's cache of files the extensions' transforms derive. */
+    readonly cache: TransformCache | undefined;
     /** The generated files, by package path. */
     readonly files = new Map<string, Uint8Array<ArrayBuffer>>();
     /** The files written straight into the build directory. */
@@ -79,6 +82,7 @@ export class OutputPass implements Pass {
         >,
         runtimes: RuntimeCompiler,
         extensions: readonly BuildExtension[],
+        cache: TransformCache | undefined,
     ) {
         // keep the build's inputs and one inspection per output
         this.project = project;
@@ -91,6 +95,7 @@ export class OutputPass implements Pass {
         );
         this.runtimes = runtimes;
         this.extensions = extensions;
+        this.cache = cache;
         for (const name of Object.keys(compilations)) {
             this.#inspections.set(name, { packages: {}, inputs: {}, outputs: {} });
         }
@@ -112,8 +117,12 @@ export class OutputPass implements Pass {
     }
 
     /** Return the plugins of the dependency closure's extensions, transforming the modules. */
-    transforms(context: Omit<TransformContext, "directory">): PluginOption[] {
-        return transformPlugins(this.extensions, { ...context, directory: this.project.directory });
+    transforms(context: Omit<TransformContext, "directory" | "cache">): PluginOption[] {
+        return transformPlugins(this.extensions, {
+            ...context,
+            directory: this.project.directory,
+            ...(this.cache === undefined ? {} : { cache: this.cache }),
+        });
     }
 
     /** Return the plugin recording what one Vite environment compiles, into its output if any. */

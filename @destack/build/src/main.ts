@@ -19,6 +19,6 @@ await import("@destack/package/bun/preload");
 delete process.env["NAPI_RS_NATIVE_LIBRARY_PATH"];
 
 // answer the host's requests
-await (await import("./build/worker.ts")).runCompiler();
+await (await import("./build/worker.ts")).CompilerWorker.run();
 
 export {};

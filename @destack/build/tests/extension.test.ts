@@ -62,7 +62,7 @@ async function link(root: string, dependent: string, name: string): Promise<void
     await symlink(join(root, name), join(root, dependent, "node_modules", "@fixture", name));
 }
 
-/** Write an application requiring two packages that both require the leaf declaring an extension, returning the root. */
+/** Write an application whose two packages require one extension leaf, returning its root. */
 async function writeApplication(): Promise<string> {
     // write the leaf declaring the extension, and two packages requiring it
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-build-extension-")));

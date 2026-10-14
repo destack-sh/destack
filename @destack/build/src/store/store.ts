@@ -10,7 +10,7 @@ import {
 } from "@destack/bucket";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
 import { CacheEntry } from "../cache/entry.ts";
@@ -26,6 +26,22 @@ const Marks = schema.record(schema.string(), Instant);
 
 /** The manifests one root retains. */
 const Roots = schema.array(Digest);
+
+/** Decide which of some stored digests a sweep keeps, read in batches the bucket lists. */
+export type Retention = (digests: readonly string[]) => Promise<ReadonlySet<string>>;
+
+/** The retentions of a sweep. */
+export const Retention = {
+    /** Keep the digests of a known set. */
+    of(kept: Iterable<string>): Retention {
+        const set = new Set(kept);
+
+        return async (digests) => new Set(digests.filter((digest) => set.has(digest)));
+    },
+
+    /** Keep none of the digests. */
+    none: (async () => new Set<string>()) satisfies Retention,
+};
 
 /** Immutable package builds in a bucket: files by digest, and manifests by digest. */
 export class PackageStore {
@@ -89,7 +105,7 @@ export class PackageStore {
         // store each missing file as served, then the manifest
         const digest = await this.put(reader, signal);
         if (digest !== location.manifest) {
-            throw new ServiceError("BAD_GATEWAY", {
+            throw new CallError("BAD_GATEWAY", {
                 message: `build ${location.manifest} was stored as ${digest}`,
             });
         }
@@ -102,7 +118,7 @@ export class PackageStore {
         mediaType: string,
     ): Promise<void> {
         if ((await Digest.of(bytes)) !== Digest.parse(digest)) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `the uploaded file does not match its digest ${digest}`,
             });
         }
@@ -116,7 +132,7 @@ export class PackageStore {
     async adopt(digest: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         // read the manifest its digest names
         if ((await Digest.of(bytes)) !== Digest.parse(digest)) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `the uploaded manifest does not match its digest ${digest}`,
             });
         }
@@ -192,7 +208,7 @@ export class PackageStore {
                 file = references.get(path);
             }
             if (!file) {
-                throw new ServiceError("NOT_FOUND", { message: `package file not found: ${path}` });
+                throw new CallError("NOT_FOUND", { message: `package file not found: ${path}` });
             }
 
             return file;
@@ -211,10 +227,7 @@ export class PackageStore {
         const entry = CacheEntry.parse(await object.json());
 
         // miss an entry naming a manifest or file retention removed since
-        const named =
-            entry.kind === "build"
-                ? [`manifests/${entry.manifest}`]
-                : entry.output.files.map((file) => `files/${file.digest}`);
+        const named = PackageStore.#objects(entry);
         const stored = await Promise.all(named.map((name) => this.bucket.head(name)));
 
         return stored.every((file) => file !== null) ? entry : undefined;
@@ -276,9 +289,9 @@ export class PackageStore {
 
     /** Delete what retention drops and was stored before a moment. */
     async sweep(
-        retained: ReadonlySet<string>,
+        retained: Retention,
         before: Date,
-        files: ReadonlySet<string> = new Set(),
+        files: Retention = Retention.none,
         now: Date = new Date(),
         marked: Date = now,
     ): Promise<void> {
@@ -331,32 +344,62 @@ export class PackageStore {
 
     /** List the unretained manifests and the unlisted files stored before a moment, by key. */
     async #candidates(
-        retained: ReadonlySet<string>,
+        retained: Retention,
         before: Date,
-        files: ReadonlySet<string>,
+        files: Retention,
     ): Promise<Map<string, string>> {
-        // keep the retained manifests and the manifests stored since the moment
-        const manifests = new Set(retained);
+        // keep the manifests stored since the moment and those retention keeps, by batch
+        const kept = new Set<string>();
         const candidates = new Map<string, string>();
-        for await (const file of this.#list("manifests/")) {
-            const digest = file.key.slice("manifests/".length);
-            if (file.uploaded >= before) {
-                manifests.add(digest);
-            } else if (!retained.has(digest)) {
-                candidates.set(file.key, digest);
+        await this.#batches("manifests/", async (batch) => {
+            const old = batch
+                .filter((file) => file.uploaded < before)
+                .map((file) => PackageStore.#digest(file));
+            const retainedDigests = await retained(old);
+            for (const file of batch) {
+                const digest = PackageStore.#digest(file);
+                if (file.uploaded >= before || retainedDigests.has(digest)) {
+                    kept.add(digest);
+                } else {
+                    candidates.set(file.key, digest);
+                }
             }
-        }
+        });
 
-        // keep the files a kept manifest lists, the retained files and the files stored since the moment
-        const listed = new Set([...files, ...(await this.#listedFiles(manifests))]);
-        for await (const file of this.#list("files/")) {
-            const digest = file.key.slice("files/".length);
-            if (!listed.has(digest) && file.uploaded < before) {
-                candidates.set(file.key, digest);
+        // keep the files of kept manifests, the retained files and the files stored since the moment
+        const listed = await this.#listedFiles(kept);
+        await this.#batches("files/", async (batch) => {
+            const old = batch.filter(
+                (file) => file.uploaded < before && !listed.has(PackageStore.#digest(file)),
+            );
+            const retainedDigests = await files(old.map((file) => PackageStore.#digest(file)));
+            for (const file of old) {
+                if (!retainedDigests.has(PackageStore.#digest(file))) {
+                    candidates.set(file.key, PackageStore.#digest(file));
+                }
             }
-        }
+        });
 
         return candidates;
+    }
+
+    /** Hand on the entries below a prefix in batches the bucket deletes at once. */
+    async #batches(
+        prefix: string,
+        handle: (batch: readonly BucketEntry[]) => Promise<void>,
+    ): Promise<void> {
+        // collect each batch, handing on the last one too
+        let batch: BucketEntry[] = [];
+        for await (const file of this.#list(prefix)) {
+            batch.push(file);
+            if (batch.length === MAX_BATCH_FILES) {
+                await handle(batch);
+                batch = [];
+            }
+        }
+        if (batch.length > 0) {
+            await handle(batch);
+        }
     }
 
     /** Replace the sweep marks, deleting the marks object when no mark remains. */
@@ -400,7 +443,7 @@ export class PackageStore {
         Digest.parse(digest);
         const stored = await this.bucket.head(`manifests/${digest}`);
         if (!stored) {
-            throw new ServiceError("NOT_FOUND", { message: "package manifest not found" });
+            throw new CallError("NOT_FOUND", { message: "package manifest not found" });
         }
 
         return { path: "manifest.json", digest, size: stored.size, mediaType: "application/json" };
@@ -415,7 +458,7 @@ export class PackageStore {
             range === undefined ? {} : { range },
         );
         if (!object) {
-            throw new ServiceError("NOT_FOUND", { message: "package manifest not found" });
+            throw new CallError("NOT_FOUND", { message: "package manifest not found" });
         }
 
         return object;
@@ -429,13 +472,13 @@ export class PackageStore {
             range === undefined ? {} : { range },
         );
         if (!object) {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: `package file not found: ${file.path}`,
             });
         }
         if (!isStored(object, file)) {
             await object.body.cancel();
-            throw new ServiceError("INTERNAL_SERVER_ERROR", {
+            throw new CallError("INTERNAL_SERVER_ERROR", {
                 message: `stored file differs: ${file.path}`,
             });
         }
@@ -468,7 +511,7 @@ export class PackageStore {
     async #requireStored(digest: string, files: readonly PackageFile[]): Promise<void> {
         for (const file of files) {
             if (!(await this.#has(`files/${file.digest}`, file))) {
-                throw new ServiceError("CONFLICT", {
+                throw new CallError("CONFLICT", {
                     message: `build ${digest} lists ${file.path}, which was not uploaded`,
                 });
             }
@@ -537,13 +580,28 @@ export class PackageStore {
         }
     }
 
+    /** List the objects a cache entry names: a manifest, or files. */
+    static #objects(entry: CacheEntry): string[] {
+        switch (entry.kind) {
+            // name a whole build's manifest
+            case "build":
+                return [`manifests/${entry.manifest}`];
+            // name an output's files
+            case "output":
+                return entry.output.files.map((file) => `files/${file.digest}`);
+            // name a transform's file
+            case "file":
+                return [`files/${entry.file.digest}`];
+        }
+    }
+
     /** Decide whether the bucket has a file's exact bytes at its key, refusing other bytes. */
     async #has(key: string, file: PackageFile): Promise<boolean> {
         const stored = await this.bucket.head(key);
         if (stored === null) {
             return false;
         } else if (!isStored(stored, file)) {
-            throw new ServiceError("INTERNAL_SERVER_ERROR", {
+            throw new CallError("INTERNAL_SERVER_ERROR", {
                 message: `stored object differs: ${key}`,
             });
         }
@@ -573,10 +631,15 @@ export class PackageStore {
 
         // require the stored object to hold the file
         if (!stored || !isStored(stored, file)) {
-            throw new ServiceError("INTERNAL_SERVER_ERROR", {
+            throw new CallError("INTERNAL_SERVER_ERROR", {
                 message: `stored object differs: ${key}`,
             });
         }
+    }
+
+    /** Read the digest of a manifest or file entry from its key. */
+    static #digest(file: BucketEntry): string {
+        return file.key.slice(file.key.indexOf("/") + 1);
     }
 }
 
@@ -612,10 +675,10 @@ function requireDistinctPaths(list: readonly PackageFile[]): void {
     const paths = new Set<string>();
     for (const file of list) {
         if (file.path === "manifest.json" || file.path.startsWith("manifest.json/")) {
-            throw new ServiceError("BAD_REQUEST", { message: `reserved build path: ${file.path}` });
+            throw new CallError("BAD_REQUEST", { message: `reserved build path: ${file.path}` });
         }
         if (paths.has(file.path)) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `duplicate package file: ${file.path}`,
             });
         }

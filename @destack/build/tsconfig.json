@@ -25,10 +25,10 @@
     "exclude": [
         "tests/fixture/library/source",
         "tests/fixture/resource/source",
-        "tests/fixture/service/source",
         "tests/fixture/stack/source",
         "tests/fixture/template/blank/expected",
         "tests/fixture/template/stack/expected",
-        "tests/fixture/web/source"
+        "tests/fixture/web/source",
+        "tests/fixture/workload/source"
     ]
 }

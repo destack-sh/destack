@@ -1,9 +1,9 @@
 import { defineSchema, schema } from "@destack/schema";
 import {
     type DomainError,
-    SERVICE_ERROR_STATUSES,
-    type ServiceErrorCode,
-    type ServiceErrorReport,
+    CALL_ERROR_STATUSES,
+    type CallErrorCode,
+    type CallErrorReport,
 } from "@destack/error";
 
 /** Failures during source inspection and compilation. */
@@ -12,8 +12,8 @@ export const BuildErrorCode = defineSchema(schema.enum(["INSPECTION_FAILED", "BU
 /** A machine-readable build failure code. */
 export type BuildErrorCode = schema.Infer<typeof BuildErrorCode>;
 
-/** The service error code of each build failure: source that cannot be built. */
-const SERVICE_CODES: Readonly<Record<BuildErrorCode, ServiceErrorCode>> = {
+/** The call error code of each build failure: source that cannot be built. */
+const CALL_CODES: Readonly<Record<BuildErrorCode, CallErrorCode>> = {
     INSPECTION_FAILED: "UNPROCESSABLE_CONTENT",
     BUILD_FAILED: "UNPROCESSABLE_CONTENT",
 };
@@ -33,14 +33,14 @@ export class BuildError extends Error implements DomainError {
         this.code = code;
     }
 
-    /** The HTTP status of the service error a caller receives. */
+    /** The HTTP status of the call error a caller receives. */
     get status(): number {
-        return SERVICE_ERROR_STATUSES[SERVICE_CODES[this.code]];
+        return CALL_ERROR_STATUSES[CALL_CODES[this.code]];
     }
 
-    /** Convert the failure to the service error a caller receives. */
-    toServiceError(): ServiceErrorReport {
-        return { code: SERVICE_CODES[this.code], message: this.message };
+    /** Convert the failure to the call error a caller receives. */
+    toCallError(): CallErrorReport {
+        return { code: CALL_CODES[this.code], message: this.message };
     }
 
     /** Report any failure as a build failure, keeping a build failure as it is. */

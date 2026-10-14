@@ -9,24 +9,29 @@ import { BunProcess } from "@destack/check/bun";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
 import { present } from "@destack/schema";
-import type { PackageFile } from "@destack/package/file";
+import { PackageFile } from "@destack/package/file";
 import type { PackageManifest } from "@destack/package/manifest";
 import type { BuildKeys, CacheEntry, CachedOutput } from "../cache/index.ts";
 import type { PackageStore } from "../store/index.ts";
 import type { BuildOptions } from "./build.ts";
 import { PackageBuild } from "./build.ts";
 import {
-    BuildResponse,
-    readMessages,
-    writeMessage,
     type BuildRequest,
+    type BuildResponse,
     type BuildResult,
+    type CacheRequest,
+    CompilerMessage,
+    readMessages,
     type RequestedBuild,
+    writeMessage,
 } from "./message.ts";
 import type { InspectOptions } from "../inspect/inspection.ts";
 
 /** The compiler executable beside a standalone Destack executable. */
 const EXECUTABLE = "destack-build";
+
+/** The build store's directory of the files transforms derive. */
+const TRANSFORM_DIRECTORY = "transforms";
 
 /** The most diagnostics a compiler retains, 1 MiB. */
 const MAX_DIAGNOSTICS = 1_048_576;
@@ -87,9 +92,13 @@ export class Compiler implements AsyncDisposable {
     #sandbox: Sandbox;
     /** Compiler completion, including native compiler shutdown. */
     #closed: Promise<void>;
-    /** The build currently awaiting a response. */
+    /** The request awaiting a response, with the store its transforms' cache requests read. */
     #pending:
-        | { resolve: (result: BuildResponse) => void; reject: (error: unknown) => void }
+        | {
+              resolve: (result: BuildResponse) => void;
+              reject: (error: unknown) => void;
+              store: PackageStore | undefined;
+          }
         | undefined;
     /** The failure that stopped the current compiler. */
     #failure: Error | undefined;
@@ -207,14 +216,62 @@ export class Compiler implements AsyncDisposable {
         return closed;
     }
 
-    /** Deliver each compiler response to the build awaiting it. */
+    /** Deliver each compiler response to the build awaiting it, and answer its cache requests. */
     async #deliver(sandbox: Sandbox): Promise<void> {
-        for await (const response of readMessages(sandbox.stdout, BuildResponse)) {
-            if (!this.#pending) {
-                throw new BuildError("BUILD_FAILED", "unexpected compiler response");
+        for await (const message of readMessages(sandbox.stdout, CompilerMessage)) {
+            // refuse a message no request awaits
+            const pending = this.#pending;
+            if (pending === undefined) {
+                throw new BuildError("BUILD_FAILED", "unexpected compiler message");
             }
-            this.#pending.resolve(response);
+            // deliver the response to its request
+            else if (message.kind === "result") {
+                pending.resolve(message);
+            }
+            // answer a transform's cache request from the pending build's store
+            else {
+                void this.#answer(sandbox, message, pending.store).catch((error: unknown) =>
+                    this.#fail(
+                        new BuildError("BUILD_FAILED", "cannot answer a cache request", {
+                            cause: error,
+                        }),
+                    ),
+                );
+            }
         }
+    }
+
+    /** Read or keep a transform's file in a build's store, refusing a build without one. */
+    async #answer(
+        sandbox: Sandbox,
+        request: CacheRequest,
+        store: PackageStore | undefined,
+    ): Promise<void> {
+        // refuse a cache request of a build without a store, which its transforms never reach
+        if (store === undefined) {
+            throw new BuildError("BUILD_FAILED", "a build without a store requested its cache");
+        }
+
+        // read the file a key names, a miss without an entry
+        let bytes: Uint8Array<ArrayBuffer> | null = null;
+        if (request.kind === "read") {
+            const entry = await store.cached(request.key);
+            bytes = entry?.kind === "file" ? await store.file(entry.file) : null;
+        }
+        // keep the file under its key once stored
+        else {
+            const path = `${TRANSFORM_DIRECTORY}/${request.key}`;
+            const file = await PackageFile.describe(
+                path,
+                "application/octet-stream",
+                request.bytes,
+            );
+            await store.putFile(file, async () => request.bytes);
+            await store.cache(request.key, { kind: "file", file });
+        }
+
+        // answer the request
+        await writeMessage(sandbox.stdin, { kind: "cached", id: request.id, bytes });
     }
 
     /** Build current source with retained compiler state after the requests before it. */
@@ -224,14 +281,21 @@ export class Compiler implements AsyncDisposable {
 
     /** Build current source using retained compiler state. */
     async #build(options: Omit<BuildOptions, "directory">): Promise<PackageBuild> {
-        // write into the compiler's temporary files, moving the build to the destination once complete
+        // write into temporary files, moving the build to its destination once complete
         const { signal, timeout, store, ...request } = options;
         const destination = await mkdtemp(join(tmpdir(), "destack-build-"));
         const written = join(this.#temporary, "builds", String(this.#builds++));
         try {
             // build without a cache
             if (store === undefined) {
-                const response = await this.#compile(request, {}, written, signal, timeout);
+                const response = await this.#compile(
+                    request,
+                    {},
+                    written,
+                    signal,
+                    timeout,
+                    undefined,
+                );
                 await rename(written, destination);
 
                 return new PackageBuild(response.manifest, destination, "temporary");
@@ -274,9 +338,9 @@ export class Compiler implements AsyncDisposable {
             return new PackageBuild(manifest, destination, "temporary", reused);
         }
 
-        // write the files of each output the cache names, then compile the others
+        // write each cached output's files, then compile the others with the store's cache
         const reuse = await reuseOutputs(store, keys, written);
-        const response = await this.#compile(request, reuse, written, signal, timeout);
+        const response = await this.#compile(request, reuse, written, signal, timeout, store);
         await rename(written, destination);
         const reused = Object.keys(reuse);
         const build = new PackageBuild(response.manifest, destination, "temporary", reused);
@@ -313,14 +377,18 @@ export class Compiler implements AsyncDisposable {
         destination: string,
         signal: AbortSignal | undefined,
         timeout: number | undefined,
+        store: PackageStore | undefined,
     ): Promise<Extract<BuildResult, { kind: "build" }>> {
-        // send the build with its destination and the reused outputs
+        // send the build with its destination, reused outputs and whether transforms have a cache
         await mkdir(destination, { recursive: true });
-        const response = await this.#request(
-            { kind: "build", destination, options, reuse },
-            signal,
-            timeout,
-        );
+        const request: BuildRequest = {
+            kind: "build",
+            destination,
+            options,
+            reuse,
+            isCached: store !== undefined,
+        };
+        const response = await this.#request(request, signal, timeout, store);
         if (response.kind !== "build") {
             throw new BuildError("BUILD_FAILED", "unexpected compiler result");
         }
@@ -359,6 +427,7 @@ export class Compiler implements AsyncDisposable {
         request: BuildRequest,
         signal?: AbortSignal,
         timeout = 60_000,
+        store?: PackageStore,
     ): Promise<BuildResult> {
         // refuse a closed compiler, an invalid timeout and a cancelled request
         if (this.#disposed) {
@@ -388,7 +457,7 @@ export class Compiler implements AsyncDisposable {
 
         // send the request and wait for its response
         try {
-            return resultOf(await this.#send(request));
+            return resultOf(await this.#send(request, store));
         } finally {
             clearTimeout(timer);
             signal?.removeEventListener("abort", abort);
@@ -397,11 +466,11 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Send a request to the compiler and await its response. */
-    #send(request: BuildRequest): Promise<BuildResponse> {
+    #send(request: BuildRequest, store: PackageStore | undefined): Promise<BuildResponse> {
         this.#stderr = "";
 
         return new Promise<BuildResponse>((deliver, reject) => {
-            this.#pending = { resolve: deliver, reject };
+            this.#pending = { resolve: deliver, reject, store };
             void writeMessage(this.#sandbox.stdin, request).catch((error: unknown) =>
                 this.#fail(
                     new BuildError("BUILD_FAILED", "cannot send the compiler request", {
@@ -426,7 +495,7 @@ export class Compiler implements AsyncDisposable {
         }
         this.#sandbox.stdin.end();
 
-        // await the compiler's exit once it read the end: its startup, its native compilers' exits and its sandbox's release
+        // await the compiler's exit once it read the end of its input
         try {
             await this.#closed;
             if (this.#exitCode !== 0 && !this.#stopping) {

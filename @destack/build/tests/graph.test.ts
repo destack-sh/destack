@@ -86,7 +86,7 @@ export const noteCardComplete = defineScenario({
 });
 `;
 
-/** Add a card component, an interaction of cards, an example of the card and a scenario taking steps on it. */
+/** Add a card component with an interaction, an example and a scenario taking steps on it. */
 async function writeCards(source: string): Promise<void> {
     // depend on the declaring packages
     const manifest = join(source, "package.json");

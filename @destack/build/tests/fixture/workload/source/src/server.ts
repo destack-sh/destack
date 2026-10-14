@@ -1,13 +1,13 @@
 import { defineDatabase } from "@destack/db";
 import { defineSecret, defineVault } from "@destack/vault";
-import { defineTrigger } from "@destack/service/trigger";
-import { defineService, defineProcedure, defineServiceBinding } from "@destack/service";
-import { implement, type ServiceImplementation } from "@destack/service/server";
-import { defineWorkload } from "@destack/service/workload";
+import { defineTrigger } from "@destack/runtime/trigger";
+import { defineAdapter, defineInstallationBinding, definePackage } from "@destack/runtime";
+import type { PackageImplementation } from "@destack/runtime/server";
+import { defineWorkload } from "@destack/runtime/workload";
 import { schema } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { defineAuditAction } from "@destack/audit";
+import { defineAuditAction } from "@destack/object";
 
 /** Record a published note under its declaring package. */
 export const notePublish = defineAuditAction({
@@ -28,38 +28,35 @@ export const database = defineDatabase({
 export const vault = defineVault({ name: "credentials", spec: {} });
 /** The secret selected during installation. */
 export const token = defineSecret({ name: "mail-token" });
-/** The public notes API. */
-export const router = {
-    list: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
-        .route({ method: "GET", path: "/notes" })
-        .output(schema.object({ path: schema.string() })),
-};
-/** The public HTTP service. */
-export const service = defineService("notes", router);
-/** A dependency on the installation's notes service. */
-export const notes = defineServiceBinding("notes", service);
 
-/** Implement the public notes procedures. */
-export function implementNotes(): ServiceImplementation {
-    const implementation = implement(router);
+/** The notes package: its feed adapter and its mail secret. */
+export const notes = definePackage({
+    adapters: { feed: defineAdapter("feed", { path: "/feed" }) },
+    secrets: { "mail-token": token },
+});
+/** A dependency on an installation of the notes package. */
+export const binding = defineInstallationBinding("notes", notes);
 
+/** Implement the notes package, its feed answering the release its modules carry. */
+export function implementNotes(): PackageImplementation {
     return {
-        service,
-        router: implementation.router({
-            list: implementation.list.handler(() => ({ path: "/notes" })),
-        }),
-        authorize: async () => {},
+        package: notes,
+        router: {},
+        fetch: async (request) =>
+            new URL(request.url).pathname === "/feed"
+                ? Response.json({ path: "/feed", version: notes.version })
+                : undefined,
     };
 }
 
-/** The web workload hosting notes and reminders. */
+/** The web workload serving the notes package. */
 export const web = defineWorkload({
     name: "web",
     compute: { cpuTime: 1000 },
     start: async () => {
         instruments.logger.emit({ body: "Workload started" });
 
-        return { services: [implementNotes()] };
+        return { packages: [implementNotes()] };
     },
 });
 

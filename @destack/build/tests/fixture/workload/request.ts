@@ -1,6 +1,6 @@
 import type { BuildOptions } from "../../../src/index.ts";
 
-/** Compile the same service for local and worker hosts. */
+/** Compile the same workload for local and worker hosts. */
 export const request = {
     outputs: {
         bun: { kind: "module", runtime: "bun", bundle: true },

@@ -18,6 +18,7 @@ import {
 } from "@destack/package";
 import {
     type BuildExtension,
+    type TransformCache,
     type Compilation,
     type CompiledOutput,
     type DeclarationModule,
@@ -88,6 +89,8 @@ export class OutputCompilation implements Compilation {
     readonly extensions: readonly BuildExtension[];
     /** Whether an output kind compiles the output in its pass, where extensions emit no entries. */
     readonly isLent: boolean;
+    /** The build's cache of files the extensions' transforms derive. */
+    readonly cache: TransformCache | undefined;
     /** The modules extensions emit, by package entrypoint. */
     readonly #entries = new Map<string, string>();
     /** The host modules the runtime supplies, and those importers replace with nothing. */
@@ -105,6 +108,7 @@ export class OutputCompilation implements Compilation {
         },
         extensions: readonly BuildExtension[],
         isLent: boolean,
+        cache: TransformCache | undefined,
     ) {
         // keep the output's settings, package and inspection
         this.name = name;
@@ -115,6 +119,7 @@ export class OutputCompilation implements Compilation {
         this.directories = inspection.directories;
         this.extensions = extensions;
         this.isLent = isLent;
+        this.cache = cache;
         this.#hosts = new HostModules(project.runtime);
     }
 
@@ -277,6 +282,7 @@ export class OutputCompilation implements Compilation {
             runtime: this.runtime,
             server: false,
             options: {},
+            ...(this.cache === undefined ? {} : { cache: this.cache }),
         };
 
         return [...transformPlugins(this.extensions, context), ...compiling];

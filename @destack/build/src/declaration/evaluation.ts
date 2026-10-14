@@ -60,49 +60,55 @@ export function kindKey(declaration: Pick<graph.Declaration, "kind" | "package">
     return JSON.stringify([declaration.package, declaration.kind]);
 }
 
-/** Evaluate exported declarations together in the current build worker. */
-export async function evaluateDeclarations(
-    declarations: readonly DeclarationExport[],
-    project: PackageSource,
-): Promise<Evaluation> {
-    if (!declarations.length) {
-        return { declarations: [], compare: new Map() };
-    }
+/** The declarations a build evaluates in its worker. */
+export const Evaluation = {
+    /** Evaluate exported declarations together in the current build worker. */
+    async evaluate(
+        declarations: readonly DeclarationExport[],
+        project: PackageSource,
+    ): Promise<Evaluation> {
+        if (!declarations.length) {
+            return { declarations: [], compare: new Map() };
+        }
 
-    // rebuild the complete graph so edits to imported modules cannot leave stale values
-    const source = generateEntry(declarations, project);
-    const namespace = await evaluateEntry(source, project).catch((cause: unknown) => {
-        throw new BuildError(
-            "INSPECTION_FAILED",
-            `declaration evaluation failed: ${messageOf(cause)}`,
-            { cause },
-        );
-    });
+        // rebuild the complete graph so edits to imported modules cannot leave stale values
+        const source = generateEntry(declarations, project);
+        const namespace = await evaluateEntry(source, project).catch((cause: unknown) => {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                `declaration evaluation failed: ${messageOf(cause)}`,
+                { cause },
+            );
+        });
 
-    // require every declaration to name the package declaring it
-    for (const [index, declaration] of declarations.entries()) {
-        requireDeclaringPackage(declaration, namespace.declared[index]);
-    }
+        // require every declaration to name the package declaring it
+        for (const [index, declaration] of declarations.entries()) {
+            requireDeclaringPackage(declaration, namespace.declared[index]);
+        }
 
-    // describe each declaration beside its kind's comparison, naming one a kind's function fails on
-    const described: DeclarationDescription[] = [];
-    const compare = new Map<string, Comparator>();
-    for (const [index, declaration] of declarations.entries()) {
-        const { kind, name } = declaration.description;
-        const description = await describeDeclaration(declaration, index, namespace, compare).catch(
-            (cause: unknown) => {
+        // describe each declaration beside its kind's comparison, naming one a kind's function fails on
+        const described: DeclarationDescription[] = [];
+        const compare = new Map<string, Comparator>();
+        for (const [index, declaration] of declarations.entries()) {
+            const { kind, name } = declaration.description;
+            const description = await describeDeclaration(
+                declaration,
+                index,
+                namespace,
+                compare,
+            ).catch((cause: unknown) => {
                 throw new BuildError(
                     "INSPECTION_FAILED",
                     `declaration evaluation failed: ${kind} ${name} (${declaration.file}): ${messageOf(cause)}`,
                     { cause },
                 );
-            },
-        );
-        described.push(description);
-    }
+            });
+            described.push(description);
+        }
 
-    return { declarations: described, compare };
-}
+        return { declarations: described, compare };
+    },
+};
 
 /** Write the entry importing each declaration and inspector, exporting the kinds' results. */
 function generateEntry(declarations: readonly DeclarationExport[], project: PackageSource): string {

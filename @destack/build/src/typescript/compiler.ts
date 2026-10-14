@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { API, type Project } from "typescript/unstable/async";
 import { Toolchain } from "@destack/check/toolchain";
 import { BuildError } from "../error/index.ts";
-import { describeProject, type TypeScriptInspection } from "./module.ts";
+import { TypeScriptInspection } from "./module.ts";
 import { isAuthored } from "../source/dependency.ts";
 import type { PackageSource } from "../source/index.ts";
 
@@ -72,7 +72,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
                 );
             }
 
-            return await describeProject(project, compiled, entries);
+            return await TypeScriptInspection.describe(project, compiled, entries);
         });
     }
 

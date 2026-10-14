@@ -9,7 +9,7 @@ import {
 } from "@destack/package/build";
 import { PackageDefinition, type PackageDescription, PackageExport } from "@destack/package";
 import { registerModulePlugin } from "@destack/package/bun";
-import { PackageLocator } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/locator";
 import { BuildError } from "../error/index.ts";
 import { readPackageDescription, selectExport } from "../source/index.ts";
 import { present, schema } from "@destack/schema";

@@ -1,6 +1,6 @@
 import { Digest } from "@destack/schema";
 import { PackagePath, type PackageFile } from "@destack/package/file";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import type { PackageStore } from "./store.ts";
 
 /** The most bytes one upload holds: 64 MiB, which bounds its memory. */
@@ -10,8 +10,8 @@ const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 export interface PackageAccess {
     /** Authorize reading a build and return its retention expiry, if temporary. */
     authorize(request: Request, digest: string): Promise<{ expiresAt?: number }>;
-    /** Authorize uploading builds, absent where nobody uploads. */
-    upload?(request: Request): Promise<void>;
+    /** Authorize an upload below a scope such as its package, absent where nobody uploads. */
+    upload?(request: Request, scope: string | undefined): Promise<void>;
 }
 
 /** HTTP reads of stored builds, manifests, files and archives, and uploads by digest. */
@@ -46,8 +46,8 @@ export class PackageServer {
         try {
             return await this.#read(request, access);
         } catch (error) {
-            // answer service failures and failures that know their service error, rethrowing internal ones
-            const failure = ServiceError.of(error);
+            // answer the failures that know their call error, rethrowing internal ones
+            const failure = CallError.of(error);
             if (failure === undefined || failure.code === "INTERNAL_SERVER_ERROR") {
                 throw error;
             }
@@ -67,10 +67,10 @@ export class PackageServer {
                 ? new Response(null, { status: 405, headers: { allow: "GET, HEAD" } })
                 : new Response(null, { status: 404 });
         }
-        await access.upload(request);
+        const target = UploadTarget.parse(path);
+        await access.upload(request, target?.scope);
 
         // tell whether a file is held
-        const target = uploadTarget(path);
         if (request.method === "HEAD") {
             const held =
                 target?.kind === "file"
@@ -93,7 +93,7 @@ export class PackageServer {
         if (target.kind === "file") {
             const type = request.headers.get("content-type");
             if (type === null) {
-                throw new ServiceError("BAD_REQUEST", {
+                throw new CallError("BAD_REQUEST", {
                     message: `the upload of ${target.digest} has no media type`,
                 });
             }
@@ -118,7 +118,10 @@ export class PackageServer {
         const path = pathname.slice(prefix.length);
 
         // receive uploads and probes of uploaded files, and accept reads only otherwise
-        if (request.method === "PUT" || (request.method === "HEAD" && path.startsWith("files/"))) {
+        if (
+            request.method === "PUT" ||
+            (request.method === "HEAD" && UploadTarget.parse(path)?.kind === "file")
+        ) {
             return this.#write(request, access, path);
         } else if (request.method !== "GET" && request.method !== "HEAD") {
             return new Response(null, { status: 405, headers: { allow: "GET, HEAD, PUT" } });
@@ -259,28 +262,43 @@ export class PackageServer {
     }
 }
 
-/** Name an uploaded file by its digest, or an uploaded manifest by the digest of its build. */
-function uploadTarget(path: string): { kind: "file" | "manifest"; digest: string } | undefined {
-    const segments = path.split("/");
-    const [first = "", second = ""] = segments;
-
-    // name a file by its digest
-    if (segments.length === 2 && first === "files" && Digest.safeParse(second).success) {
-        return { kind: "file", digest: second };
-    }
-    // name a manifest by the digest of its build
-    else if (
-        segments.length === 2 &&
-        second === "manifest.json" &&
-        Digest.safeParse(first).success
-    ) {
-        return { kind: "manifest", digest: first };
-    }
-    // name nothing else
-    else {
-        return undefined;
-    }
+/** An upload's target: a file by its digest, or a manifest by the digest of its build. */
+interface UploadTarget {
+    /** What the upload stores. */
+    readonly kind: "file" | "manifest";
+    /** The digest naming it. */
+    readonly digest: string;
+    /** The scope the upload is sent below, such as its package, absent for none. */
+    readonly scope: string | undefined;
 }
+
+/** The targets of uploads. */
+const UploadTarget = {
+    /** Read an upload's target, optionally below a scope as an OCI blob is below its repository. */
+    parse(path: string): UploadTarget | undefined {
+        // read the scope before a file or manifest path of two segments
+        const segments = path.split("/");
+        const scope = segments.length === 3 ? segments[0] : undefined;
+        const [first = "", second = "", third] = scope === undefined ? segments : segments.slice(1);
+
+        // name a file by its digest
+        if (third === undefined && first === "files" && Digest.safeParse(second).success) {
+            return { kind: "file", digest: second, scope };
+        }
+        // name a manifest by the digest of its build
+        else if (
+            third === undefined &&
+            second === "manifest.json" &&
+            Digest.safeParse(first).success
+        ) {
+            return { kind: "manifest", digest: first, scope };
+        }
+        // name nothing else
+        else {
+            return undefined;
+        }
+    },
+};
 
 /** Decode a percent-encoded path, absent when malformed. */
 function decodePath(encoded: string): string | undefined {

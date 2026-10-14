@@ -1,6 +1,6 @@
 # @destack/build
 
-`buildPackage` is Vite's `build` on Rolldown, emitting one module output per runtime (`browser`, `bun`, `workerd`) with a manifest, a `BuildExtension` is a Vite plugin a dependency contributes, and `/store` keeps builds by content as an OCI registry keeps a manifest and its blobs.
+`@destack/build` compiles a package into one module output per runtime with Vite on Rolldown, and keeps builds by content as an OCI registry does.
 
 ```ts
 // vite build
@@ -10,7 +10,7 @@ await using build = await buildPackage({
     outputs: await readOutputs(directory),
 });
 // a warm compiler, like vite build --watch
-await using builder = await PackageBuilder.start(directory);
+await using compiler = await Compiler.start(directory);
 // Vite plugins
 export const viewExtension: BuildExtension = {
     transform: ({ server, options }) => viewPlugins(server, options["@destack/view"]),
@@ -41,18 +41,18 @@ await build.write(destination);
 
 ## Builder
 
-`PackageBuilder.start` keeps one compiler warm across the builds and inspections of one checkout, and reuses outputs a `PackageStore` holds.
+`Compiler.start` keeps one compiler warm across the builds and inspections of one checkout.
 
 ```ts
-await using builder = await PackageBuilder.start(directory);
-const inspection = await builder.inspect({ runtime: "bun" });
+await using compiler = await Compiler.start(directory);
+const inspection = await compiler.inspect({ runtime: "bun" });
 // warm.reused: ["bun"]
-await using warm = await builder.build({ dependencies, outputs, store, timeout: 60_000 });
+await using warm = await compiler.build({ dependencies, outputs, store, timeout: 60_000 });
 ```
 
 ## Extensions
 
-`build` in a package's `destack.json` names a `BuildExtension`, and a package's build applies the extension of each package in its dependency closure once.
+`build` in a package's `destack.json` names a `BuildExtension`, which every package depending on it applies once.
 
 ```json
 { "build": "./build#viewExtension" }

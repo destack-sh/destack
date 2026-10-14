@@ -6,9 +6,15 @@ import { LocalBucket } from "@destack/bucket/bun";
 import { PackageError } from "@destack/package/error";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { found, present } from "@destack/schema";
-import { type PackageAccess, PackageClient, PackageServer, PackageStore } from "./index.ts";
+import {
+    type PackageAccess,
+    PackageClient,
+    PackageServer,
+    PackageStore,
+    Retention,
+} from "./index.ts";
 
 /** The source files of the fixture build. */
 const SOURCES = {
@@ -132,12 +138,12 @@ test("store a build's files once by digest, read it after reopening, and refuse 
     // fail reads of stored corruption, and never overwrite it by storing again
     await bucket.put(`files/${answer.digest}`, "broken");
     await expect(store.file(answer)).rejects.toEqual(
-        new ServiceError("INTERNAL_SERVER_ERROR", {
+        new CallError("INTERNAL_SERVER_ERROR", {
             message: "stored file differs: src/answer.ts",
         }),
     );
     await expect(store.put(build)).rejects.toEqual(
-        new ServiceError("INTERNAL_SERVER_ERROR", {
+        new CallError("INTERNAL_SERVER_ERROR", {
             message: `stored object differs: files/${answer.digest}`,
         }),
     );
@@ -158,13 +164,13 @@ test("sweep the builds retention drops, the files only they list and the cache e
     const before = await bucket.list();
 
     // spare everything stored since the moment, then mark and drop the build retention leaves out
-    await store.sweep(new Set([kept]), new Date(0));
+    await store.sweep(Retention.of([kept]), new Date(0));
     expect((await bucket.list()).files.map((file) => file.key)).toEqual(
         before.files.map((file) => file.key),
     );
     const later = new Date(Date.now() + 1000);
-    await store.sweep(new Set([kept]), later);
-    await store.sweep(new Set([kept]), later, new Set(), later, later);
+    await store.sweep(Retention.of([kept]), later);
+    await store.sweep(Retention.of([kept]), later, Retention.none, later, later);
 
     // keep exactly the kept build's manifest, the files it lists and its cache entry
     const reader = await store.contents(kept);
@@ -193,8 +199,8 @@ test("sweep an old unretained build but keep the files a recent build shares wit
 
     // mark and drop the old manifest alone, keeping every file the recent manifest lists
     const later = new Date(Date.now() + 1000);
-    await store.sweep(new Set(), moment);
-    await store.sweep(new Set(), moment, new Set(), later, later);
+    await store.sweep(Retention.none, moment);
+    await store.sweep(Retention.none, moment, Retention.none, later, later);
     const reader = await store.contents(recent);
     const files = await reader.distributed();
     expect({
@@ -223,7 +229,7 @@ test("keep a leased build through sweeps until its lease expires, then mark and 
     // keep the build unmarked within the lease, then mark it once the lease expires, and delete it an interval later
     const sweeps = [];
     for (const intervals of [0, 1, 3, 4]) {
-        await store.sweep(new Set(), at(0), new Set(), at(intervals), at(intervals - 1));
+        await store.sweep(Retention.none, at(0), Retention.none, at(intervals), at(intervals - 1));
         sweeps.push(await listing(bucket));
     }
     expect(sweeps).toEqual([
@@ -243,13 +249,13 @@ test("delete an unretained old build only in the second sweep after a sweep mark
     const build = await listing(bucket);
     const start = Date.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
-    await store.sweep(new Set(), at(0), new Set(), at(0), at(-1));
+    await store.sweep(Retention.none, at(0), Retention.none, at(0), at(-1));
     const marks = await present(await bucket.get("marks"), "the marks").json();
 
     // keep the build through a sweep within the interval, and delete it in the sweep after
-    await store.sweep(new Set(), at(0), new Set(), at(0.5), at(-0.5));
+    await store.sweep(Retention.none, at(0), Retention.none, at(0.5), at(-0.5));
     const within = await listing(bucket);
-    await store.sweep(new Set(), at(0), new Set(), at(1), at(0.5));
+    await store.sweep(Retention.none, at(0), Retention.none, at(1), at(0.5));
     expect({ marks, within, after: await listing(bucket) }).toEqual({
         marks: Object.fromEntries(build.map((key) => [key, start])),
         within: [...build, "marks"].toSorted(),
@@ -266,10 +272,10 @@ test("keep a build retained between its mark and the next sweep, and clear its m
     const build = await listing(bucket);
     const start = Date.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
-    await store.sweep(new Set(), at(0), new Set(), at(0), at(-1));
+    await store.sweep(Retention.none, at(0), Retention.none, at(0), at(-1));
 
     // keep it unmarked once a release retains it
-    await store.sweep(new Set([digest]), at(0), new Set(), at(1), at(0));
+    await store.sweep(Retention.of([digest]), at(0), Retention.none, at(1), at(0));
     expect(await listing(bucket)).toEqual(build);
 });
 
@@ -291,7 +297,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     const access = {
         async authorize(request: Request, selected: string) {
             if (request.headers.get("authorization") !== "Bearer allowed" || selected !== digest) {
-                throw new ServiceError("UNAUTHORIZED", { message: "package access denied" });
+                throw new CallError("UNAUTHORIZED", { message: "package access denied" });
             }
 
             return isExpired ? { expiresAt: 0 } : {};

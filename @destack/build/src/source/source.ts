@@ -14,7 +14,7 @@ import {
 import { type JsonValue, schema, type Version } from "@destack/schema";
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
-import { PackageLocator } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/locator";
 import { isMissing } from "../error/index.ts";
 
 /** Source manifests and selected runtime exports for a package build. */
@@ -37,69 +37,72 @@ export interface PackageSource extends AsyncDisposable {
     entries: readonly string[];
 }
 
-/** Open package inputs and prepare one compiler configuration for inspection and compilation. */
-export async function openSource(
-    options: InspectOptions & {
-        /** Public modules selected for this output. */
-        entries?: Readonly<Record<string, string>>;
-        /** Framework modules compiled in addition to package exports. */
-        files?: readonly string[];
-        /** The versions the build releases its source packages at, by package name. */
-        versions?: Readonly<Record<string, Version>>;
-    },
-): Promise<PackageSource> {
-    // read the package declaration
-    const definition = await readPackageDeclaration(
-        options.directory,
-        options.runtime,
-        options.entries,
-        options.versions ?? {},
-    );
-    const authored = resolve(definition.directory, options.configuration ?? "tsconfig.json");
+/** A package's inputs opened for inspection and compilation. */
+export const PackageSource = {
+    /** Open package inputs and prepare one compiler configuration. */
+    async open(
+        options: InspectOptions & {
+            /** Public modules selected for this output. */
+            entries?: Readonly<Record<string, string>>;
+            /** Framework modules compiled in addition to package exports. */
+            files?: readonly string[];
+            /** The versions the build releases its source packages at, by package name. */
+            versions?: Readonly<Record<string, Version>>;
+        },
+    ): Promise<PackageSource> {
+        // read the package declaration
+        const definition = await readPackageDeclaration(
+            options.directory,
+            options.runtime,
+            options.entries,
+            options.versions ?? {},
+        );
+        const authored = resolve(definition.directory, options.configuration ?? "tsconfig.json");
 
-    // use an explicit configuration or the package's existing configuration
-    let hasConfiguration = true;
-    try {
-        await stat(authored);
-    } catch (error) {
-        if (options.configuration !== undefined || !isMissing(error)) {
+        // use an explicit configuration or the package's existing configuration
+        let hasConfiguration = true;
+        try {
+            await stat(authored);
+        } catch (error) {
+            if (options.configuration !== undefined || !isMissing(error)) {
+                throw error;
+            }
+            hasConfiguration = false;
+        }
+
+        // root the configuration at the selected exports, type declarations and extra modules
+        const temporary = await mkdtemp(join(tmpdir(), "destack-project-"));
+        const configuration = join(temporary, "tsconfig.json");
+        const extra = (options.files ?? []).map((path) =>
+            resolve(definition.directory, PackagePath.parse(path)),
+        );
+        const roots = [
+            ...Object.values(definition.exports),
+            ...Object.values(definition.types),
+            ...extra,
+        ];
+        const files = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
+        try {
+            // resolve explicit type packages from the same installation as authored modules
+            await linkDependencies(definition.directory, temporary);
+            const extended = hasConfiguration ? await realpath(authored) : undefined;
+            const settings = compilerSettings(definition, files, extended);
+            await writeFile(configuration, JSON.stringify(settings), { flag: "wx" });
+        } catch (error) {
+            await rm(temporary, { recursive: true });
             throw error;
         }
-        hasConfiguration = false;
-    }
 
-    // root the configuration at the selected exports, type declarations and extra modules
-    const temporary = await mkdtemp(join(tmpdir(), "destack-project-"));
-    const configuration = join(temporary, "tsconfig.json");
-    const extra = (options.files ?? []).map((path) =>
-        resolve(definition.directory, PackagePath.parse(path)),
-    );
-    const roots = [
-        ...Object.values(definition.exports),
-        ...Object.values(definition.types),
-        ...extra,
-    ];
-    const files = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
-    try {
-        // resolve explicit type packages from the same installation as authored modules
-        await linkDependencies(definition.directory, temporary);
-        const extended = hasConfiguration ? await realpath(authored) : undefined;
-        const settings = compilerSettings(definition, files, extended);
-        await writeFile(configuration, JSON.stringify(settings), { flag: "wx" });
-    } catch (error) {
-        await rm(temporary, { recursive: true });
-        throw error;
-    }
-
-    return {
-        ...definition,
-        configuration,
-        entries: files,
-        async [Symbol.asyncDispose]() {
-            await rm(temporary, { recursive: true });
-        },
-    };
-}
+        return {
+            ...definition,
+            configuration,
+            entries: files,
+            async [Symbol.asyncDispose]() {
+                await rm(temporary, { recursive: true });
+            },
+        };
+    },
+};
 
 /** Apply runtime resolution and the standard type checks to a configuration or defaults. */
 function compilerSettings(

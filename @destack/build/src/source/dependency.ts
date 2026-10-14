@@ -3,7 +3,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { BuildError, isMissing } from "../error/index.ts";
 import { DependencyName, DependencyResolution } from "@destack/package";
 import { BunLockfile, type LockedPackage } from "@destack/check/bun";
-import { PackageLocator } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/locator";
 import { schema, type Version } from "@destack/schema";
 
 /** The dependencies a package.json declares. */

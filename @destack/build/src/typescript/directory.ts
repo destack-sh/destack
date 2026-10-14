@@ -22,49 +22,49 @@ export interface DirectoryReference {
     end: number;
 }
 
-/** Collect directory URLs resolved to the runtime's global URL constructor. */
-export async function collectDirectories(
-    source: SourceFile,
-    project: Project,
-): Promise<DirectoryReference[]> {
-    // visit constructor calls throughout the module
-    const references: DirectoryReference[] = [];
-    const pending: Node[] = [...source.statements];
-    for (const node of pending) {
-        node.forEachChild((child) => {
-            pending.push(child);
-        });
-        if (
-            !isNewExpression(node) ||
-            !isIdentifier(node.expression) ||
-            node.expression.text !== "URL"
-        ) {
-            continue;
+/** A directory a module reads, as its source refers to it. */
+export const DirectoryReference = {
+    /** Collect directory URLs resolved to the runtime's global URL constructor. */
+    async collect(source: SourceFile, project: Project): Promise<DirectoryReference[]> {
+        // visit constructor calls throughout the module
+        const references: DirectoryReference[] = [];
+        const pending: Node[] = [...source.statements];
+        for (const node of pending) {
+            node.forEachChild((child) => {
+                pending.push(child);
+            });
+            if (
+                !isNewExpression(node) ||
+                !isIdentifier(node.expression) ||
+                node.expression.text !== "URL"
+            ) {
+                continue;
+            }
+
+            // require a literal relative directory based on import.meta.url
+            const [path, base] = node.arguments ?? [];
+            if (node.arguments?.length !== 2 || !isDirectoryPath(path) || !isModuleUrl(base)) {
+                continue;
+            }
+
+            // exclude imported constructors and lexical declarations that shadow the global
+            const symbol = await project.checker.getSymbolAtLocation(node.expression);
+            if (!symbol || symbol.flags & SymbolFlags.Alias || (await symbol.getParent())) {
+                continue;
+            }
+            if (
+                !symbol.declarations.length ||
+                !symbol.declarations.every((entry) => isDeclarationPath(entry.path))
+            ) {
+                continue;
+            }
+
+            references.push({ path: path.text, start: node.getStart(), end: node.getEnd() });
         }
 
-        // require a literal relative directory based on import.meta.url
-        const [path, base] = node.arguments ?? [];
-        if (node.arguments?.length !== 2 || !isDirectoryPath(path) || !isModuleUrl(base)) {
-            continue;
-        }
-
-        // exclude imported constructors and lexical declarations that shadow the global
-        const symbol = await project.checker.getSymbolAtLocation(node.expression);
-        if (!symbol || symbol.flags & SymbolFlags.Alias || (await symbol.getParent())) {
-            continue;
-        }
-        if (
-            !symbol.declarations.length ||
-            !symbol.declarations.every((entry) => isDeclarationPath(entry.path))
-        ) {
-            continue;
-        }
-
-        references.push({ path: path.text, start: node.getStart(), end: node.getEnd() });
-    }
-
-    return references;
-}
+        return references;
+    },
+};
 
 /** Report whether a node is a literal relative directory path, such as `./migration/`. */
 function isDirectoryPath(node: Node | undefined): node is StringLiteral {

@@ -26,7 +26,7 @@
         "@destack/locale": "workspace:*",
         "magic-string": "1.4.1",
         "@cloudflare/workers-types": "5.20260917.1",
-        "@destack/service": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/test": "workspace:*",

@@ -2,7 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { version } from "typescript";
-import { PackageLocator } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/locator";
 import { Digest, found, schema } from "@destack/schema";
 import { BunProcess } from "@destack/check/bun";
 import { readDirectory } from "../compile/asset.ts";
@@ -26,16 +26,6 @@ const Manifest = schema.looseObject({
     devDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
     imports: schema.record(schema.string(), schema.unknown()).exactOptional(),
 });
-
-/** The cache keys of a build: the whole build's and each requested output's. */
-export const BuildKeys = schema.object({
-    /** The key of the whole build. */
-    build: Digest,
-    /** The key of each requested output, by name. */
-    outputs: schema.record(schema.string(), Digest),
-});
-/** The cache keys of a build. */
-export type BuildKeys = schema.Infer<typeof BuildKeys>;
 
 /** The identities of packages, files and directories a key derivation reads, each once. */
 export class Identities {

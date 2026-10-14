@@ -6,7 +6,7 @@ import { DependencyResolution } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { buildPackage } from "../src/index.ts";
 import { resolutionPlugin } from "../src/compile/dependency.ts";
-import { openSource } from "../src/source/index.ts";
+import { PackageSource } from "../src/source/index.ts";
 
 /** The schema every package definition names. */
 const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
@@ -30,7 +30,7 @@ async function writePackage(
     await writeFile(join(directory, "src", "index.ts"), module);
 }
 
-/** Write an application importing three linked dependencies, one of them undeclared, returning the root. */
+/** Write an application importing three linked dependencies, one undeclared, returning its root. */
 async function writeApplication(): Promise<string> {
     // write a dependency for the server only, one the host pins to another release, and one undeclared
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-build-resolution-")));
@@ -86,7 +86,7 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
         files: [],
     });
     try {
-        await using source = await openSource({
+        await using source = await PackageSource.open({
             directory: join(root, "application"),
             runtime: "browser",
         });

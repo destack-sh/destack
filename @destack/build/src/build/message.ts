@@ -6,9 +6,9 @@ import { OutputRequest } from "@destack/package/build";
 import { PackageManifest } from "@destack/package/manifest";
 import { Runtime } from "@destack/package/runtime";
 import { History } from "@destack/resource";
-import { Commit, schema, Version } from "@destack/schema";
+import { Commit, Digest, schema, Version } from "@destack/schema";
 import { BuildError, BuildErrorCode } from "../error/index.ts";
-import { BuildKeys, CachedOutput } from "../cache/index.ts";
+import { BuildKeys, CachedOutput } from "../cache/entry.ts";
 import { ModuleOptions } from "./build.ts";
 
 /** Completed compiler work. */
@@ -37,12 +37,14 @@ export type BuildResult = schema.Infer<typeof BuildResult>;
 /** A compiler result transferred directly to its caller. */
 export const BuildResponse = schema.union([
     schema.object({
+        kind: schema.literal("result"),
         /** The requested compilation or inspection. */
         result: BuildResult,
         /** No compilation failure. */
         error: schema.never().exactOptional(),
     }),
     schema.object({
+        kind: schema.literal("result"),
         /** The compilation failure, preserving its public code. */
         error: schema.object({
             code: BuildErrorCode,
@@ -94,6 +96,8 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
         options: RequestedBuild,
         /** The requested outputs to reuse instead of compiling them, by name. */
         reuse: schema.record(schema.string(), CachedOutput),
+        /** Whether the build's transforms read and fill its store's cache through the host. */
+        isCached: schema.boolean(),
     }),
     schema.object({
         kind: schema.literal("inspect"),
@@ -106,6 +110,47 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
 ]);
 /** Work accepted by the isolated compiler. */
 export type BuildRequest = schema.Infer<typeof BuildRequest>;
+
+/** A transform's cache access the compiler asks its host for while it builds. */
+export const CacheRequest = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** Read the bytes kept under a key. */
+        kind: schema.literal("read"),
+        /** The request's number, which the answer carries. */
+        id: schema.number().int(),
+        /** The key. */
+        key: Digest,
+    }),
+    schema.object({
+        /** Keep bytes under a key. */
+        kind: schema.literal("write"),
+        /** The request's number, which the answer carries. */
+        id: schema.number().int(),
+        /** The key. */
+        key: Digest,
+        /** The bytes. */
+        bytes: schema.instanceof(Uint8Array<ArrayBuffer>),
+    }),
+]);
+/** A transform's cache access the compiler asks its host for while it builds. */
+export type CacheRequest = schema.Infer<typeof CacheRequest>;
+
+/** The host's answer to a cache request. */
+export const CacheResponse = schema.object({
+    kind: schema.literal("cached"),
+    /** The number of the request it answers. */
+    id: schema.number().int(),
+    /** The bytes a read found, null on a miss and for a write. */
+    bytes: schema.instanceof(Uint8Array<ArrayBuffer>).nullable(),
+});
+/** The host's answer to a cache request. */
+export type CacheResponse = schema.Infer<typeof CacheResponse>;
+
+/** What the host sends the compiler: work, or the answer to a cache request. */
+export const HostMessage = schema.union([BuildRequest, CacheResponse]);
+
+/** What the compiler sends its host: a result, or a cache request. */
+export const CompilerMessage = schema.union([BuildResponse, CacheRequest]);
 
 /** Read and parse length-prefixed messages from writeMessage without copying chunks. */
 export async function* readMessages<Message>(
@@ -162,7 +207,7 @@ export async function* readMessages<Message>(
 /** Write a compiler message, preserving byte arrays and regular expressions. */
 export async function writeMessage(
     stream: Writable,
-    value: BuildRequest | BuildResponse,
+    value: BuildRequest | BuildResponse | CacheRequest | CacheResponse,
 ): Promise<void> {
     // write the length header
     const payload = serialize(value);

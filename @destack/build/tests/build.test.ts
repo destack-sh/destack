@@ -1,5 +1,4 @@
 import { Clock } from "@destack/schema";
-import { VERSION_HEADER } from "@destack/service/request";
 import { test } from "@destack/test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -12,26 +11,26 @@ import {
     importBuilt,
     isHandlerModule,
     isNoteModule,
-    isServiceModule,
+    isWorkloadModule,
     property,
     readBuildFiles,
 } from "./fixture.ts";
 import * as library from "./fixture/library/request.ts";
-import * as service from "./fixture/service/request.ts";
+import * as workload from "./fixture/workload/request.ts";
 import * as resource from "./fixture/resource/request.ts";
 import * as stack from "./fixture/stack/request.ts";
 import { requests } from "./fixture/web/request.ts";
 import { BuildReader } from "@destack/package/manifest";
-import { WorkloadInstance } from "@destack/service/workload";
+import { WorkloadInstance } from "@destack/runtime/workload";
 import { ResourceContext } from "@destack/resource/context";
-import { testCallKey } from "@destack/service/test";
+import { testCallKey } from "@destack/runtime/test";
 import { Catalog } from "@destack/locale";
 import { PackageDefinition } from "@destack/package";
 
 /** Complete build scenarios, a web application in each rendering mode. */
 const fixtures = [
     { name: "library", request: library.request, mode: "library" },
-    { name: "service", request: service.request, mode: "service" },
+    { name: "workload", request: workload.request, mode: "workload" },
     { name: "resource", request: resource.request, mode: "resource" },
     { name: "stack", request: stack.request, mode: "stack" },
     ...Object.entries(requests).map(([mode, application]) => ({
@@ -81,11 +80,11 @@ test.concurrent.for(fixtures)(
             expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
         }
         // run each output's declared workload
-        else if (fixture.name === "service") {
+        else if (fixture.name === "workload") {
             for (const output of Object.values(build.manifest.outputs)) {
-                expect(await callNotes(build, destination, output)).toEqual([
+                expect(await callFeed(destination, output)).toEqual([
                     200,
-                    { path: "/notes" },
+                    { path: "/feed", version: "2026.9.0" },
                 ]);
             }
         }
@@ -178,19 +177,19 @@ test.concurrent.for(fixtures)(
 test.concurrent("release a build at a given version its manifest, package.json and modules carry", async ({
     expect,
 }) => {
-    // build the service at a dev version of its declared release, after removing its source checkout
-    await using input = await Fixture.open("service");
+    // build the workload at a dev version of its declared release, after removing its source checkout
+    await using input = await Fixture.open("workload");
     await using build = await input.build({
-        ...service.request,
-        versions: { "@destack/build-service-fixture": "2026.9.0-dev.3" },
+        ...workload.request,
+        versions: { "@destack/build-workload-fixture": "2026.9.0-dev.3" },
     });
     const destination = join(input.directory, "build");
     await build.write(destination);
     await rm(input.source, { recursive: true });
 
-    // call its workload naming the version, which its service refuses unless its modules carry it, and read its package.json
+    // call its feed, which answers the version its modules carry, and read its package.json
     const output = build.manifest.outputs["bun"];
-    const called = output === undefined ? undefined : await callNotes(build, destination, output);
+    const called = output === undefined ? undefined : await callFeed(destination, output);
     const manifest: unknown = JSON.parse(await readFile(join(destination, "package.json"), "utf8"));
     expect({
         release: build.manifest.package.version,
@@ -199,20 +198,19 @@ test.concurrent("release a build at a given version its manifest, package.json a
     }).toEqual({
         release: "2026.9.0-dev.3",
         manifest: "2026.9.0-dev.3",
-        called: [200, { path: "/notes" }],
+        called: [200, { path: "/feed", version: "2026.9.0-dev.3" }],
     });
 });
 
-/** Start a written build's declared workload from an output's package export and call its notes route with the build's version. */
-async function callNotes(
-    build: PackageBuild,
+/** Start a written build's declared workload from an output's package export and call its feed. */
+async function callFeed(
     destination: string,
     output: NonNullable<PackageBuild["manifest"]["outputs"][string]>,
 ): Promise<[number, unknown]> {
     // start the declared workload from its package export
     const module = await importBuilt(destination, exported(output, "./server"));
-    if (!isServiceModule(module)) {
-        throw new TypeError("the server exports no workload and service");
+    if (!isWorkloadModule(module)) {
+        throw new TypeError("the server exports no workload or package handle");
     }
     await using instance = await WorkloadInstance.start(module.web, {
         clock: Clock.system,
@@ -221,14 +219,7 @@ async function callNotes(
             throw error;
         },
         resources: new ResourceContext(),
-        history: { ingest: async () => 0 },
-        runs: {
-            send: async () => {
-                throw new TypeError("the fixture workload records no runs");
-            },
-        },
-        service: () => ({
-            audience: build.manifest.package.id,
+        server: () => ({
             scope: "fixture",
             drainTimeout: 1000,
             authenticate: async () => undefined,
@@ -236,13 +227,8 @@ async function callNotes(
         }),
     });
 
-    // call the notes route with the build's version
-    const response = await instance.fetch(
-        module.service,
-        new Request("https://example.test/notes", {
-            headers: { [VERSION_HEADER]: build.manifest.package.version },
-        }),
-    );
+    // call the package's feed
+    const response = await instance.fetch(module.notes, new Request("https://example.test/feed"));
 
     return [response.status, await response.json()];
 }
@@ -252,7 +238,7 @@ function headings(document: string): string[] {
     return [...document.matchAll(/<h1[^>]*>([^<]*)<\/h1>/gu)].map((match) => match[1] ?? "");
 }
 
-/** List the root-relative asset references of a page that the browser output does not distribute. */
+/** List the root-relative asset references of a page the browser output does not distribute. */
 function missingAssets(document: string, distributed: ReadonlyMap<string, Uint8Array>): string[] {
     return [...document.matchAll(/(?:src|href)="\/([^"]+)"/gu)]
         .map((match) => match[1] ?? "")

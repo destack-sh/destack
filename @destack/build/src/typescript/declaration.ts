@@ -4,6 +4,7 @@ import type { Symbol as TypeScriptSymbol } from "typescript/unstable/async";
 import {
     type CallExpression,
     isCallExpression,
+    isExportAssignment,
     isFunctionDeclaration,
     isIdentifier,
     isPropertyAccessExpression,
@@ -24,7 +25,7 @@ import {
 } from "@destack/package";
 import { BuildError, isMissing } from "../error/index.ts";
 import { schema, type Version } from "@destack/schema";
-import { PackageLocator } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/locator";
 import { modulePackage } from "../source/dependency.ts";
 import type { TestDeclaration } from "@destack/test/inspect";
 
@@ -35,6 +36,9 @@ import type { SymbolInspector } from "./symbol.ts";
 const ExportsManifest = schema.looseObject({
     exports: schema.record(schema.string(), PackageExport).exactOptional(),
 });
+
+/** The name of a module's default export, as a declaration and its export. */
+const DEFAULT_EXPORT = "default";
 
 /** A package containing modules, with the name and version its package.json declares. */
 type PackageLocation = Awaited<ReturnType<typeof modulePackage>>;
@@ -441,7 +445,7 @@ export async function exportedNames(
     return exported;
 }
 
-/** Require a constructor call to initialize an exported constant, returning name and export. */
+/** Require a constructor call to be the default export or initialize an exported constant. */
 async function locateDeclaration(
     node: CallExpression,
     resolved: ResolvedConstructor,
@@ -449,9 +453,14 @@ async function locateDeclaration(
     file: string,
     inspector: SymbolInspector,
 ): Promise<{ name: string; export: string }> {
-    // require a named variable initialized by the constructor, or by methods chained on its result
+    // take a module's default export, such as its package handle
     const { constructor } = resolved;
     const declaration = chainEnd(node).parent;
+    if (isExportAssignment(declaration) && !declaration.isExportEquals) {
+        return { name: DEFAULT_EXPORT, export: DEFAULT_EXPORT };
+    }
+
+    // require a named variable initialized by the constructor, or by methods chained on its result
     if (!isVariableDeclaration(declaration) || !isIdentifier(declaration.name)) {
         throw new BuildError(
             "INSPECTION_FAILED",

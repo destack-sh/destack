@@ -15,7 +15,7 @@ import {
     type NoteModule,
 } from "../../tests/fixture.ts";
 import { requests } from "../../tests/fixture/web/request.ts";
-import * as service from "../../tests/fixture/service/request.ts";
+import * as workload from "../../tests/fixture/workload/request.ts";
 import { formatSource } from "@destack/check";
 import { Vocabulary } from "@destack/resource";
 import { Commit, present } from "@destack/schema";
@@ -558,10 +558,10 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
 });
 
 test("plan the upgrade from what a package published", async () => {
-    await using fixture = await Fixture.open("service");
+    await using fixture = await Fixture.open("workload");
     const options = {
         dependencies: fixture.dependencies,
-        outputs: { bun: service.request.outputs.bun },
+        outputs: { bun: workload.request.outputs.bun },
     };
     const file = join(fixture.source, "src/server.ts");
     const manifest = join(fixture.source, "package.json");
@@ -577,7 +577,7 @@ test("plan the upgrade from what a package published", async () => {
         vocabulary: Vocabulary.advance({}, published, "2026.9.0"),
     };
 
-    // rename the audit action and add a procedure in the next release
+    // rename the audit action and add an adapter in the next release
     const release = async (version: string, source: string) => {
         const definition = await readFile(manifest, "utf8");
         await writeFile(
@@ -590,12 +590,8 @@ test("plan the upgrade from what a package published", async () => {
         .replace('name: "note.publish"', 'name: "note.release"')
         .replace("export const notePublish", "export const noteRelease")
         .replace(
-            "        .output(schema.object({ path: schema.string() })),\n};",
-            '        .output(schema.object({ path: schema.string() })),\n    count: defineProcedure({ authentication: "public", permission: "anyone", audit: false })\n        .route({ method: "GET", path: "/notes/count" })\n        .output(schema.number()),\n};',
-        )
-        .replace(
-            'list: implementation.list.handler(() => ({ path: "/notes" })),',
-            'list: implementation.list.handler(() => ({ path: "/notes" })),\n            count: implementation.count.handler(() => 0),',
+            'adapters: { feed: defineAdapter("feed", { path: "/feed" }) },',
+            'adapters: {\n        feed: defineAdapter("feed", { path: "/feed" }),\n        archive: defineAdapter("archive", { path: "/archive" }),\n    },',
         );
     await release("2026.10.0", renamed);
     await using second = await builder.build({ ...options, history });
@@ -616,9 +612,9 @@ test("plan the upgrade from what a package published", async () => {
             },
             {
                 action: "create",
-                target: "service/notes/procedure/count",
+                target: "adapter/archive",
                 risk: "safe",
-                detail: "add procedure count",
+                detail: "add adapter archive",
             },
             {
                 action: "delete",

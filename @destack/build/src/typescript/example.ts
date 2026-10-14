@@ -23,7 +23,7 @@ import {
 import type { SymbolReference } from "@destack/package/code";
 import { type JsonObject, schema } from "@destack/schema";
 import { isAuthored } from "../source/dependency.ts";
-import { type DefinitionSite, locateDefinitions } from "./definition.ts";
+import { type DefinitionSite, DefinitionDeclaration } from "./definition.ts";
 import type { SymbolInspector } from "./symbol.ts";
 
 /** A literal a select control offers. */
@@ -48,48 +48,53 @@ export interface ExampleDeclaration extends DefinitionSite {
     readonly description: Omit<ExampleDescription, "objects">;
 }
 
-/** Collect a module's exported examples through the compiler, reading their literal fields. */
-export async function collectExamples(
-    source: SourceFile,
-    file: string,
-    inspector: SymbolInspector,
-): Promise<ExampleDeclaration[]> {
-    const definitions = await locateDefinitions(
-        source,
-        file,
-        inspector,
-        "defineExample",
-        "example",
-    );
+/** An example a module exports, located at its definition. */
+export const ExampleDeclaration = {
+    /** Collect a module's exported examples through the compiler, reading their literal fields. */
+    async collect(
+        source: SourceFile,
+        file: string,
+        inspector: SymbolInspector,
+    ): Promise<ExampleDeclaration[]> {
+        const definitions = await DefinitionDeclaration.collect(
+            source,
+            file,
+            inspector,
+            "defineExample",
+            "example",
+        );
 
-    return await Promise.all(
-        definitions.map(async ({ site, fields }) => {
-            // describe the example by its properties and the controls of what it shows
-            const of = await fields.symbol("of", inspector);
-            const description = ExampleDescription.omit({ objects: true }).parse({
-                description: fields.text("description"),
-                properties: fields.literal("properties") ?? {},
-                controls: await describeControls(of, inspector),
-            });
+        return await Promise.all(
+            definitions.map(async ({ site, fields }) => {
+                // describe the example by its properties and the controls of what it shows
+                const of = await fields.symbol("of", inspector);
+                const description = ExampleDescription.omit({ objects: true }).parse({
+                    description: fields.text("description"),
+                    properties: fields.literal("properties") ?? {},
+                    controls: await describeControls(of, inspector),
+                });
 
-            // read the calls bringing the shown declaration's objects into the example's state
-            const objects: Record<string, ExampleDeclaration["objects"][string]> = {};
-            for (const [scope, calls] of fields.lists("objects")) {
-                objects[scope] = await Promise.all(
-                    calls.map(async (call) => ({
-                        object: await inspector.reference(await call.symbol("object", inspector)),
-                        method: call.text("method"),
-                        input: schema
-                            .record(schema.string(), schema.json())
-                            .parse(call.literal("input") ?? {}),
-                    })),
-                );
-            }
+                // read the calls bringing the shown declaration's objects into the example's state
+                const objects: Record<string, ExampleDeclaration["objects"][string]> = {};
+                for (const [scope, calls] of fields.lists("objects")) {
+                    objects[scope] = await Promise.all(
+                        calls.map(async (call) => ({
+                            object: await inspector.reference(
+                                await call.symbol("object", inspector),
+                            ),
+                            method: call.text("method"),
+                            input: schema
+                                .record(schema.string(), schema.json())
+                                .parse(call.literal("input") ?? {}),
+                        })),
+                    );
+                }
 
-            return { ...site, of: await inspector.reference(of), objects, description };
-        }),
-    );
-}
+                return { ...site, of: await inspector.reference(of), objects, description };
+            }),
+        );
+    },
+};
 
 /** Derive a control for each declared property a symbol renders with, such as a component's. */
 async function describeControls(

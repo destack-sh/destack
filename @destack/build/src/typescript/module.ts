@@ -32,11 +32,11 @@ import { inspectErrors } from "@destack/check/inspect";
 import { collectTests } from "./test.ts";
 import { collectDeclarations, ConstructorCatalog } from "./declaration.ts";
 import type { PackageSource } from "../source/index.ts";
-import { collectExamples, type ExampleDeclaration } from "./example.ts";
-import { collectScenarios, type ScenarioDeclaration } from "./scenario.ts";
+import { ExampleDeclaration } from "./example.ts";
+import { ScenarioDeclaration } from "./scenario.ts";
 import type { DeclarationExport } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
-import { collectDirectories, type DirectoryReference } from "./directory.ts";
+import { DirectoryReference } from "./directory.ts";
 import { isAuthored, relativePath } from "../source/dependency.ts";
 
 /** The identifier `meta`, which every `import.meta` expression spells without escapes. */
@@ -60,56 +60,59 @@ export interface TypeScriptInspection {
     scenarios: ScenarioDeclaration[];
 }
 
-/** Describe source modules, and collect the declarations of the modules entries import. */
-export async function describeProject(
-    project: Project,
-    compiled: Pick<PackageSource, "directory" | "versions">,
-    entries: readonly string[],
-): Promise<TypeScriptInspection> {
-    // read the authored modules from the compiler file list
-    const root = compiled.directory;
-    const inspection = new ProjectInspection(project, compiled);
-    const fileNames = [...(await project.program.getSourceFileNames())].toSorted();
-    const authored = await readAuthored(project, root, fileNames);
-    const runtime = await collectRuntimeFiles(project, entries, authored);
+/** The modules and declarations the compiler reads from a package's source. */
+export const TypeScriptInspection = {
+    /** Describe source modules, and collect the declarations of the modules entries import. */
+    async describe(
+        project: Project,
+        compiled: Pick<PackageSource, "directory" | "versions">,
+        entries: readonly string[],
+    ): Promise<TypeScriptInspection> {
+        // read the authored modules from the compiler file list
+        const root = compiled.directory;
+        const inspection = new ProjectInspection(project, compiled);
+        const fileNames = [...(await project.program.getSourceFileNames())].toSorted();
+        const authored = await readAuthored(project, root, fileNames);
+        const runtime = await collectRuntimeFiles(project, entries, authored);
 
-    // read every source module's directory references, and the tests and declarations of authored modules
-    const collected = await Promise.all(
-        fileNames
-            .filter((file) => authored.has(file) || !isDeclarationPath(file))
-            .map((file) => inspection.collect(file, authored.get(file), runtime.has(file))),
-    );
-    const directories = new Map<string, DirectoryReference[]>();
-    for (const { file, references } of collected) {
-        if (references.length) {
-            directories.set(file, references);
+        // read every source module's directory references, and the tests and declarations of authored modules
+        const collected = await Promise.all(
+            fileNames
+                .filter((file) => authored.has(file) || !isDeclarationPath(file))
+                .map((file) => inspection.collect(file, authored.get(file), runtime.has(file))),
+        );
+        const directories = new Map<string, DirectoryReference[]>();
+        for (const { file, references } of collected) {
+            if (references.length) {
+                directories.set(file, references);
+            }
         }
-    }
 
-    // register every authored module before following references between declarations
-    for (const [file, source] of authored) {
-        await inspection.register(file, source);
-    }
+        // register every authored module before following references between declarations
+        for (const [file, source] of authored) {
+            await inspection.register(file, source);
+        }
 
-    // describe each module's imports, globals, errors and exports, then the declarations they queue
-    await Promise.all([...authored].map(([file, source]) => inspection.describe(file, source)));
-    await inspection.describeQueued();
+        // describe each module's imports, globals, errors and exports, then the declarations they queue
+        await Promise.all([...authored].map(([file, source]) => inspection.describe(file, source)));
+        await inspection.describeQueued();
 
-    // parse compiler descriptions before returning them to executable inspectors
-    const modules = [...inspection.modules.values()].map((module) =>
-        ModuleDescription.parse(module),
-    );
+        // parse compiler descriptions before returning them to executable inspectors
+        const modules = [...inspection.modules.values()].map((module) =>
+            ModuleDescription.parse(module),
+        );
 
-    return {
-        modules,
-        sources: inspection.sources,
-        tests: collected.flatMap((entry) => entry.tests),
-        examples: inspection.examples,
-        scenarios: inspection.scenarios,
-        declarations: collected.flatMap((entry) => entry.declarations),
-        directories,
-    };
-}
+        return {
+            modules,
+            sources: inspection.sources,
+            tests: collected.flatMap((entry) => entry.tests),
+            examples: inspection.examples,
+            scenarios: inspection.scenarios,
+            declarations: collected.flatMap((entry) => entry.declarations),
+            directories,
+        };
+    },
+};
 
 /** What a source module has beside its description: directory references, tests, declarations. */
 interface CollectedModule {
@@ -192,7 +195,7 @@ class ProjectInspection {
         }
 
         // retain literal directory references for package files
-        const references = await collectDirectories(source, project);
+        const references = await DirectoryReference.collect(source, project);
         if (!authored) {
             return { file, references, tests: [], declarations: [] };
         }
@@ -246,8 +249,8 @@ class ProjectInspection {
                 ),
                 inspectErrors(source, this.inspector),
                 describeExports(source, module.path, this.inspector),
-                collectExamples(source, module.path, this.inspector),
-                collectScenarios(source, module.path, this.inspector),
+                ExampleDeclaration.collect(source, module.path, this.inspector),
+                ScenarioDeclaration.collect(source, module.path, this.inspector),
             ]);
         this.examples.push(...examples);
         this.scenarios.push(...scenarios);

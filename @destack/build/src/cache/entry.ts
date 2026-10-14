@@ -24,7 +24,17 @@ export const CachedOutput = schema.object({
 /** A requested output a build reuses instead of compiling it. */
 export type CachedOutput = schema.Infer<typeof CachedOutput>;
 
-/** What a cache key names: a whole build's manifest, or one output. */
+/** The cache keys of a build: the whole build's and each requested output's. */
+export const BuildKeys = schema.object({
+    /** The key of the whole build. */
+    build: Digest,
+    /** The key of each requested output, by name. */
+    outputs: schema.record(schema.string(), Digest),
+});
+/** The cache keys of a build. */
+export type BuildKeys = schema.Infer<typeof BuildKeys>;
+
+/** What a cache key names: a build's manifest, one output, or one file a transform derived. */
 export const CacheEntry = schema.discriminatedUnion("kind", [
     schema.object({
         /** A whole build. */
@@ -37,6 +47,12 @@ export const CacheEntry = schema.discriminatedUnion("kind", [
         kind: schema.literal("output"),
         /** The requested output. */
         output: CachedOutput,
+    }),
+    schema.object({
+        /** One file a transform derived, such as an image's rendition. */
+        kind: schema.literal("file"),
+        /** The stored file. */
+        file: PackageFile,
     }),
 ]);
 /** What a cache key names. */

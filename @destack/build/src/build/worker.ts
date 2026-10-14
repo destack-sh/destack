@@ -16,10 +16,11 @@ import {
     type ExpandedOutput,
     type OutputKind,
     type OutputRequest,
+    type TransformCache,
 } from "@destack/package/build";
 import { type BuildDescription, type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
-import { PackageLocator } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/locator";
 import { Toolchain } from "@destack/check";
 import {
     type ExampleDeclaration,
@@ -29,13 +30,8 @@ import {
 } from "../typescript/index.ts";
 import { inspectModules, type InspectOptions } from "../inspect/inspection.ts";
 import { Upgrade, type History } from "@destack/resource";
-import {
-    evaluateDeclarations,
-    kindKey,
-    selectDeclarations,
-    type Evaluation,
-} from "../declaration/index.ts";
-import { type PackageSource, openSource, readPackageDescription } from "../source/index.ts";
+import { Evaluation, kindKey, selectDeclarations } from "../declaration/index.ts";
+import { PackageSource, readPackageDescription } from "../source/index.ts";
 import { OutputCompilation, type CompiledFiles } from "../compile/compilation.ts";
 import { type LoadedExtension, loadExtensions } from "../compile/extension.ts";
 import {
@@ -56,7 +52,14 @@ import { BuildDirectory } from "./directory.ts";
 import { readCatalogs } from "./catalog.ts";
 import { comparePath, stringifyInspection } from "./serialization.ts";
 import { describeGraph, joinModules } from "../graph/module.ts";
-import { BuildRequest, type BuildResponse, readMessages, writeMessage } from "./message.ts";
+import { HostCache } from "./host-cache.ts";
+import {
+    type BuildRequest,
+    type BuildResponse,
+    HostMessage,
+    readMessages,
+    writeMessage,
+} from "./message.ts";
 import { Console } from "node:console";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
@@ -120,6 +123,44 @@ export class CompilerWorker implements AsyncDisposable {
         this.typescript = new TypeScriptCompiler(this.directory);
     }
 
+    /** Answer the host's requests on stdin with one retained compiler for the given directory. */
+    static async run(): Promise<void> {
+        // reserve stdout for framed build results and send package logs to diagnostics
+        Object.assign(
+            globalThis.console,
+            new Console({ stdout: process.stderr, stderr: process.stderr }),
+            { write: writeDiagnostics },
+        );
+        const directory = process.argv[2];
+        if (directory === undefined) {
+            throw new BuildError("BUILD_FAILED", "the compiler needs a package directory");
+        }
+        const cache = new HostCache(process.stdout);
+        await using compiler = new CompilerWorker(directory);
+
+        // read the host's messages while requests run
+        let responding = Promise.resolve();
+        for await (const message of readMessages(process.stdin, HostMessage)) {
+            // deliver the host's cache answers at once
+            if (message.kind === "cached") {
+                cache.answer(message);
+            }
+            // answer the host's requests one at a time
+            else {
+                responding = responding.then(async () =>
+                    writeMessage(
+                        process.stdout,
+                        await CompilerWorker.#respond(compiler, directory, message, cache),
+                    ),
+                );
+            }
+        }
+
+        // fail the cache requests the host can no longer answer, then finish the requests
+        cache.close(new BuildError("BUILD_FAILED", "the host closed the compiler's input"));
+        await responding;
+    }
+
     /** Inspect source using retained compiler state and source configurations. */
     async inspect(options: InspectOptions) {
         // inspect source with the selected compiler configuration
@@ -131,7 +172,7 @@ export class CompilerWorker implements AsyncDisposable {
         );
 
         // evaluate the collected domain declarations
-        const evaluation = await evaluateDeclarations(declarations, project);
+        const evaluation = await Evaluation.evaluate(declarations, project);
 
         return inspectModules(project.declaration.package, modules, tests, evaluation.declarations);
     }
@@ -222,6 +263,7 @@ export class CompilerWorker implements AsyncDisposable {
         options: BuildOptions,
         reuse: Readonly<Record<string, CachedOutput>>,
         destination: string,
+        cache: TransformCache | undefined,
     ): Promise<{ build: PackageBuild; outputs: Record<string, CachedOutput> }> {
         // plan the outputs with the extensions of the package's dependency closure
         const declaration = await readPackageDescription(options.directory);
@@ -236,7 +278,15 @@ export class CompilerWorker implements AsyncDisposable {
         await retain(inspected, files);
 
         // compile the outputs the cache lacks
-        const compiled = await this.#compile(options, planned, inspected, extensions, files, reuse);
+        const compiled = await this.#compile(
+            options,
+            planned,
+            inspected,
+            extensions,
+            files,
+            reuse,
+            cache,
+        );
 
         // describe the declarations each output selects
         const description = await this.#describe(planned, inspected, compiled);
@@ -263,7 +313,7 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Reuse a configuration until its package declarations change. */
-    async open(options: Parameters<typeof openSource>[0]): Promise<PackageSource> {
+    async open(options: Parameters<typeof PackageSource.open>[0]): Promise<PackageSource> {
         // read the manifests on every build so changed exports update the compiler roots
         const manifests = await Promise.all(
             ["package.json", "destack.json"].map((path) =>
@@ -285,7 +335,7 @@ export class CompilerWorker implements AsyncDisposable {
         }
 
         // replace changed configurations and retain the new source until shutdown
-        const source = await openSource(options);
+        const source = await PackageSource.open(options);
         await previous?.source[Symbol.asyncDispose]();
         this.#sources.set(key, { declaration, source });
 
@@ -430,7 +480,7 @@ export class CompilerWorker implements AsyncDisposable {
         for (const [name, { project, inspection }] of opened) {
             let evaluation = evaluated.get(inspection);
             if (!evaluation) {
-                evaluation = await evaluateDeclarations(inspection.declarations, project);
+                evaluation = await Evaluation.evaluate(inspection.declarations, project);
                 evaluated.set(inspection, evaluation);
             }
             inspected.set(name, { project, inspection, evaluation });
@@ -447,6 +497,7 @@ export class CompilerWorker implements AsyncDisposable {
         extensions: readonly BuildExtension[],
         files: BuildDirectory,
         reuse: Readonly<Record<string, CachedOutput>>,
+        cache: TransformCache | undefined,
     ): Promise<{
         outputs: Map<string, Pick<CompiledFiles, "output" | "inspection">>;
         sourceMaps: SourceMapReference[];
@@ -474,7 +525,15 @@ export class CompilerWorker implements AsyncDisposable {
             else {
                 const compiled =
                     output.pass === undefined
-                        ? await this.#module(name, output, options, inspected, extensions, files)
+                        ? await this.#module(
+                              name,
+                              output,
+                              options,
+                              inspected,
+                              extensions,
+                              files,
+                              cache,
+                          )
                         : await this.#pass(
                               output.pass,
                               options,
@@ -482,6 +541,7 @@ export class CompilerWorker implements AsyncDisposable {
                               inspected,
                               extensions,
                               files,
+                              cache,
                           );
                 requests.set(request, compiled);
                 cached[request] = compiled;
@@ -510,9 +570,10 @@ export class CompilerWorker implements AsyncDisposable {
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
         files: BuildDirectory,
+        cache: TransformCache | undefined,
     ): Promise<CachedOutput> {
         // compile the output and keep its files
-        const compilation = createCompilation(name, output, inspected, extensions);
+        const compilation = createCompilation(name, output, inspected, extensions, cache);
         const compiled = await compilation.compile(
             options.dependencies,
             files.retained,
@@ -535,6 +596,7 @@ export class CompilerWorker implements AsyncDisposable {
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
         files: BuildDirectory,
+        cache: TransformCache | undefined,
     ): Promise<CachedOutput> {
         // lend the kind the build's inputs for the outputs its request expanded into
         const plans = [...planned].filter(([, plan]) => plan.pass?.name === request.name);
@@ -542,7 +604,7 @@ export class CompilerWorker implements AsyncDisposable {
         const compilations = Object.fromEntries(
             plans.map(([member, plan]) => [
                 member,
-                createCompilation(member, plan, inspected, extensions),
+                createCompilation(member, plan, inspected, extensions, cache),
             ]),
         );
         const pass = new OutputPass(
@@ -553,6 +615,7 @@ export class CompilerWorker implements AsyncDisposable {
             compilations,
             this.runtimes,
             extensions,
+            cache,
         );
 
         // compile the outputs and keep their files
@@ -664,6 +727,45 @@ export class CompilerWorker implements AsyncDisposable {
         // check module outputs against their runtime, leaving kinds to check theirs
         if (planned.pass === undefined) {
             await checkRuntime(description, inspection.modules, project.runtime, this.runtimes);
+        }
+    }
+
+    /** Run one request, answering its result or its failure. */
+    static async #respond(
+        compiler: CompilerWorker,
+        directory: string,
+        request: BuildRequest,
+        cache: TransformCache,
+    ): Promise<BuildResponse> {
+        try {
+            // plan a build's keys
+            if (request.kind === "plan") {
+                const keys = await compiler.plan({ ...request.options, directory });
+
+                return { kind: "result", result: { kind: "plan", keys } };
+            }
+            // build the package, reusing the cached outputs
+            else if (request.kind === "build") {
+                const { build, outputs } = await compiler.build(
+                    { ...request.options, directory },
+                    request.reuse,
+                    request.destination,
+                    request.isCached ? cache : undefined,
+                );
+
+                return {
+                    kind: "result",
+                    result: { kind: "build", manifest: build.manifest, outputs },
+                };
+            }
+            // inspect the package
+            else {
+                const inspection = await compiler.inspect({ ...request.options, directory });
+
+                return { kind: "result", result: { kind: "inspect", inspection } };
+            }
+        } catch (error) {
+            return { kind: "result", error: describeFailure(error) };
         }
     }
 }
@@ -833,6 +935,7 @@ function createCompilation(
     output: PlannedOutput,
     inspected: ReadonlyMap<string, InspectedOutput>,
     extensions: readonly BuildExtension[],
+    cache: TransformCache | undefined,
 ): OutputCompilation {
     const { project, inspection, evaluation } = found(inspected, name);
 
@@ -847,6 +950,7 @@ function createCompilation(
         },
         extensions,
         output.pass !== undefined,
+        cache,
     );
 }
 
@@ -1052,58 +1156,6 @@ async function findPackage(name: string, locator: PackageLocator): Promise<Packa
     }
 
     return owner.metadata.package;
-}
-
-/** Answer sequential stdin requests with one retained compiler for the given directory. */
-export async function runCompiler(): Promise<void> {
-    // reserve stdout for framed build results and send package logs to diagnostics
-    Object.assign(
-        globalThis.console,
-        new Console({ stdout: process.stderr, stderr: process.stderr }),
-        { write: writeDiagnostics },
-    );
-    const directory = process.argv[2];
-    if (directory === undefined) {
-        throw new BuildError("BUILD_FAILED", "the compiler needs a package directory");
-    }
-    await using compiler = new CompilerWorker(directory);
-    for await (const request of readMessages(process.stdin, BuildRequest)) {
-        await writeMessage(process.stdout, await respond(compiler, directory, request));
-    }
-}
-
-/** Run one request, answering its result or its failure. */
-async function respond(
-    compiler: CompilerWorker,
-    directory: string,
-    request: BuildRequest,
-): Promise<BuildResponse> {
-    try {
-        // plan a build's keys
-        if (request.kind === "plan") {
-            const keys = await compiler.plan({ ...request.options, directory });
-
-            return { result: { kind: "plan", keys } };
-        }
-        // build the package, reusing the cached outputs
-        else if (request.kind === "build") {
-            const { build, outputs } = await compiler.build(
-                { ...request.options, directory },
-                request.reuse,
-                request.destination,
-            );
-
-            return { result: { kind: "build", manifest: build.manifest, outputs } };
-        }
-        // inspect the package
-        else {
-            const inspection = await compiler.inspect({ ...request.options, directory });
-
-            return { result: { kind: "inspect", inspection } };
-        }
-    } catch (error) {
-        return { error: describeFailure(error) };
-    }
 }
 
 /** Describe a failure for the host, keeping a build failure's code, its cause and its stack. */

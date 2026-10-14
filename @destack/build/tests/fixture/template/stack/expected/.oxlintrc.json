@@ -65,6 +65,7 @@
         "destack/boolean-prefix": "error",
         "destack/branch-comment-position": "error",
         "destack/comment-style": "error",
+        "destack/deterministic-handler": "error",
         "destack/error-message-style": "error",
         "destack/exact-optional": "error",
         "destack/jsdoc-sentence": "error",

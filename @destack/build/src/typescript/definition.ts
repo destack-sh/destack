@@ -41,51 +41,54 @@ export interface DefinitionSite {
 }
 
 /** A constructor call initializing an exported constant, with its site and fields. */
-export interface Definition {
+export interface DefinitionDeclaration {
     /** Where the module defines the declaration. */
     readonly site: DefinitionSite;
     /** The fields of the definition the call takes. */
     readonly fields: DefinitionFields;
 }
 
-/** Locate a module's `@destack/package/declare` constructor calls at exported constants. */
-export async function locateDefinitions(
-    source: SourceFile,
-    file: string,
-    inspector: SymbolInspector,
-    constructor: string,
-    kind: string,
-): Promise<Definition[]> {
-    // skip modules that import no such constructor
-    const bindings = await constructorBindings(source, inspector, constructor);
-    if (!bindings.size) {
-        return [];
-    }
-
-    // resolve every call's callee in one compiler request, and the module's exports
-    const exported = await exportedNames(source, inspector);
-    const calls = collectCalls(source);
-    const callees = await inspector.project.checker.getSymbolAtLocation(
-        calls.map((call) => call.expression),
-    );
-
-    // keep the constructor's calls at exported module constants
-    const definitions: Definition[] = [];
-    for (const [index, call] of calls.entries()) {
-        const callee = callees[index];
-        if (callee !== undefined && bindings.has(callee.id)) {
-            const symbol = await locateConstant(call, kind, file, inspector, exported);
-            const fields = new DefinitionFields(call, kind, `${file}#${symbol}`);
-            const range = { file, start: call.getStart(), end: call.getEnd() };
-            definitions.push({
-                site: { name: fields.text("name"), symbol, source: range },
-                fields,
-            });
+/** A declaration constructor call at an exported constant. */
+export const DefinitionDeclaration = {
+    /** Collect a module's `@destack/package/declare` constructor calls at exported constants. */
+    async collect(
+        source: SourceFile,
+        file: string,
+        inspector: SymbolInspector,
+        constructor: string,
+        kind: string,
+    ): Promise<DefinitionDeclaration[]> {
+        // skip modules that import no such constructor
+        const bindings = await constructorBindings(source, inspector, constructor);
+        if (!bindings.size) {
+            return [];
         }
-    }
 
-    return definitions;
-}
+        // resolve every call's callee in one compiler request, and the module's exports
+        const exported = await exportedNames(source, inspector);
+        const calls = collectCalls(source);
+        const callees = await inspector.project.checker.getSymbolAtLocation(
+            calls.map((call) => call.expression),
+        );
+
+        // keep the constructor's calls at exported module constants
+        const definitions: DefinitionDeclaration[] = [];
+        for (const [index, call] of calls.entries()) {
+            const callee = callees[index];
+            if (callee !== undefined && bindings.has(callee.id)) {
+                const symbol = await locateConstant(call, kind, file, inspector, exported);
+                const fields = new DefinitionFields(call, kind, `${file}#${symbol}`);
+                const range = { file, start: call.getStart(), end: call.getEnd() };
+                definitions.push({
+                    site: { name: fields.text("name"), symbol, source: range },
+                    fields,
+                });
+            }
+        }
+
+        return definitions;
+    },
+};
 
 /** The fields of a definition's object literal, read without evaluating them. */
 export class DefinitionFields {

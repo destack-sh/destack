@@ -147,12 +147,51 @@ test("describe a declaration a method call chained on its constructor returns, a
             })
             .parse(inspection.descriptions);
 
-        // find the exported constant, and describe and name it as the value the chained call returns
+        // find the exported constant, and describe and name it as the value the chained call returns, once per kind
         expect(
-            declarations.map((declaration) => [declaration.name, declaration.description]),
+            declarations.map((declaration) => [
+                declaration.kind,
+                declaration.name,
+                declaration.description,
+            ]),
         ).toEqual([
-            ["hello", { name: "hello" }],
-            ["hello", { name: "hello" }],
+            ["greeting", "hello", { name: "hello" }],
+            ["thing", "hello", { name: "hello" }],
+        ]);
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});
+
+test("describe a module's default-exported declaration under the default export", async () => {
+    // inspect the app's greeting, exported as the module's default
+    const directory = await mkdtemp(join(tmpdir(), "destack-default-"));
+    try {
+        await writeWorkspace(
+            directory,
+            "@example/owner",
+            'import { defineGreeting } from "@example/other";\n\nexport default defineGreeting({ name: "greeting" });\n',
+        );
+        await using builder = await Compiler.start(directory);
+        const inspection = await builder.inspect({ runtime: "bun" });
+        const { declarations } = schema
+            .object({
+                tests: schema.array(TestDeclaration),
+                declarations: schema.array(DeclarationDescription),
+            })
+            .parse(inspection.descriptions);
+
+        // describe the greeting once as its own kind and once as the owner's, its symbol the module's default export
+        expect(
+            declarations.map((declaration) => [
+                declaration.kind,
+                declaration.name,
+                declaration.symbol.symbol.name,
+                declaration.description,
+            ]),
+        ).toEqual([
+            ["greeting", "greeting", "default", { name: "greeting" }],
+            ["thing", "greeting", "default", { name: "greeting" }],
         ]);
     } finally {
         await rm(directory, { recursive: true, force: true });

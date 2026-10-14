@@ -14,8 +14,8 @@ import {
 import { comparePath } from "../src/build/serialization.ts";
 import { linkDependencies } from "../src/source/index.ts";
 import { tmpdir } from "node:os";
-import type { Service } from "@destack/service";
-import type { Workload } from "@destack/service/workload";
+import type { PackageHandle } from "@destack/runtime";
+import type { Workload } from "@destack/runtime/workload";
 
 /** A built library module exporting createNote. */
 export interface NoteModule {
@@ -29,12 +29,12 @@ export interface HandlerModule {
     readonly default: { fetch(request: Request): Response | Promise<Response> };
 }
 
-/** A built service module exporting its workload and the service it serves. */
-export interface ServiceModule {
-    /** The workload starting the service. */
+/** A built server module exporting its workload and the package it serves. */
+export interface WorkloadModule {
+    /** The workload serving the package. */
     readonly web: Workload;
-    /** The service. */
-    readonly service: Service;
+    /** The package's handle. */
+    readonly notes: PackageHandle;
 }
 
 /** Read the file a build output exports at a path, refusing an output or export the build lacks. */
@@ -269,18 +269,18 @@ export function isHandlerModule(module: object): module is HandlerModule {
     );
 }
 
-/** Report whether a module exports a workload and a service. */
-export function isServiceModule(module: object): module is ServiceModule {
+/** Report whether a module exports a workload and a package handle. */
+export function isWorkloadModule(module: object): module is WorkloadModule {
     const workload = "web" in module ? module.web : undefined;
-    const service = "service" in module ? module.service : undefined;
+    const handle = "notes" in module ? module.notes : undefined;
 
     return (
         typeof workload === "object" &&
         workload !== null &&
         "start" in workload &&
         typeof workload.start === "function" &&
-        typeof service === "object" &&
-        service !== null &&
-        "router" in service
+        typeof handle === "object" &&
+        handle !== null &&
+        "router" in handle
     );
 }
