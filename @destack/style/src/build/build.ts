@@ -42,16 +42,18 @@ export const styleExtension = {
             lightningcssOptions: { exclude: Features.LightDark },
             unstable_moduleResolution: { rootDir: directory, type: "commonJS" },
             cssInjectionTarget: (path) => path === sheet.file,
-            // NOTE #Performance: the plugin still polls its rule version every 150ms in this mode
             devMode: "css-only",
         });
         if (!isStylexPlugin(plugin) || typeof plugin.transform !== "function") {
             throw new TypeError("stylex returned no vite plugin");
         }
 
-        // let the bundler skip each module naming no import source before StyleX reads it
+        // drop the server hook serving the sheet a second way and polling it, as the sheet module does both
+        const { configureServer: _polling, ...compiler } = plugin;
+
+        // let the bundler skip each module without an import source before StyleX reads it
         const filtered: Plugin = {
-            ...plugin,
+            ...compiler,
             transform: { filter: { code: IMPORT_SOURCE_PATTERN }, handler: plugin.transform },
         };
 

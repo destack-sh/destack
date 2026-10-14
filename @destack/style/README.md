@@ -1,6 +1,6 @@
 # @destack/style
 
-`@destack/style` is StyleX (`create`, `props`, `defineVars`, `createTheme`, `keyframes`, `when`…), `@destack/style/media.stylex` is Tailwind's breakpoints and variants, and `@destack/style/preflight.css` is Tailwind's preflight.
+`@destack/style` styles components with StyleX, and adds Tailwind's breakpoints in `/media.stylex` and Tailwind's preflight in `/preflight.css`.
 
 ```ts
 style.attrs(styles.row); // StyleX attrs, typed for Solid
@@ -11,7 +11,7 @@ media.pointerCoarse; // Tailwind pointer-coarse:
 
 ## Builds
 
-`styleExtension` compiles the styles of a package and every dependency into `virtual:stylex.css`, served as a module in development and appended to its chunk's stylesheet in builds, one build's rules at a time.
+`styleExtension` compiles the styles of a package and its dependencies into the `virtual:stylex.css` stylesheet.
 
 ```ts
 import "virtual:stylex.css";

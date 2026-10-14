@@ -148,6 +148,17 @@ test("serve the collected rules as a stylesheet module, reloading it when transf
     });
 });
 
+test("serve the sheet without the StyleX plugin's timer polling its rule version", async () => {
+    // record every interval a development server starts
+    const intervals = vi.spyOn(globalThis, "setInterval");
+    await serve();
+    const delays = intervals.mock.calls.map(([, delay]) => delay);
+    intervals.mockRestore();
+
+    // start no interval at StyleX's 150 ms polling delay
+    expect(delays.filter((delay) => delay === 150)).toEqual([]);
+});
+
 test("append every rule to the entry's stylesheet, leaving lazy pages' stylesheets", async () => {
     expect(await stylesheets("/fixture/entry")).toEqual({
         "entry.css":
