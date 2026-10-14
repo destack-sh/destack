@@ -667,6 +667,17 @@ export class Transaction {
 
     /** Write rows, refusing all of them when one duplicates a unique key. */
     async write(...changes: readonly RowChange[]): Promise<void> {
+        // refuse a predefined row, identical in every database
+        for (const { table, before, after } of changes) {
+            const image = after ?? before;
+            if (image !== null && Key.isPredefined(table, image)) {
+                throw new DatabaseError(
+                    "INVALID_RECORD",
+                    `cannot write predefined row ${Key.name(table, image)} of ${table[TABLE].name}`,
+                );
+            }
+        }
+
         // refuse a duplicate of a unique key, reading each table once
         const tables = new Map<Table, RowChange[]>();
         for (const change of changes) {

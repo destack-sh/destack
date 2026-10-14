@@ -104,6 +104,20 @@ export const Key = {
         return key;
     },
 
+    /** Report whether a row is one of its table's predefined rows, by key. */
+    isPredefined(table: Table, row: Key): boolean {
+        // skip naming the key of a table without predefined rows
+        const { predefined } = table[TABLE];
+        if (predefined.length === 0) {
+            return false;
+        }
+
+        // compare its key name with each predefined row's
+        const name = Key.name(table, row);
+
+        return predefined.some((entry) => Key.name(table, entry) === name);
+    },
+
     /** Read a row's key from its name, refusing another table's. */
     parse(table: Table, name: string): Key {
         // require a name of this table

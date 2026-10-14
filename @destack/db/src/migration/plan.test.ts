@@ -144,6 +144,25 @@ const taskUnfilled = defineTable("task", {
     owner: text("owner").notNull(),
 });
 
+/** Units with the predefined rows every database keeps, in a logged table. */
+const unit = defineTable(
+    "unit",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        name: text("name").notNull(),
+        factor: integer("factor").notNull(),
+        aliases: json("aliases", schema.array(schema.string())).notNull(),
+    },
+    {
+        log: {},
+        predefined: [
+            { id: "metre", scope: "si", name: "Metre", factor: 1, aliases: ["m"] },
+            { id: "kilometre", scope: "si", name: "Kilometre", factor: 1000, aliases: ["km"] },
+        ],
+    },
+);
+
 /** Open an empty test database. */
 async function open(dialect: Dialect, tables: readonly Table[]) {
     const storage = await TestDatabase.create(dialect, tables);
@@ -171,6 +190,34 @@ test.for(TEST_DIALECTS)(
         const plan = await database.migrate([taskOne]);
         expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
         expect(review(await database.plan({ declared: declareState([taskOne], dialect) }))).toEqual(
+            [],
+        );
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "keep a table's predefined rows in a fresh database, unlogged, and plan nothing afterwards on %s",
+    async (dialect) => {
+        const database = await open(dialect, [unit]);
+
+        // create the table and upsert its predefined rows
+        const plan = await database.migrate([unit]);
+        expect(review(plan)).toEqual([
+            `safe create table/${table(unit)}: create table`,
+            `safe update table/${table(unit)}/predefined: keep 2 predefined rows`,
+        ]);
+        expect(await database.select().from(unit).orderBy(unit.id)).toEqual([
+            { id: "kilometre", scope: "si", name: "Kilometre", factor: 1000, aliases: ["km"] },
+            { id: "metre", scope: "si", name: "Metre", factor: 1, aliases: ["m"] },
+        ]);
+
+        // log only rows written after, and plan nothing once migrated
+        await database
+            .insert(unit)
+            .values({ id: "mile", scope: "imperial", name: "Mile", factor: 1609, aliases: ["mi"] });
+        const changes = await database.log.read({ tables: [unit], after: 0 });
+        expect(changes.changes.map((change) => change.key)).toEqual([{ id: "mile" }]);
+        expect(review(await database.plan({ declared: declareState([unit], dialect) }))).toEqual(
             [],
         );
     },

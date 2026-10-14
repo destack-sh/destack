@@ -126,6 +126,7 @@ export class Table<
                 convert: {},
                 aggregates: [],
                 dependents: [],
+                predefined: [],
                 fullText:
                     state.fullText === undefined
                         ? undefined
@@ -171,6 +172,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly aggregates: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
+    /** The predefined rows every database keeps, identical everywhere. */
+    readonly predefined: readonly Row[];
     /** The table's full-text index, absent for a table nothing searches. */
     readonly fullText: FullTextIndex | undefined;
     /** The source table of a query alias. */
@@ -217,6 +220,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.convert = declaration.convert;
         this.aggregates = declaration.aggregates;
         this.dependents = declaration.dependents;
+        this.predefined = declaration.predefined;
         this.fullText = declaration.fullText;
         this.source = options.source;
         this.#table = table;
@@ -595,6 +599,8 @@ interface TableDeclaration {
     readonly aggregates: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
+    /** The predefined rows every database keeps, identical everywhere. */
+    readonly predefined: readonly Row[];
     /** The table's full-text index, absent for a table nothing searches. */
     readonly fullText: FullTextIndex | undefined;
 }
@@ -671,9 +677,22 @@ export interface TableOptions<Columns> {
     readonly aggregates?: readonly Summary[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents?: readonly Dependent[];
+    /** The predefined rows every database keeps, identical everywhere and never written. */
+    readonly predefined?: readonly PredefinedRow<Columns>[];
     /** The text properties a full-text index keeps, in a logged table. */
     readonly fullText?: readonly (keyof Columns & string)[];
 }
+
+/** A predefined row: the value of every column but generated ones, by property. */
+export type PredefinedRow<Columns> = {
+    readonly [
+        Property in keyof Columns as Columns[Property] extends Column<infer Definition>
+            ? Definition extends { readonly generated: unknown }
+                ? never
+                : Property
+            : never
+    ]: Columns[Property] extends Column<infer Definition> ? ValueIn<Definition> : never;
+};
 
 /** The columns by property. */
 export type ColumnMap = Record<string, Column>;
@@ -783,6 +802,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
             convert: options.convert ?? {},
             aggregates: options.aggregates ?? [],
             dependents: options.dependents ?? [],
+            predefined: options.predefined ?? [],
             fullText: fullTextOf(name, sqlName, columns, options),
         },
         options.tree === undefined ? {} : { tree: options.tree },
@@ -814,6 +834,7 @@ export function alias<Definition extends Table, Name extends string>(
             convert: source[TABLE].convert,
             aggregates: source[TABLE].aggregates,
             dependents: source[TABLE].dependents,
+            predefined: source[TABLE].predefined,
             fullText: source[TABLE].fullText,
         },
         { source },

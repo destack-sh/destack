@@ -19,6 +19,7 @@ import { sql } from "../sql/index.ts";
 import type { Channel } from "../channel/channel.ts";
 import { channelHub } from "../channel/channel.ts";
 import { readState, STATE, type TableState } from "../migration/state.ts";
+import { upsertPredefined } from "../migration/plan.ts";
 
 /** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES has a server address. */
 export const TEST_DIALECTS: readonly Dialect[] = [
@@ -416,7 +417,7 @@ class TestCluster {
                 schema.isIdle = false;
                 const shape = await this.#readShape(schema.name);
                 if (shape.fingerprint === schema.shape.fingerprint) {
-                    await this.#reset(schema, template);
+                    await this.#reset(schema, state, template);
 
                     return schema;
                 }
@@ -432,7 +433,7 @@ class TestCluster {
             if (!this.#locked.has(name) && (await this.#lockListed(name))) {
                 const schema = await this.#verify(name, state, tables);
                 if (schema !== undefined) {
-                    await this.#reset(schema, template);
+                    await this.#reset(schema, state, template);
 
                     return schema;
                 }
@@ -453,7 +454,7 @@ class TestCluster {
         await database.close();
         const schema = await this.#adopt(name, pools);
         if (template !== undefined) {
-            await this.#reset(schema, template);
+            await this.#reset(schema, state, template);
         }
 
         return schema;
@@ -552,7 +553,11 @@ class TestCluster {
     }
 
     /** Replace the rows with a template's and start a new epoch, in one statement batch. */
-    async #reset(schema: TestSchema, template?: PostgresTemplate): Promise<void> {
+    async #reset(
+        schema: TestSchema,
+        state: readonly TableState[],
+        template?: PostgresTemplate,
+    ): Promise<void> {
         // pick the tables to empty and the sequences to restart
         const quoted = (name: string) => `"${schema.name}"."${name}"`;
         const emptied = schema.shape.relations.filter(
@@ -564,11 +569,17 @@ class TestCluster {
         );
         const sequences = schema.shape.relations.filter((relation) => relation.kind === "S");
 
-        // empty the tables and restart the sequences and the horizon, then copy the template's
-        const copied = template === undefined ? [] : TestCluster.#copy(schema, template);
+        // empty the tables and restart the sequences and the horizon, then copy the template's or the predefined rows
+        const copied =
+            template === undefined
+                ? state.flatMap((table) =>
+                      upsertPredefined(table).map((statement) => `${statement};`),
+                  )
+                : TestCluster.#copy(schema, template);
 
         // run the batch as one implicit transaction without triggers, in a new epoch
         await this.administration.unsafe(`SET LOCAL session_replication_role = replica;
+            SET LOCAL search_path = "${schema.name}";
             ${emptied.map((table) => `DELETE FROM ${quoted(table.name)};`).join("\n")}
             ${sequences.map((sequence) => `ALTER SEQUENCE ${quoted(sequence.name)} RESTART;`).join("\n")}
             UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;

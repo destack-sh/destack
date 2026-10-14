@@ -86,6 +86,7 @@ export function planTables(input: PlanInput): TablePlan {
     steps.push(...aggregateSteps(declared, applied, dialect));
     steps.push(...dependentSteps(declared, applied));
     steps.push(...(dialect === "postgresql" ? foreignKeySteps(created) : []));
+    steps.push(...declared.flatMap((state) => predefinedSteps(state, applied)));
 
     // drop applied tables no longer declared, keeping those a newer release of a declared package added
     const dropped = droppedTables(declared, remaining);
@@ -770,6 +771,82 @@ function missing<Item>(items: readonly Item[] = [], others: readonly Item[] = []
     const known = new Set(others.map((other) => canonicalize(other)));
 
     return items.filter((item) => !known.has(canonicalize(item)));
+}
+
+/** Upsert a table's new or changed predefined rows and delete the ones it no longer declares. */
+function predefinedSteps(state: TableState, applied: readonly TableState[]): TableStep[] {
+    // compare the declared rows with the applied ones of the table or its previous name
+    const name = state.table.name;
+    const previous = applied.find(
+        (entry) => entry.table.name === name || entry.table.name === state.moved?.table,
+    );
+    if (state.predefined === undefined && previous?.predefined === undefined) {
+        return [];
+    }
+    const key = primaryKey(state);
+    const declared = new Set((state.predefined ?? []).map((row) => predefinedKey(row, key)));
+    const upserted = missing(state.predefined, previous?.predefined);
+    const deleted = (previous?.predefined ?? []).filter(
+        (row) => !declared.has(predefinedKey(row, key)),
+    );
+    if (upserted.length === 0 && deleted.length === 0) {
+        return [];
+    }
+
+    // write each row as declared, and delete the ones no longer declared
+    const deletes = deleted.map(
+        (row) =>
+            `DELETE FROM ${quote(name)} WHERE ${key.map((column) => `${quote(column)} = ${present(row[column], `${name}.${column}`)}`).join(" AND ")}`,
+    );
+
+    return [
+        step(
+            "update",
+            Address.join("table", name, "predefined"),
+            "safe",
+            `keep ${state.predefined?.length ?? 0} predefined rows`,
+            [...upsertPredefined(state, upserted), ...deletes],
+        ),
+    ];
+}
+
+/** Write a table's predefined rows as declared, replacing the stored ones. */
+export function upsertPredefined(
+    state: TableState,
+    rows: readonly Readonly<Record<string, string>>[] = state.predefined ?? [],
+): string[] {
+    const name = state.table.name;
+    const key = primaryKey(state);
+
+    return rows.map((row) => {
+        // list the values, and update every column but the key on a conflict
+        const columns = Object.keys(row);
+        const values = columns.map((column) => present(row[column], `${name}.${column}`));
+        const updates = columns
+            .filter((column) => !key.includes(column))
+            .map((column) => `${quote(column)} = excluded.${quote(column)}`);
+        const conflict =
+            updates.length === 0 ? "DO NOTHING" : `DO UPDATE SET ${updates.join(", ")}`;
+
+        return `INSERT INTO ${quote(name)} (${columns.map(quote).join(", ")}) VALUES (${values.join(", ")}) ON CONFLICT (${key.map(quote).join(", ")}) ${conflict}`;
+    });
+}
+
+/** Read the primary key columns of a table with predefined rows. */
+function primaryKey(state: TableState): readonly string[] {
+    const [key] = state.table.constraints.flatMap((constraint) =>
+        constraint.kind === "primaryKey" ? [constraint.columns] : [],
+    );
+    if (key === undefined) {
+        throw new TypeError(`${state.table.name} has predefined rows but no primary key`);
+    }
+
+    return key;
+}
+
+/** Write a predefined row's key as its SQL literals, alike for equal keys. */
+function predefinedKey(row: Readonly<Record<string, string>>, key: readonly string[]): string {
+    return JSON.stringify(key.map((column) => row[column]));
 }
 
 /** Create a table and its indexes. */

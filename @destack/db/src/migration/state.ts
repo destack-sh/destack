@@ -38,6 +38,8 @@ export const TableState = defineSchema(
         dependents: schema.array(DependentDescription).exactOptional(),
         /** The SQL names of the text columns the full-text index reads. */
         fullText: schema.array(schema.string().min(1)).exactOptional(),
+        /** The predefined rows as SQL literals by column name, upserted in every database. */
+        predefined: schema.array(schema.record(schema.string(), schema.string())).exactOptional(),
         /** The previous SQL names of the table and its columns. */
         moved: schema
             .object({
@@ -199,6 +201,7 @@ export function declareState(
         const tree = isReplica ? undefined : definition.tree?.describe();
         const moved = describeMoves(table);
         const conversions = describeConversions(table, dialect);
+        const predefined = describePredefined(table, dialect);
         const dependents = isReplica ? [] : describeDependents(table, tables);
         const aggregated = aggregates.get(definition.sqlName);
 
@@ -218,6 +221,7 @@ export function declareState(
                 : { fullText: [...definition.fullText.columns] }),
             ...(moved === undefined ? {} : { moved }),
             ...(conversions === undefined ? {} : { conversions }),
+            ...(predefined.length === 0 ? {} : { predefined }),
         };
     });
 }
@@ -425,6 +429,29 @@ function describeMoves(table: Table): TableState["moved"] {
             : { table: qualify(definition.package, definition.moved.table) }),
         columns,
     };
+}
+
+/** Render each predefined row as SQL literals of its stored columns, by column name. */
+function describePredefined(table: Table, dialect: Dialect): Record<string, string>[] {
+    const definition = table[TABLE];
+
+    return definition.predefined.map((row) =>
+        Object.fromEntries(
+            Object.entries(definition.columns)
+                .filter(([, column]) => column.definition.generated === undefined)
+                .map(([property, column]) => {
+                    // require every stored column's value
+                    const value = row[property];
+                    if (value === undefined) {
+                        throw new TypeError(
+                            `predefined row of ${definition.name} has no ${property} value`,
+                        );
+                    }
+
+                    return [column.definition.name, inline(sql.param(value, column), dialect)];
+                }),
+        ),
+    );
 }
 
 /** Render each release's conversion as SQL assignments of columns of the same kind. */

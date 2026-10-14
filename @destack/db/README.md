@@ -46,6 +46,24 @@ export const note = defineTable(
 );
 ```
 
+## Predefined rows
+
+A table's `predefined` rows are identical in every database: migrations upsert them unlogged, writes to them fail, and replicas leave them alone.
+
+```ts
+export const role = defineTable("role", columns, {
+    log: {},
+    predefined: [{ id: "role-owner", scope: "universe", name: "owner" }],
+});
+await Transaction.run(database, (transaction) =>
+    transaction.write({
+        table: role,
+        before: null,
+        after: { id: "role-owner", scope: "universe", name: "admin" },
+    }),
+); // INVALID_RECORD: cannot write predefined row ["role","role-owner"] of role
+```
+
 ## Full-text search
 
 A table's `fullText` columns keep a full-text index, and `SEARCH` matches rows whose text has each word as a word's prefix.

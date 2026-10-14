@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq, sql } from "../sql/index.ts";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import { defineTable } from "../table/table.ts";
+import { defineTable, TABLE } from "../table/table.ts";
 import { integer, json, text } from "../table/column.ts";
 import { unique, uniqueIndex } from "../table/constraint.ts";
 import { ChangeSet, Transaction, ReadSet } from "./commit.ts";
@@ -654,6 +654,43 @@ test.each(TEST_DIALECTS)(
             refused: new TypeError("roll back"),
             isApart: true,
             entries: [first, second],
+        });
+    },
+);
+
+/** Units with one predefined row. */
+const unit = defineTable(
+    "unit",
+    { id: text("id").primaryKey(), name: text("name").notNull() },
+    { predefined: [{ id: "metre", name: "Metre" }] },
+);
+
+test.each(TEST_DIALECTS)(
+    "refuse writing a predefined row, and write other rows of its table, on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [unit], { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const { database } = storage;
+
+        // refuse changing the predefined row, and insert another
+        const write = (after: { readonly id: string; readonly name: string }) =>
+            Transaction.run(database, (transaction) =>
+                transaction.write({ table: unit, before: null, after }),
+            );
+        const refused = await refusal(write({ id: "metre", name: "Meter" }));
+        await write({ id: "foot", name: "Foot" });
+        expect({
+            refused,
+            rows: await database.select().from(unit).orderBy(asc(unit.id)),
+        }).toEqual({
+            refused: [
+                "INVALID_RECORD",
+                `cannot write predefined row ["${unit[TABLE].sqlName}","metre"] of unit`,
+            ],
+            rows: [
+                { id: "foot", name: "Foot" },
+                { id: "metre", name: "Metre" },
+            ],
         });
     },
 );
