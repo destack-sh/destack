@@ -12,7 +12,7 @@ const row = single(await database.select().from(page)); // the only row, or a th
 // Go's mock clock: follows the system's until set, frozen or advanced
 const clock = new TestClock();
 const destroyedAt = clock.freeze();
-clock.advance(60_000);
+clock.advance(60_000); // releases the clock's sleeps it passes, earliest first
 // picks the driver by the interaction's name
 Runner.play(createTallyMarkTwice, [TallyDriver, ViewDriver]);
 ```
