@@ -1,12 +1,7 @@
 import { isAbsolute, join } from "node:path";
 import { createServer, type ServerOptions, type ViteDevServer } from "vite";
 import { readDependencies } from "@destack/build";
-import {
-    loadTransforms,
-    openSource,
-    type PackageSource,
-    resolutionPlugin,
-} from "@destack/build/local";
+import { loadTransforms, PackageSource, resolutionPlugin } from "@destack/build/local";
 import type { DependencyResolution } from "@destack/package";
 import type { Plugin } from "@destack/package/build";
 import { runtimeConditions } from "@destack/package/build";
@@ -165,7 +160,7 @@ export interface DevelopmentServerOptions {
 
 /** Open the application's package source with its selected entry. */
 async function open(options: DevelopmentServerOptions): Promise<PackageSource> {
-    return await openSource({
+    return await PackageSource.open({
         directory: options.directory,
         runtime: "browser",
         ...(options.configuration === undefined ? {} : { configuration: options.configuration }),
