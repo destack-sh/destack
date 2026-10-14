@@ -76,13 +76,13 @@ test("refuse to write a message without the module the transform passes", () => 
     expect(() => t(strings)).toThrow(
         new PackageError(
             "INVALID_DEFINITION",
-            "no module passed by the Destack module transform to: t",
+            "the Destack module transform passed no module to: t",
         ),
     );
     expect(() => Message.context("button", undefined)).toThrow(
         new PackageError(
             "INVALID_DEFINITION",
-            "no module passed by the Destack module transform to: Message.context",
+            "the Destack module transform passed no module to: Message.context",
         ),
     );
 });
