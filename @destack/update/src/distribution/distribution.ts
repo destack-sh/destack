@@ -44,7 +44,7 @@ export class Distribution {
 
     /** Find the Mac application the distribution installs. */
     async application(): Promise<string | undefined> {
-        // leave other platforms, which install no Mac application
+        // leave other platforms without a Mac application
         if (!this.options.running.target.endsWith("apple-darwin")) {
             return undefined;
         }

@@ -143,7 +143,7 @@ export class DistributionController implements Controller {
                 : [found];
         if (recorded === undefined) {
             throw new CallError("INTERNAL_SERVER_ERROR", {
-                message: "recording the distribution answered nothing",
+                message: "recording the distribution returned nothing",
             });
         }
 
@@ -165,7 +165,7 @@ export class DistributionController implements Controller {
 function requireHost(host: DistributionHost | undefined): DistributionHost {
     if (host === undefined) {
         throw new CallError("PRECONDITION_FAILED", {
-            message: "development builds take no published updates",
+            message: "development builds cannot take published updates",
         });
     }
 

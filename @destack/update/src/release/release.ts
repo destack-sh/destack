@@ -84,7 +84,7 @@ export class Release {
         return Version.compare(this.version, other.version);
     }
 
-    /** Name the immutable installed distribution directory. */
+    /** Build the path of the immutable installed distribution directory. */
     get directory(): string {
         return `${this.version}-${this.target}`;
     }

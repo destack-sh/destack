@@ -1,6 +1,6 @@
 # @destack/update
 
-`Updater` is a TUF client over `tuf-js` that checks, downloads, stages and activates a distribution's releases under an installation lock, `/publish` writes the signed TUF repository with a two-of-three root and online targets, snapshot and timestamp keys, and `Release.target` names targets by Rust's target triples.
+`Updater` is a TUF client over `tuf-js` that checks, downloads, stages and activates a distribution's releases under an installation lock, `/publish` writes the signed TUF repository with a two-of-three root and online targets, snapshot and timestamp keys, and `Release.target` identifies targets by Rust's target triples.
 
 ```ts
 // tuf-js's Updater

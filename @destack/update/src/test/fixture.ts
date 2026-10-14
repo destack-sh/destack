@@ -8,7 +8,7 @@ import { create } from "tar";
 import type { UpdaterOptions } from "../update/updater.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "../publish/index.ts";
 
-/** The command a fixture distribution's archive carries, by the platform's file name. */
+/** The command a fixture distribution's archive contains, by the platform's file name. */
 const COMMAND = process.platform === "win32" ? "destack.exe" : "destack";
 
 /** The version report the fixture command prints, as the compiled command does. */
