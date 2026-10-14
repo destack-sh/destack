@@ -5,4 +5,9 @@ export * from "./installation/index.ts";
 export * from "./distribution/index.ts";
 export type { Download } from "./repository/repository.ts";
 export type { DownloadOptions, DownloadProgress } from "./repository/download.ts";
-export { type InstalledRelease, Installer, type StagedRelease } from "./install/installer.ts";
+export {
+    type InstalledRelease,
+    Installer,
+    PRIVATE_DIRECTORY_MODE,
+    type StagedRelease,
+} from "./install/installer.ts";

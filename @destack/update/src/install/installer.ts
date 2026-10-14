@@ -1,4 +1,4 @@
-import { readOptional } from "@destack/fs";
+import { FileLock, readOptional } from "@destack/fs";
 import { Digest, schema } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
 import {
@@ -12,12 +12,15 @@ import {
     rm,
     writeFile,
 } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { extract, type ReadEntry } from "tar";
 import type { Stats } from "node:fs";
 import type { Download } from "../repository/repository.ts";
 import { Release } from "../release/release.ts";
 import { installApplication } from "../apple/install.ts";
+
+/** The mode of a device's private directories: the owner's alone. */
+export const PRIVATE_DIRECTORY_MODE = 0o700;
 
 /** The persisted record of the current release. */
 const CurrentRecord = schema.object({
@@ -73,6 +76,18 @@ export class Installer {
     /** Select the installation managed by the local host. */
     constructor(directory: string) {
         this.directory = resolve(directory);
+    }
+
+    /** Take the installation lock beside the directory, refusing a concurrent installation. */
+    async lock(): Promise<FileLock> {
+        // create the private parent directory and take the lock file beside the directory
+        await mkdir(dirname(this.directory), { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
+        const lock = await FileLock.tryAcquire(`${this.directory}.lock`);
+        if (!lock) {
+            throw new UpdateError("BUSY", "another Destack installation operation is running");
+        }
+
+        return lock;
     }
 
     /** Retain a staged release across updater sessions. */
@@ -149,7 +164,7 @@ export class Installer {
 
         // extract into a fresh sibling directory without touching the active distribution
         const versions = join(this.directory, "versions");
-        await mkdir(versions, { recursive: true, mode: 0o700 });
+        await mkdir(versions, { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
         const staging = await mkdtemp(join(versions, ".install-"));
         try {
             let rejected: UpdateError | undefined;
