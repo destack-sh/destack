@@ -32,6 +32,28 @@ const TracesRequest = schema.looseObject({
     }),
 });
 
+/** A logs request with one record, read for its attributes. */
+const LogsRequest = schema.looseObject({
+    resourceLogs: schema.tuple([
+        schema.looseObject({
+            scopeLogs: schema.tuple([
+                schema.looseObject({
+                    logRecords: schema.tuple([
+                        schema.looseObject({
+                            attributes: schema.array(
+                                schema.looseObject({
+                                    key: schema.string(),
+                                    value: schema.unknown(),
+                                }),
+                            ),
+                        }),
+                    ]),
+                }),
+            ]),
+        }),
+    ]),
+});
+
 /** The resource every signal of the package carries. */
 const resource: unknown = expect.objectContaining({
     attributes: [
@@ -157,4 +179,53 @@ test("post each signal below a target's endpoint through the target's fetch", as
             type: "application/json",
         },
     ]);
+});
+
+test("export a captured exception with the frames its build's symbolicator resolves", async () => {
+    // resolve each frame to its source, as a build's source maps do
+    const delivered: unknown[] = [];
+    const exporter = new OtlpExporter(
+        async (signal, body) => {
+            if (signal === "logs") {
+                delivered.push(JSON.parse(new TextDecoder().decode(body)));
+            }
+        },
+        (error) => {
+            throw error;
+        },
+        {
+            frames: async (frames) =>
+                frames.map((frame) => ({ ...frame, path: "src/note.ts", line: 7, column: 3 })),
+        },
+    );
+    const telemetry = await startTelemetry(exporter.options(source));
+
+    // capture an exception thrown in the package
+    const error = new RangeError("page 9 of 3");
+    error.stack =
+        "RangeError: page 9 of 3\n    at Note.render (file:///srv/output/workload.js:12:34)";
+    try {
+        telemetry.scope(source).captureException(error);
+        await telemetry.flush();
+    } finally {
+        await telemetry.shutdown();
+    }
+
+    // keep the resolved frames beside the raw trace
+    const frames = [
+        {
+            function: "Note.render",
+            file: "file:///srv/output/workload.js",
+            line: 7,
+            column: 3,
+            isInApp: true,
+            path: "src/note.ts",
+        },
+    ];
+    const [{ resourceLogs }] = schema.tuple([LogsRequest]).parse(delivered);
+    const attributes = resourceLogs[0].scopeLogs[0].logRecords[0].attributes;
+    expect(attributes.find(({ key }) => key === "destack.exception.frames")).toEqual({
+        key: "destack.exception.frames",
+        value: { stringValue: JSON.stringify(frames) },
+    });
 });

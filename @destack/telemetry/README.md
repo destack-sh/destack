@@ -43,6 +43,7 @@ const exporter = OtlpExporter.http(
         headers: () => ({ authorization: `Bearer ${start.secret}` }),
     },
     report,
+    new Symbolicator(build), // exceptions leave with their frames resolved through the build
 );
 // a page's signals to /.destack/telemetry on its origin, outliving the page
 const browser = OtlpExporter.http(

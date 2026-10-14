@@ -22,6 +22,7 @@ import { BatchSpanProcessor, type ReadableSpan, type SpanExporter } from "@opent
 import type { TelemetryOptions } from "../sdk/index.ts";
 import { RatioSampler } from "../trace/sampler.ts";
 import { TailSampler } from "../trace/tail.ts";
+import { StackFrame, type Symbolicator } from "@destack/package/stack";
 
 /** How often metrics export: once a minute, the resolution observability stores points at. */
 const METRIC_INTERVAL_MILLISECONDS = 60_000;
@@ -32,6 +33,9 @@ const ExportResponse = schema.looseObject({
         .looseObject({ errorMessage: schema.string().exactOptional() })
         .exactOptional(),
 });
+
+/** The attribute an exception record keeps its symbolicated frames in, as JSON. */
+export const FRAMES_ATTRIBUTE = "destack.exception.frames";
 
 /** The path below which an origin receives OTLP/HTTP exports. */
 export const OTLP_ORIGIN_PATH = "/.destack/telemetry";
@@ -102,13 +106,20 @@ export class OtlpExporter {
     readonly #send: OtlpSend;
     /** Report a failed delivery, which the SDK otherwise drops silently. */
     readonly #report: (error: Error) => void;
+    /** The symbolicator of the build the exceptions ran, absent where none is at hand. */
+    readonly #symbolicator: Pick<Symbolicator, "frames"> | undefined;
     /** The deliveries in flight. */
     readonly #pending = new Set<Promise<void>>();
 
-    /** The log record exporter. */
+    /** The log record exporter, symbolicating exceptions first. */
     readonly logs: LogRecordExporter = {
-        export: (records: ReadableLogRecord[], done: (result: ExportResult) => void) =>
-            this.#export("logs", JsonLogsSerializer.serializeRequest(records), done),
+        export: (records: ReadableLogRecord[], done: (result: ExportResult) => void) => {
+            const exporting = this.#symbolicate(records).then(() =>
+                this.#export("logs", JsonLogsSerializer.serializeRequest(records), done),
+            );
+            this.#pending.add(exporting);
+            void exporting.finally(() => this.#pending.delete(exporting));
+        },
         shutdown: () => this.#drain(),
         forceFlush: () => this.#drain(),
     };
@@ -134,15 +145,24 @@ export class OtlpExporter {
                 : { type: AggregationType.DEFAULT },
     };
 
-    /** Export through a delivery, reporting its failures. */
-    constructor(send: OtlpSend, report: (error: Error) => void) {
+    /** Export through a delivery, reporting its failures, symbolicating through a build. */
+    constructor(
+        send: OtlpSend,
+        report: (error: Error) => void,
+        symbolicator?: Pick<Symbolicator, "frames">,
+    ) {
         this.#send = send;
         this.#report = report;
+        this.#symbolicator = symbolicator;
     }
 
     /** Export over OTLP/HTTP below a target's endpoint, each signal at its `/v1/<signal>` path. */
-    static http(target: OtlpTarget, report: (error: Error) => void): OtlpExporter {
-        return new OtlpExporter((signal, body) => post(target, signal, body), report);
+    static http(
+        target: OtlpTarget,
+        report: (error: Error) => void,
+        symbolicator?: Pick<Symbolicator, "frames">,
+    ): OtlpExporter {
+        return new OtlpExporter((signal, body) => post(target, signal, body), report, symbolicator);
     }
 
     /** Build telemetry options that sample an owner's traces. */
@@ -202,6 +222,29 @@ export class OtlpExporter {
         );
         this.#pending.add(delivery);
         void delivery.finally(() => this.#pending.delete(delivery));
+    }
+
+    /** Attach each exception record's frames, symbolicated through the build it ran. */
+    async #symbolicate(records: readonly ReadableLogRecord[]): Promise<void> {
+        // leave records as they are without a build
+        const symbolicator = this.#symbolicator;
+        if (symbolicator === undefined) {
+            return;
+        }
+
+        // resolve each stack trace, keeping a record's raw trace when its resolution fails
+        for (const record of records) {
+            const stack = record.attributes["exception.stacktrace"];
+            if (typeof stack !== "string") {
+                continue;
+            }
+            try {
+                const frames = await symbolicator.frames(StackFrame.read(stack));
+                Object.assign(record.attributes, { [FRAMES_ATTRIBUTE]: JSON.stringify(frames) });
+            } catch (cause) {
+                this.#report(cause instanceof Error ? cause : new Error(String(cause)));
+            }
+        }
     }
 
     /** Wait for the deliveries in flight. */
