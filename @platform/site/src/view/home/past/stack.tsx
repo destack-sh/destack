@@ -79,8 +79,8 @@ type Count = {
 const layers: readonly Layer[] = [
     {
         name: "Users",
-        claim: { today: "Beg for entry", destack: "Sign in once" },
-        detail: { today: "Their accounts", destack: "One account, Every agent" },
+        claim: { today: "Bargain for entry", destack: "Sign in once" },
+        detail: { today: "Their accounts", destack: "One account, every agent" },
         note: { today: "another account with every new app", destack: "one account for all apps" },
         item: {
             today: ({ people, vendors }) => `${people * vendors} logins`,
@@ -135,7 +135,7 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Hosts",
-        claim: { today: "Live on their land", destack: "Own your land" },
+        claim: { today: "Host where they say", destack: "Host where you like" },
         detail: { today: "Their cloud", destack: "Node, Docker, Workers" },
         note: { today: "prices set by their margins", destack: "prices set by your hardware" },
         item: {

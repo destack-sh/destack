@@ -76,9 +76,10 @@ const TAG_CHARACTER = 6.2;
 /** The width in pixels a tag's mark and padding take, beside its text. */
 const TAG_FRAME = 30;
 
-/** Where a part of the page sits, the ledger row of its service, and where its tag sits. */
+/** Where a part of the page sits, its service and source app, and where its tag sits. */
 type Box = {
     index: number;
+    source: string | undefined;
     x: number;
     y: number;
     width: number;
@@ -119,6 +120,7 @@ export function XRay(properties: {
 
                 return {
                     index: indexOf(element.dataset["xray"] ?? ""),
+                    source: element.dataset["source"],
                     x: rectangle.left - bounds.left,
                     y: rectangle.top - bounds.top,
                     width: rectangle.width,
@@ -134,9 +136,9 @@ export function XRay(properties: {
         const obstacles = textOf(root, bounds);
         const placed: Rectangle[] = [];
         setBoxes(
-            measured.map(({ index, x, y, width, height }) => {
+            measured.map(({ index, source, x, y, width, height }) => {
                 // find the tag's spot, and keep later tags clear of it
-                const tagWidth = tagWidthOf(index, properties.isOpenAt(index + 1));
+                const tagWidth = tagWidthOf(index, source, properties.isOpenAt(index + 1));
                 const spot = spotOf({ x, y, width, height }, tagWidth, bounds, [
                     ...obstacles,
                     ...placed,
@@ -148,7 +150,7 @@ export function XRay(properties: {
                     bottom: spot.y + TAG_HEIGHT,
                 });
 
-                return { index, x, y, width, height, tagX: spot.x, tagY: spot.y };
+                return { index, source, x, y, width, height, tagX: spot.x, tagY: spot.y };
             }),
         );
     };
@@ -279,16 +281,9 @@ export function XRay(properties: {
                     ) : undefined}
                     <main {...style.attrs(appStyles.main, styles.page)}>{sectionOf(row())}</main>
                     <p {...style.attrs(appStyles.statusBar)}>
-                        <span {...style.attrs(appStyles.status)}>
-                            <span {...style.attrs(appStyles.dot)} />
-                            {isOwned()
-                                ? `Yours · @florian${pathOf(app())}`
-                                : `${app()[3]}.symbol.dev`}
-                        </span>
                         <span data-xray="Code" {...style.attrs(appStyles.statusEnd, styles.commit)}>
                             <Icon icon={gitCommit} />
-                            <span {...style.attrs(styles.code)}>a1f3c9e</span>
-                            deployed 2h ago
+                            <span {...style.attrs(styles.code)}>a1f3c9e</span>· 2h ago
                         </span>
                     </p>
                 </Fade>
@@ -311,7 +306,7 @@ export function XRay(properties: {
     );
 }
 
-/** Draw one x-rayed part: its outline, and a tag naming its service on the outline's top edge. */
+/** Draw one x-rayed part: its outline, and a tag naming its service and source app. */
 function Mark(properties: {
     box: Box;
     accent: string;
@@ -371,6 +366,9 @@ function Mark(properties: {
                             {...style.attrs(styles.tagGlyph)}
                         />
                         <span {...style.attrs(styles.tagName)}>{service().destacked.name}</span>
+                        {properties.box.source === undefined ? undefined : (
+                            <span {...style.attrs(styles.tagWiring)}>{properties.box.source}</span>
+                        )}
                     </>
                 ) : (
                     <>
@@ -402,12 +400,21 @@ function spotOf(
     const right = box.x + box.width + PAD - TAG_INSET - tagWidth;
     const above = box.y - PAD - TAG_HEIGHT + 1;
     const below = box.y + box.height + PAD - 1;
-    const spots = [
+    const corners = [
         { x: left, y: above },
         { x: right, y: above },
         { x: left, y: below },
         { x: right, y: below },
     ];
+
+    // fall back to sliding along either edge past each obstacle, nearest first
+    const slides = [above, below].flatMap((y) =>
+        obstacles
+            .map((obstacle) => ({ x: obstacle.right + PAD, y }))
+            .filter((spot) => spot.x > left)
+            .toSorted((first, second) => first.x - second.x),
+    );
+    const spots = [...corners, ...slides];
 
     // keep the first spot inside the browser that overlaps nothing
     const clear = spots.find(
@@ -467,10 +474,12 @@ function isOverlap(first: Rectangle, second: Rectangle): boolean {
     );
 }
 
-/** Estimate a tag's width from its text: the service's name, and how it is wired while rented. */
-function tagWidthOf(index: number, isOwned: boolean): number {
+/** Estimate a tag's width from its text: the service, then its source app or its rented wiring. */
+function tagWidthOf(index: number, source: string | undefined, isOwned: boolean): number {
     const service = serviceAt(index);
-    const text = isOwned ? service.destacked.name : `${service.stacked.name} ${wiringAt(index)}`;
+    const text = isOwned
+        ? `${service.destacked.name} ${source ?? ""}`
+        : `${service.stacked.name} ${wiringAt(index)}`;
 
     return TAG_FRAME + text.length * TAG_CHARACTER;
 }

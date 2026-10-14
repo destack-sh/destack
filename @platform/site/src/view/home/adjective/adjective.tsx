@@ -20,7 +20,7 @@ const destackable: Form = {
     },
 };
 
-/** Show the adjective at work: your launch as rented dashboards see it, or as your space does. */
+/** Show the adjective at work: launch day across rented consoles, or on your own dashboard. */
 export function Adjective(properties: { isOpen: boolean }) {
     return (
         <section
@@ -36,16 +36,16 @@ export function Adjective(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={4}
                 isOpen={properties.isOpen}
-                stacked="one invite, six consoles"
-                destacked="one invite, one trace"
+                stacked="seven consoles, seven slivers"
+                destacked="one data plane, one control plane"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
                     {properties.isOpen
-                        ? "Inviting 400 from the waitlist, as your space shows it"
-                        : "Inviting 400 from the waitlist, as six vendors show it"}
+                        ? "Launch day, on your own dashboard"
+                        : "Launch day, split across seven vendors"}
                 </Label>
                 <Inspector isOpen={properties.isOpen} />
             </div>

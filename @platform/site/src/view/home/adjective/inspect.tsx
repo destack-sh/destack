@@ -5,12 +5,12 @@ import { palette } from "../../palette.stylex";
 import { browserStyles } from "../figure/browser";
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
+import { LaunchDashboard } from "./dashboard";
 import { ResendLogs, SentryIssue, SupabaseQuery, TemporalRun } from "./console";
-import { TelemetryRun } from "./telemetry";
-import { ChatGPTTasks, GitHubRun } from "./rented";
+import { ChatGPTTasks, GitHubRun, NotionAutomations } from "./rented";
 
-/** A rented console you open to look at the invite. */
-type Console = "chatgpt" | "sentry" | "resend" | "temporal" | "supabase" | "github";
+/** A rented console you open to look at launch day. */
+type Console = "chatgpt" | "notion" | "sentry" | "resend" | "temporal" | "supabase" | "github";
 
 /** The consoles you rent, as tabs: key, logo, title, address and page. */
 const consoles: readonly (readonly [
@@ -21,6 +21,7 @@ const consoles: readonly (readonly [
     page: () => JSX.Element,
 ])[] = [
     ["chatgpt", "openai", "Scheduled tasks · ChatGPT", "chatgpt.com/tasks", ChatGPTTasks],
+    ["notion", "notion", "Waitlist · Notion", "notion.so/symbol/waitlist", NotionAutomations],
     [
         "sentry",
         "sentry.png",
@@ -56,18 +57,19 @@ const consoles: readonly (readonly [
 const tints: Readonly<Record<string, string>> = {
     openai: "#10a37f",
     github: "#181717",
+    notion: "#191919",
 };
 
-/** Draw the waitlist invite: across rented consoles that each see a sliver, or in your space. */
+/** Draw launch day: across rented consoles that each see a sliver, or on your own dashboard. */
 export function Inspector(properties: { isOpen: boolean }) {
     return (
         <Fade
             isOpen={properties.isOpen}
             xstyle={styles.fade}
             isLarge
-            component={properties.isOpen ? "SpaceTelemetry" : "RentedConsoles"}
+            component={properties.isOpen ? "SpaceDashboard" : "RentedConsoles"}
         >
-            {properties.isOpen ? <SpaceTelemetry /> : <RentedConsoles />}
+            {properties.isOpen ? <SpaceDashboard /> : <RentedConsoles />}
         </Fade>
     );
 }
@@ -120,8 +122,8 @@ function TabMark(properties: { logo: string }) {
     );
 }
 
-/** Draw your space in a browser, one tab, its Telemetry app open on the invite. */
-function SpaceTelemetry() {
+/** Draw your space in a browser, one tab, its Observability app open on the launch dashboard. */
+function SpaceDashboard() {
     return (
         <div data-component="Browser" {...style.attrs(browserStyles.browser, styles.browser)}>
             <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
@@ -132,9 +134,11 @@ function SpaceTelemetry() {
                     <Glyph name="close" size={12} />
                 </span>
             </div>
-            <Address url="destack.app/@florian/telemetry/runs/invite-400" />
+            <Address url="destack.app/@florian/observability/dashboards/launch" />
             <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
-                <TelemetryRun />
+                <div {...style.attrs(styles.scaled)}>
+                    <LaunchDashboard />
+                </div>
             </div>
         </div>
     );

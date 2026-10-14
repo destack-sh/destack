@@ -1,9 +1,10 @@
 import * as style from "@destack/style";
 import { For } from "@destack/view";
 
+import { palette } from "../../palette.stylex";
 import { Favicon, Glyph } from "../figure/glyph";
-import { github } from "../verb/vendor.stylex";
-import { chatgpt, marks } from "./rented.stylex";
+import { github, notion } from "../verb/vendor.stylex";
+import { chatgpt, marks, notionTable } from "./rented.stylex";
 
 /** A page narrower than a laptop window, where each tool folds its sidebars away. */
 const NARROW = "@container (max-width: 599px)";
@@ -15,6 +16,7 @@ const system = '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
 const faces = {
     chatgpt: `"Söhne", ui-sans-serif, ${system}`,
     github: `${system}, "Noto Sans"`,
+    notion: `ui-sans-serif, ${system}`,
 };
 
 /** The assistant's scheduled tasks: title, schedule, the last run's note, and whether it failed. */
@@ -32,6 +34,47 @@ const chats: readonly (readonly [
 
 /** The assistant's recent chats in its sidebar. */
 const recents = ["Invite batch 3", "Waitlist email copy", "Launch checklist", "Pricing page copy"];
+
+/** The notes app's pages under the launch teamspace: emoji and title. */
+const notionPages: readonly (readonly [emoji: string, page: string])[] = [
+    ["🚀", "Destack launch"],
+    ["📋", "Waitlist"],
+    ["📝", "Invite email"],
+    ["📈", "Launch numbers"],
+];
+
+/** The waitlist database's first rows: name, email, whether approved, and when they joined. */
+const signups: readonly (readonly [
+    name: string,
+    email: string,
+    isApproved: boolean,
+    joined: string,
+])[] = [
+    ["Ada Park", "ada@hey.com", true, "Oct 2"],
+    ["Jonas Weber", "jonas@weber.dev", true, "Oct 3"],
+    ["Priya Nair", "priya@nair.io", true, "Oct 3"],
+    ["Leo Martin", "leo@martin.fr", true, "Oct 4"],
+    ["Sara Lind", "sara@lind.se", false, "Oct 9"],
+    ["Tom Okafor", "tom@okafor.co", false, "Oct 11"],
+];
+
+/** The database's automations: title, trigger, action, last run, and whether on. */
+const automations: readonly (readonly [
+    title: string,
+    when: string,
+    does: string,
+    last: string,
+    isOn: boolean,
+])[] = [
+    [
+        "Invite approved signups",
+        "Status is set to Approved",
+        "Send webhook to hooks.symbol.app/invite",
+        "Last run today 09:40 by Florian",
+        true,
+    ],
+    ["Post new invites", "Invited is checked", "Send Slack message to #launch", "Never run", true],
+];
 
 /** The code host's repository tabs: name, count, and whether open. */
 const repoTabs: readonly (readonly [tab: string, count: string, isOn: boolean])[] = [
@@ -145,6 +188,148 @@ export function ChatGPTTasks() {
                     </For>
                 </div>
             </main>
+        </div>
+    );
+}
+
+/** Draw the notes app's waitlist database with its automations open: approved, never invited. */
+export function NotionAutomations() {
+    return (
+        <div data-component="NotionDatabase" {...style.attrs(styles.notion)}>
+            {/* sidebar */}
+            <nav {...style.attrs(styles.nSidebar)}>
+                <span {...style.attrs(styles.nWorkspace)}>
+                    <span {...style.attrs(styles.nWorkspaceMark)}>S</span>
+                    symbol
+                    <Glyph name="caret" size={12} />
+                </span>
+                {(
+                    [
+                        ["search", "Search"],
+                        ["grid", "Home"],
+                        ["inbox", "Inbox"],
+                    ] as const
+                ).map(([icon, label]) => (
+                    <span {...style.attrs(styles.nSideItem)}>
+                        <Glyph name={icon} size={14} />
+                        {label}
+                    </span>
+                ))}
+                <span {...style.attrs(styles.nSideHead)}>Launch</span>
+                <For each={notionPages}>
+                    {([emoji, page]) => (
+                        <span
+                            {...style.attrs(
+                                styles.nSideItem,
+                                page === "Waitlist" && styles.nSideOn,
+                            )}
+                        >
+                            <span aria-hidden="true">{emoji}</span>
+                            {page}
+                        </span>
+                    )}
+                </For>
+            </nav>
+
+            {/* database */}
+            <main {...style.attrs(styles.nMain)}>
+                <span {...style.attrs(styles.nBar)}>
+                    <span {...style.attrs(styles.nMuted)}>🚀 Destack launch /</span>📋 Waitlist
+                    <span {...style.attrs(styles.nBarTools)}>
+                        Share
+                        <Glyph name="star" size={15} />
+                        <Glyph name="more" size={15} />
+                    </span>
+                </span>
+                <div {...style.attrs(styles.nPage)}>
+                    <b {...style.attrs(styles.nTitle)}>
+                        <span aria-hidden="true">📋</span> Waitlist
+                    </b>
+                    <span {...style.attrs(styles.nComment)}>
+                        <span {...style.attrs(styles.nAvatar)}>M</span>
+                        <span>
+                            <b>Maya</b> <span {...style.attrs(styles.nMuted)}>Today 10:06</span>
+                            <br />
+                            All 400 say Approved, none say Invited. Did they get the mail?
+                        </span>
+                    </span>
+                    <span {...style.attrs(styles.nViews)}>
+                        {["All signups", "Approved", "Invited"].map((view, index) => (
+                            <span {...style.attrs(styles.nView, index === 0 && styles.nViewOn)}>
+                                {view}
+                            </span>
+                        ))}
+                        <span {...style.attrs(styles.nViewTools)}>
+                            <span {...style.attrs(styles.nBolt)}>⚡</span>
+                            <Glyph name="filter" size={14} />
+                            <Glyph name="search" size={14} />
+                            <span {...style.attrs(styles.nNew)}>New</span>
+                        </span>
+                    </span>
+                    <div {...style.attrs(styles.nTable)}>
+                        <span {...style.attrs(styles.nRow, styles.nHead)}>
+                            <span>Aa Name</span>
+                            <span>Email</span>
+                            <span>Status</span>
+                            <span>Invited</span>
+                            <span>Joined</span>
+                        </span>
+                        <For each={signups}>
+                            {([name, email, isApproved, joined]) => (
+                                <span {...style.attrs(styles.nRow)}>
+                                    <b {...style.attrs(styles.nName)}>{name}</b>
+                                    <span {...style.attrs(styles.nMuted)}>{email}</span>
+                                    <span>
+                                        <span
+                                            {...style.attrs(
+                                                styles.nTag,
+                                                isApproved ? styles.nTagGreen : styles.nTagGray,
+                                            )}
+                                        >
+                                            {isApproved ? "Approved" : "Waiting"}
+                                        </span>
+                                    </span>
+                                    <span>
+                                        <span {...style.attrs(styles.nBox)} />
+                                    </span>
+                                    <span {...style.attrs(styles.nMuted)}>{joined}</span>
+                                </span>
+                            )}
+                        </For>
+                        <span {...style.attrs(styles.nCount)}>COUNT 2,240</span>
+                    </div>
+                </div>
+            </main>
+
+            {/* automations */}
+            <aside {...style.attrs(styles.nPanel)}>
+                <span {...style.attrs(styles.nPanelHead)}>
+                    Automations
+                    <Glyph name="close" size={14} />
+                </span>
+                <For each={automations}>
+                    {([title, when, does, last, isOn]) => (
+                        <span {...style.attrs(styles.nAutomation)}>
+                            <span {...style.attrs(styles.nAutomationHead)}>
+                                <b>{title}</b>
+                                <span {...style.attrs(styles.nToggle, isOn && styles.nToggleOn)}>
+                                    <span {...style.attrs(styles.nKnob)} />
+                                </span>
+                            </span>
+                            <span {...style.attrs(styles.nStep)}>
+                                <span {...style.attrs(styles.nMuted)}>When</span>
+                                {when}
+                            </span>
+                            <span {...style.attrs(styles.nStep)}>
+                                <span {...style.attrs(styles.nMuted)}>Do</span>
+                                {does}
+                            </span>
+                            <span {...style.attrs(styles.nMuted)}>{last}</span>
+                        </span>
+                    )}
+                </For>
+                <span {...style.attrs(styles.nMuted)}>+ New automation</span>
+            </aside>
         </div>
     );
 }
@@ -267,6 +452,277 @@ const jobState = style.create({
 
 /** The rented automation page styles, in the pixels of a real window. */
 const styles = style.create({
+    // notion
+    notion: {
+        backgroundColor: notion.surface,
+        color: notion.ink,
+        display: "grid",
+        fontFamily: faces.notion,
+        fontSize: "13px",
+        gridTemplateColumns: {
+            default: "200px minmax(0, 1fr) 260px",
+            [NARROW]: "minmax(0, 1fr)",
+        },
+        height: "100%",
+    },
+    nSidebar: {
+        alignContent: "start",
+        backgroundColor: notionTable.sidebar,
+        display: { default: "grid", [NARROW]: "none" },
+        gap: "1px",
+        paddingBlock: "10px",
+        paddingInline: "8px",
+    },
+    nWorkspace: {
+        alignItems: "center",
+        display: "flex",
+        fontWeight: 600,
+        gap: "8px",
+        paddingBlock: "4px",
+        paddingInline: "8px",
+        marginBottom: "6px",
+    },
+    nWorkspaceMark: {
+        alignItems: "center",
+        backgroundColor: notion.charcoal,
+        borderRadius: "4px",
+        color: notion.surface,
+        display: "inline-flex",
+        fontSize: "11px",
+        height: "20px",
+        justifyContent: "center",
+        width: "20px",
+    },
+    nSideItem: {
+        alignItems: "center",
+        borderRadius: "6px",
+        color: notionTable.muted,
+        display: "flex",
+        gap: "8px",
+        paddingBlock: "4px",
+        paddingInline: "8px",
+    },
+    nSideOn: {
+        backgroundColor: notionTable.hover,
+        color: notion.ink,
+        fontWeight: 600,
+    },
+    nSideHead: {
+        color: notionTable.muted,
+        fontSize: "12px",
+        fontWeight: 600,
+        paddingBottom: "2px",
+        paddingInline: "8px",
+        paddingTop: "14px",
+    },
+    nMain: {
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        minWidth: 0,
+    },
+    nBar: {
+        alignItems: "center",
+        display: "flex",
+        gap: "6px",
+        paddingBlock: "10px",
+        paddingInline: "14px",
+        whiteSpace: "nowrap",
+    },
+    nBarTools: {
+        alignItems: "center",
+        color: notionTable.muted,
+        display: "flex",
+        gap: "12px",
+        marginLeft: "auto",
+    },
+    nMuted: {
+        color: notionTable.muted,
+    },
+    nPage: {
+        alignContent: "start",
+        display: "grid",
+        gap: "12px",
+        minWidth: 0,
+        overflow: "hidden",
+        paddingInline: { default: "48px", [NARROW]: "16px" },
+        paddingTop: "18px",
+    },
+    nTitle: {
+        fontSize: "30px",
+        fontWeight: 700,
+    },
+    nComment: {
+        borderBottomColor: notionTable.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "flex",
+        gap: "10px",
+        lineHeight: 1.5,
+        paddingBottom: "12px",
+    },
+    nAvatar: {
+        alignItems: "center",
+        backgroundColor: palette.rust,
+        borderRadius: "50%",
+        color: marks.white,
+        display: "inline-flex",
+        flexShrink: 0,
+        fontSize: "11px",
+        fontWeight: 700,
+        height: "22px",
+        justifyContent: "center",
+        width: "22px",
+    },
+    nViews: {
+        alignItems: "center",
+        borderBottomColor: notionTable.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "flex",
+        gap: "4px",
+        whiteSpace: "nowrap",
+    },
+    nView: {
+        color: notionTable.muted,
+        paddingBlock: "6px",
+        paddingInline: "8px",
+    },
+    nViewOn: {
+        boxShadow: `inset 0 -2px 0 ${notion.ink}`,
+        color: notion.ink,
+        fontWeight: 600,
+    },
+    nViewTools: {
+        alignItems: "center",
+        color: notionTable.muted,
+        display: { default: "flex", [NARROW]: "none" },
+        gap: "12px",
+        marginLeft: "auto",
+    },
+    nBolt: {
+        backgroundColor: notionTable.select,
+        borderRadius: "4px",
+        paddingInline: "4px",
+    },
+    nNew: {
+        backgroundColor: notion.link,
+        borderRadius: "6px",
+        color: marks.white,
+        fontWeight: 600,
+        paddingBlock: "3px",
+        paddingInline: "10px",
+    },
+    nTable: {
+        display: "grid",
+    },
+    nRow: {
+        alignItems: "center",
+        borderBottomColor: notionTable.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        columnGap: "12px",
+        display: "grid",
+        gridTemplateColumns: {
+            default: "minmax(0, 1.2fr) minmax(0, 1.4fr) 90px 60px 60px",
+            [NARROW]: "minmax(0, 1fr) 90px 60px",
+        },
+        minHeight: "33px",
+        whiteSpace: "nowrap",
+    },
+    nHead: {
+        color: notionTable.muted,
+        fontSize: "12px",
+    },
+    nName: {
+        fontWeight: 500,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
+    nTag: {
+        borderRadius: "4px",
+        fontSize: "12px",
+        paddingBlock: "1px",
+        paddingInline: "6px",
+    },
+    nTagGreen: {
+        backgroundColor: notionTable.green,
+        color: notionTable.greenInk,
+    },
+    nTagGray: {
+        backgroundColor: notionTable.hover,
+        color: notion.ink,
+    },
+    nBox: {
+        borderColor: notionTable.muted,
+        borderRadius: "3px",
+        borderStyle: "solid",
+        borderWidth: "1.5px",
+        display: "inline-block",
+        height: "14px",
+        width: "14px",
+    },
+    nCount: {
+        color: notionTable.muted,
+        fontSize: "11px",
+        paddingTop: "8px",
+        textAlign: "end",
+    },
+    nPanel: {
+        alignContent: "start",
+        borderInlineStartColor: notionTable.border,
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: "1px",
+        display: { default: "grid", [NARROW]: "none" },
+        gap: "12px",
+        paddingBlock: "14px",
+        paddingInline: "14px",
+    },
+    nPanelHead: {
+        alignItems: "center",
+        display: "flex",
+        fontSize: "14px",
+        fontWeight: 600,
+        justifyContent: "space-between",
+    },
+    nAutomation: {
+        borderColor: notionTable.border,
+        borderRadius: "8px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        display: "grid",
+        gap: "8px",
+        paddingBlock: "10px",
+        paddingInline: "12px",
+    },
+    nAutomationHead: {
+        alignItems: "center",
+        display: "flex",
+        justifyContent: "space-between",
+    },
+    nToggle: {
+        backgroundColor: notionTable.hover,
+        borderRadius: "999px",
+        display: "inline-flex",
+        height: "14px",
+        padding: "2px",
+        width: "26px",
+    },
+    nToggleOn: {
+        backgroundColor: notion.link,
+        justifyContent: "flex-end",
+    },
+    nKnob: {
+        backgroundColor: marks.white,
+        borderRadius: "50%",
+        height: "10px",
+        width: "10px",
+    },
+    nStep: {
+        display: "grid",
+        gap: "8px",
+        gridTemplateColumns: "36px minmax(0, 1fr)",
+    },
+
     // chatgpt
     chatgpt: {
         backgroundColor: chatgpt.canvas,

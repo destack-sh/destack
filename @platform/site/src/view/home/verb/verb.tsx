@@ -35,7 +35,7 @@ const verb: Form = {
     sense: {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
-        sentence: "Own your apps and agents on one unified personal software platform.",
+        sentence: "Own your apps and agents in one personal superapp.",
     },
 };
 
@@ -130,7 +130,7 @@ export function Verb(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="eight apps, eight rented stacks"
+                stacked="eight apps, eight separate stacks"
                 destacked="eight apps, one owned space"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
@@ -139,7 +139,7 @@ export function Verb(properties: { isOpen: boolean }) {
                 <Label>
                     {isOpenAt(0)
                         ? "Your space, and your agent sees all of it"
-                        : "Eight rented apps, none of them truly yours"}
+                        : "Eight rented apps, none truly yours"}
                 </Label>
                 <SpaceBrowser
                     isOpenAt={isOpenAt}
@@ -151,9 +151,7 @@ export function Verb(properties: { isOpen: boolean }) {
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <Fade isOpen={isOpenAt(0)}>
-                    <Label>
-                        {isOpenAt(0) ? "One space, one stack" : "Eight sites, eight stacks"}
-                    </Label>
+                    <Label>{isOpenAt(0) ? "One bill" : "Eight bills"}</Label>
                 </Fade>
                 <Bill
                     lines={holdings.map((entry) => ({

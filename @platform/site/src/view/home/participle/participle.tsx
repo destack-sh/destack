@@ -21,9 +21,9 @@ const participle: Form = {
     pronunciation: "/diːˈstakɪŋ/",
     partOfSpeech: "present participle",
     sense: {
-        definition: "taking your software back, one app at a time",
-        highlight: ["taking your software back"],
-        sentence: "Start wherever you like.",
+        definition: "making all your software work as one",
+        highlight: ["work as one"],
+        sentence: "Pick the tools you already use, and see what they could become.",
     },
 };
 
@@ -55,16 +55,14 @@ export function Participle(properties: {
                 <FigureLabel
                     number={5}
                     isOpen={properties.isOpen}
-                    stacked="the stack you rent today"
-                    destacked="the stack you own instead"
+                    stacked="your tools, each on its own"
+                    destacked="your tools, as one space"
                 >
                     <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>
                 <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                     <Label>
-                        {properties.isOpen
-                            ? "Your own space in the cloud"
-                            : "Pick your current stack"}
+                        {properties.isOpen ? "Your own space in the cloud" : "Your tools"}
                     </Label>
                     <ToolWall
                         picks={properties.picks}
@@ -73,7 +71,7 @@ export function Participle(properties: {
                     />
                 </div>
                 <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
-                    <Label>{properties.isOpen ? "Your space" : "Your current stack"}</Label>
+                    <Label>{properties.isOpen ? "Your space" : "Your stack"}</Label>
                     <Bill lines={tallyOf(properties.picks)} isOpenAt={isOpenAt} />
                 </div>
             </section>

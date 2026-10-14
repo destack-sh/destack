@@ -3,13 +3,12 @@ import { monthlyOf, priceOf, type Price, type Workload, workloadOf } from "../fi
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createEffect, createMemo, For } from "@destack/view";
+import { createEffect } from "@destack/view";
 
 import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
 import { accentOf, type Entry, type Line } from "../figure/item";
-import { palette } from "../../palette.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 
@@ -38,7 +37,7 @@ const jobLabels: Record<Job, string> = {
     chat: "Chat",
     mail: "Mail",
     files: "Files",
-    canvas: "Design",
+    canvas: "Whiteboard",
     workflows: "Automation",
 };
 
@@ -78,27 +77,30 @@ type Tool =
 const replaced: readonly Tool[] = [
     { icon: "notion", name: "Notion", tint: "#000000", kind: "replace", job: "pages" },
     { icon: "googledocs", name: "Docs", tint: "#4285f4", kind: "replace", job: "pages" },
-    { icon: "framer", name: "Framer", tint: "#0a0a0a", kind: "replace", job: "pages" },
-    { icon: "webflow", name: "Webflow", tint: "#146ef5", kind: "replace", job: "pages" },
+    { icon: "confluence", name: "Confluence", tint: "#172b4d", kind: "replace", job: "pages" },
     { icon: "linear", name: "Linear", tint: "#5e6ad2", kind: "replace", job: "tasks" },
     { icon: "jira", name: "Jira", tint: "#0052cc", kind: "replace", job: "tasks" },
     { icon: "asana", name: "Asana", tint: "#f06a6a", kind: "replace", job: "tasks" },
     { icon: "trello", name: "Trello", tint: "#0052cc", kind: "replace", job: "tasks" },
+    { icon: "clickup", name: "ClickUp", tint: "#7b68ee", kind: "replace", job: "tasks" },
     { icon: "calendly", name: "Calendly", tint: "#006bff", kind: "replace", job: "calendar" },
+    { icon: "caldotcom", name: "Cal.com", tint: "#292929", kind: "replace", job: "calendar" },
     { icon: "dropbox", name: "Dropbox", tint: "#0061ff", kind: "replace", job: "files" },
     { icon: "airtable", name: "Airtable", tint: "#18bfff", kind: "replace", job: "tables" },
     { icon: "googlesheets", name: "Sheets", tint: "#34a853", kind: "replace", job: "tables" },
-    { icon: "googleforms", name: "Forms", tint: "#7248b9", kind: "replace", job: "tables" },
-    { icon: "hubspot", name: "HubSpot", tint: "#ff7a59", kind: "replace", job: "tables" },
-    { icon: "slack", name: "Slack", tint: "#4a154b", kind: "replace", job: "chat" },
+    { icon: "coda", name: "Coda", tint: "#f46a54", kind: "replace", job: "tables" },
+    { icon: "excel", name: "Excel", tint: "#107c41", kind: "replace", job: "tables" },
     { icon: "superhuman", name: "Superhuman", tint: "#000000", kind: "replace", job: "mail" },
     { icon: "mailchimp", name: "Mailchimp", tint: "#241c15", kind: "replace", job: "mail" },
-    { icon: "figma", name: "Figma", tint: "#f24e1e", kind: "replace", job: "canvas" },
     { icon: "miro", name: "Miro", tint: "#050038", kind: "replace", job: "canvas" },
-    { icon: "loom", name: "Loom", tint: "#625df5", kind: "replace", job: "files" },
-    { icon: "granola", name: "Granola", tint: "#000000", kind: "replace", job: "pages" },
+    { icon: "excalidraw", name: "Excalidraw", tint: "#6965db", kind: "replace", job: "canvas" },
+    { icon: "tldraw", name: "tldraw", tint: "#1d1d1d", kind: "replace", job: "canvas" },
+    { icon: "box", name: "Box", tint: "#0061d5", kind: "replace", job: "files" },
+    { icon: "obsidian", name: "Obsidian", tint: "#7c3aed", kind: "replace", job: "pages" },
+    { icon: "word", name: "Word", tint: "#185abd", kind: "replace", job: "pages" },
     { icon: "n8n", name: "n8n", tint: "#ea4b71", kind: "replace", job: "workflows" },
     { icon: "zapier", name: "Zapier", tint: "#ff4f00", kind: "replace", job: "workflows" },
+    { icon: "make", name: "Make", tint: "#6d00cc", kind: "replace", job: "workflows" },
 ];
 
 /** The tools your space can replace or keep connected. */
@@ -120,9 +122,81 @@ const either: readonly Tool[] = [
         status: "two-way sync",
     },
     {
+        icon: "outlook",
+        name: "Outlook",
+        tint: "#0078d4",
+        kind: "both",
+        job: "mail",
+        status: "inbox synced",
+    },
+    {
+        icon: "onedrive",
+        name: "OneDrive",
+        tint: "#0078d4",
+        kind: "both",
+        job: "files",
+        status: "mirrored",
+    },
+    {
         icon: "googledrive",
         name: "Drive",
         tint: "#4285f4",
+        kind: "both",
+        job: "files",
+        status: "mirrored",
+    },
+    {
+        icon: "slack",
+        name: "Slack",
+        tint: "#4a154b",
+        kind: "both",
+        job: "chat",
+        status: "messages bridged",
+    },
+    {
+        icon: "discord",
+        name: "Discord",
+        tint: "#5865f2",
+        kind: "both",
+        job: "chat",
+        status: "messages bridged",
+    },
+    {
+        icon: "teams",
+        name: "Teams",
+        tint: "#5059c9",
+        kind: "both",
+        job: "chat",
+        status: "messages bridged",
+    },
+    {
+        icon: "googlechat",
+        name: "Google Chat",
+        tint: "#00ac47",
+        kind: "both",
+        job: "chat",
+        status: "messages bridged",
+    },
+    {
+        icon: "whatsapp",
+        name: "WhatsApp",
+        tint: "#25d366",
+        kind: "both",
+        job: "chat",
+        status: "messages bridged",
+    },
+    {
+        icon: "protonmail",
+        name: "Proton Mail",
+        tint: "#6d4aff",
+        kind: "both",
+        job: "mail",
+        status: "inbox synced",
+    },
+    {
+        icon: "icloud",
+        name: "iCloud",
+        tint: "#3693f3",
         kind: "both",
         job: "files",
         status: "mirrored",
@@ -161,34 +235,46 @@ const foundations: readonly Tool[] = [
     },
 ];
 
-/** The order the wall sets its tools in, six to a row. */
+/** The order the wall sets its tools in, within each row. */
 const order: readonly string[] = [
     "Notion",
-    "Linear",
-    "Slack",
-    "Figma",
-    "Superhuman",
-    "Granola",
-    "Loom",
-    "Jira",
-    "Trello",
-    "Asana",
-    "Airtable",
-    "Miro",
-    "Zapier",
-    "Gmail",
-    "Calendar",
-    "Drive",
     "Docs",
+    "Word",
+    "Confluence",
+    "Obsidian",
+    "Airtable",
     "Sheets",
+    "Excel",
+    "Coda",
+    "Linear",
+    "Jira",
+    "Asana",
+    "Trello",
+    "ClickUp",
+    "Calendar",
     "Calendly",
-    "Framer",
-    "Webflow",
-    "HubSpot",
+    "Cal.com",
+    "Slack",
+    "Teams",
+    "Discord",
+    "Google Chat",
+    "WhatsApp",
+    "Gmail",
+    "Outlook",
+    "Superhuman",
+    "Proton Mail",
     "Mailchimp",
+    "Drive",
+    "OneDrive",
     "Dropbox",
+    "iCloud",
+    "Box",
+    "Miro",
+    "Excalidraw",
+    "tldraw",
+    "Zapier",
+    "Make",
     "n8n",
-    "Forms",
     "ChatGPT",
     "Claude",
     "Gemini",
@@ -206,7 +292,6 @@ const tools: readonly Tool[] = order.map((name) =>
 /** The tools picked before the reader picks any. */
 export const firstPicks: readonly string[] = [
     "Notion",
-    "Framer",
     "Calendly",
     "Linear",
     "Dropbox",
@@ -218,16 +303,20 @@ export const firstPicks: readonly string[] = [
 const billedUnder: Readonly<Record<string, string>> = {
     Docs: "Google Workspace",
     Sheets: "Google Workspace",
-    Forms: "Google Workspace",
     Calendar: "Google Workspace",
     Drive: "Google Workspace",
     Gmail: "Google Workspace",
+    "Google Chat": "Google Workspace",
+    Teams: "Microsoft 365",
+    Outlook: "Microsoft 365",
+    OneDrive: "Microsoft 365",
+    Word: "Microsoft 365",
+    Excel: "Microsoft 365",
 };
 
 /** The tools whose mark is a picture from the vendor, by name. */
 const pictures: Record<string, string> = {
     Superhuman: "/logos/superhuman.png",
-    Granola: "/logos/granola.png",
 };
 
 /** Return the subscriptions a set of tools bills under, each once. */
@@ -289,93 +378,48 @@ function statusOf(tool: Tool): string | undefined {
     return tool.kind === "replace" ? undefined : tool.status;
 }
 
-/** One cell of the wall. */
-type Cell =
-    | { kind: "tool"; key: string; tool: Tool; isPicked: boolean }
-    | { kind: "app"; key: string; job: Job; sources: readonly Tool[] }
-    | { kind: "link"; key: string; tool: Tool; isPicked: boolean };
+/** One row of the wall and the bill: a job, your space's app for it, and the tools that do it. */
+type Row = { label: string; app: App; tools: readonly Tool[]; isConnection: boolean };
 
-/** The wall's height on tablets, the taller of its two states there. */
-const TABLET_WALL = "31.5rem";
+/** The rows of the wall and the bill: your space's jobs, then the services it works with. */
+const rows: readonly Row[] = [
+    ...[...spaceJobs, "workflows" as const].map((job) => ({
+        label: jobLabels[job],
+        app: apps[job],
+        tools: tools.filter((tool) => jobOf(tool) === job),
+        isConnection: false,
+    })),
+    ...connections.map(([label, names, app]) => ({
+        label,
+        app,
+        tools: tools.filter((tool) => names.includes(tool.name)),
+        isConnection: true,
+    })),
+];
 
-/** The wall's height on phones, the taller of its two states there. */
-const PHONE_WALL = "48rem";
-
-/** The cells to a row of the wall. */
-const perRow = 6;
-
-/** Lay out the wall. */
-function cellsOf(picks: readonly string[], isOpen: boolean): readonly Cell[] {
-    // set every tool on its own while stacked
-    if (!isOpen) {
-        return tools.map((tool) => ({
-            kind: "tool",
-            key: tool.name,
-            tool,
-            isPicked: picks.includes(tool.name),
-        }));
-    }
-
-    // set every app your space holds with the picked tools it replaces, then every service it connects to
-    const picked = tools.filter((tool) => picks.includes(tool.name));
-
-    return [
-        ...spaceJobs.map((job): Cell => ({
-            kind: "app",
-            key: `app:${job}`,
-            job,
-            sources: picked.filter((tool) => jobOf(tool) === job),
-        })),
-        ...foundations.map((tool): Cell => ({
-            kind: "link",
-            key: tool.name,
-            tool,
-            isPicked: picks.includes(tool.name),
-        })),
-    ];
-}
-
-/** Describe what a cell shows. */
-function signatureOf(cell: Cell) {
-    // name the kind and key, then the tools an app took over or the pick of a tool or service
-    return cell.kind === "app"
-        ? `${cell.kind}:${cell.key}:${cell.sources.map((tool) => tool.name).join(",")}`
-        : `${cell.kind}:${cell.key}:${String(cell.isPicked)}`;
-}
-
-/** Return the key of the cell a cell grows out of. */
-function originOf(cell: Cell) {
-    // grow an app out of its first tool, and return a picked tool to the app it went into
-    if (cell.kind === "app") {
-        return cell.sources[0]?.name ?? cell.key;
-    } else if (cell.kind !== "tool" || !cell.isPicked) {
-        return cell.key;
-    }
-    const job = jobOf(cell.tool);
-
-    return job === undefined ? cell.key : `app:${job}`;
-}
-
-/** The milliseconds a cell takes to move to its new place. */
+/** The milliseconds a mark takes to move to its new place. */
 const moveTime = 560;
 
-/** The milliseconds between one cell's move and the next. */
+/** The milliseconds between one mark's move and the next. */
 const moveStep = 18;
 
 /** The strong ease-out every move lands on. */
 const landing = "cubic-bezier(0.23, 1, 0.32, 1)";
 
-/** Draw your stack as a wall of tools to pick from, and once destacked as your space. */
+/** Draw your tools a row per job: to pick while stacked, folded into your apps once destacked. */
 export function ToolWall(properties: {
     picks: readonly string[];
     isOpen: boolean;
     onPick: (name: string) => void;
 }) {
-    // hold the wall and where each cell sat at the last layout
-    let wall: HTMLDivElement | undefined;
+    // hold the wall and where each mark sat at the last layout
+    let wall: HTMLOListElement | undefined;
     let places = new Map<string, DOMRect>();
 
-    // move each cell from where it sat to where it sits now, once the new layout has painted
+    // find a row's picked tools
+    const pickedOf = (row: Row) => row.tools.filter((tool) => properties.picks.includes(tool.name));
+
+    // move each mark from where it sat to where it sits now, once the new layout has painted
     createEffect(
         () => ({ isOpen: properties.isOpen, picks: properties.picks }),
         () => {
@@ -390,97 +434,110 @@ export function ToolWall(properties: {
         },
     );
 
-    // lay out the cells, keeping each unchanged cell's object so only changed cells render again
-    let previous = new Map<string, Cell>();
-    const cells = createMemo(() => {
-        const next = cellsOf(properties.picks, properties.isOpen).map((cell) => {
-            const kept = previous.get(cell.key);
-
-            return kept !== undefined && signatureOf(kept) === signatureOf(cell) ? kept : cell;
-        });
-        previous = new Map(next.map((cell) => [cell.key, cell]));
-
-        return next;
-    });
-    const list = (each: () => readonly Cell[]) => (
-        <For each={each()} keyed={(cell) => cell.key}>
-            {(cell) => (
-                <CellView cell={cell()} isOpen={properties.isOpen} onPick={properties.onPick} />
-            )}
-        </For>
-    );
-
     return (
-        <div ref={wall} data-component="ToolWall" {...style.attrs(styles.wall, styles.wallFull)}>
-            {properties.isOpen ? (
-                <>
-                    <section data-component="Space" {...style.attrs(styles.box)}>
-                        <span {...style.attrs(styles.boxBar)}>
-                            <Favicon icon="user" tint={color.mutedForeground} size={12} />
-                            destack.app/@florian
-                        </span>
-                        <div data-component="Apps" {...style.attrs(styles.band)}>
-                            <span {...style.attrs(styles.groupName)}>Apps</span>
-                            <ul {...style.attrs(styles.grid, styles.space)}>
-                                {list(() => cells().filter((cell) => cell.kind === "app"))}
-                            </ul>
-                        </div>
-                        <Included />
-                        <div data-component="Connected" {...style.attrs(styles.band)}>
-                            <span {...style.attrs(styles.groupName)}>Connected</span>
-                            <ul {...style.attrs(styles.grid, styles.space, styles.links)}>
-                                {list(() => cells().filter((cell) => cell.kind === "link"))}
-                            </ul>
-                        </div>
-                    </section>
-                </>
-            ) : (
-                <ul {...style.attrs(styles.grid)}>{list(cells)}</ul>
-            )}
-        </div>
-    );
-}
-
-/** The services every space comes with, which none of the tools above bring along. */
-const included: readonly (readonly [icon: string, name: string, line: string])[] = [
-    ["accounts", "Accounts", "one sign-in for you and your agent"],
-    ["auth", "Access", "who sees what, one rule set"],
-    ["vault", "Vault", "keys that never leave the server"],
-    ["sync", "Workflows", "jobs that survive restarts"],
-    ["agent", "Agents", "act as you, within your rules"],
-    ["search", "Search", "one index over every app"],
-    ["hosts", "Hosting", "your laptop, server or cloud"],
-    ["source", "Forge", "every app's source, forkable"],
-];
-
-/** Draw what every space includes besides its apps, as a band along the bottom of the space. */
-function Included() {
-    return (
-        <div data-component="Included" {...style.attrs(styles.band)}>
-            <span {...style.attrs(styles.groupName)}>Included</span>
-            <ul {...style.attrs(styles.grid, styles.space, styles.links)}>
-                {included.map(([icon, name, line], index) => (
-                    <li
-                        title={line}
-                        {...style.attrs(
-                            styles.cell,
-                            styles.spaceCell,
-                            styles.rising,
-                            styles.includedDelay(index),
+        <ol ref={wall} data-component="ToolWall" {...style.attrs(styles.wall)}>
+            {rows.map((row) => (
+                <li {...style.attrs(styles.row)}>
+                    <span {...style.attrs(styles.label)}>{row.label}</span>
+                    <span {...style.attrs(styles.marks)}>
+                        {properties.isOpen ? (
+                            <>
+                                <AppMark row={row} picked={pickedOf(row)} />
+                                <Note picked={pickedOf(row)} />
+                            </>
+                        ) : (
+                            row.tools.map((tool) => (
+                                <ToolButton
+                                    tool={tool}
+                                    isPicked={properties.picks.includes(tool.name)}
+                                    onPick={properties.onPick}
+                                />
+                            ))
                         )}
-                    >
-                        <span {...style.attrs(styles.face, styles.link)}>
-                            <Tile icon={icon} size="small" />
-                            <span {...style.attrs(styles.toolName)}>{name}</span>
-                        </span>
-                    </li>
-                ))}
-            </ul>
-        </div>
+                    </span>
+                </li>
+            ))}
+        </ol>
     );
 }
 
-/** Move every cell of the grid from its last place to its new one, and return the new places. */
+/** Draw a tool to pick: its mark and its name, underlined once picked. */
+function ToolButton(properties: { tool: Tool; isPicked: boolean; onPick: (name: string) => void }) {
+    return (
+        <button
+            type="button"
+            data-key={properties.tool.name}
+            aria-pressed={properties.isPicked ? "true" : "false"}
+            title={[properties.tool.name, statusOf(properties.tool)].filter(Boolean).join(", ")}
+            onClick={() => properties.onPick(properties.tool.name)}
+            {...style.attrs(styles.chip, styles.tool, properties.isPicked && styles.picked)}
+        >
+            <ToolMark tool={properties.tool} size={16} />
+            <span {...style.attrs(styles.name)}>{properties.tool.name}</span>
+        </button>
+    );
+}
+
+/** Draw your space's app for a row, grown out of the first picked tool. */
+function AppMark(properties: { row: Row; picked: readonly Tool[] }) {
+    return (
+        <span
+            data-key={`app:${properties.row.label}`}
+            data-from={properties.picked[0]?.name ?? `app:${properties.row.label}`}
+            {...style.attrs(styles.chip, styles.app, properties.picked.length === 0 && styles.idle)}
+        >
+            <Tile icon={properties.row.app.icon} size="small" />
+            <span {...style.attrs(styles.appName)}>{properties.row.app.name}</span>
+        </span>
+    );
+}
+
+/** Draw what a row's app does with the picked tools: what it replaces, then what it connects to. */
+function Note(properties: { picked: readonly Tool[] }) {
+    // split the picks, leaving out the side with none
+    const parts = () => relationsOf(properties.picked).filter(([, related]) => related.length > 0);
+
+    return (
+        <span {...style.attrs(styles.note)}>
+            {parts().length === 0
+                ? "included"
+                : parts().map(([verb, related], index) => (
+                      <>
+                          {index > 0 ? (
+                              <span {...style.attrs(styles.separator)}>·</span>
+                          ) : undefined}
+                          {verb}
+                          {related.map((tool) => (
+                              <span {...style.attrs(styles.source)}>
+                                  <ToolMark tool={tool} size={12} />
+                                  {tool.name}
+                              </span>
+                          ))}
+                      </>
+                  ))}
+        </span>
+    );
+}
+
+/** Split picked tools into the ones your space replaces and the ones it stays connected to. */
+function relationsOf(picked: readonly Tool[]) {
+    return [
+        ["replaces", picked.filter((tool) => tool.kind === "replace")],
+        ["connects to", picked.filter((tool) => tool.kind !== "replace")],
+    ] as const;
+}
+
+/** Write what a row's app does with the picked tools, as the bill notes it. */
+function noteOf(picked: readonly Tool[]) {
+    // join the sides that have tools, or note the app as included
+    const parts = relationsOf(picked)
+        .filter(([, related]) => related.length > 0)
+        .map(([verb, related]) => `${verb} ${listOf(related)}`);
+
+    return parts.length === 0 ? "included" : parts.join(" · ");
+}
+
+/** Move every mark of the wall from its last place to its new one, and return the new places. */
 function move(wall: HTMLElement, last: ReadonlyMap<string, DOMRect>) {
     // measure the new places against the wall
     const origin = wall.getBoundingClientRect();
@@ -549,102 +606,18 @@ function move(wall: HTMLElement, last: ReadonlyMap<string, DOMRect>) {
     return places;
 }
 
-/** Draw one cell of the wall. */
-function CellView(properties: { cell: Cell; isOpen: boolean; onPick: (name: string) => void }) {
-    const cell = () => properties.cell;
-
-    return (
-        <li
-            data-key={cell().key}
-            data-from={originOf(cell())}
-            {...style.attrs(styles.cell, properties.isOpen && styles.spaceCell)}
-        >
-            {contentOf(cell(), properties.onPick)}
-        </li>
-    );
-}
-
-/** Draw what a cell holds. */
-function contentOf(cell: Cell, onPick: (name: string) => void) {
-    if (cell.kind === "app") {
-        const app = apps[cell.job];
-
-        return (
-            <span
-                data-component="SpaceApp"
-                {...style.attrs(
-                    styles.face,
-                    styles.link,
-                    styles.app,
-                    cell.sources.length > 0 && styles.picked,
-                )}
-            >
-                <Tile icon={app.icon} size="small" />
-                <span {...style.attrs(styles.toolName)}>{app.name}</span>
-                <span {...style.attrs(styles.sources)}>
-                    {cell.sources.map((tool) => (
-                        <ToolMark tool={tool} size={12} />
-                    ))}
-                </span>
-            </span>
-        );
-    } else if (cell.kind === "link") {
-        return (
-            <button
-                type="button"
-                aria-pressed={cell.isPicked ? "true" : "false"}
-                title={statusOf(cell.tool)}
-                onClick={() => onPick(cell.tool.name)}
-                {...style.attrs(
-                    styles.face,
-                    styles.link,
-                    styles.pressable,
-                    !cell.isPicked && styles.linkIdle,
-                )}
-            >
-                <ToolMark tool={cell.tool} size={18} />
-                <span {...style.attrs(styles.toolName)}>{cell.tool.name}</span>
-                {cell.isPicked ? <span {...style.attrs(styles.dot)} /> : undefined}
-            </button>
-        );
-    }
-
-    return (
-        <button
-            type="button"
-            aria-pressed={cell.isPicked ? "true" : "false"}
-            onClick={() => onPick(cell.tool.name)}
-            {...style.attrs(styles.face, styles.tool, cell.isPicked && styles.picked)}
-        >
-            <ToolMark tool={cell.tool} size={28} />
-            <span {...style.attrs(styles.toolName, styles.toolNameWrapped)}>{cell.tool.name}</span>
-        </button>
-    );
-}
-
 /** Tally the picks a row to each job your space does. */
 export function tallyOf(picks: readonly string[]): readonly Line[] {
-    // gather the picked tools, and the rows of jobs then of connections
-    const picked = tools.filter((tool) => picks.includes(tool.name));
-    const rows = [
-        ...[...spaceJobs, "workflows" as const].map((job) => ({
-            label: jobLabels[job],
-            doers: picked.filter((tool) => jobOf(tool) === job),
-            app: apps[job],
-            isConnection: false,
-        })),
-        ...connections.map(([label, names, app]) => ({
-            label,
-            doers: picked.filter((tool) => names.includes(tool.name)),
-            app,
-            isConnection: true,
-        })),
-    ];
+    // gather each row's picked tools
+    const picked = rows.map((row) => ({
+        ...row,
+        doers: row.tools.filter((tool) => picks.includes(tool.name)),
+    }));
 
     // price each row on what the rows above it have not billed yet, and leave the services the space works with to their vendors
     const billed = new Set<string>();
 
-    return rows.map((row) => {
+    return picked.map((row) => {
         const price = rowPriceOf(row.doers, billed);
         for (const subscription of subscriptionsOf(row.doers)) {
             billed.add(subscription);
@@ -677,7 +650,6 @@ function entryOf(
 ): Entry {
     // name the picked tools and list them
     const [first] = doers;
-    const verb = isConnection ? "works with" : "replaces";
 
     return {
         stacked: {
@@ -702,7 +674,7 @@ function entryOf(
             label,
             mark: { app: app.icon },
             name: app.name,
-            note: first === undefined ? "included" : `${verb} ${listOf(doers)}`,
+            note: noteOf(doers),
             price: isConnection ? price : { kind: "included" },
         },
     };
@@ -744,11 +716,6 @@ function listOf(picked: readonly Tool[]) {
         : `${names.slice(0, -1).join(", ")} and ${names.at(-1) ?? ""}`;
 }
 
-/** An included service rising into place once the space has formed. */
-const rise = style.keyframes({
-    from: { opacity: 0, transform: "translateY(6px)" },
-});
-
 /** The wall styles. */
 const styles = style.create({
     picture: {
@@ -757,138 +724,65 @@ const styles = style.create({
         objectFit: "cover",
     },
     wall: {
-        alignContent: { default: "stretch", [screen.belowDesktop]: "start" },
-        display: "grid",
-        gap: "1.25rem",
-        gridTemplateRows: "auto auto minmax(0, 1fr)",
-        height: "100%",
-        minHeight: { default: 0, [screen.belowDesktop]: TABLET_WALL, [media.maxMd]: PHONE_WALL },
-    },
-    wallFull: {
-        gridTemplateRows: { default: "minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
-    },
-    box: {
-        borderColor: color.border,
-        borderRadius: "10px",
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        display: "grid",
-        alignSelf: "start",
-        gap: "0.875rem",
-        padding: "0.875rem",
-    },
-    boxBar: {
-        alignItems: "center",
-        color: color.mutedForeground,
         display: "flex",
-        fontFamily: font.code,
-        fontSize: "0.6875rem",
-        gap: "0.375rem",
+        flexDirection: "column",
+        height: "100%",
+        listStyle: "none",
+        margin: 0,
+        minHeight: { default: 0, [screen.belowDesktop]: "30rem", [media.maxMd]: 0 },
+        padding: 0,
     },
-    band: {
-        borderTopColor: color.border,
-        borderTopStyle: "solid",
-        borderTopWidth: stroke.border,
+    row: {
+        alignItems: "center",
+        borderBottomColor: color.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: stroke.border,
+        columnGap: "0.75rem",
         display: "grid",
-        gap: "0.625rem",
-        paddingTop: "0.75rem",
+        flexBasis: { default: 0, [media.maxMd]: "auto" },
+        flexGrow: 1,
+        gridTemplateColumns: {
+            default: "6.5rem minmax(0, 1fr)",
+            [media.maxMd]: "5rem minmax(0, 1fr)",
+        },
+        minHeight: "2.25rem",
+        paddingBlock: { default: 0, [media.maxMd]: "0.375rem" },
     },
-    rising: {
-        animationDuration: "420ms",
-        animationFillMode: "both",
-        animationName: { default: rise, [media.motionReduce]: "none" },
-        animationTimingFunction: landing,
-    },
-    groupName: {
+    label: {
         color: color.mutedForeground,
         fontFamily: font.code,
         fontSize: "0.6875rem",
         letterSpacing: "0.12em",
         textTransform: "uppercase",
     },
-    grid: {
-        backgroundColor: color.border,
-        borderColor: color.border,
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        display: "grid",
-        gap: stroke.border,
-        gridAutoFlow: "row dense",
-        gridAutoRows: {
-            default: "minmax(0, 1fr)",
-            [screen.belowDesktop]: "5.75rem",
-            [media.maxMd]: "4.5rem",
-        },
-        gridTemplateColumns: {
-            default: `repeat(${perRow}, minmax(0, 1fr))`,
-            [media.maxMd]: "repeat(3, minmax(0, 1fr))",
-        },
-        listStyle: "none",
-        margin: 0,
-        minHeight: 0,
-        padding: 0,
-    },
-    cell: {
-        backgroundColor: color.background,
-        display: "grid",
-        minHeight: 0,
+    marks: {
+        alignItems: "center",
+        display: "flex",
+        gap: "0.3125rem",
         minWidth: 0,
-    },
-    space: {
-        backgroundColor: "transparent",
-        borderWidth: 0,
-        gap: "0.75rem",
-        gridAutoFlow: "row",
-        gridAutoRows: "3rem",
-        gridTemplateColumns: {
-            default: "repeat(4, minmax(0, 1fr))",
-            [media.maxMd]: "repeat(2, minmax(0, 1fr))",
-        },
-    },
-    linkIdle: {
-        backgroundColor: "transparent",
-        color: color.mutedForeground,
-        opacity: { default: 0.6, ":hover": { default: null, [media.hover]: 1 } },
-    },
-    links: {
-        gridTemplateColumns: {
-            default: "repeat(4, minmax(0, 1fr))",
-            [media.maxMd]: "repeat(2, minmax(0, 1fr))",
-        },
-    },
-    spaceCell: {
-        borderColor: color.border,
-        borderRadius: "8px",
-        borderStyle: "solid",
-        borderWidth: stroke.border,
         overflow: "hidden",
     },
-    includedDelay: (index: number) => ({
-        animationDelay: `${220 + index * 40}ms`,
-    }),
-    face: {
+    chip: {
         alignItems: "center",
-        backgroundColor: "transparent",
-        borderWidth: 0,
+        borderColor: color.border,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
         color: color.foreground,
-        display: "flex",
+        display: "inline-flex",
         fontFamily: "inherit",
-        gap: "0.625rem",
-        height: "100%",
-        minWidth: 0,
-        paddingInline: "0.875rem",
-        textAlign: "left",
-        width: "100%",
+        flexShrink: 0,
+        gap: "0.375rem",
+        height: "1.875rem",
+        paddingInline: "0.4375rem",
     },
     tool: {
-        alignContent: "center",
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.muted },
+        },
         cursor: "pointer",
-        display: "grid",
-        gap: { default: "0.4375rem", [media.maxMd]: "0.25rem" },
-        justifyItems: "center",
-        paddingInline: { default: "0.375rem", [media.maxMd]: "0.25rem" },
-        transition: `background-color 160ms ${landing}, opacity 320ms ${landing}`,
-        backgroundColor: { default: null, ":hover": { default: null, [media.hover]: color.muted } },
+        transition: `background-color 160ms ${landing}, box-shadow 160ms ${landing}`,
     },
     picked: {
         backgroundColor: {
@@ -897,40 +791,42 @@ const styles = style.create({
         },
         boxShadow: `inset 0 -2px 0 ${color.primary}`,
     },
-    toolName: {
-        fontSize: { default: "0.8125rem", [media.maxMd]: "0.75rem" },
-        maxWidth: "100%",
+    app: {
+        backgroundColor: color.card,
+        boxShadow: `inset 0 -2px 0 ${color.primary}`,
+        paddingInlineStart: "0.25rem",
+    },
+    idle: {
+        boxShadow: "none",
+        color: color.mutedForeground,
+    },
+    appName: {
+        fontSize: "0.8125rem",
+        whiteSpace: "nowrap",
+    },
+    name: {
+        display: { default: "inline", [media.maxMd]: "none" },
+        fontSize: "0.8125rem",
+        whiteSpace: "nowrap",
+    },
+    note: {
+        alignItems: "center",
+        color: color.mutedForeground,
+        display: { default: "flex", [media.maxMd]: "none" },
+        fontSize: "0.75rem",
+        marginInlineStart: "0.25rem",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
     },
-    toolNameWrapped: {
-        lineHeight: 1.2,
-        textAlign: "center",
-        whiteSpace: { default: "normal", [media.maxMd]: "nowrap" },
-    },
-    app: {
-        backgroundColor: color.card,
-        position: "relative",
-    },
-    link: {
-        backgroundColor: color.card,
-        position: "relative",
-    },
-    pressable: {
-        cursor: "pointer",
-    },
-    sources: {
+    source: {
         alignItems: "center",
-        display: { default: "flex", [media.maxMd]: "none" },
+        color: color.foreground,
+        display: "inline-flex",
         gap: "0.25rem",
-        marginLeft: "auto",
+        marginInlineStart: "0.375rem",
     },
-    dot: {
-        backgroundColor: palette.green,
-        borderRadius: "50%",
-        flexShrink: 0,
-        height: "0.4375rem",
-        width: "0.4375rem",
+    separator: {
+        marginInline: "0.5rem",
     },
 });

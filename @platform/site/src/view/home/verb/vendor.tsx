@@ -516,7 +516,7 @@ function GitHub() {
                     <aside {...style.attrs(styles.ghAbout)}>
                         <b>About</b>
                         <span {...style.attrs(styles.ghMuted)}>
-                            Own your apps and agents in one unified personal software platform.
+                            Own your apps and agents in one personal superapp.
                         </span>
                         <span {...style.attrs(styles.ghTopics)}>
                             {["launch", "waitlist", "typescript"].map((topic) => (
@@ -2010,7 +2010,7 @@ const styles = style.create({
     notionCover: {
         backgroundImage: `linear-gradient(120deg, ${notion.paper} 0%, ${notion.tan} 50%, ${notion.clay} 100%)`,
         display: "block",
-        height: { default: "170px", [NARROW]: "96px" },
+        height: { default: "96px", [NARROW]: "64px" },
     },
     notionBody: {
         display: "grid",

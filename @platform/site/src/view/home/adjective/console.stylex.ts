@@ -26,6 +26,8 @@ export const sentry = style.defineConsts({
     nav: "linear-gradient(294deg, #2f1937 35%, #452650 62%, #52305f)",
     /** The brand purple. */
     purple: "#6c5fc7",
+    /** The open item on the issue views. */
+    select: "light-dark(#eee9fb, #33224a)",
     /** An error's red. */
     red: "#f55459",
     /** The organisation's avatar. */

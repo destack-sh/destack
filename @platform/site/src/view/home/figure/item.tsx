@@ -45,7 +45,6 @@ const accents: Readonly<Record<string, string>> = {
     GitHub: "#2da44e",
     Framer: "#d9318f",
     Superhuman: "#7c3aed",
-    Granola: "#65a30d",
     WorkOS: "#0ea5e9",
     Doppler: "#ec4899",
     Supabase: "#3ecf8e",
@@ -57,6 +56,7 @@ const accents: Readonly<Record<string, string>> = {
     Vercel: "#64748b",
     ChatGPT: "#10a37f",
     Grok: "#475569",
+    "Cal.com": "#6366f1",
 };
 
 /** Return the colour a vendor's block wears: its accent where it has one, or its mark's tint. */

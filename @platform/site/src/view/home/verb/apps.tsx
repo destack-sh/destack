@@ -41,17 +41,7 @@ import type { JSX } from "@destack/view";
 import { palette } from "../../palette.stylex";
 import { AppHeader, appStyles, appText } from "../figure/app";
 import { AgentAvatar } from "../figure/agent";
-import {
-    coverOf,
-    launch,
-    messages,
-    posts,
-    signups,
-    sources,
-    type TaskState,
-    tasks,
-    week,
-} from "./corner";
+import { coverOf, messages, posts, signups, sources, type TaskState, tasks, week } from "./corner";
 
 /** An app narrower than a phone screen, which then drops what only fits wide. */
 const NARROW = "@container (max-width: 479px)";
@@ -163,7 +153,7 @@ function StateMark(properties: { state: TaskState }) {
     );
 }
 
-/** Draw the launch plan: a page you and your agent edit together, its tasks linked in place. */
+/** Draw the launch plan: a page you and your agent edit, made of your other apps' parts. */
 function Launch() {
     return (
         <Paned>
@@ -186,12 +176,15 @@ function Launch() {
                         In progress
                     </span>
                     <span {...style.attrs(appStyles.property)}>Fri 24 Oct</span>
-                    <span {...style.attrs(appStyles.property)}>
-                        <Progress value={66} aria-label="Tasks done" xstyle={styles.progress} />4 of
-                        6 tasks
+                    <span data-xray="Analytics" {...style.attrs(appStyles.property, styles.wide)}>
+                        312 views
                     </span>
-                    <span data-xray="Jobs" {...style.attrs(appStyles.property)}>
-                        Reminder Thu
+                    <span
+                        data-xray="Jobs"
+                        data-source="Calendar event"
+                        {...style.attrs(appStyles.property)}
+                    >
+                        Demo · Wed 11:00
                     </span>
                 </div>
                 <p {...style.attrs(appText.body)}>
@@ -199,30 +192,44 @@ function Launch() {
                     with the launch post.
                 </p>
                 <div {...style.attrs(styles.annotated)}>
-                    <ul data-xray="Database" {...style.attrs(styles.checklist)}>
-                        {launch.map(([item, isDone]) => (
-                            <li {...style.attrs(appText.body, styles.check)}>
-                                <Checkbox checked={isDone} aria-label={item} />
+                    {/* the launch tasks, a live view of the Tasks app */}
+                    <div
+                        data-xray="Database"
+                        data-source="Tasks list"
+                        {...style.attrs(styles.embed)}
+                    >
+                        <span {...style.attrs(appText.meta, styles.embedHead)}>
+                            <b>Launch tasks</b>
+                            <span {...style.attrs(styles.quiet)}>1 of 4 done</span>
+                            <Progress value={25} aria-label="Tasks done" xstyle={styles.progress} />
+                        </span>
+                        {tasks.slice(0, 4).map(([id, title, state, owner, tint, due]) => (
+                            <span {...style.attrs(appText.body, styles.embedRow)}>
+                                <StateMark state={state} />
                                 <span
                                     {...style.attrs(
-                                        isDone && styles.struck,
-                                        isCommented(item) && styles.highlight,
+                                        styles.embedTitle,
+                                        state === "done" && styles.struck,
+                                        isCommented(title) && styles.highlight,
                                     )}
                                 >
-                                    {item}
+                                    {title}
                                 </span>
-                                {isCommented(item) ? (
-                                    <span {...style.attrs(appStyles.property, styles.wide)}>
-                                        <StateMark state="started" />
-                                        DST-14 · Wed 11:00
-                                    </span>
-                                ) : undefined}
-                            </li>
+                                <span {...style.attrs(appText.meta, styles.quiet, styles.wide)}>
+                                    {id}
+                                </span>
+                                <Face owner={owner} tint={tint} size="sm" />
+                                <span {...style.attrs(appText.meta, styles.quiet)}>{due}</span>
+                            </span>
                         ))}
-                    </ul>
+                    </div>
 
-                    {/* the agent's comment in the margin, beside the line it is about */}
-                    <aside data-xray="Messaging" {...style.attrs(styles.comment)}>
+                    {/* the agent's comment in the margin, a thread from Chat */}
+                    <aside
+                        data-xray="Messaging"
+                        data-source="Chat thread"
+                        {...style.attrs(styles.comment)}
+                    >
                         <span {...style.attrs(styles.commentHead)}>
                             <Face owner="A" />
                             <b {...style.attrs(appText.meta)}>Agent</b>
@@ -234,9 +241,67 @@ function Launch() {
                         <span {...style.attrs(appText.meta, styles.quiet)}>Reply</span>
                     </aside>
                 </div>
+
+                {/* the launch week, a live view of the Calendar app */}
+                <div
+                    data-xray="Database"
+                    data-source="Calendar week"
+                    {...style.attrs(styles.embed)}
+                >
+                    <span {...style.attrs(appText.meta, styles.embedHead)}>
+                        <b>Launch week</b>
+                        <span {...style.attrs(styles.quiet)}>Oct 20 – 24</span>
+                    </span>
+                    <span {...style.attrs(styles.days)}>
+                        {DAYS.map((day, index) => (
+                            <span {...style.attrs(styles.day)}>
+                                <span {...style.attrs(appText.meta, styles.quiet)}>{day}</span>
+                                {week
+                                    .filter(
+                                        ([weekday, , , , isBookable]) =>
+                                            weekday === index && !isBookable,
+                                    )
+                                    .map(([, start, , title]) => (
+                                        <span
+                                            {...style.attrs(
+                                                appText.meta,
+                                                styles.dayEvent,
+                                                title.includes("·")
+                                                    ? styles.fromApps
+                                                    : styles.personal,
+                                            )}
+                                        >
+                                            {title}
+                                            <span {...style.attrs(styles.quiet)}>
+                                                {timeOf(start)}
+                                            </span>
+                                        </span>
+                                    ))}
+                            </span>
+                        ))}
+                    </span>
+                </div>
+
+                {/* the pricing draft, a document from Files */}
+                <span
+                    data-xray="Files"
+                    data-source="Files document"
+                    {...style.attrs(styles.attachment)}
+                >
+                    <Icon icon={fileText} />
+                    <span>pricing-v3.pdf</span>
+                    <span {...style.attrs(appText.meta, styles.quiet)}>2.4 MB</span>
+                </span>
             </article>
         </Paned>
     );
+}
+
+/** Write an hour of the day as the calendar shows it, such as 9:30. */
+function timeOf(hour: number): string {
+    const minutes = Math.round((hour % 1) * 60);
+
+    return `${String(Math.floor(hour))}:${String(minutes).padStart(2, "0")}`;
 }
 
 /** Report whether a launch item carries the agent's comment. */
@@ -606,8 +671,9 @@ function Mail() {
                 title="Destack opens Friday"
                 actions={
                     <>
-                        <Present />
-                        <span {...style.attrs(appStyles.action)}>Agent drafted 09:40</span>
+                        <span {...style.attrs(appStyles.action, styles.wide)}>
+                            Agent drafted 09:40
+                        </span>
                         <span data-xray="Jobs" {...style.attrs(appStyles.primary)}>
                             Send Fri 09:00
                         </span>
@@ -630,19 +696,36 @@ function Mail() {
                     early pricing holds for everyone on the waitlist.
                 </p>
                 <p {...style.attrs(appText.body)}>See you there, Florian</p>
-                <Item variant="outline" size="sm" xstyle={styles.comment}>
-                    <ItemMedia>
+                <aside {...style.attrs(styles.note)}>
+                    <span {...style.attrs(styles.commentHead)}>
                         <Face owner="A" />
-                    </ItemMedia>
-                    <ItemContent>
-                        <ItemTitle xstyle={appText.body}>
-                            Agent <span {...style.attrs(styles.quiet)}>09:40</span>
-                        </ItemTitle>
-                        <ItemDescription xstyle={appText.body}>
-                            Reads Signups at send time, so Thursday's joiners get it too.
-                        </ItemDescription>
-                    </ItemContent>
-                </Item>
+                        <b {...style.attrs(appText.meta)}>Agent</b>
+                        <span {...style.attrs(appText.meta, styles.quiet)}>09:40</span>
+                    </span>
+                    <span {...style.attrs(appText.meta)}>
+                        Reads Signups at send time, so Thursday's joiners get it too.
+                    </span>
+                </aside>
+
+                {/* the recipients, a live view of the Signups table */}
+                <div data-xray="Database" data-source="Tables view" {...style.attrs(styles.embed)}>
+                    <span {...style.attrs(appText.meta, styles.embedHead)}>
+                        <b>Signups</b>
+                        <span {...style.attrs(styles.quiet)}>Waiting · 1,840</span>
+                    </span>
+                    {signups
+                        .filter(([, , , state]) => state === "waiting")
+                        .map(([email, source, joined]) => (
+                            <span {...style.attrs(appText.body, styles.embedRow, styles.recipient)}>
+                                <span {...style.attrs(styles.embedTitle)}>{email}</span>
+                                <span {...style.attrs(appText.meta, styles.quiet)}>{source}</span>
+                                <span {...style.attrs(appText.meta, styles.quiet)}>{joined}</span>
+                            </span>
+                        ))}
+                    <span {...style.attrs(appText.meta, styles.quiet, styles.more)}>
+                        and 1,836 more
+                    </span>
+                </div>
             </article>
         </Paned>
     );
@@ -775,17 +858,86 @@ const styles = style.create({
     green: {
         color: palette.green,
     },
-    checklist: {
+    embed: {
+        borderColor: color.border,
+        borderRadius: "8px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
         display: "grid",
-        gap: space[2],
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
+        overflow: "hidden",
     },
-    check: {
+    embedHead: {
         alignItems: "center",
+        backgroundColor: color.muted,
         display: "flex",
-        gap: space[3],
+        gap: "0.5rem",
+        paddingBlock: "0.375rem",
+        paddingInline: "0.75rem",
+    },
+    embedRow: {
+        alignItems: "center",
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
+        columnGap: "0.625rem",
+        display: "grid",
+        gridTemplateColumns: {
+            default: "auto minmax(0, 1fr) auto auto 3rem",
+            [NARROW]: "auto minmax(0, 1fr) auto 3rem",
+        },
+        paddingBlock: "0.375rem",
+        paddingInline: "0.75rem",
+    },
+    recipient: {
+        gridTemplateColumns: "minmax(0, 1fr) 6rem 5rem",
+    },
+    more: {
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
+        paddingBlock: "0.375rem",
+        paddingInline: "0.75rem",
+    },
+    embedTitle: {
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    days: {
+        display: "grid",
+        gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    },
+    day: {
+        alignContent: "start",
+        borderInlineStartColor: color.border,
+        borderInlineStartStyle: { default: "solid", ":first-child": "none" },
+        borderInlineStartWidth: stroke.border,
+        display: "grid",
+        gap: "0.25rem",
+        minHeight: "4.5rem",
+        paddingBlock: "0.375rem",
+        paddingInline: "0.5rem",
+    },
+    dayEvent: {
+        borderRadius: "4px",
+        display: "grid",
+        overflow: "hidden",
+        paddingBlock: "0.125rem",
+        paddingInline: "0.375rem",
+        whiteSpace: "nowrap",
+    },
+    attachment: {
+        alignItems: "center",
+        borderColor: color.border,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "inline-flex",
+        fontSize: "0.8125rem",
+        gap: "0.5rem",
+        justifySelf: "start",
+        paddingBlock: "0.3125rem",
+        paddingInline: "0.625rem",
     },
     struck: {
         color: color.mutedForeground,
@@ -809,6 +961,17 @@ const styles = style.create({
         display: { default: "grid", [NARROW]: "none" },
         gap: "0.25rem",
         marginTop: "1.75rem",
+        paddingBlock: "0.625rem",
+        paddingInline: "0.75rem",
+    },
+    note: {
+        backgroundColor: color.card,
+        borderRadius: "8px",
+        boxShadow: `0 0 0 1px ${color.border}`,
+        display: "grid",
+        gap: "0.25rem",
+        justifySelf: "start",
+        maxWidth: "24rem",
         paddingBlock: "0.625rem",
         paddingInline: "0.75rem",
     },

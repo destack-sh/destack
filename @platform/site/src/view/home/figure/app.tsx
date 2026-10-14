@@ -83,7 +83,6 @@ export const appStyles = style.create({
         width: "1.125rem",
     },
     railButton: {
-        cursor: "pointer",
         alignItems: "center",
         borderRadius: "6px",
         display: "flex",
@@ -92,6 +91,9 @@ export const appStyles = style.create({
         justifyContent: "center",
         position: "relative",
         width: "2rem",
+    },
+    railLink: {
+        cursor: "pointer",
     },
     glyph: {
         backgroundColor: color.mutedForeground,
@@ -228,12 +230,6 @@ export const appStyles = style.create({
         gap: "1.25rem",
         marginLeft: "auto",
     },
-    dot: {
-        backgroundColor: palette.lightGreen,
-        borderRadius: "50%",
-        height: "0.5rem",
-        width: "0.5rem",
-    },
 });
 
 /** Draw a glyph of the diagram set, such as an app's mark in the rail, tinted when lit. */
@@ -247,11 +243,11 @@ export function AppGlyph(properties: { name: string; isOn?: boolean }) {
     );
 }
 
-/** Draw the rail every app of your space shares. */
+/** Draw the rail every app of your space shares, its apps clickable given an open handler. */
 export function AppRail(properties: {
     open: string;
     apps: readonly (readonly [name: string, label: string])[];
-    onOpen: (name: string) => void;
+    onOpen?: (name: string) => void;
 }) {
     return (
         <nav data-component="AppRail" {...style.attrs(appStyles.rail)}>
@@ -274,11 +270,14 @@ export function AppRail(properties: {
                 <span
                     data-component="AppLink"
                     title={label}
-                    onClick={() => properties.onOpen(name)}
+                    onClick={() => properties.onOpen?.(name)}
                     style={
                         name === properties.open ? { "background-color": washOf(name) } : undefined
                     }
-                    {...style.attrs(appStyles.railButton)}
+                    {...style.attrs(
+                        appStyles.railButton,
+                        properties.onOpen !== undefined && appStyles.railLink,
+                    )}
                 >
                     {isAgent(name) ? (
                         <AgentAvatar size="glyph" />

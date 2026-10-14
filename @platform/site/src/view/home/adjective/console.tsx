@@ -2,15 +2,35 @@ import { font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import type { JSX } from "@destack/view";
 
+import { palette } from "../../palette.stylex";
 import { Glyph } from "../figure/glyph";
 import { resend, sentry, shared, supabase, temporal } from "./console.stylex";
 
-/** The error tracker's breadcrumbs before the error: time, kind, and what happened. */
+/** A console too narrow for the error tracker's issue views beside the issue. */
+const MEDIUM = "@container (max-width: 1099px)";
+
+/** A console too narrow for the issue's sidebar beside its stack trace. */
+const SMALL = "@container (max-width: 759px)";
+
+/** The error tracker's breadcrumbs up to the error, newest first: time, kind, and what happened. */
 const crumbs: readonly (readonly [time: string, kind: string, text: string, isError: boolean])[] = [
-    ["09:41:02", "http", "POST api.resend.com/emails [200]", false],
-    ["09:41:02", "http", "POST api.resend.com/emails [200]", false],
     ["09:41:03", "http", "POST api.resend.com/emails [429]", true],
+    ["09:41:02", "http", "POST api.resend.com/emails [200]", false],
+    ["09:41:02", "http", "POST api.resend.com/emails [200]", false],
+    ["09:41:01", "console", "sending batch 3 of 4", false],
 ];
+
+/** The error tracker's product areas on its navigation, Issues open: icon and label. */
+const sentryAreas = [
+    ["inbox", "Issues"],
+    ["search", "Explore"],
+    ["grid", "Dashboards"],
+    ["status", "Insights"],
+    ["sliders", "Settings"],
+] as const;
+
+/** The error tracker's issue feeds, the open one first. */
+const sentryFeeds = ["Feed", "Errors & Outages", "Breached Metrics", "Warnings", "User Feedback"];
 
 /** The stack frame's lines around the error: number and code. */
 const frame: readonly (readonly [line: number, code: string])[] = [
@@ -86,7 +106,6 @@ export function ResendLogs() {
                     <span {...style.attrs(styles.resendFilter)}>Last 15 minutes</span>
                     <span {...style.attrs(styles.resendFilter)}>All statuses</span>
                     <span {...style.attrs(styles.resendFilter)}>All API keys</span>
-                    <span {...style.attrs(styles.resendCount)}>230 × 200 · 170 × 429</span>
                 </span>
                 <div {...style.attrs(styles.resendTable)}>
                     <span {...style.attrs(styles.resendRow, styles.resendHead)}>
@@ -123,19 +142,34 @@ export function SentryIssue() {
             {/* navigation */}
             <nav {...style.attrs(styles.sentryNav)}>
                 <span {...style.attrs(styles.sentryOrg)}>S</span>
-                {(["inbox", "search", "layers", "status", "sliders"] as const).map(
-                    (name, index) => (
+                {sentryAreas.map(([icon, label], index) => (
+                    <span {...style.attrs(styles.sentryArea)}>
                         <span
                             {...style.attrs(
-                                styles.sentryNavItem,
+                                styles.sentryAreaIcon,
                                 index === 0 && styles.sentryNavOn,
                             )}
                         >
-                            <Glyph name={name} size={16} />
+                            <Glyph name={icon} size={16} />
                         </span>
-                    ),
-                )}
+                        {label}
+                    </span>
+                ))}
             </nav>
+
+            {/* issue views */}
+            <aside {...style.attrs(styles.sentryViews)}>
+                <b {...style.attrs(styles.sentryViewsTitle)}>Issues</b>
+                {sentryFeeds.map((item, index) => (
+                    <span {...style.attrs(styles.sentryView, index === 0 && styles.sentryViewOn)}>
+                        {item}
+                    </span>
+                ))}
+                <span {...style.attrs(styles.sentryLabel)}>Views</span>
+                {["Waitlist", "Mail"].map((item) => (
+                    <span {...style.attrs(styles.sentryView)}>{item}</span>
+                ))}
+            </aside>
 
             {/* issue */}
             <div {...style.attrs(styles.sentryMain)}>
@@ -200,32 +234,68 @@ export function SentryIssue() {
                             ))}
                         </div>
                         <b {...style.attrs(styles.sentryHeading)}>Breadcrumbs</b>
-                        {crumbs.map(([time, kind, text, isError]) => (
-                            <span
-                                {...style.attrs(
-                                    styles.sentryCrumb,
-                                    isError && styles.sentryCrumbError,
-                                )}
-                            >
-                                <span {...style.attrs(styles.sentryMuted)}>{time}</span>
-                                <span {...style.attrs(styles.sentryKind)}>{kind}</span>
-                                <code {...style.attrs(styles.sentryCode)}>{text}</code>
+                        <div {...style.attrs(styles.sentryCrumbs)}>
+                            <span {...style.attrs(styles.sentryCrumb, styles.sentryCrumbHead)}>
+                                <span>Type</span>
+                                <span>Description</span>
+                                <span {...style.attrs(styles.sentryLevel)}>Level</span>
+                                <span>Time</span>
                             </span>
-                        ))}
+                            {crumbs.map(([time, kind, text, isError]) => (
+                                <span
+                                    {...style.attrs(
+                                        styles.sentryCrumb,
+                                        isError && styles.sentryCrumbError,
+                                    )}
+                                >
+                                    <span {...style.attrs(styles.sentryKind)}>{kind}</span>
+                                    <code {...style.attrs(styles.sentryCode)}>{text}</code>
+                                    <span {...style.attrs(styles.sentryLevel)}>
+                                        {isError ? "error" : "info"}
+                                    </span>
+                                    <span {...style.attrs(styles.sentryMuted)}>{time}</span>
+                                </span>
+                            ))}
+                        </div>
                     </section>
 
-                    {/* activity */}
+                    {/* when, who, and the comments */}
                     <aside {...style.attrs(styles.sentrySide)}>
-                        <b {...style.attrs(styles.sentryHeading)}>Activity</b>
-                        <Note who="Florian" tint="#2f7d8c" time="09:52">
-                            Only Resend shows up here. Did the waitlist get marked? Who approved
-                            this batch?
-                        </Note>
-                        <Note who="Maya" tint="#a15c07" time="10:04">
-                            Temporal says it failed. Resend shows 170 rejected. Where's the rest of
-                            the data?
-                        </Note>
-                        <span {...style.attrs(styles.sentryInput)}>Add a comment…</span>
+                        <span {...style.attrs(styles.sentrySeen)}>
+                            <Count label="First Seen" value="09:41:03" />
+                            <Count label="Last Seen" value="09:41:19" />
+                            <Count label="Release" value="waitlist@1.4.2" />
+                            <Count label="Environment" value="production" />
+                        </span>
+                        <span {...style.attrs(styles.sentrySection)}>
+                            <b {...style.attrs(styles.sentryHeading)}>Activity</b>
+                            <span {...style.attrs(styles.sentryInput)}>Add a comment…</span>
+                            <Note who="Maya" tint={palette.rust} time="10:04">
+                                Temporal says it failed. Resend shows 170 rejected. Where's the rest
+                                of the data?
+                            </Note>
+                            <Note who="Florian" tint={palette.teal} time="09:52">
+                                Only Resend shows up here. Did the waitlist get marked? Who approved
+                                this batch?
+                            </Note>
+                        </span>
+                        <span {...style.attrs(styles.sentrySection)}>
+                            <b {...style.attrs(styles.sentryHeading)}>Participants</b>
+                            <span {...style.attrs(styles.sentryPeople)}>
+                                <span
+                                    style={{ "background-color": palette.teal }}
+                                    {...style.attrs(styles.avatar)}
+                                >
+                                    F
+                                </span>
+                                <span
+                                    style={{ "background-color": palette.rust }}
+                                    {...style.attrs(styles.avatar)}
+                                >
+                                    M
+                                </span>
+                            </span>
+                        </span>
                     </aside>
                 </div>
             </div>
@@ -458,7 +528,10 @@ const styles = style.create({
         display: "grid",
         fontFamily: "system-ui, sans-serif",
         fontSize: "13px",
-        gridTemplateColumns: "52px minmax(0, 1fr)",
+        gridTemplateColumns: {
+            default: "68px 200px minmax(0, 1fr)",
+            [MEDIUM]: "68px minmax(0, 1fr)",
+        },
         height: "100%",
     },
     sentryNav: {
@@ -467,7 +540,7 @@ const styles = style.create({
         color: shared.navIcon,
         display: "flex",
         flexDirection: "column",
-        gap: "6px",
+        gap: "10px",
         paddingTop: "12px",
     },
     sentryOrg: {
@@ -477,22 +550,67 @@ const styles = style.create({
         color: sentry.orgInk,
         display: "inline-flex",
         fontWeight: 800,
-        height: "28px",
+        height: "30px",
         justifyContent: "center",
-        marginBottom: "10px",
-        width: "28px",
+        marginBottom: "8px",
+        width: "30px",
     },
-    sentryNavItem: {
+    sentryArea: {
         alignItems: "center",
-        borderRadius: "6px",
+        display: "flex",
+        flexDirection: "column",
+        fontSize: "10px",
+        fontWeight: 600,
+        gap: "4px",
+    },
+    sentryAreaIcon: {
+        alignItems: "center",
+        borderRadius: "8px",
         display: "inline-flex",
         height: "32px",
         justifyContent: "center",
-        width: "32px",
+        width: "40px",
     },
     sentryNavOn: {
         backgroundColor: shared.navOn,
         color: shared.white,
+    },
+    sentryViews: {
+        alignContent: "start",
+        backgroundColor: sentry.panel,
+        borderInlineEndColor: sentry.border,
+        borderInlineEndStyle: "solid",
+        borderInlineEndWidth: "1px",
+        display: { default: "grid", [MEDIUM]: "none" },
+        gap: "2px",
+        paddingBlock: "16px",
+        paddingInline: "10px",
+    },
+    sentryViewsTitle: {
+        fontSize: "15px",
+        paddingBottom: "10px",
+        paddingInline: "8px",
+    },
+    sentryView: {
+        borderRadius: "6px",
+        color: sentry.muted,
+        paddingBlock: "6px",
+        paddingInline: "8px",
+    },
+    sentryViewOn: {
+        backgroundColor: sentry.select,
+        color: sentry.purple,
+        fontWeight: 600,
+    },
+    sentryLabel: {
+        color: sentry.muted,
+        fontSize: "11px",
+        fontWeight: 600,
+        letterSpacing: "0.04em",
+        paddingInline: "8px",
+        paddingTop: "16px",
+        paddingBottom: "4px",
+        textTransform: "uppercase",
     },
     sentryMain: {
         display: "grid",
@@ -515,12 +633,13 @@ const styles = style.create({
         alignItems: "baseline",
         display: "flex",
         gap: "8px",
+        whiteSpace: "nowrap",
     },
     sentryTitle: {
         fontSize: "20px",
     },
     sentryActions: {
-        display: "flex",
+        display: { default: "flex", [SMALL]: "none" },
         gap: "6px",
         marginLeft: "auto",
     },
@@ -557,6 +676,7 @@ const styles = style.create({
     sentryCount: {
         display: "grid",
         fontSize: "12px",
+        gap: "2px",
     },
     sentrySpark: {
         alignItems: "flex-end",
@@ -588,14 +708,14 @@ const styles = style.create({
     },
     sentryBody: {
         display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) 260px",
+        gridTemplateColumns: { default: "minmax(0, 1fr) 320px", [SMALL]: "minmax(0, 1fr)" },
         minHeight: 0,
         overflow: "hidden",
     },
     sentryColumn: {
         alignContent: "start",
         display: "grid",
-        gap: "8px",
+        gap: "10px",
         minWidth: 0,
         paddingBlock: "16px",
         paddingInline: "24px",
@@ -637,19 +757,43 @@ const styles = style.create({
         color: sentry.muted,
         width: "20px",
     },
+    sentryCrumbs: {
+        borderColor: sentry.border,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        display: "grid",
+        overflow: "hidden",
+    },
     sentryCrumb: {
         alignItems: "center",
-        borderBottomColor: sentry.border,
-        borderBottomStyle: "solid",
-        borderBottomWidth: "1px",
+        borderTopColor: sentry.border,
+        borderTopStyle: "solid",
+        borderTopWidth: "1px",
+        columnGap: "12px",
         display: "grid",
         fontSize: "12px",
-        gap: "12px",
-        gridTemplateColumns: "60px 40px minmax(0, 1fr)",
-        paddingBlock: "6px",
+        gridTemplateColumns: {
+            default: "56px minmax(0, 1fr) 48px 64px",
+            [SMALL]: "56px minmax(0, 1fr) 64px",
+        },
+        paddingBlock: "7px",
+        paddingInline: "12px",
+    },
+    sentryCrumbHead: {
+        backgroundColor: sentry.panel,
+        borderTopWidth: 0,
+        color: sentry.muted,
+        fontSize: "11px",
+        fontWeight: 600,
+        textTransform: "uppercase",
     },
     sentryCrumbError: {
+        backgroundColor: sentry.hit,
         color: sentry.red,
+    },
+    sentryLevel: {
+        display: { default: "inline", [SMALL]: "none" },
     },
     sentryKind: {
         fontWeight: 600,
@@ -662,14 +806,26 @@ const styles = style.create({
     },
     sentrySide: {
         alignContent: "start",
-        backgroundColor: sentry.panel,
         borderInlineStartColor: sentry.border,
         borderInlineStartStyle: "solid",
         borderInlineStartWidth: "1px",
+        display: { default: "grid", [SMALL]: "none" },
+        gap: "20px",
+        paddingBlock: "16px",
+        paddingInline: "20px",
+    },
+    sentrySeen: {
+        borderBottomColor: sentry.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "grid",
+        gap: "14px",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        paddingBottom: "18px",
+    },
+    sentrySection: {
         display: "grid",
         gap: "12px",
-        paddingBlock: "16px",
-        paddingInline: "16px",
     },
     sentryNote: {
         display: "flex",
@@ -681,7 +837,6 @@ const styles = style.create({
         gap: "2px",
     },
     sentryInput: {
-        backgroundColor: sentry.canvas,
         borderColor: sentry.border,
         borderRadius: "6px",
         borderStyle: "solid",
@@ -689,6 +844,10 @@ const styles = style.create({
         color: sentry.muted,
         paddingBlock: "8px",
         paddingInline: "10px",
+    },
+    sentryPeople: {
+        display: "flex",
+        gap: "4px",
     },
 
     // the mail service
@@ -761,11 +920,6 @@ const styles = style.create({
         fontSize: "12px",
         paddingBlock: "5px",
         paddingInline: "10px",
-    },
-    resendCount: {
-        color: resend.muted,
-        fontSize: "12px",
-        marginLeft: "auto",
     },
     resendTable: {
         borderColor: resend.border,

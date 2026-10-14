@@ -31,3 +31,21 @@ export const marks = style.defineConsts({
     /** The code host's failed run red. */
     danger: "light-dark(#d1242f, #f85149)",
 });
+
+/** The colours of the notes app's database, beside the page colours fig. 1 shares. */
+export const notionTable = style.defineConsts({
+    /** The sidebar. */
+    sidebar: "light-dark(#f8f8f7, #202020)",
+    /** Secondary text. */
+    muted: "light-dark(#787774, #9b9b9b)",
+    /** Rules and borders. */
+    border: "light-dark(#e9e9e7, #2f2f2f)",
+    /** A hovered or open item, and a grey tag. */
+    hover: "light-dark(#efefed, #2c2c2c)",
+    /** The open toolbar button. */
+    select: "light-dark(#e7f3f8, #1f3a4a)",
+    /** A green tag's field. */
+    green: "light-dark(#dbeddb, #2b593f)",
+    /** A green tag's text. */
+    greenInk: "light-dark(#1c3829, #d0e7d6)",
+});

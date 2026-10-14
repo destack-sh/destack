@@ -14,9 +14,10 @@ const destacked: Form = {
     pronunciation: "/diːˈstakt/",
     partOfSpeech: "past participle",
     sense: {
-        definition: "unified into one stack you control",
-        highlight: ["unified", "control"],
-        sentence: "You, your people, apps, agents, data, and context, in one place.",
+        definition: "unified into one standard stack",
+        highlight: ["unified", "standard"],
+        sentence:
+            "One account, one API, one data store, and open formats, from sign-in to hosting.",
     },
 };
 
@@ -38,10 +39,10 @@ export function PastParticiple(properties: {
                     <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>
                 <div {...style.attrs(lattice.cell, styles.labelCell, styles.drawingLabel)}>
-                    <Label>Your apps, and what's really under them</Label>
+                    <Label>Your apps, and what's under them</Label>
                 </div>
                 <div {...style.attrs(lattice.cell, styles.labelCell, styles.layersLabel)}>
-                    <Label>The true depth of the stack</Label>
+                    <Label>Every layer of the stack</Label>
                 </div>
             </section>
             <StackFigure onChange={properties.onChange} />

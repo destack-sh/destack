@@ -482,10 +482,6 @@ function SpaceStatus(properties: {
 }) {
     return (
         <div data-component="StatusBar" {...style.attrs(appStyles.statusBar)}>
-            <span {...style.attrs(appStyles.status)}>
-                <span {...style.attrs(appStyles.dot)} />
-                Yours · @florian{properties.page.path === "/" ? "" : properties.page.path}
-            </span>
             <span data-component="AudienceChip" {...style.attrs(appStyles.status)}>
                 <Icon icon={key} />
                 {audienceOf(properties.page)}

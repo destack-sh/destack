@@ -29,7 +29,7 @@ const noun: Form = {
         definition: "a complete, absurdly integrated software engine",
         highlight: ["complete", "absurdly integrated"],
         sentence:
-            "Auth, secrets, workflows, sync and more – everything serious software needs, solved once.",
+            "Auth, data, workflows and views, shared by every app, so any app can build on the others.",
     },
 };
 
@@ -77,9 +77,7 @@ export function Noun(properties: { isOpen: boolean }) {
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
-                    {isOpenAt(0)
-                        ? "Your apps, on one engine"
-                        : "Your own apps, each on ten vendors"}
+                    {isOpenAt(0) ? "One engine under every app" : "Ten vendors under every app"}
                 </Label>
                 <div {...style.attrs(styles.window)}>
                     <XRay isOpenAt={isOpenAt} lit={lit()} onLight={setLit} />
@@ -109,12 +107,12 @@ export function Noun(properties: { isOpen: boolean }) {
 /** Label the ledger by how much of the stack is rented: all of it, none of it, or some. */
 function keyOf(rented: number) {
     if (rented === services.length) {
-        return "Ten vendors, glued together";
+        return "Ten bills";
     } else if (rented === 0) {
-        return "One engine, one context";
+        return "One bill";
     }
 
-    return "Some vendors, some engine";
+    return "Fewer bills";
 }
 
 /** The noun section styles. */
