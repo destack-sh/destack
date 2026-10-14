@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, test, TestClock } from "@destack/test";
 import { RetryPolicy } from "./retry.ts";
 
 test("grow waits by the coefficient up to the maximum, spread below the interval with full jitter", () => {
@@ -22,14 +22,19 @@ test("retry until stopped by default, or up to the maximum attempts", () => {
     ]).toEqual([true, [true, true, false]]);
 });
 
-test("pause before the next attempt, ending quietly once the signal aborts", async () => {
-    // wait a short interval and end on abort
-    const policy = RetryPolicy.of({ initialInterval: 5 });
+test("pause on the clock until it passes the interval, ending quietly once the signal aborts", async () => {
+    // wait a second of a stopped clock, and end on abort
+    const clock = new TestClock(0);
+    const policy = RetryPolicy.of();
     const running = new AbortController();
     const aborted = new AbortController();
     aborted.abort(new Error("stopped"));
-    expect([
-        await RetryPolicy.pause(policy, 1, running.signal),
-        await RetryPolicy.pause(policy, 1, aborted.signal),
-    ]).toEqual([true, false]);
+    const paused = RetryPolicy.pause(policy, 1, clock, running.signal);
+
+    // release the pause once the clock passes the interval
+    clock.advance(1000);
+    expect([await paused, await RetryPolicy.pause(policy, 1, clock, aborted.signal)]).toEqual([
+        true,
+        false,
+    ]);
 });

@@ -8,7 +8,7 @@ import {
 import { aligned, Clock, found } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { RetryPolicy, wait, yieldToEventLoop } from "../timer/index.ts";
+import { RetryPolicy, until, yieldToEventLoop } from "../timer/index.ts";
 import type { Alarm } from "./alarm.ts";
 import { LEASE_MILLISECONDS, Leases } from "./lease.ts";
 
@@ -222,10 +222,11 @@ export class ControlLoop {
             return promise;
         }
 
-        // settle at the deadline at the latest while late keys keep running and the alarm stays due
-        const timer = setTimeout(resolve, Math.max(0, deadline - this.#clock.now()));
+        // settle at the deadline on the clock while late keys keep running and the alarm stays due
+        const settled = new AbortController();
+        this.#clock.sleep(deadline - this.#clock.now(), settled.signal).then(resolve, () => {});
 
-        return promise.finally(() => clearTimeout(timer));
+        return promise.finally(() => settled.abort());
     }
 
     /** Mark a key due. */
@@ -597,24 +598,46 @@ export class ControlLoop {
             return Math.max(0, acquired.lapsesAt - this.#clock.now());
         }
 
-        // renew the lease at a third of its duration
+        // renew the lease at a third of its duration on the clock
         const lost = new AbortController();
-        const renewing = setInterval(() => {
-            acquire().then(
-                (renewed) => {
-                    if ("lapsesAt" in renewed) {
-                        lost.abort(new Error(`lease of ${work.key} lost`));
-                    }
-                },
-                (error: unknown) => lost.abort(error),
-            );
-        }, duration / 3);
+        const reconciled = new AbortController();
+        void this.#renew(acquire, work.key, duration / 3, lost, reconciled.signal);
         try {
             const signal = AbortSignal.any([stopped, lost.signal]);
 
             return await reconcile({ epoch: acquired.epoch, signal, changed });
         } finally {
-            clearInterval(renewing);
+            reconciled.abort();
+        }
+    }
+
+    /** Renew a held lease each interval of the clock until reconciled, or abort it as lost. */
+    async #renew(
+        acquire: () => Promise<{ readonly epoch: number } | { readonly lapsesAt: number }>,
+        key: string,
+        interval: number,
+        lost: AbortController,
+        reconciled: AbortSignal,
+    ): Promise<void> {
+        while (
+            await this.#clock.sleep(interval, reconciled).then(
+                () => true,
+                () => false,
+            )
+        ) {
+            // lose the lease once another holds it or renewing fails
+            try {
+                const renewed = await acquire();
+                if ("lapsesAt" in renewed) {
+                    lost.abort(new Error(`lease of ${key} lost`));
+
+                    return;
+                }
+            } catch (error) {
+                lost.abort(error);
+
+                return;
+            }
         }
     }
 
@@ -650,13 +673,13 @@ export class ControlLoop {
 
     /** Sleep for a delay or until woken. */
     async #sleep(delay: number | undefined, signal: AbortSignal): Promise<void> {
-        // wake at the due time or on work or stop
-        const until = AbortSignal.any([signal, this.#woken.signal]);
+        // wake at the clock's due time, or on work or stop
+        const waking = AbortSignal.any([signal, this.#woken.signal]);
         try {
-            await wait(delay ?? Number.POSITIVE_INFINITY, { signal: until });
+            await (delay === undefined ? until(waking) : this.#clock.sleep(delay, waking));
         } catch (error) {
             // end the sleep on a wake or a stop
-            if (!until.aborted) {
+            if (!waking.aborted) {
                 throw error;
             }
         }

@@ -117,7 +117,7 @@ const expiry: Controller = {
     list: async () => ["expiry"],
     reconcile: async () => ((await removeExpired()) ? 0 : undefined),
 };
-await new ControlLoop(database, [expiry, outbox.controller(inbox)], { report }).run(signal);
+await new ControlLoop(database, [expiry, outbox.controller(inbox)], { clock, report }).run(signal);
 ```
 
 ## Requests

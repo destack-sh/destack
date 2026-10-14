@@ -1,4 +1,4 @@
-import { wait } from "./timer.ts";
+import type { Clock } from "@destack/schema";
 
 /** How a failed operation retries. */
 export interface RetryPolicy {
@@ -23,9 +23,14 @@ const DEFAULT_POLICY: RetryPolicy = {
 
 /** Retry waits of failing operations. */
 export const RetryPolicy = {
-    /** Wait before the next attempt, resolving false once the signal aborts. */
-    async pause(policy: RetryPolicy, failures: number, signal: AbortSignal): Promise<boolean> {
-        return wait(RetryPolicy.interval(policy, failures), { signal }).then(
+    /** Wait on a clock before the next attempt, resolving false once the signal aborts. */
+    async pause(
+        policy: RetryPolicy,
+        failures: number,
+        clock: Clock,
+        signal: AbortSignal,
+    ): Promise<boolean> {
+        return clock.sleep(RetryPolicy.interval(policy, failures), signal).then(
             () => true,
             (error: unknown) => {
                 // end on abort and keep other failures

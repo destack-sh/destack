@@ -4,7 +4,7 @@ import { TestDatabase } from "@destack/db/test";
 import { aligned, found, Clock } from "@destack/schema";
 import { ControlLoop, type Controller, Reconciliation } from "./control.ts";
 import { controllerLease } from "./lease.ts";
-import { wait } from "../timer/index.ts";
+import { yieldToEventLoop } from "../timer/index.ts";
 
 /** The jobs a controller reconciles. */
 const job = defineTable(
@@ -563,7 +563,7 @@ test("reconcile a key named due while the worker keeps its alarm, before it slee
             setAlarm: async () => {
                 // enqueue it once
                 await ran;
-                await wait(0);
+                await yieldToEventLoop();
                 if (!reconciled.includes("late")) {
                     loop.enqueue(controller, "late");
                 }

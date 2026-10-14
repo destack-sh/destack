@@ -5,6 +5,7 @@ import {
     isORPCErrorJson,
 } from "@orpc/client";
 import { injectContext, telemetry } from "@destack/telemetry";
+import { Clock } from "@destack/schema";
 import { OpenAPILink, type OpenAPILinkOptions } from "@orpc/openapi-client/fetch";
 import { ClientRetryPlugin } from "@orpc/client/plugins";
 import type { Client, ProcedureRouter } from "../runtime/index.ts";
@@ -12,7 +13,6 @@ import type { PackageHandle } from "../declare/package.ts";
 import { VERSION_HEADER } from "../request/request.ts";
 import { CallTelemetry } from "../procedure/call-telemetry.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
-import { wait } from "../timer/index.ts";
 
 /** The longest a call waits for a starting server. */
 const STARTING_WAIT_MILLISECONDS = 10_000;
@@ -79,7 +79,7 @@ export function createClient<
                     pause !== undefined && Date.now() + pause <= deadline;
                     pause = startingPause(response)
                 ) {
-                    await wait(pause, call.signal === undefined ? {} : { signal: call.signal });
+                    await Clock.system.sleep(pause, call.signal);
                     response = await send();
                 }
 

@@ -80,13 +80,18 @@ export class RequestContext {
         this.requireAuthorization = this.requireAuthorization.bind(this);
         this.caller = this.caller.bind(this);
 
-        // end the signal when the request closes, the credential lapses or the server drains
+        // end the signal as the request closes, the credential lapses or the server drains
         const lapse = caller?.credential?.expiresAt;
+        const lapsed = new AbortController();
+        if (lapse !== undefined) {
+            this.clock.sleep(lapse - this.clock.now(), this.request.signal).then(
+                () => lapsed.abort(new DOMException("the credential lapsed", "TimeoutError")),
+                () => {},
+            );
+        }
         this.signal = AbortSignal.any([
             this.request.signal,
-            ...(lapse === undefined
-                ? []
-                : [AbortSignal.timeout(Math.max(0, Math.ceil(lapse - this.clock.now())))]),
+            lapsed.signal,
             ...(options.draining === undefined ? [] : [options.draining]),
         ]);
     }

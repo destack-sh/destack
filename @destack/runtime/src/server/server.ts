@@ -11,9 +11,8 @@ import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context
 import type { ProcedureCall } from "./procedure-call.ts";
 import { reportError, reportReconciliation } from "./error.ts";
 import { type Alarm, ControlLoop, type Controller } from "../control/index.ts";
-import { MAX_TIMER_DELAY } from "../timer/index.ts";
 import { copyRequest } from "../request/index.ts";
-import { Clock } from "@destack/schema";
+import { Clock, LONGEST_DELAY } from "@destack/schema";
 
 /** The seconds a starting server keeps a request, and a client then waits before retrying. */
 const STARTING_RETRY_SECONDS = 1;
@@ -63,7 +62,7 @@ export class Server implements AsyncDisposable {
         if (
             !Number.isInteger(options.drainTimeout) ||
             options.drainTimeout <= 0 ||
-            options.drainTimeout > MAX_TIMER_DELAY
+            options.drainTimeout > LONGEST_DELAY
         ) {
             throw new RangeError(
                 "drain timeout must be a positive integer within the runtime timer limit",
