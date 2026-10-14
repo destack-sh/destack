@@ -1,6 +1,6 @@
 import * as schema from "../validate/index.ts";
 
-/** The milliseconds in each unit a duration names. */
+/** The milliseconds in each unit of a duration. */
 const UNIT_MILLISECONDS = {
     days: 86_400_000,
     hours: 3_600_000,
@@ -53,7 +53,7 @@ export const Duration = {
     require(duration: unknown, name: string): Duration {
         const parsed = Duration.schema.safeParse(duration);
         if (!parsed.success || Object.keys(parsed.data).length === 0) {
-            throw new TypeError(`${name} is no duration: ${JSON.stringify(duration)}`);
+            throw new TypeError(`${name} is not a duration: ${JSON.stringify(duration)}`);
         }
 
         return parsed.data;

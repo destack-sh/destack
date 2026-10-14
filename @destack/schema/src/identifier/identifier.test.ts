@@ -51,7 +51,7 @@ test("derive the same UUIDv7 identifier for every repeat of a created or derived
         "message-01996ab0-0000-7abc-9000-000000000002",
     ]);
 
-    // refuse a request identifier that is no UUID
+    // refuse a request identifier that is not a UUID
     expect(() => Identifier.derive("message", "request-1")).toThrow(schema.Error);
 });
 

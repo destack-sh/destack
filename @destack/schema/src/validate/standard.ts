@@ -6,7 +6,7 @@ export interface StandardSchema<Input = unknown, Output = Input> {
     readonly "~standard": StandardProperties<Input, Output>;
 }
 
-/** The properties a Standard Schema validator carries under `~standard`. */
+/** The properties a Standard Schema validator has under `~standard`. */
 export interface StandardProperties<Input = unknown, Output = Input> {
     /** The protocol version. */
     readonly version: 1;

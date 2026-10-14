@@ -12,7 +12,7 @@ test("measure durations in milliseconds and seconds and refuse empty, negative a
     expect(() => Duration.require({ days: 30 }, "recovery")).not.toThrow();
     for (const duration of [{}, { hours: -1 }, { seconds: Infinity }, { weeks: 1 }]) {
         expect(() => Duration.require(duration, "recovery")).toThrow(
-            new TypeError(`recovery is no duration: ${JSON.stringify(duration)}`),
+            new TypeError(`recovery is not a duration: ${JSON.stringify(duration)}`),
         );
     }
 });

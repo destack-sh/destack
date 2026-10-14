@@ -134,7 +134,7 @@ test("leave out secrets and mask personal values inside records, tuples, unions 
         owner: { name: "Ada", role: "admin" },
     };
 
-    // report the marks, leave out every sensitive value, and mask the personal ones alone
+    // report the marks, leave out every sensitive value, and mask only the personal ones
     expect([
         schema.marksPersonal(settings),
         schema.marksPersonal(schema.object({ keys: settings.shape.keys })),

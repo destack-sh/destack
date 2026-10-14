@@ -13,7 +13,7 @@ export type JsonSchema = z.core.JSONSchema.JSONSchema;
 /** The prefix of a reference to one of the document's own definitions. */
 const DEFINITION = "#/$defs/";
 
-/** The bound `toJsonSchema` gives every integer: the largest a double keeps exactly. */
+/** The bound `toJsonSchema` gives every integer: the largest a double represents exactly. */
 const SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
 
 /** The hash algorithms and encodings declared strings may check, each pair a format. */
@@ -63,7 +63,7 @@ const FORMATS: ReadonlyMap<string, readonly FormatBuilder[]> = new Map(
     ]),
 );
 
-/** The descriptive keywords any node may carry, which the built validator keeps as metadata. */
+/** The descriptive keywords any node may have, which the built validator keeps as metadata. */
 const ANNOTATIONS = ["title", "description", "deprecated", "examples"] as const;
 
 /** The description of any JSON value, as `toJsonSchema` describes `schema.json()`. */
@@ -76,7 +76,7 @@ const JSON_VALUE: Readonly<Record<string, unknown>> = Object.fromEntries(
 /** The description of any JSON value as text, compared with a node of the same keys. */
 const JSON_VALUE_TEXT = JSON.stringify(JSON_VALUE);
 
-/** The keywords a string node may carry. */
+/** The keywords a string node may have. */
 const STRING_KEYWORDS = [
     "type",
     "format",
@@ -87,7 +87,7 @@ const STRING_KEYWORDS = [
     "allOf",
 ];
 
-/** The keywords a number node may carry. */
+/** The keywords a number node may have. */
 const NUMBER_KEYWORDS = [
     "type",
     "minimum",
@@ -97,13 +97,13 @@ const NUMBER_KEYWORDS = [
     "multipleOf",
 ];
 
-/** The keywords an array node may carry. */
+/** The keywords an array node may have. */
 const ARRAY_KEYWORDS = ["type", "items", "prefixItems", "minItems", "maxItems", "readOnly"];
 
-/** The keywords an object node may carry. */
+/** The keywords an object node may have. */
 const OBJECT_KEYWORDS = ["type", "properties", "required", "additionalProperties", "propertyNames"];
 
-/** The keywords any node may carry beside its validation keywords. */
+/** The keywords any node may have beside its validation keywords. */
 const DOCUMENT_KEYWORDS = new Set<string>(["$schema", "$defs", ...ANNOTATIONS]);
 
 /** A reference within one JSON Schema document: the document itself, or one of its definitions. */
@@ -355,15 +355,15 @@ class LinearPattern extends RegExp {
 
     /** Refuse matching by position, which only `test` needs. */
     override exec(): never {
-        throw new TypeError("a linear pattern supports test alone");
+        throw new TypeError("a linear pattern supports only test");
     }
 }
 
-/** Read the pattern of an `allOf` entry, refusing an entry keeping anything else. */
+/** Read the pattern of an `allOf` entry, refusing an entry with anything else. */
 function patternOf(entry: JsonSchemaValue): string {
     const keys = typeof entry === "object" ? Object.keys(entry) : [];
     if (typeof entry !== "object" || typeof entry.pattern !== "string" || keys.length !== 1) {
-        throw new TypeError("json schema allOf of a string keeps patterns only");
+        throw new TypeError("json schema allOf of a string accepts only patterns");
     }
 
     return entry.pattern;
@@ -423,12 +423,12 @@ function array(node: JsonSchema, context: ImportContext): z.ZodType {
 
         // refuse further items other than one schema, and bounds other than toJsonSchema's
         if (rest !== undefined && (typeof rest !== "object" || Array.isArray(rest))) {
-            throw new TypeError("json schema tuples take further items of one schema");
+            throw new TypeError("json schema tuples need further items of one schema");
         } else if (
             minItems !== (prefixItems.length === 0 ? undefined : prefixItems.length) ||
             maxItems !== (rest === undefined ? prefixItems.length : undefined)
         ) {
-            throw new TypeError("json schema tuples bound their length by their prefix items");
+            throw new TypeError("json schema tuples must bound their length by their prefix items");
         }
 
         // build the prefix items and any rest
@@ -455,7 +455,7 @@ function tuple(listed: readonly z.ZodType[], rest: z.ZodType | undefined): z.Zod
     if (first === undefined && rest === undefined) {
         return z.tuple([]);
     } else if (first === undefined) {
-        throw new TypeError("json schema tuples with further items start with prefix items");
+        throw new TypeError("json schema tuples with further items must start with prefix items");
     }
 
     return rest === undefined ? z.tuple([first, ...others]) : z.tuple([first, ...others], rest);
@@ -488,7 +488,9 @@ function object(node: JsonSchema, context: ImportContext): z.ZodType {
 
         // require every key of an enumeration, as a record over it does
         if (node.required !== undefined && canonicalize(node.required) !== canonicalize(keys)) {
-            throw new TypeError("json schema records require every key of their enumeration alone");
+            throw new TypeError(
+                "json schema records must require exactly the keys of their enumeration",
+            );
         }
 
         // keep an enumeration's keys optional unless it requires them all
@@ -564,7 +566,7 @@ function never(negated: JsonSchemaValue): z.ZodType {
     return z.never();
 }
 
-/** Decide whether a schema describes null alone. */
+/** Decide whether a schema describes only null. */
 function isNull(node: JsonSchemaValue): boolean {
     return typeof node === "object" && node.type === "null" && Object.keys(node).length === 1;
 }
@@ -657,7 +659,7 @@ function targetOf(root: JsonSchema, reference: string): JsonSchemaValue {
     return target;
 }
 
-/** Refuse a node keeping keywords its validator does not check. */
+/** Refuse a node with keywords its validator does not check. */
 function checked(built: z.ZodType, node: JsonSchema, keywords: readonly string[]): z.ZodType {
     const unknown = Object.keys(node).filter(
         (key) => !keywords.includes(key) && !DOCUMENT_KEYWORDS.has(key),

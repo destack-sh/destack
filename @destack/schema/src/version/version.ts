@@ -52,16 +52,16 @@ export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
             .toSorted(([left], [right]) => Version.compare(left, right));
     },
 
-    /** Refuse keys that are no releases or come after the declaring release, as for conversions. */
+    /** Refuse keys that are not releases or follow the declaring release, as for conversions. */
     requireUpTo<Value>(
         keyed: Readonly<Record<string, Value>>,
         release: string,
         name: string,
     ): void {
         for (const key of Object.keys(keyed)) {
-            // refuse a key that is no release or one after the declaring release
+            // refuse a key that is not a release or one after the declaring release
             if (!Version.safeParse(key).success) {
-                throw new TypeError(`conversion key of ${name} is no release: ${key}`);
+                throw new TypeError(`conversion key of ${name} is not a release: ${key}`);
             } else if (Version.compare(key, release) > 0) {
                 throw new TypeError(
                     `conversion of ${name} is keyed by ${key}, after its release ${release}`,

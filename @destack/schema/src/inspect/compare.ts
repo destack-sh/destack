@@ -159,7 +159,7 @@ class Inclusion {
                 outerBranches.some((branch) => this.includes(branch, inner))
             );
         }
-        // refuse an inner conjunction no part of which the outer includes
+        // refuse an inner conjunction when the outer includes none of its members
         else if (inner.allOf !== undefined) {
             return false;
         }
