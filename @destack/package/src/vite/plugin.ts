@@ -1,6 +1,6 @@
 import type { Plugin } from "vite";
 import type { Version } from "@destack/schema";
-import { PackageLocator } from "../transform/locator.ts";
+import { PackageLocator } from "../locator/index.ts";
 import { transformModule } from "../transform/transform.ts";
 
 /** Inject module metadata while Vite loads package sources, at the versions a build releases. */

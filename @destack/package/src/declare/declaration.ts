@@ -12,9 +12,9 @@ export interface Declaration {
 /** The state a resource declaration requires of its resource. */
 export type ResourceState = Readonly<Record<string, JsonValue>>;
 
-/** A resource a package requires, described by the state it must hold. */
+/** A resource a package requires, described by the state it must have. */
 export interface ResourceRequirement extends Declaration {
-    /** Describe the state the resource must hold. */
+    /** Describe the state the resource must have. */
     state(): ResourceState;
 }
 

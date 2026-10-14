@@ -98,7 +98,7 @@ export class BuildWriter {
             if (!this.#files.has(module.path)) {
                 throw new PackageError(
                     "INVALID_FILE",
-                    `graph module of no build file: ${module.path}`,
+                    `graph module without a build file: ${module.path}`,
                 );
             }
             const encoded = await Module.file(module);
@@ -106,7 +106,7 @@ export class BuildWriter {
             root.modules[module.path] = encoded.digest;
         }
 
-        // write the lists, the file list naming every file before them
+        // write the lists, with the list of every file before them
         const files = [...this.#files.values()].toSorted((left, right) =>
             left.path < right.path ? -1 : Number(left.path > right.path),
         );

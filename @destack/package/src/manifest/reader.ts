@@ -49,7 +49,7 @@ export class BuildReader {
         return this.read(this.manifest.lists.sourceMaps, schema.array(SourceMapReference));
     }
 
-    /** List the files the manifest names directly. */
+    /** List the files the manifest lists directly. */
     references(): PackageFile[] {
         // collect the lists and the upgrade
         const manifest = this.manifest;
@@ -200,7 +200,7 @@ function decode(bytes: Uint8Array<ArrayBuffer>): unknown {
     return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
 }
 
-/** A declaration a build holds, with its description parsed. */
+/** A declaration of a build, with its description parsed. */
 export type Declared<Description> = Omit<Declaration, "description"> & {
     /** The description, parsed by its reader. */
     readonly description: Description;

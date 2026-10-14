@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@destack/test";
-import { PackageLocator, type ModulePackage } from "../locator.ts";
+import { PackageLocator, type ModulePackage } from "../../locator/index.ts";
 import { transformModule } from "../transform.ts";
 import { ModuleMetadata } from "../../definition/metadata.ts";
 

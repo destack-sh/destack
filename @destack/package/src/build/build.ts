@@ -98,13 +98,13 @@ export interface Compilation {
     readonly exports: Readonly<Record<string, string>>;
     /** The runtime the output runs on. */
     readonly runtime: Runtime;
-    /** What the package's workloads and views may reach. */
+    /** What the package's workloads and views may use. */
     readonly capabilities: Capabilities;
     /** The declarations of the package and of the dependencies its modules import. */
     readonly declarations: readonly DeclarationDescription[];
     /** The package's inspected modules. */
     readonly modules: readonly ModuleDescription[];
-    /** Locate the module and export holding one of the package's own declarations. */
+    /** Locate the module and export with one of the package's own declarations. */
     locate(declaration: DeclarationDescription): DeclarationModule;
     /** Emit a module as a chunk the package exports under an entrypoint, such as `./view/notes`. */
     entry(entrypoint: string, module: string): void;
@@ -114,7 +114,7 @@ export interface Compilation {
 export interface CompiledOutput {
     /** The emitted chunk of each package entrypoint. */
     readonly exports: Readonly<Record<string, string>>;
-    /** Select the declarations an entrypoint's modules hold, refusing imports its runtime lacks. */
+    /** Select the declarations in an entrypoint's modules, refusing imports its runtime lacks. */
     declarations(entrypoint: string): DeclarationDescription[];
 }
 
@@ -125,6 +125,6 @@ export type OutputDescription = Partial<Pick<PackageOutput, "workloads" | "views
 export interface DeclarationModule {
     /** The absolute path of the module exporting the declaration. */
     readonly file: string;
-    /** The module's export holding the declaration. */
+    /** The module's export with the declaration. */
     readonly export: string;
 }

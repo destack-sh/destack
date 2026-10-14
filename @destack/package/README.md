@@ -1,6 +1,6 @@
 # @destack/package
 
-`destack.json` is a package's `package.json` companion with Deno's permissions as `capabilities`, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, and `graph` holds a build's symbols under SCIP monikers and relationships.
+`destack.json` is a package's `package.json` companion with Deno's permissions as `capabilities`, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, and `graph` keeps a build's symbols under SCIP monikers and relationships.
 
 ```ts
 // deno run --allow-net=api.github.com --allow-env=GITHUB_TOKEN --allow-run=git

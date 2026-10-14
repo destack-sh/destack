@@ -34,7 +34,7 @@ async function extract(archive: Uint8Array, directory: string): Promise<void> {
 test("roundtrip files of short, prefixed and extended paths through a tarball the system tar extracts", async () => {
     const directory = await temporary();
 
-    // archive a short path, a path split into prefix and name, a path only an extended header holds, and an empty file
+    // archive a short path, a path split into prefix and name, a path that fits only an extended header, and an empty file
     const files: Record<string, string> = {
         "manifest.json": "{}",
         [`${"nested/".repeat(20)}file.txt`]: "prefixed",
@@ -71,7 +71,7 @@ test("write equal entries to identical tarball bytes with a fixed gzip header, a
     const first = await read(Tarball.stream(entries()));
     const second = await read(Tarball.stream(entries()));
 
-    // name no time and an unknown system, and inflate through the runtime's gzip, which checks the CRC and size
+    // set no time and an unknown system, and inflate through the runtime's gzip, which checks the CRC and size
     const inflated = await read(
         new Blob([first]).stream().pipeThrough(new DecompressionStream("gzip")),
     );

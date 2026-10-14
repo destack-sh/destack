@@ -25,7 +25,7 @@ export const Target = defineSchema(
 /** The declarations a relationship ends at, named by kind and name. */
 export type Target = schema.Infer<typeof Target>;
 
-/** A relation from a symbol to the declarations a target names, after SCIP's `Relationship`. */
+/** A relation from a symbol to the declarations of a target, after SCIP's `Relationship`. */
 export const Relationship = defineSchema(
     schema.object({
         /** The relation. */
@@ -34,7 +34,7 @@ export const Relationship = defineSchema(
         symbol: Target,
     }),
 );
-/** A relation from a symbol to the declarations a target names. */
+/** A relation from a symbol to the declarations of a target. */
 export type Relationship = schema.Infer<typeof Relationship>;
 
 /** A member a declaration has with its relationships, as its kind's `symbols` function lists it. */

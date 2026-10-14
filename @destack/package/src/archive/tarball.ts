@@ -1,10 +1,10 @@
-/** The size of a tar block, which holds a header or a slice of a file. */
+/** The size of a tar block, with a header or a slice of a file. */
 const BLOCK_BYTES = 512;
 
-/** The longest file name a ustar header holds in its name field. */
+/** The longest file name that fits a ustar header's name field. */
 const NAME_BYTES = 100;
 
-/** The longest directory prefix a ustar header holds in its prefix field. */
+/** The longest directory prefix that fits a ustar header's prefix field. */
 const PREFIX_BYTES = 155;
 
 /** The permissions of every archived file: readable by all, written by the owner. */
@@ -77,7 +77,7 @@ async function* compress(
             );
             received.push(...next.value.subarray(0, skipped));
             if (received.length === GZIP_HEADER.byteLength && received[FLAGS_OFFSET] !== 0) {
-                throw new TypeError("the runtime's gzip header carries optional fields");
+                throw new TypeError("the runtime's gzip header has optional fields");
             }
             if (skipped < next.value.byteLength) {
                 yield next.value.subarray(skipped);

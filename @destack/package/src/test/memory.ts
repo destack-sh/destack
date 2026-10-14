@@ -33,7 +33,7 @@ export const MemoryBuild = {
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
         contents: BuildContents,
     ): Promise<BuildReader> {
-        // write the files, then the format naming them
+        // write the files, then the format listing them
         const stored = new Map<string, Uint8Array<ArrayBuffer>>();
         const writer = new BuildWriter({
             write: async (path, bytes) => {

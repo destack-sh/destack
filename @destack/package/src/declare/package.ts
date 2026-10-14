@@ -37,7 +37,7 @@ export function definePackage<const Declarations extends PackageDeclarationMap>(
         if (key !== declaration.name) {
             throw new PackageError(
                 "INVALID_DEFINITION",
-                `declaration ${declaration.name} is listed as ${key}`,
+                `declaration ${declaration.name} is listed under another name: ${key}`,
             );
         }
         if (names.has(key)) {

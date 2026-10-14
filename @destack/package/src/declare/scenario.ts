@@ -10,9 +10,9 @@ import { type Example, requireDescription } from "./example.ts";
 export interface Interaction<Step = unknown, Observation = unknown, Environment = unknown> {
     /** The name a runner picks the driver by, such as `ui`. */
     readonly name: string;
-    /** The schema of a step, a JSON object naming its action. */
+    /** The schema of a step, a JSON object with its action. */
     readonly step: schema.Schema<Step>;
-    /** The schema of an observation, a JSON object naming its kind. */
+    /** The schema of an observation, a JSON object with its kind. */
     readonly observation: schema.Schema<Observation>;
     /** The schema of the environment the given examples play in, such as a theme and locale. */
     readonly environment: schema.Schema<Environment>;
@@ -57,7 +57,7 @@ export interface Given<Instance = unknown, Environment = unknown> {
 export interface ScenarioDefinition<Speaks extends Interaction = Interaction, Instance = unknown> {
     /** The declaration the scenario exercises, such as a component, or the flow's view or app. */
     readonly of: unknown;
-    /** The interaction the steps and observations speak, which picks the driver playing them. */
+    /** The interaction of the steps and observations, which picks the driver playing them. */
     readonly interaction: Speaks;
     /** The behaviour it plays, verb first and unique, such as `select-with-arrow-keys`. */
     readonly name: string;
@@ -113,7 +113,7 @@ export function defineScenario<Speaks extends Interaction, Instance>(
 function requireSteps(name: string, when: readonly unknown[], interaction: Interaction): void {
     // require a step
     if (when.length === 0) {
-        throw new PackageError("INVALID_DEFINITION", `scenario ${name} takes no step`);
+        throw new PackageError("INVALID_DEFINITION", `scenario ${name} has no steps`);
     }
 
     // parse each step as the shared set step or as one of the interaction's
@@ -122,7 +122,7 @@ function requireSteps(name: string, when: readonly unknown[], interaction: Inter
     }
 }
 
-/** Report whether a step names the set action. */
+/** Report whether a step is the set action. */
 function isSetStep(step: unknown): step is SetStep {
     return SetAction.safeParse(step).success;
 }
@@ -143,7 +143,7 @@ function requireExpectations(name: string, steps: number, then: Then<unknown>): 
 
 /** Require each set step to name one example the scenario is given, or the only one. */
 function requireExamples(name: string, when: readonly unknown[], given: Given): void {
-    // find a set step naming no example given, or none of several
+    // find a set step that picks no single given example
     const examples = given.examples.map((example) => example.name);
     const unnamed = when.find(
         (step) =>
@@ -153,7 +153,7 @@ function requireExamples(name: string, when: readonly unknown[], given: Given): 
     if (unnamed !== undefined) {
         throw new PackageError(
             "INVALID_DEFINITION",
-            `scenario ${name} sets the properties of no one example it is given`,
+            `scenario ${name} sets properties without picking one given example`,
         );
     }
 }

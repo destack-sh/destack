@@ -158,7 +158,7 @@ export class PackageLocator {
             return this.#owner(dirname(directory));
         }
 
-        // refuse a definition without the manifest naming its package
+        // refuse a definition without the manifest of its package
         const manifestText = await readOptional(join(directory, "package.json"));
         if (manifestText === undefined) {
             throw new PackageError(

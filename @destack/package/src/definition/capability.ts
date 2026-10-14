@@ -23,7 +23,7 @@ const HostPattern = schema
 /** Access to a directory: reading it, or reading and writing it. */
 const Access = schema.enum(["read", "write"]);
 
-/** What a package may reach beyond its sandbox, each consented to at installation. */
+/** What a package may use beyond its sandbox, each consented to at installation. */
 const capabilitiesSchema = defineSchema(
     schema.object({
         /** Running the workloads in a full Bun process instead of a workerd isolate. */
@@ -97,7 +97,7 @@ export const HOST_CAPABILITIES = CapabilityName.extract([
 /** The capabilities browsers gate by Permissions Policy feature, in their header order. */
 export const BROWSER_CAPABILITIES = CapabilityName.exclude(HOST_CAPABILITIES).options;
 
-/** What a package may reach beyond its sandbox, each with its reason. */
+/** What a package may use beyond its sandbox, each with its reason. */
 export const Capabilities = Object.assign(capabilitiesSchema, {
     /** Narrow capabilities to every required one and the optional ones an installation allows. */
     grant(declared: Capabilities, allowed: readonly CapabilityName[]): Capabilities {
@@ -129,7 +129,7 @@ export const Capabilities = Object.assign(capabilitiesSchema, {
         );
     },
 });
-/** What a package may reach beyond its sandbox. */
+/** What a package may use beyond its sandbox. */
 export type Capabilities = schema.Infer<typeof capabilitiesSchema>;
 
 /** A directory a person grants an installation's `fs` capability, by absolute path. */

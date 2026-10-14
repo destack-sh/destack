@@ -25,7 +25,7 @@ export const ModuleMetadata = Object.assign(moduleMetadataSchema, {
         if (!module) {
             throw new PackageError(
                 "INVALID_DEFINITION",
-                `no module passed by the Destack module transform to: ${name}`,
+                `the Destack module transform passed no module to: ${name}`,
             );
         }
 

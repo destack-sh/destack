@@ -58,7 +58,7 @@ const definition = defineSchema(
         template: TemplateDefinition.exactOptional(),
         /** The runtimes the package's exports compile for. */
         runtimes: schema.array(Runtime).min(1).exactOptional(),
-        /** What the package's workloads and views may reach, each consented to at installation. */
+        /** What the package's workloads and views may use, each consented to at installation. */
         capabilities: Capabilities.exactOptional(),
         /** The declaration constructors the build describes, by name. */
         declarations: DeclarationConstructorMap.exactOptional(),
@@ -106,7 +106,7 @@ export const PackageDefinition = Object.assign(definition, {
 /** The validated contents of destack.json. */
 export type PackageDefinition = schema.Infer<typeof definition>;
 
-/** The destack.json of a workspace root that is no package. */
+/** The destack.json of a workspace root that is not a package. */
 const workspaceDefinition = defineSchema(
     schema.object({
         /** The JSON Schema address of the release that wrote the definition. */
@@ -127,7 +127,7 @@ export const Definition = Object.assign(anyDefinition, {
 
         return "id" in value ? requireRuntimes(value) : value;
     },
-    /** Read the package a definition defines, nothing for a workspace root that is no package. */
+    /** Read the package a definition defines, nothing for a workspace root without a package. */
     package(value: Definition): PackageDefinition | undefined {
         return "id" in value ? value : undefined;
     },

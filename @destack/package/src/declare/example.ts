@@ -77,7 +77,7 @@ export function defineExample<Of, Instance = never>(
     if (!isProperties<Of>(properties)) {
         throw new PackageError(
             "INVALID_DEFINITION",
-            `example ${name} sets properties that are no JSON`,
+            `example ${name} sets properties that are not JSON`,
         );
     }
 

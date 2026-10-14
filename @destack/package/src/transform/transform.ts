@@ -2,9 +2,9 @@ import MagicString from "magic-string";
 import { parseAst } from "rolldown/parseAst";
 import { type ESTree, Visitor } from "rolldown/utils";
 import { ModuleMetadata } from "../definition/metadata.ts";
-import type { ModulePackage, PackageLocator } from "./locator.ts";
+import type { ModulePackage, PackageLocator } from "../locator/index.ts";
 
-/** The module-local binding holding injected metadata. */
+/** The module-local binding with injected metadata. */
 const BINDING = "__destackModule";
 
 /** The source of each static import or re-export. */
@@ -14,7 +14,7 @@ const IMPORT_SOURCE = /\bfrom\s*["']([^"']+)["']/gu;
 interface Binding {
     /** The module parameter positions of the package's stamped functions, by export path. */
     readonly stamps: ReadonlyMap<string, number>;
-    /** The export path the binding names, empty for a namespace. */
+    /** The export path the binding references, empty for a namespace. */
     readonly path: readonly string[];
 }
 
@@ -101,7 +101,7 @@ export function transformModule(
     return { code: source.toString(), source };
 }
 
-/** Report whether a module reads its metadata or names a stamped function, without parsing it. */
+/** Report whether a module reads its metadata or imports a stamped function, without parsing it. */
 function isStampable(
     code: string,
     path: string,
@@ -113,7 +113,7 @@ function isStampable(
         return true;
     }
 
-    // name the root of a stamped function one of its import sources provides
+    // find a stamped function's root among the module's import sources
     for (const [, specifier] of code.matchAll(IMPORT_SOURCE)) {
         if (specifier === undefined) {
             throw new TypeError("the import source pattern captures no specifier");

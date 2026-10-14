@@ -27,16 +27,14 @@ export const WorkloadDescription = defineSchema(
     schema.object({
         /** The package entrypoint running the workload. */
         entrypoint: Entrypoint,
-        /** Service declarations of this package the workload imports. */
-        services: schema.array(DeclarationReference),
+        /** The handles of this package the workload serves. */
+        packages: schema.array(DeclarationReference),
         /** The package's trigger declarations the workload imports, such as schedules. */
         triggers: schema.array(DeclarationReference),
         /** Resource declarations the workload imports. */
         resources: schema.array(DeclarationReference),
         /** Secret declarations the workload imports. */
         secrets: schema.array(DeclarationReference),
-        /** Service connection declarations the workload imports. */
-        connections: schema.array(DeclarationReference),
         /** Capacity and lifecycle policy for each instance. */
         compute: ComputeDefinition,
         /** What the workload may call beyond its sandbox, as its package declares it. */

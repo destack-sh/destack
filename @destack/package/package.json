@@ -19,6 +19,7 @@
             "types": "./src/definition/import-meta.d.ts"
         },
         "./runtime": "./src/runtime/index.ts",
+        "./locator": "./src/locator/index.ts",
         "./transform": "./src/transform/index.ts",
         "./vite": "./src/vite/index.ts",
         "./bun": "./src/bun/index.ts",

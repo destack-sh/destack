@@ -6,7 +6,7 @@ export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 /** A concrete package export containing runnable code. */
 export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$/u));
 
-/** The URI scheme prefix naming a package as an OAuth resource (RFC 8707 asks an absolute URI). */
+/** The URI scheme prefix of a package as an OAuth resource (RFC 8707 asks an absolute URI). */
 const RESOURCE_PREFIX = "urn:destack:package:";
 
 /** The immutable identity retained across package renames and releases. */
@@ -51,7 +51,7 @@ export const DependencyName = Object.assign(
             .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u),
     ),
     {
-        /** Read the dependency a bare import specifier names: its scope and name, or its name. */
+        /** Read the dependency of a bare import specifier: its scope and name, or its name. */
         of(specifier: string): string {
             return specifier
                 .split("/")
@@ -85,16 +85,16 @@ const packageSchema = defineSchema(
 
 /** The immutable identity, current name and version declared by a Destack package. */
 export const Package = Object.assign(packageSchema, {
-    /** Read the identity of a value carrying a package's, such as its handle. */
+    /** Read the identity of a value with a package's, such as its handle. */
     of(value: Package): Package {
         const { id, name, version } = value;
 
         return { id, name, version };
     },
 
-    /** Read the package a declaration carries, under the package key or its `package` property. */
+    /** Read the package a declaration has, under the package key or its `package` property. */
     declaring(value: unknown): Package | undefined {
-        // read no package from a value that is no object
+        // read no package from a value that is not an object
         if (typeof value !== "object" || value === null) {
             return undefined;
         }
