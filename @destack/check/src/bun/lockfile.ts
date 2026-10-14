@@ -42,7 +42,7 @@ const LockfileText = schema
 
 /** A Bun lockfile: the workspace members and resolved packages it records at its workspace root. */
 export class BunLockfile {
-    /** The absolute directory holding the lockfile. */
+    /** The absolute directory with the lockfile. */
     readonly directory: string;
     /** The lockfile format version. */
     readonly version: number;
@@ -68,13 +68,13 @@ export class BunLockfile {
             return undefined;
         }
 
-        // parse its text, which carries trailing commas
+        // parse its text, which has trailing commas
         const text = await readFile(join(root, LOCKFILE), "utf8");
 
         return new BunLockfile(root, LockfileText.parse(JSON.parse(dropTrailingCommas(text))));
     }
 
-    /** Find the nearest directory holding a lockfile, absent without one. */
+    /** Find the nearest directory with a lockfile, absent without one. */
     static async locate(directory: string): Promise<string | undefined> {
         for (let current = resolve(directory); ; current = dirname(current)) {
             if (await exists(join(current, LOCKFILE))) {
@@ -102,7 +102,7 @@ async function exists(path: string): Promise<boolean> {
     }
 }
 
-/** Report whether a file system error names a missing path. */
+/** Report whether a file system error means a missing path. */
 function isMissing(error: unknown): boolean {
     return error instanceof Error && "code" in error && error.code === "ENOENT";
 }

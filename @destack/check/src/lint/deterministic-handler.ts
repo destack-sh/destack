@@ -1,6 +1,6 @@
 import type { Rule } from "@oxlint/plugins";
 
-/** The calls that read the clock, draw at random or reach the network, by object and member. */
+/** The calls that read the clock, draw at random or use the network, by object and member. */
 const NONDETERMINISTIC: Readonly<Record<string, readonly string[]>> = {
     "": ["fetch"],
     Date: ["now"],
@@ -20,7 +20,7 @@ interface Node {
     readonly parent?: Node | null;
 }
 
-/** Reject reading the clock, drawing at random and reaching the network in method handlers. */
+/** Reject reading the clock, drawing at random and using the network in method handlers. */
 export const deterministicHandler: Rule = {
     meta: {
         type: "problem",
@@ -134,7 +134,7 @@ function isHandler(function_: Node, property: Node): boolean {
 
 /** Decide whether an object is the `methods` of an `.implement({...})` call's argument. */
 function isImplemented(object: Node | null | undefined): boolean {
-    // read the methods property and the implementation holding it
+    // read the methods property and the implementation with it
     const property = object?.parent;
     const implementation = property?.parent;
     const call = implementation?.parent;

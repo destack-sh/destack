@@ -39,7 +39,7 @@ export function isDeclaredName(node: ESTree.Node): boolean {
     );
 }
 
-/** Report whether a path names a test module. */
+/** Report whether a path is a test module. */
 export function isTestFile(path: string): boolean {
     return /\.test\.[cm]?[jt]sx?$/u.test(path) || /[\\/]tests[\\/]/u.test(path);
 }

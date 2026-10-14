@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ESTree, Rule } from "@oxlint/plugins";
-import { PackageLocator } from "@destack/package/transform";
+import { PackageLocator } from "@destack/package/locator";
 import { isPackageFile } from "./package.ts";
 import { isTestFile } from "./word.ts";
 import { schema } from "@destack/schema";

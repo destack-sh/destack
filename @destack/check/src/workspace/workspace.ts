@@ -13,7 +13,7 @@ export interface WorkspaceMember {
 
 /** A Bun workspace: its root and its member packages, as its lockfile records them. */
 export class Workspace {
-    /** The absolute directory holding the lockfile. */
+    /** The absolute directory with the lockfile. */
     readonly root: string;
     /** The member packages, the root included when it is named. */
     readonly members: readonly WorkspaceMember[];
@@ -119,7 +119,7 @@ export class Workspace {
     }
 }
 
-/** Find the nearest directory holding a Bun lockfile, the directory itself without one. */
+/** Find the nearest directory with a Bun lockfile, the directory itself without one. */
 export async function locateWorkspace(directory: string): Promise<string> {
     return (await BunLockfile.locate(directory)) ?? resolve(directory);
 }

@@ -20,16 +20,16 @@ interface Finding {
 /** The region of a Markdown file a line belongs to. */
 type Region = "prose" | "front matter" | "fence" | "comment";
 
-/** What a line of a package README section holds. */
+/** What a line of a package README section has. */
 type Block = "prose" | "listing" | "table";
 
-/** A Markdown source line and the region holding it. */
+/** A Markdown source line and the region containing it. */
 interface SourceLine {
     /** The line text. */
     readonly text: string;
     /** The character offset where the line starts. */
     readonly start: number;
-    /** The region holding the line. */
+    /** The region containing the line. */
     readonly region: Region;
 }
 
@@ -151,7 +151,7 @@ function classifyLines(text: string): SourceLine[] {
     return lines;
 }
 
-/** Report prose lines that hold more than one sentence. */
+/** Report prose lines that have more than one sentence. */
 function checkSentences(lines: readonly SourceLine[]): Finding[] {
     return lines.flatMap((line, index) =>
         line.region === "prose"
@@ -194,7 +194,7 @@ function sentenceBoundaries(line: string): number[] {
     return breaks;
 }
 
-/** Report skipped heading levels, and more than one title when front matter names none. */
+/** Report skipped heading levels, and more than one title when front matter has none. */
 function checkHeadings(lines: readonly SourceLine[], hasTitle: boolean): Finding[] {
     // track the previous level and the number of titles
     const findings: Finding[] = [];
@@ -261,7 +261,7 @@ function checkFences(lines: readonly SourceLine[]): Finding[] {
 
 /** Report package README sections other than one prose line followed by listings, and tables. */
 function checkReadme(lines: readonly SourceLine[]): Finding[] {
-    // track what the current section holds, starting with the opening line under the title
+    // track what the current section has, starting with the opening line under the title
     const findings: Finding[] = [];
     let section: Block | undefined;
     let previous: Block | undefined;

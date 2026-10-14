@@ -156,7 +156,7 @@ async function callTarget(
     symbol: Symbol | undefined,
     inspector: ErrorInspector,
 ): Promise<SymbolReference | undefined> {
-    // follow an alias to the symbol it names
+    // follow an alias to the symbol it references
     const isAlias = symbol !== undefined && (symbol.flags & SymbolFlags.Alias) !== 0;
     const target = isAlias ? await inspector.project.checker.getAliasedSymbol(symbol) : symbol;
     if (target === undefined || target.declarations.length === 0) {

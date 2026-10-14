@@ -92,7 +92,7 @@ export const commentStyle: Rule = {
     },
 };
 
-/** Report whether a word names code, like SpaceService, HTTP or Server.start. */
+/** Report whether a word is code, like SpaceService, HTTP or Server.start. */
 function isIdentifier(word: string): boolean {
     return (
         /^[A-Z][a-z0-9]*[A-Z]/u.test(word) || /^[A-Z0-9]{2,}\b/u.test(word) || /[._(`<]/u.test(word)

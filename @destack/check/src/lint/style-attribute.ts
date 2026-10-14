@@ -47,7 +47,7 @@ export const styleAttribute: Rule = {
                 }
             },
             JSXAttribute(node) {
-                // report a style attribute holding StyleX styles
+                // report a style attribute with StyleX styles
                 const value = node.value;
                 if (
                     node.name.type === "JSXIdentifier" &&

@@ -43,7 +43,7 @@ export function applyExpectations(
     // keep the findings no expectation accepts, noting the expectations that matched
     const matched = new Set<DeclaredExpectation>();
     const kept = diagnostics.filter((diagnostic) => {
-        // find the expectation naming the finding's file and rule
+        // find the expectation for the finding's file and rule
         const file = resolve(directory, diagnostic.filename);
         const expectation = expectations.find(
             (candidate) =>
@@ -95,7 +95,7 @@ async function packageExpectations(directory: string): Promise<DeclaredExpectati
     return declared.map((expectation) => ({ directory, expectation }));
 }
 
-/** List a workspace root's member directories, none for a directory that is no workspace root. */
+/** List a workspace root's member directories, none for a directory that is not a workspace. */
 async function workspaceMembers(directory: string): Promise<string[]> {
     // read the member patterns
     const workspaces = (await readManifest(directory))?.workspaces;

@@ -466,7 +466,7 @@ function at(line: number, value: string) {
 }
 
 test("find the first comment that configures rules, ignoring ordinary comments", () => {
-    // read directives in either tool's spelling, and nothing else
+    // read directives in either tool's form, and nothing else
     expect([
         directiveLine([at(1, " a note about eslint"), at(2, " eslint-disable-next-line")]),
         directiveLine([at(3, " oxlint-disable no-console")]),

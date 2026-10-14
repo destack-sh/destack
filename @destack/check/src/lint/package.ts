@@ -10,7 +10,7 @@ export function isPackageFile(path: string): boolean {
     return isInPackage(dirname(path));
 }
 
-/** Report whether a directory or one of its parents holds a package's destack.json. */
+/** Report whether a directory or one of its parents has a package's destack.json. */
 function isInPackage(directory: string): boolean {
     // reuse earlier answers for shared parent directories
     const cached = roots.get(directory);

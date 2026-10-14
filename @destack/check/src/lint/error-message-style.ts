@@ -139,7 +139,7 @@ export const errorMessageStyle: Rule = {
                     return;
                 }
 
-                // find a call error's message among literal options unless a spread may carry it
+                // find a call error's message among literal options unless a spread may contain it
                 const options = node.arguments[1];
                 const properties = options?.type === "ObjectExpression" ? options.properties : [];
                 const message = properties.find(
@@ -157,7 +157,7 @@ export const errorMessageStyle: Rule = {
                 if (message?.type === "Property") {
                     checkStyle(message.value);
                 }
-                // require a message unless opaque options may carry it
+                // require a message unless opaque options may contain it
                 else if (!isOpaque) {
                     context.report({ node, messageId: "missing" });
                 }
