@@ -1,8 +1,5 @@
 import { Icon } from "@destack/icon";
-import arrowSquareOut from "@destack/icon/phosphor/arrow-square-out";
-import fileText from "@destack/icon/phosphor/file-text";
 import magnifyingGlass from "@destack/icon/phosphor/magnifying-glass";
-import terminal from "@destack/icon/phosphor/terminal";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
 import { color, space, stroke, weight } from "@destack/theme/tokens.stylex";
@@ -10,6 +7,7 @@ import { Button } from "@destack/ui/button";
 import {
     CommandDialog,
     CommandEmpty,
+    CommandGroup,
     CommandInput,
     CommandItem,
     CommandList,
@@ -28,6 +26,7 @@ import {
     commandEvents,
     type CommandMatch,
     commandsFor,
+    groupOf,
     highlightSegments,
     matchCommands,
     type SearchScope,
@@ -50,17 +49,32 @@ export function CommandPalette() {
     const [isLoading, setIsLoading] = createSignal(false);
     const [failure, setFailure] = createSignal<string>();
     const [source, setSource] = createSignal<PageFormats>();
+    const [hasStack, setHasStack] = createSignal(false);
     const [query, setQuery] = createSignal("");
     const [scope, setScope] = createSignal<SearchScope>("All");
     const [isMac, setIsMac] = createSignal(false);
-    const commands = createMemo(() => commandsFor([...siteSearchEntries, ...entries()], source()));
+    const commands = createMemo(() =>
+        commandsFor([...siteSearchEntries, ...entries()], source(), hasStack()),
+    );
     const results = createMemo(() => matchCommands(commands(), query(), RESULT_LIMIT, scope()));
+
+    // group the ranked results in the order their first result appears
+    const groups = createMemo(() => {
+        const grouped = new Map<string, CommandMatch[]>();
+        for (const match of results()) {
+            const name = groupOf(match.command);
+            grouped.set(name, [...(grouped.get(name) ?? []), match]);
+        }
+
+        return [...grouped];
+    });
 
     // load the search index the first time somebody opens the palette, retrying after a failure
     const open = async (): Promise<void> => {
         // clear the search and show the palette over the current page
         setQuery("");
         setSource(currentPageSource());
+        setHasStack(document.querySelector("[data-figure-label]") !== null);
         setIsOpen(true);
 
         // load the index once, leaving a load in flight or done alone
@@ -155,35 +169,15 @@ export function CommandPalette() {
                         )}
                     </Show>
                     <CommandEmpty>No results found.</CommandEmpty>
-                    <For each={results()}>
-                        {(match) => (
-                            <CommandItem
-                                value={match.command.id}
-                                onSelect={() => choose(match.command)}
-                                xstyle={styles.item}
-                            >
-                                <Icon icon={iconOf(match.command)} xstyle={styles.kind} />
-                                <span {...style.attrs(styles.result)}>
-                                    <strong {...style.attrs(text.body, styles.label)}>
-                                        <Highlight match={match} text={match.command.label} />
-                                    </strong>
-                                    <span {...style.attrs(text.footnote, styles.context)}>
-                                        {match.command.context}
-                                    </span>
-                                    <Show when={match.excerpt !== ""}>
-                                        <span {...style.attrs(text.subheadline, styles.excerpt)}>
-                                            <Highlight match={match} text={match.excerpt} />
-                                        </span>
-                                    </Show>
-                                </span>
-                                <Show when={match.command.keybinding}>
-                                    {(keybinding) => (
-                                        <CommandShortcut>
-                                            {Accelerator.format(keybinding(), isMac())}
-                                        </CommandShortcut>
+                    <For each={groups()}>
+                        {(group) => (
+                            <CommandGroup heading={group[0]}>
+                                <For each={group[1]}>
+                                    {(match) => (
+                                        <Result match={match} isMac={isMac()} onChoose={choose} />
                                     )}
-                                </Show>
-                            </CommandItem>
+                                </For>
+                            </CommandGroup>
                         )}
                     </For>
                 </CommandList>
@@ -211,15 +205,40 @@ export function CommandPalette() {
     );
 }
 
-/** Pick a command's icon: a page or section, an action, or a destination off the site. */
-function iconOf(command: PaletteCommand) {
-    if (command.kind === "action") {
-        return terminal;
-    } else if (command.action.kind === "navigate" && !command.action.href.startsWith("/")) {
-        return arrowSquareOut;
-    }
+/** Draw one result: its icon, its highlighted label and context, an excerpt, and its keys. */
+function Result(properties: {
+    match: CommandMatch;
+    isMac: boolean;
+    onChoose: (command: PaletteCommand) => void;
+}) {
+    const command = () => properties.match.command;
 
-    return fileText;
+    return (
+        <CommandItem
+            value={command().id}
+            onSelect={() => properties.onChoose(command())}
+            xstyle={styles.item}
+        >
+            <Icon icon={command().icon} xstyle={styles.kind} />
+            <span {...style.attrs(styles.result)}>
+                <strong {...style.attrs(text.body, styles.label)}>
+                    <Highlight match={properties.match} text={command().label} />
+                </strong>
+                <Show when={properties.match.excerpt !== ""}>
+                    <span {...style.attrs(text.subheadline, styles.excerpt)}>
+                        <Highlight match={properties.match} text={properties.match.excerpt} />
+                    </span>
+                </Show>
+            </span>
+            <Show when={command().keybinding}>
+                {(keybinding) => (
+                    <CommandShortcut>
+                        {Accelerator.format(keybinding(), properties.isMac)}
+                    </CommandShortcut>
+                )}
+            </Show>
+        </CommandItem>
+    );
 }
 
 /** Read the current page's formats, which the reader advertises on its article. */

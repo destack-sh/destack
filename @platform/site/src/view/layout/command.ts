@@ -1,3 +1,10 @@
+import type { IconBodies } from "@destack/icon";
+import arrowsLeftRight from "@destack/icon/phosphor/arrows-left-right";
+import circleHalf from "@destack/icon/phosphor/circle-half";
+import copy from "@destack/icon/phosphor/copy";
+import fileCode from "@destack/icon/phosphor/file-code";
+import fileText from "@destack/icon/phosphor/file-text";
+import hash from "@destack/icon/phosphor/hash";
 import { collections, collectionAt } from "../../../content";
 import type { SearchEntry, SearchEntryKind } from "../content/search";
 import type { PageFormats } from "../content/source";
@@ -20,6 +27,7 @@ export const commandEvents = {
     copyText: "destack:copy-txt",
     open: "destack:search",
     switchStack: "destack:switch-stack",
+    toggleAppearance: "destack:toggle-appearance",
     openMenu: "destack:open-menu",
 } as const;
 
@@ -44,6 +52,9 @@ export type PaletteCommand = {
 
     /** The primary visible label. */
     label: string;
+
+    /** The icon beside the label. */
+    icon: IconBodies;
 
     /** The key combination that runs the command, for commands that have one. */
     keybinding?: Accelerator;
@@ -73,13 +84,37 @@ export type HighlightSegment = {
     text: string;
 };
 
-/** Build the commands available to the current page. */
+/** Build the commands available to the current page, the stack's switch on pages with figures. */
 export function commandsFor(
     entries: readonly SearchEntry[],
-    source?: PageFormats,
+    source: PageFormats | undefined,
+    hasStack: boolean,
 ): readonly PaletteCommand[] {
+    // offer the site's own actions, switching the stack where the page has one
+    const commands: PaletteCommand[] = [
+        eventCommand(
+            "toggle-appearance",
+            "appearance",
+            "Toggle light and dark",
+            "theme appearance dark light mode",
+            commandEvents.toggleAppearance,
+            circleHalf,
+        ),
+    ];
+    if (hasStack) {
+        commands.unshift(
+            eventCommand(
+                "switch-stack",
+                "figures",
+                "Switch stacked and destacked",
+                "switch stack destack toggle figures",
+                commandEvents.switchStack,
+                arrowsLeftRight,
+            ),
+        );
+    }
+
     // offer the page source views and copies when the page has sources
-    const commands: PaletteCommand[] = [];
     if (source != undefined) {
         commands.push(
             linkCommand("source:md", "source", "View page as Markdown", source.markdownRoute),
@@ -90,6 +125,7 @@ export function commandsFor(
                 "Copy page as Markdown",
                 "copy markdown md",
                 commandEvents.copyMarkdown,
+                copy,
             ),
             eventCommand(
                 "copy-txt",
@@ -97,6 +133,7 @@ export function commandsFor(
                 "Copy page as plain text",
                 "copy text txt",
                 commandEvents.copyText,
+                copy,
             ),
         );
     }
@@ -113,6 +150,7 @@ export function commandsFor(
                 id: `navigate:${destination.href}`,
                 kind: "navigation" as const,
                 label: destination.label,
+                icon: destination.icon,
                 keybinding: destination.keybinding,
                 text: isInternal
                     ? `${destination.label} site navigation`
@@ -120,7 +158,9 @@ export function commandsFor(
             };
         }),
     );
-    commands.push(...entries.map(contentCommand));
+    // offer each content entry a destination does not already open
+    const opened = new Set(destinations.map((destination) => destination.href));
+    commands.push(...entries.filter((entry) => !opened.has(entry.route)).map(contentCommand));
 
     return commands;
 }
@@ -133,6 +173,7 @@ function linkCommand(id: string, context: string, label: string, href: string): 
         id,
         kind: "action",
         label,
+        icon: fileCode,
         text: `${label} ${href}`,
     };
 }
@@ -162,7 +203,7 @@ export function matchCommands(
             (command) =>
                 terms.length > 0 ||
                 (scope === "Commands" && commandScope(command) === scope) ||
-                command.kind === "page",
+                (command.kind !== "section" && command.context !== "social"),
         )
         .map((command) => ({ command, score: scoreCommand(command, terms) }))
         .filter((result) => result.score >= 0)
@@ -240,6 +281,7 @@ function contentCommand(entry: SearchEntry): PaletteCommand {
         id: `navigate:${entry.route}`,
         kind: entry.kind,
         label: entry.title,
+        icon: entry.kind === "section" ? hash : fileText,
         text: entry.text,
     };
 }
@@ -251,6 +293,7 @@ function eventCommand(
     label: string,
     text: string,
     event: string,
+    icon: IconBodies,
 ): PaletteCommand {
     return {
         action: { event, kind: "dispatch" },
@@ -258,6 +301,7 @@ function eventCommand(
         id,
         kind: "action",
         label,
+        icon,
         text,
     };
 }
@@ -291,12 +335,16 @@ function scoreCommand(command: PaletteCommand, terms: readonly string[]) {
             score += 1000;
         } else if (label.startsWith(term)) {
             score += 500;
+        } else if (isWordStart(label, term)) {
+            score += 400;
         } else if (label.includes(term)) {
             score += 250;
         } else if (context.includes(term)) {
             score += 100;
-        } else {
+        } else if (isWordStart(text, term)) {
             score += 10;
+        } else {
+            score += 2;
         }
     }
 
@@ -316,15 +364,41 @@ function rankFor(kind: PaletteCommand["kind"]) {
     }
 }
 
-/** Extract a compact passage around one matching term. */
+/** Report whether a term starts a word of the text. */
+function isWordStart(text: string, term: string) {
+    return text.startsWith(term) || text.includes(` ${term}`);
+}
+
+/** Return the group a command shows under: commands, destinations, community, or its collection. */
+export function groupOf(command: PaletteCommand): string {
+    if (command.kind === "action") {
+        return "Commands";
+    } else if (command.context === "navigation") {
+        return "Go to";
+    } else if (command.context === "social") {
+        return "Community";
+    }
+
+    return command.action.kind === "navigate"
+        ? (collectionAt(command.action.href)?.title ?? "Pages")
+        : "Pages";
+}
+
+/** Extract a compact passage around one matching term, cut at word boundaries. */
 function excerptFor(text: string, term: string) {
-    // cut a passage around the first match
+    // find the first match that starts a word, or else the first match
     const normalized = text.replace(/\s+/gu, " ").trim();
-    const match = normalized.toLowerCase().indexOf(term);
-    const start = Math.max(0, match - 42);
-    const end = Math.min(normalized.length, start + 132);
-    const prefix = start === 0 ? "" : "...";
-    const suffix = end === normalized.length ? "" : "...";
+    const lower = normalized.toLowerCase();
+    const wordMatch = lower.indexOf(` ${term}`);
+    const match = lower.startsWith(term) ? 0 : wordMatch >= 0 ? wordMatch + 1 : lower.indexOf(term);
+
+    // widen the cut to the nearest spaces, so no word is broken
+    const from = Math.max(0, match - 42);
+    const start = from === 0 ? 0 : lower.indexOf(" ", from) + 1;
+    const to = Math.min(normalized.length, start + 132);
+    const end = to === normalized.length ? to : Math.max(start, normalized.lastIndexOf(" ", to));
+    const prefix = start === 0 ? "" : "…";
+    const suffix = end === normalized.length ? "" : "…";
 
     return `${prefix}${normalized.slice(start, end)}${suffix}`;
 }

@@ -1,6 +1,5 @@
 import { Icon } from "@destack/icon";
 import arrowRight from "@destack/icon/phosphor/arrow-right";
-import githubLogo from "@destack/icon/phosphor/github-logo";
 import list from "@destack/icon/phosphor/list";
 import user from "@destack/icon/phosphor/user";
 import xIcon from "@destack/icon/phosphor/x";
@@ -19,23 +18,12 @@ import { Goo } from "../effect/goo";
 import { frame } from "./frame.stylex";
 import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
-import { home, pendingDestinations, primaryDestinations, socialDestinations } from "./navigation";
+import { home, pendingDestinations, primaryDestinations } from "./navigation";
 import { AppearanceToggle } from "./appearance";
 import { screen } from "./screen.stylex";
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { commandEvents } from "./command";
-
-/** The source repository, from the community destinations. */
-const github = (() => {
-    // find the destination, or refuse a navigation table without it
-    const destination = socialDestinations.find((candidate) => candidate.label === "GitHub");
-    if (destination === undefined) {
-        throw new Error("the community destinations lack GitHub");
-    }
-
-    return destination;
-})();
 
 /** Render the global site navigation. */
 export function TopBar() {
@@ -118,26 +106,11 @@ export function TopBar() {
                     {/* offer the desktop download in the brand's colour, opposite the brand */}
                     <DownloadCell xstyle={styles.download} />
 
-                    {/* keep search, appearance, the source and sign in together on the right edge */}
+                    {/* keep search, appearance and sign in together on the right edge */}
                     {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
                     <div {...style.attrs(styles.tools)}>
                         <CommandPalette />
                         <AppearanceToggle />
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Source on GitHub"
-                            render={(attributes) => (
-                                <a
-                                    {...attributes}
-                                    href={github.href}
-                                    rel="external noopener noreferrer"
-                                    target="_blank"
-                                />
-                            )}
-                        >
-                            <Icon icon={githubLogo} weight="fill" xstyle={styles.tool} />
-                        </Button>
                         <Button variant="ghost" size="icon" disabled aria-label="Sign in, soon">
                             <Icon icon={user} xstyle={styles.tool} />
                         </Button>

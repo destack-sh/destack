@@ -2,7 +2,7 @@ import { color, font } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import type { JSX } from "@destack/view";
+import { For, type JSX } from "@destack/view";
 
 import { ItemBadge, type ItemMark } from "./item";
 import { screen } from "../../layout/screen.stylex";
@@ -62,38 +62,40 @@ export function Ledger(properties: {
     return (
         <div data-component="Ledger" {...style.attrs(styles.ledger)}>
             <ol {...style.attrs(styles.blocks)}>
-                {properties.rows.map((row, index) => (
-                    <li
-                        title={row.note}
-                        onPointerEnter={(event) => point(event, index)}
-                        onPointerLeave={(event) => point(event, undefined)}
-                        onClick={() => properties.onPress(index)}
-                        {...style.attributes(
-                            [
-                                styles.row,
-                                styles.block,
-                                properties.isPressable && styles.pressable,
-                                properties.isWhole && styles.blockWhole,
-                                row.isEmpty && styles.blockEmpty,
-                            ],
-                            inlineOf(row.tint, properties.lit === index),
-                        )}
-                    >
-                        <span {...style.attrs(styles.claim)}>
-                            <Marks marks={row.marks} />
-                            <span {...style.attrs(styles.names)}>
-                                <span {...style.attrs(styles.label)}>{row.label}</span>
-                                <span {...style.attrs(styles.nameLine)}>
-                                    <b {...style.attrs(styles.name)}>{row.name}</b>
-                                    {row.badge}
+                <For each={properties.rows} keyed={false}>
+                    {(row, index) => (
+                        <li
+                            title={row().note}
+                            onPointerEnter={(event) => point(event, index)}
+                            onPointerLeave={(event) => point(event, undefined)}
+                            onClick={() => properties.onPress(index)}
+                            {...style.attributes(
+                                [
+                                    styles.row,
+                                    styles.block,
+                                    properties.isPressable && styles.pressable,
+                                    properties.isWhole && styles.blockWhole,
+                                    row().isEmpty && styles.blockEmpty,
+                                ],
+                                inlineOf(row().tint, properties.lit === index),
+                            )}
+                        >
+                            <span {...style.attrs(styles.claim)}>
+                                <Marks marks={row().marks} />
+                                <span {...style.attrs(styles.names)}>
+                                    <span {...style.attrs(styles.label)}>{row().label}</span>
+                                    <span {...style.attrs(styles.nameLine)}>
+                                        <b {...style.attrs(styles.name)}>{row().name}</b>
+                                        {row().badge}
+                                    </span>
                                 </span>
                             </span>
-                        </span>
-                        {row.cells.map((cell) => (
-                            <Figure cell={cell} />
-                        ))}
-                    </li>
-                ))}
+                            <For each={row().cells} keyed={false}>
+                                {(cell) => <Figure cell={cell()} />}
+                            </For>
+                        </li>
+                    )}
+                </For>
             </ol>
         </div>
     );

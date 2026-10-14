@@ -5,7 +5,7 @@ import { palette } from "../../palette.stylex";
 import { browserStyles } from "../figure/browser";
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
-import { LaunchDashboard } from "./dashboard";
+import { ObservabilityIssue } from "./observability";
 import { ResendLogs, SentryIssue, SupabaseQuery, TemporalRun } from "./console";
 import { ChatGPTTasks, GitHubRun, NotionAutomations } from "./rented";
 
@@ -122,7 +122,7 @@ function TabMark(properties: { logo: string }) {
     );
 }
 
-/** Draw your space in a browser, one tab, its Observability app open on the launch dashboard. */
+/** Draw your space in a browser, one tab, its Observability app open on the invite's issue. */
 function SpaceDashboard() {
     return (
         <div data-component="Browser" {...style.attrs(browserStyles.browser, styles.browser)}>
@@ -134,10 +134,10 @@ function SpaceDashboard() {
                     <Glyph name="close" size={12} />
                 </span>
             </div>
-            <Address url="destack.app/@florian/observability/dashboards/launch" />
+            <Address url="destack.app/@florian/observability/issues/obs-41" />
             <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
                 <div {...style.attrs(styles.scaled)}>
-                    <LaunchDashboard />
+                    <ObservabilityIssue />
                 </div>
             </div>
         </div>

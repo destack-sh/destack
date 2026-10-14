@@ -5,6 +5,7 @@ import { Metadata } from "@destack/view/document";
 import { Noun } from "../home/noun/noun";
 import { BottomBar } from "../home/entry/switch";
 import { Adjective } from "../home/adjective/adjective";
+import { Command } from "../home/command/command";
 import { Participle } from "../home/participle/participle";
 import { firstPicks, promptOf } from "../home/participle/wall";
 import { PastParticiple } from "../home/past/past";
@@ -33,6 +34,7 @@ export function Home() {
             <PastParticiple isOpen={isOpen()} onChange={setIsOpen} />
             <Noun isOpen={isOpen()} />
             <Adjective isOpen={isOpen()} />
+            <Command isOpen={isOpen()} />
             <Participle
                 isOpen={isOpen()}
                 picks={picks()}

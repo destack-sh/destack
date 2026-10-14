@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import type { JSX } from "@destack/view";
 
@@ -93,6 +94,13 @@ export const appStyles = style.create({
         width: "2rem",
     },
     railLink: {
+        backgroundColor: {
+            default: null,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in srgb, ${color.card} 55%, ${color.muted})`,
+            },
+        },
         cursor: "pointer",
     },
     glyph: {
@@ -189,12 +197,15 @@ export const appStyles = style.create({
         alignItems: "center",
         backgroundColor: color.muted,
         borderRadius: "5px",
+        boxSizing: "border-box",
         color: color.mutedForeground,
         display: "inline-flex",
         fontSize: "0.75rem",
         gap: "0.375rem",
-        paddingBlock: "0.125rem",
+        height: "1.375rem",
+        lineHeight: 1,
         paddingInline: "0.5rem",
+        verticalAlign: "middle",
         whiteSpace: "nowrap",
     },
     properties: {

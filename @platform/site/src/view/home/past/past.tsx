@@ -14,8 +14,8 @@ const destacked: Form = {
     pronunciation: "/diːˈstakt/",
     partOfSpeech: "past participle",
     sense: {
-        definition: "unified into one standard stack",
-        highlight: ["unified", "standard"],
+        definition: "unified into one standardised stack",
+        highlight: ["unified", "standardised"],
         sentence:
             "One account, one API, one data store, and open formats, from sign-in to hosting.",
     },
@@ -33,8 +33,8 @@ export function PastParticiple(properties: {
                 <FigureLabel
                     number={2}
                     isOpen={properties.isOpen}
-                    stacked="each app on its own stack"
-                    destacked="every app on one shared stack"
+                    stacked="each app with its own silo"
+                    destacked="every app on the same standard stack"
                 >
                     <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>

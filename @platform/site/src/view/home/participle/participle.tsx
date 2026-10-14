@@ -53,10 +53,10 @@ export function Participle(properties: {
             >
                 <Entry form={participle} />
                 <FigureLabel
-                    number={5}
+                    number={6}
                     isOpen={properties.isOpen}
                     stacked="your tools, each on its own"
-                    destacked="your tools, as one space"
+                    destacked="your tools, in one space"
                 >
                     <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>

@@ -279,7 +279,9 @@ export function XRay(properties: {
                             onOpen={(icon) => setRow(rowOfApp(icon))}
                         />
                     ) : undefined}
-                    <main {...style.attrs(appStyles.main, styles.page)}>{sectionOf(row())}</main>
+                    <main {...style.attrs(appStyles.main, styles.page)}>
+                        {sectionOf(row(), false)}
+                    </main>
                     <p {...style.attrs(appStyles.statusBar)}>
                         <span data-xray="Code" {...style.attrs(appStyles.statusEnd, styles.commit)}>
                             <Icon icon={gitCommit} />

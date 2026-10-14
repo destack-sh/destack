@@ -62,6 +62,14 @@ export const browserStyles = style.create({
         position: "relative",
     },
     tabEven: {
+        backgroundColor: {
+            default: null,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in srgb, ${color.card} 55%, ${color.muted})`,
+            },
+        },
+        color: { default: null, ":hover": { default: null, [media.hover]: color.foreground } },
         flexBasis: 0,
         flexGrow: 1,
         flexShrink: 1,
@@ -97,6 +105,7 @@ export const browserStyles = style.create({
     },
     tabTitleHidden: {
         opacity: 0,
+        transition: "opacity 80ms ease",
     },
     tabSteady: {
         flexGrow: 1,
@@ -104,7 +113,7 @@ export const browserStyles = style.create({
     },
     tabTitle: {
         flexGrow: 1,
-        transition: "opacity 160ms ease",
+        transition: "opacity 160ms ease 140ms",
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -136,7 +145,13 @@ export const browserStyles = style.create({
     },
     tabCount: {
         alignItems: "center",
-        backgroundColor: "transparent",
+        backgroundColor: {
+            default: "transparent",
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in srgb, ${color.card} 55%, ${color.muted})`,
+            },
+        },
         borderColor: "currentColor",
         cursor: "pointer",
         padding: 0,

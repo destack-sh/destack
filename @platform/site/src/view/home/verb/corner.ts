@@ -122,7 +122,7 @@ export const week: readonly WeekBlock[] = [
     [2, 13, 14, "Bookable", true],
     [3, 9, 10, "Invites · 400", false],
     [3, 16, 17, "Bookable", true],
-    [4, 10, 10.5, "Launch", false],
+    [4, 9, 10, "Go live · DST-17", false],
     [4, 11, 12, "Bookable", true],
 ];
 

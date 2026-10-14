@@ -12,7 +12,15 @@ import { Fade } from "../figure/fade";
 import { Label } from "../entry/label";
 import { Bill } from "../figure/bill";
 import { accentOf, type Item, marksOf } from "../figure/item";
-import { holdings, pages, Presence, PresenceAnchor, SpaceBrowser, type Viewer } from "./space";
+import {
+    everyRow,
+    holdings,
+    pages,
+    Presence,
+    PresenceAnchor,
+    SpaceBrowser,
+    type Viewer,
+} from "./space";
 import type { Stagger } from "../figure/stagger";
 import { workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
@@ -130,8 +138,8 @@ export function Verb(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="eight apps, eight separate stacks"
-                destacked="eight apps, one owned space"
+                stacked="eight separate apps, eight separate stacks"
+                destacked="eight unified apps, one integrated space"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
@@ -142,6 +150,9 @@ export function Verb(properties: { isOpen: boolean }) {
                         : "Eight rented apps, none truly yours"}
                 </Label>
                 <SpaceBrowser
+                    name="space"
+                    rows={everyRow}
+                    isChanged={false}
                     isOpenAt={isOpenAt}
                     page={page()}
                     viewer={viewer()}

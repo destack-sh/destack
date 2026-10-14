@@ -19,6 +19,7 @@ import magnifyingGlass from "@destack/icon/phosphor/magnifying-glass";
 import paperPlaneRight from "@destack/icon/phosphor/paper-plane-right";
 import paperclip from "@destack/icon/phosphor/paperclip";
 import smiley from "@destack/icon/phosphor/smiley";
+import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, font, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { AvatarGroup } from "@destack/ui/avatar";
@@ -42,6 +43,7 @@ import { palette } from "../../palette.stylex";
 import { AppHeader, appStyles, appText } from "../figure/app";
 import { AgentAvatar } from "../figure/agent";
 import { coverOf, messages, posts, signups, sources, type TaskState, tasks, week } from "./corner";
+import { ServiceGlyph } from "../figure/tile";
 
 /** An app narrower than a phone screen, which then drops what only fits wide. */
 const NARROW = "@container (max-width: 479px)";
@@ -60,12 +62,35 @@ const STATES: readonly (readonly [state: TaskState, name: string])[] = [
     ["done", "Done"],
 ];
 
-/** Draw a section of your own space by its ledger row. */
-export function sectionOf(row: number): JSX.Element {
+/** The object in another app each task points at, by the app's icon and the object's live value. */
+const taskLinks: Readonly<Record<string, readonly [icon: string, text: string]>> = {
+    "DST-12": ["pages", "Pricing · published"],
+    "DST-14": ["calendar", "Demo · Wed 11:00"],
+    "DST-16": ["mail", "400 of 400 sent"],
+    "DST-13": ["sync", "Runs Fri 09:00"],
+    "DST-15": ["pages", "Launch post"],
+    "DST-17": ["table", "1,840 waiting"],
+};
+
+/** The messages each signup wrote in Chat, by address. */
+const signupMessages: Readonly<Record<string, string>> = {
+    "maya@northwind.io": "1 · #launch",
+    "noor@papertrail.fm": "3 · DM",
+};
+
+/** The invite each signup got from Mail, by address. */
+const signupInvites: Readonly<Record<string, string>> = {
+    "sam@quietly.so": "Opened",
+    "noor@papertrail.fm": "Clicked",
+    "ines@orbitlabs.eu": "Sent",
+};
+
+/** Draw a section of your own space by its ledger row, changed by a call when one lands on it. */
+export function sectionOf(row: number, isChanged: boolean): JSX.Element {
     if (row === 1) {
-        return <Launch />;
+        return <Launch isChanged={isChanged} />;
     } else if (row === 2) {
-        return <Tasks />;
+        return <Tasks isChanged={isChanged} />;
     } else if (row === 3) {
         return <Chat />;
     } else if (row === 4) {
@@ -75,10 +100,10 @@ export function sectionOf(row: number): JSX.Element {
     } else if (row === 6) {
         return <Week />;
     } else if (row === 7) {
-        return <Signups />;
+        return <Signups isChanged={isChanged} />;
     }
 
-    return <Mail />;
+    return <Mail isChanged={isChanged} />;
 }
 
 /** Lay out an app's page beside the shared rail, its header first. */
@@ -154,7 +179,7 @@ function StateMark(properties: { state: TaskState }) {
 }
 
 /** Draw the launch plan: a page you and your agent edit, made of your other apps' parts. */
-function Launch() {
+function Launch(properties: { isChanged: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -163,7 +188,9 @@ function Launch() {
                     <>
                         <Present />
                         <span {...style.attrs(appStyles.action, styles.wide)}>
-                            Agent edited just now
+                            {properties.isChanged
+                                ? "Agent via HTTP · 09:13"
+                                : "Agent edited just now"}
                         </span>
                         <span {...style.attrs(appStyles.primary)}>Share</span>
                     </>
@@ -182,7 +209,7 @@ function Launch() {
                     <span
                         data-xray="Jobs"
                         data-source="Calendar event"
-                        {...style.attrs(appStyles.property)}
+                        {...style.attrs(appStyles.property, properties.isChanged && styles.changed)}
                     >
                         Demo · Wed 11:00
                     </span>
@@ -310,7 +337,7 @@ function isCommented(item: string): boolean {
 }
 
 /** Draw the launch tasks: your list grouped by state, your agent working through its share. */
-function Tasks() {
+function Tasks(properties: { isChanged: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -329,6 +356,10 @@ function Tasks() {
                     <Icon icon={funnel} />
                     Due this week
                 </span>
+                <span data-xray="Jobs" {...style.attrs(appStyles.property, styles.wide)}>
+                    <ServiceGlyph icon="sync" />
+                    When done, post in #launch
+                </span>
             </Toolbar>
             <div data-xray="Database" {...style.attrs(styles.list)}>
                 {STATES.map(([state, name]) => (
@@ -342,36 +373,46 @@ function Tasks() {
                         </div>
                         {tasks
                             .filter((task) => task[2] === state)
-                            .map(([id, title, , owner, tint, due]) => (
-                                <div {...style.attrs(appText.body, styles.taskRow)}>
-                                    <span {...style.attrs(styles.quiet, styles.code)}>{id}</span>
-                                    <StateMark state={state} />
-                                    <span
+                            .map(([id, title, , owner, tint, due]) => {
+                                // close the waitlist email once the agent's call lands
+                                const isClosed = properties.isChanged && id === "DST-16";
+                                const shown = isClosed ? "done" : state;
+
+                                return (
+                                    <div
                                         {...style.attrs(
-                                            styles.taskTitle,
-                                            state === "done" && styles.struck,
+                                            appText.body,
+                                            styles.taskRow,
+                                            isClosed && styles.changed,
                                         )}
                                     >
-                                        {title}
-                                    </span>
-                                    {id === "DST-15" ? (
+                                        <span {...style.attrs(styles.quiet, styles.taskId)}>
+                                            {id}
+                                        </span>
+                                        <StateMark state={shown} />
                                         <span
-                                            data-xray="Jobs"
-                                            {...style.attrs(styles.inline, styles.agentNote)}
+                                            {...style.attrs(
+                                                styles.taskTitle,
+                                                shown === "done" && styles.struck,
+                                            )}
                                         >
-                                            <Spinner aria-label="Agent is writing" />
-                                            writing…
+                                            {title}
+                                            {id === "DST-15" ? (
+                                                <span
+                                                    data-xray="Jobs"
+                                                    {...style.attrs(styles.agentNote)}
+                                                >
+                                                    {" "}
+                                                    · agent writing…
+                                                </span>
+                                            ) : undefined}
                                         </span>
-                                    ) : (
-                                        <span {...style.attrs(appStyles.property)}>
-                                            <span {...style.attrs(styles.dot, styles.signal)} />
-                                            Launch
-                                        </span>
-                                    )}
-                                    <span {...style.attrs(styles.quiet)}>{due}</span>
-                                    <Face owner={owner} tint={tint} />
-                                </div>
-                            ))}
+                                        <LinkChip id={id} />
+                                        <span {...style.attrs(styles.quiet)}>{due}</span>
+                                        <Face owner={owner} tint={tint} />
+                                    </div>
+                                );
+                            })}
                     </>
                 ))}
             </div>
@@ -457,15 +498,15 @@ function Chat() {
                     </span>
                     <Icon icon={at} />
                     <Icon icon={smiley} />
-                    <span {...style.attrs(appText.meta, styles.typing, styles.wide)}>
-                        <Spinner aria-label="Agent is typing" />
-                        Agent is typing…
-                    </span>
                     <span {...style.attrs(styles.sendButton)}>
                         <Icon icon={paperPlaneRight} />
                     </span>
                 </span>
             </div>
+            <span {...style.attrs(appText.meta, styles.typing)}>
+                <Spinner aria-label="Agent is typing" />
+                Agent is typing…
+            </span>
         </Paned>
     );
 }
@@ -650,11 +691,45 @@ function Week() {
                                   : styles.personal,
                         )}
                     >
-                        {title}
+                        <EventTitle title={title} />
                     </span>
                 ))}
             </div>
         </Paned>
+    );
+}
+
+/** Draw a task's link to an object in another app, with that object's live value. */
+function LinkChip(properties: { id: string }) {
+    const link = () => present(taskLinks[properties.id], "task link");
+
+    return (
+        <span {...style.attrs(appStyles.property, styles.link)}>
+            <ServiceGlyph icon={link()[0]} />
+            {link()[1]}
+        </span>
+    );
+}
+
+/** Draw an event's name, and the task or mail it comes from in another app. */
+function EventTitle(properties: { title: string }) {
+    const [name, link] = properties.title.split(" · ");
+
+    return (
+        <>
+            <span>{name}</span>
+            {link === undefined ? undefined : <EventLink link={link} />}
+        </>
+    );
+}
+
+/** Draw the task or mail an event comes from. */
+function EventLink(properties: { link: string }) {
+    return (
+        <span {...style.attrs(styles.eventLink)}>
+            <ServiceGlyph icon={properties.link.startsWith("DST-") ? "tasks" : "mail"} />
+            {properties.link}
+        </span>
     );
 }
 
@@ -664,7 +739,7 @@ function rowOf(hour: number): number {
 }
 
 /** Draw the launch mail. */
-function Mail() {
+function Mail(properties: { isChanged: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -689,6 +764,21 @@ function Mail() {
                     From hello@destack.sh
                 </span>
             </Toolbar>
+            {/* the agent's send, held for your approval */}
+            <div {...style.attrs(styles.approval, properties.isChanged && styles.approved)}>
+                <Face owner="A" />
+                <span {...style.attrs(appText.meta)}>
+                    {properties.isChanged
+                        ? "Approved by Florian · sending to 1,840 people"
+                        : "Claude wants to send this to 1,840 people"}
+                </span>
+                {properties.isChanged ? undefined : (
+                    <span {...style.attrs(styles.approvalButtons)}>
+                        <span {...style.attrs(appStyles.action)}>Decline</span>
+                        <span {...style.attrs(appStyles.primary)}>Approve</span>
+                    </span>
+                )}
+            </div>
             <article {...style.attrs(styles.document)}>
                 <p {...style.attrs(appText.body)}>Hi Maya,</p>
                 <p {...style.attrs(appText.body)}>
@@ -732,7 +822,7 @@ function Mail() {
 }
 
 /** Draw your waitlist's signups. */
-function Signups() {
+function Signups(properties: { isChanged: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -754,7 +844,9 @@ function Signups() {
                     <Icon icon={funnel} />
                     Waiting
                 </span>
-                <span {...style.attrs(appStyles.property)}>Source: any</span>
+                <span {...style.attrs(appStyles.property, properties.isChanged && styles.on)}>
+                    {properties.isChanged ? "Source: Launch post · with messages" : "Source: any"}
+                </span>
             </Toolbar>
             <Table data-xray="Database">
                 <TableHeader>
@@ -764,39 +856,63 @@ function Signups() {
                         </TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Source</TableHead>
-                        <TableHead>Joined</TableHead>
+                        <TableHead>
+                            <span {...style.attrs(styles.joined)}>
+                                <ServiceGlyph icon="chat" />
+                                Messages
+                            </span>
+                        </TableHead>
+                        <TableHead>
+                            <span {...style.attrs(styles.joined)}>
+                                <ServiceGlyph icon="mail" />
+                                Invite
+                            </span>
+                        </TableHead>
                         <TableHead>Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {signups.map(([email, source, joined, state], index) => (
-                        <TableRow>
-                            <TableCell xstyle={styles.select}>
-                                <Checkbox checked={index < 4} aria-label={email} />
-                            </TableCell>
-                            <TableCell xstyle={appText.body}>{email}</TableCell>
-                            <TableCell xstyle={appText.body}>
-                                <span {...style.attrs(appStyles.property)}>{source}</span>
-                            </TableCell>
-                            <TableCell xstyle={[appText.body, styles.quiet]}>{joined}</TableCell>
-                            <TableCell xstyle={appText.body}>
-                                <span {...style.attrs(appStyles.property)}>
-                                    <span
-                                        {...style.attrs(
-                                            styles.dot,
-                                            state === "invited" ? styles.live : styles.amber,
-                                        )}
-                                    />
-                                    {state === "invited" ? "Invited" : "Waiting"}
-                                </span>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {signups
+                        .filter(
+                            ([, source, , state]) =>
+                                !properties.isChanged ||
+                                (source === "Launch post" && state === "waiting"),
+                        )
+                        .map(([email, source, , state], index) => (
+                            <TableRow>
+                                <TableCell xstyle={styles.select}>
+                                    <Checkbox checked={index < 4} aria-label={email} />
+                                </TableCell>
+                                <TableCell xstyle={appText.body}>{email}</TableCell>
+                                <TableCell xstyle={appText.body}>
+                                    <span {...style.attrs(appStyles.property)}>{source}</span>
+                                </TableCell>
+                                <TableCell xstyle={[appText.body, styles.quiet]}>
+                                    {signupMessages[email] ?? "–"}
+                                </TableCell>
+                                <TableCell xstyle={[appText.body, styles.quiet]}>
+                                    {signupInvites[email] ?? (index < 4 ? "Batch 1" : "Next batch")}
+                                </TableCell>
+                                <TableCell xstyle={appText.body}>
+                                    <span {...style.attrs(appStyles.property)}>
+                                        <span
+                                            {...style.attrs(
+                                                styles.dot,
+                                                state === "invited" ? styles.live : styles.amber,
+                                            )}
+                                        />
+                                        {state === "invited" ? "Invited" : "Waiting"}
+                                    </span>
+                                </TableCell>
+                            </TableRow>
+                        ))}
                 </TableBody>
             </Table>
             <span {...style.attrs(appText.meta, styles.inline, styles.quiet)}>
                 <Icon icon={dotsThree} />
-                1,833 more · filled by your public waitlist form
+                {properties.isChanged
+                    ? "1 of 1,840 · joined from the launch post and wrote in #launch"
+                    : "1,833 more · filled by your public waitlist form"}
             </span>
         </Paned>
     );
@@ -1014,6 +1130,31 @@ const styles = style.create({
     agentNote: {
         color: palette.violet,
     },
+    changed: {
+        backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,
+        transitionDuration: "400ms",
+        transitionProperty: "background-color",
+    },
+    approval: {
+        alignItems: "center",
+        backgroundColor: `color-mix(in srgb, ${palette.amber} 14%, transparent)`,
+        borderRadius: radius[2],
+        display: "flex",
+        gap: space[2],
+        paddingBlock: space[2],
+        paddingInline: space[3],
+    },
+    approved: {
+        backgroundColor: `color-mix(in srgb, ${palette.green} 14%, transparent)`,
+    },
+    approvalButtons: {
+        display: "flex",
+        gap: space[2],
+        marginLeft: "auto",
+    },
+    taskId: {
+        fontVariantNumeric: "tabular-nums",
+    },
     channelHead: {
         alignItems: "center",
         borderBottomColor: color.border,
@@ -1082,9 +1223,10 @@ const styles = style.create({
     typing: {
         alignItems: "center",
         color: palette.violet,
-        display: "inline-flex",
+        display: "flex",
         gap: space[2],
-        marginLeft: "auto",
+        marginTop: `calc(${space[2]} * -1)`,
+        paddingInline: space[3],
     },
     sendButton: {
         alignItems: "center",
@@ -1217,5 +1359,25 @@ const styles = style.create({
     },
     select: {
         width: "2.5rem",
+    },
+    link: {
+        backgroundColor: "transparent",
+        borderColor: color.border,
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        color: color.foreground,
+    },
+    joined: {
+        alignItems: "center",
+        display: "inline-flex",
+        gap: space[1],
+    },
+    eventLink: {
+        alignItems: "center",
+        color: color.mutedForeground,
+        display: "flex",
+        fontWeight: weight.regular,
+        gap: space[1],
+        marginTop: "2px",
     },
 });

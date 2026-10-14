@@ -219,6 +219,7 @@ export function GooField() {
         const eased = { x: 0, y: 0, pull: 0, charge: 0 };
         let cells: HTMLElement[] = [];
         let pageIslands: Rect[] = [];
+        let bounds = mount.canvas.getBoundingClientRect();
         let measuredAt = Number.NEGATIVE_INFINITY;
         let lastAt = 0;
         let drawnAt = Number.NEGATIVE_INFINITY;
@@ -241,7 +242,7 @@ export function GooField() {
 
         // draw one frame, and keep going while the goo moves
         const draw = (now: number) => {
-            // find the cells again once any leaves the page, and measure them in page pixels now and then
+            // find the cells again once any leaves the page, and measure them and the fixed canvas now and then
             if (cells.length === 0 || cells.some((cell) => !cell.isConnected)) {
                 cells = [...document.querySelectorAll<HTMLElement>("[data-goo]")].slice(
                     0,
@@ -255,9 +256,9 @@ export function GooField() {
                 pageIslands = cells.map((cell) =>
                     shift(cell.getBoundingClientRect(), scroll.x, scroll.y),
                 );
+                bounds = mount.canvas.getBoundingClientRect();
             }
             const islands = pageIslands.map((island) => shift(island, -scroll.x, -scroll.y));
-            const bounds = mount.canvas.getBoundingClientRect();
 
             // ease by the time since the last frame, so the goo is as thick at any frame rate
             const elapsed = lastAt === 0 ? 0 : Math.min(0.1, (now - lastAt) / 1000);

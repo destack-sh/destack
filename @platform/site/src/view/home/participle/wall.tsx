@@ -58,7 +58,11 @@ const spaceJobs: readonly Job[] = [
 
 /** The tally's rows for the services your space works with. */
 const connections: readonly (readonly [label: string, names: readonly string[], app: App])[] = [
-    ["Agents", ["ChatGPT", "Claude", "Gemini", "Grok"], { name: "Agents", icon: "agent" }],
+    [
+        "Agents",
+        ["ChatGPT", "Claude", "Gemini", "DeepSeek", "Grok"],
+        { name: "Agents", icon: "agent" },
+    ],
 ];
 
 /** The lines of the bill. */
@@ -91,16 +95,25 @@ const replaced: readonly Tool[] = [
     { icon: "coda", name: "Coda", tint: "#f46a54", kind: "replace", job: "tables" },
     { icon: "excel", name: "Excel", tint: "#107c41", kind: "replace", job: "tables" },
     { icon: "superhuman", name: "Superhuman", tint: "#000000", kind: "replace", job: "mail" },
-    { icon: "mailchimp", name: "Mailchimp", tint: "#241c15", kind: "replace", job: "mail" },
+    { icon: "thunderbird", name: "Thunderbird", tint: "#0a84ff", kind: "replace", job: "mail" },
     { icon: "miro", name: "Miro", tint: "#050038", kind: "replace", job: "canvas" },
     { icon: "excalidraw", name: "Excalidraw", tint: "#6965db", kind: "replace", job: "canvas" },
-    { icon: "tldraw", name: "tldraw", tint: "#1d1d1d", kind: "replace", job: "canvas" },
+    { icon: "figma", name: "FigJam", tint: "#a259ff", kind: "replace", job: "canvas" },
+    { icon: "mural", name: "Mural", tint: "#ff0b47", kind: "replace", job: "canvas" },
+    { icon: "lucid", name: "Lucid", tint: "#282c33", kind: "replace", job: "canvas" },
     { icon: "box", name: "Box", tint: "#0061d5", kind: "replace", job: "files" },
     { icon: "obsidian", name: "Obsidian", tint: "#7c3aed", kind: "replace", job: "pages" },
     { icon: "word", name: "Word", tint: "#185abd", kind: "replace", job: "pages" },
     { icon: "n8n", name: "n8n", tint: "#ea4b71", kind: "replace", job: "workflows" },
     { icon: "zapier", name: "Zapier", tint: "#ff4f00", kind: "replace", job: "workflows" },
     { icon: "make", name: "Make", tint: "#6d00cc", kind: "replace", job: "workflows" },
+    {
+        icon: "powerautomate",
+        name: "Power Automate",
+        tint: "#0066ff",
+        kind: "replace",
+        job: "workflows",
+    },
 ];
 
 /** The tools your space can replace or keep connected. */
@@ -128,6 +141,14 @@ const either: readonly Tool[] = [
         kind: "both",
         job: "mail",
         status: "inbox synced",
+    },
+    {
+        icon: "outlook",
+        name: "Outlook Calendar",
+        tint: "#0078d4",
+        kind: "both",
+        job: "calendar",
+        status: "two-way sync",
     },
     {
         icon: "onedrive",
@@ -227,6 +248,13 @@ const foundations: readonly Tool[] = [
         status: "your agent",
     },
     {
+        icon: "deepseek",
+        name: "DeepSeek",
+        tint: "#4d6bfe",
+        kind: "connect",
+        status: "your agent",
+    },
+    {
         icon: "grok",
         name: "Grok",
         tint: "#000000",
@@ -252,6 +280,7 @@ const order: readonly string[] = [
     "Trello",
     "ClickUp",
     "Calendar",
+    "Outlook Calendar",
     "Calendly",
     "Cal.com",
     "Slack",
@@ -262,22 +291,26 @@ const order: readonly string[] = [
     "Gmail",
     "Outlook",
     "Superhuman",
+    "Thunderbird",
     "Proton Mail",
-    "Mailchimp",
     "Drive",
     "OneDrive",
     "Dropbox",
     "iCloud",
     "Box",
     "Miro",
+    "FigJam",
+    "Mural",
+    "Lucid",
     "Excalidraw",
-    "tldraw",
     "Zapier",
     "Make",
     "n8n",
+    "Power Automate",
     "ChatGPT",
     "Claude",
     "Gemini",
+    "DeepSeek",
     "Grok",
 ];
 
@@ -309,6 +342,8 @@ const billedUnder: Readonly<Record<string, string>> = {
     "Google Chat": "Google Workspace",
     Teams: "Microsoft 365",
     Outlook: "Microsoft 365",
+    "Power Automate": "Microsoft 365",
+    "Outlook Calendar": "Microsoft 365",
     OneDrive: "Microsoft 365",
     Word: "Microsoft 365",
     Excel: "Microsoft 365",

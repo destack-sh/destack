@@ -20,7 +20,7 @@ const destackable: Form = {
     },
 };
 
-/** Show the adjective at work: launch day across rented consoles, or on your own dashboard. */
+/** Show the adjective at work: launch day across rented consoles, or traced in your space. */
 export function Adjective(properties: { isOpen: boolean }) {
     return (
         <section
@@ -44,7 +44,7 @@ export function Adjective(properties: { isOpen: boolean }) {
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
                     {properties.isOpen
-                        ? "Launch day, on your own dashboard"
+                        ? "Launch day, traced end to end in your space"
                         : "Launch day, split across seven vendors"}
                 </Label>
                 <Inspector isOpen={properties.isOpen} />

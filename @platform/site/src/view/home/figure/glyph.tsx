@@ -40,6 +40,9 @@ type GlyphName =
     | "filter"
     | "sliders"
     | "compose"
+    | "sidebar"
+    | "hamburger"
+    | "waveform"
     | "mail"
     | "like"
     | "dislike"
@@ -97,6 +100,9 @@ const glyphs: Record<GlyphName, readonly string[]> = {
     filter: ["M4 6h16", "M7 12h10", "M10 18h4"],
     sliders: ["M4 7h10", "M18 7h2", "M4 17h4", "M12 17h8", "M16 5v4", "M10 15v4"],
     compose: ["M4 20h4L19 9l-4-4L4 16z", "m13.5 6.5 4 4"],
+    sidebar: ["M3 4h18v16H3z", "M9 4v16"],
+    hamburger: ["M4 6h16", "M4 12h16", "M4 18h16"],
+    waveform: ["M5 10v4", "M9 7v10", "M13 4v16", "M17 8v8", "M21 11v2"],
     mail: ["M3 6h18v12H3z", "m3 7 9 6 9-6"],
     like: [
         "M7 10v11",

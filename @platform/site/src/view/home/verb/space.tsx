@@ -228,6 +228,9 @@ const tabs: readonly (readonly [row: number, icon: string, tint: string, title: 
     [8, "gmail", "#ea4335", "Inbox (2) - Gmail"],
 ];
 
+/** Every app's row, for a browser that shows them all. */
+export const everyRow: readonly number[] = tabs.map(([row]) => row);
+
 /** The apps of your own space on its rail. */
 const sections: readonly (readonly [
     row: number,
@@ -247,6 +250,9 @@ const sections: readonly (readonly [
 
 /** Draw your space in the cloud in a browser, one page at a time. */
 export function SpaceBrowser(properties: {
+    name: string;
+    rows: readonly number[];
+    isChanged: boolean;
     isOpenAt: Stagger;
     page: Page;
     viewer: Viewer;
@@ -258,6 +264,9 @@ export function SpaceBrowser(properties: {
     const isAllowed = () => !isOpen() || properties.page.viewers.includes(properties.viewer);
     const host = () => properties.page.site.split("/")[0] ?? "";
 
+    // show only the apps the browser can turn to, as tabs and on the rail
+    const shown = () => tabs.filter(([row]) => properties.rows.includes(row));
+
     // open the tab overview from the tab count, and choose a tab from it
     const [isOverview, setIsOverview] = createSignal(false);
     const chooseTab = (row: number) => {
@@ -266,14 +275,18 @@ export function SpaceBrowser(properties: {
     };
 
     return (
-        <div data-component="Browser" data-morph="space" {...style.attrs(browserStyles.browser)}>
+        <div
+            data-component="Browser"
+            data-morph={properties.name}
+            {...style.attrs(browserStyles.browser)}
+        >
             <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
                 <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                 {properties.isOpenAt(1) ? (
                     <span
                         data-component="Tab"
                         style={{
-                            "view-transition-name": `space-tab-${String(properties.page.row)}`,
+                            "view-transition-name": `${properties.name}-tab-${String(properties.page.row)}`,
                         }}
                         {...style.attrs(browserStyles.tab, browserStyles.tabOn)}
                     >
@@ -282,23 +295,28 @@ export function SpaceBrowser(properties: {
                         <Glyph name="close" size={12} />
                     </span>
                 ) : (
-                    tabs.map(([row, icon, tint, title]) => (
+                    shown().map(([row, icon, tint, title]) => (
                         <span
                             data-component="Tab"
                             title={title}
-                            style={{ "view-transition-name": `space-tab-${String(row)}` }}
+                            style={{
+                                "view-transition-name": `${properties.name}-tab-${String(row)}`,
+                            }}
                             onClick={() => properties.onChoose(row)}
                             {...style.attrs(
                                 browserStyles.tab,
                                 browserStyles.tabEven,
                                 row === properties.page.row && browserStyles.tabOn,
+                                properties.rows.length <= 4 && browserStyles.tabSteady,
                             )}
                         >
                             <Favicon icon={icon} tint={tint} />
                             <span
                                 {...style.attrs(
                                     browserStyles.tabTitle,
-                                    row !== properties.page.row && browserStyles.tabTitleHidden,
+                                    row !== properties.page.row &&
+                                        properties.rows.length > 4 &&
+                                        browserStyles.tabTitleHidden,
                                 )}
                             >
                                 {title}
@@ -344,7 +362,7 @@ export function SpaceBrowser(properties: {
                     onClick={() => setIsOverview((is) => !is)}
                     {...style.attrs(browserStyles.tabCount)}
                 >
-                    {isOpen() ? 1 : tabs.length}
+                    {isOpen() ? 1 : shown().length}
                 </button>
                 <span {...style.attrs(browserStyles.tools)}>
                     <span {...style.attrs(browserStyles.desktopOnly)}>
@@ -362,7 +380,7 @@ export function SpaceBrowser(properties: {
                 {...style.attrs(styles.overview, !isOverview() && styles.overviewClosed)}
             >
                 <span {...style.attrs(styles.overviewHead)}>
-                    <b>{isOpen() ? "1 tab" : `${tabs.length} tabs`}</b>
+                    <b>{isOpen() ? "1 tab" : `${shown().length} tabs`}</b>
                     <button
                         type="button"
                         onClick={() => setIsOverview(false)}
@@ -385,7 +403,7 @@ export function SpaceBrowser(properties: {
                             <span {...style.attrs(styles.cardHost)}>destack.app</span>
                         </button>
                     ) : (
-                        tabs.map(([row, icon, tint, title]) => (
+                        shown().map(([row, icon, tint, title]) => (
                             <button
                                 type="button"
                                 onClick={() => chooseTab(row)}
@@ -413,16 +431,20 @@ export function SpaceBrowser(properties: {
                         <AppRail
                             open={openApp(properties.page)}
                             apps={sections
-                                .filter(([, , , , seen]) => seen.includes(properties.viewer))
+                                .filter(
+                                    ([row, , , , seen]) =>
+                                        properties.rows.includes(row) &&
+                                        seen.includes(properties.viewer),
+                                )
                                 .map(([, name, icon]) => [icon, name] as const)}
                             onOpen={(icon) => properties.onChoose(rowOfApp(icon))}
                         />
                         <main
-                            style={{ "view-transition-name": "space-page" }}
+                            style={{ "view-transition-name": `${properties.name}-page` }}
                             {...style.attrs(appStyles.main)}
                         >
                             {isAllowed() ? (
-                                sectionOf(properties.page.row)
+                                sectionOf(properties.page.row, properties.isChanged)
                             ) : (
                                 <p data-component="AccessNote" {...style.attrs(styles.private)}>
                                     <Glyph name="lock" size={20} />
@@ -440,7 +462,7 @@ export function SpaceBrowser(properties: {
                     </div>
                 ) : (
                     <div
-                        style={{ "view-transition-name": "space-page" }}
+                        style={{ "view-transition-name": `${properties.name}-page` }}
                         {...style.attrs(styles.window)}
                     >
                         {rentedPageOf(properties.page.row)}
@@ -683,6 +705,10 @@ const styles = style.create({
     },
     overviewDone: {
         backgroundColor: "transparent",
+        textDecorationLine: {
+            default: null,
+            ":hover": { default: null, [media.hover]: "underline" },
+        },
         borderWidth: 0,
         color: color.primary,
         cursor: "pointer",
@@ -697,7 +723,13 @@ const styles = style.create({
     },
     card: {
         alignContent: "space-between",
-        backgroundColor: color.card,
+        backgroundColor: {
+            default: color.card,
+            ":hover": {
+                default: null,
+                [media.hover]: `color-mix(in srgb, ${color.foreground} 4%, ${color.card})`,
+            },
+        },
         borderColor: color.border,
         borderRadius: "10px",
         borderStyle: "solid",
