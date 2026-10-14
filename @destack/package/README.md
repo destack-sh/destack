@@ -107,6 +107,17 @@ const settings = await reader.declared(
 const module = await reader.module((await reader.graph()).modules["src/server.ts"]);
 ```
 
+## Stack frames
+
+`StackFrame.read` reads a stack trace's frames, and a build's `Symbolicator` maps them to their source and graph symbol, as an emitter does before export.
+
+```ts
+import { StackFrame, Symbolicator } from "@destack/package/stack";
+
+const frames = await new Symbolicator(build).frames(StackFrame.read(error.stack ?? ""));
+// [{ function: "rename", file: "…/workload.js", path: "src/note.ts", line: 3, isInApp: true, moniker, declaration }]
+```
+
 ## Transforms
 
 `@destack/package/bun/preload` installs the module transform in Bun, and `modulePlugin` from `@destack/package/vite` in Vite and Vitest.
