@@ -219,7 +219,7 @@ async function callFeed(
             throw error;
         },
         resources: new ResourceContext(),
-        server: () => ({
+        serverOptions: () => ({
             scope: "fixture",
             drainTimeout: 1000,
             authenticate: async () => undefined,
