@@ -13,7 +13,8 @@
         "./bun": "./src/bun/index.ts",
         "./browser": "./src/browser/index.ts",
         "./worker": "./src/worker/index.ts",
-        "./otlp": "./src/otlp/index.ts"
+        "./otlp": "./src/otlp/index.ts",
+        "./test": "./src/test/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

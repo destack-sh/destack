@@ -3,15 +3,11 @@ import { metrics, type Span, trace } from "@opentelemetry/api";
 import { logs } from "@opentelemetry/api-logs";
 import { MeterProvider, MetricReader } from "@opentelemetry/sdk-metrics";
 import {
-    InMemoryLogRecordExporter,
-    LoggerProvider,
-    SimpleLogRecordProcessor,
-} from "@opentelemetry/sdk-logs";
-import {
     InMemorySpanExporter,
     SimpleSpanProcessor,
     TracerProvider,
 } from "@opentelemetry/sdk-trace";
+import { TestTelemetry } from "../test/index.ts";
 import { ProxyLogger, ProxyMeter, ProxyTracer } from "./proxy.ts";
 
 /** A reader collecting a provider's metrics on demand. */
@@ -51,20 +47,14 @@ function registerMeter(): CollectingReader {
     return reader;
 }
 
-/** Register a tracer and a logger provider globally. */
-function registerTracing(): { spans: InMemorySpanExporter; records: InMemoryLogRecordExporter } {
+/** Register a tracer provider globally, and the test telemetry keeping the records. */
+function registerTracing(): { spans: InMemorySpanExporter; records: TestTelemetry } {
     const spans = new InMemorySpanExporter();
-    const records = new InMemoryLogRecordExporter();
     trace.setGlobalTracerProvider(
         new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter: spans })] }),
     );
-    logs.setGlobalLoggerProvider(
-        new LoggerProvider({
-            processors: [new SimpleLogRecordProcessor({ exporter: records })],
-        }),
-    );
 
-    return { spans, records };
+    return { spans, records: TestTelemetry.register() };
 }
 
 test("record on the provider that registers after a package created its counter", async () => {
@@ -104,7 +94,6 @@ test("start spans and emit records on the providers registered last, leaving the
 
     // replace them, as a process starting telemetry again does
     trace.disable();
-    logs.disable();
     const second = registerTracing();
     tracer.startActiveSpan("second", (span: Span) => span.end());
     logger.emit({ eventName: "second" });
@@ -112,7 +101,7 @@ test("start spans and emit records on the providers registered last, leaving the
     expect(
         [first, second].map(({ spans, records }) => [
             spans.getFinishedSpans().map((span) => span.name),
-            records.getFinishedLogRecords().map((record) => record.eventName),
+            records.events(),
         ]),
     ).toEqual([
         [["first"], ["first"]],
