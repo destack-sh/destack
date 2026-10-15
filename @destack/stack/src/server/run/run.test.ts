@@ -541,7 +541,7 @@ test.each(TEST_DIALECTS)(
         await pushing.promise;
         const running = (await fixture.runs()).find((entry) => entry.id === cancelled.id);
         const now = fixture.store.clock.now();
-        await fixture.store.mutate(Caller.of(fixture.store.principal, now), {
+        await fixture.store.mutate(fixture.store.self, {
             id: RequestId.create(now),
             calls: [
                 object.run.call("cancel", object.run.target(present(running, "the cancelled run"))),
@@ -575,26 +575,38 @@ test("push a call through a machine's ingress as the installation or for its sen
     }[] = [];
     const push = pushThrough(
         {
-            ingress: async (_installation, path, request, caller) => {
+            ingress: async (_installation, path, request, authentication) => {
                 requests.push({
                     path,
-                    caller: present(caller.subject, "the caller's subject").id,
+                    caller: authentication.caller.subject.id,
                     release: request.headers.get(VERSION_HEADER),
                 });
 
                 return present(responses.shift(), "a recorded response");
             },
         },
-        async (acting, exchange) => ({
-            subject: exchange.subject,
-            subjects: [exchange.subject],
-            delegates: [principal.installation.reference(acting.scope, acting.id)],
-            grant: {
-                id: exchange.grant ?? Identifier.create("grant"),
-                scope: exchange.subject.id,
-                permissions: [],
-            },
-        }),
+        async (acting, exchange) => {
+            const now = Date.now();
+
+            return {
+                caller: {
+                    ...Caller.of(exchange.subject),
+                    actors: [principal.installation.reference(acting.scope, acting.id)],
+                    grant: {
+                        id: exchange.grant ?? Identifier.create("grant"),
+                        scope: exchange.subject.id,
+                        permissions: [],
+                    },
+                },
+                credential: {
+                    kind: "fixture",
+                    id: "fixture-1",
+                    audience: ids.package,
+                    verifiedAt: now,
+                    expiresAt: now + 60_000,
+                },
+            };
+        },
     );
     const target = { id: ids.notes, scope: ids.space, packageId: ids.package };
     const mutation = { id: v7(), calls: [pin] };
@@ -702,7 +714,7 @@ test.each(TEST_DIALECTS)("finish runs as run events, leaving no row on %s", asyn
     fixture.clock.set(T0 + 10_000);
     await fixture.fire(minutely);
     const occurred = aligned(await fixture.runs(), 0);
-    await fixture.store.mutate(Caller.of(fixture.store.principal, fixture.clock.now()), {
+    await fixture.store.mutate(fixture.store.self, {
         id: RequestId.create(fixture.clock.now()),
         calls: [object.run.call("cancel", object.run.target(occurred))],
     });

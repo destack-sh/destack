@@ -1,7 +1,7 @@
 import { TestDirectory } from "@destack/account/test";
 import { IdentityKeystore, identityKey } from "@destack/account/identity";
 import { expect, test } from "@destack/test";
-import { principal } from "@destack/access";
+import { AccessContext, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import * as accountObject from "@destack/account/object";
 import { account } from "@destack/account/object";
@@ -17,7 +17,7 @@ import {
     openUniverse,
     placeSpace,
     StackFixture,
-    subjectCaller,
+    subjectAuthentication,
 } from "../../test/index.ts";
 
 test("delete a space at its home once its installations are gone", async () => {
@@ -59,7 +59,8 @@ test("delete a space at its home once its installations are gone", async () => {
     });
 
     // request the deletion at home and keep the space while the installation it deletes remains
-    await home.mutate(subjectCaller(owner, true), {
+    const { caller, credential } = subjectAuthentication(owner, true);
+    await home.mutate(AccessContext.of(caller, Date.now(), { credential }), {
         id: RequestId.create(Date.now()),
         calls: [
             accountObject.space.call(

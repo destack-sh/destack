@@ -15,7 +15,6 @@ import { type Identifier, present } from "@destack/schema";
 import { setting, SettingValue } from "@destack/setting/object";
 import { transfer } from "../../object/index.ts";
 import { tenancy } from "../../setting/index.ts";
-import { Caller } from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 import type { SpaceAccounts } from "../server.ts";
 
@@ -69,7 +68,7 @@ export class Scheduler {
     /** Decide where a served space belongs and start its move there. */
     async schedule(
         row: Space,
-        store: Pick<ObjectStore, "database" | "principal" | "mutate">,
+        store: Pick<ObjectStore, "database" | "self" | "mutate">,
         now: number,
     ): Promise<Condition> {
         // wait for a running move, the account's plan or a person's choice, or keep a space where its tenancy asks
@@ -86,7 +85,7 @@ export class Scheduler {
             return target.condition;
         }
         const { machine: moving } = target;
-        await store.mutate(Caller.of(store.principal, now), {
+        await store.mutate(store.self, {
             id: RequestId.create(now),
             calls: [
                 transfer.call("create", {

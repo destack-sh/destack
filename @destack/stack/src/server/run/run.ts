@@ -1,5 +1,5 @@
 import { SpaceAllowance, Space, space } from "@destack/account/object";
-import { Caller, principal } from "@destack/access";
+import { type Authentication, Caller, principal } from "@destack/access";
 import * as sync from "@destack/sync";
 import {
     and,
@@ -98,7 +98,7 @@ export interface Ingress {
         installationId: Identifier<"installation">,
         path: string,
         request: Request,
-        caller: Caller,
+        authentication: Authentication,
     ) => Promise<Response>;
 }
 
@@ -106,18 +106,17 @@ export interface Ingress {
 export type RunExchange = (
     installation: Pick<Installation, "id" | "scope" | "packageId">,
     exchange: ExchangeAsk,
-) => Promise<Caller>;
+) => Promise<Authentication>;
 
 /** Push runs' calls through a machine's ingress to the deployments serving their releases. */
 export function pushThrough(dispatcher: Ingress, act: RunExchange): RunAttemptOptions["push"] {
     return async (target, mutation, now, signal, exchange) => {
         // call as the installation in its space, or for the subject who sent the call under its grant
         const subject = principal.installation.reference(target.scope, target.id);
-        const caller: Caller =
+        const authentication: Authentication =
             exchange === null
                 ? {
-                      subject,
-                      subjects: [subject],
+                      caller: Caller.of(subject),
                       credential: {
                           kind: "run",
                           id: mutation.id,
@@ -140,7 +139,7 @@ export function pushThrough(dispatcher: Ingress, act: RunExchange): RunAttemptOp
         });
 
         // answer the mutation's outcome
-        const response = await dispatcher.ingress(target.id, path, request, caller);
+        const response = await dispatcher.ingress(target.id, path, request, authentication);
         if (response.ok) {
             return aligned(PushResult.parse(await response.json()).outcomes, 0).outcome;
         }

@@ -27,7 +27,7 @@ import {
     settle,
     TestSpaceDatabaseHost,
 } from "../../test/index.ts";
-import { Caller, principal } from "@destack/access";
+import { principal } from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 import * as object from "../../object/index.ts";
 import {
@@ -429,7 +429,7 @@ test("retry a provisioning that failed, and keep a deleted resource while its in
     // relate the installation as consumer of what its live deployment captured, as its deploy does
     const consumer = principal.installation.reference(ids.space, named.installation);
     const relate = (consumed: readonly string[]) =>
-        store.mutate(Caller.of(store.principal, now), {
+        store.mutate(store.self, {
             id: RequestId.create(Date.now()),
             calls: [
                 object.database.call("bind", {

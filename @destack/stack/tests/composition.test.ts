@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { principal } from "@destack/access";
 import { TABLE } from "@destack/db";
 import { space } from "@destack/account/object";
 import { defineObject, field, ObjectType } from "@destack/object";
@@ -107,7 +107,7 @@ test("serve two installed packages from one store, writing both in one mutation 
         { others: "keep" },
     );
     const [notebook, task] = [aligned(types, 0), aligned(types, 1)];
-    const caller = Caller.of(store.principal, Date.now());
+    const caller = store.self;
 
     // write a notebook and a task in one mutation
     await store.mutate(caller, {

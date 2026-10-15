@@ -1,5 +1,5 @@
 import { RequestId } from "@destack/runtime/request";
-import { principal, Caller, type SignedCaller } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { type DatabaseConnection, LogPosition, type Row, Snapshot, type Table } from "@destack/db";
@@ -376,11 +376,11 @@ export const SourceHandoff = {
     async requireTarget(
         database: DatabaseConnection,
         spaceId: Identifier<"space">,
-        caller: SignedCaller,
+        caller: Caller,
     ): Promise<Transfer> {
         // read the active transfer and refuse a caller acting for none of its machines
         const record = await SpaceTransfer.readActive(database, spaceId);
-        const acting = new Set(caller.subjects.map((subject) => subject.id));
+        const acting = new Set([caller.subject, ...caller.actors].map((subject) => subject.id));
         if (!acting.has(record.targetId)) {
             throw new CallError("NOT_FOUND", {
                 message: `${spaceId} is transferring to no machine the caller acts for`,
@@ -417,7 +417,9 @@ export const SourceHandoff = {
         });
         if (existing === undefined) {
             const itself = principal.space.reference(Scope.universe.id, input.spaceId);
-            await call.mutate(Caller.of(itself, call.now), [snapshot.call("create", input)]);
+            await call.mutate(AccessContext.of(Caller.of(itself), call.now), [
+                snapshot.call("create", input),
+            ]);
 
             return { digest: null };
         }

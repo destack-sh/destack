@@ -1,15 +1,16 @@
 import { space } from "@destack/account/object";
 import { mkdtemp, rm } from "node:fs/promises";
-import { Scope, type Subject } from "@destack/sync";
+import { Scope, Subject } from "@destack/sync";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
     accessRelationship,
     accessRole,
     accessRolePermission,
+    Authentication,
+    Caller,
     principal,
     Relationship,
-    Caller,
 } from "@destack/access";
 import { account } from "@destack/account/object";
 import { accountDatabase } from "@destack/account/stack";
@@ -99,8 +100,8 @@ export class BucketFixture implements AsyncDisposable {
     readonly server: Server;
     /** The member's client. */
     readonly client: Client<ObjectProcedures<typeof bucket>>;
-    /** The authenticated caller, replaced by scenarios acting as others. */
-    caller: Caller;
+    /** The authenticated caller with its credential, replaced by scenarios acting as others. */
+    authentication: Authentication;
     /** The space's call events. */
     readonly #events: EventStore;
     /** Release the database and bucket directory. */
@@ -119,7 +120,7 @@ export class BucketFixture implements AsyncDisposable {
         this.#events = events;
         this.files = files;
         this.#close = close;
-        this.caller = this.member();
+        this.authentication = this.member();
 
         // serve the bucket over S3 under the presigning credentials
         this.s3 = new S3Server({
@@ -143,7 +144,7 @@ export class BucketFixture implements AsyncDisposable {
                     });
                 }
 
-                return this.caller;
+                return this.authentication;
             },
             authorizeMachine: async () => {},
             drainTimeout: 1000,
@@ -200,7 +201,7 @@ export class BucketFixture implements AsyncDisposable {
     }
 
     /** Authenticate the member of the space's account. */
-    member(): Caller {
+    member(): Authentication {
         return this.authenticate(principal.user.reference("universe", this.userId), [
             principal.user.reference("universe", this.userId),
             { ...account.reference(this.userId, this.accountId), relation: "editor" },
@@ -208,11 +209,17 @@ export class BucketFixture implements AsyncDisposable {
     }
 
     /** Authenticate a subject with the given subjects and claims. */
-    authenticate(subject: Subject, subjects: Subject[], claims: Partial<Caller> = {}): Caller {
+    authenticate(
+        subject: Subject,
+        subjects: Subject[],
+        claims: Partial<Caller> = {},
+    ): Authentication {
         return {
-            subject,
-            subjects,
-            ...claims,
+            caller: {
+                ...Caller.of(subject),
+                ...claims,
+                groups: subjects.filter((each) => !Subject.same(each, subject)),
+            },
             credential: {
                 kind: "fixture",
                 id: "fixture-1",

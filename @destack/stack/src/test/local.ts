@@ -1,4 +1,4 @@
-import type { Caller } from "@destack/access";
+import type { Authentication } from "@destack/access";
 import type { Identifier } from "@destack/schema";
 import { Egress } from "@destack/runtime";
 import { CallError } from "@destack/runtime/error";
@@ -86,12 +86,14 @@ export class LocalRuntime implements Runtime {
         instanceId: Identifier<"instance">,
         path: string,
         request: Request,
-        caller: Caller,
+        authentication: Authentication,
     ): Promise<Response> {
         // forward at the path below the installation with the runner's secret and the verified caller
         const { runner, secret } = this.#registry.require(instanceId);
 
-        return runner.fetch(WorkloadRequest.forward(RUNNER_ORIGIN, path, request, secret, caller));
+        return runner.fetch(
+            WorkloadRequest.forward(RUNNER_ORIGIN, path, request, secret, authentication),
+        );
     }
 
     /** Hand an instance's workload a request the machine makes at a path below its origin. */

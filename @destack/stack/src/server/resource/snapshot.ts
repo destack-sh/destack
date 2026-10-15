@@ -1,5 +1,5 @@
 import { type Resource, appliedStates } from "./resource.ts";
-import { principal, Caller } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { Condition, lt, type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
 import { type ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -45,7 +45,7 @@ export async function retireSnapshots(
 ): Promise<void> {
     const retired = await transaction.read(snapshot.table).findMany({ where: { spaceId } });
     await store.mutate(
-        Caller.of(principal.space.reference(Scope.universe.id, spaceId), now),
+        AccessContext.of(Caller.of(principal.space.reference(Scope.universe.id, spaceId)), now),
         {
             id: RequestId.create(now),
             calls: retired.map(({ id }) => snapshot.call("delete", { id })),
@@ -85,8 +85,8 @@ export function implementSnapshot(options: TransferOptions) {
                         Recipient.of(row.recipient),
                     );
                     await reconciliation.store.mutate(
-                        Caller.of(
-                            principal.space.reference(Scope.universe.id, spaceId),
+                        AccessContext.of(
+                            Caller.of(principal.space.reference(Scope.universe.id, spaceId)),
                             reconciliation.now,
                         ),
                         {
@@ -232,7 +232,10 @@ async function restoreFirst(
             ...(row.fencedAt === null ? {} : { caughtUpAt: now }),
         };
         await reconciliation.store.mutate(
-            Caller.of(principal.space.reference(Scope.universe.id, row.spaceId), now),
+            AccessContext.of(
+                Caller.of(principal.space.reference(Scope.universe.id, row.spaceId)),
+                now,
+            ),
             {
                 id: RequestId.create(now),
                 calls: [restore.call("update", { ...restore.target(row), ...fields })],
@@ -266,7 +269,10 @@ async function catchUp(
 
     // record the catch-up as the space
     await reconciliation.store.mutate(
-        Caller.of(principal.space.reference(Scope.universe.id, row.spaceId), reconciliation.now),
+        AccessContext.of(
+            Caller.of(principal.space.reference(Scope.universe.id, row.spaceId)),
+            reconciliation.now,
+        ),
         {
             id: RequestId.create(reconciliation.now),
             calls: [
@@ -297,7 +303,10 @@ export async function sweepSnapshots(
     await Transaction.run(database, async (transaction) => {
         for (const [spaceId, rows] of bySpace) {
             await objects.mutate(
-                Caller.of(principal.space.reference(Scope.universe.id, spaceId), now),
+                AccessContext.of(
+                    Caller.of(principal.space.reference(Scope.universe.id, spaceId)),
+                    now,
+                ),
                 {
                     id: RequestId.create(now),
                     calls: rows.map(({ id }) => snapshot.call("delete", { id })),

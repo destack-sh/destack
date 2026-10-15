@@ -467,7 +467,7 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
     );
 
     // conceal the space from a caller outside the account
-    fixture.caller = fixture.authenticate(member, [member]);
+    fixture.authentication = fixture.authenticate(member, [member]);
     await expect(client.file({ ...bucket, key: "file" })).rejects.toEqual(
         new CallError("NOT_FOUND", { message: `no scope ${fixture.spaceId}`, defined: true }),
     );
@@ -532,7 +532,7 @@ test.for(TEST_DIALECTS)(
         );
 
         // upload and list as the installation the bucket's capture relates as a consumer
-        fixture.caller = fixture.authenticate(using, [using]);
+        fixture.authentication = fixture.authenticate(using, [using]);
         const upload = await client.open({
             mode: "write",
             ...bucket,
@@ -557,7 +557,7 @@ test.for(TEST_DIALECTS)(
         });
 
         // conceal the bucket from an installation no capture relates to it
-        fixture.caller = fixture.authenticate(other, [other]);
+        fixture.authentication = fixture.authenticate(other, [other]);
         await expect(client.files({ ...bucket, limit: 10 })).rejects.toEqual(
             new CallError("NOT_FOUND", { message: `no bucket ${bucket.id}`, defined: true }),
         );
@@ -629,7 +629,7 @@ test.for(TEST_DIALECTS)(
                 ),
             ),
         );
-        fixture.caller = fixture.authenticate(consumer, [consumer]);
+        fixture.authentication = fixture.authenticate(consumer, [consumer]);
         const leased = await client
             .open({
                 mode: "write",

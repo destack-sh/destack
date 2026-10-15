@@ -111,13 +111,13 @@ test("grant an installation tokens of its space as it asks by assertions its key
         audience: ids.package,
         keys: createLocalJWKSet(keys),
     });
-    const caller = await verifier.verify(ciToken.accessToken, now, ids.space);
-    const credential = { kind: caller.credential?.kind, id: caller.credential?.id };
-    expect([caller.subject, credential, caller.deployments]).toEqual([
-        installation,
-        { kind: INSTALLATION_KEY, id: ci.id },
-        undefined,
-    ]);
+    const verified = await verifier.verify(ciToken.accessToken, now, ids.space);
+    const { credential } = verified;
+    expect([
+        verified.caller.subject,
+        { kind: credential.kind, id: credential.id },
+        credential.deployments,
+    ]).toEqual([installation, { kind: INSTALLATION_KEY, id: ci.id }, undefined]);
     const serverKey = keyOf(serverKeyRow.id, serverKeyRow.publicKey);
     const serverAssertion = await Assertion.sign(curve.privateKey, serverKey, ENDPOINT, now);
     await grant(serverAssertion);

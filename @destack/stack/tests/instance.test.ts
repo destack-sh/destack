@@ -18,7 +18,7 @@ import {
     type DirectoryGrant,
     Package,
 } from "@destack/package";
-import { accessRole, principal, Caller } from "@destack/access";
+import { AccessContext, accessRole, Caller, principal } from "@destack/access";
 import { client, space } from "@destack/account/object";
 import { defineObject, type Field, field, type ObjectDefinition } from "@destack/object";
 import type { ServerRuntime } from "@destack/package/runtime";
@@ -333,7 +333,7 @@ async function approvePlan(
     const digest = await Plan.digest(approval.plan());
 
     // approve it as the system
-    const [granted] = await store.mutate(Caller.of(store.principal, Date.now()), {
+    const [granted] = await store.mutate(store.self, {
         id: RequestId.create(Date.now()),
         calls: [
             object.installation.call("approve", {
@@ -1445,11 +1445,12 @@ test("grant an applied application exactly the space permissions its workloads r
     const spaceObject = await Scope.object(Snapshot.live(database), ids.space);
     const decide = async () => {
         const snapshot = Snapshot.live(database);
-        const access = await authorizer.resolve(snapshot, ids.space, {
-            subjects: [principal.installation.reference(ids.space, notes.id)],
-            attributes: {},
-            now: Date.now(),
-        });
+        const installed = principal.installation.reference(ids.space, notes.id);
+        const access = await authorizer.resolve(
+            snapshot,
+            ids.space,
+            AccessContext.of(Caller.of(installed), Date.now()),
+        );
 
         return Promise.all(
             [accountObject.space.permission("read"), accountObject.space.permission("manage")].map(

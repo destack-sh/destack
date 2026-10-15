@@ -1,4 +1,4 @@
-import { Authorization, Caller } from "@destack/access";
+import { AccessContext, Authorization, Caller } from "@destack/access";
 import { account, Space, space, type SpaceStack } from "@destack/account/object";
 import {
     and,
@@ -226,12 +226,9 @@ export class PlacementController implements Controller {
         const now = this.#store.clock.now();
         await Transaction.run(this.#database, async (transaction) => {
             // record its scope and write its first access here, its home
-            const authorization = new Authorization(this.#store.authorizer, transaction, () => ({
-                subject: this.#store.principal,
-                subjects: [this.#store.principal],
-                now,
-                attributes: {},
-            }));
+            const authorization = new Authorization(this.#store.authorizer, transaction, () =>
+                AccessContext.of(Caller.of(this.#store.principal), now),
+            );
             await authorization.receive(
                 space.reference(replicated.scope, spaceId),
                 ancestors,
@@ -253,7 +250,7 @@ export class PlacementController implements Controller {
         await Transaction.run(this.#database, async (transaction) => {
             // keep the main database as the space
             await this.#store.mutate(
-                Caller.of(this.#store.principal, now),
+                this.#store.self,
                 {
                     id: RequestId.create(now),
                     calls: [
@@ -297,7 +294,7 @@ export class PlacementController implements Controller {
         const selection = { kind: "release" as const, version: stacked.version };
         const [created] =
             installed === null
-                ? await this.#store.mutate(Caller.of(this.#store.principal, now), {
+                ? await this.#store.mutate(this.#store.self, {
                       id: RequestId.create(now),
                       calls: [
                           installation.call("create", {
@@ -314,7 +311,7 @@ export class PlacementController implements Controller {
                 : [installed];
 
         // submit its pinned build in a mutation of its own, whose preparation reads the created stack
-        await this.#store.mutate(Caller.of(this.#store.principal, now), {
+        await this.#store.mutate(this.#store.self, {
             id: RequestId.create(now),
             calls: [
                 installation.call("submit", {

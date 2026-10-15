@@ -1,4 +1,4 @@
-import { CALLER_HEADER, Caller } from "@destack/access";
+import { type Authentication, CALLER_HEADER, Caller } from "@destack/access";
 import type { Capabilities, DirectoryGrant, PackageId } from "@destack/package";
 import type { BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { ServerRuntime } from "@destack/package/runtime";
@@ -39,7 +39,7 @@ export interface Runtime {
         instanceId: Identifier<"instance">,
         path: string,
         request: Request,
-        caller: Caller,
+        authentication: Authentication,
         partition?: string,
     ) => Promise<Response>;
     /** Hand an instance a webhook delivery or socket event from its machine. */
@@ -141,15 +141,15 @@ export const WorkloadRequest = {
         path: string,
         request: Request,
         secret: string,
-        caller?: Caller,
+        authentication?: Authentication,
     ): Request {
         // replace the caller's credentials with the secret and the verified caller
         const headers = new Headers(request.headers);
         headers.set("authorization", `Bearer ${secret}`);
         headers.delete(CALLER_HEADER);
         headers.delete("cookie");
-        if (caller !== undefined) {
-            Caller.forward(caller, headers);
+        if (authentication !== undefined) {
+            Caller.forward(authentication, headers);
         }
 
         // keep the query and leave redirects to the caller

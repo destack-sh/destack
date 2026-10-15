@@ -54,7 +54,7 @@ async function serveBranches() {
     });
     const context = subjectContext(principal.user.reference("universe", ids.owner), ids.space);
     const call = async (calls: readonly ReturnType<typeof branch.call>[]) =>
-        store.mutate(context.caller(), { id: RequestId.create(Date.now()), calls: [...calls] });
+        store.mutate(context.access(), { id: RequestId.create(Date.now()), calls: [...calls] });
     const read = async (id: Identifier<"branch">) => {
         const [opened] = await fixture.database
             .select({ state: branch.table.state, tables: branch.table.tables })

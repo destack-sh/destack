@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { type Authentication, Caller, principal } from "@destack/access";
 import { and, eq, isNull, type DatabaseConnection } from "@destack/db";
 import type { CallOf, ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -23,7 +23,7 @@ import { proof } from "../../object/proof.ts";
 export const InstallationAssertion = {
     /** Verify the assertions a store's installations sign for a package, spending each once. */
     verifier(
-        objects: Pick<ObjectStore, "database" | "principal" | "mutate">,
+        objects: Pick<ObjectStore, "database" | "principal" | "self" | "mutate">,
         audience: PackageId,
     ): AssertionVerifier {
         return new AssertionVerifier({
@@ -31,7 +31,7 @@ export const InstallationAssertion = {
             audience,
             keys: (id, _issuer, now) => InstallationAssertion.key(objects.database, id, now),
             spend: async (digest, expiresAt, now) => {
-                await objects.mutate(Caller.of(objects.principal, now), {
+                await objects.mutate(objects.self, {
                     id: RequestId.create(now),
                     calls: [
                         proof.call("create", {
@@ -50,7 +50,7 @@ export const InstallationAssertion = {
         verifier: AssertionVerifier,
         request: Request,
         now: number,
-    ): Promise<Caller | undefined> {
+    ): Promise<Authentication | undefined> {
         const bearer = Bearer.read(request.headers);
 
         return bearer !== undefined && Assertion.is(bearer)
@@ -108,12 +108,12 @@ export const InstallationAssertion = {
         // read the key the installation's assertion proved
         const { now } = call;
         const target = call.target;
-        const credential = Caller.requireCredential(call.caller);
-        const keyId = schema.identifier("installation-key").safeParse(credential.id);
+        const { credential } = call.caller;
+        const keyId = schema.identifier("installation-key").safeParse(credential?.id);
         const key = keyId.success
             ? await call.read(installationKey).findFirst({ where: { id: keyId.data } })
             : undefined;
-        if (credential.kind !== INSTALLATION_KEY || key?.parentId !== target.id) {
+        if (credential?.kind !== INSTALLATION_KEY || key?.parentId !== target.id) {
             throw new CallError("UNAUTHORIZED", {
                 message: "an installation token is granted for the installation's own assertion",
             });
@@ -127,8 +127,7 @@ export const InstallationAssertion = {
 
         return issuer.issue(
             {
-                subject,
-                subjects: [subject],
+                caller: Caller.of(subject),
                 credential: {
                     kind: INSTALLATION_KEY,
                     id: key.id,

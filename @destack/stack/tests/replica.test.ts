@@ -1,6 +1,13 @@
 import { STACKS } from "@destack/account/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { Authorization, Authorizer, principal, Caller } from "@destack/access";
+import {
+    AccessContext,
+    Authentication,
+    Authorization,
+    Authorizer,
+    Caller,
+    principal,
+} from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { Account, account, user, space } from "@destack/account/object";
 import { type DatabaseConnection, TABLE } from "@destack/db";
@@ -185,7 +192,7 @@ async function createSpace(database: DatabaseConnection): Promise<void> {
     await Authorization.run(
         new Authorizer([accountObject.space.policy], [accountObject.space.mapping]),
         database,
-        () => ({ subjects: [owner], now, attributes: {} }),
+        () => AccessContext.of(Caller.of(owner), now),
         (authorization) =>
             authorization.create(accountObject.space.reference(ids.account, ids.space), {
                 owner,
@@ -206,14 +213,13 @@ async function createSpace(database: DatabaseConnection): Promise<void> {
 }
 
 /** Authenticate a request as the installation its x-installation header names. */
-function authenticate(request: Request): Caller {
+function authenticate(request: Request): Authentication {
     const subject = Subject.read(
         present(request.headers.get("x-installation"), "the x-installation header"),
     );
 
     return {
-        subject,
-        subjects: [subject],
+        caller: Caller.of(subject),
         credential: {
             kind: "fixture",
             id: "fixture-1",

@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Authorization, Authorizer, principal } from "@destack/access";
+import { AccessContext, Authorization, Authorizer, Caller, principal } from "@destack/access";
 import { Identifier, present } from "@destack/schema";
 import * as object from "../../object/index.ts";
 import * as accountObject from "@destack/account/object";
@@ -111,11 +111,9 @@ test("deploy an installation capturing each binding at its target's generation o
         [accountObject.space.mapping, object.database.mapping],
     );
     const workload = principal.installation.reference(ids.space, ids.notes);
-    const authorization = new Authorization(authorizer, Transaction.reading(database), () => ({
-        subjects: [workload],
-        now: Date.now(),
-        attributes: {},
-    }));
+    const authorization = new Authorization(authorizer, Transaction.reading(database), () =>
+        AccessContext.of(Caller.of(workload), Date.now()),
+    );
     const reads = await Promise.all(
         [ledger, archive, spare].map((entry) =>
             authorization.check(

@@ -18,7 +18,6 @@ import { aligned, Digest, present } from "@destack/schema";
 import type { ResourceKind } from "@destack/resource";
 import type { Controller } from "@destack/runtime/control";
 import { binding, capture, Deployment, deployment, MAIN_DATABASE } from "../../object/index.ts";
-import { Caller } from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 
 /** Write each resource's specification from its space and consumers where the resource lives. */
@@ -28,7 +27,7 @@ export class ConsumerController implements Controller {
     /** The tables of the consumers, the spaces and their placements, and every kind's resources. */
     readonly watches: readonly Table[];
     /** The object store writing the resources and stopping deployments as its principal. */
-    readonly #store: Pick<ObjectStore, "database" | "principal" | "mutate" | "clock">;
+    readonly #store: Pick<ObjectStore, "database" | "self" | "mutate" | "clock">;
     /** The objects of every kind whose resources the spaces use, kept here or replicated. */
     readonly #objects: readonly ResourceType<typeof space>[];
     /** The main database declaring the platform's tables every space's main database keeps. */
@@ -38,7 +37,7 @@ export class ConsumerController implements Controller {
 
     /** Reconcile the resources of some kinds in the spaces a machine serves. */
     constructor(
-        store: Pick<ObjectStore, "database" | "principal" | "mutate" | "clock">,
+        store: Pick<ObjectStore, "database" | "self" | "mutate" | "clock">,
         objects: readonly ResourceType<typeof space>[],
         main: Database,
     ) {
@@ -151,7 +150,7 @@ export class ConsumerController implements Controller {
                     ...draining.values(),
                 ]);
                 await this.#store.mutate(
-                    Caller.of(this.#store.principal, now),
+                    this.#store.self,
                     { id: RequestId.create(now), calls: [object.call("specify", input)] },
                     { scope: row.scope, component: this.name, transaction },
                 );
@@ -193,7 +192,7 @@ export class ConsumerController implements Controller {
                 ),
             );
         await this.#store.mutate(
-            Caller.of(this.#store.principal, now),
+            this.#store.self,
             {
                 id: RequestId.create(now),
                 calls: draining.map((entry) =>

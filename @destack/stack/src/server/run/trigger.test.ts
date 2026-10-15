@@ -1,4 +1,4 @@
-import { principal, Caller } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, refusal, test, vi } from "@destack/test";
 import { ControlLoop } from "@destack/runtime/control";
@@ -338,7 +338,7 @@ test.each(TEST_DIALECTS)(
         const { store } = fixture;
         const notes = principal.installation.reference(ids.space, ids.notes);
         const created = aligned(
-            await store.mutate(Caller.of(notes, fixture.clock.now()), {
+            await store.mutate(AccessContext.of(Caller.of(notes), Date.now()), {
                 id: RequestId.create(fixture.clock.now()),
                 calls: [
                     object.trigger.call("create", {
@@ -354,7 +354,7 @@ test.each(TEST_DIALECTS)(
 
         // refuse creating a webhook trigger
         const unscheduled = await message(
-            store.mutate(Caller.of(notes, fixture.clock.now()), {
+            store.mutate(AccessContext.of(Caller.of(notes), Date.now()), {
                 id: RequestId.create(fixture.clock.now()),
                 calls: [
                     object.trigger.call("create", {
@@ -368,7 +368,7 @@ test.each(TEST_DIALECTS)(
         );
         // refuse changing the declared one and pause it
         const refused = await message(
-            store.mutate(Caller.of(notes, fixture.clock.now()), {
+            store.mutate(AccessContext.of(Caller.of(notes), Date.now()), {
                 id: RequestId.create(fixture.clock.now()),
                 calls: [
                     object.trigger.call("update", {
@@ -378,7 +378,7 @@ test.each(TEST_DIALECTS)(
                 ],
             }),
         );
-        await store.mutate(Caller.of(notes, fixture.clock.now()), {
+        await store.mutate(AccessContext.of(Caller.of(notes), Date.now()), {
             id: RequestId.create(fixture.clock.now()),
             calls: [object.trigger.call("pause", object.trigger.target(declared))],
         });
@@ -386,7 +386,7 @@ test.each(TEST_DIALECTS)(
         // fire both with the paused one recording nothing and delete the created one with its waiting run
         await fixture.fire(declared);
         await fixture.fire(created);
-        await store.mutate(Caller.of(notes, fixture.clock.now()), {
+        await store.mutate(AccessContext.of(Caller.of(notes), Date.now()), {
             id: RequestId.create(fixture.clock.now()),
             calls: [object.trigger.call("delete", object.trigger.target(created))],
         });

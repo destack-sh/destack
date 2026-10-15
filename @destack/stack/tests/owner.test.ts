@@ -1,5 +1,5 @@
 import { STACKS } from "@destack/account/test";
-import { Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
 import { Transaction } from "@destack/db";
@@ -44,7 +44,7 @@ test("decide an owner's permissions on a space in its own store through the pred
         origin: { package: space.package },
     });
     const decide = async (subject: typeof owner, name: "update" | "replicate") => {
-        const caller = Caller.of(subject, Date.now());
+        const caller = AccessContext.of(Caller.of(subject), Date.now());
         const authorization = await store.authorize(
             Transaction.reading(database),
             ids.space,

@@ -248,8 +248,7 @@ function requireWriter(call: BucketCall): void {
     // refuse a write into a package's bucket by any caller but the package itself
     const target = call.target;
     const { subject } = call.caller;
-    const isItself =
-        subject !== undefined && Subject.same(subject, Caller.requirePrincipal(call.self));
+    const isItself = subject !== undefined && Subject.same(subject, Caller.principal(call.self));
     if (BucketSpec.parse(target.spec).write === "package" && !isItself) {
         throw new CallError("FORBIDDEN", { message: `the space alone writes ${target.id}` });
     }

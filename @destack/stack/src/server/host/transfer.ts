@@ -39,7 +39,7 @@ import {
     type Subject,
     type Uplink,
 } from "@destack/sync";
-import { principal, Caller } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import {
     Database,
     deployment,
@@ -86,7 +86,7 @@ export interface TransferOptions {
 }
 
 /** The space's object store a move runs its calls through as its principal. */
-export type TransferStore = Pick<ObjectStore, "database" | "principal" | "mutate" | "clock">;
+export type TransferStore = Pick<ObjectStore, "database" | "self" | "mutate" | "clock">;
 
 /** A resource of the space whose provider fences its content, with its record. */
 interface ResourceFence {
@@ -177,8 +177,8 @@ export function implementTransfer(options: TransferOptions) {
                         .read(snapshot.table)
                         .findMany({ where: { spaceId: located.id } });
                     await call.mutate(
-                        Caller.of(
-                            principal.space.reference(Scope.universe.id, located.id),
+                        AccessContext.of(
+                            Caller.of(principal.space.reference(Scope.universe.id, located.id)),
                             call.now,
                         ),
                         retired.map(({ id }) => snapshot.call("delete", { id })),
@@ -232,7 +232,7 @@ async function mark(
         readonly scope: string;
         readonly now: number;
         readonly input: { readonly targetId: string };
-        readonly requireId: () => string;
+        readonly id: string;
     },
     options: TransferOptions,
 ): Promise<Placement> {
@@ -247,7 +247,7 @@ async function mark(
 
     // mark the move at the epoch this machine serves the space at
     const move = { accountId: located.scope, id: located.id, epoch: located.epoch };
-    const transferId = schema.identifier("transfer").parse(call.requireId());
+    const transferId = schema.identifier("transfer").parse(call.id);
     await options.publisher.receive({
         id: RequestId.create(call.now),
         calls: [
@@ -717,7 +717,10 @@ export class SpaceTransfer {
             const calls = [...created, ...fenced];
             if (calls.length > 0) {
                 await store.mutate(
-                    Caller.of(principal.space.reference(Scope.universe.id, this.spaceId), now),
+                    AccessContext.of(
+                        Caller.of(principal.space.reference(Scope.universe.id, this.spaceId)),
+                        now,
+                    ),
                     { id: RequestId.create(now), calls },
                     { transaction, scope: Scope.universe.id },
                 );
@@ -857,7 +860,7 @@ export class SpaceTransfer {
 
             // complete the transfer
             await store.mutate(
-                Caller.of(store.principal, now),
+                store.self,
                 {
                     id: RequestId.create(now),
                     calls: [transfer.call("complete", { id: record.id })],

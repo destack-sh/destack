@@ -10,7 +10,7 @@ import {
 } from "@destack/object";
 import { aligned, type JsonObject } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
-import { principal, Caller } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { Scope, type Uplink } from "@destack/sync";
 import { installation } from "../../object/index.ts";
 import type { Scheduler } from "./scheduler.ts";
@@ -103,7 +103,7 @@ async function remove(
     const live = installations.filter((entry) => entry.deletedAt === null);
     if (live.length > 0) {
         await store.mutate(
-            Caller.of(itself, now),
+            AccessContext.of(Caller.of(itself), now),
             {
                 id: RequestId.create(now),
                 calls: live.map((entry) => installation.call("delete", installation.target(entry))),

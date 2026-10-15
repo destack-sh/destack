@@ -1,4 +1,4 @@
-import { accessRelationship, Caller, principal } from "@destack/access";
+import { accessRelationship, principal } from "@destack/access";
 import { space } from "@destack/account/object";
 import { databaseProvider, eq, TABLE } from "@destack/db";
 import { Package } from "@destack/package";
@@ -205,7 +205,7 @@ test("keep a person's own apply of a placed space's stack, and submit the space'
         const { installed, revision } = await stack();
         const evaluation = { export: "home", parameters: {} };
         const definition = present(revision.definition, "the definition");
-        await store.mutate(Caller.of(store.principal, Date.now()), {
+        await store.mutate(store.self, {
             id: RequestId.create(Date.now()),
             calls: [
                 installation.call("submit", {

@@ -5,7 +5,7 @@ import { onTestFinished, refusal, test } from "@destack/test";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Authorization, Authorizer, principal } from "@destack/access";
+import { AccessContext, Authorization, Authorizer, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
 import { TestDatabase } from "@destack/db/test";
@@ -71,7 +71,7 @@ test("serve a build's modules and symbols from its index to the build's readers,
     await Authorization.run(
         authorizer,
         database,
-        () => ({ subjects: [owner], now, attributes: {} }),
+        () => AccessContext.of(Caller.of(owner), now),
         (authorization) => authorization.create(space.reference(ids.account, ids.space), { owner }),
     );
 
@@ -104,7 +104,7 @@ test("serve a build's modules and symbols from its index to the build's readers,
     await Authorization.run(
         authorizer,
         database,
-        () => ({ subjects: [owner], now, attributes: {} }),
+        () => AccessContext.of(Caller.of(owner), now),
         (authorization) => authorization.create(build.reference(ids.space, buildId), {}),
     );
 
@@ -133,7 +133,7 @@ test("serve a build's modules and symbols from its index to the build's readers,
     const moniker = (path: string) => `${NOTEBOOK_ID}/${path}`;
     const at = moniker("src/object.ts");
     const read = (id: string) =>
-        store.query(context(ids.owner).caller(), symbol.call("get", { buildId, id }));
+        store.query(context(ids.owner).access(), symbol.call("get", { buildId, id }));
     const summary = (row: Awaited<ReturnType<typeof read>>) => [
         row.id,
         row.moduleId,
@@ -143,7 +143,7 @@ test("serve a build's modules and symbols from its index to the build's readers,
         relations(row.relationships),
     ];
     const modules = await store.query(
-        context(ids.owner).caller(),
+        context(ids.owner).access(),
         module.call("list", { buildId }),
     );
 
@@ -165,7 +165,7 @@ test("serve a build's modules and symbols from its index to the build's readers,
     ]);
     const refused = await refusal(
         store.query(
-            context("stranger").caller(),
+            context("stranger").access(),
             symbol.call("get", { buildId, id: `${at}#notebook` }),
         ),
     );
@@ -195,8 +195,7 @@ test("serve a build's modules and symbols from its index to the build's readers,
             const subject = principal.user.reference("universe", user);
 
             return {
-                subject,
-                subjects: [subject],
+                caller: Caller.of(subject),
                 credential: {
                     kind: "session",
                     id: user,

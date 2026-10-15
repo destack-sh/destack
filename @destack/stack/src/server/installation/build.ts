@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { principal } from "@destack/access";
 import { BucketLease, type BucketReference, type BucketLeaseRequest } from "@destack/bucket/s3";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { Lease } from "@destack/resource";
@@ -123,7 +123,7 @@ export const BuildStore = {
     /** Expire the builds retention drops, keep the rest as the store's root, and sweep. */
     async sweep(
         builds: BuildStore,
-        objects: Pick<ObjectStore, "database" | "principal" | "mutate">,
+        objects: Pick<ObjectStore, "database" | "principal" | "self" | "mutate">,
         retention: (space: string) => Promise<number>,
         now: number,
         before: Date,
@@ -133,7 +133,7 @@ export const BuildStore = {
         const { retained, expired } = await Build.retention(database, retention);
         if (expired.length > 0) {
             await objects.mutate(
-                Caller.of(objects.principal, now),
+                objects.self,
                 {
                     id: RequestId.create(now),
                     calls: expired.map((row) =>

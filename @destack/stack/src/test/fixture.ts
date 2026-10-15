@@ -10,7 +10,16 @@ import { LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { Call, type Publisher, Scope, type Subject, type Uplink } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { expect, onTestFinished } from "@destack/test";
-import { Authorization, Authorizer, principal, Role, universe, Caller } from "@destack/access";
+import {
+    AccessContext,
+    Authentication,
+    Authorization,
+    Authorizer,
+    Caller,
+    principal,
+    Role,
+    universe,
+} from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, claim, machine, placement, space } from "@destack/account/object";
 import { IdentityKeystore, type IdentityRegistry, identityKey } from "@destack/account/identity";
@@ -537,7 +546,7 @@ export class StackFixture implements AsyncDisposable {
                 // act as the caller the header names
                 const isAuthenticatedNow = request.headers.has("x-authenticated-now");
 
-                return subjectCaller(namedSubject(request), isAuthenticatedNow);
+                return subjectAuthentication(namedSubject(request), isAuthenticatedNow);
             },
             authorizeMachine: async () => {},
             drainTimeout: 1000,
@@ -680,7 +689,7 @@ export async function keepSpace(
     await Authorization.run(
         new Authorizer([space.policy], [space.mapping]),
         database,
-        () => ({ subjects: [owner], now, attributes: {} }),
+        () => AccessContext.of(Caller.of(owner), now),
         (authorization) => authorization.create(created, { owner }),
     );
     await Transaction.run(database, (transaction) =>
@@ -776,10 +785,7 @@ export async function reconcile(
 
 /** Reconcile every resource of a space as the control loops do once it changes. */
 export async function reconcileResources(
-    store: Pick<
-        ObjectStore,
-        "controllers" | "database" | "objects" | "principal" | "mutate" | "clock"
-    >,
+    store: Pick<ObjectStore, "controllers" | "database" | "objects" | "self" | "mutate" | "clock">,
     spaceId: string,
 ): Promise<void> {
     // reconcile each served kind's resources in the space
@@ -889,7 +895,7 @@ export async function openUniverse(
     await Authorization.run(
         new Authorizer([account.policy], [account.mapping]),
         database,
-        () => ({ subjects: [owner], now: Date.now(), attributes: {} }),
+        () => AccessContext.of(Caller.of(owner), Date.now()),
         (authorization) =>
             authorization.create(account.reference(Scope.universe.id, ids.account), { owner }),
     );
@@ -907,20 +913,22 @@ export async function openUniverse(
     };
 }
 
-/** Build a caller acting as a subject at the highest assurance when it authenticated just now. */
-export function subjectCaller(subject: Subject, isAuthenticatedNow = false): Caller {
+/** Authenticate a subject, at the highest assurance when it authenticated just now. */
+export function subjectAuthentication(
+    subject: Subject,
+    isAuthenticatedNow = false,
+): Authentication {
     const now = Date.now();
 
     return {
-        subject,
-        subjects: [subject],
-        ...(isAuthenticatedNow ? { assurance: { level: AAL2, authenticatedAt: now } } : {}),
+        caller: Caller.of(subject),
         credential: {
             kind: "fixture",
             id: "fixture-1",
             audience: stackPackage.id,
             verifiedAt: now,
             expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
+            ...(isAuthenticatedNow ? { assurance: { level: AAL2, authenticatedAt: now } } : {}),
         },
     };
 }

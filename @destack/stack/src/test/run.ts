@@ -9,7 +9,7 @@ import { subjectContext } from "@destack/runtime/test";
 import { RequestId } from "@destack/runtime/request";
 import type { RetryPolicy } from "@destack/runtime/timer";
 import type { Mutation } from "@destack/sync";
-import { principal, Caller } from "@destack/access";
+import { principal } from "@destack/access";
 import {
     type FinishedRun,
     Run,
@@ -167,21 +167,18 @@ export class RunFixture implements AsyncDisposable {
 
     /** Declare a trigger of the notes installation whose schedule runs the pinning call. */
     async trigger(name: string, on: TriggerOn): Promise<Trigger> {
-        const [declared] = await this.store.mutate(
-            Caller.of(this.store.principal, this.clock.now()),
-            {
-                id: RequestId.create(this.clock.now()),
-                calls: [
-                    trigger.call("declare", {
-                        ...trigger.in(ids.space),
-                        installationId: ids.notes,
-                        origin: "declared",
-                        name,
-                        on,
-                    }),
-                ],
-            },
-        );
+        const [declared] = await this.store.mutate(this.store.self, {
+            id: RequestId.create(this.clock.now()),
+            calls: [
+                trigger.call("declare", {
+                    ...trigger.in(ids.space),
+                    installationId: ids.notes,
+                    origin: "declared",
+                    name,
+                    on,
+                }),
+            ],
+        });
 
         if (declared === undefined) {
             throw new TypeError(`declaring trigger ${name} answered no trigger`);
@@ -197,7 +194,7 @@ export class RunFixture implements AsyncDisposable {
             .mutate(
                 subjectContext(principal.installation.reference(ids.space, ids.notes), ids.space, {
                     clock: this.clock,
-                }).caller(),
+                }).access(),
                 {
                     id: RequestId.create(this.clock.now()),
                     calls: [

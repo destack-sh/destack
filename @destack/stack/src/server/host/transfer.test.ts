@@ -118,7 +118,7 @@ test.each(TEST_DIALECTS)(
         const context = subjectContext(principal.user.reference("universe", ids.owner), spaceId);
         const create = (database: DatabaseConnection, name: string) =>
             serve(database)
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [key.call("create", { spaceId, name })],
                 })
@@ -192,7 +192,7 @@ test.each(TEST_DIALECTS)(
         await expect(read().next()).rejects.toEqual(moved);
         await expect(
             serve(source.database).query(
-                context.caller(),
+                context.access(),
                 key.call("get", { spaceId, id: deployed.id }),
             ),
         ).rejects.toEqual(moved);

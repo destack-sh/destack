@@ -48,7 +48,7 @@ import {
     StackFixture,
     ids,
 } from "../../test/index.ts";
-import { Caller, principal } from "@destack/access";
+import { principal } from "@destack/access";
 import { ObjectReference } from "@destack/sync";
 import { RequestId } from "@destack/runtime/request";
 
@@ -108,7 +108,7 @@ async function readStack(database: DatabaseConnection, stack: Installation): Pro
 /** Submit a build of a manifest to a space's stack and let the stack controller apply it. */
 async function submit(
     fixture: StackFixture,
-    store: Pick<ObjectStore, "database" | "principal" | "mutate" | "controllers">,
+    store: Pick<ObjectStore, "database" | "self" | "mutate" | "controllers">,
     stack: Installation,
     submission: Omit<Submission, "build">,
 ): Promise<Installation> {
@@ -123,7 +123,7 @@ async function submit(
                       definition: await fixture.pin(submission.evaluation.definition),
                   },
               };
-    await store.mutate(Caller.of(store.principal, Date.now()), {
+    await store.mutate(store.self, {
         id: RequestId.create(Date.now()),
         calls: [
             installation.call("submit", {
@@ -296,7 +296,7 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
 
     // approve the destructive plan and retire the resource
     const digest = await Plan.digest(present(waiting.plan, "the waiting plan"));
-    await store.mutate(Caller.of(store.principal, Date.now()), {
+    await store.mutate(store.self, {
         id: RequestId.create(Date.now()),
         calls: [installation.call("approve", { ...installation.target(waiting), plan: digest })],
     });
@@ -433,7 +433,7 @@ test.each(["bucket", "resource"])(
         const owner = principal.installation.reference(ids.space, present(installed, "notes").id);
         const ownedId = object.bucket.generateId();
         await store.mutate(
-            Caller.of(store.principal, Date.now()),
+            store.self,
             {
                 id: RequestId.create(Date.now()),
                 calls: [
@@ -659,7 +659,7 @@ test("install a package and declare records of its type in one approved plan, ap
     const stack = await createStack(database);
     const store = await serve(fixture);
     const build = await fixture.recordBuild(await fixtureBuild(stack.packageId, "2026.9.0"));
-    await store.mutate(Caller.of(store.principal, Date.now()), {
+    await store.mutate(store.self, {
         id: RequestId.create(Date.now()),
         calls: [
             installation.call("submit", {
@@ -692,7 +692,7 @@ test("install a package and declare records of its type in one approved plan, ap
 
     // approve it, and install notes while the meter waits for the store to serve meters
     const digest = await Plan.digest(present(waiting.plan, "the waiting plan"));
-    await store.mutate(Caller.of(store.principal, Date.now()), {
+    await store.mutate(store.self, {
         id: RequestId.create(Date.now()),
         calls: [installation.call("approve", { ...installation.target(waiting), plan: digest })],
     });
