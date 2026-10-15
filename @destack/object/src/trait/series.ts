@@ -1,7 +1,7 @@
 import { Condition, type JsonCondition, type Row } from "@destack/db";
 import { SERIES_FOLDS } from "@destack/event";
 import { defineSchema, schema } from "@destack/schema";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 import { ObjectType } from "../object/object.ts";
 import { method } from "../method/record.ts";
 import { EventLog } from "../query/event.ts";
@@ -82,7 +82,7 @@ export type SeriesMethodMap<Storage> = Storage extends "events"
 export const series: Trait<{}> & {
     /** Fold the scope's events in the range per step and group, which reveals no single event. */
     readonly fold: (
-        call: Call,
+        context: MethodContext,
         execution: StoreExecution,
     ) => Promise<schema.Infer<typeof SeriesResult>>;
     /** Read the key values a series condition requires at its top level. */
@@ -94,9 +94,12 @@ export const series: Trait<{}> & {
     constraints: () => [],
     policy: (_options, _object, permissions) => derivePermissions(permissions, ["read"]),
     methods: () => ({ series: seriesMethod }),
-    async fold(call: Call, execution: StoreExecution): Promise<schema.Infer<typeof SeriesResult>> {
+    async fold(
+        context: MethodContext,
+        execution: StoreExecution,
+    ): Promise<schema.Infer<typeof SeriesResult>> {
         // select the range's events the condition selects
-        const kind = call.object.eventKind();
+        const kind = context.object.eventKind();
         const {
             where,
             fold: folding,
@@ -105,10 +108,10 @@ export const series: Trait<{}> & {
             step,
             from,
             before,
-        } = SeriesQuery.parse(call.input);
+        } = SeriesQuery.parse(context.input);
         const range = { time: { gte: from, lt: before } };
         const filter = {
-            scopes: await EventLog.scopes(call, Execution.snapshot(execution).database),
+            scopes: await EventLog.scopes(context, Execution.snapshot(execution).database),
             where: { AND: [range, ...(where === undefined ? [] : [where])] },
         };
 

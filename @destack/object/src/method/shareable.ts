@@ -4,10 +4,10 @@ import { type Row } from "@destack/db";
 import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Page } from "./page.ts";
-import { Call, type MethodCall } from "./call.ts";
+import { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";
 import type * as sync from "@destack/sync";
-import { defineMethod, type Method, type MethodKind } from "./method.ts";
+import { defineMethod, Method, type MethodKind } from "./method.ts";
 import {
     Empty,
     PageShape,
@@ -38,8 +38,8 @@ type SharingConfiguration = {
     target: "object" | "id";
 };
 
-/** The call of a sharing method. */
-type SharingCall = MethodCall<SharingConfiguration>;
+/** The context of a sharing method. */
+type SharingContext = MethodContext<SharingConfiguration>;
 /** The shareable methods' handlers: sharing an object and paging its relationships. */
 export const ShareableMethod = {
     /** Declare an object's sharing methods: relationships, grants, invitations and explanations. */
@@ -84,7 +84,7 @@ export const ShareableMethod = {
                 },
                 (step) => {
                     // revoke the granted relationship
-                    const granted = Call.resultId(step.result);
+                    const granted = Method.resultId(step.result);
                     const call =
                         granted === undefined
                             ? undefined
@@ -178,8 +178,8 @@ export const ShareableMethod = {
                     input: shapes.target.extend(ExplainShape),
                     output: Explanation,
                 }),
-                handler: (call, execution) =>
-                    ShareableMethod.explain(call, Execution.store(execution, call)),
+                handler: (context, execution) =>
+                    ShareableMethod.explain(context, Execution.store(execution, context)),
             }),
             withdraw: ShareableMethod.sharingMethod(
                 "withdraw",
@@ -208,7 +208,7 @@ export const ShareableMethod = {
         route: Route,
         input: (schema: ObjectSchema) => InputObject,
         output: MethodProcedure["output"],
-        handler: (call: SharingCall, execution: StoreExecution) => Promise<unknown>,
+        handler: (context: SharingContext, execution: StoreExecution) => Promise<unknown>,
         inverse?: (step: Step) => readonly sync.Call[] | undefined,
     ): Method {
         return defineMethod<SharingConfiguration>({
@@ -219,18 +219,21 @@ export const ShareableMethod = {
             result: "value",
             isPredicted: false,
             procedure: (_name, shapes) => ({ route, input: input(shapes), output }),
-            handler: (call, execution) => handler(call, Execution.store(execution, call)),
+            handler: (context, execution) => handler(context, Execution.store(execution, context)),
             ...(inverse === undefined ? {} : { inverse }),
         });
     },
 
     /** Explain a subject's permission on an object. */
-    async explain(call: SharingCall, { authorization }: StoreExecution): Promise<Explanation> {
+    async explain(
+        context: SharingContext,
+        { authorization }: StoreExecution,
+    ): Promise<Explanation> {
         // resolve access in the governing scope
         const { authorizer, snapshot } = authorization;
-        const { permission: asked, subject } = schema.object(ExplainShape).parse(call.input);
-        const object = call.object;
-        const target = call.reference();
+        const { permission: asked, subject } = schema.object(ExplainShape).parse(context.input);
+        const object = context.object;
+        const target = context.reference();
         const scope = authorizer.governingScope(target);
         const access = await authorization.in(scope);
         const explained = () =>
@@ -251,7 +254,7 @@ export const ShareableMethod = {
             const resolved = await authorizer.resolve(
                 snapshot,
                 scope,
-                AccessContext.of(Caller.of(subject), call.now),
+                AccessContext.of(Caller.of(subject), context.now),
             );
 
             return authorizer.explain(snapshot, explained(), target, resolved);
@@ -284,26 +287,32 @@ export const ShareableMethod = {
     },
 
     /** Require the given object to exist, outside the trash when live. */
-    async requirePresent(call: SharingCall, state: "live" | "stored"): Promise<void> {
+    async requirePresent(context: SharingContext, state: "live" | "stored"): Promise<void> {
         // read the object
-        const [row]: readonly Row[] = await call
-            .read(call.object.table)
-            .findMany({ where: { id: call.id, scope: call.scope } });
+        const [row]: readonly Row[] = await context
+            .read(context.object.table)
+            .findMany({ where: { id: context.id, scope: context.scope } });
 
         // refuse a missing or trashed object
         if (row === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no ${call.object.name} ${call.id}` });
+            throw new CallError("NOT_FOUND", {
+                message: `no ${context.object.name} ${context.id}`,
+            });
         } else if (
             state === "live" &&
             row["deletedAt"] !== undefined &&
             row["deletedAt"] !== null
         ) {
-            throw new CallError("CONFLICT", { message: `${call.object.name} is in the trash` });
+            throw new CallError("CONFLICT", { message: `${context.object.name} is in the trash` });
         }
     },
 
     /** Read the page a sharing listing asks for, bound to its object. */
-    sharingPage(call: SharingCall, list: string) {
-        return new Page(call.input, [call.object.name, call.scope, call.id, list], schema.string());
+    sharingPage(context: SharingContext, list: string) {
+        return new Page(
+            context.input,
+            [context.object.name, context.scope, context.id, list],
+            schema.string(),
+        );
     },
 };

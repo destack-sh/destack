@@ -1,5 +1,5 @@
 import { Address, type Plan, type Step } from "@destack/resource";
-import { Scope, type Subject } from "@destack/sync";
+import { Scope, type Subject, type Call } from "@destack/sync";
 import { AccessContext, Authorizer, Manager, type Policy } from "@destack/access";
 import {
     type ColumnValue,
@@ -32,7 +32,7 @@ import type { FieldColumn } from "../field/field.ts";
 import { type ClaimHome, Reservation } from "../claim/reservation.ts";
 import type { ObjectStore } from "./store.ts";
 import type { Authorization } from "./authorization.ts";
-import { Call, type ObjectCall, type ResultsOf } from "../method/call.ts";
+import { type ResultsOf } from "../method/context.ts";
 import { Caller } from "@destack/access";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
@@ -428,7 +428,7 @@ export class Stack {
     }
 
     /** Run calls as the stack's principal in its transaction, returning results in order. */
-    mutate<const Calls extends readonly ObjectCall[]>(calls: Calls): Promise<ResultsOf<Calls>> {
+    mutate<const Calls extends readonly Call[]>(calls: Calls): Promise<ResultsOf<Calls>> {
         return this.#options.store.mutate(
             this.caller,
             { id: RequestId.create(this.now), calls },
@@ -740,7 +740,7 @@ export class Stack {
             ]),
         );
         await this.mutate([
-            Call.record(object, "apply", {
+            object.call("apply", {
                 ...(id === undefined ? {} : { id }),
                 manager: { ...this.manager, name },
                 values: json,
@@ -789,7 +789,7 @@ export class Stack {
             if (isArchived) {
                 steps.push({ action: "update", target, risk: "safe", detail: "archive" });
                 await this.mutate([
-                    Call.record(declaration.object, "apply", {
+                    declaration.object.call("apply", {
                         manager,
                         values: { active: false },
                     }),
@@ -803,9 +803,7 @@ export class Stack {
             // retire where the record's rows live
             else {
                 steps.push({ action: "delete", target, risk: "destructive", detail: "retire" });
-                await this.mutate([
-                    Call.record(declaration.object, "apply", { manager, values: null }),
-                ]);
+                await this.mutate([declaration.object.call("apply", { manager, values: null })]);
             }
         }
 

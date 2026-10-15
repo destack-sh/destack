@@ -5,7 +5,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, Identifier, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
-import { type CallInput, defineObject, field } from "../src/index.ts";
+import { type MethodInput, defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
@@ -282,7 +282,7 @@ test("create each variant of a sum type from its own fields beside the shared on
         events: await testEvents(storage.database),
         origin: { package: contact.package },
     });
-    const create = (input: CallInput<typeof contact, "create">) =>
+    const create = (input: MethodInput<typeof contact, "create">) =>
         store
             .mutate(userContext(users.alice, spaceId).access(), {
                 id: RequestId.create(Date.now()),
@@ -374,7 +374,7 @@ test("create an object without a field its creation fills, keeping the field the
         events: await testEvents(storage.database),
         origin: { package: ticket.package },
     });
-    const create = (input: CallInput<typeof ticket, "create">) =>
+    const create = (input: MethodInput<typeof ticket, "create">) =>
         store
             .mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
                 id: RequestId.create(Date.now()),

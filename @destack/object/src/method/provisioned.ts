@@ -19,9 +19,9 @@ export const adopt = provisionedMethod
             owner: ObjectReference.nullable(),
         }),
     })
-    .handle((call) =>
-        call.update({
-            ...ObjectReference.columns("owner", call.input.owner ?? undefined),
+    .handle((context) =>
+        context.update({
+            ...ObjectReference.columns("owner", context.input.owner ?? undefined),
             deletedAt: null,
         }),
     );

@@ -4,15 +4,13 @@ import { type Version, schema } from "@destack/schema";
 import { type Expression, Row, type Table } from "@destack/db";
 import type * as sync from "@destack/sync";
 import type {
-    Call,
     HandleFunction,
     Handler,
-    MethodCall,
     MethodResult,
-    MutationCall,
+    MethodContext,
     PhasedHandler,
     PreparedOf,
-} from "./call.ts";
+} from "./context.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { MethodProcedure, ObjectSchema } from "./procedure.ts";
 import type {
@@ -27,8 +25,8 @@ import type {
 } from "./record.ts";
 import type { MethodKind } from "./kind.ts";
 import type { Step } from "./step.ts";
-import type { BranchCall } from "../branch/branch.ts";
-import type { Settled, SettlementCall } from "./settlement.ts";
+import type { BranchEntry } from "../branch/entry.ts";
+import type { Settled, SettlementContext } from "./settlement.ts";
 import type { Execution, StoreExecution } from "./execution.ts";
 
 export { METHOD_KINDS, type MethodKind } from "./kind.ts";
@@ -47,6 +45,9 @@ export const PHASES = ["authorize", "creation", "expand", "prepare", "handle", "
 
 /** A phase of a method's handler. */
 export type Phase = (typeof PHASES)[number];
+
+/** A method result identifying an object by its identifier. */
+const IDENTIFIED = schema.looseObject({ id: schema.string() });
 
 /** A method's signature: kind, permission, schemas and table, each absent option at its default. */
 export interface MethodConfiguration {
@@ -198,24 +199,28 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     /** Derive the method's procedure under a name. */
     readonly procedure: (name: string, schema: ObjectSchema) => MethodProcedure;
     /** Change rows for a call where it executes. */
-    readonly handler: (call: Call, execution: Execution) => Promise<unknown>;
+    readonly handler: (context: MethodContext, execution: Execution) => Promise<unknown>;
     /** Execute a call around the handler where it executes. */
-    readonly execute: (this: Method, call: Call, execution: Execution) => Promise<unknown>;
+    readonly execute: (
+        this: Method,
+        context: MethodContext,
+        execution: Execution,
+    ) => Promise<unknown>;
     /** Authorize a call before its external work, where it executes. */
-    readonly authorize?: (call: Call, execution: StoreExecution) => Promise<void>;
+    readonly authorize?: (context: MethodContext, execution: StoreExecution) => Promise<void>;
     /** Derive a created object's first relationships and a new scope's owner, for creations. */
     readonly creation?: (
-        call: MutationCall,
+        context: MethodContext,
         object: sync.ObjectReference,
     ) => Creation | Promise<Creation>;
     /** List the calls a mutation runs before this one as their callers, before the transaction. */
-    readonly expand?: (call: Call) => Promise<readonly BranchCall[]>;
+    readonly expand?: (context: MethodContext) => Promise<readonly BranchEntry[]>;
     /** Do external work before the transaction, on the server only. */
-    readonly prepare?: (call: Call) => Promise<unknown>;
+    readonly prepare?: (context: MethodContext) => Promise<unknown>;
     /** The builder call a declared method came from, absent for a method a trait derives. */
     readonly source?: MethodSource;
     /** Settle the prepared work once the transaction committed or failed, at least once. */
-    readonly settle?: (call: SettlementCall, settled: Settled) => Promise<void>;
+    readonly settle?: (context: SettlementContext, settled: Settled) => Promise<void>;
     /** Whether the method stays off public routes, run only by the principals' own code. */
     readonly isInternal?: OptionOf<Configuration, "internal", boolean>;
     /** Whether a bulk update takes items, each an object's identifier and revision. */
@@ -243,23 +248,33 @@ export type MethodDefinition<Configuration extends MethodConfiguration> = Omit<
 > & {
     /** Authorize a call as the method types it before its external work, where it executes. */
     readonly authorize?: (
-        call: MethodCall<Configuration, PreparedOf<Configuration> | undefined>,
+        context: MethodContext<Configuration, PreparedOf<Configuration> | undefined>,
         execution: StoreExecution,
     ) => Promise<void>;
     /** Change rows for a call as the method types it, where it executes. */
-    readonly handler: (call: MethodCall<Configuration>, execution: Execution) => Promise<unknown>;
+    readonly handler: (
+        context: MethodContext<Configuration>,
+        execution: Execution,
+    ) => Promise<unknown>;
     /** Whether clients predict the method, true by default. */
     readonly isPredicted?: boolean;
     /** Execute a call as the method types it around `this.handler`. */
     readonly execute?: (
         this: Method,
-        call: MethodCall<Configuration>,
+        context: MethodContext<Configuration>,
         execution: Execution,
     ) => Promise<unknown>;
 };
 
 /** What every method can report about itself. */
 export const Method = {
+    /** Read the identifier of the object a method returned. */
+    resultId(result: unknown): string | undefined {
+        const parsed = IDENTIFIED.safeParse(result);
+
+        return parsed.success ? parsed.data.id : undefined;
+    },
+
     /** Decide whether a value is a declared method. */
     is(value: unknown): value is Method {
         return typeof value === "object" && value !== null && METHOD in value;
@@ -298,32 +313,32 @@ export const Method = {
         return { ...method, handle: (handler) => Method.handled(method, handler) };
     },
 
-    /** Decide whether a call is one of a method: its target loaded, its caller identified. */
-    isCall<Configuration extends MethodConfiguration>(
+    /** Decide whether a context is one of a method: its target loaded, its caller identified. */
+    isContext<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        call: Call,
-    ): call is MethodCall<Configuration, PreparedOf<Configuration> | undefined> {
+        context: MethodContext,
+    ): context is MethodContext<Configuration, PreparedOf<Configuration> | undefined> {
         // require the target a targeted method loads and the identified caller a mutation needs
-        const isTargeted = !Method.loads(declared) || call.target !== undefined;
-        const isIdentified = !declared.mutates || !Caller.isAnonymous(call.caller);
+        const isTargeted = !Method.loads(declared) || context.target !== undefined;
+        const isIdentified = !declared.mutates || !Caller.isAnonymous(context.caller);
 
         // require prepared work the method's schema reads, absent before it is done
         const prepared = declared.prepared;
         const isReady =
-            call.prepared === undefined ||
-            (prepared !== undefined && prepared.safeParse(call.prepared).success);
+            context.prepared === undefined ||
+            (prepared !== undefined && prepared.safeParse(context.prepared).success);
 
         return isTargeted && isIdentified && isReady;
     },
 
-    /** Decide whether a call is one of a method in its transaction, with its prepared work. */
+    /** Decide whether a context is one of a method in its transaction, with its prepared work. */
     isPrepared<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        call: Call,
-    ): call is MethodCall<Configuration> {
+        context: MethodContext,
+    ): context is MethodContext<Configuration> {
         return (
-            Method.isCall(declared, call) &&
-            (declared.prepared === undefined || call.prepared !== undefined)
+            Method.isContext(declared, context) &&
+            (declared.prepared === undefined || context.prepared !== undefined)
         );
     },
 
@@ -355,40 +370,42 @@ export const Method = {
     },
 
     /** Read a call as a method types it before its prepared work, refusing one it cannot take. */
-    requireCall<Configuration extends MethodConfiguration>(
+    requireContext<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        call: Call,
-    ): MethodCall<Configuration, PreparedOf<Configuration> | undefined> {
+        context: MethodContext,
+    ): MethodContext<Configuration, PreparedOf<Configuration> | undefined> {
         // refuse a call missing its target or its signer
-        if (!Method.isCall(declared, call)) {
-            throw new TypeError(`${call.object.name}.${call.name} cannot take this call`);
+        if (!Method.isContext(declared, context)) {
+            throw new TypeError(`${context.object.name}.${context.name} cannot take this call`);
         }
 
-        return call;
+        return context;
     },
 
     /** Read a call as a method types it in its transaction, refusing one it cannot take. */
     requirePrepared<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        call: Call,
-    ): MethodCall<Configuration> {
+        context: MethodContext,
+    ): MethodContext<Configuration> {
         // refuse a call missing its target, its signer or its prepared work
-        if (!Method.isPrepared(declared, call)) {
-            throw new TypeError(`${call.object.name}.${call.name} cannot take this call`);
+        if (!Method.isPrepared(declared, context)) {
+            throw new TypeError(`${context.object.name}.${context.name} cannot take this call`);
         }
 
-        return call;
+        return context;
     },
 
     /** Read a result as a method types it, refusing one the method does not return. */
     requireResult<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        call: Call,
+        context: MethodContext,
         value: unknown,
     ): MethodResult<Configuration> {
         // refuse a result off the method's output
         if (!Method.isResult(declared, value)) {
-            throw new TypeError(`${call.object.name}.${call.name} returned an unexpected result`);
+            throw new TypeError(
+                `${context.object.name}.${context.name} returned an unexpected result`,
+            );
         }
 
         return value;
@@ -436,9 +453,9 @@ export const Method = {
         const authorize =
             declared.authorize === undefined && outer === undefined
                 ? undefined
-                : async (call: Call, execution: StoreExecution) => {
-                      await declared.authorize?.(call, execution);
-                      await outer?.(call);
+                : async (context: MethodContext, execution: StoreExecution) => {
+                      await declared.authorize?.(context, execution);
+                      await outer?.(context);
                   };
         const { source, ...unsourced } = declared;
         const wrapping: Method<Configuration> = {
@@ -448,8 +465,10 @@ export const Method = {
             ...(wrapped === undefined
                 ? {}
                 : {
-                      handler: (call: Call, execution: Execution) =>
-                          wrapped(call, (changed = call) => declared.handler(changed, execution)),
+                      handler: (context: MethodContext, execution: Execution) =>
+                          wrapped(context, (changed = context) =>
+                              declared.handler(changed, execution),
+                          ),
                       // predict a handled custom method its declaration leaves predicted
                       ...(source?.builder === "query" || source?.builder === "mutation"
                           ? { isPredicted: source.arguments[0].isPredicted !== false }
@@ -473,28 +492,30 @@ export const Method = {
         handler: PhasedHandler<Configuration>,
     ): PhasedHandler {
         const { authorize, creation, expand, prepare, handle, settle } = handler;
-        const before = (call: Call) => Method.requireCall(declared, call);
+        const before = (context: MethodContext) => Method.requireContext(declared, context);
 
         return {
-            ...(authorize === undefined ? {} : { authorize: (call) => authorize(before(call)) }),
+            ...(authorize === undefined
+                ? {}
+                : { authorize: (context) => authorize(before(context)) }),
             ...(creation === undefined
                 ? {}
-                : { creation: (call, object) => creation(before(call), object) }),
-            ...(expand === undefined ? {} : { expand: (call) => expand(before(call)) }),
-            ...(prepare === undefined ? {} : { prepare: (call) => prepare(before(call)) }),
+                : { creation: (context, object) => creation(before(context), object) }),
+            ...(expand === undefined ? {} : { expand: (context) => expand(before(context)) }),
+            ...(prepare === undefined ? {} : { prepare: (context) => prepare(before(context)) }),
             ...(handle === undefined
                 ? {}
                 : {
-                      handle: (call, next) =>
-                          handle(Method.requirePrepared(declared, call), async (changed) =>
-                              Method.requireResult(declared, call, await next(changed)),
+                      handle: (context, next) =>
+                          handle(Method.requirePrepared(declared, context), async (changed) =>
+                              Method.requireResult(declared, context, await next(changed)),
                           ),
                   }),
             ...(settle === undefined
                 ? {}
                 : {
-                      settle: (call, settled) =>
-                          settle(call, Method.requireSettled(declared, settled)),
+                      settle: (context, settled) =>
+                          settle(context, Method.requireSettled(declared, settled)),
                   }),
         };
     },
@@ -512,15 +533,17 @@ export const Method = {
             ...(handle === undefined || wrapped === undefined
                 ? {}
                 : {
-                      handle: (call: Call, next: (call?: Call) => Promise<unknown>) =>
-                          handle(call, (changed = call) => wrapped(changed, next)),
+                      handle: (
+                          context: MethodContext,
+                          next: (context?: MethodContext) => Promise<unknown>,
+                      ) => handle(context, (changed = context) => wrapped(changed, next)),
                   }),
             ...(authorize === undefined || inner.authorize === undefined
                 ? {}
                 : {
-                      authorize: async (call: Call) => {
-                          await inner.authorize?.(call);
-                          await authorize(call);
+                      authorize: async (context: MethodContext) => {
+                          await inner.authorize?.(context);
+                          await authorize(context);
                       },
                   }),
         };
@@ -537,18 +560,18 @@ export function defineMethod<Configuration extends MethodConfiguration>(
         ...shared,
         [METHOD]: true,
         isPredicted: definition.isPredicted ?? true,
-        handler: (call: Call, execution: Execution) =>
-            handler(Method.requirePrepared(declared, call), execution),
+        handler: (context: MethodContext, execution: Execution) =>
+            handler(Method.requirePrepared(declared, context), execution),
         ...(authorize === undefined
             ? {}
             : {
-                  authorize: (call: Call, execution: StoreExecution) =>
-                      authorize(Method.requireCall(declared, call), execution),
+                  authorize: (context: MethodContext, execution: StoreExecution) =>
+                      authorize(Method.requireContext(declared, context), execution),
               }),
-        execute(this: Method, call: Call, execution: Execution) {
+        execute(this: Method, context: MethodContext, execution: Execution) {
             return execute === undefined
-                ? this.handler(call, execution)
-                : execute.call(this, Method.requirePrepared(declared, call), execution);
+                ? this.handler(context, execution)
+                : execute.call(this, Method.requirePrepared(declared, context), execution);
         },
     });
 

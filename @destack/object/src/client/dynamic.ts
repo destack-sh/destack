@@ -9,7 +9,6 @@ import * as sync from "@destack/sync";
 import { ObjectDescription } from "../object/description.ts";
 import { ObjectClient } from "./client.ts";
 import type { ObjectType } from "../object/object.ts";
-import { Call } from "../method/call.ts";
 import {
     EXTERNAL_PUBLICATION,
     ObjectQuery,
@@ -120,7 +119,7 @@ export class DynamicObjectClient {
         if (!declared.mutates) {
             return this.#replica.call({
                 scope,
-                call: Call.record(object, method, called),
+                call: object.call(method, called),
             });
         }
 
@@ -132,7 +131,7 @@ export class DynamicObjectClient {
             mutations: [
                 {
                     id: schema.string().parse(request),
-                    calls: [Call.record(object, method, rest)],
+                    calls: [object.call(method, rest)],
                 },
             ],
         });

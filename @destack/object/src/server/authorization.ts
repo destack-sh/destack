@@ -23,7 +23,7 @@ import {
 } from "@destack/db";
 import { aligned, schema } from "@destack/schema";
 import { conceal, CallError, isCallError } from "@destack/runtime/error";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 import { EventLog } from "../query/event.ts";
 import type { StoreExecution } from "../method/execution.ts";
 import type { MethodKind } from "../method/kind.ts";
@@ -139,13 +139,13 @@ export class Authorization extends access.Authorization {
 
     /** Read a call's target in a snapshot, permitted for the caller now and at a position. */
     async readIn(
-        call: Call,
+        context: MethodContext,
         id: string,
         snapshot: Snapshot,
-        permission: Permission = call.permission(),
+        permission: Permission = context.permission(),
     ): Promise<Row> {
         // read the row the view shows, admitted with the caller's grants now
-        const { object, scope } = call;
+        const { object, scope } = context;
         const row = await snapshot.read(object.table).findFirst({ where: { id } });
         const isAdmitted =
             row !== undefined &&
@@ -175,13 +175,13 @@ export class Authorization extends access.Authorization {
     }
 
     /** Read a call's target where the caller has the method's permission. */
-    async read(call: Call, id: string, execution: StoreExecution): Promise<Row> {
+    async read(context: MethodContext, id: string, execution: StoreExecution): Promise<Row> {
         // read where the caller has the permission
-        const { object, scope } = call;
-        const permission = call.permission();
+        const { object, scope } = context;
+        const permission = context.permission();
         const target = object.reference(scope, id);
         const select = (evaluated: Access) =>
-            this.#selectPermitted(call, id, permission, evaluated, execution);
+            this.#selectPermitted(context, id, permission, evaluated, execution);
         const governing = await this.in(this.authorizer.governingScope(target));
         const [row] = await select(governing);
         if (row) {
@@ -202,12 +202,12 @@ export class Authorization extends access.Authorization {
                 { stepUp },
             );
         }
-        await this.#requireGranted(call, id, permission, governing, select);
+        await this.#requireGranted(context, id, permission, governing, select);
 
         // refuse a reader, and hide the object from others
         const isReadable =
             object.reading !== undefined &&
-            (await this.#permits(call, id, object.reading, execution));
+            (await this.#permits(context, id, object.reading, execution));
         const denial = new CallError("FORBIDDEN", {
             message: `permission denied: ${permission.name}`,
         });
@@ -216,26 +216,26 @@ export class Authorization extends access.Authorization {
 
     /** Select a call's target where an access has a permission on it. */
     async #selectPermitted(
-        call: Call,
+        context: MethodContext,
         id: string,
         permission: Permission,
         evaluated: Access,
         execution: StoreExecution,
     ): Promise<readonly Row[]> {
         // read the object through the call's transaction, its own writes included, and decide in memory
-        return this.#decide(call, id, permission, evaluated, execution);
+        return this.#decide(context, id, permission, evaluated, execution);
     }
 
     /** Refuse a target the caller's subject may access but its grant does not cover. */
     async #requireGranted(
-        call: Call,
+        context: MethodContext,
         id: string,
         permission: Permission,
         governing: Access,
         select: (access: Access) => Promise<readonly Row[]>,
     ): Promise<void> {
         // pass a caller under no grant
-        const { object, scope } = call;
+        const { object, scope } = context;
         const { grant, ...subject } = { ...governing.context, actors: [] };
         if (grant === undefined) {
             return;
@@ -394,13 +394,22 @@ export class Authorization extends access.Authorization {
     }
 
     /** Require the write permission of every guarded field a call sets. */
-    async requireWritable(call: Call, id: string, execution: StoreExecution): Promise<void> {
-        for (const [name, declared] of Object.entries(call.object.fields)) {
+    async requireWritable(
+        context: MethodContext,
+        id: string,
+        execution: StoreExecution,
+    ): Promise<void> {
+        for (const [name, declared] of Object.entries(context.object.fields)) {
             const permission = declared.access?.write;
             if (
                 permission !== undefined &&
-                Object.hasOwn(call.input, name) &&
-                !(await this.#permits(call, id, call.object.permission(permission), execution))
+                Object.hasOwn(context.input, name) &&
+                !(await this.#permits(
+                    context,
+                    id,
+                    context.object.permission(permission),
+                    execution,
+                ))
             ) {
                 throw new CallError("FORBIDDEN", { message: `field ${name} is not writable` });
             }
@@ -409,18 +418,18 @@ export class Authorization extends access.Authorization {
 
     /** Decide whether the caller has a permission on one object of a call's type. */
     async #permits(
-        call: Call,
+        context: MethodContext,
         id: string,
         permission: access.PermissionReference,
         execution: StoreExecution,
     ): Promise<boolean> {
-        const { object, scope } = call;
+        const { object, scope } = context;
         if (object.storage !== "durable") {
             const granted = await this.in(
                 this.authorizer.governingScope(object.reference(scope, id)),
             );
 
-            return (await this.#decide(call, id, permission, granted, execution)).length > 0;
+            return (await this.#decide(context, id, permission, granted, execution)).length > 0;
         }
 
         return (await this.check(permission, object.reference(scope, id))).isAllowed;
@@ -428,7 +437,7 @@ export class Authorization extends access.Authorization {
 
     /** Read an ephemeral or external object the access has a permission on, decided in memory. */
     async #decide(
-        call: Call,
+        context: MethodContext,
         id: string,
         permission: access.PermissionReference,
         evaluated: Access,
@@ -436,15 +445,18 @@ export class Authorization extends access.Authorization {
     ): Promise<Row[]> {
         // read the row in the call's scope: an event from the event log, any other through the transaction
         const row =
-            call.object.storage !== "events"
-                ? await execution.transaction.read(call.object.table).findFirst({ where: { id } })
+            context.object.storage !== "events"
+                ? await execution.transaction
+                      .read(context.object.table)
+                      .findFirst({ where: { id } })
                 : await EventLog.row(
-                      call,
+                      context,
                       execution.store.events,
                       execution.transaction.database,
                       id,
                   );
-        const rows: readonly Row[] = row === undefined || row["scope"] !== call.scope ? [] : [row];
+        const rows: readonly Row[] =
+            row === undefined || row["scope"] !== context.scope ? [] : [row];
 
         // decide the row read by its key in the call's scope
         const reader = this.authorizer.reader(this.snapshot, evaluated.scopes);

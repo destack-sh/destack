@@ -1,7 +1,7 @@
 import { test, expect } from "@destack/test";
 import { ObjectError } from "../src/index.ts";
 import { AuditStorage, documentRename, rename, INTEGRATION } from "./fixture/journal.ts";
-import { AuditCall, defineAuditAction } from "../src/index.ts";
+import { CallEvent, defineAuditAction } from "../src/index.ts";
 import { document } from "./fixture/journal.ts";
 import { schema } from "@destack/schema";
 import { AuditRecorder } from "../src/server/index.ts";
@@ -85,7 +85,7 @@ test("record a running call, then its outcome once, accepting repeats and refusi
         const finished = storage.recorder.finish(running, { kind: "success" });
         await storage.recorder.append(finished);
         storage = await storage.reopen();
-        await storage.recorder.append(AuditCall.parse(JSON.parse(JSON.stringify(finished))));
+        await storage.recorder.append(CallEvent.parse(JSON.parse(JSON.stringify(finished))));
         expect(await journaled(storage)).toEqual([finished]);
 
         // refuse a finished call with other contents

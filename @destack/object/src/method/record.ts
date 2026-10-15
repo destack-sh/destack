@@ -30,10 +30,16 @@ import {
 } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { conceal, isCallError, CallError } from "@destack/runtime/error";
-import { Call, type MutationCall, RecordedRow } from "./call.ts";
+import { MethodContext, RecordedRow } from "./context.ts";
 import { Step } from "./step.ts";
 import type * as sync from "@destack/sync";
-import { defineMethod, type Method, type MethodDefinition, type MethodSource } from "./method.ts";
+import {
+    defineMethod,
+    type Method,
+    type MethodConfiguration,
+    type MethodDefinition,
+    type MethodSource,
+} from "./method.ts";
 import {
     Empty,
     PageShape,
@@ -244,10 +250,10 @@ function bulkUpdate<
             RecordMethod.requireUnrecorded(object);
             RecordMethod.requireUnguarded(object, options.fields);
         },
-        handler: (call, execution) =>
+        handler: (context, execution) =>
             match === undefined
-                ? RecordMethod.updateItems(call, execution, options.fields)
-                : RecordMethod.updateMatching(call, execution, options.fields),
+                ? RecordMethod.updateItems(context, execution, options.fields)
+                : RecordMethod.updateMatching(context, execution, options.fields),
     };
 }
 
@@ -477,42 +483,42 @@ export const RecordMethod = {
 
     /** Require the receiving parent and the create permission, over grants read once. */
     async authorizeCreate(
-        call: MutationCall,
+        context: MethodContext,
         execution: StoreExecution,
         grants?: TupleReader,
     ): Promise<void> {
         // require the receiving parent and the creation
-        const reader = grants ?? (await execution.authorization.reader(call.scope));
-        const parent = call.object.parent && call.parent();
+        const reader = grants ?? (await execution.authorization.reader(context.scope));
+        const parent = context.object.parent && context.parent();
         if (parent) {
-            await RecordMethod.requireReceiving(call, execution, parent, reader);
+            await RecordMethod.requireReceiving(context, execution, parent, reader);
         }
-        await RecordMethod.requireCreatable(call, execution, reader);
+        await RecordMethod.requireCreatable(context, execution, reader);
     },
 
     /** Require the receive permission on a created object's parent. */
     async requireReceiving(
-        call: Call,
+        context: MethodContext,
         execution: StoreExecution,
         parent: ObjectReference,
         reader?: TupleReader,
     ): Promise<void> {
         // require a nested object, and an attachment host type
-        const declared = call.object.parent;
+        const declared = context.object.parent;
         if (declared === undefined) {
-            throw new TypeError(`object ${call.object.name} is not nested in any parent`);
+            throw new TypeError(`object ${context.object.name} is not nested in any parent`);
         }
         const { authorization } = execution;
         const authorizer = authorization.authorizer;
         if (declared.object === "any") {
-            const hosts = authorizer.relation(call.object.policy, "parent").subjects;
+            const hosts = authorizer.relation(context.object.policy, "parent").subjects;
             if (
                 !hosts.some(
                     (host) => host.packageId === parent.packageId && host.type === parent.type,
                 )
             ) {
                 throw new CallError("BAD_REQUEST", {
-                    message: `${parent.type} cannot have ${call.object.plural}`,
+                    message: `${parent.type} cannot have ${context.object.plural}`,
                 });
             }
 
@@ -541,7 +547,7 @@ export const RecordMethod = {
         // hide an unreadable parent, else require the permission
         const host =
             declared.object === "any"
-                ? call.objects.find((object) => object.policy.is(parent))
+                ? context.objects.find((object) => object.policy.is(parent))
                 : declared.object;
         const reading = host?.reading;
         if (reading === undefined || !(await authorization.check(reading, parent)).isAllowed) {
@@ -551,34 +557,34 @@ export const RecordMethod = {
     },
 
     /** Require each item's receiving parent and create permission, reading the grants once. */
-    async authorizeItems(call: MutationCall, execution: StoreExecution): Promise<void> {
-        const reader = await execution.authorization.reader(call.scope);
-        await RecordMethod.eachItem(call, (item) =>
+    async authorizeItems(context: MethodContext, execution: StoreExecution): Promise<void> {
+        const reader = await execution.authorization.reader(context.scope);
+        await RecordMethod.eachItem(context, (item) =>
             RecordMethod.authorizeCreate(item, execution, reader),
         );
     },
 
     /** Insert a created object under an unused identifier and require guarded writes. */
     async insertAuthorized(
-        call: MutationCall,
+        context: MethodContext,
         execution: StoreExecution,
-        insert: (created: MutationCall<Table, JsonObject, string>) => Promise<unknown>,
+        insert: (created: MethodContext<MethodConfiguration, unknown, string>) => Promise<unknown>,
     ): Promise<{ readonly id: string; readonly row: unknown }> {
-        const { id, created, row } = await RecordMethod.insertCreated(call, execution, insert);
+        const { id, created, row } = await RecordMethod.insertCreated(context, execution, insert);
         await execution.authorization.requireWritable(created, id, execution);
 
         return { id, row };
     },
 
     /** Create one object per item as its own creation does, returning their identifiers. */
-    async createItems(call: MutationCall, execution: Execution): Promise<{ ids: string[] }> {
+    async createItems(context: MethodContext, execution: Execution): Promise<{ ids: string[] }> {
         // append an events type's items to the event log in a store
-        const { object } = call;
+        const { object } = context;
         if (object.storage === "events" && execution.kind === "store") {
-            const rows = await RecordMethod.eachItem(call, async (item) =>
+            const rows = await RecordMethod.eachItem(context, async (item) =>
                 RecordMethod.createdRow(object.table, await RecordMethod.createdValues(item)),
             );
-            await EventLog.append(call, execution, rows);
+            await EventLog.append(context, execution, rows);
 
             return { ids: rows.map((row) => schema.string().parse(row["id"])) };
         }
@@ -586,8 +592,8 @@ export const RecordMethod = {
         // create independent items in one write in a store and require each to be writable
         const isSequential = object.ordering !== undefined || object.lifecycle.versioned;
         if (!isSequential && execution.kind === "store") {
-            const ids = await RecordMethod.createTogether(call, execution);
-            await RecordMethod.eachItem(call, (item, index) =>
+            const ids = await RecordMethod.createTogether(context, execution);
+            await RecordMethod.eachItem(context, (item, index) =>
                 execution.authorization.requireWritable(item, aligned(ids, index), execution),
             );
 
@@ -595,7 +601,7 @@ export const RecordMethod = {
         }
 
         // create one item at a time otherwise
-        const ids = await RecordMethod.eachItem(call, async (item) => {
+        const ids = await RecordMethod.eachItem(context, async (item) => {
             // insert a prediction under the client's identifier
             if (execution.kind === "client") {
                 const { id } = item;
@@ -622,12 +628,12 @@ export const RecordMethod = {
     },
 
     /** Insert every item's row in one write, naming the item a duplicate or creation refuses. */
-    async createTogether(call: MutationCall, execution: StoreExecution): Promise<string[]> {
+    async createTogether(context: MethodContext, execution: StoreExecution): Promise<string[]> {
         // build each item's row under an unused identifier
-        const created = await RecordMethod.eachItem(call, async (item) => {
+        const created = await RecordMethod.eachItem(context, async (item) => {
             const id = await RecordMethod.createdId(item, execution);
             const row = RecordMethod.createdRow(
-                call.object.table,
+                context.object.table,
                 await RecordMethod.createdValues(item.with({ id })),
             );
 
@@ -635,18 +641,18 @@ export const RecordMethod = {
         });
 
         // write the rows and record each creation's access within one savepoint
-        const table = call.object.table;
+        const table = context.object.table;
         try {
             await execution.transaction.savepoint(async () => {
                 await Execution.write(
                     execution,
-                    call,
+                    context,
                     ...created.map(({ row }) => ({ table, before: null, after: row })),
                 );
                 for (const [index, { item, id }] of created.entries()) {
                     await RecordMethod.recordCreation(item, id, execution).catch(
                         (error: unknown) => {
-                            throw RecordMethod.itemFailure(call.object, index, error);
+                            throw RecordMethod.itemFailure(context.object, index, error);
                         },
                     );
                 }
@@ -655,14 +661,14 @@ export const RecordMethod = {
             // name the first item duplicating a stored row or an earlier item, as the caller may see it
             const index =
                 error instanceof DatabaseError && error.code === "DUPLICATE"
-                    ? await RecordMethod.duplicateIndex(call, execution, created, error)
+                    ? await RecordMethod.duplicateIndex(context, execution, created, error)
                     : undefined;
             const failing = index === undefined ? undefined : created[index];
             if (index === undefined || failing === undefined) {
                 throw error;
             }
             await RecordMethod.requireCreatable(failing.item, execution);
-            throw RecordMethod.itemFailure(call.object, index, error);
+            throw RecordMethod.itemFailure(context.object, index, error);
         }
 
         return created.map(({ id }) => id);
@@ -670,13 +676,13 @@ export const RecordMethod = {
 
     /** Find the first created row repeating a stored or an earlier row's duplicate key. */
     async duplicateIndex(
-        call: MutationCall,
+        context: MethodContext,
         execution: StoreExecution,
         created: readonly { readonly row: Row }[],
         error: DatabaseError,
     ): Promise<number | undefined> {
         // read each row's value of the duplicate key's columns, by field
-        const definition = call.object.table[TABLE];
+        const definition = context.object.table[TABLE];
         const columns = DUPLICATE_KEY.parse(error.key).columns;
         const keyFields = columns.map(
             (column) =>
@@ -684,7 +690,7 @@ export const RecordMethod = {
                     Object.entries(definition.columns).find(
                         ([, declared]) => declared.definition.name === column,
                     ),
-                    `the field of ${call.object.name}'s column ${column}`,
+                    `the field of ${context.object.name}'s column ${column}`,
                 )[0],
         );
         const keys = created.map(({ row }) =>
@@ -702,7 +708,7 @@ export const RecordMethod = {
             entry.success ? [Condition.equal(entry.data)] : [],
         );
         const stored = await execution.transaction
-            .read(call.object.table)
+            .read(context.object.table)
             .findMany({ where: { OR: conditions } });
         const taken = new Set(
             stored.map((found) => {
@@ -725,22 +731,22 @@ export const RecordMethod = {
 
     /** Run a call per item of a bulk creation in order, prefixing a failure with its index. */
     async eachItem<Result>(
-        call: MutationCall,
-        run: (item: MutationCall, index: number) => Promise<Result>,
+        context: MethodContext,
+        run: (item: MethodContext, index: number) => Promise<Result>,
     ): Promise<Result[]> {
         const results: Result[] = [];
         for (const [index, { id, ...written }] of BatchItem.array()
-            .parse(call.input["items"])
+            .parse(context.input["items"])
             .entries()) {
             // run the item as its own creation's call
-            const item = call.with({
+            const item = context.with({
                 input: written,
                 ...(id === undefined ? {} : { id: schema.string().parse(id) }),
             });
             try {
                 results.push(await run(item, index));
             } catch (error) {
-                throw RecordMethod.itemFailure(call.object, index, error);
+                throw RecordMethod.itemFailure(context.object, index, error);
             }
         }
 
@@ -825,16 +831,16 @@ export const RecordMethod = {
 
     /** Update every matching object the caller may change in one write, returning the count. */
     async updateMatching(
-        call: Call,
+        context: MethodContext,
         execution: Execution,
         written: readonly string[],
     ): Promise<{ count: number }> {
         // stamp the written fields over each match, refusing a managed object
-        const table = call.object.table;
-        const values = RecordMethod.writtenValues(table, call.input, written);
-        const rows = await RecordMethod.matchingRows(call, execution);
+        const table = context.object.table;
+        const values = RecordMethod.writtenValues(table, context.input, written);
+        const rows = await RecordMethod.matchingRows(context, execution);
         const changes = rows.map((row) => {
-            const each = call.at(row);
+            const each = context.at(row);
             RecordMethod.requireUnmanaged(each);
 
             return {
@@ -845,31 +851,31 @@ export const RecordMethod = {
         });
 
         // write every match at once
-        await Execution.write(execution, call, ...changes);
+        await Execution.write(execution, context, ...changes);
 
         return { count: changes.length };
     },
 
     /** Update each listed object at its revision in one write, all or none. */
     async updateItems(
-        call: Call,
+        context: MethodContext,
         execution: Execution,
         written: readonly string[],
     ): Promise<{ count: number }> {
         // read the listed objects in the call's scope, keeping the permitted ones on the server
-        const table = call.object.table;
-        const items = BatchItem.array().parse(call.input["items"]);
+        const table = context.object.table;
+        const items = BatchItem.array().parse(context.input["items"]);
         const named = items.map((item) => UPDATED_ITEM.parse(item));
         const listed: OpenCondition = {
-            scope: call.scope,
+            scope: context.scope,
             id: { in: named.map((item) => item.id) },
         };
         const rows =
             execution.kind === "client"
-                ? await call.read(table).findMany({ where: listed })
+                ? await context.read(table).findMany({ where: listed })
                 : await execution.authorization.keep(
                       await execution.transaction.read(table).findMany({ where: listed }),
-                      call.permission(),
+                      context.permission(),
                   );
         const targets = new Map(rows.map((row) => [RecordedRow.parse(row).id, row]));
 
@@ -878,17 +884,17 @@ export const RecordMethod = {
             // refuse a missing or unpermitted object
             const target = targets.get(id);
             if (target === undefined) {
-                throw new CallError("NOT_FOUND", { message: `${call.object.name} not found` });
+                throw new CallError("NOT_FOUND", { message: `${context.object.name} not found` });
             }
             // refuse a stale revision
             else if (RecordedRow.parse(target).revision !== revision) {
                 throw new CallError("CONFLICT", {
-                    message: `${call.object.name} revision has changed`,
+                    message: `${context.object.name} revision has changed`,
                 });
             }
 
             // write the item's fields over its target, refusing a managed object
-            const each = call.at(target);
+            const each = context.at(target);
             RecordMethod.requireUnmanaged(each);
             const values = RecordMethod.writtenValues(table, item, written);
 
@@ -900,7 +906,7 @@ export const RecordMethod = {
         });
 
         // write every item at once
-        await Execution.write(execution, call, ...changes);
+        await Execution.write(execution, context, ...changes);
 
         return { count: changes.length };
     },
@@ -920,10 +926,10 @@ export const RecordMethod = {
     },
 
     /** Delete every matching object the caller may delete, each as its deletion does. */
-    async deleteMatching(call: Call, execution: Execution): Promise<{ count: number }> {
+    async deleteMatching(context: MethodContext, execution: Execution): Promise<{ count: number }> {
         // take each match as its target
-        const rows = await RecordMethod.matchingRows(call, execution);
-        const targets = rows.map((row) => call.at(row));
+        const rows = await RecordMethod.matchingRows(context, execution);
+        const targets = rows.map((row) => context.at(row));
         for (const target of targets) {
             RecordMethod.requireUnmanaged(target);
         }
@@ -936,10 +942,10 @@ export const RecordMethod = {
         }
         // delete or trash the read matches in one write
         else {
-            const table = call.object.table;
+            const table = context.object.table;
             await Execution.write(
                 execution,
-                call,
+                context,
                 ...targets.map((target) => ({ table, ...RecordMethod.deletion(target) })),
             );
         }
@@ -948,7 +954,7 @@ export const RecordMethod = {
     },
 
     /** Read a loaded target's deletion: its trashed row under a trash, else its removal. */
-    deletion(target: Call<Table, JsonObject, Select<Table>>): {
+    deletion(target: MethodContext<{ readonly table: Table }, unknown>): {
         readonly before: Row;
         readonly after: Row | null;
     } {
@@ -968,76 +974,76 @@ export const RecordMethod = {
     },
 
     /** Read the columns trashing a call's target: the time, and the subject asking. */
-    trashed(call: Call) {
+    trashed(context: MethodContext) {
         return {
-            deletedAt: call.now,
-            ...ObjectReference.columns("deletedBy", call.caller.subject),
+            deletedAt: context.now,
+            ...ObjectReference.columns("deletedBy", context.caller.subject),
         };
     },
 
     /** Read the untrashed objects a bulk call matches, the permitted ones on a server. */
-    async matchingRows(call: Call, execution: Execution) {
+    async matchingRows(context: MethodContext, execution: Execution) {
         // match the values in the call's scope, leaving out objects whose deletion is requested
-        const table = call.object.table;
-        const matched = MATCH.parse(call.input["where"]);
+        const table = context.object.table;
+        const matched = MATCH.parse(context.input["where"]);
         const isDeleting = Object.hasOwn(table[TABLE].columns, "deletedAt");
         const where = Condition.equal({
             ...matched,
             ...(isDeleting ? { deletedAt: null } : {}),
-            scope: call.scope,
+            scope: context.scope,
         });
 
         // read the matches, keeping the permitted ones on the server
         const rows =
             execution.kind === "client"
-                ? await call.read(table).findMany({ where })
+                ? await context.read(table).findMany({ where })
                 : await execution.authorization.keep(
                       await execution.transaction.read(table).findMany({ where }),
-                      call.permission(),
+                      context.permission(),
                   );
 
         // refuse matching a predefined row
-        rows.forEach((row) => call.object.refusePredefined(RecordedRow.parse(row).id));
+        rows.forEach((row) => context.object.refusePredefined(RecordedRow.parse(row).id));
 
         return rows;
     },
 
     /** Insert a created object. */
     async createObject(
-        call: MutationCall<Table, JsonObject, string>,
+        context: MethodContext<MethodConfiguration, unknown, string>,
         execution: Execution,
     ): Promise<Select<Table>> {
         // write the created row, then record its access
         const row = RecordMethod.createdRow(
-            call.object.table,
-            await RecordMethod.createdValues(call),
+            context.object.table,
+            await RecordMethod.createdValues(context),
         );
-        await Execution.write(execution, call, {
-            table: call.object.table,
+        await Execution.write(execution, context, {
+            table: context.object.table,
             before: null,
             after: row,
         });
-        await RecordMethod.recordCreation(call, call.id, execution);
+        await RecordMethod.recordCreation(context, context.id, execution);
 
         return row;
     },
 
     /** Record a created object's access: a new scope's chain and its first relationships. */
-    async recordCreation(call: MutationCall, id: string, execution: Execution): Promise<void> {
-        const creating = RecordMethod.readCreation(call);
-        const isScope = call.object.policy.definition.scope === true;
+    async recordCreation(context: MethodContext, id: string, execution: Execution): Promise<void> {
+        const creating = RecordMethod.readCreation(context);
+        const isScope = context.object.policy.definition.scope === true;
         if (execution.kind === "store" && (isScope || creating !== undefined)) {
-            const object = call.object.reference(call.scope, id);
-            await execution.authorization.create(object, (await creating?.(call, object)) ?? {});
+            const object = context.object.reference(context.scope, id);
+            await execution.authorization.create(object, (await creating?.(context, object)) ?? {});
         }
     },
 
     /** Build the columns a created object is inserted with. */
-    async createdValues(call: Call): Promise<InsertValue<Table>> {
+    async createdValues(context: MethodContext): Promise<InsertValue<Table>> {
         // fill caller fields with a calling principal of the declared kinds
-        const { object } = call;
-        const caller = call.caller.subject;
-        const isInternal = call.method.isInternal === true;
+        const { object } = context;
+        const caller = context.caller.subject;
+        const isInternal = context.method.isInternal === true;
         const callers: Record<string, string | null> = {};
         for (const [name, declared] of Object.entries(object.fields)) {
             const kinds = declared.principals;
@@ -1062,19 +1068,23 @@ export const RecordMethod = {
 
         // number versions within their parent
         const version = object.lifecycle.versioned
-            ? await versioned.next(object, call.requireParent().id, call)
+            ? await versioned.next(object, context.requireParent().id, context)
             : undefined;
 
         // place an ordered object after its last sibling unless the caller placed it
-        const decoded = Table.decode(object.table, call.input);
-        const parent = object.parent === undefined ? {} : call.parentColumns();
+        const decoded = Table.decode(object.table, context.input);
+        const parent = object.parent === undefined ? {} : context.parentColumns();
         const position =
-            object.ordering === undefined || call.input["position"] !== undefined
+            object.ordering === undefined || context.input["position"] !== undefined
                 ? undefined
-                : await Orderable.next(object, { ...decoded, ...parent, scope: call.scope }, call);
+                : await Orderable.next(
+                      object,
+                      { ...decoded, ...parent, scope: context.scope },
+                      context,
+                  );
 
         // require the writer
-        if (object.storage === "ephemeral" && call.writerId === undefined) {
+        if (object.storage === "ephemeral" && context.writerId === undefined) {
             throw new TypeError(`only a writer can create ephemeral ${object.name} objects`);
         }
 
@@ -1087,12 +1097,12 @@ export const RecordMethod = {
             ...decoded,
             ...parent,
             ...(position === undefined ? {} : { position }),
-            id: call.id,
-            scope: call.scope,
+            id: context.id,
+            scope: context.scope,
             ...(version === undefined ? {} : { number: version }),
-            ...(object.storage === "ephemeral" ? { writerId: call.writerId } : {}),
+            ...(object.storage === "ephemeral" ? { writerId: context.writerId } : {}),
             ...callers,
-            ...(isTimed ? { createdAt: call.now, updatedAt: call.now } : {}),
+            ...(isTimed ? { createdAt: context.now, updatedAt: context.now } : {}),
             ...(isAuthored
                 ? {
                       ...ObjectReference.columns("createdBy", caller),
@@ -1104,20 +1114,20 @@ export const RecordMethod = {
 
     /** Insert a created object under an unused identifier within a savepoint. */
     async insertCreated(
-        call: MutationCall,
+        context: MethodContext,
         execution: StoreExecution,
-        insert: (created: MutationCall<Table, JsonObject, string>) => Promise<unknown>,
+        insert: (created: MethodContext<MethodConfiguration, unknown, string>) => Promise<unknown>,
     ): Promise<{
         readonly id: string;
-        readonly created: MutationCall<Table, JsonObject, string>;
+        readonly created: MethodContext<MethodConfiguration, unknown, string>;
         readonly row: unknown;
     }> {
         // insert within a savepoint
         try {
             return await execution.transaction.savepoint(async () => {
                 // insert under an unused identifier
-                const id = await RecordMethod.createdId(call, execution);
-                const created = call.identify(id);
+                const id = await RecordMethod.createdId(context, execution);
+                const created = context.identify(id);
 
                 return { id, created, row: await insert(created) };
             });
@@ -1128,7 +1138,7 @@ export const RecordMethod = {
                 (error instanceof DatabaseError &&
                     (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE"));
             if (isConflict) {
-                await RecordMethod.requireCreatable(call, execution);
+                await RecordMethod.requireCreatable(context, execution);
             }
             throw error;
         }
@@ -1141,35 +1151,36 @@ export const RecordMethod = {
 
     /** Require the create permission on the object as written. */
     async requireCreatable(
-        call: MutationCall,
+        context: MethodContext,
         execution: StoreExecution,
         reader?: TupleReader,
     ): Promise<void> {
         // build the row as it will be written, with column defaults
-        const id = call.id ?? call.object.generateId();
-        const definition = call.object.table[TABLE];
-        const values = await RecordMethod.createdValues(call.with({ id }));
-        const row = definition.defaults(Table.values(call.object.table, Row.parse(values)));
+        const id = context.id ?? context.object.generateId();
+        const definition = context.object.table[TABLE];
+        const values = await RecordMethod.createdValues(context.with({ id }));
+        const row = definition.defaults(Table.values(context.object.table, Row.parse(values)));
 
         // grant the creation's first relationships, then check the permission on the row
         const { authorization } = execution;
-        const grants = reader ?? (await authorization.reader(call.scope));
-        const created = call.object.reference(call.scope, id);
-        const initial = (await RecordMethod.readCreation(call)?.(call.with({ id }), created)) ?? {};
+        const grants = reader ?? (await authorization.reader(context.scope));
+        const created = context.object.reference(context.scope, id);
+        const initial =
+            (await RecordMethod.readCreation(context)?.(context.with({ id }), created)) ?? {};
         const { authorizer } = authorization;
-        grants.creating(created, authorizer.initialRelationships(created, initial, call.now));
-        await RecordMethod.requirePermitted(call, execution, row, grants, "concealed");
+        grants.creating(created, authorizer.initialRelationships(created, initial, context.now));
+        await RecordMethod.requirePermitted(context, execution, row, grants, "concealed");
     },
 
     /** Require a scoped method's permission in the call's scope, as on a new object there. */
     async authorizeScoped(
-        call: Call,
+        context: MethodContext,
         execution: StoreExecution,
         selected: ((input: JsonObject) => Row) | undefined,
     ): Promise<void> {
         // read the selected columns, else the input's, and a nested type's parent
-        const definition = call.object.table[TABLE];
-        const input: JsonObject = call.input;
+        const definition = context.object.table[TABLE];
+        const input: JsonObject = context.input;
         const named =
             selected?.(input) ??
             Object.fromEntries(
@@ -1177,23 +1188,24 @@ export const RecordMethod = {
                     .filter((column) => input[column] !== undefined)
                     .map((column) => [column, input[column]]),
             );
-        const parent = call.parentColumns();
+        const parent = context.parentColumns();
 
         // check the permission on a new object with those columns, under an unused key for a keyed type
-        const id = call.object.keyed === undefined ? call.object.generateId() : crypto.randomUUID();
-        const row = definition.defaults({ ...named, id, scope: call.scope, ...parent });
+        const id =
+            context.object.keyed === undefined ? context.object.generateId() : crypto.randomUUID();
+        const row = definition.defaults({ ...named, id, scope: context.scope, ...parent });
         await RecordMethod.requirePermitted(
-            call,
+            context,
             execution,
             row,
-            await execution.authorization.reader(call.scope),
+            await execution.authorization.reader(context.scope),
             "open",
         );
     },
 
     /** Require the call's permission on a row, challenging for step-up authentication. */
     async requirePermitted(
-        call: Call,
+        context: MethodContext,
         execution: StoreExecution,
         row: Row,
         grants: TupleReader,
@@ -1202,12 +1214,12 @@ export const RecordMethod = {
         // check the permission on the row
         const { authorization } = execution;
         const { authorizer, snapshot } = authorization;
-        const permission = call.permission();
+        const permission = context.permission();
         const admits = async (access: Access) =>
             (await authorizer.checkRows(snapshot, permission, access, [row], grants)).permitted.has(
                 0,
             );
-        const access = await authorization.in(call.scope);
+        const access = await authorization.in(context.scope);
         if (await admits(access)) {
             return;
         }
@@ -1223,7 +1235,7 @@ export const RecordMethod = {
         }
 
         // refuse openly, or hide an object the caller cannot read
-        const reading = call.object.reading;
+        const reading = context.object.reading;
         const isReadable =
             refusal === "open" ||
             (reading !== undefined &&
@@ -1233,39 +1245,39 @@ export const RecordMethod = {
         const denial = new CallError("FORBIDDEN", {
             message: `permission denied: ${permission.name}`,
         });
-        throw isReadable ? denial : conceal(denial, `${call.object.name} not found`);
+        throw isReadable ? denial : conceal(denial, `${context.object.name} not found`);
     },
 
     /** Delete an object, or request deletion when a trash or controller finishes it. */
     async deleteObject(
-        call: Call<Table, JsonObject, Select<Table>>,
+        context: MethodContext<{ readonly table: Table }, unknown>,
     ): Promise<Record<string, never>> {
         // refuse deleting an object twice
-        const { object } = call;
-        const target: Row = call.target;
+        const { object } = context;
+        const target: Row = context.target;
         if (target["deletedAt"] !== undefined && target["deletedAt"] !== null) {
             throw new CallError("CONFLICT", { message: `${object.name} is already deleted` });
         }
 
         // request deletion when a trash or controller finishes it
         if (object.isTrashable()) {
-            await call.update(RecordMethod.trashed(call));
+            await context.update(RecordMethod.trashed(context));
 
             return {};
         }
 
         // delete at the loaded revision
-        await call.remove();
+        await context.remove();
 
         return {};
     },
 
     /** Accept a caller's unused identifier, or generate one, random in a prediction. */
-    async createdId(call: MutationCall, execution: StoreExecution): Promise<string> {
+    async createdId(context: MethodContext, execution: StoreExecution): Promise<string> {
         // generate a missing identifier
-        const { object, id: chosen } = call;
+        const { object, id: chosen } = context;
         if (chosen === undefined) {
-            return call.generateId(object);
+            return context.generateId(object);
         }
 
         // find a row with the identifier, or a relationship a deleted object left under it
@@ -1296,33 +1308,36 @@ export const RecordMethod = {
     },
 
     /** Refuse standard changes to managed objects. */
-    requireUnmanaged(call: Call): void {
-        if (declarable.isManaging(call.target)) {
+    requireUnmanaged(context: MethodContext): void {
+        if (declarable.isManaging(context.target)) {
             throw new CallError("MANAGED", {
-                message: `${call.object.name} is managed by its stack; detach it before changing it`,
+                message: `${context.object.name} is managed by its stack; detach it before changing it`,
             });
         }
     },
 
     /** Reject a method without a handler. */
-    missingHandler(call: Call): never {
-        throw new TypeError(`object ${call.object.name} has no handler for ${call.name}`);
+    missingHandler(context: MethodContext): never {
+        throw new TypeError(`object ${context.object.name} has no handler for ${context.name}`);
     },
 
     /** Read how a call creates its object's first relationships. */
     readCreation(
-        call: Call,
-    ): ((call: MutationCall, object: ObjectReference) => Creation | Promise<Creation>) | undefined {
+        context: MethodContext,
+    ):
+        | ((context: MethodContext, object: ObjectReference) => Creation | Promise<Creation>)
+        | undefined {
         const isOwnedScope =
-            call.object.roles !== undefined && call.object.policy.definition.scope === true;
+            context.object.roles !== undefined && context.object.policy.definition.scope === true;
 
         return (
-            call.method.creation ?? (isOwnedScope ? RecordMethod.relateCreator("owner") : undefined)
+            context.method.creation ??
+            (isOwnedScope ? RecordMethod.relateCreator("owner") : undefined)
         );
     },
 
     /** Relate the caller to a new object, and a new scope's owner role to its holders. */
-    relateCreator(relation: string): (call: MutationCall, object: ObjectReference) => Creation {
+    relateCreator(relation: string): (context: MethodContext, object: ObjectReference) => Creation {
         return (call, object) => {
             // relate the creator
             const caller = call.caller.subject;
@@ -1362,7 +1377,7 @@ export class MethodBuilder<
                 input: shapes.target.extend(ViewShape),
                 output: shapes.row,
             }),
-            handler: async (call) => call.target,
+            handler: async (context) => context.target,
         });
     }
 
@@ -1386,7 +1401,7 @@ export class MethodBuilder<
                 input: shapes.scope.extend({ ...QueryShape, ...PageShape, ...ViewShape }),
                 output: ListPage.schema(shapes.row).extend(ListShape),
             }),
-            handler: (call, execution) => new Listing(call, execution).list(),
+            handler: (context, execution) => new Listing(context, execution).list(),
         });
     }
 
@@ -1429,40 +1444,42 @@ export class MethodBuilder<
             result: "object",
             procedure: (name, shapes) => RecordMethod.createProcedure(name, shapes, options),
             ...(creator === undefined ? {} : { creation: RecordMethod.relateCreator(creator) }),
-            handler: (call, execution) => RecordMethod.createObject(call, execution),
-            authorize: (call, execution) => RecordMethod.authorizeCreate(call, execution),
+            handler: (context, execution) => RecordMethod.createObject(context, execution),
+            authorize: (context, execution) => RecordMethod.authorizeCreate(context, execution),
             inverse: (step) => {
                 // delete the created object
                 const call = Step.call(step, "delete", Step.target(step));
 
                 return call === undefined ? undefined : [call];
             },
-            async execute(call, execution) {
+            async execute(context, execution) {
                 // predict under the client's identifier
                 if (execution.kind === "client") {
-                    if (call.id === undefined) {
+                    if (context.id === undefined) {
                         throw new TypeError(
-                            `predicted ${call.object.name} creations need an identifier`,
+                            `predicted ${context.object.name} creations need an identifier`,
                         );
                     }
 
-                    return this.handler(call, execution);
+                    return this.handler(context, execution);
                 }
 
                 // append an events type's object to the event log
-                if (call.object.storage === "events") {
+                if (context.object.storage === "events") {
                     const row = RecordMethod.createdRow(
-                        call.object.table,
-                        await RecordMethod.createdValues(call),
+                        context.object.table,
+                        await RecordMethod.createdValues(context),
                     );
-                    await EventLog.append(call, execution, [row]);
+                    await EventLog.append(context, execution, [row]);
 
                     return row;
                 }
 
                 // insert under an unused identifier and record its access
-                const { row } = await RecordMethod.insertAuthorized(call, execution, (inserted) =>
-                    this.handler(inserted, execution),
+                const { row } = await RecordMethod.insertAuthorized(
+                    context,
+                    execution,
+                    (inserted) => this.handler(inserted, execution),
                 );
 
                 return row;
@@ -1516,8 +1533,8 @@ export class MethodBuilder<
             }),
             validate: (object) => RecordMethod.requireUnrecorded(object),
             ...(creator === undefined ? {} : { creation: RecordMethod.relateCreator(creator) }),
-            handler: (call, execution) => RecordMethod.createItems(call, execution),
-            authorize: (call, execution) => RecordMethod.authorizeItems(call, execution),
+            handler: (context, execution) => RecordMethod.createItems(context, execution),
+            authorize: (context, execution) => RecordMethod.authorizeItems(context, execution),
             inverse: (step) => RecordMethod.deleteCreated(step),
         });
     }
@@ -1556,16 +1573,16 @@ export class MethodBuilder<
                 }),
                 output: shapes.row,
             }),
-            handler: (call) => call.update(Table.decode(call.object.table, call.input)),
+            handler: (context) => context.update(Table.decode(context.object.table, context.input)),
             inverse: (step) => RecordMethod.restoreUpdated(step),
-            async execute(call, execution) {
+            async execute(context, execution) {
                 // refuse managed objects and unwritable fields
-                RecordMethod.requireUnmanaged(call);
+                RecordMethod.requireUnmanaged(context);
                 if (execution.kind === "store") {
-                    await execution.authorization.requireWritable(call, call.id, execution);
+                    await execution.authorization.requireWritable(context, context.id, execution);
                 }
 
-                return this.handler(call, execution);
+                return this.handler(context, execution);
             },
         });
     }
@@ -1643,7 +1660,7 @@ export class MethodBuilder<
                 input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
                 output: Empty,
             }),
-            handler: (call) => RecordMethod.deleteObject(call),
+            handler: (context) => RecordMethod.deleteObject(context),
             inverse: (step) => {
                 // restore from the trash
                 const call =
@@ -1653,11 +1670,11 @@ export class MethodBuilder<
 
                 return call === undefined ? undefined : [call];
             },
-            async execute(call, execution) {
+            async execute(context, execution) {
                 // refuse managed objects
-                RecordMethod.requireUnmanaged(call);
+                RecordMethod.requireUnmanaged(context);
 
-                return this.handler(call, execution);
+                return this.handler(context, execution);
             },
         });
     }
@@ -1695,7 +1712,7 @@ export class MethodBuilder<
                 output: BatchPayload,
             }),
             validate: (object) => RecordMethod.requireUnrecorded(object),
-            handler: (call, execution) => RecordMethod.deleteMatching(call, execution),
+            handler: (context, execution) => RecordMethod.deleteMatching(context, execution),
         });
     }
 
@@ -1776,8 +1793,8 @@ export class MethodBuilder<
             ...declared,
             ...(isScoped
                 ? {
-                      authorize: (call: Call, execution: StoreExecution) =>
-                          RecordMethod.authorizeScoped(call, execution, selected),
+                      authorize: (context: MethodContext, execution: StoreExecution) =>
+                          RecordMethod.authorizeScoped(context, execution, selected),
                   }
                 : {}),
             ...(inverse === undefined
@@ -1807,7 +1824,7 @@ export class MethodBuilder<
                     output: definition.output ?? shapes.row,
                 };
             },
-            handler: (call) => RecordMethod.missingHandler(call),
+            handler: (context) => RecordMethod.missingHandler(context),
         };
     }
 }

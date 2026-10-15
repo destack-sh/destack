@@ -15,8 +15,8 @@ export const expiry: Method = defineMethod<{ kind: "delete"; permission: "expire
             input: shapes.target.extend(shapes.replay),
             output: Empty,
         }),
-        handler: async (call) => {
-            await call.remove();
+        handler: async (context) => {
+            await context.remove();
 
             return {};
         },

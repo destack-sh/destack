@@ -5,7 +5,7 @@ import type { JsonCondition } from "@destack/db";
 import { testCallKey } from "@destack/runtime/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { DatabaseConnection } from "@destack/db";
-import { AuditCall, defineAuditAction } from "../../src/index.ts";
+import { CallEvent, defineAuditAction } from "../../src/index.ts";
 import { AuditRecorder, Journal } from "../../src/server/index.ts";
 import { call, storeTables } from "../../src/index.ts";
 import { MemoryBucket } from "@destack/bucket/test";
@@ -149,14 +149,14 @@ export class AuditStorage {
     }
 
     /** Read a scope's calls in start order, narrowed by a condition over the call type's keys. */
-    async calls(scope: string, where?: JsonCondition): Promise<AuditCall[]> {
+    async calls(scope: string, where?: JsonCondition): Promise<CallEvent[]> {
         const page = await this.events.query(
             call.eventKind(),
             { scopes: [scope], ...(where === undefined ? {} : { where }) },
             { limit: 100 },
         );
 
-        return page.events.map((event) => AuditCall.parse(event.data));
+        return page.events.map((event) => CallEvent.parse(event.data));
     }
 
     /** Release the connection and remove the databases, refusing exceptions no test took. */

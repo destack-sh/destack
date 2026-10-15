@@ -20,7 +20,6 @@ import { ObjectKey, type ObjectType } from "../object/object.ts";
 import type { ExpiryRule } from "../trait/expiring.ts";
 import type { ObjectStore } from "./store.ts";
 import { RequestId } from "@destack/runtime/request";
-import { Call } from "../method/call.ts";
 
 /** The most rows one expiry removes per transaction: about a millisecond of deletes. */
 const EXPIRE_ROWS = 100;
@@ -108,7 +107,7 @@ export class ExpiringController implements Controller {
                         {
                             id: RequestId.create(now),
                             calls: rows.map((row) =>
-                                Call.record(object, "expire", object.target(ObjectKey.parse(row))),
+                                object.call("expire", object.target(ObjectKey.parse(row))),
                             ),
                         },
                         { component: EXPIRY },

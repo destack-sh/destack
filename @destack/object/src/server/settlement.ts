@@ -3,8 +3,8 @@ import { schema, Duration, type JsonValue } from "@destack/schema";
 import { CallError } from "@destack/runtime";
 import type { Controller } from "@destack/runtime/control";
 import { v7 } from "uuid";
-import type { Call } from "../method/call.ts";
-import { settlement, SettlementCall } from "../method/settlement.ts";
+import type { MethodContext } from "../method/context.ts";
+import { settlement, SettlementContext } from "../method/settlement.ts";
 import { Method } from "../method/method.ts";
 import type { ObjectStore } from "./store.ts";
 
@@ -17,18 +17,22 @@ type Settlement = typeof settlement.$inferSelect;
 /** Settle calls' prepared work once, committing or rolling back by the recorded outcome. */
 export const Settlement = {
     /** Reserve a settlement for a call's external work by idempotency key, returning its id. */
-    async reserve(database: DatabaseConnection, call: Call, key: string): Promise<string> {
+    async reserve(
+        database: DatabaseConnection,
+        context: MethodContext,
+        key: string,
+    ): Promise<string> {
         const id = v7();
         await database.insert(settlement).values({
             id,
             key,
-            object: call.object.name,
-            method: call.name,
-            scope: call.scope,
-            target: call.id ?? null,
+            object: context.object.name,
+            method: context.name,
+            scope: context.scope,
+            target: context.id ?? null,
             prepared: null,
             committedAt: null,
-            createdAt: call.now,
+            createdAt: context.now,
         });
 
         return id;
@@ -38,7 +42,7 @@ export const Settlement = {
     async record(
         database: DatabaseConnection,
         id: string,
-        call: Call,
+        context: MethodContext,
         prepared: JsonValue,
     ): Promise<void> {
         const recorded = await database
@@ -47,7 +51,7 @@ export const Settlement = {
             .where(and(eq(settlement.id, id), isNull(settlement.claimedAt)))
             .returning({ id: settlement.id });
         if (recorded.length === 0) {
-            Settlement.refuseOutlasted(call);
+            Settlement.refuseOutlasted(context);
         }
     },
 
@@ -55,7 +59,7 @@ export const Settlement = {
     async commit(
         transaction: DatabaseConnection,
         id: string,
-        call: Call,
+        context: MethodContext,
         now: number,
     ): Promise<void> {
         const committed = await transaction
@@ -70,7 +74,7 @@ export const Settlement = {
             )
             .returning({ id: settlement.id });
         if (committed.length === 0) {
-            Settlement.refuseOutlasted(call);
+            Settlement.refuseOutlasted(context);
         }
     },
 
@@ -116,7 +120,7 @@ export const Settlement = {
         }
 
         // rebuild the recorded call and its prepared value
-        const call = new SettlementCall({
+        const call = new SettlementContext({
             object,
             name: row.method,
             scope: row.scope,
@@ -181,9 +185,9 @@ export const Settlement = {
     },
 
     /** Refuse a call whose settlement a settler claimed after its grace passed. */
-    refuseOutlasted(call: Call): never {
+    refuseOutlasted(context: MethodContext): never {
         throw new CallError("SERVICE_UNAVAILABLE", {
-            message: `${call.object.name}.${call.name} exceeded its settlement grace period`,
+            message: `${context.object.name}.${context.name} exceeded its settlement grace period`,
         });
     },
 };

@@ -2,7 +2,6 @@ import { accessRelationship, principal } from "@destack/access";
 import type { schema } from "@destack/schema";
 import type { Procedure } from "../method/procedure.ts";
 import { bind, ConsumerInput, type ConsumerMethod } from "../method/bindable.ts";
-import { Call } from "../method/call.ts";
 import { method } from "../method/record.ts";
 import { type Gated, derivePermissions, type Trait } from "./trait.ts";
 
@@ -69,15 +68,15 @@ export const bindable: Trait<true | Gated> & {
         const inverse = action === "bind" ? "releaseConsumer" : "bindConsumer";
         return method
             .mutation({ permission, input: ConsumerInput, inverse, isPredicted: false })
-            .handle(async (call) => {
+            .handle(async (context) => {
                 // read the consumer's objects of the type in the scope
-                const { consumer } = call.input;
-                const { packageId } = call.object.policy.definition;
-                const rows = await call.read(accessRelationship).findMany({
+                const { consumer } = context.input;
+                const { packageId } = context.object.policy.definition;
+                const rows = await context.read(accessRelationship).findMany({
                     where: {
-                        scope: call.scope,
+                        scope: context.scope,
                         objectPackageId: packageId,
-                        objectType: call.object.name,
+                        objectType: context.object.name,
                         relation: CONSUMER,
                         subjectPackageId: consumer.packageId,
                         subjectType: consumer.type,
@@ -87,14 +86,14 @@ export const bindable: Trait<true | Gated> & {
                 });
 
                 // bind exactly them with the target added or removed, as the store's own work binds
-                const id = call.id;
+                const id = context.id;
                 const kept = rows.map((row) => row.objectId).filter((each) => each !== id);
                 const ids = action === "bind" ? [...kept, id] : kept;
-                await call.mutate(call.caller, [
-                    Call.record(call.object, "bind", { consumer, ids }),
+                await context.mutate(context.caller, [
+                    context.object.call("bind", { consumer, ids }),
                 ]);
 
-                return call.target;
+                return context.target;
             });
     },
 };

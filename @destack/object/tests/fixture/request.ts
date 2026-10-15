@@ -1,16 +1,11 @@
 import type { RequestContext } from "@destack/runtime/server";
+import type { Call } from "@destack/sync";
 import { RequestId } from "@destack/runtime/request";
-import type {
-    CallableName,
-    CallInput,
-    CallOutput,
-    ObjectCall,
-    ObjectType,
-} from "../../src/index.ts";
+import type { CallableName, MethodInput, MethodOutput, ObjectType } from "../../src/index.ts";
 import type { ObjectStore } from "../../src/server/index.ts";
 
 /** A request's input: the method's input under a request or, for ephemeral objects, a writer. */
-export type RequestInput<Type extends ObjectType, Name extends CallableName<Type>> = CallInput<
+export type RequestInput<Type extends ObjectType, Name extends CallableName<Type>> = MethodInput<
     Type,
     Name
 > & { readonly requestId?: string; readonly writerId?: string };
@@ -26,7 +21,7 @@ export async function request<Type extends ObjectType, Name extends CallableName
 ) {
     // place the call in the scope, sending the request and writer apart from its input
     const { requestId, writerId, ...rest } = input;
-    const call: ObjectCall<CallOutput<Type, Name>> = {
+    const call: Call<MethodOutput<Type, Name>> = {
         type: object.typeReference,
         method: name,
         input: { ...rest, ...object.in(scope) },

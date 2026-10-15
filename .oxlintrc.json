@@ -69,6 +69,7 @@
         "destack/error-message-style": "error",
         "destack/exact-optional": "error",
         "destack/jsdoc-sentence": "error",
+        "destack/method-signature-style": "error",
         "destack/no-class-name": "error",
         "destack/no-import-alias": "error",
         "destack/no-index-logic": "error",
@@ -106,7 +107,14 @@
         },
         {
             "files": ["@destack/account/src/better-auth/adapter.ts"],
-            "rules": { "typescript/no-unnecessary-type-parameters": "off" }
+            "rules": {
+                "typescript/no-unnecessary-type-parameters": "off",
+                "destack/no-overload-cast": "off"
+            }
+        },
+        {
+            "files": ["@destack/account/src/better-auth/authenticator.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
         },
         {
             "files": ["@destack/connection/src/test/fixture.ts"],
@@ -121,6 +129,41 @@
             "rules": { "destack/prevent-abbreviations": "off" }
         },
         {
+            "files": ["@destack/object/src/object/object.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
+        },
+        {
+            "files": ["@destack/object/src/object/description.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
+        },
+        {
+            "files": ["@destack/object/src/method/context.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
+        },
+        {
+            "files": ["@destack/resource/src/context/context.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
+        },
+        {
+            "files": ["@destack/schema/src/collection/record.ts"],
+            "rules": {
+                "typescript/consistent-type-assertions": "off",
+                "typescript/no-unsafe-type-assertion": "off",
+                "typescript/no-unnecessary-type-parameters": "off"
+            }
+        },
+        {
+            "files": ["@destack/schema/src/identifier/brand.ts"],
+            "rules": {
+                "typescript/consistent-type-assertions": "off",
+                "typescript/no-unsafe-type-assertion": "off"
+            }
+        },
+        {
+            "files": ["@destack/sync/src/scope/reference.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
+        },
+        {
             "files": ["@destack/telemetry/src/browser/devtools.ts"],
             "rules": { "eslint/no-console": "off" }
         },
@@ -130,7 +173,6 @@
         },
         {
             "files": [
-                "@destack/view/src/primitives/event-props.ts",
                 "@destack/view/src/primitives/input-mask.ts",
                 "@destack/view/src/primitives/upload.ts",
                 "@destack/view/src/primitives/video.ts"

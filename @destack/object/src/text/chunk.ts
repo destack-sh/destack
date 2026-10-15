@@ -4,7 +4,7 @@ import { type Transaction, type Snapshot, Table } from "@destack/db";
 import { schema, canonicalize, Identifier, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { FractionalIndex } from "../field/fractional-index.ts";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 import { method } from "../method/record.ts";
 import { ObjectType, type ObjectSource } from "../object/object.ts";
 import { INTRINSIC } from "../object/intrinsic.ts";
@@ -205,28 +205,28 @@ export const Chunk = {
     },
 
     /** Apply a call's edits to one text field, writing the changed chunks. */
-    async edit(call: Call, execution: Execution): Promise<Undo> {
+    async edit(context: MethodContext, execution: Execution): Promise<Undo> {
         // read the chunks the edits touch
-        const { field, edits } = EDIT_INPUT.parse(call.input);
-        const owner = call.object;
+        const { field, edits } = EDIT_INPUT.parse(context.input);
+        const owner = context.object;
         const parent: Parent = {
-            scope: call.scope,
+            scope: context.scope,
             parentPackageId: owner.policy.definition.packageId,
             parentType: owner.name,
-            parentId: present(call.id, `the edited ${owner.name}'s identifier`),
+            parentId: present(context.id, `the edited ${owner.name}'s identifier`),
             field,
         };
         const rows =
             execution.kind === "client"
-                ? await ChunkLayout.read(call, parent, undefined)
-                : await ChunkLayout.touched(call, parent, edits);
+                ? await ChunkLayout.read(context, parent, undefined)
+                : await ChunkLayout.touched(context, parent, edits);
 
         // apply each edit, inverting it against the text before
         const { sequence, inverse } = ChunkLayout.applyEdits(rows, edits, field);
 
         // cut the runs back into the chunks and write and index them
-        const chunks = await ChunkLayout.recut(call, parent, rows, sequence.runs);
-        await ChunkLayout.writeChunks(call, execution, chunks);
+        const chunks = await ChunkLayout.recut(context, parent, rows, sequence.runs);
+        await ChunkLayout.writeChunks(context, execution, chunks);
 
         return { inverse };
     },
@@ -314,11 +314,11 @@ interface ChunkChange {
 const ChunkLayout = {
     /** Read a text field's chunks in position order, within positions when given. */
     async read(
-        call: Call,
+        context: MethodContext,
         parent: Parent,
         within: { readonly from: string; readonly to: string } | undefined,
     ): Promise<Chunk[]> {
-        const rows = await call.read(chunk).findMany({
+        const rows = await context.read(chunk).findMany({
             where: {
                 ...parent,
                 ...(within === undefined ? {} : { position: { gte: within.from, lte: within.to } }),
@@ -329,19 +329,23 @@ const ChunkLayout = {
     },
 
     /** Read the contiguous chunks containing the elements some edits refer to. */
-    async touched(call: Call, parent: Parent, edits: readonly SequenceEdit[]): Promise<Chunk[]> {
+    async touched(
+        context: MethodContext,
+        parent: Parent,
+        edits: readonly SequenceEdit[],
+    ): Promise<Chunk[]> {
         // find the chunks containing the referenced elements and any run the edits insert
         const { named, inserted, isAtStart } = ChunkLayout.editedElements(edits);
         const found =
             named.length === 0 && inserted.size === 0
                 ? []
-                : await ChunkLayout.containing(call, parent, named, inserted);
+                : await ChunkLayout.containing(context, parent, named, inserted);
         ChunkLayout.requireContained(found, named, inserted, parent.field);
 
         // add the field's first chunk for an insertion at the start
         const positions = found.map((entry) => entry.position);
         if (isAtStart) {
-            positions.push(...(await ChunkLayout.firstPosition(call, parent)));
+            positions.push(...(await ChunkLayout.firstPosition(context, parent)));
         }
 
         // read the range from the first touched chunk to the last
@@ -351,7 +355,7 @@ const ChunkLayout = {
 
         return from === undefined || to === undefined
             ? []
-            : ChunkLayout.read(call, parent, { from, to });
+            : ChunkLayout.read(context, parent, { from, to });
     },
 
     /** Collect the elements some edits refer to, without inserted runs, and any start insertion. */
@@ -381,13 +385,13 @@ const ChunkLayout = {
 
     /** Read the indexed runs containing some elements, and any run of some inserted ones. */
     async containing(
-        call: Call,
+        context: MethodContext,
         parent: Parent,
         named: readonly Element[],
         inserted: ReadonlySet<string>,
     ) {
         // read the runs containing the named elements and the inserted runs
-        const runs = await call.read(chunkRun).findMany({
+        const runs = await context.read(chunkRun).findMany({
             where: {
                 ...parent,
                 OR: [
@@ -402,7 +406,7 @@ const ChunkLayout = {
         });
 
         // place each run at its chunk's position
-        const chunks = await call
+        const chunks = await context
             .read(chunk)
             .findMany({ where: { id: { in: runs.map((entry) => entry.chunk) } } });
         const positions = new Map(chunks.map((row) => [row.id, row.position]));
@@ -448,8 +452,8 @@ const ChunkLayout = {
     },
 
     /** Read the position of a text field's first chunk, none for an empty field. */
-    async firstPosition(call: Call, parent: Parent): Promise<string[]> {
-        const [first] = await call
+    async firstPosition(context: MethodContext, parent: Parent): Promise<string[]> {
+        const [first] = await context
             .read(chunk)
             .findMany({ where: { ...parent }, orderBy: { position: "asc" }, limit: 1 });
 
@@ -490,7 +494,7 @@ const ChunkLayout = {
 
     /** Cut edited runs back into a field's chunks, splitting full ones into new chunks. */
     async recut(
-        call: Call,
+        context: MethodContext,
         parent: Parent,
         rows: readonly Chunk[],
         edited: readonly Run[],
@@ -509,7 +513,7 @@ const ChunkLayout = {
                 const row = { ...current, runs: first, text: new Sequence(first).text() };
                 chunks.changed.push(row);
                 if (
-                    !call.isPredicted &&
+                    !context.isPredicted &&
                     canonicalize(ChunkLayout.ranges(first)) !==
                         canonicalize(ChunkLayout.ranges(current.runs))
                 ) {
@@ -520,11 +524,11 @@ const ChunkLayout = {
             // place new chunks between this one and the next
             const groups = current === undefined ? [first, ...rest] : rest;
             let before = current?.position;
-            const isLast = index + 1 >= rows.length && !call.isPredicted;
+            const isLast = index + 1 >= rows.length && !context.isPredicted;
             let after: string | undefined;
             if (groups.length > 0) {
                 after = isLast
-                    ? await ChunkLayout.next(call, parent, current?.position)
+                    ? await ChunkLayout.next(context, parent, current?.position)
                     : rows[index + 1]?.position;
             }
             for (const runs of groups) {
@@ -543,20 +547,24 @@ const ChunkLayout = {
     },
 
     /** Write the changed and new chunks, and index their runs on the server. */
-    async writeChunks(call: Call, execution: Execution, chunks: ChunkChange): Promise<void> {
+    async writeChunks(
+        context: MethodContext,
+        execution: Execution,
+        chunks: ChunkChange,
+    ): Promise<void> {
         // read the changed chunks at once
         const changed = chunks.changed.map((row) => row.id);
         const before = new Map(
             (changed.length === 0
                 ? []
-                : await call.read(chunk).findMany({ where: { id: { in: changed } } })
+                : await context.read(chunk).findMany({ where: { id: { in: changed } } })
             ).map((row) => [row.id, row]),
         );
 
         // write the changed and new chunks together
         await Execution.write(
             execution,
-            call,
+            context,
             ...chunks.changed.map((row) => {
                 const current = present(before.get(row.id), `the chunk ${row.id}`);
 
@@ -571,13 +579,13 @@ const ChunkLayout = {
 
         // index the runs of changed and new chunks on the server
         if (execution.kind === "store") {
-            await ChunkLayout.reindex(call, execution, [...chunks.reranged, ...chunks.created]);
+            await ChunkLayout.reindex(context, execution, [...chunks.reranged, ...chunks.created]);
         }
     },
 
     /** Read the position of the chunk after one, absent after the last. */
     async next(
-        call: Call,
+        context: MethodContext,
         parent: Parent,
         position: string | undefined,
     ): Promise<string | undefined> {
@@ -585,7 +593,7 @@ const ChunkLayout = {
         if (position === undefined) {
             return undefined;
         }
-        const [after] = await call.read(chunk).findMany({
+        const [after] = await context.read(chunk).findMany({
             where: { ...parent, position: { gt: position } },
             orderBy: { position: "asc" },
             limit: 1,
@@ -595,19 +603,23 @@ const ChunkLayout = {
     },
 
     /** Replace the index rows of some chunks with their runs' ranges. */
-    async reindex(call: Call, execution: Execution, rows: readonly Chunk[]): Promise<void> {
+    async reindex(
+        context: MethodContext,
+        execution: Execution,
+        rows: readonly Chunk[],
+    ): Promise<void> {
         // read the chunks' old ranges
         if (rows.length === 0) {
             return;
         }
-        const old = await call
+        const old = await context
             .read(chunkRun)
             .findMany({ where: { chunk: { in: rows.map((row) => row.id) } } });
 
         // replace them with their current ranges together
         await Execution.write(
             execution,
-            call,
+            context,
             ...old.map((range) => ({ table: chunkRun, before: range, after: null })),
             ...rows.flatMap((row) =>
                 ChunkLayout.ranges(row.runs).map((range) => ({

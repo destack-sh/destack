@@ -18,24 +18,24 @@ export const approvalMethod = new MethodBuilder<
 /** Record a controller's observation of its target at its generation. */
 export const observe = controlledMethod
     .mutation({ permission: "control", input: Observation })
-    .handle(async (call) => {
+    .handle(async (context) => {
         // merge the conditions and keep transition times while their status stays
-        const { observedGeneration, conditions, fields } = call.input;
-        const current = call.target.conditions;
+        const { observedGeneration, conditions, fields } = context.input;
+        const current = context.target.conditions;
         const merged = Object.fromEntries(
             Object.entries(conditions).map(([name, condition]) => [
                 name,
                 StatusCondition.observe(
                     current[name],
                     { ...condition, observedGeneration },
-                    call.now,
+                    context.now,
                 ),
             ]),
         );
 
         // write the observed state
-        return call.updateStatus({
-            ...Table.decode(call.object.table, fields ?? {}),
+        return context.updateStatus({
+            ...Table.decode(context.object.table, fields ?? {}),
             observedGeneration,
             conditions: { ...current, ...merged },
         });
@@ -47,16 +47,16 @@ export const finalize = controlledMethod
         permission: "control",
         output: schema.object({}),
     })
-    .handle(async (call) => {
+    .handle(async (context) => {
         // require a requested deletion
-        if (call.target.deletedAt === null) {
+        if (context.target.deletedAt === null) {
             throw new CallError("CONFLICT", {
-                message: `${call.object.name} is not being deleted`,
+                message: `${context.object.name} is not being deleted`,
             });
         }
 
         // delete at the loaded revision
-        await call.remove();
+        await context.remove();
 
         return {};
     });
@@ -71,4 +71,4 @@ export const approvePlan = approvalMethod
             plan: Digest,
         }),
     })
-    .handle((call) => call.update({ approvedPlan: call.input.plan }));
+    .handle((context) => context.update({ approvedPlan: context.input.plan }));

@@ -1,9 +1,9 @@
 import { type Permission } from "@destack/access";
-import { Duration, type JsonObject, present, type schema } from "@destack/schema";
-import { LogPosition, TABLE, type Row, type Select, Table } from "@destack/db";
+import { Duration, present, type schema } from "@destack/schema";
+import { LogPosition, TABLE, type Row, Table } from "@destack/db";
 import type { ActivityTable } from "../object/history.ts";
 import { defineMethod, type Method } from "../method/method.ts";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { Procedure, ReplayShape, RowSchema, TargetShape } from "../method/procedure.ts";
@@ -42,7 +42,7 @@ export const tracked: Trait<TrackedDefinition> & {
     readonly revert: (permission: string) => Method;
     /** Read the call's object at the input's position, readable by the caller then and now. */
     readonly earlier: (
-        call: Call<Table, JsonObject, Select<Table>>,
+        context: MethodContext<{ readonly table: Table }, unknown>,
         execution: StoreExecution,
         permission: Permission,
     ) => Promise<Row>;
@@ -77,18 +77,21 @@ export const tracked: Trait<TrackedDefinition> & {
                 input: shapes.target.extend({ ...shapes.replay, at: LogPosition }),
                 output: shapes.row,
             }),
-            handler: async (call, execution) => {
+            handler: async (context, execution) => {
                 // write back the changed fields the history keeps, sensitive ones being unlogged
                 const row = await tracked.earlier(
-                    call,
-                    Execution.store(execution, call),
-                    present(call.object.reading, `the read permission of ${call.object.name}`),
+                    context,
+                    Execution.store(execution, context),
+                    present(
+                        context.object.reading,
+                        `the read permission of ${context.object.name}`,
+                    ),
                 );
-                const target: Row = call.target;
-                const kept = call.object.table[TABLE].encode(row);
-                const current = call.object.table[TABLE].encode(target);
+                const target: Row = context.target;
+                const kept = context.object.table[TABLE].encode(row);
+                const current = context.object.table[TABLE].encode(target);
                 const changes = Object.fromEntries(
-                    call.object.written.flatMap((name) => {
+                    context.object.written.flatMap((name) => {
                         const value = row[name];
 
                         return value === undefined || Step.same(kept[name], current[name])
@@ -99,7 +102,7 @@ export const tracked: Trait<TrackedDefinition> & {
 
                 return Object.keys(changes).length === 0
                     ? target
-                    : call.update(Table.values(call.object.table, changes));
+                    : context.update(Table.values(context.object.table, changes));
             },
             inverse: (step) => {
                 // restore reverted fields unchanged since
@@ -125,13 +128,13 @@ export const tracked: Trait<TrackedDefinition> & {
         });
     },
     earlier(
-        call: Call<Table, JsonObject, Select<Table>>,
+        context: MethodContext<{ readonly table: Table }, unknown>,
         execution: StoreExecution,
         permission: Permission,
     ): Promise<Row> {
         const { database } = execution.transaction;
-        const snapshot = database.log.at(LogPosition.parse(call.input["at"]));
+        const snapshot = database.log.at(LogPosition.parse(context.input["at"]));
 
-        return execution.authorization.readIn(call, call.id, snapshot, permission);
+        return execution.authorization.readIn(context, context.id, snapshot, permission);
     },
 };

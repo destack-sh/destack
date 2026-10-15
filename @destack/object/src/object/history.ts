@@ -79,8 +79,8 @@ export const checkpoint = {
     methods: <Definition extends ObjectTable>(method: MethodBuilder<Definition>) => ({
         create: method
             .create("checkpoint", { fields: ["title", "description"], isPredicted: false })
-            .handle(async (call, next) =>
-                next(call.with({ input: { ...call.input, position: call.base } })),
+            .handle(async (context, next) =>
+                next(context.with({ input: { ...context.input, position: context.base } })),
             ),
         update: method.update("checkpoint", { fields: ["title", "description"] }),
         delete: method.delete("checkpoint"),

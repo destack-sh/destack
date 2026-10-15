@@ -37,7 +37,7 @@ import { Replay } from "../audit/replay.ts";
 import {
     AuditRecorder,
     type AuditOrigin,
-    type AuditCalled,
+    type AuditRecorderOptions,
     type CallRequest,
 } from "../audit/recorder.ts";
 import { Journal } from "../audit/journal.ts";
@@ -65,7 +65,7 @@ import {
     type ServerAccess,
     type RequestContext,
     type PackageImplementation,
-    type ProcedureCall,
+    type ProcedureContext,
 } from "@destack/runtime/server";
 import {
     Egress,
@@ -76,15 +76,9 @@ import {
 } from "@destack/runtime";
 import * as sync from "@destack/sync";
 import { type Follow, type FollowKey, Shape } from "../replica/shape.ts";
-import { Branch, type BranchCall, type BranchType } from "../branch/index.ts";
-import {
-    Call,
-    CallCode,
-    OutboxCall,
-    type ObjectCall,
-    type ResultsOf,
-    type Run,
-} from "../method/call.ts";
+import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
+import { MethodContext, OutboxMessage, type ResultsOf, type Run } from "../method/context.ts";
+import { CallSite } from "../method/site.ts";
 import { Method, type MethodKind } from "../method/method.ts";
 import { callableProcedures } from "../method/procedure.ts";
 import { InputSchema } from "../method/input.ts";
@@ -187,15 +181,19 @@ export interface Subscriber extends SubscriberOptions {
 
 /** A call's prepared external work: the keyed call, parsed value and settlement, if any. */
 type Prepared =
-    | { readonly call: Call; readonly value: unknown; readonly settlement: string | undefined }
+    | {
+          readonly context: MethodContext;
+          readonly value: unknown;
+          readonly settlement: string | undefined;
+      }
     | undefined;
 
 /** A resolved call with the author it runs as and the calls its expansion ran before it. */
-type Expansion = ReturnType<typeof Call.resolve> & {
+type Expansion = ReturnType<typeof ObjectType.resolve> & {
     /** The principal the call records as its caller, the caller's when absent. */
     readonly as?: Subject;
     /** The calls the method's expansion ran before it. */
-    readonly expansion?: readonly BranchCall[];
+    readonly expansion?: readonly BranchEntry[];
 };
 
 /** A durable mutation as the journal executes it. */
@@ -271,7 +269,7 @@ type CallOptions = {
     /** The principal the call records as its caller, the authorization's when absent. */
     readonly as?: Subject;
     /** The calls the method's expansion ran before it. */
-    readonly expansion?: readonly BranchCall[];
+    readonly expansion?: readonly BranchEntry[];
     /** The request the call belongs to. */
     readonly request?: CallRequest;
     /** The code making the call for a principal's own code, such as a controller's name. */
@@ -451,7 +449,11 @@ export class ObjectStore {
     /** The outbox of sent calls and replicated row changes, absent if nothing receives them. */
     readonly #sends?: Outbox;
     /** Open an audit recorder for a scope and caller, with its calls' request and component. */
-    readonly audit: (scope: string, caller: AccessContext, called?: AuditCalled) => AuditRecorder;
+    readonly audit: (
+        scope: string,
+        caller: AccessContext,
+        options?: AuditRecorderOptions,
+    ) => AuditRecorder;
     /** Report failed settlements. */
     readonly #report: (error: unknown) => void;
     /** The clock calls run and controllers reconcile at. */
@@ -523,8 +525,8 @@ export class ObjectStore {
         // keep the journal, the audit and the request context
         this.#journal = ObjectStore.#journalOf(this.#declared, options);
         this.origin = { ...options.origin, package: Package.of(options.origin.package) };
-        this.audit = (scope, caller, called) =>
-            AuditRecorder.scoped(this.journal, this.origin)(scope, caller, called);
+        this.audit = (scope, caller, recording) =>
+            AuditRecorder.scoped(this.journal, this.origin)(scope, caller, recording);
         this.isAccessAudited = options.isAccessAudited ?? false;
         this.source = new ObjectSource(this);
         this.clock = options.clock;
@@ -961,8 +963,8 @@ export class ObjectStore {
             audit: AuditRecorder.procedure((call) =>
                 this.audit(
                     this.#procedureScope(call, routed) ?? Scope.universe.id,
-                    ObjectStore.#requestCaller(call.context),
-                    { requestId: call.context.requestId },
+                    ObjectStore.#requestCaller(call.request),
+                    { requestId: call.request.requestId },
                 ),
             ),
             controllers,
@@ -1137,7 +1139,7 @@ export class ObjectStore {
         const caller = context.access(scope);
 
         // read through a query
-        const call = Call.record(object, name, rest);
+        const call = object.call(name, rest);
         if (!method.mutates) {
             return this.query(caller, call);
         }
@@ -1156,15 +1158,15 @@ export class ObjectStore {
     }
 
     /** Read through a method as a caller in a read-only transaction, recording audited reads. */
-    async query<Result>(caller: AccessContext, call: ObjectCall<Result>): Promise<Result> {
+    async query<Result>(caller: AccessContext, call: sync.Call<Result>): Promise<Result> {
         const callable = this.#callable(call, false, this.replicas);
-        const [result] = Call.results(callable, [call], [await this.#query(caller, call)]);
+        const [result] = MethodContext.results(callable, [call], [await this.#query(caller, call)]);
 
         return result;
     }
 
     /** Read through a method as a caller, answering its untyped result. */
-    async #query(caller: AccessContext, call: ObjectCall): Promise<unknown> {
+    async #query(caller: AccessContext, call: sync.Call): Promise<unknown> {
         // resolve the call, reading only a method the caller's grant allows
         const { object, name, input } = this.#resolve(call, false, caller);
         const method = object.method(name);
@@ -1237,20 +1239,20 @@ export class ObjectStore {
     }
 
     /** Run a mutation's calls as a caller in one transaction, once per caller and identifier. */
-    async mutate<const Calls extends readonly ObjectCall[]>(
+    async mutate<const Calls extends readonly sync.Call[]>(
         caller: AccessContext,
         transaction: { readonly id: string; readonly calls: Calls },
         options: MutateOptions = {},
     ): Promise<ResultsOf<Calls>> {
         const answers = await this.#mutate(caller, transaction, options);
 
-        return Call.results(this.objects, transaction.calls, answers);
+        return MethodContext.results(this.objects, transaction.calls, answers);
     }
 
     /** Run a mutation's calls as a caller in one transaction, answering untyped results. */
     async #mutate(
         caller: AccessContext,
-        submitted: { readonly id: string; readonly calls: readonly ObjectCall[] },
+        submitted: { readonly id: string; readonly calls: readonly sync.Call[] },
         options: MutateOptions,
     ): Promise<readonly unknown[]> {
         // place the calls without a scope in the mutation's scope
@@ -1319,9 +1321,9 @@ export class ObjectStore {
     }
 
     /** Place a call without a scope in one, by its served or replicated type's route field. */
-    #place(entry: ObjectCall, scope: string): ObjectCall {
+    #place(entry: sync.Call, scope: string): sync.Call {
         // find the route field of the call's method, which resolution refuses when unknown
-        const type = Call.findType([...this.objects, ...this.replicated], entry);
+        const type = ObjectType.find([...this.objects, ...this.replicated], entry);
         const field =
             type !== undefined && Object.hasOwn(type.methods, entry.method)
                 ? type.route.field
@@ -1335,7 +1337,7 @@ export class ObjectStore {
     /** Run calls inside a running mutation without external work. */
     async #mutateInside(
         transaction: Transaction,
-        mutation: { readonly id: string; readonly calls: readonly ObjectCall[] },
+        mutation: { readonly id: string; readonly calls: readonly sync.Call[] },
         caller: AccessContext,
         options: MutateOptions,
     ): Promise<unknown[]> {
@@ -1352,7 +1354,7 @@ export class ObjectStore {
                     entry,
                     caller,
                     true,
-                    CallCode.store,
+                    CallSite.store,
                     undefined,
                     recorded,
                 ),
@@ -1365,24 +1367,26 @@ export class ObjectStore {
     /** Run one platform call inside a running mutation, remote code's without internal methods. */
     async #runInside(
         transaction: Transaction,
-        entry: ObjectCall,
+        entry: sync.Call,
         caller: AccessContext,
         mutates: boolean,
-        code: CallCode,
-        parent: { readonly call: Call; readonly authorization: Authorization } | undefined,
+        site: CallSite,
+        parent:
+            | { readonly context: MethodContext; readonly authorization: Authorization }
+            | undefined,
         options: CallOptions,
     ): Promise<unknown> {
         // place the call in the calling method's scope unless it has another
-        const placed = parent === undefined ? entry : this.#place(entry, parent.call.scope);
+        const placed = parent === undefined ? entry : this.#place(entry, parent.context.scope);
 
         // resolve the call, refusing external work and other storages, except events beside durable rows
-        const { object, name, input } = Call.resolve(
+        const { object, name, input } = ObjectType.resolve(
             this.#callable(placed, mutates, [...this.replicated, ...this.replicas]),
             placed,
             mutates,
-            code,
+            site,
         );
-        const storage = parent?.call.object.storage ?? "durable";
+        const storage = parent?.context.object.storage ?? "durable";
         const isBeside = object.storage === "events" && storage === "durable";
         if (this.served(object).method(name).prepare !== undefined) {
             throw new TypeError(
@@ -1395,7 +1399,9 @@ export class ObjectStore {
         // run it under the calling method's authorization, else admit the caller in its scope
         const scope = object.readScope(name, input);
         const authorization =
-            parent !== undefined && parent.call.caller === caller && parent.call.scope === scope
+            parent !== undefined &&
+            parent.context.caller === caller &&
+            parent.context.scope === scope
                 ? parent.authorization
                 : await this.admit(
                       transaction,
@@ -1406,14 +1412,14 @@ export class ObjectStore {
                                 links: await Scope.chain(transaction.view(), scope),
                                 calls: [{ object, name }],
                             }
-                          : { now: parent.call.now, calls: [{ object, name }] },
+                          : { now: parent.context.now, calls: [{ object, name }] },
                   );
 
         return this.#execute(transaction, authorization, object, name, input, caller, options);
     }
 
     /** Read the one scope a mutation's calls act in. */
-    #mutationScope(originals: readonly ReturnType<typeof Call.resolve>[]): string {
+    #mutationScope(originals: readonly ReturnType<typeof ObjectType.resolve>[]): string {
         // require every call to act in the first call's scope
         const first = aligned(originals, 0);
         const scope = first.object.readScope(first.name, first.input);
@@ -1428,8 +1434,8 @@ export class ObjectStore {
 
     /** Identify a durable mutation by caller, scope and request id, with its redacted calls. */
     async #identify(
-        mutation: { readonly id: string; readonly calls: readonly ObjectCall[] },
-        originals: readonly ReturnType<typeof Call.resolve>[],
+        mutation: { readonly id: string; readonly calls: readonly sync.Call[] },
+        originals: readonly ReturnType<typeof ObjectType.resolve>[],
         calls: readonly Expansion[],
         scope: string,
         caller: AccessContext,
@@ -1515,8 +1521,8 @@ export class ObjectStore {
 
     /** Digest a mutation's calls with their sensitive inputs redacted. */
     async #fingerprint(
-        mutation: { readonly id: string; readonly calls: readonly ObjectCall[] },
-        originals: readonly ReturnType<typeof Call.resolve>[],
+        mutation: { readonly id: string; readonly calls: readonly sync.Call[] },
+        originals: readonly ReturnType<typeof ObjectType.resolve>[],
     ): Promise<string> {
         const sensitive: unknown[] = [];
         const calls = mutation.calls.map((entry, index) => {
@@ -1639,7 +1645,7 @@ export class ObjectStore {
 
     /** Expand calls whose methods list the calls they run after, each run as its author. */
     async #expand(
-        calls: readonly ReturnType<typeof Call.resolve>[],
+        calls: readonly ReturnType<typeof ObjectType.resolve>[],
         scope: string,
         caller: AccessContext,
     ): Promise<Expansion[]> {
@@ -1661,7 +1667,7 @@ export class ObjectStore {
             }
             // run each listed call as its author first, hiding a denial the caller cannot see
             else {
-                const built = await this.#call(
+                const built = await this.#context(
                     reading,
                     authorization,
                     call.object,
@@ -1671,11 +1677,11 @@ export class ObjectStore {
                 ).catch(async (error: unknown) => {
                     throw await this.#conceal(authorization, caller, undefined, error);
                 });
-                let listed: readonly BranchCall[];
+                let listed: readonly BranchEntry[];
                 try {
-                    listed = await method.expand(built.call);
+                    listed = await method.expand(built.context);
                 } catch (error) {
-                    throw await this.#conceal(authorization, caller, built.call.target, error);
+                    throw await this.#conceal(authorization, caller, built.context.target, error);
                 }
                 for (const { author, ...entry } of listed) {
                     expanded.push({
@@ -1783,7 +1789,7 @@ export class ObjectStore {
         const sends = this.#sends;
         transaction.record(async (committing) => {
             await sends.append(
-                OutboxCall,
+                OutboxMessage,
                 requestId,
                 { requestId, request: { call, ...sending } },
                 committing,
@@ -1822,7 +1828,7 @@ export class ObjectStore {
 
     /** Report whether a call's type's rows are replicated over the uplink rather than kept here. */
     #isUplinked(call: sync.Call): boolean {
-        const object = Call.findType(this.replicated, call);
+        const object = ObjectType.find(this.replicated, call);
 
         return object !== undefined && !this.objects.some((served) => served.same(object));
     }
@@ -1846,10 +1852,10 @@ export class ObjectStore {
     }
 
     /** Refuse a mutation changing rows this store only replicates, since their home writes them. */
-    #requireServed(transaction: { readonly calls: readonly ObjectCall[] }): void {
+    #requireServed(transaction: { readonly calls: readonly sync.Call[] }): void {
         // find each call's type that no served object keeps
         const replicas = transaction.calls
-            .filter((call) => Call.findType(this.objects, call) === undefined)
+            .filter((call) => ObjectType.find(this.objects, call) === undefined)
             .map((call) => call.type.type);
         if (replicas.length === 0) {
             return;
@@ -1863,7 +1869,7 @@ export class ObjectStore {
     /** Find the publisher receiving a change of replicated rows. */
     async #readHome(call: sync.Call): Promise<sync.Uplink | undefined> {
         // find the replica of the call's table in its scope whose publisher receives changes
-        const object = Call.findType(this.replicated, call);
+        const object = ObjectType.find(this.replicated, call);
         const scope = object?.readScope(call.method, call.input);
         const entries = (await this.subscriber?.subscriptions()) ?? [];
         const home = entries.find(({ subscription, publisher }) => {
@@ -1891,7 +1897,7 @@ export class ObjectStore {
         const view = Snapshot.live(this.database);
         const replicated = await Promise.all(
             mutation.calls.map(async (call) => {
-                const object = Call.findType(this.replicated, call);
+                const object = ObjectType.find(this.replicated, call);
 
                 return (
                     object !== undefined &&
@@ -1914,7 +1920,7 @@ export class ObjectStore {
     }
 
     /** Deliver a sent call to the store keeping its rows, or to the machine recording runs. */
-    async #deliver(sent: OutboxCall, signal: AbortSignal): Promise<void> {
+    async #deliver(sent: OutboxMessage, signal: AbortSignal): Promise<void> {
         // deliver a change of replicated rows toward their home
         const { call } = sent.request;
         if (await this.#forward({ id: sent.requestId, calls: [call] })) {
@@ -1958,7 +1964,7 @@ export class ObjectStore {
                 ? []
                 : [
                       this.#sends.controller(
-                          OutboxCall.destination(
+                          OutboxMessage.destination(
                               (sent, signal) => this.#deliver(sent, signal),
                               this.#report,
                           ),
@@ -2234,27 +2240,27 @@ export class ObjectStore {
 
     /** Resolve a recorded call against the served types. */
     #resolve(
-        entry: ObjectCall,
+        entry: sync.Call,
         mutates: boolean,
         caller: AccessContext,
-    ): ReturnType<typeof Call.resolve> {
-        return Call.resolve(
+    ): ReturnType<typeof ObjectType.resolve> {
+        return ObjectType.resolve(
             this.#callable(entry, mutates, this.replicas),
             entry,
             mutates,
-            CallCode.of(caller),
+            CallSite.of(caller),
         );
     }
 
     /** List the types a call may resolve to: the served ones, and the replicas for a query. */
     #callable(
-        entry: ObjectCall,
+        entry: sync.Call,
         mutates: boolean,
         refused: readonly ObjectType[],
     ): readonly ObjectType[] {
         // refuse a change of a type only replicated here, which its home changes
-        const isServed = Call.findType(this.objects, entry) !== undefined;
-        const replicated = Call.findType(refused, entry);
+        const isServed = ObjectType.find(this.objects, entry) !== undefined;
+        const replicated = ObjectType.find(refused, entry);
         if (mutates && !isServed && replicated !== undefined) {
             throw new CallError("CONFLICT", {
                 message: `${replicated.name} rows are replicas here, so send their changes to their home`,
@@ -2266,22 +2272,23 @@ export class ObjectStore {
 
     /** Read a procedure call's scope: a method's own, else the decided target's or context's. */
     #procedureScope(
-        call: ProcedureCall<RequestContext>,
+        context: ProcedureContext<RequestContext>,
         routed: readonly ObjectType[],
     ): string | undefined {
         // read the scope field of the object the package routes the call to
-        const object = routed.find((each) => each.key === call.path[0]);
-        const input = call.input === undefined ? undefined : PROCEDURE_INPUT.parse(call.input);
+        const object = routed.find((each) => each.key === context.path[0]);
+        const input =
+            context.input === undefined ? undefined : PROCEDURE_INPUT.parse(context.input);
         const field = object?.route.field;
         const named = field === undefined ? undefined : input?.[field];
 
         return typeof named === "string"
             ? named
-            : (call.context.target?.scope ?? call.context.scope);
+            : (context.request.target?.scope ?? context.request.scope);
     }
 
-    /** Build one call with its permitted target at the given revision. */
-    async #call(
+    /** Build one method context with its permitted target at the given revision. */
+    async #context(
         transaction: Transaction,
         authorization: Authorization,
         object: ObjectType,
@@ -2290,7 +2297,7 @@ export class ObjectStore {
         caller: AccessContext,
         options: Pick<CallOptions, "as" | "expansion"> = {},
     ): Promise<{
-        call: Call;
+        context: MethodContext;
         execution: StoreExecution;
         method: Method;
         scope: string;
@@ -2320,7 +2327,7 @@ export class ObjectStore {
             view: snapshot ?? transaction,
         };
         const { now } = authorization.access.context;
-        const call: Call = new Call({
+        const context: MethodContext = new MethodContext({
             object,
             name,
             method,
@@ -2343,7 +2350,7 @@ export class ObjectStore {
         if (method.mutates && targetId !== undefined) {
             object.refusePredefined(targetId);
         }
-        const target = await ObjectStore.#target(call, execution, targetId, snapshot);
+        const target = await ObjectStore.#target(context, execution, targetId, snapshot);
         if (revision !== undefined && target?.["revision"] !== revision) {
             throw new CallError("CONFLICT", { message: `${object.name} revision has changed` });
         }
@@ -2358,7 +2365,7 @@ export class ObjectStore {
         }
 
         return {
-            call: target === undefined ? call : call.with({ target }),
+            context: target === undefined ? context : context.with({ target }),
             execution,
             method,
             scope,
@@ -2399,22 +2406,22 @@ export class ObjectStore {
 
     /** Load a call's permitted target through its requested view, absent without a target. */
     static async #target(
-        call: Call,
+        context: MethodContext,
         execution: StoreExecution,
         targetId: string | undefined,
         snapshot: Snapshot | undefined,
     ): Promise<Row | undefined> {
         // skip a call without a target
-        const { method } = call;
+        const { method } = context;
         if (!Method.loads(method) || targetId === undefined) {
             return undefined;
         }
 
         // read the live target, or the target in the view
         if (snapshot === undefined) {
-            return execution.authorization.read(call, targetId, execution);
+            return execution.authorization.read(context, targetId, execution);
         } else {
-            return execution.authorization.readIn(call, targetId, snapshot);
+            return execution.authorization.readIn(context, targetId, snapshot);
         }
     }
 
@@ -2503,7 +2510,7 @@ export class ObjectStore {
 
                 return async () => {
                     // build and authorize the call, hiding a denial in a scope the caller cannot see
-                    const { call, execution } = await this.#call(
+                    const { context, execution } = await this.#context(
                         reading,
                         authorization,
                         entry.object,
@@ -2514,12 +2521,12 @@ export class ObjectStore {
                         throw await this.#conceal(authorization, caller, undefined, error);
                     });
                     try {
-                        await method.authorize?.(call, execution);
+                        await method.authorize?.(context, execution);
                     } catch (error) {
-                        throw await this.#conceal(authorization, caller, call.target, error);
+                        throw await this.#conceal(authorization, caller, context.target, error);
                     }
 
-                    return call;
+                    return context;
                 };
             }),
         );
@@ -2528,7 +2535,7 @@ export class ObjectStore {
     /** Prepare a request's calls in order, reserving settlements first, rolling back on failure. */
     async #prepareEach(
         requestId: string,
-        builds: readonly ((() => Promise<Call>) | undefined)[],
+        builds: readonly ((() => Promise<MethodContext>) | undefined)[],
     ): Promise<Prepared[]> {
         // prepare in order, keeping the reserved settlements
         const prepared: Prepared[] = [];
@@ -2544,7 +2551,7 @@ export class ObjectStore {
                 // reserve under the key of the call's place in its request before preparing
                 const reserved = await this.#reserve(await build(), `${requestId}/${position}`);
                 settlements.push(reserved.settlement);
-                prepared.push(await this.#prepareOne(reserved.call, reserved.settlement));
+                prepared.push(await this.#prepareOne(reserved.context, reserved.settlement));
             }
         } catch (error) {
             // roll back prepared work
@@ -2557,44 +2564,51 @@ export class ObjectStore {
 
     /** Key a call's external work, stable across retries, and reserve a settlement if needed. */
     async #reserve(
-        call: Call,
+        context: MethodContext,
         key: string,
-    ): Promise<{ readonly call: Call; readonly settlement: string | undefined }> {
-        const keyed = call.with({ idempotencyKey: key });
+    ): Promise<{ readonly context: MethodContext; readonly settlement: string | undefined }> {
+        const keyed = context.with({ idempotencyKey: key });
 
         return {
-            call: keyed,
-            settlement: Method.settles(call.method)
+            context: keyed,
+            settlement: Method.settles(context.method)
                 ? await Settlement.reserve(this.database, keyed, key)
                 : undefined,
         };
     }
 
     /** Run a reserved call's prepare phase, parsing its value and recording it for settlement. */
-    async #prepareOne(call: Call, settlement: string | undefined): Promise<Prepared> {
+    async #prepareOne(context: MethodContext, settlement: string | undefined): Promise<Prepared> {
         // run the prepare phase the method declares
-        const { method } = call;
+        const { method } = context;
         const declared = method.prepared;
         if (method.prepare === undefined || declared === undefined) {
-            throw new TypeError(`${call.object.name}.${call.name} has no declared prepared work`);
+            throw new TypeError(
+                `${context.object.name}.${context.name} has no declared prepared work`,
+            );
         }
-        const value: unknown = await method.prepare(call.with({ run: this.#alone(call) }));
+        const value: unknown = await method.prepare(context.with({ run: this.#alone(context) }));
 
         // keep the value as a settlement reads it back
         if (settlement === undefined) {
-            return { call, value: declared.parse(value), settlement };
+            return { context: context, value: declared.parse(value), settlement };
         }
         const recorded = schema.json().parse(value);
-        await Settlement.record(this.database, settlement, call, recorded);
+        await Settlement.record(this.database, settlement, context, recorded);
 
-        return { call, value: declared.parse(recorded), settlement };
+        return { context: context, value: declared.parse(recorded), settlement };
     }
 
     /** Mark the settling calls of a transaction committed. */
     async #commit(transaction: DatabaseConnection, prepared: readonly Prepared[]): Promise<void> {
         for (const work of prepared) {
             if (work?.settlement !== undefined) {
-                await Settlement.commit(transaction, work.settlement, work.call, this.clock.now());
+                await Settlement.commit(
+                    transaction,
+                    work.settlement,
+                    work.context,
+                    this.clock.now(),
+                );
             }
         }
     }
@@ -2663,7 +2677,7 @@ export class ObjectStore {
     ): Promise<unknown> {
         // build the call on the served type, a creation identified, hiding a refused target the caller cannot see
         const { prepared, from, writerId, requestId } = options;
-        const { call, execution, method, scope, targetId } = await this.#call(
+        const { context, execution, method, scope, targetId } = await this.#context(
             transaction,
             authorization,
             this.served(object),
@@ -2685,11 +2699,11 @@ export class ObjectStore {
         }
 
         // run invoked calls in the call's transaction and scope
-        const called = call.with({
+        const called = context.with({
             ...ObjectStore.#preparedFields(prepared),
             ...(writerId === undefined ? {} : { writerId }),
             ...(requestId === undefined ? {} : { requestId }),
-            run: this.#invoker(transaction, authorization, call, options),
+            run: this.#invoker(transaction, authorization, context, options),
         });
 
         // authorize the call unless prepared, then execute it, hiding a denial the caller cannot see
@@ -2704,15 +2718,21 @@ export class ObjectStore {
         }
 
         // present the result, track changes and record the call
-        const presented = await this.#present(transaction, authorization, object, call, executed);
-        const id = targetId ?? Call.resultId(executed);
+        const presented = await this.#present(
+            transaction,
+            authorization,
+            object,
+            context,
+            executed,
+        );
+        const id = targetId ?? Method.resultId(executed);
         if (method.mutates && id !== undefined) {
-            await ObjectStore.#track(execution, object, call.with({ id }), from);
+            await ObjectStore.#track(execution, object, context.with({ id }), from);
         }
         this.#record(
             transaction,
             object,
-            call,
+            context,
             id,
             presented,
             caller,
@@ -2724,7 +2744,7 @@ export class ObjectStore {
     }
 
     /** Run a phase's calls outside its mutation, each a request of its own under a derived key. */
-    #alone(parent: Call): Run {
+    #alone(parent: MethodContext): Run {
         // key each run by the phase's external work and its place among the phase's runs
         const key = present(
             parent.idempotencyKey,
@@ -2748,7 +2768,7 @@ export class ObjectStore {
     #invoker(
         transaction: Transaction,
         authorization: Authorization,
-        parent: Call,
+        parent: MethodContext,
         options: CallOptions,
     ): Run {
         const { from, writerId, requestId, component } = options;
@@ -2766,7 +2786,7 @@ export class ObjectStore {
                 caller,
                 mutates,
                 code,
-                { call: parent, authorization },
+                { context: parent, authorization },
                 recorded,
             );
 
@@ -2806,10 +2826,10 @@ export class ObjectStore {
         transaction: Transaction,
         authorization: Authorization,
         object: ObjectType,
-        call: Call,
+        context: MethodContext,
         executed: unknown,
     ): Promise<unknown> {
-        const { method, scope } = call;
+        const { method, scope } = context;
         const table = object.table;
 
         // answer a value as is
@@ -2824,10 +2844,10 @@ export class ObjectStore {
             if (redacted.isRevealing) {
                 await this.recordUnmask({
                     scope,
-                    caller: call.caller,
+                    caller: context.caller,
                     object,
-                    operation: call.name,
-                    ...(call.requestId === undefined ? {} : { requestId: call.requestId }),
+                    operation: context.name,
+                    ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
                 });
             }
 
@@ -2850,10 +2870,10 @@ export class ObjectStore {
             if (redacted.isRevealing) {
                 await this.recordUnmask({
                     scope,
-                    caller: call.caller,
+                    caller: context.caller,
                     object,
-                    operation: call.name,
-                    ...(call.requestId === undefined ? {} : { requestId: call.requestId }),
+                    operation: context.name,
+                    ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
                     id,
                 });
             }
@@ -2870,7 +2890,7 @@ export class ObjectStore {
     static async #track(
         execution: StoreExecution,
         object: ObjectType,
-        call: Call,
+        context: MethodContext,
         from: LogPosition | undefined,
     ): Promise<void> {
         // skip untracked objects
@@ -2880,11 +2900,11 @@ export class ObjectStore {
         }
 
         // record the row after the call against the target before it
-        const id = present(call.id, "the tracked object");
+        const id = present(context.id, "the tracked object");
         const after = await execution.transaction.read(object.table).findFirst({ where: { id } });
         if (after !== undefined) {
             const before = present(from, "the log position before a tracked call");
-            await TrackedHistory.record(history, call, execution, call.target, after, before);
+            await TrackedHistory.record(history, context, execution, context.target, after, before);
         }
     }
 
@@ -2892,7 +2912,7 @@ export class ObjectStore {
     #record(
         transaction: Transaction,
         object: ObjectType,
-        call: Call,
+        context: MethodContext,
         id: string | undefined,
         presented: unknown,
         caller: AccessContext,
@@ -2900,7 +2920,7 @@ export class ObjectStore {
         component: string | undefined,
     ): void {
         // describe the call's target and outcome
-        const { method, scope, name } = call;
+        const { method, scope, name } = context;
         const isAudited = method.mutates && object.storage === "durable";
         const target = id === undefined ? { type: "scope", id: scope } : { type: object.name, id };
         const recorded: {
@@ -3010,11 +3030,13 @@ export class ObjectStore {
     }
 
     /** Build the fields a call takes from its prepared work: the value and the idempotency key. */
-    static #preparedFields(work: Prepared): Partial<Pick<Call, "prepared" | "idempotencyKey">> {
+    static #preparedFields(
+        work: Prepared,
+    ): Partial<Pick<MethodContext, "prepared" | "idempotencyKey">> {
         if (work === undefined) {
             return {};
         }
-        const key = work.call.idempotencyKey;
+        const key = work.context.idempotencyKey;
 
         return { prepared: work.value, ...(key === undefined ? {} : { idempotencyKey: key }) };
     }

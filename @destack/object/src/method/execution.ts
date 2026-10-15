@@ -3,7 +3,7 @@ import { Snapshot, TABLE, Transaction, type DatabaseConnection, Key } from "@des
 import type { RowChange } from "@destack/db";
 import type { Authorization } from "../server/authorization.ts";
 import type { ObjectStore } from "../server/store.ts";
-import type { Call, MethodResult, MethodCall } from "./call.ts";
+import type { MethodResult, MethodContext } from "./context.ts";
 import { Method, type MethodConfiguration, type MethodDeclaration } from "./method.ts";
 
 /** The scope and identifier of a removed object's row. */
@@ -36,9 +36,9 @@ export type StoreExecution = Extract<Execution, { readonly kind: "store" }>;
 /** Where a call executes: its view and its writes. */
 export const Execution = {
     /** Read the store executing a method only a store executes, refusing a client's prediction. */
-    store(execution: Execution, call: Pick<Call, "object" | "name">): StoreExecution {
+    store(execution: Execution, context: Pick<MethodContext, "object" | "name">): StoreExecution {
         if (execution.kind !== "store") {
-            throw new TypeError(`${call.object.name}.${call.name} executes in its store`);
+            throw new TypeError(`${context.object.name}.${context.name} executes in its store`);
         }
 
         return execution;
@@ -58,7 +58,7 @@ export const Execution = {
     /** Write rows of any tables: through the store's transaction, or into the client's replica. */
     async write(
         execution: Execution,
-        call: Pick<Call, "objects" | "now">,
+        context: Pick<MethodContext, "objects" | "now">,
         ...changes: readonly RowChange[]
     ): Promise<void> {
         // write through the transaction in a store, keeping the readers of the written types in step
@@ -66,8 +66,8 @@ export const Execution = {
             const { transaction, authorization } = execution;
             await transaction.write(...changes);
             for (const change of changes) {
-                const type = call.objects.find((object) => object.table === change.table);
-                type?.keepReaders(transaction, change, call.now);
+                const type = context.objects.find((object) => object.table === change.table);
+                type?.keepReaders(transaction, change, context.now);
 
                 // delete a removed scope's access and a removed principal's standing
                 if (type !== undefined && change.before !== null && change.after === null) {
@@ -103,7 +103,7 @@ export const Execution = {
     handle<Configuration extends MethodConfiguration>(
         method: MethodDeclaration<Configuration>,
         handler: (
-            call: MethodCall<Configuration>,
+            context: MethodContext<Configuration>,
             execution: Execution,
         ) => Promise<MethodResult<Configuration>>,
     ): MethodDeclaration<Configuration> {
@@ -111,8 +111,8 @@ export const Execution = {
 
         return Method.declaration({
             ...unsourced,
-            handler: (call: Call, execution: Execution) =>
-                handler(Method.requirePrepared(unsourced, call), execution),
+            handler: (context: MethodContext, execution: Execution) =>
+                handler(Method.requirePrepared(unsourced, context), execution),
         });
     },
 };

@@ -293,7 +293,7 @@ export type MutationName<Object extends ObjectType> = {
 
 /** The calls of an object type's mutating methods, recorded to run later. */
 export type Calls<Object extends ObjectType> = {
-    readonly [Name in MutationName<Object>]: (input: CallInput<Object, Name>) => sync.Call;
+    readonly [Name in MutationName<Object>]: (input: MethodInput<Object, Name>) => sync.Call;
 };
 
 /** The procedure one method derives. */
@@ -304,8 +304,8 @@ type ProcedureOf<
     readonly "~orpc": { readonly inputSchema: schema.Schema; readonly outputSchema: schema.Schema };
 };
 
-/** A method call's input without scope and request identifiers, per variant for a sum type. */
-export type CallInput<Object extends ObjectType, Name extends MethodName<Object>> =
+/** A method's input as a client gives it, without scope and request identifiers, per variant. */
+export type MethodInput<Object extends ObjectType, Name extends MethodName<Object>> =
     string extends MethodName<Object>
         ? Readonly<Record<string, unknown>>
         : OmitEach<
@@ -315,11 +315,11 @@ export type CallInput<Object extends ObjectType, Name extends MethodName<Object>
               | ScopeField<Object>
           >;
 
-/** An object call's input: the method's input with its scope, the running call's if absent. */
-export type ObjectCallInput<Object extends ObjectType, Name extends MethodName<Object>> =
+/** A call's input: the method's input with its scope, the running context's if absent. */
+export type CallInput<Object extends ObjectType, Name extends MethodName<Object>> =
     string extends MethodName<Object>
         ? Readonly<Record<string, unknown>>
-        : CallInput<Object, Name> & CallScope<Object>;
+        : MethodInput<Object, Name> & CallScope<Object>;
 
 /** The scope of a call, the running call's when absent; a store requires it. */
 export type CallScope<Object extends ObjectType> = {
@@ -342,7 +342,7 @@ export type OmitEach<Value, Key extends PropertyKey> = Value extends unknown
     : never;
 
 /** The result a method returns. */
-export type CallOutput<Object extends ObjectType, Name extends MethodName<Object>> = schema.Infer<
+export type MethodOutput<Object extends ObjectType, Name extends MethodName<Object>> = schema.Infer<
     ProcedureOf<Object, Name>["~orpc"]["outputSchema"]
 >;
 

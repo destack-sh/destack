@@ -19,7 +19,6 @@ import type { ObjectStore } from "./store.ts";
 import type { RecoverableDefinition } from "../trait/recoverable.ts";
 import type { TraitTable } from "../object/table.ts";
 import { RequestId } from "@destack/runtime/request";
-import { Call } from "../method/call.ts";
 /** The component name the purge runs and records its calls under. */
 const PURGE = "purge";
 
@@ -99,8 +98,7 @@ export class RecoverableController implements Controller {
                     {
                         id: RequestId.create(now),
                         calls: rows.map((row) =>
-                            Call.record(
-                                object,
+                            object.call(
                                 RecoverableController.#purgeMethod(object),
                                 object.target(row),
                             ),

@@ -61,15 +61,15 @@ export const page = defineObject({
         }),
     }))
     .implement({
-        methods: { archive: (call) => call.update({ archivedAt: call.now }) },
+        methods: { archive: (context) => context.update({ archivedAt: context.now }) },
     });
 
 // server/page.ts: prepare runs outside the transaction, so clients never predict publish
 export const servedPage = page.implement({
     methods: {
         publish: {
-            prepare: (call) => cdn.publish(call.requireTarget()),
-            handle: (call) => call.update({ url: call.prepared.url }),
+            prepare: (context) => cdn.publish(context.target),
+            handle: (context) => context.update({ url: context.prepared.url }),
         },
     },
 });
@@ -137,11 +137,24 @@ export const reminderConditions = new Conditions(["Sent"]);
 
 ## Calls
 
-`type.call` makes a call of a method as a value, and `type.target` names the row it acts on.
+`type.call` makes a call of a method as a value, and `type.target` points it at the row it acts on.
 
 ```ts
 const rename = page.call("rename", { ...page.target(row), title: "Plans" });
 const create = page.call("create", { spaceId, title: "Ideas" });
+```
+
+## Contexts
+
+A handler gets the `MethodContext` its method's declaration types: `input`, `target`, `caller`, and `read` and `mutate` in the call's transaction.
+
+```ts
+const rename = method.mutation({ permission: "edit", input: schema.object({ title: schema.string() }) });
+page.implement({
+    methods: {
+        rename: (context) => context.update({ title: context.input.title }), // target: the loaded page
+    },
+});
 ```
 
 ## Servers
@@ -193,7 +206,7 @@ export const call = defineObject({
         subject: "actor",
     },
     fields: {
-        data: field.json(AuditCall).guard({ read: "unmask" }),
+        data: field.json(CallEvent).guard({ read: "unmask" }),
         actor: field.string(),
         method: field.string(),
     },
@@ -283,14 +296,14 @@ request.headers.set(PARTITION_HEADER, roomId);
 
 ## Nested calls
 
-`call.mutate` runs calls inside a handler's transaction, as the same caller or as the store itself (`call.self`).
+`context.mutate` runs calls inside a handler's transaction, as the same caller or as the store itself (`context.self`).
 
 ```ts
 export const shelf = base.shelf.implement({
     methods: {
-        lend: async (call) => {
-            const [slip] = await call.mutate(call.self, [
-                base.slip.call("issue", { shelf: call.target.name }),
+        lend: async (context) => {
+            const [slip] = await context.mutate(context.self, [
+                base.slip.call("issue", { shelf: context.target.name }),
             ]);
 
             return { slip: slip.id };

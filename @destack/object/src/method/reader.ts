@@ -3,7 +3,7 @@ import type { Decision, PermissionReference } from "@destack/access";
 import type { JsonValue } from "@destack/schema";
 import type * as sync from "@destack/sync";
 import type { EventRequest, LookupRequest } from "../hook/record.ts";
-import type { BranchCall } from "../branch/branch.ts";
+import type { BranchEntry } from "../branch/entry.ts";
 import type { BranchWrite } from "../branch/write.ts";
 
 /** The columns a read returns: the logged ones, or every one with the sensitive ones. */
@@ -36,7 +36,7 @@ export interface Session {
     /** Run calls as their authors over some rows and undo them, answering the rows they change. */
     readonly rehearse: (
         over: readonly BranchWrite[],
-        calls: readonly BranchCall[],
+        calls: readonly BranchEntry[],
     ) => Promise<readonly BranchWrite[]>;
     /** Send a call to run for the hook's caller once the mutation commits. */
     readonly send: (request: { readonly call: sync.Call; readonly at?: number }) => Promise<void>;

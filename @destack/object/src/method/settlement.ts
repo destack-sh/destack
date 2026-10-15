@@ -1,4 +1,5 @@
 import type { ObjectStore } from "../server/store.ts";
+import type { Call } from "@destack/sync";
 import { AccessContext, Caller } from "@destack/access";
 import {
     type DatabaseConnection,
@@ -13,7 +14,7 @@ import {
 import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import type { ObjectType } from "../object/object.ts";
-import type { ObjectCall, ResultsOf } from "./call.ts";
+import type { ResultsOf } from "./context.ts";
 
 /** The calls whose external work settles once. */
 export const settlement = defineTable(
@@ -43,8 +44,8 @@ export const settlement = defineTable(
     { log: {} },
 );
 
-/** A call whose prepared work settles, built alike in process and in recovery. */
-export class SettlementCall {
+/** The context of a call whose prepared work settles, built alike in process and in recovery. */
+export class SettlementContext {
     /** The object type. */
     readonly object: ObjectType;
     /** The method's name. */
@@ -95,12 +96,12 @@ export class SettlementCall {
     }
 
     /** Read through a method as a caller, in its own transaction. */
-    query<Result>(caller: AccessContext, call: ObjectCall<Result>): Promise<Result> {
+    query<Result>(caller: AccessContext, call: Call<Result>): Promise<Result> {
         return this.store.query(caller, call);
     }
 
     /** Run calls as a caller in one request of their own, committed apart from the settlement. */
-    mutate<const Calls extends readonly ObjectCall[]>(
+    mutate<const Calls extends readonly Call[]>(
         caller: AccessContext,
         calls: Calls,
     ): Promise<ResultsOf<Calls>> {

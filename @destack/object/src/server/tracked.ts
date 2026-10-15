@@ -2,7 +2,7 @@ import { type AccessExpression, type Authorizer } from "@destack/access";
 import { Duration, Identifier, present } from "@destack/schema";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
 import { TABLE, type Row, LogPosition, Table } from "@destack/db";
-import { type Call, RecordedRow } from "../method/call.ts";
+import { type MethodContext, RecordedRow } from "../method/context.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectType } from "../object/object.ts";
 
@@ -28,21 +28,21 @@ export const TrackedHistory = {
     /** Record a served change in the caller's current or a new activity. */
     async record(
         options: TrackedDefinition,
-        call: Call,
+        context: MethodContext,
         execution: StoreExecution,
         before: Row | undefined,
         after: Row,
         from: LogPosition,
     ): Promise<void> {
         // find the caller's latest activity on the object
-        const { object } = call;
+        const { object } = context;
         const { id } = RecordedRow.parse(after);
         const table = options.activity.table;
         const caller = ObjectReference.columns(
             "caller",
-            present(call.caller.subject, "the author of a tracked change"),
+            present(context.caller.subject, "the author of a tracked change"),
         );
-        const latest = await TrackedHistory.latestActivity(options, call, id, execution, caller);
+        const latest = await TrackedHistory.latestActivity(options, context, id, execution, caller);
 
         // list the fields the change wrote, comparing their JSON forms
         const encoded = object.table[TABLE].encode(after);
@@ -53,40 +53,40 @@ export const TrackedHistory = {
 
         // continue the activity within the session window
         const session = Duration.milliseconds(options.session ?? SESSION);
-        if (latest !== undefined && latest.endedAt >= call.now - session) {
+        if (latest !== undefined && latest.endedAt >= context.now - session) {
             const fields = [...new Set([...latest.fields, ...changed])];
-            await Execution.write(execution, call, {
+            await Execution.write(execution, context, {
                 table,
                 before: latest,
                 after: {
                     ...latest,
-                    endedAt: call.now,
+                    endedAt: context.now,
                     fields,
                     changes: latest.changes + 1,
                     revision: latest.revision + 1,
-                    updatedAt: call.now,
+                    updatedAt: context.now,
                 },
             });
         }
         // start an activity from the position before the change
         else {
-            await Execution.write(execution, call, {
+            await Execution.write(execution, context, {
                 table,
                 before: null,
                 after: Table.complete(table, {
                     id: Identifier.create("activity"),
-                    scope: call.scope,
+                    scope: context.scope,
                     parentPackageId: object.policy.definition.packageId,
                     parentType: object.name,
                     parentId: id,
                     ...caller,
-                    startedAt: call.now,
-                    endedAt: call.now,
+                    startedAt: context.now,
+                    endedAt: context.now,
                     from,
                     fields: changed,
                     changes: 1,
-                    createdAt: call.now,
-                    updatedAt: call.now,
+                    createdAt: context.now,
+                    updatedAt: context.now,
                 }),
             });
         }
@@ -168,13 +168,13 @@ export const TrackedHistory = {
     /** Read a caller's latest activity on a call's object, absent before its first. */
     async latestActivity(
         options: TrackedDefinition,
-        call: Call,
+        context: MethodContext,
         id: string,
         execution: StoreExecution,
         caller: ReferenceColumns<"caller">,
     ) {
         // read the newest activity of the caller on the object
-        const { object } = call;
+        const { object } = context;
         const table = options.activity.table;
         const [latest] = await execution.transaction.read(table).findMany({
             where: {

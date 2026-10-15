@@ -56,9 +56,9 @@
                 "reason": "readDefinition reads a decoded description as the definition defineObject states, the definition boundary in reverse (ruling 2026-10-16)"
             },
             {
-                "files": ["src/method/call.ts"],
+                "files": ["src/method/context.ts"],
                 "rules": ["destack/no-overload-cast"],
-                "reason": "Call.results states call results after parsing each by its method's output schema, as an oRPC client reads its contract's output (ruling 2026-10-16)"
+                "reason": "MethodContext.results states call results after parsing each by its method's output schema, as an oRPC client reads its contract's output (ruling 2026-10-16)"
             }
         ]
     }

@@ -2,7 +2,6 @@ import { canonicalize, type JsonObject, type JsonValue } from "@destack/schema";
 import type * as sync from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import type { MethodKind } from "./method.ts";
-import { Call } from "./call.ts";
 
 /** A call that happened, with the target's rows before, after and now in their JSON form. */
 export interface Step {
@@ -35,7 +34,7 @@ export const Step = {
 
     /** Record a call to a named method of the step's object. */
     record(step: Step, name: string, input: JsonObject): sync.Call {
-        return Call.record(step.object, name, input);
+        return step.object.call(name, input);
     },
 
     /** Build the input identifying the step's object: the object it created, else its target. */

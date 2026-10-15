@@ -3,7 +3,7 @@ import { present } from "@destack/schema";
 import { field } from "../field/field.ts";
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 import type { Erasure, Trait } from "./trait.ts";
 
 /** How a type orders its objects: among siblings of one parent, or of one field value. */
@@ -77,7 +77,7 @@ export const Orderable = {
     async next(
         object: ObjectType,
         values: Readonly<Record<string, unknown>>,
-        call: Call,
+        context: MethodContext,
     ): Promise<string> {
         // read the last sibling's position in the object's scope
         const ordering = present(object.ordering, `the ordering of ${object.name}`);
@@ -92,7 +92,7 @@ export const Orderable = {
             typeof values["scope"] === "string" ? values["scope"] : undefined,
             "the created object's scope",
         );
-        const [last] = await call
+        const [last] = await context
             .read(object.table)
             .findMany({ where: { ...siblings, scope }, orderBy: { position: "desc" }, limit: 1 });
 

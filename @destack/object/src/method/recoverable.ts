@@ -1,8 +1,8 @@
 import { ObjectReference } from "@destack/sync";
-import { Duration, type JsonObject, present, type schema } from "@destack/schema";
+import { Duration, present, type schema } from "@destack/schema";
 import { type Row, type Select } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
-import type { Call } from "./call.ts";
+import type { MethodContext } from "./context.ts";
 import { defineMethod, type Method } from "./method.ts";
 import { MethodBuilder } from "./record.ts";
 import { Step } from "./step.ts";
@@ -44,7 +44,7 @@ export const RecoverableMethod = {
                 ...restorationShape(kind, permission),
                 isPredicted: true,
                 result: "object",
-                handler: (call) => RecoverableMethod.restore(call),
+                handler: (context) => RecoverableMethod.restore(context),
                 inverse: (step: Step) => {
                     // delete the restored object to its trash again
                     const call = Step.call(step, "delete", Step.target(step));
@@ -60,16 +60,16 @@ export const RecoverableMethod = {
                 isPredicted: false,
                 result: "value",
                 ...(options.prepared === undefined ? {} : { prepared: options.prepared }),
-                handler: (call) => RecoverableMethod.purgeKept(call),
-                async execute(this: Method, call: Call, execution: Execution) {
+                handler: (context) => RecoverableMethod.purgeKept(context),
+                async execute(this: Method, context: MethodContext, execution: Execution) {
                     // require a purge handler of the type's own
                     if (this.hooks?.handle === undefined) {
                         throw new TypeError(
-                            `object ${call.object.name} keeps purged records, so a purge handler of its own destroys their content`,
+                            `object ${context.object.name} keeps purged records, so a purge handler of its own destroys their content`,
                         );
                     }
 
-                    return this.handler(call, execution);
+                    return this.handler(context, execution);
                 },
             });
         }
@@ -80,7 +80,7 @@ export const RecoverableMethod = {
                 isPredicted: true,
                 result: "value",
                 ...(options.prepared === undefined ? {} : { prepared: options.prepared }),
-                handler: (call) => RecoverableMethod.purge(call),
+                handler: (context) => RecoverableMethod.purge(context),
             });
         }
     },
@@ -89,74 +89,80 @@ export const RecoverableMethod = {
     discard<const Permission extends string>(permission: Permission) {
         return keptMethod
             .mutation({ permission, isInternal: true, output: Empty })
-            .handle(async (call) => {
+            .handle(async (context) => {
                 // require a purged record
-                if (!RecoverableMethod.isPurged(call.target)) {
+                if (!RecoverableMethod.isPurged(context.target)) {
                     throw new CallError("CONFLICT", {
-                        message: `${call.object.name} is not purged`,
+                        message: `${context.object.name} is not purged`,
                     });
                 }
 
                 // delete it at the loaded revision
-                await call.remove();
+                await context.remove();
 
                 return {};
             });
     },
 
     /** Read the recovery a call's served object type keeps, which its host may set. */
-    readRecovery(call: Call): RecoverableDefinition {
-        return present(call.object.lifecycle.recoverable, `the recovery of ${call.object.name}`);
+    readRecovery(context: MethodContext): RecoverableDefinition {
+        return present(
+            context.object.lifecycle.recoverable,
+            `the recovery of ${context.object.name}`,
+        );
     },
 
     /** Clear a deletion that is still recoverable. */
     async restore(
-        call: Call<RecoverableTable, JsonObject, Select<RecoverableTable>>,
+        context: MethodContext<{ readonly table: RecoverableTable }, unknown>,
     ): Promise<Select<RecoverableTable>> {
         // require an unpurged deletion within its window
-        const { object } = call;
-        const target = call.target;
+        const { object } = context;
+        const target = context.target;
         const requested = target.deletedAt;
         if (requested === null) {
             throw new CallError("CONFLICT", { message: `${object.name} is not deleted` });
         } else if (RecoverableMethod.isPurged(target)) {
             throw new CallError("CONFLICT", { message: `${object.name} is purged` });
         } else if (
-            call.now - requested >=
-            Duration.milliseconds(RecoverableMethod.readRecovery(call).within)
+            context.now - requested >=
+            Duration.milliseconds(RecoverableMethod.readRecovery(context).within)
         ) {
             throw new CallError("CONFLICT", {
                 message: `${object.name} is past its recovery window`,
             });
         }
 
-        return call.update({ deletedAt: null, ...ObjectReference.columns("deletedBy", undefined) });
+        return context.update({
+            deletedAt: null,
+            ...ObjectReference.columns("deletedBy", undefined),
+        });
     },
 
     /** Purge an object in the trash, removing it at the loaded revision. */
     async purge(
-        call: Call<RecoverableTable, JsonObject, Select<RecoverableTable>>,
+        context: MethodContext<{ readonly table: RecoverableTable }, unknown>,
     ): Promise<Record<string, never>> {
-        RecoverableMethod.requireTrashed(call);
-        await call.remove();
+        RecoverableMethod.requireTrashed(context);
+        await context.remove();
 
         return {};
     },
 
     /** Purge a kept record in the trash, marking its content destroyed. */
     async purgeKept(
-        call: Call<KeptTable, JsonObject, Select<KeptTable>>,
+        context: MethodContext<{ readonly table: KeptTable }, unknown>,
     ): Promise<Record<string, never>> {
-        RecoverableMethod.requireTrashed(call);
-        await call.update({ purgedAt: call.now });
+        RecoverableMethod.requireTrashed(context);
+        await context.update({ purgedAt: context.now });
 
         return {};
     },
 
     /** Require an object in the trash, purged at most once. */
-    requireTrashed(call: Call<RecoverableTable, JsonObject, Select<RecoverableTable>>): void {
-        const { object } = call;
-        const target = call.target;
+    requireTrashed(context: MethodContext<{ readonly table: RecoverableTable }, unknown>): void {
+        const { object } = context;
+        const target = context.target;
         if (target.deletedAt === null) {
             throw new CallError("CONFLICT", { message: `${object.name} is not deleted` });
         } else if (RecoverableMethod.isPurged(target)) {

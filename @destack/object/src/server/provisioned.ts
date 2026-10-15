@@ -22,7 +22,6 @@ import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ResourceType, type ResourceRow } from "../trait/provisioned.ts";
 import { DesiredState } from "../trait/desired.ts";
-import { Call } from "../method/call.ts";
 
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
 export const DRAINING = "draining";
@@ -592,7 +591,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         }
 
         // finish the record's deletion
-        await reconciliation.mutate([Call.record(object, "finalize", object.target(row))]);
+        await reconciliation.mutate([object.call("finalize", object.target(row))]);
 
         return undefined;
     }

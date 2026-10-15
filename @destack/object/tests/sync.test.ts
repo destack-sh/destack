@@ -1,4 +1,4 @@
-import type { CallableName, CallOutput } from "../src/index.ts";
+import type { CallableName, MethodOutput } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -71,7 +71,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         object: Object,
         name: Name,
         input: NoInfer<RequestInput<Object, Name>>,
-    ): Promise<CallOutput<Object, Name>> => {
+    ): Promise<MethodOutput<Object, Name>> => {
         return request(store, object, name, spaceId, input, userContext(caller, spaceId));
     };
     const pages = store.source.relayed(

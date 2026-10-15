@@ -1,7 +1,7 @@
 import type * as sync from "@destack/sync";
 import { Table } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
-import type { Call } from "./call.ts";
+import type { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";
 import { defineMethod, type Method } from "./method.ts";
 import { RevisionShape } from "./procedure.ts";
@@ -32,20 +32,20 @@ export const NestedMethod = {
                 }),
                 output: shapes.row,
             }),
-            handler: (call) => {
+            handler: (context) => {
                 // write the new parent columns over the record
-                const recorded = call;
+                const recorded = context;
 
                 return recorded.update(
                     Table.values(recorded.object.table, recorded.parentColumns()),
                 );
             },
             inverse: (step) => NestedMethod.moveBack(step, nesting),
-            async execute(call, execution) {
+            async execute(context, execution) {
                 // require a valid destination before moving
-                await NestedMethod.requireDestination(call, execution, nesting);
+                await NestedMethod.requireDestination(context, execution, nesting);
 
-                return this.handler(call, execution);
+                return this.handler(context, execution);
             },
         });
     },
@@ -81,13 +81,13 @@ export const NestedMethod = {
 
     /** Require a valid parent to move an object under. */
     async requireDestination(
-        call: Call,
+        context: MethodContext,
         execution: Execution,
         nesting: NestedDefinition,
     ): Promise<void> {
         // require a parent unless optional
-        const { object } = call;
-        const parent = call.parent();
+        const { object } = context;
+        const parent = context.parent();
         if (parent === undefined && nesting.optional !== true) {
             throw new CallError("BAD_REQUEST", { message: `${object.name} needs a parent` });
         }
@@ -95,27 +95,27 @@ export const NestedMethod = {
         // require a receiving parent outside the subtree
         if (parent !== undefined) {
             if (execution.kind === "store") {
-                await RecordMethod.requireReceiving(call, execution, parent);
+                await RecordMethod.requireReceiving(context, execution, parent);
             }
-            await NestedMethod.requireOutside(call, parent.id);
+            await NestedMethod.requireOutside(context, parent.id);
         }
     },
 
     /** Refuse moving a node of a tree into its own subtree. */
-    async requireOutside(call: Call, parentId: string): Promise<void> {
+    async requireOutside(context: MethodContext, parentId: string): Promise<void> {
         // walk only trees of the object's own type
-        if (!call.object.tree) {
+        if (!context.object.tree) {
             return;
         }
 
         // climb from the new parent through the call's view, which has the call's own moves
-        const moved = call.id;
-        const reader = call.read(call.object.table);
+        const moved = context.id;
+        const reader = context.read(context.object.table);
         const visited = new Set<string>();
         for (let node: string | null = parentId; node !== null && !visited.has(node);) {
             if (node === moved) {
                 throw new CallError("CONFLICT", {
-                    message: `${call.object.name} cannot move into its own subtree`,
+                    message: `${context.object.name} cannot move into its own subtree`,
                 });
             }
             visited.add(node);

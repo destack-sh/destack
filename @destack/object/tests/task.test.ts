@@ -12,7 +12,7 @@ import { RequestId } from "@destack/runtime/request";
 import { Server } from "@destack/runtime/server";
 import { v7 } from "uuid";
 import { project, task, tasksDatabase, tasksPackage } from "./fixture/task.ts";
-import type { CallInput } from "../src/index.ts";
+import type { MethodInput } from "../src/index.ts";
 import { CallError } from "@destack/runtime/error";
 import { principal } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
@@ -255,8 +255,8 @@ function person(id: Identifier<"user">) {
 
 test("type each written field of a call's input as the value it accepts", () => {
     // read defaulted, optional and identifier fields as their values, never as unknown
-    type Update = CallInput<typeof task, "update">;
-    type Create = CallInput<typeof task, "create">;
+    type Update = MethodInput<typeof task, "update">;
+    type Create = MethodInput<typeof task, "create">;
     expectTypeOf<Update["priority"]>().toEqualTypeOf<
         "low" | "normal" | "high" | "urgent" | undefined
     >();

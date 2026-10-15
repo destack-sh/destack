@@ -9,7 +9,7 @@ import { PageShape } from "../method/procedure.ts";
 import { QueryShape, ViewShape } from "../replica/replica.ts";
 import { EventLog } from "./event.ts";
 import { nestItem } from "./item.ts";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 import type { ObjectType } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 
@@ -25,23 +25,23 @@ export class Listing implements Audience {
     /** The name of the decisions, one per call. */
     readonly key = "call";
     /** The call listing the objects. */
-    readonly #call: Call;
+    readonly #context: MethodContext;
     /** Where the call executes. */
     readonly #execution: Execution;
     /** The object types the call lists, by table. */
     readonly #objects: ObjectTypeIndex;
 
     /** List objects as a call's caller may list them. */
-    constructor(call: Call, execution: Execution) {
-        this.#call = call;
+    constructor(context: MethodContext, execution: Execution) {
+        this.#context = context;
         this.#execution = execution;
-        this.#objects = new ObjectTypeIndex(call.objects);
+        this.#objects = new ObjectTypeIndex(context.objects);
     }
 
     /** Read a page of the call's query rows or its aggregate groups. */
     async list() {
         // read an events type's rows from the event log on a server, hot and flushed alike
-        const call = this.#call;
+        const call = this.#context;
         const input = LIST_INPUT.parse(call.input);
         const execution = this.#execution;
         if (call.object.storage === "events" && execution.kind === "store") {
@@ -120,7 +120,7 @@ export class Listing implements Audience {
     /** Keep the items whose rows the caller could read at the snapshot position. */
     async #readable(read: readonly sync.Item[]): Promise<readonly sync.Item[]> {
         // keep every item at the latest position
-        const call = this.#call;
+        const call = this.#context;
         const execution = this.#execution;
         const snapshot = this.#requested();
         if (snapshot?.position === undefined || execution.kind !== "store") {
@@ -210,7 +210,12 @@ export class Listing implements Audience {
             return new Set(rows.keys());
         }
         const { authorization } = execution;
-        const admitted = await authorization.admitRows(object, permission, this.#call.scope, rows);
+        const admitted = await authorization.admitRows(
+            object,
+            permission,
+            this.#context.scope,
+            rows,
+        );
 
         return admitted.permitted;
     }

@@ -1,4 +1,4 @@
-import type { CallableName, CallOutput } from "../src/index.ts";
+import type { CallableName, MethodOutput } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
@@ -50,7 +50,7 @@ test.each(TEST_DIALECTS)(
         const execute = <Name extends CallableName<typeof taskVersion>>(
             name: Name,
             input: NoInfer<RequestInput<typeof taskVersion, Name>>,
-        ): Promise<CallOutput<typeof taskVersion, Name>> =>
+        ): Promise<MethodOutput<typeof taskVersion, Name>> =>
             request(
                 store,
                 taskVersion,

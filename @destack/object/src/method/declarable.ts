@@ -4,7 +4,7 @@ import { type Condition, type Row, TABLE, type Transaction, Table } from "@desta
 import { canonicalize, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { defineMethod, type Method } from "./method.ts";
-import type { Call } from "./call.ts";
+import type { MethodContext } from "./context.ts";
 import { RevisionShape } from "./procedure.ts";
 
 import { declarable } from "../trait/declarable.ts";
@@ -36,16 +36,16 @@ export function detach<const Permission extends string>(
             input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
             output: shapes.row,
         }),
-        handler: (call) => call.update({ detachedAt: call.now }),
-        async execute(call, execution) {
+        handler: (context) => context.update({ detachedAt: context.now }),
+        async execute(context, execution) {
             // require an object its declaration still manages
-            if (!declarable.isManaging(call.target)) {
+            if (!declarable.isManaging(context.target)) {
                 throw new CallError("CONFLICT", {
-                    message: `${call.object.name} is not managed by a declaration`,
+                    message: `${context.object.name} is not managed by a declaration`,
                 });
             }
 
-            return this.handler(call, execution);
+            return this.handler(context, execution);
         },
     });
 }
@@ -90,15 +90,15 @@ export function adopt<const Permission extends string>(
             }),
             output: shapes.row,
         }),
-        handler: (call) => {
-            const { manager } = AdoptInput.parse(call.input);
+        handler: (context) => {
+            const { manager } = AdoptInput.parse(context.input);
 
-            return call.update({ ...Manager.values(manager), detachedAt: null });
+            return context.update({ ...Manager.values(manager), detachedAt: null });
         },
-        async execute(call, execution) {
-            await DeclarableMethod.requireAdoptable(call);
+        async execute(context, execution) {
+            await DeclarableMethod.requireAdoptable(context);
 
-            return this.handler(call, execution);
+            return this.handler(context, execution);
         },
     });
 }
@@ -136,14 +136,14 @@ export const apply: Method<{
         input: shapes.scope.extend({ ...shapes.created, ...ApplyInput.shape }),
         output: shapes.row.or(schema.object({})),
     }),
-    handler: async (call: Call, execution: Execution) => {
+    handler: async (context: MethodContext, execution: Execution) => {
         // read the record the manager declared
-        const { manager, values } = ApplyInput.parse(call.input);
-        const { object, now } = call;
-        const { transaction } = Execution.store(execution, call);
+        const { manager, values } = ApplyInput.parse(context.input);
+        const { object, now } = context;
+        const { transaction } = Execution.store(execution, context);
         const [applied] = await transaction
             .read(object.table)
-            .findMany({ where: DeclarableMethod.declaredBy(object, call.scope, manager) });
+            .findMany({ where: DeclarableMethod.declaredBy(object, context.scope, manager) });
 
         // retire a record no longer declared
         if (values === null) {
@@ -172,8 +172,8 @@ export const apply: Method<{
         const row =
             applied === undefined
                 ? DeclarableMethod.created(object, {
-                      id: call.id ?? (await call.generateId(object)),
-                      scope: call.scope,
+                      id: context.id ?? (await context.generateId(object)),
+                      scope: context.scope,
                       manager,
                       values: decoded,
                       now,
@@ -190,27 +190,27 @@ export const apply: Method<{
 /** The declarable methods' handlers: adopting, detaching and applying declared objects. */
 const DeclarableMethod = {
     /** Require a direct record, or one detached from the adopting declaration. */
-    async requireAdoptable(call: Call): Promise<void> {
+    async requireAdoptable(context: MethodContext): Promise<void> {
         // read the adopting declaration and the target's manager
-        const { manager } = AdoptInput.parse(call.input);
-        const target: Row | undefined = call.target;
+        const { manager } = AdoptInput.parse(context.input);
+        const target: Row | undefined = context.target;
         const managed = target === undefined ? null : Manager.read(ManagerColumns.parse(target));
-        const [declared] = await call
-            .read(call.object.table)
-            .findMany({ where: DeclarableMethod.declaredBy(call.object, call.scope, manager) });
+        const [declared] = await context.read(context.object.table).findMany({
+            where: DeclarableMethod.declaredBy(context.object, context.scope, manager),
+        });
 
         // refuse a managed record, and a record or declaration of another declaration
         if (declarable.isManaging(target)) {
             throw new CallError("CONFLICT", {
-                message: `${call.object.name} is managed by a declaration`,
+                message: `${context.object.name} is managed by a declaration`,
             });
         } else if (managed !== null && !DeclarableMethod.isSameManager(managed, manager)) {
             throw new CallError("CONFLICT", {
-                message: `${call.object.name} is detached from another declaration`,
+                message: `${context.object.name} is detached from another declaration`,
             });
         } else if (declared !== undefined && declared["id"] !== target?.["id"]) {
             throw new CallError("CONFLICT", {
-                message: `declaration ${manager.name} declares another ${call.object.name}`,
+                message: `declaration ${manager.name} declares another ${context.object.name}`,
             });
         }
     },

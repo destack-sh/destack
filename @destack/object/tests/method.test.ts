@@ -12,7 +12,7 @@ import { AuditTarget } from "../src/index.ts";
 import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import { ObjectStore, RecoverableController, Settlement } from "../src/server/index.ts";
-import { Call, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
+import { defineObject, field, method, settlement, suspendable } from "../src/index.ts";
 import { describeAuditAction } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
 import {
@@ -674,22 +674,22 @@ test("prepare external work after the access check, settle it after commit, comp
     const handled = task.implement({
         methods: {
             export: {
-                prepare: async (call) => {
-                    if (call.target.title === "Broken") {
+                prepare: async (context) => {
+                    if (context.target.title === "Broken") {
                         throw new Error("reservation failed");
                     }
-                    external.push(`reserve ${call.target.title}`);
+                    external.push(`reserve ${context.target.title}`);
 
-                    return `reservation-${call.target.id}`;
+                    return `reservation-${context.target.id}`;
                 },
-                handle: async (call) => {
+                handle: async (context) => {
                     if (isFailing) {
                         throw new Error("archive failed");
                     }
 
-                    return call.update({
+                    return context.update({
                         archived: true,
-                        title: `${call.target.title} (${call.prepared})`,
+                        title: `${context.target.title} (${context.prepared})`,
                     });
                 },
                 settle: async (_call, settled) => {
@@ -787,8 +787,8 @@ test("prepare external work after the access check, settle it after commit, comp
         store.mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [
-                Call.record(handled, "export", { spaceId, id: other.id }),
-                Call.record(handled, "export", { spaceId, id: broken.id }),
+                handled.call("export", { spaceId, id: other.id }),
+                handled.call("export", { spaceId, id: broken.id }),
             ],
         }),
     ).rejects.toThrow(new Error("reservation failed"));
@@ -805,8 +805,8 @@ test("prepare external work after the access check, settle it after commit, comp
         store.mutate(userContext(users.frank, undefined).access(), {
             id: RequestId.create(Date.now()),
             calls: [
-                Call.record(handled, "export", { spaceId, id: other.id }),
-                Call.record(handled, "export", { spaceId: elsewhere, id: other.id }),
+                handled.call("export", { spaceId, id: other.id }),
+                handled.call("export", { spaceId: elsewhere, id: other.id }),
             ],
         }),
     ).rejects.toMatchObject({
@@ -829,19 +829,19 @@ test("run a prepare and a settle phase's calls as the store in requests of their
     const handled = task.implement({
         methods: {
             export: {
-                prepare: async (call) => {
-                    await call.mutate(call.self, [rename("prepared")]);
+                prepare: async (context) => {
+                    await context.mutate(context.self, [rename("prepared")]);
 
                     return "reserved";
                 },
-                handle: async (call) => {
+                handle: async (context) => {
                     const id = task.identifier(present(log.id, "the log task"));
-                    const read = await call.read(task).findFirst({ where: { id } });
+                    const read = await context.read(task).findFirst({ where: { id } });
                     seen.push(present(read, "the log task").title);
                     throw new Error("export failed");
                 },
-                settle: async (call) => {
-                    await call.mutate(call.self, [rename("settled")]);
+                settle: async (context) => {
+                    await context.mutate(context.self, [rename("settled")]);
                 },
             },
         },
@@ -897,10 +897,10 @@ test("authorize a creation before its external work, and settle committed work t
     const copies = taskCopy.implement({
         methods: {
             create: {
-                prepare: async (call) => {
-                    external.push(`copy ${call.input["title"]}`);
+                prepare: async (context) => {
+                    external.push(`copy ${context.input["title"]}`);
 
-                    return `copy-${present(call.id, "the version's identifier")}`;
+                    return `copy-${present(context.id, "the version's identifier")}`;
                 },
                 settle: async (_call, settled) => {
                     // fail the first confirmation, then confirm or release
@@ -992,8 +992,8 @@ test("name a system creation's prepared work by the fresh identifier it creates 
     const copies = taskCopy.implement({
         methods: {
             create: {
-                prepare: async (call) => {
-                    const copy = `copy-${present(call.id, "the version's identifier")}`;
+                prepare: async (context) => {
+                    const copy = `copy-${present(context.id, "the version's identifier")}`;
                     external.push(copy);
 
                     return copy;
@@ -1051,13 +1051,13 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     const copies = taskCopy.implement({
         methods: {
             create: {
-                prepare: async (call) => {
+                prepare: async (context) => {
                     external.push(
-                        `copy ${call.idempotencyKey === undefined ? "unkeyed" : "keyed"}`,
+                        `copy ${context.idempotencyKey === undefined ? "unkeyed" : "keyed"}`,
                     );
                     await during();
 
-                    return present(call.idempotencyKey, "the copy's key");
+                    return present(context.idempotencyKey, "the copy's key");
                 },
                 settle: async (_call, settled) => {
                     external.push(
@@ -1217,7 +1217,7 @@ test("share an implemented type's procedures with its declaration, and build a c
 test("predict custom methods only where their handler is, and never a scope's suspension", () => {
     // predict only methods with a handler on the client
     const unhandled = method.mutation({ permission: "archive" });
-    const handled = unhandled.handle(async (call) => call.target);
+    const handled = unhandled.handle(async (context) => context.target);
     expect([
         unhandled.isPredicted,
         handled.isPredicted,
@@ -1343,8 +1343,8 @@ test("carry a key of the call's place in its request, the same for every retry o
     const copies = taskCopy.implement({
         methods: {
             create: {
-                prepare: async (call) => {
-                    const key = present(call.idempotencyKey, "the call's key");
+                prepare: async (context) => {
+                    const key = present(context.idempotencyKey, "the call's key");
                     keys.push(key);
                     if (isFailing) {
                         isFailing = false;
@@ -1419,7 +1419,7 @@ test("settle each call's prepared work once under its own key in its request", a
     const copies = taskCopy.implement({
         methods: {
             create: {
-                prepare: async (call) => present(call.idempotencyKey, "the call's key"),
+                prepare: async (context) => present(context.idempotencyKey, "the call's key"),
                 settle: async (_call, settled) => {
                     confirmed.push(settled.prepared);
                 },
@@ -1451,7 +1451,7 @@ test("settle each call's prepared work once under its own key in its request", a
     const requestId = RequestId.create(Date.now());
     await store.mutate(context.access(), {
         id: requestId,
-        calls: [Call.record(copies, "create", copy), Call.record(copies, "create", copy)],
+        calls: [copies.call("create", copy), copies.call("create", copy)],
     });
     expect([confirmed, await storage.database.select().from(settlement)]).toEqual([
         [`${requestId}/0`, `${requestId}/1`],

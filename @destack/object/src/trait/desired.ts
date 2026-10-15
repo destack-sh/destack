@@ -2,7 +2,7 @@ import { defineTable, json, type Snapshot, text, Transaction } from "@destack/db
 import type { ResourceState } from "@destack/package/declare";
 import { Digest, present, schema, zip } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 import { Provisioned } from "./provisioned.ts";
 import { Execution } from "../method/execution.ts";
 
@@ -77,12 +77,16 @@ export const DesiredState = {
     },
 
     /** Drop the states among some digests that no resource of a call's space needs any more. */
-    async drop(call: Call, execution: Execution, digests: readonly Digest[]): Promise<void> {
+    async drop(
+        context: MethodContext,
+        execution: Execution,
+        digests: readonly Digest[],
+    ): Promise<void> {
         // collect the digests every resource of the space needs
-        const scope = schema.identifier("space").parse(call.scope);
+        const scope = schema.identifier("space").parse(context.scope);
         const needed = new Set<Digest>();
-        for (const object of call.objects.filter((each) => Provisioned.is(each))) {
-            const resources = await call.read(object.table).findMany({ where: { scope } });
+        for (const object of context.objects.filter((each) => Provisioned.is(each))) {
+            const resources = await context.read(object.table).findMany({ where: { scope } });
             for (const resource of resources) {
                 for (const digest of [...resource.states, ...resource.drainingStates]) {
                     needed.add(digest);
@@ -93,7 +97,7 @@ export const DesiredState = {
         // delete the others
         const unneeded = digests.filter((digest) => !needed.has(digest));
         if (unneeded.length > 0) {
-            const dropped = await call.read(desiredState).findMany({
+            const dropped = await context.read(desiredState).findMany({
                 where: {
                     scope,
                     digest: { in: unneeded },
@@ -101,7 +105,7 @@ export const DesiredState = {
             });
             await Execution.write(
                 execution,
-                call,
+                context,
                 ...dropped.map((row) => ({ table: desiredState, before: row, after: null })),
             );
         }

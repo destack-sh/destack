@@ -39,7 +39,7 @@ import {
     type TableMapping,
 } from "@destack/access";
 import { present, schema } from "@destack/schema";
-import { type Call } from "../method/call.ts";
+import { type MethodContext } from "../method/context.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import type { MethodBuilder } from "../method/record.ts";
 import { INTRINSIC } from "./intrinsic.ts";
@@ -184,17 +184,17 @@ export const ObjectAccess = {
 
     /** Decide a subject's permission on an object the call's scope decides. */
     async check(
-        call: Call,
+        context: MethodContext,
         { authorization }: StoreExecution,
     ): Promise<schema.Infer<typeof CheckResult>> {
         // require an object the call's scope decides, and a permission its type declares
-        const { subject, permission, object } = CheckInput.parse(call.input);
+        const { subject, permission, object } = CheckInput.parse(context.input);
         const { authorizer, snapshot } = authorization;
         const policy = authorizer.policy(object);
         const scope = authorizer.governingScope(object);
-        if (scope !== call.scope) {
+        if (scope !== context.scope) {
             throw new CallError("BAD_REQUEST", {
-                message: `${object.type} ${object.id} is decided in ${scope}, not ${call.scope}`,
+                message: `${object.type} ${object.id} is decided in ${scope}, not ${context.scope}`,
             });
         } else if (!Object.hasOwn(policy.definition.permissions, permission)) {
             throw new CallError("BAD_REQUEST", {
@@ -205,7 +205,7 @@ export const ObjectAccess = {
         const asking = await authorization.in(scope);
 
         // decide the caller's own access under its delegates and grant
-        const own = call.caller.subject;
+        const own = context.caller.subject;
         if (own !== undefined && Subject.same(own, subject)) {
             return {
                 isAllowed: (await authorizer.check(snapshot, asked, object, asking)).isAllowed,
@@ -226,15 +226,15 @@ export const ObjectAccess = {
         const checked = await authorizer.resolve(
             snapshot,
             scope,
-            AccessContext.of(Caller.of(subject), call.now),
+            AccessContext.of(Caller.of(subject), context.now),
         );
 
         return { isAllowed: (await authorizer.check(snapshot, asked, object, checked)).isAllowed };
     },
 
     /** Find the scope object of the call's scope. */
-    scopeObject(call: Call, execution: Execution): Promise<ObjectReference> {
-        return Scope.object(Execution.snapshot(execution), call.scope);
+    scopeObject(context: MethodContext, execution: Execution): Promise<ObjectReference> {
+        return Scope.object(Execution.snapshot(execution), context.scope);
     },
 
     /** Read one role row as the method's result. */
@@ -585,12 +585,12 @@ export const role = {
                 input: shapes.scope.extend({ ...shapes.replay, ...RoleBinding.shape }),
                 output: Empty,
             }),
-            handler: async (call, execution) => {
+            handler: async (context, execution) => {
                 // keep the role and its binding under the manager, dropping both without permissions
-                const { manager, ...binding } = RoleBinding.parse(call.input);
-                await Execution.store(execution, call)
+                const { manager, ...binding } = RoleBinding.parse(context.input);
+                await Execution.store(execution, context)
                     .authorization.applying(manager)
-                    .keepBinding(await ObjectAccess.scopeObject(call, execution), binding);
+                    .keepBinding(await ObjectAccess.scopeObject(context, execution), binding);
 
                 return {};
             },
@@ -684,8 +684,8 @@ export const relationship = {
                 input: shapes.scope.extend(CheckInput.shape),
                 output: CheckResult,
             }),
-            handler: (call, execution) =>
-                ObjectAccess.check(call, Execution.store(execution, call)),
+            handler: (context, execution) =>
+                ObjectAccess.check(context, Execution.store(execution, context)),
         }),
         create: defineMethod<{
             kind: "custom";
@@ -709,11 +709,11 @@ export const relationship = {
                 input: shapes.scope.extend({ ...shapes.replay, ...RelationshipInput.shape }),
                 output: access.Relationship.schema,
             }),
-            handler: (call, execution) => {
+            handler: (context, execution) => {
                 // grant under the relation's grant rules
-                const { object, ...granted } = RelationshipInput.parse(call.input);
+                const { object, ...granted } = RelationshipInput.parse(context.input);
 
-                return Execution.store(execution, call).authorization.grant({
+                return Execution.store(execution, context).authorization.grant({
                     ...GrantInput.parse(granted),
                     object,
                 });
@@ -741,11 +741,11 @@ export const relationship = {
                 input: shapes.scope.extend({ ...shapes.replay, ...RelationshipKey.shape }),
                 output: access.Relationship.schema,
             }),
-            handler: (call, execution) => {
+            handler: (context, execution) => {
                 // revoke under the relation's grant rules
-                const { object, relationshipId } = RelationshipKey.parse(call.input);
+                const { object, relationshipId } = RelationshipKey.parse(context.input);
 
-                return Execution.store(execution, call).authorization.revoke(
+                return Execution.store(execution, context).authorization.revoke(
                     object,
                     relationshipId,
                 );
@@ -795,12 +795,12 @@ export const invitation = {
                 input: shapes.scope.extend({ ...shapes.replay, ...InvitationInput.shape }),
                 output: access.Invitation.schema,
             }),
-            handler: (call, execution) => {
+            handler: (context, execution) => {
                 // invite to the relationship on the object
-                const { object, ...invited } = InvitationInput.parse(call.input);
+                const { object, ...invited } = InvitationInput.parse(context.input);
                 const { relationship: offered, ...details } = InviteInput.parse(invited);
 
-                return Execution.store(execution, call).authorization.invite({
+                return Execution.store(execution, context).authorization.invite({
                     ...details,
                     relationship: { ...offered, object },
                 });
@@ -828,11 +828,14 @@ export const invitation = {
                 input: shapes.scope.extend({ ...shapes.replay, ...InvitationKey.shape }),
                 output: access.Relationship.schema,
             }),
-            handler: (call, execution) => {
+            handler: (context, execution) => {
                 // accept as the caller
-                const { object, invitationId } = InvitationKey.parse(call.input);
+                const { object, invitationId } = InvitationKey.parse(context.input);
 
-                return Execution.store(execution, call).authorization.accept(object, invitationId);
+                return Execution.store(execution, context).authorization.accept(
+                    object,
+                    invitationId,
+                );
             },
         }),
         delete: defineMethod<{
@@ -857,11 +860,11 @@ export const invitation = {
                 input: shapes.scope.extend({ ...shapes.replay, ...InvitationKey.shape }),
                 output: access.Invitation.schema,
             }),
-            handler: (call, execution) => {
+            handler: (context, execution) => {
                 // withdraw as its inviter, its addressee or a granter
-                const { object, invitationId } = InvitationKey.parse(call.input);
+                const { object, invitationId } = InvitationKey.parse(context.input);
 
-                return Execution.store(execution, call).authorization.withdraw(
+                return Execution.store(execution, context).authorization.withdraw(
                     object,
                     invitationId,
                 );
@@ -889,15 +892,15 @@ export const invitation = {
                 input: shapes.scope.extend(InvitationListing.shape),
                 output: ListPage.schema(access.Invitation.schema),
             }),
-            handler: async (call, execution) => {
+            handler: async (context, execution) => {
                 // page the object's pending invitations by identifier
-                const { object, ...paging } = InvitationListing.parse(call.input);
+                const { object, ...paging } = InvitationListing.parse(context.input);
                 const listing = new Page(
                     paging,
-                    [call.object.name, call.scope, object.type, object.id],
+                    [context.object.name, context.scope, object.type, object.id],
                     schema.string(),
                 );
-                const { authorization } = Execution.store(execution, call);
+                const { authorization } = Execution.store(execution, context);
                 const invitations = await authorization.invitations(
                     { object },
                     {

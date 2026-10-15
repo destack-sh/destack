@@ -1,10 +1,11 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
+import type { Call } from "@destack/sync";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { defineObject, field, type ObjectCall } from "../src/index.ts";
+import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -77,7 +78,7 @@ test("record a transition's declared fields with its state, refusing a call with
     });
     await openSpace(database, SPACE_ID);
     const caller = subjectContext(spacePrincipal(SPACE_ID), SPACE_ID).access();
-    const mutate = (call: ObjectCall) =>
+    const mutate = (call: Call) =>
         store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] });
 
     // reject an article with its reason, and refuse a rejection naming none

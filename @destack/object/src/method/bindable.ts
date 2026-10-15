@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { defineMethod, type Method } from "./method.ts";
-import { Call } from "./call.ts";
+import { MethodContext } from "./context.ts";
 
 import { CONSUMER } from "../trait/bindable.ts";
 import { Execution } from "./execution.ts";
@@ -38,19 +38,19 @@ export const bind: Method<{
         input: shapes.scope.extend(BindInput.shape),
         output: schema.object({}),
     }),
-    handler: async (call: Call, execution: Execution) => {
+    handler: async (context: MethodContext, execution: Execution) => {
         // keep exactly the consumer's relationships on the type's objects in the scope
-        const { consumer, ids } = BindInput.parse(call.input);
-        const { packageId } = call.object.policy.definition;
-        await Execution.store(execution, call).authorization.keepRelationships(
+        const { consumer, ids } = BindInput.parse(context.input);
+        const { packageId } = context.object.policy.definition;
+        await Execution.store(execution, context).authorization.keepRelationships(
             {
-                scope: call.scope,
-                objects: [{ packageId, type: call.object.name }],
+                scope: context.scope,
+                objects: [{ packageId, type: context.object.name }],
                 relation: CONSUMER,
                 subject: consumer,
             },
             ids.map((id) => ({
-                object: call.object.reference(call.scope, id),
+                object: context.object.reference(context.scope, id),
                 relation: CONSUMER,
                 subject: consumer,
             })),

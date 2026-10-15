@@ -1,4 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
+import type { Call } from "@destack/sync";
 import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -17,8 +18,7 @@ import {
     HandlerAnswer,
     HandlerRequest,
     HookServer,
-    CallCode,
-    type ObjectCall,
+    CallSite,
     ObjectType,
     HookSandbox,
     SessionRequest,
@@ -226,7 +226,7 @@ function summary(answer: HandlerAnswer): JsonValue {
 }
 
 /** Run a call of a card method as a user, alice by default, answering the card. */
-async function run(store: ObjectStore, call: ObjectCall, user = users.alice) {
+async function run(store: ObjectStore, call: Call, user = users.alice) {
     const [result] = await store.mutate(userContext(user, spaceId).access(), {
         id: RequestId.create(Date.now()),
         calls: [call],
@@ -555,14 +555,14 @@ test("decide permissions, take positions, read the start position and act as the
 
 test("reach internal methods from the store's own code and its package's sandboxes alone", () => {
     // ask each code for the internal stamp and the public get
-    const codes: readonly CallCode[] = [
-        CallCode.store,
-        CallCode.client,
+    const codes: readonly CallSite[] = [
+        CallSite.store,
+        CallSite.client,
         { kind: "sandbox", packageId: card.package.id },
         { kind: "sandbox", packageId: OTHER_PACKAGE },
     ];
     const reached = codes.map((code) =>
-        ["stamp", "get"].map((name) => CallCode.reaches(code, card, card.method(name))),
+        ["stamp", "get"].map((name) => CallSite.reaches(code, card, card.method(name))),
     );
 
     expect(reached).toEqual([
@@ -828,7 +828,7 @@ test("list the phases a package attaches as hooks, leaving a trait's methods to 
         fields: { owner: field.reference(principal.user).caller() },
         permissions: { read: relation("owner"), write: relation("owner") },
     }).methods((method) => ({
-        create: method.create("write").handle((call, next) => next(call)),
+        create: method.create("write").handle((context, next) => next(context)),
     }));
     const implemented = machine.implement({ methods: { observe: { authorize: async () => {} } } });
 

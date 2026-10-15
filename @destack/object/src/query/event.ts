@@ -16,7 +16,7 @@ import { Caller } from "@destack/access";
 import { CallError } from "@destack/runtime/error";
 import { Page } from "../method/page.ts";
 import { Replica } from "@destack/sync";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 import type { Session } from "../method/reader.ts";
 import { type EventRequest, SeriesRecord } from "../hook/record.ts";
 import type { ListInput } from "./listing.ts";
@@ -28,15 +28,19 @@ const DATAFLOW_FIELDS = ["extras", "with", "aggregate", "deleted", "at", "branch
 /** The event log behind an events type: `create` appends to it, `list` and `get` read it. */
 export const EventLog = {
     /** Append created rows as events of the scope. */
-    async append(call: Call, execution: StoreExecution, rows: readonly Row[]): Promise<void> {
+    async append(
+        context: MethodContext,
+        execution: StoreExecution,
+        rows: readonly Row[],
+    ): Promise<void> {
         // read each row as its event
-        const kind = call.object.eventKind();
+        const kind = context.object.eventKind();
         const events = rows.map((row) => kind.event(row));
 
         // keep the type's readers in step with the appended rows
         const { transaction } = execution;
         for (const row of rows) {
-            call.object.keepReaders(transaction, { before: null, after: row }, call.now);
+            context.object.keepReaders(transaction, { before: null, after: row }, context.now);
         }
 
         // append events kept exactly once as the call commits
@@ -52,16 +56,16 @@ export const EventLog = {
 
     /** Read a page of the scope's events the caller may read, in time order. */
     async page(
-        call: Call,
+        context: MethodContext,
         execution: StoreExecution,
         input: ListInput,
     ): Promise<{ items: Row[]; cursor: string | null }> {
         // refuse what only the SQL dataflow serves
-        const kind = call.object.eventKind();
+        const kind = context.object.eventKind();
         const unserved = DATAFLOW_FIELDS.find((name) => input[name] !== undefined);
         if (unserved !== undefined) {
             throw new CallError("BAD_REQUEST", {
-                message: `${call.object.name} lists from the event log, which cannot read ${unserved}`,
+                message: `${context.object.name} lists from the event log, which cannot read ${unserved}`,
             });
         }
 
@@ -72,19 +76,19 @@ export const EventLog = {
                 ...(cursor === undefined ? {} : { cursor }),
                 ...(limit === undefined ? {} : { limit }),
             },
-            [call.object.name, call.scope],
+            [context.object.name, context.scope],
             EventCursor,
         );
         const read = await execution.store.events.query(
             kind,
             {
-                scopes: await EventLog.scopes(call, Execution.snapshot(execution).database),
+                scopes: await EventLog.scopes(context, Execution.snapshot(execution).database),
                 ...(where === undefined ? {} : { where }),
             },
             {
                 ...(listing.after === undefined ? {} : { after: listing.after }),
                 limit: listing.limit + 1,
-                order: EventLog.readOrder(call, orderBy),
+                order: EventLog.readOrder(context, orderBy),
             },
         );
 
@@ -93,46 +97,49 @@ export const EventLog = {
             read.events.map((event) => kind.row(event)),
             (row) => EventCursor.parse(row),
         );
-        const items = await execution.authorization.keep(page.items, call.permission());
+        const items = await execution.authorization.keep(page.items, context.permission());
 
         return { items, cursor: page.cursor };
     },
 
     /** Read one event of the scope by its identifier, hot or flushed, absent if none. */
     async row(
-        call: Call,
+        context: MethodContext,
         events: EventStore,
         database: DatabaseConnection,
         id: string,
     ): Promise<Row | undefined> {
-        const kind = call.object.eventKind();
-        const event = await events.get(kind, { scopes: await EventLog.scopes(call, database), id });
+        const kind = context.object.eventKind();
+        const event = await events.get(kind, {
+            scopes: await EventLog.scopes(context, database),
+            id,
+        });
 
         return event === undefined ? undefined : kind.row(event);
     },
 
     /** List the scopes a read of a scope's events covers: its own, and the caller's replicas. */
     async scopes(
-        call: Call,
+        context: MethodContext,
         database: DatabaseConnection,
     ): Promise<readonly [string, ...string[]]> {
         const replicated = await Replica.scopes(
             database,
-            call.object.table,
-            call.scope,
-            Caller.principal(call.caller),
+            context.object.table,
+            context.scope,
+            Caller.principal(context.caller),
         );
 
-        return [call.scope, ...replicated.filter((scope) => scope !== call.scope)];
+        return [context.scope, ...replicated.filter((scope) => scope !== context.scope)];
     },
 
     /** Read a list's order as the event log's: by time, newest first unless asked otherwise. */
-    readOrder(call: Call, orderBy: ListInput["orderBy"]): EventOrder {
+    readOrder(context: MethodContext, orderBy: ListInput["orderBy"]): EventOrder {
         // read the time's direction, refusing any other field
         const [field, ...others] = Object.entries(orderBy ?? { time: "desc" });
         if (field === undefined || field[0] !== "time" || others.length > 0) {
             throw new CallError("BAD_REQUEST", {
-                message: `${call.object.name} lists in time order only`,
+                message: `${context.object.name} lists in time order only`,
             });
         }
 

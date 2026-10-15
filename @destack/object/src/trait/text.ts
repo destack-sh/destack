@@ -175,7 +175,7 @@ export const text: Trait<TextDefinition> & {
                 }),
                 output: Undo,
             }),
-            handler: (call, execution) => Chunk.edit(call, execution),
+            handler: (context, execution) => Chunk.edit(context, execution),
             inverse: (step) => {
                 // apply the recorded inverse edits
                 if (step.result === undefined) {
@@ -193,17 +193,17 @@ export const text: Trait<TextDefinition> & {
                           }),
                       ];
             },
-            async execute(call, execution) {
+            async execute(context, execution) {
                 // require the field's write permission when it guards writes
-                const field = schema.string().parse(call.input["field"]);
+                const field = schema.string().parse(context.input["field"]);
                 const guard = present(
-                    call.object.fields[field],
-                    `the text field ${field} of ${call.object.name}`,
+                    context.object.fields[field],
+                    `the text field ${field} of ${context.object.name}`,
                 ).access?.write;
-                if (!call.isPredicted && guard !== undefined) {
-                    const decision = await call.check(
-                        call.object.permission(guard),
-                        call.reference(),
+                if (!context.isPredicted && guard !== undefined) {
+                    const decision = await context.check(
+                        context.object.permission(guard),
+                        context.reference(),
                     );
                     if (!decision.isAllowed) {
                         throw new CallError("FORBIDDEN", {
@@ -212,7 +212,7 @@ export const text: Trait<TextDefinition> & {
                     }
                 }
 
-                return this.handler(call, execution);
+                return this.handler(context, execution);
             },
         });
     },
@@ -241,13 +241,13 @@ export const text: Trait<TextDefinition> & {
                 }),
                 output: Containment,
             }),
-            handler: async (call, execution) => {
+            handler: async (context, execution) => {
                 // look the elements up among the field's runs in the call's view
-                const field = schema.string().parse(call.input["field"]);
-                const elements = schema.array(Element).parse(call.input["elements"]);
+                const field = schema.string().parse(context.input["field"]);
+                const elements = schema.array(Element).parse(context.input["elements"]);
                 const isContained = await Chunk.contains(
                     Execution.snapshot(execution),
-                    call.reference(),
+                    context.reference(),
                     field,
                     elements,
                 );

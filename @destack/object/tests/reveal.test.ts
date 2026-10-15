@@ -36,10 +36,10 @@ const holder = defineObject({
             permission: "read",
             output: schema.object({ token: schema.string() }),
         })
-        .handle(async (call) => {
-            const [row] = await call
-                .reveal(call.object)
-                .findMany({ where: { id: call.target.id } });
+        .handle(async (context) => {
+            const [row] = await context
+                .reveal(context.object)
+                .findMany({ where: { id: context.target.id } });
 
             return { token: schema.string().parse(row?.["token"]) };
         }),
@@ -66,11 +66,11 @@ const peeker = defineObject(
                 revealed: schema.string(),
             }),
         })
-        .handle(async (call) => {
-            const scope = schema.identifier("space").parse(call.scope);
-            const read = await call.read(holder).findMany({ where: { scope } });
+        .handle(async (context) => {
+            const scope = schema.identifier("space").parse(context.scope);
+            const read = await context.read(holder).findMany({ where: { scope } });
             const revealed = await Promise.resolve()
-                .then(() => call.reveal(holder).findMany({ where: { scope } }))
+                .then(() => context.reveal(holder).findMany({ where: { scope } }))
                 .then(
                     () => "revealed",
                     (error: unknown) => (error instanceof Error ? error.message : "refused"),

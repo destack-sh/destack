@@ -117,33 +117,33 @@ export const transitions: Trait<StateFields> & {
                 }),
                 output: shapes.row,
             }),
-            handler: (call) => {
+            handler: (context) => {
                 // write the state with the fields the transition records
                 const written = Object.fromEntries(
                     (transition.fields ?? []).flatMap((recorded) => {
-                        const value = call.input[recorded];
+                        const value = context.input[recorded];
 
                         return value === undefined ? [] : [[recorded, value]];
                     }),
                 );
 
-                return call.update(
-                    Table.values(call.object.table, {
-                        ...Table.decode(call.object.table, written),
+                return context.update(
+                    Table.values(context.object.table, {
+                        ...Table.decode(context.object.table, written),
                         [field]: transition.to,
                     }),
                 );
             },
-            async execute(call, execution) {
+            async execute(context, execution) {
                 // refuse transitions from any other state
-                const state = schema.string().parse(call.target[field]);
+                const state = schema.string().parse(context.target[field]);
                 if (!transition.from.includes(state)) {
                     throw new CallError("CONFLICT", {
-                        message: `${call.object.name} cannot ${name} while ${field} is ${state}`,
+                        message: `${context.object.name} cannot ${name} while ${field} is ${state}`,
                     });
                 }
 
-                return this.handler(call, execution);
+                return this.handler(context, execution);
             },
         });
     },
