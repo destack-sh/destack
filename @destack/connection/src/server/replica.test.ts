@@ -53,7 +53,7 @@ async function connect(
 ): Promise<ObjectReference> {
     // create the connection referencing the home's integration
     const created = await space.objects
-        .mutate(space.context().caller(), {
+        .mutate(space.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
@@ -82,7 +82,7 @@ async function connect(
 /** Start authorizing a space's connection as its owner, redirected to the test redirect URI. */
 function authorize(space: ConnectionFixture, id: string) {
     return space.objects
-        .mutate(space.context().caller(), {
+        .mutate(space.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", { scope: space.scope.id, id, redirectUri: REDIRECT }),
@@ -94,7 +94,7 @@ function authorize(space: ConnectionFixture, id: string) {
 /** Complete a connection's authorization in a space as its owner with a redirect's parameters. */
 function complete(space: ConnectionFixture, id: string, parameters: Record<string, string>) {
     return space.objects
-        .mutate(space.context().caller(), {
+        .mutate(space.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [connection.call("complete", { scope: space.scope.id, id, parameters })],
         })
@@ -109,7 +109,7 @@ async function bindAtHome(
 ): Promise<ObjectReference> {
     // create the connection and acquire its token
     const created = await home.objects
-        .mutate(home.context().caller(), {
+        .mutate(home.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
@@ -125,7 +125,7 @@ async function bindAtHome(
 
     // bind it to the consumer
     await home.objects
-        .mutate(home.context().caller(), {
+        .mutate(home.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("bindConsumer", { scope: home.scope.id, id: created.id, consumer }),
@@ -190,7 +190,7 @@ test("refuse client credentials through a replicated integration, and token requ
     // ask the home as a person, outside the spaces
     const asPerson = await refusal(
         home.objects.query(
-            home.context().caller(),
+            home.context().access(),
             integration.call("requestToken", {
                 scope: registered.scope,
                 id: registered.id,
@@ -223,7 +223,7 @@ test("register the client of a space's connection without an integration at the 
 
     // create a connection with only its protected resource in a space of the home's scope
     const created = await space.objects
-        .mutate(space.context().caller(), {
+        .mutate(space.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
@@ -276,7 +276,7 @@ test("lend a connection its home keeps to a space's bound installation through t
         refusal(home.borrow(reference, new Request("https://api.test/items"), consumer));
     const installed = await refusal(
         space.objects
-            .mutate(space.context().caller(), {
+            .mutate(space.context().access(), {
                 id: RequestId.create(Date.now()),
                 calls: [
                     connection.call("create", {

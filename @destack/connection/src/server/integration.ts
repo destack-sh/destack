@@ -172,7 +172,7 @@ async function destroy(
     tokens: TokenSource,
 ): Promise<ResultOf<typeof integration, "delete">> {
     // delete the integration, then its secret
-    const target = call.requireTarget();
+    const target = call.target;
     const deleted = await next();
     if (target.vault !== null) {
         await tokens.remove(call, target.vault, target.id);
@@ -186,7 +186,7 @@ async function client(
     call: CallOf<typeof integration, "requestToken" | "revokeToken" | "authorizeDevice", unknown>,
     tokens: TokenSource,
 ): Promise<AuthorizationServer> {
-    const target = call.requireTarget();
+    const target = call.target;
 
     return tokens.local(call, target);
 }

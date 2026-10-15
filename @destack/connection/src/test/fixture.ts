@@ -1,7 +1,7 @@
 import { Package, type PackageId } from "@destack/package";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
 import { Account, account, space } from "@destack/account/object";
-import { Caller, principal, relation, Role } from "@destack/access";
+import { AccessContext, Authentication, Caller, principal, relation, Role } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { STACKS } from "@destack/account/test";
 import {
@@ -651,9 +651,8 @@ export class ConnectionFixture {
             clock: Clock.system,
             audience: connectionPackage.id,
             scope: this.scope.id,
-            caller: {
-                subject,
-                subjects: [subject],
+            authentication: {
+                caller: Caller.of(subject),
                 credential: {
                     kind: "session",
                     id: session,
@@ -727,7 +726,7 @@ export class ConnectionFixture {
             ConnectionFixture.#principal(this.scope).id,
             "installation-borrower",
         );
-        await this.objects.mutate(this.context().caller(), {
+        await this.objects.mutate(this.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("bindConsumer", {
@@ -821,7 +820,7 @@ export class ConnectionFixture {
         options: { readonly isPublic?: boolean } = {},
     ): Promise<ObjectReference> {
         const created = await this.objects
-            .mutate(this.context().caller(), {
+            .mutate(this.context().access(), {
                 id: RequestId.create(Date.now()),
                 calls: [
                     integration.call("create", {
@@ -852,10 +851,13 @@ export class ConnectionFixture {
     async keepIssuer(): Promise<IntegrationIssuer> {
         // create the issuer as the serving space
         const serving = ConnectionFixture.#principal(this.scope);
-        const [created] = await this.objects.mutate(Caller.of(serving, Date.now()), {
-            id: RequestId.create(Date.now()),
-            calls: [testIssuer.call("create", testIssuer.in(serving.id))],
-        });
+        const [created] = await this.objects.mutate(
+            AccessContext.of(Caller.of(serving), Date.now()),
+            {
+                id: RequestId.create(Date.now()),
+                calls: [testIssuer.call("create", testIssuer.in(serving.id))],
+            },
+        );
         const reference = testIssuer.reference(serving.id, present(created, "the issuer").id);
 
         // let the connection installation call it
@@ -876,7 +878,7 @@ export class ConnectionFixture {
     }
 
     /** Authenticate a request to a package as the principal in its bearer token. */
-    static #authenticate(request: Request, audience: PackageId): Caller {
+    static #authenticate(request: Request, audience: PackageId): Authentication {
         const subject = Subject.read(TestBearer.read(request));
 
         return TestBearer.authenticate(subject, audience, Date.now());

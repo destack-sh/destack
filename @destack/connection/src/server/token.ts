@@ -26,7 +26,7 @@ import { AuthorizationServer, JWT_BEARER, TOKEN_EXCHANGE } from "../oauth/server
 import { Secret, SecretReading } from "@destack/vault";
 import { secret, vault } from "@destack/vault/object";
 import type { ObjectStore } from "@destack/object/server";
-import { Caller } from "@destack/access";
+import { AccessContext, Caller } from "@destack/access";
 
 /** How long before expiry an access token is refreshed: a minute. */
 export const REFRESH_MARGIN = 60_000;
@@ -68,10 +68,13 @@ export interface IntegrationClient {
 export type Runner = Pick<Call, "now" | "self"> &
     Pick<Snapshot, "read"> & {
         /** Read through a method as a caller. */
-        readonly query: <Result>(caller: Caller, call: ObjectCall<Result>) => Promise<Result>;
+        readonly query: <Result>(
+            caller: AccessContext,
+            call: ObjectCall<Result>,
+        ) => Promise<Result>;
         /** Run calls as a caller. */
         readonly mutate: <const Calls extends readonly ObjectCall[]>(
-            caller: Caller,
+            caller: AccessContext,
             calls: Calls,
         ) => Promise<ResultsOf<Calls>>;
     };
@@ -85,7 +88,7 @@ export const Runner = {
 
         return {
             now,
-            self: Caller.of(store.principal, now),
+            self: AccessContext.of(Caller.of(store.principal), now),
             read: (table) => live.read(table),
             query: (caller, call) => store.query(caller, call),
             mutate: (caller, calls) => store.mutate(caller, { id: RequestId.create(now), calls }),
@@ -135,7 +138,7 @@ export class TokenSource {
     async readSecret(runner: Runner, reference: ObjectReference, id: string): Promise<string> {
         // read the secret's current version through its vault as the consumer
         const target = secret.target({ scope: reference.scope, id: TokenSource.secret(id) });
-        const caller = Caller.of(this.options.consumer, runner.now);
+        const caller = AccessContext.of(Caller.of(this.options.consumer), runner.now);
         const reading = SecretReading.parse(
             await runner.query(caller, secret.call("read", target)),
         );

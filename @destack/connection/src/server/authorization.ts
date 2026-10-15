@@ -39,7 +39,7 @@ async function start(
     tokens: TokenSource,
 ): Promise<AuthorizationStart> {
     // refuse a kind no person authorizes
-    const target = call.requireTarget();
+    const target = call.target;
     const kind = target.protocol.kind;
     if (!PERSON_KINDS.has(kind)) {
         throw new CallError("BAD_REQUEST", {
@@ -108,7 +108,7 @@ async function startDevice(
     tokens: TokenSource,
 ): Promise<AuthorizationStart> {
     // ask the integration's server for a device code
-    const target = call.requireTarget();
+    const target = call.target;
     const client = await tokens.integration(call, target.integration);
     const device = await client.server.authorizeDevice(target.scopes, target.resource ?? undefined);
 
@@ -142,7 +142,7 @@ async function started(
     call: CallOf<typeof connection, "authorize">,
 ): Promise<ResultOf<typeof connection, "authorize">> {
     // reference the client its registration created
-    const target = call.requireTarget();
+    const target = call.target;
     const prepared = call.prepared;
     if (prepared.kind === "page" && prepared.registered !== null) {
         await call.updateStatus({ integration: prepared.registered });
@@ -181,7 +181,7 @@ async function exchange(
     tokens: TokenSource,
 ): Promise<AuthorizationGrant> {
     // find the request by its state for the person and session that started it (RFC 9700 4.7)
-    const target = call.requireTarget();
+    const target = call.target;
     const { parameters } = call.input;
     const request = await findRequest(call, target, parameters["state"]);
     const caller = requirePerson(call);
@@ -228,7 +228,7 @@ async function complete(
     call: CallOf<typeof connection, "complete">,
 ): Promise<ResultOf<typeof connection, "complete">> {
     // use the request up
-    const target = call.requireTarget();
+    const target = call.target;
     const grant = call.prepared;
     await call.mutate(call.caller, [authorizationRequest.call("delete", { id: grant.request })]);
 
@@ -383,7 +383,7 @@ function requirePerson(call: CallOf<typeof connection, "authorize" | "complete",
 } {
     // require a person calling in a signed-in session
     const { subject, credential } = call.caller;
-    if (subject === undefined || !principal.user.is(subject) || credential?.kind !== "session") {
+    if (!principal.user.is(subject) || credential?.kind !== "session") {
         throw new CallError("FORBIDDEN", {
             message: "a person authorizes a connection in a signed-in session",
         });

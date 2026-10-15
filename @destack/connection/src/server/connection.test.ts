@@ -24,7 +24,7 @@ async function create(
     input: Omit<ObjectCallInput<typeof connection, "create">, "scope" | "vault">,
 ): Promise<ObjectReference> {
     const created = await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
@@ -74,7 +74,7 @@ async function lend(
 /** Start authorizing a connection as the owner in a session, redirected to the test URI. */
 function authorize(fixture: ConnectionFixture, reference: ObjectReference, session?: string) {
     return fixture.objects
-        .mutate(fixture.context(session).caller(), {
+        .mutate(fixture.context(session).access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
@@ -95,7 +95,7 @@ function completeAuthorization(
     session?: string,
 ) {
     return fixture.objects
-        .mutate(fixture.context(session).caller(), {
+        .mutate(fixture.context(session).access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
@@ -234,7 +234,7 @@ test("register a client dynamically at a protected resource's authorization serv
 
     // discover the server, register a client and authorize with the resource indicator
     const { url } = await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
@@ -246,7 +246,7 @@ test("register a client dynamically at a protected resource's authorization serv
         })
         .then(([written]) => written);
     await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
@@ -285,7 +285,7 @@ test("poll a device authorization in the controller until the person approves it
         integration: registered,
     });
     const { url, userCode } = await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [connection.call("authorize", { scope: fixture.scope.id, id: reference.id })],
         })
@@ -319,7 +319,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
         integration: registered,
     });
     const { url } = await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
@@ -331,7 +331,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
         })
         .then(([written]) => written);
     await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
@@ -345,7 +345,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
 
     // revoke it and refuse to lend it
     await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [connection.call("revoke", { scope: fixture.scope.id, id: reference.id })],
         })
@@ -418,7 +418,7 @@ test("install an app through the installation issuing its tokens, lend an instal
     };
     const register = (input: ObjectCallInput<typeof integration, "create">) =>
         fixture.objects
-            .mutate(fixture.context().caller(), {
+            .mutate(fixture.context().access(), {
                 id: RequestId.create(Date.now()),
                 calls: [integration.call("create", input)],
             })
@@ -438,7 +438,7 @@ test("install an app through the installation issuing its tokens, lend an instal
 
     // install it from the installation page, completing with the installation the redirect returns
     const { url } = await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
@@ -451,7 +451,7 @@ test("install an app through the installation issuing its tokens, lend an instal
         .then(([written]) => written);
     const state = present(new URL(url).searchParams.get("state"), "the state");
     await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {
@@ -467,7 +467,7 @@ test("install an app through the installation issuing its tokens, lend an instal
     await fixture.control();
     const lent = await lend(fixture, reference);
     await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [connection.call("revoke", { scope: fixture.scope.id, id: reference.id })],
         })
@@ -561,7 +561,7 @@ test("answer no credential from any procedure: connections, integrations and aut
     const registered = await fixture.staticIntegration();
     const reference = await authorizeCode(fixture, registered);
     await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
@@ -576,14 +576,14 @@ test("answer no credential from any procedure: connections, integrations and aut
     // read every object through the package's reading procedures
     const read = { scope: fixture.scope.id };
     const answers = JSON.stringify([
-        await fixture.objects.query(fixture.context().caller(), connection.call("list", read)),
+        await fixture.objects.query(fixture.context().access(), connection.call("list", read)),
         await fixture.objects.query(
-            fixture.context().caller(),
+            fixture.context().access(),
             connection.call("get", { ...read, id: reference.id }),
         ),
-        await fixture.objects.query(fixture.context().caller(), integration.call("list", read)),
+        await fixture.objects.query(fixture.context().access(), integration.call("list", read)),
         await fixture.objects.query(
-            fixture.context().caller(),
+            fixture.context().access(),
             authorizationRequest.call("list", read),
         ),
     ]);
@@ -611,7 +611,7 @@ async function authorizeCode(
         integration: registered,
     });
     const { url } = await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("authorize", {
@@ -623,7 +623,7 @@ async function authorizeCode(
         })
         .then(([written]) => written);
     await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("complete", {

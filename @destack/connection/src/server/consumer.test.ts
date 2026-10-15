@@ -18,7 +18,7 @@ async function createKey(
     input: Readonly<Record<string, unknown>> = {},
 ) {
     const created = await fixture.objects
-        .mutate(fixture.context().caller(), {
+        .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("create", {
@@ -49,7 +49,7 @@ test("lend a connection to an installation's calls only while it is bound to tha
                 .then((loan) => loan.request.headers.get("x-api-key")),
         );
     const change = (name: "bindConsumer" | "releaseConsumer") =>
-        fixture.objects.mutate(fixture.context().caller(), {
+        fixture.objects.mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call(name, {

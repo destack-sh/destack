@@ -73,11 +73,11 @@ export function implementConnection(tokens: TokenSource): typeof connection {
                 };
             },
             lend: {
-                prepare: (call) => lend(call.requireTarget(), tokens, call),
+                prepare: (call) => lend(call.target, tokens, call),
                 handle: async (call) => call.prepared,
             },
             authorize: {
-                authorize: async (call) => requireOpen(call.requireTarget()),
+                authorize: async (call) => requireOpen(call.target),
                 prepare: (call) => ConnectionAuthorization.start(call, tokens),
                 handle: (call) => ConnectionAuthorization.started(call),
             },
@@ -86,8 +86,8 @@ export function implementConnection(tokens: TokenSource): typeof connection {
                 handle: (call) => ConnectionAuthorization.complete(call),
             },
             revoke: {
-                authorize: async (call) => requireOpen(call.requireTarget()),
-                prepare: async (call) => withdrawal(call.requireTarget()),
+                authorize: async (call) => requireOpen(call.target),
+                prepare: async (call) => withdrawal(call.target),
                 handle: (call) => revoke(call),
                 settle: async (call, settled) => {
                     // withdraw the tokens once the revocation committed
@@ -156,7 +156,7 @@ function withdrawal(target: Connection): Withdrawal {
 async function revoke(
     call: CallOf<typeof connection, "revoke">,
 ): Promise<ResultOf<typeof connection, "revoke">> {
-    const target = call.requireTarget();
+    const target = call.target;
 
     return call.updateStatus({
         expiresAt: null,
