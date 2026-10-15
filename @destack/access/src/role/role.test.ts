@@ -152,21 +152,17 @@ test("find a scope's role by name, and read an object's relationships through a 
     const bound = await relate({ object, role: reader, subject: carolMembership });
     const viewing = await relate({ object, relation: "viewer", subject: dave });
 
-    // read the role and each selection of the note's relationships
+    // read each selection of the note's relationships
     const snapshot = Snapshot.live(database);
     const read = async (match: Parameters<typeof Relationship.readOn>[2]) =>
         (await Relationship.readOn(snapshot, object, match)).map((row) => row.id).toSorted();
     expect({
-        role: (await Role.find(snapshot, "personal", "role-1"))?.id,
-        elsewhere: await Role.find(snapshot, "elsewhere", "role-1"),
         all: await read({}),
         bound: await read({ role: reader }),
         viewing: await read({ relation: "viewer" }),
         held: await read({ subject: dave }),
         unheld: await read({ relation: "viewer", subject: carolMembership }),
     }).toEqual({
-        role: reader,
-        elsewhere: null,
         all: [bound, viewing],
         bound: [bound],
         viewing: [viewing],
@@ -194,7 +190,7 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
     // place the personal scope inside the account its members own
     const access = new AccessFixture(database);
     await access.replicateScope(account.reference("universe", "account-1"));
-    await access.replicateOwner(account.reference("universe", "account-1"), carolMembership, 1);
+    await access.bindOwner(account.reference("universe", "account-1"), carolMembership, 1);
     await access.replicateScope(space.reference("account-1", "personal"), "own");
 
     // bind an editor role including the reader role on the account
@@ -367,13 +363,7 @@ test("let owners have everything in their scope, make owners, and never remove t
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
     // let an owner make another owner, and refuse anyone else
-    const [owner] = await database
-        .select({ id: accessRole.id })
-        .from(accessRole)
-        .where(eq(accessRole.isUniversal, true));
-    if (owner === undefined) {
-        throw new Error("creating the space defines no owner role");
-    }
+    const owner = { id: Role.OWNER };
     await expect(
         Authorization.run(
             home,
@@ -524,7 +514,7 @@ test("list the spaces an account contains to the account's owner", async () => {
     // record two accounts, their spaces, and carol as the first account's owner
     const access = new AccessFixture(database);
     await access.replicateScope(account.reference("universe", "account-1"));
-    await access.replicateOwner(
+    await access.bindOwner(
         account.reference("universe", "account-1"),
         aligned(carol.subjects, 0),
         1,

@@ -23,8 +23,8 @@ import type { Gate } from "./decision.ts";
 import { Authorizer } from "./authorizer.ts";
 import { type FieldRelation, TableMapping } from "./mapping.ts";
 
-/** The permission key that lists the roles granting every unreserved permission. */
-export const UNIVERSAL = "*";
+/** The permission key that lists the owning roles, granting every unreserved permission. */
+export const OWNING = "*";
 
 /** A caller's access in one scope: authority, scope chain, roles along it and validity time. */
 export class Access {
@@ -55,7 +55,7 @@ export class Access {
     /** The chain's and the caller's roles granting each permission, by permission key. */
     readonly #roles: ReadonlyMap<string, readonly string[]>;
     /** The chain's and the caller's roles granting every unreserved permission, as owners' do. */
-    readonly #universal: readonly string[];
+    readonly #owning: readonly string[];
     /** The roles bound outside the scope chain, each with the only bindings it grants through. */
     readonly #confined: ReadonlyMap<string, ReadonlySet<string>>;
     /** The authorizer whose reserved, elevated and administration permissions apply. */
@@ -96,13 +96,13 @@ export class Access {
         this.partition = resolved.links[0]?.partition;
         this.until = resolved.until;
 
-        // index the roles by the permissions they grant, apart from the roles granting everything
+        // index the roles by the permissions they grant, apart from the owner roles granting everything
         const roles = new Map<string, string[]>();
-        const universal: string[] = [];
+        const owning: string[] = [];
         for (const [role, grant] of resolved.grants) {
-            // list a role granting everything apart
-            if (grant.isUniversal) {
-                universal.push(role);
+            // list an owning role apart
+            if (grant.isOwner) {
+                owning.push(role);
             }
             // index any other role under each permission it grants
             else {
@@ -113,7 +113,7 @@ export class Access {
             }
         }
         this.#roles = roles;
-        this.#universal = universal;
+        this.#owning = owning;
         this.#confined = resolved.confined;
 
         // list each role under its permission keys, a confined role once per binding it grants through
@@ -128,7 +128,7 @@ export class Access {
             ...[...roles].flatMap(([key, granted]) =>
                 granted.flatMap((role) => entries(key, role)),
             ),
-            ...universal.flatMap((role) => entries(UNIVERSAL, role)),
+            ...owning.flatMap((role) => entries(OWNING, role)),
         ]);
     }
 
@@ -181,7 +181,7 @@ export class Access {
                 : undefined,
             Access.expand(
                 snapshot,
-                await Access.#represented(snapshot, context, scopes),
+                await Access.#represented(snapshot, context, scopes, authorizer),
                 context,
                 authorizer,
                 scopes,
@@ -218,11 +218,12 @@ export class Access {
         snapshot: Snapshot,
         context: AccessContext,
         scopes: readonly ObjectReference[],
+        authorizer: Authorizer,
     ): Promise<Subject[]> {
         return [
             ...context.subjects,
             ...Caller.contacts(context).map((contact) => Contact.subject(contact)),
-            ...(await Access.#contained(snapshot, context.subjects, scopes)),
+            ...(await Access.#contained(snapshot, context.subjects, scopes, authorizer)),
         ];
     }
 
@@ -436,11 +437,12 @@ export class Access {
         };
     }
 
-    /** List the containment sets of each principal's scopes and the scopes enclosing them. */
+    /** List the containment sets of the principals' scopes. */
     static async #contained(
         snapshot: Snapshot,
         subjects: readonly Subject[],
         chain: readonly ObjectReference[],
+        authorizer: Authorizer,
     ): Promise<Subject[]> {
         const sets: Subject[] = [];
         for (const subject of subjects) {
@@ -450,20 +452,29 @@ export class Access {
             }
 
             // find the principal's scopes below the universe, including the principal itself
+            const isGlobal = subject.scope === Scope.universe.id;
             const place = chain.findIndex(
-                (scope) => scope.id === subject.scope || scope.id === subject.id,
+                (scope) => scope.id === subject.id || (!isGlobal && scope.id === subject.scope),
             );
             const enclosing =
                 place !== -1
                     ? chain.slice(place)
-                    : subject.scope === Scope.universe.id
+                    : isGlobal
                       ? []
                       : (await Scope.chain(snapshot, subject.scope)).map((link) => link.object);
-            sets.push(
-                ...enclosing
-                    .filter((scope) => scope.id !== Scope.universe.id)
-                    .map((scope) => ({ ...scope, relation: CONTAINED })),
-            );
+
+            // contain a global scope's principal in itself, by its universe reference
+            if (isGlobal && authorizer.find(subject)?.definition.scope === true) {
+                sets.push({ ...subject, relation: CONTAINED });
+            }
+
+            // list each enclosing scope's set, a global principal's also under its universe reference
+            for (const scope of enclosing.filter((each) => each.id !== Scope.universe.id)) {
+                sets.push({ ...scope, relation: CONTAINED });
+                if (authorizer.policy(scope).definition.isGlobal === true) {
+                    sets.push({ ...scope, scope: Scope.universe.id, relation: CONTAINED });
+                }
+            }
         }
 
         return sets;
@@ -521,22 +532,22 @@ export class Access {
         readonly binding: string;
         readonly permission: PermissionReference | null;
     }): boolean {
-        // find the role among the universal roles for ownership, or among those granting the permission
+        // find the role among the owning roles, or among those granting the permission
         const confined = this.#confined.get(role.id);
         const isGranting =
             role.permission === null
-                ? this.#universal.includes(role.id)
+                ? this.#owning.includes(role.id)
                 : this.#grants(role.permission, role.id);
 
         return isGranting && (confined === undefined || confined.has(role.binding));
     }
 
-    /** Report whether a role grants a permission, universally unless the permission is reserved. */
+    /** Report whether a role grants a permission, or owns every unreserved one. */
     #grants(permission: PermissionReference, roleId: string): boolean {
         const listed = this.#roles.get(PermissionReference.key(permission)) ?? [];
-        const isUniversal = !this.isReserved(permission) && this.#universal.includes(roleId);
+        const isOwning = !this.isReserved(permission) && this.#owning.includes(roleId);
 
-        return listed.includes(roleId) || isUniversal;
+        return listed.includes(roleId) || isOwning;
     }
 
     /** Read the gate a request fails on a row before grants: credential, elevation, suspension. */
@@ -662,12 +673,13 @@ export class Access {
         readonly confined: ReadonlyMap<string, ReadonlySet<string>>;
         readonly until: number | undefined;
     }> {
-        // read the chain's roles, the caller's bound roles, and the chains of those bindings' scopes
+        // read the roles of the chain and the universe enclosing it, the caller's bound roles, and the chains of those bindings' scopes
+        const enclosing = [...new Set([...chain, Scope.universe.id])];
         const [chained, held, bound] = await Promise.all([
             snapshot.select(
                 accessRole,
                 ["scope"],
-                chain.map((id) => [id]),
+                enclosing.map((id) => [id]),
             ),
             snapshot.select(
                 accessRole,
@@ -716,9 +728,8 @@ export class Access {
         );
 
         // close the roles over their inclusions
-        const roles = rows.map((row): Pick<Role, "id" | "isUniversal" | "permissions"> => ({
+        const roles = rows.map((row): Pick<Role, "id" | "permissions"> => ({
             id: row.id,
-            isUniversal: row.isUniversal,
             permissions: (byRole.get(row.id) ?? []).map((granted) => ({
                 packageId: granted.packageId,
                 type: granted.type,

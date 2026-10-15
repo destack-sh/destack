@@ -1,5 +1,4 @@
 import {
-    boolean,
     check,
     defineTable,
     identifier,
@@ -10,7 +9,23 @@ import {
     uniqueIndex,
     type Column,
 } from "@destack/db";
+import { schema } from "@destack/schema";
 import { nameCheck } from "../declare/expression.ts";
+
+/** The one owner role, bound in each scope to its owners: every permission but reserved ones. */
+export const OWNER_ROLE = {
+    id: schema.identifier("role").parse("role-00000000-0000-7000-8000-000000000001"),
+    createdAt: 0,
+    updatedAt: 0,
+    revision: 1,
+    managerInstallationId: null,
+    managerPackageId: null,
+    managerName: null,
+    detachedAt: null,
+    scope: "universe",
+    name: "owner",
+    description: "Every permission in the scope it is bound in except reserved ones",
+} as const;
 
 /** A named set of permissions defined within a scope. */
 export const accessRole = defineTable(
@@ -38,8 +53,6 @@ export const accessRole = defineTable(
         name: text("name").notNull(),
         /** The purpose shown when granting the role. */
         description: text("description").notNull(),
-        /** Whether the role grants all but reserved permissions in its scope, as owners do. */
-        isUniversal: boolean("is_universal").notNull().default(false),
     },
     {
         log: { retention: "history" },
@@ -47,6 +60,7 @@ export const accessRole = defineTable(
             ...managerChecks("role", role),
             unique("role_scope_name").on(role.scope, role.name),
         ],
+        predefined: [OWNER_ROLE],
     },
 );
 

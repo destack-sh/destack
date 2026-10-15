@@ -48,18 +48,12 @@ export class AccessFixture {
         });
     }
 
-    /** Define a replicated scope's owner role and bind it to an owner, returning it. */
-    async replicateOwner(
-        scope: ObjectReference,
-        owner: Subject,
-        now = Date.now(),
-    ): Promise<string> {
-        // write the role and its binding in one transaction
+    /** Bind the owner role on a scope to an owner, as its home does. */
+    async bindOwner(scope: ObjectReference, owner: Subject, now = Date.now()): Promise<void> {
+        // bind the owner role in one transaction
         const transaction = await Transaction.open(this.database);
-        const role = await Role.own(transaction, scope, owner, now);
+        await Role.bindOwner(transaction, scope, owner, now);
         await transaction.commit();
-
-        return role;
     }
 
     /** Define a role in a replicated scope and bind it to a subject on the scope, returning it. */

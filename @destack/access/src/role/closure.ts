@@ -1,10 +1,10 @@
 import { PermissionReference } from "../declare/policy.ts";
-import type { Role } from "./role.ts";
+import { Role } from "./role.ts";
 
 /** What a role grants: all but reserved permissions, or its own and included roles' ones. */
 export interface RoleGrant {
-    /** Whether the role, or a role it includes, grants every permission. */
-    readonly isUniversal: boolean;
+    /** Whether the role is the owner role or includes it, granting all but reserved permissions. */
+    readonly isOwner: boolean;
     /** The permissions the role grants itself or through the roles it includes. */
     readonly permissions: readonly PermissionReference[];
 }
@@ -13,7 +13,7 @@ export interface RoleGrant {
 export const RoleGrant = {
     /** Close each role over its included roles, following only roles of the same chain. */
     close(
-        roles: readonly Pick<Role, "id" | "isUniversal" | "permissions">[],
+        roles: readonly Pick<Role, "id" | "permissions">[],
         includes: readonly { readonly role: string; readonly included: string }[],
     ): Map<string, RoleGrant> {
         // index the defined roles and their inclusions
@@ -30,7 +30,7 @@ export const RoleGrant = {
         for (const role of roles) {
             const permissions = new Map<string, PermissionReference>();
             const visited = new Set<string>();
-            let isUniversal = false;
+            let isOwner = false;
             const pending: string[] = [role.id];
             for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
                 // visit each defined role once
@@ -41,13 +41,13 @@ export const RoleGrant = {
                 visited.add(next.id);
 
                 // take its permissions and follow its inclusions
-                isUniversal ||= next.isUniversal;
+                isOwner ||= next.id === Role.OWNER;
                 for (const permission of next.permissions) {
                     permissions.set(PermissionReference.key(permission), permission);
                 }
                 pending.push(...(included.get(next.id) ?? []));
             }
-            closure.set(role.id, { isUniversal, permissions: [...permissions.values()] });
+            closure.set(role.id, { isOwner, permissions: [...permissions.values()] });
         }
 
         return closure;
