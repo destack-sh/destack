@@ -147,6 +147,54 @@ test("report a key whose peer answers unavailable only once it stays so past the
     ]);
 });
 
+test("retry a reconciliation a domain failure refuses as unavailable, such as a stale replica, until it succeeds, reporting nothing", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // refuse "stale" twice as access refuses a replica its home has not confirmed lately
+    const attempts: string[] = [];
+    const reported: string[] = [];
+    const controller: Controller = {
+        name: "job",
+        watches: [],
+        keys: () => [],
+        list: async () => ["stale"],
+        reconcile: async (key) => {
+            attempts.push(key);
+            if (attempts.length <= 2) {
+                throw Object.assign(
+                    new Error("access was last confirmed by its home 600000 ms ago"),
+                    {
+                        code: "STALE",
+                        toCallError: () => ({
+                            code: "SERVICE_UNAVAILABLE",
+                            message: "access was last confirmed by its home 600000 ms ago",
+                        }),
+                    },
+                );
+            }
+
+            return undefined;
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(storage.database, [controller], {
+        clock: Clock.system,
+        report: (_controller, key) => reported.push(key),
+        retry: { initialInterval: 5, maximumInterval: 5 },
+        unavailableFor: 60_000,
+    });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // succeed on the third attempt without a report
+    await expect.poll(() => attempts.length).toBe(3);
+    expect({ attempts, reported }).toEqual({ attempts: ["stale", "stale", "stale"], reported: [] });
+});
+
 test("report a key function that fails on a change and reconcile every listed key in its place, following later changes", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());

@@ -8,6 +8,7 @@ import {
 import { aligned, Clock, found } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
+import { CallError } from "../error/error.ts";
 import { RetryPolicy, until, yieldToEventLoop } from "../timer/index.ts";
 import type { Alarm } from "./alarm.ts";
 import { LEASE_MILLISECONDS, Leases } from "./lease.ts";
@@ -752,13 +753,18 @@ class DueQueue {
     }
 }
 
-/** Report whether a failure is a peer answering unavailable or refusing the connection. */
+/** Report whether a failure is transiently unavailable, such as a peer down or a stale replica. */
 function isUnavailable(error: unknown): boolean {
-    // read the failure's status and code
+    // read the failure's status and code, a domain failure's through its call error
+    const failure = CallError.of(error) ?? error;
     const status =
-        typeof error === "object" && error !== null && "status" in error ? error.status : undefined;
+        typeof failure === "object" && failure !== null && "status" in failure
+            ? failure.status
+            : undefined;
     const code =
-        typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+        typeof failure === "object" && failure !== null && "code" in failure
+            ? failure.code
+            : undefined;
 
     return (
         status === 503 ||

@@ -1,4 +1,6 @@
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
+import { telemetry } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { CallError } from "../error/index.ts";
 import {
     type HeldSocketDescription,
@@ -7,6 +9,9 @@ import {
     SOCKET_PATH,
     SocketAcceptance,
 } from "../workload/socket.ts";
+
+/** The instruments capturing the closes instances refuse. */
+const instruments = telemetry.scope(import.meta.destack.package);
 
 /** The most bytes in one WebSocket message: 1 MiB. */
 const MESSAGE_BYTES = 1024 * 1024;
@@ -140,8 +145,16 @@ export class BunHibernation {
         );
         await response.arrayBuffer();
 
+        // report a close the instance refuses, which its connection's lapse then sweeps
+        if (!response.ok && request.method === "DELETE") {
+            instruments.captureException(
+                new CallError("BAD_GATEWAY", {
+                    message: `instance ${instanceId} refused the close of socket ${description.id}: ${response.status}`,
+                }),
+            );
+        }
         // close a socket whose message the instance refuses
-        if (!response.ok && request.method !== "DELETE") {
+        else if (!response.ok) {
             socket.close();
         }
     }
