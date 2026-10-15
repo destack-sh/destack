@@ -72,10 +72,10 @@ test("pass the calling module to stamped tags and to members of named and namesp
         `const __destackModule = Object.freeze(${metadata});`,
         'import { Note, note } from "./declare.ts";',
         'import * as notes from "./declare.ts";',
-        "export const greeting = note(__destackModule)`Hello ${name}`;",
+        "export const greeting = note.withModule(__destackModule)`Hello ${name}`;",
         'export const title = Note.titled("heading", __destackModule)`Trips`;',
         'export const other = notes.Note.titled("heading", __destackModule)`Work`;',
-        "export const plain = notes.note(__destackModule)`Plain`;",
+        "export const plain = notes.note.withModule(__destackModule)`Plain`;",
         'export const owned = Note.titled("heading", __destackModule)`Owned`;',
     ]);
 });

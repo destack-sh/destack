@@ -82,11 +82,11 @@ export function transformModule(
                 isChanged = true;
             }
         },
-        // call a stamped tag with the module, its result tagging the template
+        // tag the template with the stamped tag's module form
         TaggedTemplateExpression(node) {
             const position = findStamp(node.tag, bindings);
             if (position !== undefined) {
-                source.appendLeft(node.tag.end, `(${moduleArguments(position, 0)})`);
+                source.appendLeft(node.tag.end, `.withModule(${moduleArguments(position, 0)})`);
                 isChanged = true;
             }
         },
