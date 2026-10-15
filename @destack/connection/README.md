@@ -1,13 +1,13 @@
 # @destack/connection
 
-`@destack/connection` is Nango: an `integration` is a Nango integration, the OAuth client registered at a provider, a `connection` is a Nango connection holding one external account's credential in a vault, and `Lender.lend` is Nango's proxy, applying the credential to an outbound request and refreshing it before it expires.
+`@destack/connection` keeps the credentials of external accounts in vaults and applies them to outbound requests, as Nango's integrations, connections and proxy do.
 
 ```ts
 // a Nango integration
 await client.integration.create({
     scope,
     requestId,
-    issuer,
+    issuer: { kind: "server", url: "https://auth.example.com" },
     endpoints,
     clientId,
     authentication: "client_secret_basic",
@@ -26,7 +26,7 @@ await client.connection.create({
 });
 // Nango's auth flow
 const { url } = await client.connection.authorize({ scope, id, requestId, redirectUri });
-const loan = await lender.lend(reference, request, Date.now()); // Nango's proxy
+const lent = await ConnectionRequest.borrow(home, reference, request, Date.now()); // Nango's proxy
 await client.connection.revoke({ scope, id, requestId }); // RFC 7009 revocation
 ```
 
@@ -60,33 +60,47 @@ await client.connection.create({
 });
 ```
 
-## Service
+## Server
 
-`implementConnections` serves a space's connections, and its integrations where the space is their home, with the `lender` the machine's egress uses.
+`@destack/connection/server` serves connections and integrations as the connection installation, whose controller obtains and refreshes every token before it expires.
 
 ```ts
-import { implementConnections } from "@destack/connection/server";
+import server from "@destack/connection/server";
 
-const connections = implementConnections({
-    space: spaceId,
-    consumer: machine,
-    fetch,
-    issuers: [],
-    home,
-});
-const lender = connections.lender(server);
+const extension = server(context); // tokens through the host's network, the home through its egress
+```
+
+## Borrowing
+
+`ConnectionRequest.borrow` lends a connection to a bound installation's outbound request, applying its current credential.
+
+```ts
+const { request, certificate } = await ConnectionRequest.borrow(home, reference, outbound, Date.now());
 ```
 
 ## Installations
 
-`GitHubIssuer` issues the installation tokens of a GitHub App, signing its JWT with `Assertion.sign`.
+An app installed on external accounts gets its tokens from an installation of the package keeping the app's key, which declares the `Issuer` template.
 
 ```ts
-import { GitHubIssuer } from "@destack/connection/github";
+import { Issuer } from "@destack/connection/object";
 
-const github = new GitHubIssuer({ fetch });
-const token = await github.token(appId, "4242", privateKey, { permissions: { metadata: "read" } });
-await github.request("GET", "/repos/acme/site", token.accessToken);
+// the issuing package, such as the forge with its GitHub App
+export const issuer = defineObject(Issuer.definition()).methods(Issuer.methods);
+
+// the integration records the installation and its issuer, whose consumer the connection installation is
+await client.integration.create({
+    scope,
+    requestId,
+    issuer: { kind: "installation", package: Package.of(forge), name: "forge", issuer: reference },
+    endpoints: {
+        installation: "https://github.com/apps/destack/installations/new",
+        isIssuerReturned: false,
+    },
+    clientId,
+    authentication: "none",
+    redirectUris,
+});
 ```
 
 ## Tables
@@ -97,7 +111,7 @@ await github.request("GET", "/repos/acme/site", token.accessToken);
 import { connectionTables, integrationTables } from "@destack/connection/stack";
 
 const space = defineDatabase({
-    name: "space",
+    name: "main",
     tables: [...connectionTables, ...integrationTables],
 });
 ```

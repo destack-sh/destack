@@ -7,11 +7,10 @@
     "description": "Hold credentials for external accounts and lend them to outbound calls.",
     "exports": {
         ".": "./src/index.ts",
-        "./github": "./src/github/index.ts",
         "./oauth": "./src/oauth/index.ts",
         "./object": "./src/object/index.ts",
-        "./server": "./src/server/index.ts",
-        "./service": "./src/service/index.ts",
+        "./server": "./src/server.ts",
+        "./package": "./src/package.ts",
         "./signature": "./src/signature/index.ts",
         "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts"
@@ -23,23 +22,23 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/service": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/vault": "workspace:*",
-        "jose": "6.2.12",
-        "uuid": "14.0.2"
+        "jose": "6.2.12"
     },
     "devDependencies": {
+        "@destack/event": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
-        "@destack/stack": "workspace:*"
+        "@destack/stack": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "uuid": "14.0.2"
     }
 }

@@ -1,13 +1,16 @@
-import { schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import type { ObjectReference } from "@destack/sync";
 import { DEVICE_CODE } from "../oauth/server.ts";
 import { ConnectionFixture } from "../test/index.ts";
 
+/** A space of another account, outside the home's. */
+const OUTSIDE = Identifier.create("space");
+
 /** Ask an integration's home for a device authorization, token and revocation as a space. */
 async function ask(home: ConnectionFixture, integration: ObjectReference, space: string) {
     // call the home as the space
-    const client = home.home(space)(integration.scope);
+    const client = home.home(space).home(integration.scope);
     const target = {
         scope: integration.scope,
         id: schema.identifier("integration").parse(integration.id),
@@ -33,10 +36,10 @@ test("refuse a space outside a private integration's scope its tokens, device au
     const home = await ConnectionFixture.open();
     onTestFinished(() => home.close());
     const owned = await home.staticIntegration();
-    const shared = await home.staticIntegration("public");
+    const shared = await home.staticIntegration({ isPublic: true });
 
     // call each as a space placed in another account
-    const client = home.home("space-outside")(owned.scope);
+    const client = home.home(OUTSIDE).home(owned.scope);
     const target = { scope: owned.scope, id: schema.identifier("integration").parse(owned.id) };
     const refused = [
         await refusal(client.integration.authorizeDevice({ ...target, request: { scopes: [] } })),
@@ -58,7 +61,7 @@ test("refuse a space outside a private integration's scope its tokens, device au
     const hidden = ["NOT_FOUND", `no integration ${owned.id}`];
     expect({
         refused,
-        served: await ask(home, shared, "space-outside"),
+        served: await ask(home, shared, OUTSIDE),
         revoked: home.server.revoked,
     }).toEqual({
         refused: [hidden, hidden, hidden],

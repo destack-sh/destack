@@ -1,10 +1,10 @@
 import { principal } from "@destack/access";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { connection } from "../object/index.ts";
 import { ConnectionFixture } from "../test/index.ts";
 
-/** Open a connection service for one test. */
+/** Serve connections for one test. */
 async function open(): Promise<ConnectionFixture> {
     const fixture = await ConnectionFixture.open();
     onTestFinished(() => fixture.close());
@@ -44,8 +44,8 @@ test("lend a connection to an installation's calls only while it is bound to tha
     const other = principal.installation.reference(fixture.scope.id, "installation-other");
     const lend = (installation: typeof borrower) =>
         refusal(
-            fixture.lender
-                .lend(reference, new Request("https://api.test/items"), Date.now(), installation)
+            fixture
+                .borrow(reference, new Request("https://api.test/items"), installation)
                 .then((loan) => loan.request.headers.get("x-api-key")),
         );
     const change = (name: "bindConsumer" | "releaseConsumer") =>
@@ -59,24 +59,16 @@ test("lend a connection to an installation's calls only while it is bound to tha
             ],
         });
 
-    // refuse before lending, lend to the borrower alone, and refuse again once reclaimed
+    // refuse before lending, lend to the borrower alone, and refuse again once reclaimed, hiding the scope from installations not bound
     const before = await lend(borrower);
     await change("bindConsumer");
     const loan = [await lend(borrower), await lend(other)];
     await change("releaseConsumer");
+    const hidden = ["NOT_FOUND", `no scope ${fixture.scope.id}`];
 
     expect({ before, loan, reclaimed: await lend(borrower) }).toEqual({
-        before: [
-            "UNAUTHORIZED",
-            `connection ${id} is not bound to installation installation-bridge`,
-        ],
-        loan: [
-            "done",
-            ["UNAUTHORIZED", `connection ${id} is not bound to installation installation-other`],
-        ],
-        reclaimed: [
-            "UNAUTHORIZED",
-            `connection ${id} is not bound to installation installation-bridge`,
-        ],
+        before: hidden,
+        loan: ["done", hidden],
+        reclaimed: hidden,
     });
 });

@@ -1,11 +1,10 @@
 import { principal } from "@destack/access";
 import { inArray } from "@destack/db";
-import { aligned, present, Clock } from "@destack/schema";
-import { ControlLoop } from "@destack/service/control";
-import { RequestId } from "@destack/service/request";
+import { aligned, present, Identifier } from "@destack/schema";
+import { RequestId } from "@destack/runtime/request";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Replica, type ObjectReference } from "@destack/sync";
-import { journal } from "@destack/audit/stack";
+import { journal } from "@destack/object";
 import { Credential } from "../credential/credential.ts";
 import { authorizationRequest, connection, integration } from "../object/index.ts";
 import { ConnectionFixture, RESOURCE } from "../test/index.ts";
@@ -13,59 +12,37 @@ import { ConnectionFixture, RESOURCE } from "../test/index.ts";
 /** The redirect URI the test integration registered. */
 const REDIRECT = "https://app.test/callback";
 
-/** Open the service with an integration and a space copying it, both until the test ends. */
-async function open(spaceId = "space-two") {
+/** Serve connections with an integration and a space replicating it, both until the test ends. */
+async function open(spaceId: string = Identifier.create("space")) {
     // keep the integration at its home
     const home = await ConnectionFixture.open();
     onTestFinished(() => home.close());
     const registered = await home.staticIntegration();
 
-    // copy it into a space, following the home's integrations in a control loop
+    // replicate it into a space, following the home's integrations in a control loop
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
-    const space = await follow(home, spaceId, controller.signal);
+    const space = await follow(home, spaceId);
 
     return { home, space, registered, signal: controller.signal };
 }
 
-/** Open a space copying a home's integrations in a control loop until the test ends. */
-async function follow(
-    home: ConnectionFixture,
-    spaceId: string,
-    signal: AbortSignal,
-    enclosing?: ObjectReference,
-): Promise<ConnectionFixture> {
-    // place the space in the home's scope, and serve its connections over the home's integrations
-    await home.place(spaceId);
+/** Open a space replicating a home's integrations in a control loop until the test ends. */
+async function follow(home: ConnectionFixture, spaceId: string): Promise<ConnectionFixture> {
+    // place the space in the home's account, and serve its connections over the home's integrations
+    const placed = await home.place(spaceId);
     const space = await ConnectionFixture.open({
-        home: {
-            home: home.home(spaceId),
-            space: spaceId,
-            ...(enclosing === undefined ? {} : { enclosing }),
-        },
+        home: { ...home.home(spaceId), space: spaceId, enclosing: placed },
     });
     onTestFinished(() => space.close());
 
-    // follow the copies until the test ends, keeping every failure
-    const controller = new AbortController();
-    signal.addEventListener("abort", () => controller.abort());
-    const failures: unknown[] = [];
-    const loop = new ControlLoop(
-        space.database,
-        space.objects.controllers().filter((each) => each.name === "replica"),
-        { clock: Clock.system, report: (_controller, _key, error) => failures.push(error) },
-    );
-    const running = loop.run(controller.signal);
-    onTestFinished(async () => {
-        controller.abort();
-        await running;
-        expect(failures).toEqual([]);
-    });
+    // follow the replicas until the test ends
+    space.follow();
 
     return space;
 }
 
-/** Create a connection through the copied integration in a space, with its external account. */
+/** Create a connection through the replicated integration in a space, with its external account. */
 async function connect(
     fixture: Awaited<ReturnType<typeof open>>,
     space: ConnectionFixture,
@@ -95,7 +72,7 @@ async function connect(
             .where(inArray(connection.table.id, [created.id]));
     }
 
-    // wait for the copy of the integration to hold the home's head
+    // wait for the replica of the integration to match the home's head
     const head = await fixture.home.database.log.position();
     await Replica.wait(space.database, fixture.registered.scope, head, fixture.signal);
 
@@ -159,7 +136,7 @@ async function bindAtHome(
     return connection.reference(home.scope.id, created.id);
 }
 
-test("authorize a connection through an integration another service keeps, which authenticates the client and keeps none of the tokens", async () => {
+test("authorize a connection through an integration another space keeps, which authenticates the client and keeps none of the tokens", async () => {
     const fixture = await open();
     const { home, space } = fixture;
     const reference = await connect(fixture, space);
@@ -167,11 +144,7 @@ test("authorize a connection through an integration another service keeps, which
     // authorize at the home's server and complete in the space, the code exchanged through the home
     const { url } = await authorize(space, reference.id);
     await complete(space, reference.id, await home.server.approve(url));
-    const loan = await space.lender.lend(
-        reference,
-        new Request("https://api.test/items"),
-        Date.now(),
-    );
+    const loan = await space.lend(reference, new Request("https://api.test/items"));
 
     // read the space's connection, the home's connections and pending authorizations, and the home's journal of token requests
     const [row] = await space.connections();
@@ -207,7 +180,7 @@ test("authorize a connection through an integration another service keeps, which
     });
 });
 
-test("refuse client credentials through a copied integration, and token requests from anyone but a space", async () => {
+test("refuse client credentials through a replicated integration, and token requests from anyone but a space", async () => {
     const fixture = await open();
     const { home, space, registered } = fixture;
     const reference = await connect(fixture, space, { kind: "client-credentials" });
@@ -243,10 +216,10 @@ test("refuse client credentials through a copied integration, and token requests
     });
 });
 
-test("register the client of a space's connection without an integration at the home of its account, and authorize through the copy", async () => {
+test("register the client of a space's connection without an integration at the home of its account, and authorize through the replica", async () => {
     const fixture = await open();
     const { home, signal } = fixture;
-    const space = await follow(home, "space-three", signal, home.scope);
+    const space = await follow(home, Identifier.create("space"));
 
     // create a connection with only its protected resource in a space of the home's scope
     const created = await space.objects
@@ -263,7 +236,7 @@ test("register the client of a space's connection without an integration at the 
         })
         .then(([written]) => written);
 
-    // register at home, wait for the copy, and complete through the home's client
+    // register at home, wait for the replica, and complete through the home's client
     const { url } = await authorize(space, created.id);
     const head = await home.database.log.position();
     await Replica.wait(space.database, home.scope.id, head, signal);
@@ -271,11 +244,7 @@ test("register the client of a space's connection without an integration at the 
     const [row] = await space.connections();
     const kept = await home.database.select().from(integration.table);
     const reference = connection.reference(space.scope.id, created.id);
-    const loan = await space.lender.lend(
-        reference,
-        new Request("https://api.test/items"),
-        Date.now(),
-    );
+    const loan = await space.lend(reference, new Request("https://api.test/items"));
 
     expect({
         integration: row?.integration,
@@ -304,14 +273,7 @@ test("lend a connection its home keeps to a space's bound installation through t
 
     // lend it from the space to each installation, and create an installation connection in the space
     const lend = (consumer: typeof bound) =>
-        refusal(
-            space.lender.lend(
-                reference,
-                new Request("https://api.test/items"),
-                Date.now(),
-                consumer,
-            ),
-        );
+        refusal(home.borrow(reference, new Request("https://api.test/items"), consumer));
     const installed = await refusal(
         space.objects
             .mutate(space.context().caller(), {
@@ -328,12 +290,7 @@ test("lend a connection its home keeps to a space's bound installation through t
             .then(([written]) => written),
     );
 
-    const loan = await space.lender.lend(
-        reference,
-        new Request("https://api.test/items"),
-        Date.now(),
-        bound,
-    );
+    const loan = await home.borrow(reference, new Request("https://api.test/items"), bound);
 
     expect({
         lent: loan.request.headers.get("authorization"),

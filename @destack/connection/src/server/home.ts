@@ -1,7 +1,7 @@
-import type { ServiceClient } from "@destack/service/client";
+import type { ClientOf } from "@destack/runtime/client";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
-import type { Integration } from "../object/integration.ts";
+import { type Integration, IntegrationIssuer } from "../object/integration.ts";
 import { TokenGrant } from "../oauth/grant.ts";
 import {
     type AuthorizationClient,
@@ -9,12 +9,12 @@ import {
     AuthorizationServer,
     type DeviceAuthorization,
 } from "../oauth/server.ts";
-import type { connectionService } from "../service/service.ts";
+import type connectionPackage from "../package.ts";
 import { type Clock, schema } from "@destack/schema";
-import type { Fetch } from "@destack/service";
+import type { Fetch } from "@destack/runtime";
 import type { ObjectReference } from "@destack/sync";
 
-/** A copied integration's client, which writes its authorization pages here. */
+/** A replicated integration's client, which writes its authorization pages here. */
 export class HomeClient implements AuthorizationClient {
     /** The issuer identifier. */
     readonly issuer: string;
@@ -22,28 +22,28 @@ export class HomeClient implements AuthorizationClient {
     readonly endpoints: Integration["endpoints"];
     /** The integration. */
     readonly #reference: ObjectReference;
-    /** The connection service of the space keeping the integration. */
-    readonly #home: ServiceClient<typeof connectionService>;
+    /** The connections of the space keeping the integration. */
+    readonly #home: ClientOf<typeof connectionPackage>;
     /** The server as the public client writes its pages. */
     readonly #pages: AuthorizationServer;
 
-    /** Call a copied integration's server through its home, on the store's clock. */
+    /** Call a replicated integration's server through its home, on the store's clock. */
     constructor(
         row: Integration,
         reference: ObjectReference,
-        home: ServiceClient<typeof connectionService>,
+        home: ClientOf<typeof connectionPackage>,
         fetch: Fetch,
         clock: Clock,
     ) {
         // keep the server, the integration and its home
-        this.issuer = row.issuer;
+        this.issuer = IntegrationIssuer.url(row.issuer);
         this.endpoints = row.endpoints;
         this.#reference = reference;
         this.#home = home;
 
         // write pages as the public client, which needs no secret
         this.#pages = new AuthorizationServer({
-            issuer: row.issuer,
+            issuer: this.issuer,
             endpoints: row.endpoints,
             client: { clientId: row.clientId, authentication: row.authentication },
             fetch,
@@ -88,7 +88,7 @@ export class HomeClient implements AuthorizationClient {
         });
     }
 
-    /** Select the integration as the connection service's procedures take it. */
+    /** Select the integration as the connection package's procedures take it. */
     #target() {
         const { scope, id } = this.#reference;
 
