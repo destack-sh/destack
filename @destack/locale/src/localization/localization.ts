@@ -36,20 +36,27 @@ export interface Localization {
     readonly direction: Direction;
 
     /** Render a message with its arguments in the nearest locale its catalogs translate it into. */
-    render<Names extends string>(message: Message<Names>, ...rest: RenderArguments<Names>): string;
+    readonly render: <Names extends string>(
+        message: Message<Names>,
+        ...rest: RenderArguments<Names>
+    ) => string;
 
     /** Write a number. */
-    number(value: number, options?: Intl.NumberFormatOptions): string;
+    readonly number: (value: number, options?: Intl.NumberFormatOptions) => string;
     /** Write an amount in its currency's minor unit, such as 1200 EUR cents as €12.00. */
-    money(amount: number, currency: string): string;
+    readonly money: (amount: number, currency: string) => string;
     /** Write an instant given in UTC epoch milliseconds. */
-    date(time: number, options?: Intl.DateTimeFormatOptions): string;
+    readonly date: (time: number, options?: Intl.DateTimeFormatOptions) => string;
     /** Write the span between two UTC epoch millisecond instants, sharing their common parts. */
-    dateRange(start: number, end: number, options?: Intl.DateTimeFormatOptions): string;
+    readonly dateRange: (
+        start: number,
+        end: number,
+        options?: Intl.DateTimeFormatOptions,
+    ) => string;
     /** Write a list joined as the locale joins one, such as a, b and c. */
-    list(items: readonly string[], options?: Intl.ListFormatOptions): string;
+    readonly list: (items: readonly string[], options?: Intl.ListFormatOptions) => string;
     /** Write an instant relative to now in its largest whole unit, such as 3 days ago. */
-    relative(time: number, now: number): string;
+    readonly relative: (time: number, now: number) => string;
 }
 
 /** How a localization reads its messages and runs its text. */

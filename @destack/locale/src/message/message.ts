@@ -87,24 +87,20 @@ export function select<Value extends string | Argument>(
 }
 
 /** Write a localizable message from a template, with interpolations as placeholders or variants. */
-export function t<const Parts extends readonly unknown[]>(
-    strings: TemplateStringsArray,
-    ...parts: Parts
-): Message<ArgumentName<Parts[number]>>;
-/** Build the template tag writing a module's messages, as the module transform calls it. */
-export function t(module: ModuleMetadata): MessageTag;
-/**
- * Build the writing module's template tag, refusing a template written without it.
- *
- * @construct the module transform rewrites each t`…` into t(module)`…`.
- * A template reaches t only untransformed.
- */
-export function t(first: TemplateStringsArray | ModuleMetadata): Message | MessageTag {
-    // refuse a template the module transform did not stamp
-    const module = ModuleMetadata.require("package" in first ? first : undefined, "t");
-
-    return Message.context("", module);
-}
+export const t = Object.assign(
+    <const Parts extends readonly unknown[]>(
+        strings: TemplateStringsArray,
+        ...parts: Parts
+    ): Message<ArgumentName<Parts[number]>> =>
+        // refuse a template the module transform did not stamp
+        Message.context("", ModuleMetadata.require(undefined, "t"))(strings, ...parts),
+    {
+        /** Build the template tag writing a module's messages, as the module transform calls it. */
+        withModule(module: ModuleMetadata): MessageTag {
+            return Message.context("", module);
+        },
+    },
+);
 
 /** Write text the build never extracts and no catalog translates, such as a brand or a code. */
 export function verbatim(strings: TemplateStringsArray, ...parts: readonly unknown[]): string {
@@ -121,7 +117,7 @@ const messageSchema = defineSchema(
         /** The source text in the package's language, as MessageFormat 2. */
         source: schema.string(),
         /** The values of its placeholders and selectors, by variable name. */
-        values: schema.record(schema.string(), schema.json()),
+        values: schema.jsonObject(),
     }),
 );
 
