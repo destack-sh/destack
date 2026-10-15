@@ -1,6 +1,6 @@
 import { defineSchema, Instant, schema, Version } from "@destack/schema";
 import { Outcome } from "@destack/sync";
-import { AuditContext } from "./context.ts";
+import { CallOrigin } from "./origin.ts";
 
 /** The largest stored execution, in bytes. */
 export const MAX_EXECUTION_BYTES = 65536;
@@ -33,7 +33,7 @@ export const AuditExecution = defineSchema(
         /** A write, a read of data, or a refused call. */
         category: schema.enum(AUDIT_CATEGORIES),
         /** The authority and origin. */
-        context: AuditContext,
+        context: CallOrigin,
         /** The object the call acts on. */
         target: AuditTarget,
         /** The details the method's audit schema accepts, sensitive values redacted. */
@@ -69,12 +69,12 @@ export const JournalEntry = defineSchema(
 /** A call with its execution, running or ended, as a journal records it. */
 export type JournalEntry = schema.Infer<typeof JournalEntry>;
 
-/** An ended call with its execution, as its call event keeps it. */
-export const AuditCall = defineSchema(
+/** A call event: an ended call with its execution. */
+export const CallEvent = defineSchema(
     JournalEntry.extend({
         /** Who ran the call where, what it affected, and how it ended. */
         execution: AuditExecution.required({ outcome: true, finishedAt: true }),
     }),
 );
-/** An ended call with its execution, as its call event keeps it. */
-export type AuditCall = schema.Infer<typeof AuditCall>;
+/** A call event: an ended call with its execution. */
+export type CallEvent = schema.Infer<typeof CallEvent>;

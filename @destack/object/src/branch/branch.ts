@@ -6,30 +6,25 @@ import {
     type Overlay,
     type Snapshot,
 } from "@destack/db";
-import { ObjectReference, type Subject } from "@destack/sync";
+import { ObjectReference } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
-import { Call, type MutationCall } from "../method/index.ts";
+import { MethodContext } from "../method/index.ts";
 
 import type { ObjectType } from "../object/index.ts";
+import { BranchEntry } from "./entry.ts";
 import { type BranchChange, BranchWrite } from "./write.ts";
 import type { BranchType } from "./type.ts";
 
-/** The columns a stored branch call keeps: the call and its author's reference. */
-const STORED_CALL = sync.Call.extend({
+/** The columns a stored branch entry keeps: the call and its author's reference. */
+const STORED_ENTRY = sync.Call.extend({
     authorPackageId: PackageId,
     authorType: schema.string(),
     authorScope: schema.string(),
     authorId: schema.string(),
 }).loose();
-
-/** A call a branch keeps, with the principal who made it. */
-export interface BranchCall extends sync.Call {
-    /** The principal the call records as its caller. */
-    readonly author: Subject;
-}
 
 /** The fields of a branch that its rows depend on. */
 export interface BranchState {
@@ -55,21 +50,23 @@ export class Branch {
         this.id = id;
     }
 
-    /** Count the branch's calls. */
+    /** Count the branch's entries. */
     async count(): Promise<number> {
         return (
-            await this.reader.read(this.types.call.table).findMany({ where: { parentId: this.id } })
+            await this.reader
+                .read(this.types.entry.table)
+                .findMany({ where: { parentId: this.id } })
         ).length;
     }
 
-    /** Read the branch's calls in order, each with its author. */
-    async calls(): Promise<BranchCall[]> {
+    /** Read the branch's entries in order, each call with its author. */
+    async entries(): Promise<BranchEntry[]> {
         const stored = await this.reader
-            .read(this.types.call.table)
+            .read(this.types.entry.table)
             .findMany({ where: { parentId: this.id } });
 
         return stored
-            .map((entry) => STORED_CALL.parse(entry))
+            .map((entry) => STORED_ENTRY.parse(entry))
             .toSorted((left, right) => Number(left["position"]) - Number(right["position"]))
             .map((entry) => ({
                 type: entry.type,
@@ -106,14 +103,14 @@ export class Branch {
     }
 
     /** Append calls after the branch's last one as the invoking caller's, returning them. */
-    async append(call: MutationCall, calls: readonly sync.Call[]): Promise<BranchCall[]> {
+    async append(context: MethodContext, calls: readonly sync.Call[]): Promise<BranchEntry[]> {
         // number the calls after the last one
-        const last = (await this.calls()).length;
-        const author = call.caller.subject;
+        const last = (await this.entries()).length;
+        const author = context.caller.subject;
         for (const [index, entry] of calls.entries()) {
-            await call.mutate(call.caller, [
-                Call.record(this.types.call, "create", {
-                    id: `${this.types.call.identity}-${v7()}`,
+            await context.mutate(context.caller, [
+                this.types.entry.call("create", {
+                    id: `${this.types.entry.identity}-${v7()}`,
                     parentId: this.id,
                     position: last + index + 1,
                     type: entry.type,
@@ -130,22 +127,22 @@ export class Branch {
 
     /** Replay calls over rows and store the rows they change. */
     async build(
-        call: Call,
+        context: MethodContext,
         state: BranchState,
-        calls: readonly BranchCall[],
+        calls: readonly BranchEntry[],
         over: readonly BranchWrite[],
     ): Promise<{ readonly tables: string[]; readonly built: LogPosition }> {
-        const replayed = await this.#replay(call, calls, over);
-        await this.store(call, replayed.rows);
+        const replayed = await this.#replay(context, calls, over);
+        await this.store(context, replayed.rows);
 
         return {
             tables: [...new Set([...state.tables, ...replayed.tables])].toSorted(),
-            built: call.base,
+            built: context.base,
         };
     }
 
     /** Replace the branch's stored rows with some rows, writing only those that changed. */
-    async store(call: Call, replaced: readonly BranchWrite[]): Promise<void> {
+    async store(context: MethodContext, replaced: readonly BranchWrite[]): Promise<void> {
         // match the stored rows by table and key
         const stored = await this.reader
             .read(this.types.change.table)
@@ -161,16 +158,16 @@ export class Branch {
             const existing = byName.get(Branch.#named(entry));
             byName.delete(Branch.#named(entry));
             if (existing !== undefined) {
-                await call.mutate(call.caller, [
-                    Call.record(this.types.change, "update", {
+                await context.mutate(context.caller, [
+                    this.types.change.call("update", {
                         id: existing.id,
                         after: entry.after,
                         before: entry.before,
                     }),
                 ]);
             } else {
-                await call.mutate(call.caller, [
-                    Call.record(this.types.change, "create", {
+                await context.mutate(context.caller, [
+                    this.types.change.call("create", {
                         id: `${this.types.change.identity}-${v7()}`,
                         parentId: this.id,
                         table: entry.table,
@@ -182,8 +179,8 @@ export class Branch {
             }
         }
         for (const entry of byName.values()) {
-            await call.mutate(call.caller, [
-                Call.record(this.types.change, "delete", { id: entry.id }),
+            await context.mutate(context.caller, [
+                this.types.change.call("delete", { id: entry.id }),
             ]);
         }
     }
@@ -238,15 +235,15 @@ export class Branch {
 
     /** Replay calls as their authors over rows, returning the rows they leave changed. */
     async #replay(
-        call: Call,
-        calls: readonly BranchCall[],
+        context: MethodContext,
+        calls: readonly BranchEntry[],
         over: readonly BranchWrite[],
     ): Promise<{ readonly rows: BranchWrite[]; readonly tables: string[] }> {
         // resolve each call in the branch's scope, leaving out calls doing external work
         const reached = new Set(over.map((row) => row.table));
         const replayed = calls.flatMap((entry) => {
             // resolve the call and note the table it touches
-            const resolved = this.types.resolve(call.objects, entry, call.scope);
+            const resolved = this.types.resolve(context.objects, entry, context.scope);
             const method = resolved.object.method(resolved.name);
             reached.add(resolved.object.table[TABLE].sqlName);
 
@@ -254,7 +251,7 @@ export class Branch {
             return method.prepare === undefined
                 ? [
                       {
-                          ...Call.record(resolved.object, resolved.name, resolved.input),
+                          ...resolved.object.call(resolved.name, resolved.input),
                           author: entry.author,
                       },
                   ]
@@ -262,8 +259,8 @@ export class Branch {
         });
 
         // rehearse them over the rows, keeping the rows of the branch's tables they leave changed
-        const changed = await call.rehearse(over, replayed);
-        const names = new Set(this.types.tables(call.objects).keys());
+        const changed = await context.rehearse(over, replayed);
+        const names = new Set(this.types.tables(context.objects).keys());
         const rows = changed.filter((row) => names.has(row.table));
 
         return {

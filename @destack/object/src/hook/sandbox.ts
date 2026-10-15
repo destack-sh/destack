@@ -1,4 +1,5 @@
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
+import { BranchEntry } from "../branch/entry.ts";
 import { DatabaseError, type Row, TABLE } from "@destack/db";
 import type { EventKeyShape } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
@@ -6,12 +7,11 @@ import { CallError } from "@destack/runtime/error";
 import type { ServerContext } from "@destack/runtime/workload";
 import { type ObjectReference, Subject } from "@destack/sync";
 import type { InstalledDeclaration } from "../inspect/object.ts";
-import type { Call, PhasedHandler } from "../method/call.ts";
+import type { MethodContext, PhasedHandler } from "../method/context.ts";
 import { PHASES, type Phase } from "../method/method.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { EventView } from "../query/event.ts";
 import {
-    BranchCalls,
     CallRecord,
     CreationRecord,
     type EventRequest,
@@ -24,9 +24,9 @@ import {
 /** A mutation's call whose hook runs in the sandbox, with the behaviour a handle phase wraps. */
 interface Session {
     /** The call. */
-    readonly call: Call;
+    readonly context: MethodContext;
     /** Run the behaviour the hook wraps, absent outside a handle phase. */
-    readonly next?: (call?: Call) => Promise<unknown>;
+    readonly next?: (context?: MethodContext) => Promise<unknown>;
     /** The race a request of the session lost, returned with the hook's failure. */
     lost?: DatabaseError;
 }
@@ -109,13 +109,13 @@ export class HookSandbox {
     /** Answer a hook's request in its session. */
     async #answer(session: Session, asked: SessionRequest["request"]): Promise<JsonValue> {
         // run a call as the hook's caller or as the installation, allowing the package's internal methods
-        const { call } = session;
+        const { context } = session;
         if (asked.kind === "call") {
             const caller =
                 asked.as === "caller"
-                    ? call.caller
-                    : AccessContext.of(Caller.of(this.subject), call.now);
-            const result = await call.runSandboxed(
+                    ? context.caller
+                    : AccessContext.of(Caller.of(this.subject), context.now);
+            const result = await context.runSandboxed(
                 caller,
                 asked.call,
                 asked.mutates,
@@ -127,7 +127,7 @@ export class HookSandbox {
         // read the first row or the rows of a type the installation serves, as the package
         else if (asked.kind === "findFirst" || asked.kind === "findMany") {
             const type = this.#type(asked.table);
-            const reader = asked.columns === "all" ? call.reveal(type) : call.read(type);
+            const reader = asked.columns === "all" ? context.reveal(type) : context.read(type);
             const query = {
                 ...(asked.where === undefined ? {} : { where: asked.where }),
                 ...(asked.orderBy === undefined ? {} : { orderBy: asked.orderBy }),
@@ -145,34 +145,34 @@ export class HookSandbox {
         // read events of a type the installation serves
         else if (asked.kind === "events") {
             return HookSandbox.#events(
-                call.events(this.#type(asked.table).eventKind()),
+                context.events(this.#type(asked.table).eventKind()),
                 asked.read,
             );
         }
         // list the subjects with a permission on an object
         else if (asked.kind === "lookup") {
             const { permission, object, type, page } = asked.lookup;
-            const subjects = await call.lookup(permission, object, { type, page });
+            const subjects = await context.lookup(permission, object, { type, page });
 
             return subjects.map((subject) => Subject.parse(subject));
         }
         // rehearse calls over rows
         else if (asked.kind === "rehearse") {
-            return schema.json().parse(await call.rehearse(asked.over, asked.calls));
+            return schema.json().parse(await context.rehearse(asked.over, asked.calls));
         }
         // decide a permission of the hook's caller
         else if (asked.kind === "check") {
-            return Decision.parse(await call.check(asked.permission, asked.object));
+            return Decision.parse(await context.check(asked.permission, asked.object));
         }
         // require a permission of the hook's caller
         else if (asked.kind === "require") {
-            await call.require(asked.permission, asked.object);
+            await context.require(asked.permission, asked.object);
 
             return null;
         }
         // send a call once the mutation commits
         else if (asked.kind === "send") {
-            await call.send({
+            await context.send({
                 call: asked.call,
                 ...(asked.at === undefined ? {} : { at: asked.at }),
             });
@@ -181,16 +181,19 @@ export class HookSandbox {
         }
         // take the transaction's next position
         else if (asked.kind === "position") {
-            return call.takePosition();
+            return context.takePosition();
         }
         // run the behaviour a handle phase wraps with the hook's input
         else if (session.next !== undefined) {
-            return HookResult.encode(call, await session.next(call.with({ input: asked.input })));
+            return HookResult.encode(
+                context,
+                await session.next(context.with({ input: asked.input })),
+            );
         }
         // refuse it outside a handle phase
         else {
             throw new TypeError(
-                `${call.object.name}.${call.name} has nothing to wrap outside a handle phase`,
+                `${context.object.name}.${context.name} has nothing to wrap outside a handle phase`,
             );
         }
     }
@@ -246,36 +249,42 @@ export class HookSandbox {
 
         // send each listed phase to the sandbox
         const listed = new Set(phases);
-        const run = (call: Call, hook: HandlerRequest["hook"], next?: Session["next"]) =>
-            this.#run({ call, ...(next === undefined ? {} : { next }) }, hook);
+        const run = (
+            context: MethodContext,
+            hook: HandlerRequest["hook"],
+            next?: Session["next"],
+        ) => this.#run({ context, ...(next === undefined ? {} : { next }) }, hook);
 
         return {
             ...(listed.has("authorize")
                 ? {
-                      authorize: async (call: Call) => {
-                          await run(call, { phase: "authorize" });
+                      authorize: async (context: MethodContext) => {
+                          await run(context, { phase: "authorize" });
                       },
                   }
                 : {}),
             ...(listed.has("creation")
                 ? {
-                      creation: async (call: Call, object: ObjectReference) =>
-                          CreationRecord.parse(await run(call, { phase: "creation", object })),
+                      creation: async (context: MethodContext, object: ObjectReference) =>
+                          CreationRecord.parse(await run(context, { phase: "creation", object })),
                   }
                 : {}),
             ...(listed.has("expand")
                 ? {
-                      expand: async (call: Call) =>
-                          BranchCalls.parse(await run(call, { phase: "expand" })),
+                      expand: async (context: MethodContext) =>
+                          schema.array(BranchEntry).parse(await run(context, { phase: "expand" })),
                   }
                 : {}),
             ...(listed.has("prepare")
-                ? { prepare: (call: Call) => run(call, { phase: "prepare" }) }
+                ? { prepare: (context: MethodContext) => run(context, { phase: "prepare" }) }
                 : {}),
             ...(listed.has("handle")
                 ? {
-                      handle: async (call: Call, next: (call?: Call) => Promise<unknown>) =>
-                          HookResult.decode(call, await run(call, { phase: "handle" }, next)),
+                      handle: async (
+                          context: MethodContext,
+                          next: (context?: MethodContext) => Promise<unknown>,
+                      ) =>
+                          HookResult.decode(context, await run(context, { phase: "handle" }, next)),
                   }
                 : {}),
         };
@@ -287,7 +296,7 @@ export class HookSandbox {
         const mutation = crypto.randomUUID();
         this.#sessions.set(mutation, session);
         try {
-            const call = CallRecord.of(session.call);
+            const call = CallRecord.of(session.context);
             const answer = await this.#send({ mutation, call, hook });
 
             // fail with the race a request lost, else with the hook's own failure

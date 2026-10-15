@@ -3,7 +3,7 @@ import { Package } from "@destack/package";
 import { AuditCaller } from "./actor.ts";
 
 /** The authority and origin of an executed call, as its machine supplied them. */
-export const AuditContext = defineSchema(
+export const CallOrigin = defineSchema(
     schema.object({
         /** The caller: who the call was for and who acted for them. */
         caller: AuditCaller,
@@ -43,4 +43,4 @@ export const AuditContext = defineSchema(
     }),
 );
 /** The authority and origin of an executed call, as its machine supplied them. */
-export type AuditContext = schema.Infer<typeof AuditContext>;
+export type CallOrigin = schema.Infer<typeof CallOrigin>;

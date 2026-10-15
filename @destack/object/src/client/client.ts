@@ -61,11 +61,11 @@ import { RetryPolicy } from "@destack/runtime/timer";
 import * as sync from "@destack/sync";
 import { Branch, type BranchChange, BranchType } from "../branch/index.ts";
 import { type StoredStep, UndoStack, undoEntry } from "./undo.ts";
-import { Call, type ObjectCall } from "../method/call.ts";
+import { MethodContext } from "../method/context.ts";
 import { Method } from "../method/method.ts";
 import { BatchItem } from "../method/record.ts";
 
-import type { CallableName, CallInput, CallOutput, MutationName } from "../method/procedure.ts";
+import type { CallableName, MethodInput, MethodOutput, MutationName } from "../method/procedure.ts";
 import {
     ACCESS_PUBLICATION,
     EPHEMERAL_PUBLICATION,
@@ -159,32 +159,32 @@ export interface BranchDiff {
 /** The mutating methods of an object type, one pending mutation per call. */
 export type Mutator<Object extends ObjectType> = {
     readonly [Name in MutationName<Object>]: (
-        input: CallInput<Object, Name>,
-    ) => Submission<CallOutput<Object, Name>>;
+        input: MethodInput<Object, Name>,
+    ) => Submission<MethodOutput<Object, Name>>;
 };
 
 /** The mutating methods of an object type within a mutation, returning predictions. */
-export type MutationCalls<Object extends ObjectType> = {
+export type Writer<Object extends ObjectType> = {
     readonly [Name in MutationName<Object>]: (
-        input: CallInput<Object, Name>,
-    ) => Promise<CallOutput<Object, Name>>;
+        input: MethodInput<Object, Name>,
+    ) => Promise<MethodOutput<Object, Name>>;
 };
 
 /** The read-only methods of an object type, read from the server. */
 export type Reader<Object extends ObjectType> = {
     readonly [Name in QueryName<Object>]: (
-        input: CallInput<Object, Name>,
-    ) => Promise<CallOutput<Object, Name>>;
+        input: MethodInput<Object, Name>,
+    ) => Promise<MethodOutput<Object, Name>>;
 };
 
-/** Several calls a client makes as one atomic mutation. */
-export interface Mutation {
+/** The context of several calls a client makes as one atomic mutation. */
+export interface MutationContext {
     /** Call an object type's mutating methods within the mutation. */
-    readonly call: <Object extends ObjectType>(object: Object) => MutationCalls<Object>;
+    readonly call: <Object extends ObjectType>(object: Object) => Writer<Object>;
 }
 
-/** A mutation that also calls methods by name, as recorded calls refer to them. */
-interface ReplayMutation extends Mutation {
+/** A mutation context that also calls methods by name, as recorded calls refer to them. */
+interface ReplayContext extends MutationContext {
     /** Call an object type's mutating method by name in the mutation, returning its prediction. */
     readonly invoke: (object: ObjectType, name: string, input: JsonObject) => Promise<unknown>;
 }
@@ -753,13 +753,13 @@ export class ObjectClient<
     }
 
     /** Predict several calls together and queue them as one mutation. */
-    mutation<Value>(run: (mutation: Mutation) => Promise<Value>): Submission<Value> {
+    mutation<Value>(run: (mutation: MutationContext) => Promise<Value>): Submission<Value> {
         return this.#mutation(run, false);
     }
 
     /** Predict several calls together, on the main line when asked, as one mutation. */
     #mutation<Value>(
-        run: (mutation: ReplayMutation) => Promise<Value>,
+        run: (mutation: ReplayContext) => Promise<Value>,
         isMainLine: boolean,
     ): Submission<Value> {
         // predict every call
@@ -799,7 +799,7 @@ export class ObjectClient<
                 };
                 const result = await run({
                     call: (object) =>
-                        mapValues<Readonly<Record<string, Method>>, MutationCalls<typeof object>>(
+                        mapValues<Readonly<Record<string, Method>>, Writer<typeof object>>(
                             this.#routed(object, true),
                             (_method, name) => (input: JsonObject) => invoke(object, name, input),
                         ),
@@ -2125,7 +2125,7 @@ export class ObjectClient<
             await transaction.transaction(async (savepoint) => {
                 for (const entry of pending.calls) {
                     const { object, name } = this.method(entry);
-                    await this.#predict(savepoint, object, name, Call.upgrade(object, name, entry));
+                    await this.#predict(savepoint, object, name, object.upgrade(name, entry));
                 }
             });
         } catch (error) {
@@ -2153,7 +2153,7 @@ export class ObjectClient<
             isInverse && !hasTarget
                 ? undefined
                 : await this.#predict(database, object, name, input);
-        const created = id ?? Call.resultId(result);
+        const created = id ?? Method.resultId(result);
         const after = created === undefined ? undefined : await this.row(database, object, created);
 
         // keep the result and the rows in the JSON form the server answers
@@ -2209,7 +2209,7 @@ export class ObjectClient<
         const targetId = id === undefined ? undefined : schema.string().parse(id);
         const named = field === undefined ? undefined : rest[field];
         const scope = typeof named === "string" ? named : this.#readScope(object);
-        const call: Call = new Call({
+        const context: MethodContext = new MethodContext({
             object,
             name,
             method,
@@ -2226,7 +2226,7 @@ export class ObjectClient<
             location: { kind: "client", database },
             objects: this.objects,
             run: (entry, _caller, mutates, code) => {
-                const nested = Call.resolve(this.objects, entry, mutates, code);
+                const nested = ObjectType.resolve(this.objects, entry, mutates, code);
 
                 return this.#predict(database, nested.object, nested.name, nested.input);
             },
@@ -2248,7 +2248,7 @@ export class ObjectClient<
             throw new CallError("CONFLICT", { message: `${object.name} revision has changed` });
         }
 
-        return method.execute(target === undefined ? call : call.with({ target: target }), {
+        return method.execute(target === undefined ? context : context.with({ target: target }), {
             kind: "client",
             database,
         });
@@ -2361,7 +2361,7 @@ export class ObjectClient<
         const field = object.route.field;
         const scoped = field === undefined ? {} : { [field]: scope };
 
-        return Call.record(object, name, { ...input, ...generated, ...scoped });
+        return object.call(name, { ...input, ...generated, ...scoped });
     }
 
     /** Read the scope a call acts in: its own, its target's, else the client's. */
@@ -2429,12 +2429,12 @@ export class ObjectClient<
     }
 
     /** Find the object type and method of a recorded call. */
-    method(call: Pick<ObjectCall, "type" | "method">): {
+    method(call: Pick<sync.Call, "type" | "method">): {
         readonly object: ObjectType;
         readonly name: string;
         readonly method: Method;
     } {
-        const object = Call.findType(this.objects, call);
+        const object = ObjectType.find(this.objects, call);
         if (!object) {
             throw new TypeError(`the client has no object ${call.type.type}`);
         }

@@ -3,10 +3,10 @@ import { TABLE, LogPosition, type Row, Snapshot, type Table, Condition } from "@
 import { CallError } from "@destack/runtime/error";
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
-import { Call, CallCode } from "../method/index.ts";
+import { CallSite } from "../method/index.ts";
 import type { ObjectController } from "../object/controller.ts";
 import { Branch } from "./branch.ts";
-import { ObjectKey, type ObjectType } from "../object/index.ts";
+import { ObjectKey, ObjectType } from "../object/index.ts";
 
 /** The columns of every branch type's rows: identifier, state, row tables and build position. */
 const BRANCH_RECORD = schema.looseObject({
@@ -19,31 +19,31 @@ const BRANCH_RECORD = schema.looseObject({
 /** A branch as its row records it. */
 type BranchRecord = schema.Infer<typeof BRANCH_RECORD>;
 
-/** The type of a branch's calls, which branches append by creating them. */
-type BranchCallType = ObjectType & { readonly methods: { readonly create: Method } };
+/** The type of a branch's entries, which branches append by creating them. */
+type BranchEntryType = ObjectType & { readonly methods: { readonly create: Method } };
 
 /** The type of a branch's changes over the main line, which branches create, update, delete. */
 type BranchChangeType = ObjectType & {
     readonly methods: { readonly create: Method; readonly update: Method; readonly delete: Method };
 };
 
-/** A scope type's branches: the branch type, the type of its calls, and the type of its changes. */
+/** A scope type's branches: the branch type, its entries' type and its changes' type. */
 export class BranchType {
     /** The branch type, with push, merge, discard and rebuild methods. */
     readonly object: ObjectType;
-    /** The type of a branch's calls, nested in the branch and ordered by position. */
-    readonly call: BranchCallType;
+    /** The type of a branch's entries, nested in the branch and ordered by position. */
+    readonly entry: BranchEntryType;
     /** The type of the changes a branch makes, nested in the branch. */
     readonly change: BranchChangeType;
 
     /** Bring a scope type's branch types together. */
     constructor(types: {
         readonly object: ObjectType;
-        readonly call: BranchCallType;
+        readonly entry: BranchEntryType;
         readonly change: BranchChangeType;
     }) {
         this.object = types.object;
-        this.call = types.call;
+        this.entry = types.entry;
         this.change = types.change;
     }
 
@@ -66,9 +66,9 @@ export class BranchType {
         objects: readonly ObjectType[],
         entry: sync.Call,
         scope: string,
-    ): ReturnType<typeof Call.resolve> {
+    ): ReturnType<typeof ObjectType.resolve> {
         // resolve the call in the branch's scope, refusing one in another scope or of an unknown method
-        const type = Call.findType(objects, entry);
+        const type = ObjectType.find(objects, entry);
         const field =
             type !== undefined && Object.hasOwn(type.methods, entry.method)
                 ? type.route.field
@@ -80,7 +80,7 @@ export class BranchType {
             });
         }
         const input = field === undefined ? entry.input : { ...entry.input, [field]: scope };
-        const resolved = Call.resolve(objects, { ...entry, input }, true, CallCode.client);
+        const resolved = ObjectType.resolve(objects, { ...entry, input }, true, CallSite.client);
 
         // refuse ephemeral objects and branch bookkeeping
         if (resolved.object.storage === "ephemeral" || this.has(resolved.object)) {
@@ -94,7 +94,7 @@ export class BranchType {
 
     /** Report whether an object type is a branch type, whose calls stay on the main line. */
     has(object: ObjectType): boolean {
-        return [this.object, this.call, this.change].some((type) => type.same(object));
+        return [this.object, this.entry, this.change].some((type) => type.same(object));
     }
 
     /** Read the tables branches change, by SQL name. */
@@ -153,11 +153,7 @@ export class BranchType {
                 if (stale.length > 0) {
                     await reconciliation.mutate(
                         stale.map((row) =>
-                            Call.record(
-                                this.object,
-                                "rebuild",
-                                this.object.target(ObjectKey.parse(row)),
-                            ),
+                            this.object.call("rebuild", this.object.target(ObjectKey.parse(row))),
                         ),
                     );
                 }

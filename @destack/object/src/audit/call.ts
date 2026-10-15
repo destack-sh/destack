@@ -1,4 +1,4 @@
-import { AUDIT_CATEGORIES, AUDIT_OUTCOMES, AuditCall } from "./execution.ts";
+import { AUDIT_CATEGORIES, AUDIT_OUTCOMES, CallEvent } from "./execution.ts";
 import { field } from "../field/field.ts";
 import { defineObject } from "../object/object.ts";
 
@@ -17,7 +17,7 @@ export const call = defineObject({
     },
     fields: {
         /** The ended call, its personal values masked unless the reader may unmask them. */
-        data: field.json(AuditCall).guard({ read: "unmask" }),
+        data: field.json(CallEvent).guard({ read: "unmask" }),
         /** The principal that acted, anyone for an unauthenticated caller. */
         actor: field.subject(),
         /** The object type and method, such as page.create. */

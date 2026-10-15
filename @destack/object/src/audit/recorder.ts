@@ -1,6 +1,6 @@
 import { AuditCaller } from "./actor.ts";
-import type { AuditCall, JournalEntry } from "./execution.ts";
-import { AuditContext } from "./context.ts";
+import type { CallEvent, JournalEntry } from "./execution.ts";
+import { CallOrigin } from "./origin.ts";
 import { AuditExecution, type AuditTarget } from "./execution.ts";
 import {
     canonicalize,
@@ -13,7 +13,7 @@ import {
 import { Failure, Outcome } from "@destack/sync";
 import { findDenial, CallError } from "@destack/runtime";
 import { AccessContext, Credential } from "@destack/access";
-import { type ProcedureAudit, type ProcedureCall } from "@destack/runtime/server";
+import { type ProcedureAudit, type ProcedureContext } from "@destack/runtime/server";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
 import { type AuditAction, defineAuditAction } from "./action.ts";
 import { ObjectError } from "../error/index.ts";
@@ -28,10 +28,10 @@ export const procedureInvoke = defineAuditAction({
 });
 
 /** The machine-selected origin of calls. */
-export type AuditOrigin = Omit<AuditContext, "caller" | "deploymentId" | "traceId">;
+export type AuditOrigin = Omit<CallOrigin, "caller" | "deploymentId" | "traceId">;
 
-/** What a recorder records about the calls beside their caller. */
-export interface AuditCalled {
+/** The options of a recorder: what it records about the calls beside their caller. */
+export interface AuditRecorderOptions {
     /** The request the calls answer. */
     readonly requestId?: string;
     /** The code making the calls, such as a controller's name. */
@@ -75,7 +75,7 @@ const CANCELLED: Outcome = {
 /** Record calls under a fixed context. */
 export class AuditRecorder {
     /** The context of every call. */
-    readonly #context: AuditContext;
+    readonly #context: CallOrigin;
     /** The request every call belongs to, absent outside a request. */
     readonly #requestId: string | undefined;
     /** The journal calls go to. */
@@ -129,28 +129,28 @@ export class AuditRecorder {
     static scoped(
         journal: Journal,
         origin: Omit<AuditOrigin, "scope">,
-    ): (scope: string, caller: AccessContext, called?: AuditCalled) => AuditRecorder {
-        return (scope, caller, called = {}) =>
+    ): (scope: string, caller: AccessContext, options?: AuditRecorderOptions) => AuditRecorder {
+        return (scope, caller, options = {}) =>
             AuditRecorder.from(
                 caller,
                 journal,
                 {
                     ...origin,
                     scope,
-                    ...(called.component === undefined ? {} : { component: called.component }),
+                    ...(options.component === undefined ? {} : { component: options.component }),
                 },
-                called.requestId,
+                options.requestId,
             );
     }
 
     /** Record a procedure call after it ends: writes, audited reads and denials. */
     static procedure<State extends object>(
-        recorder: (call: ProcedureCall<State>) => ProcedureRecorder | Promise<ProcedureRecorder>,
+        recorder: (call: ProcedureContext<State>) => ProcedureRecorder | Promise<ProcedureRecorder>,
         options: { readonly isAccessAudited?: boolean } = {},
     ): (event: ProcedureAudit<State>) => Promise<void> {
         return async (event) => {
             // choose the category, skipping unaudited reads
-            const { access } = event.call;
+            const { access } = event.context;
             const category = AuditRecorder.#categoryOf(event, options.isAccessAudited === true);
             if (category === undefined) {
                 return;
@@ -160,12 +160,12 @@ export class AuditRecorder {
             const outcome = AuditRecorder.#outcomeOf(event);
 
             // record the call
-            const writer = await recorder(event.call);
+            const writer = await recorder(event.context);
             await writer.record(
                 undefined,
                 procedureInvoke,
                 {
-                    target: { type: "procedure", id: event.call.path.join(".") },
+                    target: { type: "procedure", id: event.context.path.join(".") },
                     details: { authentication: access.authentication },
                     outcome,
                 },
@@ -198,8 +198,8 @@ export class AuditRecorder {
     }
 
     /** Create the recorder. */
-    constructor(origin: AuditContext, journal: Journal, requestId?: string) {
-        this.#context = AuditContext.parse(origin);
+    constructor(origin: CallOrigin, journal: Journal, requestId?: string) {
+        this.#context = CallOrigin.parse(origin);
         this.#requestId = requestId;
         this.#journal = journal;
     }
@@ -214,7 +214,7 @@ export class AuditRecorder {
         values: Ended<Target, Details>,
         category: AuditExecution["category"] = "activity",
         request?: CallRequest,
-    ): Promise<AuditCall> {
+    ): Promise<CallEvent> {
         return this.#ended(transaction, action, values, category, true, request);
     }
 
@@ -224,7 +224,7 @@ export class AuditRecorder {
         action: AuditAction<Target, Details>,
         values: Ended<Target, Details>,
         request: CallRequest,
-    ): Promise<AuditCall> {
+    ): Promise<CallEvent> {
         return this.#ended(transaction, action, values, "activity", false, request);
     }
 
@@ -237,7 +237,7 @@ export class AuditRecorder {
     }
 
     /** Prepare the end of a running call, merging any result details. */
-    finish(running: JournalEntry, outcome: Outcome, details?: JsonObject): AuditCall {
+    finish(running: JournalEntry, outcome: Outcome, details?: JsonObject): CallEvent {
         // require a running call of this context
         const execution = running.execution;
         if (
@@ -383,7 +383,7 @@ export class AuditRecorder {
         category: AuditExecution["category"],
         isAudited: boolean,
         request?: CallRequest,
-    ): Promise<AuditCall> {
+    ): Promise<CallEvent> {
         // build the call, ended now
         const now = this.#journal.clock.now();
         const entry = this.#call(
@@ -397,7 +397,7 @@ export class AuditRecorder {
             },
             request,
         );
-        const call: AuditCall = {
+        const call: CallEvent = {
             ...entry,
             execution: { ...entry.execution, outcome: values.outcome, finishedAt: now },
         };
@@ -468,7 +468,7 @@ export class AuditRecorder {
         event: ProcedureAudit<State>,
         isAccessAudited: boolean,
     ): AuditExecution["category"] | undefined {
-        const { audit } = event.call.access;
+        const { audit } = event.context.access;
         // a refused call
         if (event.outcome === "denied") {
             return "denial";

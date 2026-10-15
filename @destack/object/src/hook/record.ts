@@ -1,11 +1,12 @@
 import { Caller, PermissionReference } from "@destack/access";
+import { BranchEntry } from "../branch/entry.ts";
 import { Condition, LogPosition, OrderBy, Row, Table, TABLE } from "@destack/db";
 import { SERIES_FOLDS } from "@destack/event";
 import { defineSchema, schema, type JsonValue } from "@destack/schema";
 import { errorOf } from "@destack/runtime/error";
 import * as sync from "@destack/sync";
 import { Failure, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
-import type { Call } from "../method/call.ts";
+import type { MethodContext } from "../method/context.ts";
 
 /** A JSON object, such as a call's input or a row's columns. */
 const JsonObject = schema.jsonObject();
@@ -29,9 +30,6 @@ const FIND = {
     /** The columns read: the logged ones, or all of a type of the hook's package. */
     columns: schema.enum(["logged", "all"]),
 };
-
-/** Calls a mutation runs as their authors, as an expansion lists them. */
-export const BranchCalls = schema.array(sync.Call.extend({ author: Subject }));
 
 /** A row a rehearsal writes or leaves changed, its columns as JSON. */
 export const RehearsedRow = schema.object({
@@ -83,7 +81,7 @@ const callRecord = defineSchema(
         /** The idempotency key of the call's external work. */
         idempotencyKey: schema.string().min(1).exactOptional(),
         /** The calls the method's expansion ran before it in its mutation. */
-        expansion: BranchCalls.exactOptional(),
+        expansion: schema.array(BranchEntry).exactOptional(),
         /** The log position the call's mutation started at, absent for a query. */
         base: LogPosition.exactOptional(),
     }),
@@ -94,28 +92,30 @@ export type CallRecord = schema.Infer<typeof callRecord>;
 /** A call as a sandbox runs its hook: its type, method, scope, input, target and caller. */
 export const CallRecord = Object.assign(callRecord, {
     /** Record a call for its sandbox. */
-    of(call: Call): CallRecord {
+    of(context: MethodContext): CallRecord {
         // read the call's fields, and the start of a served mutation
-        const { object, target, prepared, id, requestId, idempotencyKey, expansion } = call;
-        const base = call.started;
-        const { subject, actors, groups, contacts, grant } = call.caller;
+        const { object, target, prepared, id, requestId, idempotencyKey, expansion } = context;
+        const base = context.started;
+        const { subject, actors, groups, contacts, grant } = context.caller;
 
         return {
             type: object.typeReference,
-            method: call.name,
-            scope: call.scope,
-            chain: [...call.chain],
-            input: JsonObject.parse(call.input),
+            method: context.name,
+            scope: context.scope,
+            chain: [...context.chain],
+            input: JsonObject.parse(context.input),
             ...(id === undefined ? {} : { id }),
             ...(target === undefined ? {} : { target: object.table[TABLE].encode(target) }),
             caller: Caller.schema.parse(
                 schema.defined({ subject, actors, groups, contacts, grant }),
             ),
-            now: call.now,
+            now: context.now,
             ...(requestId === undefined ? {} : { requestId }),
             ...(prepared === undefined ? {} : { prepared: schema.json().parse(prepared) }),
             ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
-            ...(expansion === undefined ? {} : { expansion: BranchCalls.parse(expansion) }),
+            ...(expansion === undefined
+                ? {}
+                : { expansion: schema.array(BranchEntry).parse(expansion) }),
             ...(base === undefined ? {} : { base }),
         };
     },
@@ -350,7 +350,7 @@ export const SessionRequest = defineSchema(
                 /** The rows written first. */
                 over: schema.array(RehearsedRow),
                 /** The calls run as their authors. */
-                calls: BranchCalls,
+                calls: schema.array(BranchEntry),
             }),
             schema.object({
                 /** List a page of the subjects of a type with a permission on an object. */
@@ -385,9 +385,9 @@ export type SessionRequest = schema.Infer<typeof SessionRequest>;
 /** A method's result as JSON: its object's row, its page of rows, or its value. */
 export const HookResult = {
     /** Write a call's result as JSON. */
-    encode(call: Call, value: unknown): JsonValue {
+    encode(context: MethodContext, value: unknown): JsonValue {
         // write a value as it is
-        const { method, object } = call;
+        const { method, object } = context;
         const table = object.table[TABLE];
         if (method.result === "value") {
             return schema.json().parse(value ?? null);
@@ -403,9 +403,9 @@ export const HookResult = {
     },
 
     /** Read a call's result from JSON. */
-    decode(call: Call, value: JsonValue): unknown {
+    decode(context: MethodContext, value: JsonValue): unknown {
         // read a value as it is
-        const { method, object } = call;
+        const { method, object } = context;
         if (method.result === "value") {
             return value;
         }

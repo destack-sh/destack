@@ -22,7 +22,7 @@ import { ObjectReference, type Outcome } from "@destack/sync";
 import { ObjectError } from "../error/index.ts";
 import { call } from "./call.ts";
 import { AuditCaller } from "./actor.ts";
-import { AuditCall, type JournalEntry, MAX_EXECUTION_BYTES } from "./execution.ts";
+import { CallEvent, type JournalEntry, MAX_EXECUTION_BYTES } from "./execution.ts";
 import { Replay } from "./replay.ts";
 import { journal } from "../stack/db.ts";
 
@@ -154,7 +154,7 @@ export class Journal {
                 ? this.events
                       .append(
                           Journal.kind,
-                          [Journal.event(AuditCall.parse(Journal.kept(entry)))],
+                          [Journal.event(CallEvent.parse(Journal.kept(entry)))],
                           transaction,
                       )
                       .then(
@@ -199,7 +199,7 @@ export class Journal {
     }
 
     /** Write an ended call as an event of its scope. */
-    static event(ended: AuditCall) {
+    static event(ended: CallEvent) {
         const { execution } = ended;
         const { target } = execution;
 

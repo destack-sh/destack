@@ -1,13 +1,13 @@
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
+import { BranchEntry } from "../branch/entry.ts";
 import { Condition, Key, OrderBy, RelationalQueryBuilder, TABLE, Table } from "@destack/db";
 import { JsonValue, present, schema } from "@destack/schema";
 import type { HookHandler, ServerContext } from "@destack/runtime/workload";
 import { Subject } from "@destack/sync";
-import { Call } from "../method/call.ts";
+import { MethodContext } from "../method/context.ts";
 import type { Session } from "../method/reader.ts";
 import { ObjectType } from "../object/object.ts";
 import {
-    BranchCalls,
     type CallRecord,
     HandlerAnswer,
     HandlerRequest,
@@ -77,7 +77,7 @@ export class HookServer implements HookHandler {
             }
             // change rows, the wrapped behaviour run at the store
             else if (hook.phase === "handle" && code?.handle !== undefined) {
-                const next = async (changed: Call = call) =>
+                const next = async (changed: MethodContext = call) =>
                     HookResult.decode(
                         call,
                         await this.#request(mutation, { kind: "next", input: changed.input }),
@@ -93,9 +93,9 @@ export class HookServer implements HookHandler {
     }
 
     /** Rebuild a recorded call in the sandbox, its calls and reads sent to the store. */
-    #call(record: CallRecord, mutation: string): Call {
+    #call(record: CallRecord, mutation: string): MethodContext {
         // find the type and its method
-        const object = Call.findType(this.types, record);
+        const object = ObjectType.find(this.types, record);
         if (object === undefined) {
             throw new TypeError(
                 `this sandbox does not run hooks of ${record.type.packageId}/${record.type.type}`,
@@ -104,7 +104,7 @@ export class HookServer implements HookHandler {
         const method = object.method(record.method);
 
         // rebuild the call, reading and running further calls in the mutation's session
-        const call: Call = new Call({
+        const context: MethodContext = new MethodContext({
             object,
             name: record.method,
             method,
@@ -143,7 +143,7 @@ export class HookServer implements HookHandler {
                 }),
         });
 
-        return call;
+        return context;
     }
 
     /** Query a table in a mutation, decoding its rows as the store answers them. */
@@ -218,7 +218,7 @@ export class HookServer implements HookHandler {
                     await this.#request(mutation, {
                         kind: "rehearse",
                         over: [...over],
-                        calls: BranchCalls.parse(calls),
+                        calls: schema.array(BranchEntry).parse(calls),
                     }),
                 ),
             lookup: async (lookup) =>
