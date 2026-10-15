@@ -2,13 +2,13 @@ import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, none, principal, relation, through } from "@destack/access";
 import { call } from "../index.ts";
-import { testEvents } from "../test/index.ts";
+import { testEvents, serversOf } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier, Clock } from "@destack/schema";
 
-import { Replica, Scope } from "@destack/sync";
+import { Replica, Scope, type Uplink } from "@destack/sync";
 import { defineObject, field, Intrinsic } from "../index.ts";
 import { ObjectStore } from "./index.ts";
 
@@ -65,17 +65,14 @@ const badge = defineObject({
 const relationship = defineObject(Intrinsic.relationship.definition(person)).methods();
 
 /** Serve people and profiles over a database. */
-async function serve(
-    database: DatabaseConnection,
-    subscriber?: NonNullable<ConstructorParameters<typeof ObjectStore>[0]["subscriber"]>,
-) {
+async function serve(database: DatabaseConnection, uplink?: Uplink) {
     return new ObjectStore({
-        chain: async () => (subscriber === undefined ? undefined : { kind: "follower" }),
+        chain: async () => (uplink === undefined ? undefined : { kind: "follower" }),
         clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, spaceId),
-        objects: [person, profile],
+        servers: serversOf([person, profile]),
         database,
-        ...(subscriber === undefined ? {} : { subscriber }),
+        ...(uplink === undefined ? {} : { uplink }),
         callKey: testCallKey,
         events: await testEvents(database),
         origin: {
@@ -145,18 +142,16 @@ test.each(TEST_DIALECTS)(
 
         // keep the space's replica of the universe in its database, decided at home for the space
         const replicating: ObjectStore = await serve(space.database, {
-            uplink: {
-                receive: refuseChanges,
-                stream: (asked, signal) =>
-                    served.source.replicate(
-                        asked,
-                        asked.after,
-                        {
-                            subject: principal.space.reference(Scope.universe.id, asked.below),
-                        },
-                        signal,
-                    ),
-            },
+            receive: refuseChanges,
+            stream: (asked, signal) =>
+                served.source.replicate(
+                    asked,
+                    asked.after,
+                    {
+                        subject: principal.space.reference(Scope.universe.id, asked.below),
+                    },
+                    signal,
+                ),
         });
         const follower = present(
             replicating.controllers().find((each) => each.name === "replica"),
@@ -266,7 +261,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, spaceId),
-            objects: [person, team, badge],
+            servers: serversOf([person, team, badge]),
             database: home.database,
             callKey: testCallKey,
             events: await testEvents(home.database),
@@ -294,21 +289,19 @@ test.each(TEST_DIALECTS)(
             chain: async () => ({ kind: "follower" }),
             clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, spaceId),
-            objects: [person, badge],
+            servers: serversOf([person, badge]),
             database: space.database,
-            subscriber: {
-                uplink: {
-                    receive: refuseChanges,
-                    stream: (asked, signal) =>
-                        served.source.replicate(
-                            asked,
-                            asked.after,
-                            {
-                                subject: principal.space.reference(Scope.universe.id, asked.below),
-                            },
-                            signal,
-                        ),
-                },
+            uplink: {
+                receive: refuseChanges,
+                stream: (asked, signal) =>
+                    served.source.replicate(
+                        asked,
+                        asked.after,
+                        {
+                            subject: principal.space.reference(Scope.universe.id, asked.below),
+                        },
+                        signal,
+                    ),
             },
             callKey: testCallKey,
             events: await testEvents(space.database),
@@ -367,7 +360,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spaceSubject,
-            objects: [person, relationship],
+            servers: serversOf([person, relationship]),
             database: home.database,
             callKey: testCallKey,
             events: await testEvents(home.database),
@@ -377,21 +370,19 @@ test.each(TEST_DIALECTS)(
             chain: async () => ({ kind: "follower" }),
             clock: Clock.system,
             principal: spaceSubject,
-            objects: [person],
+            servers: serversOf([person]),
             database: space.database,
-            subscriber: {
-                uplink: {
-                    receive: refuseChanges,
-                    stream: (asked, signal) =>
-                        served.source.replicate(
-                            asked,
-                            asked.after,
-                            {
-                                subject: principal.space.reference(Scope.universe.id, asked.below),
-                            },
-                            signal,
-                        ),
-                },
+            uplink: {
+                receive: refuseChanges,
+                stream: (asked, signal) =>
+                    served.source.replicate(
+                        asked,
+                        asked.after,
+                        {
+                            subject: principal.space.reference(Scope.universe.id, asked.below),
+                        },
+                        signal,
+                    ),
             },
             callKey: testCallKey,
             events: await testEvents(space.database),

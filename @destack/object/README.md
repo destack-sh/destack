@@ -11,9 +11,9 @@ export const page = defineObject({
     permissions,
     constraints: { title: { kind: "index", on: ["title"] } },
 }).methods((method) => ({ get: method.get("read"), create: method.create("edit") }));
-// serves it over one database
+// serves its package over one database
 const store = new ObjectStore({
-    objects: [page],
+    servers: [defineServer(pages, { objects: [page] })],
     principal: space,
     database,
     callKey,
@@ -146,13 +146,22 @@ const create = page.call("create", { spaceId, title: "Ideas" });
 
 ## Stores
 
-`ObjectStore` serves object types over one database: `query` reads, and `mutate` runs calls in one transaction, once per id.
+`defineServer` is the one way to serve a package: its handled types, controllers, providers, follows, external files and adapters; `at` serves it as an installation inside a store of other packages.
+
+```ts
+import { defineServer } from "@destack/object/server";
+
+export default defineServer(pages, { objects: [page.implement({ methods })], controllers: [] });
+const vault = vaultServer.at(installation); // served as its installation in a space's store
+```
+
+`ObjectStore` serves package servers over one database: `query` reads, `mutate` runs calls in one transaction, once per id, and `packages` answers each package below its mount.
 
 ```ts
 import { ObjectStore } from "@destack/object/server";
 
 const store = new ObjectStore({
-    objects: [page],
+    servers: [defineServer(pages, { objects: [page] })],
     principal: space,
     database,
     callKey,
@@ -199,7 +208,7 @@ const events = new EventStore({
     report,
 });
 const store = new ObjectStore({
-    objects: [call],
+    servers: [objectServer],
     principal: space,
     database,
     callKey,
@@ -226,12 +235,9 @@ The journal appends each audited call to the `call` events type, which object's 
 
 ```ts
 import objectPackage from "@destack/object/package";
-import objectServer, { ObjectExtension } from "@destack/object/server";
+import objectServer, { ObjectStore } from "@destack/object/server";
 
-const { store, packages } = ObjectExtension.compose(
-    [objectServer.extension(undefined), ...extensions],
-    options,
-);
+const store = new ObjectStore({ servers: [objectServer, ...servers], ...options });
 const calls = createClient(objectPackage, endpoint);
 await calls.call.list({ scope, where: { outcome: "failure" }, orderBy: { time: "desc" } });
 ```
@@ -245,7 +251,7 @@ indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
 
 const claim = defineObject({ name: "claim", /* … */ }).methods((method) => ({ ...claimMethods }));
 const home = RemoteStore.of(() => accounts.replica, Scope.universe.id);
-const store = new ObjectStore({ objects: [profile], claims: { object: claim, home }, principal: space, database, callKey, events, origin });
+const store = new ObjectStore({ servers: [profileServer], claims: { object: claim, home }, principal: space, database, callKey, events, origin });
 const owner = await Claim.lookup(profile, store.claims, "handle", ["ada"]); // { scope, id }
 ```
 
@@ -262,7 +268,7 @@ const room = defineObject({
     partition: true,
 }).methods();
 const store = new ObjectStore({
-    objects: [message],
+    servers: [defineServer(rooms, { objects: [message] })],
     partition: roomId,
     database,
     principal,

@@ -20,7 +20,7 @@ import {
 import { type Condition, type ObservationReport } from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
-import { type ProvisionedObject, type ProvisionedRecord } from "../trait/provisioned.ts";
+import { type ResourceType, type ResourceRow } from "../trait/provisioned.ts";
 import { DesiredState } from "../trait/desired.ts";
 import { Call } from "../method/call.ts";
 
@@ -31,7 +31,7 @@ export const DRAINING = "draining";
 const DESIRED_STATES_KEPT = 16;
 
 /** What a process reconciling the resources it serves supplies: its providers and its machine. */
-export interface ProvisionedOptions {
+export interface ResourceControllerOptions {
     /** The providers the process has, in preference order within each kind. */
     readonly providers: readonly Pick<
         Provider<ResourceKind, ObjectType>,
@@ -42,31 +42,31 @@ export interface ProvisionedOptions {
 }
 
 /** What one reconcile of a resource uses: the process's providers and its desired states. */
-interface ReconcileOptions extends ProvisionedOptions {
+interface ReconcileOptions extends ResourceControllerOptions {
     /** Read the desired states of some digests a resource lists. */
     readonly states: (
-        row: ProvisionedRecord,
+        row: ResourceRow,
         digests: readonly Digest[],
     ) => Promise<KindState<ResourceKind>[]>;
 }
 
 /** The control loop of one kind's provisioned objects through a process's providers. */
-export class ProvisionedController implements ObjectController<ProvisionedObject<"space">> {
+export class ResourceController implements ObjectController<ResourceType<"space">> {
     /** The rows the loop takes: every resource of the kind. */
     readonly pending = {};
     /** The consumer relationships, whose changes select the resource they relate. */
     readonly watches: readonly ObjectWatch[];
     /** The provisioned object type. */
-    readonly #object: ProvisionedObject<"space">;
+    readonly #object: ResourceType<"space">;
     /** The process's providers of the kind and its machine. */
-    readonly #options: ProvisionedOptions;
+    readonly #options: ResourceControllerOptions;
     /** The resources' kind. */
     readonly #kind: ResourceKind;
     /** The desired states read so far by digest, parsed by the kind, the latest read last. */
     readonly #states = new Map<Digest, unknown>();
 
     /** Reconcile a kind's provisioned objects via its providers, refusing self-controlled ones. */
-    constructor(object: ProvisionedObject<"space">, options: ProvisionedOptions) {
+    constructor(object: ResourceType<"space">, options: ResourceControllerOptions) {
         // refuse resources another controller reconciles
         if (object.controller !== undefined) {
             throw new TypeError(
@@ -109,8 +109,8 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     }
 
     /** Reconcile one resource, returning when to look again. */
-    reconcile(reconciliation: ObjectReconciliation<ProvisionedObject<"space">>) {
-        return ProvisionedController.#reconcile(
+    reconcile(reconciliation: ObjectReconciliation<ResourceType<"space">>) {
+        return ResourceController.#reconcile(
             this.#object,
             aligned(reconciliation.rows, 0),
             reconciliation,
@@ -124,7 +124,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     /** Read the desired states of some digests a resource lists, each parsed once by the kind. */
     async #read(
         database: DatabaseConnection,
-        row: ProvisionedRecord,
+        row: ResourceRow,
         digests: readonly Digest[],
     ): Promise<KindState<ResourceKind>[]> {
         // read and parse the states not kept
@@ -152,9 +152,9 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     }
 
     /** Select the provider a resource requests, or the first of its kind. */
-    static select<Selected extends Pick<ProvisionedOptions["providers"][number], "code">>(
+    static select<Selected extends Pick<ResourceControllerOptions["providers"][number], "code">>(
         providers: readonly Selected[],
-        row: Pick<ProvisionedRecord, "provider" | "placement">,
+        row: Pick<ResourceRow, "provider" | "placement">,
     ): Selected | undefined {
         const requested = row.provider ?? row.placement?.provider ?? null;
 
@@ -165,33 +165,27 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Reconcile one resource: provision, retire or apply, returning when to look again. */
     static async #reconcile(
-        object: ProvisionedObject<"space">,
-        row: ProvisionedRecord,
-        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        object: ResourceType<"space">,
+        row: ResourceRow,
+        reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
     ): Promise<number | undefined> {
         // act only on a resource with a local scope and an approval threshold set by its owner
         const { approval } = row;
         if (
             approval === null ||
-            !(await ProvisionedController.#isHeld(reconciliation.database, row.scope))
+            !(await ResourceController.#isHeld(reconciliation.database, row.scope))
         ) {
             return undefined;
         }
 
         // retire a deleted resource
         if (row.deletedAt !== null) {
-            return ProvisionedController.#retire(
-                object,
-                row,
-                row.deletedAt,
-                reconciliation,
-                options,
-            );
+            return ResourceController.#retire(object, row, row.deletedAt, reconciliation, options);
         }
         // observe a lent resource at its identifier below the machine's egress
         else if (row.origin === "connection") {
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
@@ -210,7 +204,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         }
         // observe a resource whose stack declares its reference ready as declared
         else if (row.origin === "declared") {
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
@@ -226,14 +220,14 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         }
         // provision a resource whose specification changed and apply its desired states
         else if (row.generation > row.observedGeneration || row.reference === null) {
-            const provisioned = await ProvisionedController.#provision(
+            const provisioned = await ResourceController.#provision(
                 object,
                 row,
                 reconciliation,
                 options,
             );
             if (provisioned) {
-                await ProvisionedController.#apply(
+                await ResourceController.#apply(
                     object,
                     provisioned,
                     approval,
@@ -244,7 +238,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         }
         // apply the desired states of a provisioned resource
         else {
-            await ProvisionedController.#apply(object, row, approval, reconciliation, options);
+            await ResourceController.#apply(object, row, approval, reconciliation, options);
         }
 
         return undefined;
@@ -263,21 +257,21 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Provision a resource through its provider, recording the outcome and returning the row. */
     static async #provision(
-        object: ProvisionedObject<"space">,
-        row: ProvisionedRecord,
-        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-        options: ProvisionedOptions,
-    ): Promise<ProvisionedRecord | undefined> {
+        object: ResourceType<"space">,
+        row: ResourceRow,
+        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        options: ResourceControllerOptions,
+    ): Promise<ResourceRow | undefined> {
         // select the requested provider or the first one providing the kind
-        const provider = ProvisionedController.select(options.providers, row);
+        const provider = ResourceController.select(options.providers, row);
         if (provider === undefined) {
             const message = `no provider for ${object.name} ${row.name}`;
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
                 {},
-                { ready: ProvisionedController.#unready("NoProvider", message) },
+                { ready: ResourceController.#unready("NoProvider", message) },
             );
 
             return undefined;
@@ -285,13 +279,13 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         // refuse a provider provisioning nothing
         else if (provider.provision === undefined) {
             const message = `provider ${provider.code} of ${object.name} provisions nothing`;
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
                 {},
                 {
-                    ready: ProvisionedController.#unready("NoProvisioning", message),
+                    ready: ResourceController.#unready("NoProvisioning", message),
                 },
             );
 
@@ -308,18 +302,18 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
                 machineId: options.machine,
             };
 
-            return await ProvisionedController.#observe(object, row, reconciliation, fields, {
-                ready: ProvisionedController.#unready("Provisioned", provisioned.reference),
+            return await ResourceController.#observe(object, row, reconciliation, fields, {
+                ready: ResourceController.#unready("Provisioned", provisioned.reference),
             });
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
                 {},
                 {
-                    ready: ProvisionedController.#unready("ProvisioningFailed", message),
+                    ready: ResourceController.#unready("ProvisioningFailed", message),
                 },
             );
             throw error;
@@ -328,22 +322,22 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Plan a resource toward its desired states, applying what its approvals allow. */
     static async #apply(
-        object: ProvisionedObject<"space">,
-        row: ProvisionedRecord,
+        object: ResourceType<"space">,
+        row: ResourceRow,
         approval: Risk,
-        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
     ): Promise<void> {
         // require the resource's provider
-        const provider = ProvisionedController.select(options.providers, row);
+        const provider = ResourceController.select(options.providers, row);
         if (provider === undefined) {
             const message = `no provider for ${object.name} ${row.name}`;
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
                 {},
-                { ready: ProvisionedController.#unready("NoProvider", message) },
+                { ready: ResourceController.#unready("NoProvider", message) },
             );
 
             return;
@@ -357,7 +351,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         }
 
         // plan the desired states or a recreation stopping the draining consumers first
-        const planned = await ProvisionedController.#planRecreation(
+        const planned = await ResourceController.#planRecreation(
             object,
             row,
             provider,
@@ -369,31 +363,31 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         }
         const { plan, isDraining } = planned;
         const planDigest = await Plan.digest(plan);
-        const waiting = { steps: plan.steps.map((step) => ProvisionedController.#planStep(step)) };
+        const waiting = { steps: plan.steps.map((step) => ResourceController.#planStep(step)) };
 
         // wait for an approval of this exact plan when its risk reaches the approval threshold
         if (Plan.isAtLeast(plan, approval) && row.approvedPlan !== planDigest) {
             const message = `approve plan ${planDigest} with ${plan.steps.length} steps`;
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
                 { plan: waiting },
                 {
-                    ready: ProvisionedController.#unready("AwaitingApproval", message),
+                    ready: ResourceController.#unready("AwaitingApproval", message),
                 },
             );
         }
         // report draining for the consumers' owner to stop them
         else if (isDraining) {
             const message = "stopping the draining consumers before applying the plan";
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
                 { plan: waiting, approvedPlan: null },
                 {
-                    ready: ProvisionedController.#unready("Recreating", message),
+                    ready: ResourceController.#unready("Recreating", message),
                     [DRAINING]: { status: "true", reason: "Recreating", message },
                 },
             );
@@ -401,7 +395,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         // apply the plan and record the desired states it applied
         else {
             const digests = { plan: planDigest, state: stateDigest };
-            await ProvisionedController.#applyPlan(
+            await ResourceController.#applyPlan(
                 object,
                 row,
                 provider,
@@ -415,10 +409,10 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Plan a resource's desired states, or a recreation without draining-only states. */
     static async #planRecreation(
-        object: ProvisionedObject<"space">,
-        row: ProvisionedRecord,
-        provider: ProvisionedOptions["providers"][number],
-        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        object: ResourceType<"space">,
+        row: ResourceRow,
+        provider: ResourceControllerOptions["providers"][number],
+        reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
     ): Promise<{ readonly plan: Plan; readonly isDraining: boolean } | undefined> {
         // plan the desired states
@@ -452,12 +446,12 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
                 const isBlocked = error instanceof PlanError;
                 const message = error instanceof Error ? error.message : String(error);
                 const reason = isBlocked ? "Blocked" : "PlanFailed";
-                await ProvisionedController.#observe(
+                await ResourceController.#observe(
                     object,
                     row,
                     reconciliation,
                     {},
-                    { ready: ProvisionedController.#unready(reason, message) },
+                    { ready: ResourceController.#unready(reason, message) },
                 );
                 if (!isBlocked) {
                     throw error;
@@ -480,12 +474,12 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Apply a plan through the resource's provider and record the desired states it applied. */
     static async #applyPlan(
-        object: ProvisionedObject<"space">,
-        row: ProvisionedRecord,
-        provider: ProvisionedOptions["providers"][number],
+        object: ResourceType<"space">,
+        row: ResourceRow,
+        provider: ResourceControllerOptions["providers"][number],
         plan: Plan,
         digests: { readonly plan: string; readonly state: string },
-        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
     ): Promise<void> {
         try {
@@ -500,7 +494,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
             // record the desired states it applied and the end of a drain
             const message = `${plan.steps.length} steps applied`;
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
@@ -516,15 +510,15 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
             // record the failure and keep the plan
             const message = error instanceof Error ? error.message : String(error);
             const waiting = {
-                steps: plan.steps.map((step) => ProvisionedController.#planStep(step)),
+                steps: plan.steps.map((step) => ResourceController.#planStep(step)),
             };
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
                 { plan: waiting },
                 {
-                    ready: ProvisionedController.#unready("ApplyFailed", message),
+                    ready: ResourceController.#unready("ApplyFailed", message),
                 },
             );
             throw error;
@@ -533,11 +527,11 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Remove an unused resource, destroying its content and returning when its retention ends. */
     static async #retire(
-        object: ProvisionedObject<"space">,
-        row: ProvisionedRecord,
+        object: ResourceType<"space">,
+        row: ResourceRow,
         requestedAt: number,
-        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-        options: ProvisionedOptions,
+        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        options: ResourceControllerOptions,
     ): Promise<number | undefined> {
         // keep the record and content of retained resources until owned again or their window ends
         const retention = row.retention;
@@ -548,13 +542,13 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         if (retention === "forever" || (ends !== undefined && ends > reconciliation.now)) {
             if (row.conditions["ready"]?.reason !== "Retained") {
                 const message = "content retained after removal";
-                await ProvisionedController.#observe(
+                await ResourceController.#observe(
                     object,
                     row,
                     reconciliation,
                     {},
                     {
-                        ready: ProvisionedController.#unready("Retained", message),
+                        ready: ResourceController.#unready("Retained", message),
                     },
                 );
             }
@@ -563,38 +557,34 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         }
 
         // wait until no consumer uses the resource
-        const consumer = await ProvisionedController.#consumerOf(
-            object,
-            row,
-            reconciliation.database,
-        );
+        const consumer = await ResourceController.#consumerOf(object, row, reconciliation.database);
         if (consumer !== undefined) {
             const message = `consumed by ${consumer}`;
-            await ProvisionedController.#observe(
+            await ResourceController.#observe(
                 object,
                 row,
                 reconciliation,
                 {},
-                { ready: ProvisionedController.#unready("InUse", message) },
+                { ready: ResourceController.#unready("InUse", message) },
             );
 
             return undefined;
         }
 
         // destroy provisioned content and record a failure before retrying it
-        const provider = ProvisionedController.select(options.providers, row);
+        const provider = ResourceController.select(options.providers, row);
         if (row.reference !== null && provider?.provision !== undefined) {
             try {
                 await provider.provision.destroy(provider.kind.record(row));
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
-                await ProvisionedController.#observe(
+                await ResourceController.#observe(
                     object,
                     row,
                     reconciliation,
                     {},
                     {
-                        ready: ProvisionedController.#unready("DestroyFailed", message),
+                        ready: ResourceController.#unready("DestroyFailed", message),
                     },
                 );
                 throw error;
@@ -609,8 +599,8 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Read one consumer of a resource from its consumer relationships, if any. */
     static async #consumerOf(
-        object: ProvisionedObject<"space">,
-        row: ProvisionedRecord,
+        object: ResourceType<"space">,
+        row: ResourceRow,
         database: DatabaseConnection,
     ): Promise<string | undefined> {
         const [related] = await database
@@ -632,12 +622,12 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Observe provider fields and conditions for the current generation, returning the row. */
     static async #observe(
-        object: ProvisionedObject<"space">,
-        row: ProvisionedRecord,
-        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        object: ResourceType<"space">,
+        row: ResourceRow,
+        reconciliation: ObjectReconciliation<ResourceType<"space">>,
         fields: NonNullable<ObservationReport["fields"]>,
         conditions: Readonly<Record<string, Condition>>,
-    ): Promise<ProvisionedRecord> {
+    ): Promise<ResourceRow> {
         // observe the generation, the conditions and the fields once
         const observed = await reconciliation.observe(object, row, { conditions, fields });
 

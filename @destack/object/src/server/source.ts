@@ -3,7 +3,7 @@ import {
     accessRole,
     accessRolePermission,
     Authorizer,
-    CHAIN_SHAPE,
+    CHAIN_PUBLICATION,
     type ChainOptions,
     ChainParameters,
     decisionTables,
@@ -11,7 +11,7 @@ import {
     principal,
     Relationship,
     Caller,
-    UNIVERSE_SHAPE,
+    UNIVERSE_PUBLICATION,
     UniverseParameters,
     type Policy,
 } from "@destack/access";
@@ -41,11 +41,11 @@ import { withEventMeta } from "@destack/runtime";
 import * as sync from "@destack/sync";
 
 import {
-    ACCESS_SHAPE,
-    EPHEMERAL_SHAPE,
-    EXTERNAL_SHAPE,
+    ACCESS_PUBLICATION,
+    EPHEMERAL_PUBLICATION,
+    EXTERNAL_PUBLICATION,
     EphemeralParameters,
-    QUERIES_SHAPE,
+    QUERIES_PUBLICATION,
     QueriesParameters,
 } from "../replica/replica.ts";
 import { FOLLOW, ObjectType, REPLICATE, type ObjectStorage } from "../object/object.ts";
@@ -85,18 +85,18 @@ export class ObjectSource {
         return this.#streaming.has(below);
     }
 
-    /** Stream a shape's replica to the caller its audience admits. */
+    /** Stream a publication's replica to the caller its audience admits. */
     async *relayed(
         subscription: sync.Subscription,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
-        // admit the caller by the shape's audience, counting its replica while it streams
-        const shape = this.#shape(subscription);
-        const follower = await this.#admit(shape, subscription, context);
+        // admit the caller by the publication's audience, counting its replica while it streams
+        const publication = this.#publication(subscription);
+        const follower = await this.#admit(publication, subscription, context);
         const below = subscription.below;
         this.#streaming.set(below, (this.#streaming.get(below) ?? 0) + 1);
         try {
-            yield* this.#relay(shape, subscription, follower, context);
+            yield* this.#relay(publication, subscription, follower, context);
         } finally {
             const remaining = found(this.#streaming, below) - 1;
             if (remaining === 0) {
@@ -107,27 +107,27 @@ export class ObjectSource {
         }
     }
 
-    /** Stream an admitted follower's replica by its shape. */
+    /** Stream an admitted follower's replica by its publication. */
     async *#relay(
-        shape: sync.Shape,
+        publication: sync.Publication,
         subscription: sync.Subscription,
         follower: ReplicaFollower,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // follow a scope's durable objects
-        if (shape === this.queriesShape) {
+        if (publication === this.queriesPublication) {
             yield* this.#durable(subscription, follower, context);
         }
         // follow a scope's ephemeral objects
-        else if (shape === this.ephemeralShape) {
+        else if (publication === this.ephemeralPublication) {
             yield* this.#ephemeral(subscription, follower, context);
         }
         // follow a scope's external objects
-        else if (shape === this.externalShape) {
+        else if (publication === this.externalPublication) {
             yield* this.#external(subscription, follower, context);
         }
         // follow the access rows of a scope's chain
-        else if (shape === this.accessShape) {
+        else if (publication === this.accessPublication) {
             yield* this.#access(subscription, follower, context);
         }
         // relay any other replica to the follower it is for
@@ -137,13 +137,13 @@ export class ObjectSource {
         }
     }
 
-    /** Admit a caller to a shape's replica for the scope below, returning who it is for. */
+    /** Admit a caller to a publication's replica for the scope below, returning who it is for. */
     async #admit(
-        shape: sync.Shape,
+        publication: sync.Publication,
         subscription: sync.Subscription,
         context: RequestContext,
     ): Promise<ReplicaFollower> {
-        switch (shape.audience) {
+        switch (publication.audience) {
             case "caller": {
                 // decide for the caller, or for the principal it may follow on behalf of
                 await this.store.enter(context, subscription.scope);
@@ -209,8 +209,11 @@ export class ObjectSource {
             });
         }
         // decide a replica on its scope, and a via replica on each of its scopes
-        const via = request.shape === CHAIN_SHAPE ? ObjectSource.#chainParameters(request).via : [];
-        if (this.#shape(request).audience === "contained" && via.length === 0) {
+        const via =
+            request.publication === CHAIN_PUBLICATION
+                ? ObjectSource.#chainParameters(request).via
+                : [];
+        if (this.#publication(request).audience === "contained" && via.length === 0) {
             const isResident = kept.some((subject) => subject.scope === request.below);
             const decided = standing === undefined || isResident ? request.below : request.scope;
             await this.#requireReplicate(decided, kept, context);
@@ -371,9 +374,9 @@ export class ObjectSource {
         };
     }
 
-    /** The shape of a scope's durable objects: named queries, or every listed type of its level. */
-    readonly queriesShape = sync.defineShape({
-        name: QUERIES_SHAPE,
+    /** The publication of a scope's durable objects: named queries, or every type of its level. */
+    readonly queriesPublication = sync.definePublication({
+        name: QUERIES_PUBLICATION,
         parameters: QueriesParameters,
         audience: "caller",
         isReadinessGate: true,
@@ -420,9 +423,9 @@ export class ObjectSource {
         },
     });
 
-    /** The shape of a scope's ephemeral objects a client follows, writing its own rows. */
-    readonly ephemeralShape = sync.defineShape({
-        name: EPHEMERAL_SHAPE,
+    /** The publication of a scope's ephemeral objects a client follows, writing its own rows. */
+    readonly ephemeralPublication = sync.definePublication({
+        name: EPHEMERAL_PUBLICATION,
         parameters: EphemeralParameters,
         audience: "caller",
         isReadinessGate: true,
@@ -434,9 +437,9 @@ export class ObjectSource {
             }),
     });
 
-    /** The shape of a scope's external objects from their files' database: named queries. */
-    readonly externalShape = sync.defineShape({
-        name: EXTERNAL_SHAPE,
+    /** The publication of a scope's external objects from their files' database: named queries. */
+    readonly externalPublication = sync.definePublication({
+        name: EXTERNAL_PUBLICATION,
         parameters: QueriesParameters,
         audience: "caller",
         isReadinessGate: true,
@@ -450,27 +453,27 @@ export class ObjectSource {
             }),
     });
 
-    /** The shape of a scope's chain replica: access rows, inherited rows and own object. */
-    readonly chainShape = sync.defineShape({
-        name: CHAIN_SHAPE,
+    /** The publication of a scope's chain replica: access rows, inherited rows and own object. */
+    readonly chainPublication = sync.definePublication({
+        name: CHAIN_PUBLICATION,
         parameters: ChainParameters,
         audience: "contained",
         isReadinessGate: true,
         replica: (request) => this.store.authorizer.replicateChain(request),
     });
 
-    /** The shape of the universe's rows a scope reads, decided for their reader. */
-    readonly universeShape = sync.defineShape({
-        name: UNIVERSE_SHAPE,
+    /** The publication of the universe's rows a scope reads, decided for their reader. */
+    readonly universePublication = sync.definePublication({
+        name: UNIVERSE_PUBLICATION,
         parameters: UniverseParameters,
         audience: "reader",
         isReadinessGate: true,
         replica: (request) => this.store.authorizer.replicateUniverse(request),
     });
 
-    /** The shape of the access rows of the caller's own checks in a scope's chain. */
-    readonly accessShape = sync.defineShape({
-        name: ACCESS_SHAPE,
+    /** The publication of the access rows of the caller's own checks in a scope's chain. */
+    readonly accessPublication = sync.definePublication({
+        name: ACCESS_PUBLICATION,
         parameters: schema.object({}),
         audience: "caller",
         isReadinessGate: true,
@@ -804,39 +807,39 @@ export class ObjectSource {
         store.tracker.broadcast(scope, { ...reference, event });
     }
 
-    /** The shapes this store serves and follows, by name. */
-    get shapes(): ReadonlyMap<string, sync.Shape> {
+    /** The publications this store serves and follows, by name. */
+    get publications(): ReadonlyMap<string, sync.Publication> {
         return new Map(
             [
-                this.chainShape,
-                this.universeShape,
-                this.queriesShape,
-                this.ephemeralShape,
-                this.externalShape,
-                this.accessShape,
-                ...this.store.shapes,
-            ].map((shape) => [shape.name, shape]),
+                this.chainPublication,
+                this.universePublication,
+                this.queriesPublication,
+                this.ephemeralPublication,
+                this.externalPublication,
+                this.accessPublication,
+                ...this.store.publications,
+            ].map((publication) => [publication.name, publication]),
         );
     }
 
-    /** Build the replica a request of a served shape asks for. */
+    /** Build the replica a request of a served publication asks for. */
     buildReplica(request: sync.Subscription): sync.Replica {
-        return this.#shape(request).replica(request);
+        return this.#publication(request).replica(request);
     }
 
-    /** Report whether a request's replica gates this store's readiness, as its shape says. */
-    isReadinessGate(request: Pick<sync.Subscription, "shape">): boolean {
-        return this.#shape(request).isReadinessGate;
+    /** Report whether a request's replica gates this store's readiness, as its publication says. */
+    isReadinessGate(request: Pick<sync.Subscription, "publication">): boolean {
+        return this.#publication(request).isReadinessGate;
     }
 
-    /** Find the served shape a request asks for, refusing any other. */
-    #shape(request: Pick<sync.Subscription, "shape">): sync.Shape {
-        const shape = this.shapes.get(request.shape);
-        if (shape === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no shape ${request.shape}` });
+    /** Find the served publication a request asks for, refusing any other. */
+    #publication(request: Pick<sync.Subscription, "publication">): sync.Publication {
+        const publication = this.publications.get(request.publication);
+        if (publication === undefined) {
+            throw new CallError("NOT_FOUND", { message: `no publication ${request.publication}` });
         }
 
-        return shape;
+        return publication;
     }
 
     /** Build a subscription's replica key from its name and scope, shared per replica. */
@@ -957,7 +960,7 @@ export class ObjectSource {
     ): Promise<void> {
         try {
             const { subscription, publisher } = replica;
-            const { audience } = this.#shape(subscription);
+            const { audience } = this.#publication(subscription);
             await this.buildReplica(subscription).follow(
                 this.store.database,
                 (from, stream) => publisher.stream({ ...subscription, ...from }, stream),
@@ -1258,16 +1261,16 @@ export class ObjectSource {
         drain?: AbortSignal,
     ): AsyncGenerator<sync.Page> {
         // require the replicated scope to contain the follower's for a chain
-        const shape = this.#shape(request);
-        if (shape.audience === "contained") {
+        const publication = this.#publication(request);
+        if (publication.audience === "contained") {
             await this.#requireContaining(request, follower);
         }
 
         // admit the follower to a chain by containment and to the universe's rows as their reader
-        const audience = await this.#replicaAudience(shape, request, follower);
+        const audience = await this.#replicaAudience(publication, request, follower);
 
         // relay a replicated scope once its replica has a position, to followers other than its source
-        const replica = shape.replica(request);
+        const replica = publication.replica(request);
         const { previous, origin } = request;
         await sync.Replica.requireRelayable(this.store.database, request.name, request.scope);
         if (origin !== undefined) {
@@ -1278,7 +1281,7 @@ export class ObjectSource {
         const reflected =
             previous === undefined
                 ? undefined
-                : shape.replica({ ...request, parameters: previous }).queries;
+                : publication.replica({ ...request, parameters: previous }).queries;
         yield* this.store.feed.subscribe(replica.queries, after, signal, {
             audience,
             ...(reflected === undefined ? {} : { previous: reflected }),
@@ -1365,12 +1368,12 @@ export class ObjectSource {
 
     /** Open the audience a relayed replica is decided for. */
     async #replicaAudience(
-        shape: sync.Shape,
+        publication: sync.Publication,
         request: sync.Subscription,
         follower: ReplicaFollower,
     ): Promise<sync.Audience> {
         // read the scopes a follower outside the chains replicas them via
-        const isContained = shape.audience === "contained";
+        const isContained = publication.audience === "contained";
         const via = isContained ? ObjectSource.#chainParameters(request).via : [];
         const replicating = via.length === 0 ? {} : { via };
 
@@ -1414,7 +1417,7 @@ export class ObjectSource {
         // decide a caller in a relayed replica's scope here, else in the replicated scope at its home
         else {
             const { database } = this.store;
-            const { tables } = shape.replica(request);
+            const { tables } = publication.replica(request);
             const replicated = await Promise.all(
                 tables.map((table) =>
                     sync.Replica.isReplicated(Snapshot.live(database), request.scope, table),

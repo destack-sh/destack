@@ -44,12 +44,20 @@ import { Journal } from "../audit/journal.ts";
 import type { ExchangeAsk } from "@destack/runtime/authentication";
 import type { CallKey } from "@destack/runtime/request";
 
-import { aligned, Clock, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
+import {
+    aligned,
+    Clock,
+    type Identifier,
+    type JsonObject,
+    type JsonValue,
+    present,
+    schema,
+} from "@destack/schema";
 import type { ServerContext } from "@destack/runtime/workload";
 import type { Watermark } from "@destack/runtime/bookmark";
 import { CompactionController } from "@destack/runtime/database";
 import { refuseInput, CallError } from "@destack/runtime/error";
-import { RequestId, type RequestIdentity } from "@destack/runtime/request";
+import { copyRequest, RequestId, type RequestIdentity } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import {
     implement,
@@ -59,7 +67,13 @@ import {
     type PackageImplementation,
     type ProcedureCall,
 } from "@destack/runtime/server";
-import type { PackageHandle, ProcedureRouter } from "@destack/runtime";
+import {
+    Egress,
+    PACKAGE_DECLARATION,
+    PackageDescription,
+    PackageHandle,
+    type ProcedureRouter,
+} from "@destack/runtime";
 import * as sync from "@destack/sync";
 import { type Follow, type FollowKey, Shape } from "../replica/shape.ts";
 import { Branch, type BranchCall, type BranchType } from "../branch/index.ts";
@@ -100,7 +114,7 @@ import { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
 
 import { Provisioned } from "../trait/provisioned.ts";
-import { ProvisionedController, type ProvisionedOptions } from "./provisioned.ts";
+import { ResourceController, type ResourceControllerOptions } from "./provisioned.ts";
 import { ExpiringController } from "./expiring.ts";
 import { RecoverableController } from "./recoverable.ts";
 import { TrackedHistory } from "./tracked.ts";
@@ -111,6 +125,9 @@ import { Settlement } from "./settlement.ts";
 import { telemetry } from "@destack/telemetry";
 import { Claimant } from "../claim/claim.ts";
 import type { StoreExecution } from "../method/execution.ts";
+import type { HookSandbox } from "../hook/sandbox.ts";
+import { declareInstalled } from "../inspect/object.ts";
+import type { AdapterFetch, PackageServer, ServedPackage, ServerDefinition } from "./server.ts";
 
 /** The object call spans. */
 const { span } = telemetry.scope(import.meta.destack.package);
@@ -261,8 +278,59 @@ type CallOptions = {
     readonly component?: string;
 };
 
-/** The options of an object store: its objects, adjacent stores and its call log. */
-export type ObjectStoreOptions = StoreOptions & CallLog;
+/** The options of an object store: its package servers over one database, and its call log. */
+export type ObjectStoreOptions = Omit<
+    StoreParts,
+    | "objects"
+    | "replicas"
+    | "installed"
+    | "external"
+    | "subscriber"
+    | "provisioned"
+    | "follows"
+    | "principal"
+    | "publisher"
+> &
+    CallLog & {
+        /** The package servers, the first one running the store's own controllers. */
+        readonly servers: readonly PackageServer[];
+        /** The sandboxes of the installations whose packages run here without a workload. */
+        readonly sandboxes?: readonly HookSandbox[];
+        /** The followed installation's link for replicated rows' changes, else the publisher. */
+        readonly uplink?: sync.Uplink;
+        /** The machine keeping the servers' provisioned resources, which providers require. */
+        readonly machine?: Identifier<"machine">;
+        /** Open the publisher toward a followed scope's home, else the store's uplink. */
+        readonly publisher?: (scope: string) => sync.Publisher;
+    } & (
+        | {
+              /** The principal the store's own work runs as. */
+              readonly principal: Subject;
+              /** No installation: the store runs as the given principal. */
+              readonly server?: never;
+          }
+        | {
+              /** The installation the store serves as, running its work and replicas. */
+              readonly server: ServerContext;
+              /** No principal: the store runs as the installation. */
+              readonly principal?: never;
+          }
+    );
+
+/** What a store runs with once composed from its servers. */
+type ComposedOptions = StoreParts & CallLog;
+
+/** A package a store serves: its handle, definition, types and serving installation. */
+interface StorePackage {
+    /** The package. */
+    readonly package: ServedPackage;
+    /** The package's code. */
+    readonly definition: ServerDefinition;
+    /** The package's types, its handled ones in place of their declared defaults. */
+    readonly objects: readonly ObjectType[];
+    /** The installation serving the package, absent for the platform's own store. */
+    readonly server: ServerContext | undefined;
+}
 
 /** How a store keeps calls: journaled in its event log when serving methods, else not at all. */
 export type CallLog =
@@ -279,8 +347,8 @@ export type CallLog =
           readonly events?: never;
       };
 
-/** An object store's objects over one database and its adjacent stores. */
-export interface StoreOptions {
+/** An object store's objects over one database and its adjacent stores, as composed. */
+interface StoreParts {
     /** The object types served. */
     readonly objects: readonly ObjectType[];
     /** The types whose queries run over rows replicated here, never followed nor changed here. */
@@ -311,8 +379,8 @@ export interface StoreOptions {
     readonly follows?: readonly Follow[];
     /** Open the publisher toward the home of a scope a follow reads. */
     readonly publisher?: (scope: string) => sync.Publisher;
-    /** The shapes served and followed beside the objects' and policies', such as packages'. */
-    readonly shapes?: readonly sync.Shape[];
+    /** The publications served and followed beside the objects' and policies' ones. */
+    readonly publications?: readonly sync.Publication[];
     /** The machine recording runs: the calls methods send and their change triggers' calls. */
     readonly runs?: RunClient;
     /** The served package's triggers, whose change triggers need a machine recording runs. */
@@ -326,7 +394,7 @@ export interface StoreOptions {
     /** The scope's branch types, among the objects, whose branches reads can see. */
     readonly branch?: BranchType;
     /** The providers reconciling the served kinds' resources, if the store reconciles any. */
-    readonly provisioned?: ProvisionedOptions;
+    readonly provisioned?: ResourceControllerOptions;
 }
 
 /** A store's routes: each served object's procedures by its key, and the replica procedures. */
@@ -368,8 +436,8 @@ export class ObjectStore {
     readonly decided: readonly ObjectType[];
     /** The types of the shapes the store follows, which its follower replicas compile against. */
     readonly followed: readonly ObjectType[];
-    /** The shapes the store serves and follows beside its objects' and policies' shapes. */
-    readonly shapes: readonly sync.Shape[];
+    /** The publications the store serves and follows beside its objects' and policies' ones. */
+    readonly publications: readonly sync.Publication[];
     /** The installations serving objects and their projections, by type reference key. */
     readonly #installed: ReadonlyMap<string, ServerContext>;
     /** The served or authorized durable types whose rows the database replicates from home. */
@@ -393,7 +461,7 @@ export class ObjectStore {
     /** The served kinds' resources, each controlled by the loop its trait builds. */
     readonly #provisioned: readonly ObjectType[];
     /** The providers reconciling the served kinds' resources, none for a store reconciling none. */
-    readonly providers: ProvisionedOptions["providers"];
+    readonly providers: ResourceControllerOptions["providers"];
     /** The declarations installed object types resolve against: the types, policies and kinds. */
     readonly known: readonly KnownDeclaration[];
     /** Whether reads of the objects record access events. */
@@ -404,21 +472,24 @@ export class ObjectStore {
     readonly #readers = new Map<string, TupleReader>();
     /** The scopes each caller lives inside, read once per caller and database. */
     readonly #inside = new WeakMap<Caller, Map<DatabaseConnection, Promise<readonly Subject[]>>>();
-    /** The object types routed by name, without the chunk types serving them. */
-    readonly routed: readonly ObjectType[];
+    /** The types the store's packages declare, without the chunk types serving their text. */
+    readonly #declared: readonly ObjectType[];
+    /** The served packages' implementations, in the order of their servers. */
+    readonly packages: readonly (PackageImplementation & { readonly objects: ObjectStore })[];
     /** The wait for the replicas gating readiness, shared by every implemented package. */
     #readiness: Promise<boolean> | undefined;
 
     /** Serve object types over one database. */
     constructor(given: ObjectStoreOptions) {
-        // add the referenced and followed types, and the follows to the subscriber
-        const options = this.#following(ObjectStore.#referencing(given));
-        this.followed = [...new Set((given.follows ?? []).flatMap((each) => each.shape.objects))];
+        // compose the servers' packages, then add the referenced and followed types and the follows
+        const { parts, served } = ObjectStore.#compose(given, () => this);
+        const options = this.#following(ObjectStore.#referencing(parts));
+        this.followed = [...new Set((parts.follows ?? []).flatMap((each) => each.shape.objects))];
 
         // require each object type once apart from the shared procedures, and the stores its storage needs
-        this.routed = options.objects;
-        this.objects = ObjectType.served(this.routed);
-        this.replicas = given.replicas ?? [];
+        this.#declared = options.objects;
+        this.objects = ObjectType.served(this.#declared);
+        this.replicas = parts.replicas ?? [];
         ObjectStore.#requireRoutes(options.objects);
         ObjectStore.#requireStores(this.objects, options);
 
@@ -426,7 +497,7 @@ export class ObjectStore {
         this.claims = options.claims;
         this.subscriber = options.subscriber;
         this.chain = options.chain;
-        this.shapes = options.shapes ?? [];
+        this.publications = options.publications ?? [];
         this.#installed = options.installed ?? new Map();
         this.uplink = this.#uplink();
         this.runs = options.runs;
@@ -450,7 +521,7 @@ export class ObjectStore {
         TrackedHistory.require(this.objects, this.authorizer);
 
         // keep the journal, the audit and the request context
-        this.#journal = ObjectStore.#journalOf(this.routed, options);
+        this.#journal = ObjectStore.#journalOf(this.#declared, options);
         this.origin = { ...options.origin, package: Package.of(options.origin.package) };
         this.audit = (scope, caller, called) =>
             AuditRecorder.scoped(this.journal, this.origin)(scope, caller, called);
@@ -471,10 +542,23 @@ export class ObjectStore {
         if (followed.sends !== undefined) {
             this.#sends = followed.sends;
         }
+
+        // implement each served package, the first one running the store's own controllers
+        this.packages = served.map((entry, index) => this.#implementPackage(entry, index === 0));
+    }
+
+    /** Read the implementation of a package the store serves, refusing one it serves not. */
+    package(handle: PackageHandle): PackageImplementation & { readonly objects: ObjectStore } {
+        const found = this.packages.find((each) => each.package.id === handle.id);
+        if (found === undefined) {
+            throw new TypeError(`the store serves no package ${handle.name}`);
+        }
+
+        return found;
     }
 
     /** Add the types the served objects refer to, transitively, that the database replicates. */
-    static #referencing(given: ObjectStoreOptions): ObjectStoreOptions {
+    static #referencing(given: ComposedOptions): ComposedOptions {
         // add each referenced type of a replicated table
         const referenced = ObjectType.referenced(given.objects).filter((type) =>
             given.database.replicates(type.table),
@@ -485,9 +569,9 @@ export class ObjectStore {
 
     /** List a store's policies with the types whose policy it maps no other way. */
     static #policies(
-        given: ObjectStoreOptions,
+        given: ComposedOptions,
         types: readonly ObjectType[],
-    ): NonNullable<ObjectStoreOptions["policies"]> {
+    ): NonNullable<ComposedOptions["policies"]> {
         // add each type once, unless an object or policy already maps its policy
         const mapped = new Set(
             [...given.objects, ...(given.policies ?? [])].map((each) =>
@@ -507,9 +591,7 @@ export class ObjectStore {
     }
 
     /** Add the follows' types to the policies, and the chains and follows to the subscriber. */
-    #following(
-        given: ObjectStoreOptions,
-    ): ObjectStoreOptions & { readonly subscriber?: Subscriber } {
+    #following(given: ComposedOptions): ComposedOptions & { readonly subscriber?: Subscriber } {
         // keep a root store, which follows nothing, without a subscriber
         const { follows = [], subscriber, publisher, ...rest } = given;
         if (follows.length === 0 && subscriber?.uplink === undefined && publisher === undefined) {
@@ -601,7 +683,7 @@ export class ObjectStore {
         const intrinsic = DeclarationIndex.of([]);
 
         // describe each asked type, then each type a description refers to beyond the intrinsic policies
-        const served = this.routed.filter((type) => !(INTRINSIC in type.source));
+        const served = this.#declared.filter((type) => !(INTRINSIC in type.source));
         const pending = [...(types ?? served.map((type) => type.typeReference))];
         const described = new Map<string, ObjectDescription>();
         let reference = pending.pop();
@@ -627,7 +709,7 @@ export class ObjectStore {
     static #follow(
         objects: readonly ObjectType[],
         options: Pick<
-            ObjectStoreOptions,
+            ComposedOptions,
             "database" | "policies" | "runs" | "subscriber" | "clock" | "installed"
         >,
     ): {
@@ -679,7 +761,7 @@ export class ObjectStore {
     /** Control each served kind's resources with its trait's loop, if it has providers. */
     static #control(
         objects: readonly ObjectType[],
-        provisioned: ProvisionedOptions | undefined,
+        provisioned: ResourceControllerOptions | undefined,
     ): ObjectType[] {
         return provisioned === undefined
             ? []
@@ -687,7 +769,7 @@ export class ObjectStore {
                   .filter((object) => Provisioned.is(object))
                   .map((object) =>
                       object.implement({
-                          controller: new ProvisionedController(object, provisioned),
+                          controller: new ResourceController(object, provisioned),
                       }),
                   );
     }
@@ -708,9 +790,7 @@ export class ObjectStore {
     }
 
     /** Keep the served package's change triggers, which need a machine recording runs. */
-    static #changeTriggers(
-        options: Pick<ObjectStoreOptions, "runs" | "triggers">,
-    ): ChangeTrigger[] {
+    static #changeTriggers(options: Pick<ComposedOptions, "runs" | "triggers">): ChangeTrigger[] {
         const triggers = (options.triggers ?? []).flatMap(
             (trigger) => Trigger.of(trigger, "change") ?? [],
         );
@@ -724,7 +804,7 @@ export class ObjectStore {
     /** Build the authorizer over the objects, their scope types and other policies. */
     static #authorizer(
         objects: readonly ObjectType[],
-        options: Pick<ObjectStoreOptions, "database" | "policies" | "clock" | "partition">,
+        options: Pick<ComposedOptions, "database" | "policies" | "clock" | "partition">,
     ): Authorizer {
         // map the types attached to the objects whose tables the database keeps beside them
         const kept = new Set(options.database.tables.map((table) => table[TABLE].sqlName));
@@ -749,7 +829,7 @@ export class ObjectStore {
     /** Keep a method store's journal with its call key, refusing a call key without methods. */
     static #journalOf(
         routed: readonly ObjectType[],
-        options: Pick<ObjectStoreOptions, "database" | "callKey" | "clock" | "events">,
+        options: Pick<ComposedOptions, "database" | "callKey" | "clock" | "events">,
     ): Journal | undefined {
         // require the call key and the event log keeping the calls of a store serving methods
         const isServing = routed.length > 0;
@@ -804,7 +884,7 @@ export class ObjectStore {
     static #requireStores(
         objects: readonly ObjectType[],
         options: Pick<
-            ObjectStoreOptions,
+            ComposedOptions,
             "database" | "claims" | "ephemeral" | "events" | "external" | "principal"
         >,
     ): void {
@@ -934,10 +1014,10 @@ export class ObjectStore {
     }
 
     /** Route the served objects' methods, or some of them, and the replica procedures. */
-    router(routed: readonly ObjectType[] = this.routed): ObjectRouter {
+    router(types: readonly ObjectType[] = this.#declared): ObjectRouter {
         // route each object under its key, which its package's handle keeps unique
         const routers: Record<string, Router<ProcedureRouter, RequestContext>> = {};
-        for (const object of routed) {
+        for (const object of types) {
             routers[object.key] = this.#route(object);
         }
 
@@ -2934,6 +3014,365 @@ export class ObjectStore {
         return objects.filter((type) => type.name === object).map((type) => type.table);
     }
 
+    /** Compose a store's parts from its servers and sandboxes, and list the packages it serves. */
+    static #compose(
+        given: ObjectStoreOptions,
+        store: () => ObjectStore,
+    ): { readonly parts: ComposedOptions; readonly served: readonly StorePackage[] } {
+        // require the machine keeping any provisioned resources, and one uplink
+        const { servers, sandboxes = [], uplink, machine, publisher, server, ...rest } = given;
+        const { policies = [], branch } = rest;
+        const own = servers.map((each) =>
+            ObjectStore.#packageOf(each, each.installation ?? server),
+        );
+        const providers = own.flatMap((each) => each.definition.providers ?? []);
+        if (providers.length > 0 && machine === undefined) {
+            throw new TypeError("provisioned resources need their machine");
+        } else if (server !== undefined && uplink !== undefined) {
+            throw new TypeError("an installation's replicas must leave through its publisher");
+        }
+
+        // serve the sandboxed installations' packages, declared against what the servers make known
+        const objects = own.flatMap((each) => each.objects);
+        const followed = own
+            .flatMap((each) => each.definition.follows ?? [])
+            .flatMap((each) => each.shape.objects);
+        const known = ObjectStore.known(objects, [
+            ...policies,
+            ...ObjectType.referenced(objects),
+            ...followed,
+        ]);
+        const served = [
+            ...own,
+            ...sandboxes.flatMap((sandbox) => ObjectStore.#sandboxPackages(sandbox, known)),
+        ];
+
+        // route every package's types, answering queries of replicated types nothing here serves
+        const routes = ObjectStore.#routes(served, (type) => given.database.replicates(type.table));
+        const replicas = known
+            .filter((type) => type instanceof ObjectType)
+            .filter(
+                (type) =>
+                    !routes.has(ObjectTypeReference.key(type.typeReference)) &&
+                    given.database.replicates(type.table),
+            );
+        const routed = [...routes.values()].map((route) => route.type);
+        if (branch !== undefined && !routed.some((object) => object.same(branch.object))) {
+            throw new TypeError(
+                `no server serves ${branch.object.name}, the object of the branches`,
+            );
+        }
+        const follows = served.flatMap((each) => each.definition.follows ?? []);
+        const external = served.flatMap((each) =>
+            each.definition.external === undefined ? [] : [each.definition.external],
+        );
+
+        // serve each type at its package's installation, else at the store's installation
+        const installed = new Map(
+            [...routes].flatMap(([key, { type, entry }]) => {
+                const serving = entry.server ?? server;
+                const isOwned = type.package.id === entry.package.id;
+
+                return serving === undefined || !isOwned ? [] : [[key, serving] as const];
+            }),
+        );
+
+        // reach a partition's chain at its installation's root
+        const isPartition = server?.partition !== undefined && server.partition !== server.space;
+        const reach =
+            server !== undefined && isPartition
+                ? ObjectStore.#partitionPublisher(server, store, publisher)
+                : publisher;
+        const parts: ComposedOptions = {
+            ...rest,
+            installed,
+            ...(replicas.length === 0 ? {} : { replicas }),
+            principal:
+                server === undefined
+                    ? present(given.principal, "the store's principal")
+                    : principal.installation.reference(server.space, server.installation),
+            ...(server?.partition === undefined ? {} : { partition: server.partition }),
+            objects: routed,
+            policies,
+            ...(external.length === 0 ? {} : { external }),
+            ...(follows.length === 0 ? {} : { follows }),
+            ...(reach === undefined ? {} : { publisher: reach }),
+            ...(providers.length === 0 || machine === undefined
+                ? {}
+                : { provisioned: { providers, machine } }),
+            subscriber:
+                server === undefined
+                    ? uplink === undefined
+                        ? {}
+                        : { uplink }
+                    : { uplink: server.publisher },
+        };
+
+        return { parts, served };
+    }
+
+    /** Read a server's package for an installation, its handled types over their defaults. */
+    static #packageOf(server: PackageServer, context: ServerContext | undefined): StorePackage {
+        // refuse a handled type of the package that its handle neither declares nor its providers provision
+        const definition = server.definition(context);
+        const handled = definition.objects ?? [];
+        const own = Object.values(server.package.objects);
+        const provisioned = (definition.providers ?? []).map((provider) => provider.object);
+        const others = handled.filter((type) => !own.some((each) => each.same(type)));
+        const stray = others.find(
+            (type) =>
+                type.package.id === server.package.id &&
+                !provisioned.some((each) => each.same(type)),
+        );
+        if (stray !== undefined) {
+            throw new TypeError(`${server.package.name} does not declare object ${stray.name}`);
+        }
+
+        // serve the declared types, external ones only with their files, beside other packages' handled types
+        const filed = definition.external?.objects ?? [];
+        const declared = own
+            .filter((type) => type.storage !== "external" || filed.some((each) => each.same(type)))
+            .map((type) => handled.find((each) => each.same(type)) ?? type);
+
+        return {
+            package: server.package,
+            definition,
+            objects: [...declared, ...others],
+            server: context,
+        };
+    }
+
+    /** Route each package's types to their implementation, else to the replica kept here. */
+    static #routes(
+        served: readonly StorePackage[],
+        isReplicated: (type: ObjectType) => boolean,
+    ): ReadonlyMap<string, { readonly type: ObjectType; readonly entry: StorePackage }> {
+        // implement the types of each package and the types its providers provision, once
+        const routes = new Map<
+            string,
+            { readonly type: ObjectType; readonly entry: StorePackage }
+        >();
+        for (const entry of served) {
+            const provisioned = (entry.definition.providers ?? []).map((each) => each.object);
+            const own = entry.objects.filter(
+                (type) =>
+                    type.package.id === entry.package.id ||
+                    provisioned.some((each) => each.same(type)),
+            );
+            for (const type of own) {
+                const key = ObjectTypeReference.key(type.typeReference);
+                const earlier = routes.get(key);
+                if (earlier !== undefined) {
+                    throw new TypeError(
+                        `${ObjectStore.#servedBy(earlier.entry)} and ${ObjectStore.#servedBy(entry)} both implement ${type.name} objects of ${type.package.id}`,
+                    );
+                }
+                routes.set(key, { type, entry });
+            }
+        }
+
+        // route another package's type to its replica here
+        for (const entry of served) {
+            for (const type of entry.objects) {
+                const key = ObjectTypeReference.key(type.typeReference);
+                const isRouted = routes.has(key);
+
+                // route a replicated type to the package
+                if (!isRouted && isReplicated(type)) {
+                    routes.set(key, { type, entry });
+                }
+                // refuse a type nothing here implements or replicates
+                else if (!isRouted) {
+                    throw new TypeError(
+                        `${ObjectStore.#servedBy(entry)} routes ${type.name} objects of ${type.package.id}, but nothing here implements or replicates them`,
+                    );
+                }
+            }
+        }
+
+        return routes;
+    }
+
+    /** Describe who serves a package: its installation, else the package itself. */
+    static #servedBy(entry: StorePackage): string {
+        return entry.server === undefined
+            ? `package ${entry.package.name}`
+            : `installation ${entry.server.installation}`;
+    }
+
+    /** Serve an installation's package, running the code of its types in its sandbox. */
+    static #sandboxPackages(
+        sandbox: HookSandbox,
+        known: Iterable<KnownDeclaration>,
+    ): StorePackage[] {
+        // declare the installation's types and index them beside the known ones by reference
+        const { declarations, server } = sandbox;
+        const platform = [...known];
+        const types = declareInstalled(declarations, platform);
+        const byReference = new Map(
+            [...platform, ...types]
+                .filter((declared) => declared instanceof ObjectType)
+                .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
+        );
+        const owner = server.build.manifest.package;
+        const own = declarations.filter((entry) => entry.packageId === owner.id);
+
+        // route each described type, implementing the package's types in the sandbox
+        const route = (routes: PackageDescription["objects"]): Record<string, ObjectType> =>
+            Object.fromEntries(
+                Object.entries(routes).map(([name, routed]) => {
+                    // refuse a route of a type nothing here declares
+                    const type = byReference.get(ObjectTypeReference.key(routed.type));
+                    if (type === undefined) {
+                        throw new TypeError(
+                            `installation ${server.installation} routes ${routed.type.type} objects of ${routed.type.packageId}, but nothing here implements or replicates them`,
+                        );
+                    }
+
+                    // implement the package's types in the sandbox and route other types as declared
+                    if (routed.type.packageId === owner.id) {
+                        return [name, sandbox.implement(type, routed.hooks)];
+                    } else if (Object.keys(routed.hooks).length > 0) {
+                        throw new TypeError(
+                            `installation ${server.installation} cannot hook ${type.name} of ${type.package.id}: the type's package implements it`,
+                        );
+                    }
+
+                    return [name, type];
+                }),
+            );
+
+        // serve the package's objects, refusing adapters a sandbox has no code to answer
+        return own
+            .filter((entry) => entry.kind === PACKAGE_DECLARATION)
+            .map((entry) => PackageDescription.parse(entry.description))
+            .flatMap((described): StorePackage[] => {
+                // refuse adapters, and leave a package of no objects unserved
+                const adapters = Object.keys(described.adapters);
+                if (adapters.length > 0) {
+                    throw new TypeError(
+                        `installation ${server.installation} declares adapters ${adapters.join(", ")}, but a sandbox cannot answer them`,
+                    );
+                } else if (Object.keys(described.objects).length === 0) {
+                    return [];
+                }
+
+                // implement the package's objects as the installation
+                const objects = route(described.objects);
+                const since = described.since === undefined ? {} : { since: described.since };
+                const handle = PackageHandle.of(owner, { objects, ...since });
+
+                return [
+                    { package: handle, definition: {}, objects: Object.values(objects), server },
+                ];
+            });
+    }
+
+    /** Reach a partition at its installation's root, and other scopes as given. */
+    static #partitionPublisher(
+        server: ServerContext,
+        store: () => ObjectStore,
+        publisher: ((scope: string) => sync.Publisher) | undefined,
+    ): (scope: string) => sync.Publisher {
+        // open the root's publisher once, every link of the partition's chain going through it
+        let root: sync.Publisher | undefined;
+
+        return (scope) => {
+            // reach other scopes as given
+            if (scope !== server.partition) {
+                return publisher?.(scope) ?? server.publisher;
+            }
+
+            // reach the partition through its installation's root
+            root ??= server.publisherAt(
+                Egress.address(server.name, server.space),
+                store().origin.package.id,
+            );
+
+            return root;
+        };
+    }
+
+    /** Implement a served package: its routes, adapters, controllers, access and headers. */
+    #implementPackage(
+        entry: StorePackage,
+        isFirst: boolean,
+    ): PackageImplementation & { readonly objects: ObjectStore } {
+        // implement the package with its controllers, the first one also running the store's own
+        const { controllers = [], adapters = {}, access, responseHeaders } = entry.definition;
+        const own = isFirst ? this.controllers() : [];
+        const built = controllers.map((controller) => controller(this));
+        const implemented = this.implement(entry.package, entry.objects, [...own, ...built]);
+
+        // answer the package's adapters below its mount
+        const fetch = ObjectStore.#adapterFetch(entry.package, adapters, this);
+
+        return {
+            ...implemented,
+            ...(access === undefined ? {} : { access }),
+            ...(responseHeaders === undefined ? {} : { responseHeaders }),
+            ...(fetch === undefined ? {} : { fetch }),
+        };
+    }
+
+    /** Route requests below a package's mount to the adapters answering their paths. */
+    static #adapterFetch(
+        handle: PackageHandle,
+        answers: Readonly<Record<string, AdapterFetch>>,
+        store: ObjectStore,
+    ): PackageImplementation["fetch"] {
+        // pair each declared adapter with its answer, refusing an answer of none declared
+        const adapters = Object.values(handle.adapters).map((adapter) => {
+            const fetch = answers[adapter.name];
+            if (fetch === undefined) {
+                throw new TypeError(
+                    `package ${handle.name} does not answer adapter ${adapter.name}`,
+                );
+            }
+
+            return { name: adapter.name, path: adapter.path, callers: adapter.callers, fetch };
+        });
+        const stray = Object.keys(answers).find((name) => handle.adapters[name] === undefined);
+        if (stray !== undefined) {
+            throw new TypeError(`package ${handle.name} does not declare adapter ${stray}`);
+        } else if (adapters.length === 0) {
+            return undefined;
+        }
+
+        return async (request, context) => {
+            // find the adapter whose path the request is at or below
+            const url = new URL(request.url);
+            const adapter = adapters.find(
+                ({ path }) => url.pathname === path || url.pathname.startsWith(`${path}/`),
+            );
+            if (adapter === undefined) {
+                return undefined;
+            }
+
+            // admit the signed callers of the types the adapter declares, and anyone where it declares none
+            const { callers } = adapter;
+            const caller = callers === undefined ? undefined : context.requireCaller();
+            if (
+                callers !== undefined &&
+                caller !== undefined &&
+                !callers.some(
+                    (type) =>
+                        type.packageId === caller.subject.packageId &&
+                        type.type === caller.subject.type,
+                )
+            ) {
+                throw new CallError("FORBIDDEN", {
+                    message: `adapter ${adapter.name} answers no ${caller.subject.type}`,
+                });
+            }
+
+            // answer the request below the adapter's path
+            url.pathname = url.pathname.slice(adapter.path.length) || "/";
+
+            return adapter.fetch(copyRequest(request, {}, url.href), caller, context, store);
+        };
+    }
+
     /** Key a type's policy by its package and name, the identity the authorizer maps once. */
     static #policyKey(declared: Policy | ObjectType | TableMapping): string {
         const { policy } = declared instanceof Policy ? { policy: declared } : declared;
@@ -2942,7 +3381,7 @@ export class ObjectStore {
     }
 
     /** List the replicated scope tables served types live in or relate to, which relist chains. */
-    static #chainedTables(given: ObjectStoreOptions, types: readonly ObjectType[]): Table[] {
+    static #chainedTables(given: ComposedOptions, types: readonly ObjectType[]): Table[] {
         const served = given.objects.filter((each) => each instanceof ObjectType);
 
         return types

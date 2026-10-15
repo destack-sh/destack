@@ -12,7 +12,7 @@ import {
     through,
 } from "@destack/access";
 import { call } from "../index.ts";
-import { testEvents } from "../test/index.ts";
+import { testEvents, serversOf } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { eq, type Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -115,7 +115,7 @@ test("decide again after changes of the caller's own access, and leave other ide
         chain: async () => undefined,
         clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, spaceId),
-        objects: [space, notebook, note],
+        servers: serversOf([space, notebook, note]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -241,7 +241,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
         chain: async () => undefined,
         clock,
         principal: principal.space.reference(Scope.universe.id, spaceId),
-        objects: [space, notebook, note],
+        servers: serversOf([space, notebook, note]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),

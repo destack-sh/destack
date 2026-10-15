@@ -10,7 +10,7 @@ export * from "./recoverable.ts";
 export * from "./tracked.ts";
 export * from "./external.ts";
 export { Settlement } from "./settlement.ts";
-export * from "./extension.ts";
+export * from "./server.ts";
 export * from "../audit/journal.ts";
 export * from "../audit/recorder.ts";
 export { default } from "../audit/server.ts";
