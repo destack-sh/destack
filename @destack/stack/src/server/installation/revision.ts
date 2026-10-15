@@ -3,8 +3,8 @@ import { describeSetting, SettingCatalog } from "@destack/setting";
 import { declaration, installationRevision } from "../../object/index.ts";
 import { BuildStore, type Registry } from "./build.ts";
 
-/** Serve installation revisions with the views, settings and declarations their builds declare. */
-export function serveRevisions(builds: BuildStore, registry: Registry) {
+/** Implement revisions with the views, settings and declarations their builds declare. */
+export function implementInstallationRevision(builds: BuildStore, registry: Registry) {
     return installationRevision.implement({
         methods: {
             create: async (call, next) => {

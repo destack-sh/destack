@@ -104,77 +104,79 @@ type CaptureRow = Pick<
     "packageId" | "name" | "target" | "version" | "targetSpaceId"
 >;
 
-/** Serve deployments and instances: record instances starting and stopping. */
-export function serveDeployments(options: DeploymentOptions) {
-    return [
-        deployment.implement({
-            controller: {
-                pending: { status: { in: ["active", "draining", "stopping"] } },
-                watches: [
-                    // wake an instance's deployment and the deployments of its workload it may replace
-                    ObjectWatch.of(instance.table, async (row, database) => [
-                        { id: row.deploymentId },
-                        ...(await replacedBy(row.deploymentId, database)),
-                    ]),
-                    // wake the space's draining deployments when another turns active or retires
-                    ObjectWatch.of(deployment.table, async (row, database) =>
-                        row.status === "active" || row.status === "retired"
-                            ? database
-                                  .select({ id: deployment.table.id })
-                                  .from(deployment.table)
+/** Implement deployments: roll each out on this machine's runtimes. */
+export function implementDeployment(options: DeploymentOptions) {
+    return deployment.implement({
+        controller: {
+            pending: { status: { in: ["active", "draining", "stopping"] } },
+            watches: [
+                // wake an instance's deployment and the deployments of its workload it may replace
+                ObjectWatch.of(instance.table, async (row, database) => [
+                    { id: row.deploymentId },
+                    ...(await replacedBy(row.deploymentId, database)),
+                ]),
+                // wake the space's draining deployments when another turns active or retires
+                ObjectWatch.of(deployment.table, async (row, database) =>
+                    row.status === "active" || row.status === "retired"
+                        ? database
+                              .select({ id: deployment.table.id })
+                              .from(deployment.table)
+                              .where(
+                                  and(
+                                      eq(deployment.table.scope, row.scope),
+                                      eq(deployment.table.status, "draining"),
+                                  ),
+                              )
+                        : [],
+                ),
+                // wake a space's live deployments once a move fences or lifts its scope or its placement changes
+                ObjectWatch.of(Scope.table, async (row, database) => {
+                    const fenced = schema.identifier("space").safeParse(row.scope);
+
+                    return fenced.success ? liveDeployments(fenced.data, database) : [];
+                }),
+                Space.watch(liveDeployments),
+                // reconcile the live deployments capturing a changed resource of any kind
+                ...options.providers.objects().map((object) =>
+                    ObjectWatch.of(object.table, async (row, database) =>
+                        !space.identifies(row.scope)
+                            ? []
+                            : database
+                                  .selectDistinct({ id: capture.table.deploymentId })
+                                  .from(capture.table)
+                                  .innerJoin(
+                                      deployment.table,
+                                      eq(deployment.table.id, capture.table.deploymentId),
+                                  )
                                   .where(
                                       and(
-                                          eq(deployment.table.scope, row.scope),
-                                          eq(deployment.table.status, "draining"),
+                                          eq(capture.table.scope, row.scope),
+                                          eq(capture.table.target, row.id),
+                                          Condition.render(Deployment.live(), deployment.table),
                                       ),
-                                  )
-                            : [],
+                                  ),
                     ),
-                    // wake a space's live deployments once a move fences or lifts its scope or its placement changes
-                    ObjectWatch.of(Scope.table, async (row, database) => {
-                        const fenced = schema.identifier("space").safeParse(row.scope);
+                ),
+            ],
+            reconcile: async (reconciliation) => {
+                // reconcile a deployment of a served space the machine runs
+                const id = aligned(reconciliation.rows, 0).id;
+                const rollout = await Rollout.read(id, reconciliation, options);
 
-                        return fenced.success ? liveDeployments(fenced.data, database) : [];
-                    }),
-                    Space.watch(liveDeployments),
-                    // reconcile the live deployments capturing a changed resource of any kind
-                    ...options.providers.objects().map((object) =>
-                        ObjectWatch.of(object.table, async (row, database) =>
-                            !space.identifies(row.scope)
-                                ? []
-                                : database
-                                      .selectDistinct({ id: capture.table.deploymentId })
-                                      .from(capture.table)
-                                      .innerJoin(
-                                          deployment.table,
-                                          eq(deployment.table.id, capture.table.deploymentId),
-                                      )
-                                      .where(
-                                          and(
-                                              eq(capture.table.scope, row.scope),
-                                              eq(capture.table.target, row.id),
-                                              Condition.render(Deployment.live(), deployment.table),
-                                          ),
-                                      ),
-                        ),
-                    ),
-                ],
-                reconcile: async (reconciliation) => {
-                    // reconcile a deployment of a served space the machine runs
-                    const id = aligned(reconciliation.rows, 0).id;
-                    const rollout = await Rollout.read(id, reconciliation, options);
+                return rollout?.reconcile();
+            },
+        },
+    });
+}
 
-                    return rollout?.reconcile();
-                },
-            },
-        }),
-        instance.implement({
-            methods: {
-                stop: (call) =>
-                    call.update({ status: "stopped", stoppedAt: call.now, observedAt: call.now }),
-            },
-        }),
-    ] as const;
+/** Implement instances: record one stopped. */
+export function implementInstance() {
+    return instance.implement({
+        methods: {
+            stop: (call) =>
+                call.update({ status: "stopped", stoppedAt: call.now, observedAt: call.now }),
+        },
+    });
 }
 
 /** One reconcile of one deployment of a served space the machine runs, with its instances. */

@@ -96,8 +96,8 @@ interface ResourceFence {
     readonly record: ResourceRecord;
 }
 
-/** Serve transfers: mark each move at the universe as it is created. */
-export function serveTransfers(options: TransferOptions) {
+/** Implement transfers: mark each move at the universe as it is created. */
+export function implementTransfer(options: TransferOptions) {
     return transfer.implement({
         methods: {
             create: {

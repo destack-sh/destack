@@ -156,7 +156,7 @@ export function pushThrough(dispatcher: Ingress, act: RunExchange): RunAttemptOp
 }
 
 /** Record the runs of this machine's installations, which its run controller attempts. */
-export function serveRuns() {
+export function implementRun() {
     return run.implement({
         methods: {
             send: (call, next) => send(call, next),

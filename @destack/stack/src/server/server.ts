@@ -26,44 +26,44 @@ import {
 } from "@destack/object/server";
 import { type PackageImplementation } from "@destack/runtime/server";
 import { bucketProvider, type CatalogueBucketHost } from "@destack/bucket/provider";
-import { serveBuckets } from "./resource/bucket.ts";
+import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
 import { SettingCatalog } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import { branchType, installation } from "../object/index.ts";
 import stackPackage from "../package.ts";
-import { serveSnapshots } from "./resource/snapshot.ts";
+import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
 import type { ContentStore } from "@destack/resource";
 import { Bindable, Binder, type ServedBindable } from "./resource/binding.ts";
-import { serveDeployments } from "./deployment/deployment.ts";
-import { serveBindingGrants } from "./resource/grant.ts";
-import { serveInstallations } from "./installation/installation.ts";
+import { implementDeployment, implementInstance } from "./deployment/deployment.ts";
+import { implementBindingGrant } from "./resource/grant.ts";
+import { implementInstallation } from "./installation/installation.ts";
 import { InstallationAssertion } from "./installation/token.ts";
-import { serveRevisions } from "./installation/revision.ts";
+import { implementInstallationRevision } from "./installation/revision.ts";
 import {
     httpsProvider,
     installationProvider,
     ProviderIndex,
     type SpaceProvider,
 } from "./resource/resource.ts";
-import { serveSpaces } from "./host/space.ts";
+import { implementSpace } from "./host/space.ts";
 import { Scheduler } from "./host/scheduler.ts";
-import { serveTransfers, type TransferOptions } from "./host/transfer.ts";
+import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
-import { serveRuns } from "./run/run.ts";
-import { BuildStore, type Registry, serveBuilds } from "./installation/build.ts";
+import { implementRun } from "./run/run.ts";
+import { BuildStore, type Registry, implementBuild } from "./installation/build.ts";
 import type { RepositoryOwner } from "./installation/selection.ts";
 import { AssignmentController } from "./deployment/assignment.ts";
 import { PlacementController } from "./host/placement.ts";
 import { TransferController } from "./host/transfer.ts";
 import { ConsumerController } from "./resource/consumer.ts";
 import { RetentionController, type SweepCache } from "./resource/retention.ts";
-import { serveTriggers } from "./run/trigger.ts";
+import { implementTrigger } from "./run/trigger.ts";
 import { hookAdapter } from "./installation/hook.ts";
 import type { SocketRegistry } from "./host/socket.ts";
-import { serveRoutes } from "./access/route.ts";
-import { serveRoles } from "./access/role.ts";
+import { implementRoute } from "./access/route.ts";
+import { implementRelationship, implementRole } from "./access/role.ts";
 
 /** The account package's methods a machine calls about its spaces, as the machine. */
 export interface SpaceAccounts {
@@ -287,15 +287,16 @@ function ownObjects(
     // serve the space's types with their behaviour
     const { builds, registry } = options;
     const served = [
-        ...serveSnapshots(transfers),
-        serveSpaces({
+        implementSnapshot(transfers),
+        implementRestore(transfers),
+        implementSpace({
             keystore: options.keystore,
             scheduler,
             publisher: options.publisher,
             isEnforcingAllowances: options.isEnforcingAllowances,
         }),
         ...providers.provided(),
-        serveInstallations({
+        implementInstallation({
             resources: providers.objects(),
             builds,
             registry,
@@ -305,22 +306,24 @@ function ownObjects(
             repositories: options.repositories,
             issuer: options.keystore.issuer(options.database, options.principal.id),
         }),
-        serveRevisions(builds, registry),
+        implementInstallationRevision(builds, registry),
         binder.declare(),
-        serveBindingGrants(),
-        ...serveDeployments({
+        implementBindingGrant(),
+        implementDeployment({
             providers,
             bindables: options.bindables,
             machine: options.machine,
             runtimes: new Map(options.runtimes.map((runtime) => [runtime.name, runtime])),
             builds,
         }),
-        serveRuns(),
-        serveBuilds(options),
-        serveTriggers(),
-        serveTransfers(transfers),
-        serveRoutes(),
-        ...serveRoles(),
+        implementInstance(),
+        implementRun(),
+        implementBuild(options),
+        implementTrigger(),
+        implementTransfer(transfers),
+        implementRoute(),
+        implementRole(),
+        implementRelationship(),
     ];
 
     // serve the package's stored types, each in place of its plain type, then the provided resources
@@ -364,7 +367,7 @@ function spaceProviders(options: SpaceOptions) {
     return [
         installationProvider,
         httpsProvider,
-        bucketProvider(options.buckets, serveBuckets(options.buckets)),
+        bucketProvider(options.buckets, implementBucket(options.buckets)),
         ...options.providers,
     ];
 }

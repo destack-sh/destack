@@ -13,8 +13,8 @@ import {
 } from "../../object/index.ts";
 import { Approval } from "../installation/approval.ts";
 
-/** Serve binding grants: approve their plans and keep each approved grant's role. */
-export function serveBindingGrants() {
+/** Implement binding grants: approve their plans and keep each approved grant's role. */
+export function implementBindingGrant() {
     return bindingGrant.implement({
         methods: {
             approve: async (call) => {

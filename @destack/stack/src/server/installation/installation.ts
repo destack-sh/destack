@@ -100,8 +100,8 @@ interface SelectingCall extends Pick<Call, "read"> {
     readonly prepared: Identifier<"account"> | null;
 }
 
-/** Serve installations. */
-export function serveInstallations(options: InstallationOptions) {
+/** Implement installations: apply stacks and deploy applications. */
+export function implementInstallation(options: InstallationOptions) {
     return handleInstallations(options).implement({
         controller: {
             pending: {},

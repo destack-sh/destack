@@ -28,8 +28,8 @@ const MAX_MISSED_OCCURRENCES = 100;
 /** A trigger firing on a schedule, with the call its occurrences run. */
 type ScheduleTrigger = Trigger & { readonly on: { readonly schedule: ScheduleOn } };
 
-/** Serve triggers. */
-export function serveTriggers() {
+/** Implement triggers: fire schedules and refuse changes to declared ones. */
+export function implementTrigger() {
     return trigger.implement({
         methods: {
             create: requireSchedule,

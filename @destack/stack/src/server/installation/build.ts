@@ -152,8 +152,8 @@ export const BuildStore = {
     },
 };
 
-/** Serve builds: a creator creates and cancels a build. */
-export function serveBuilds(options: BuildOptions) {
+/** Implement builds: a creator creates and cancels a build. */
+export function implementBuild(options: BuildOptions) {
     return build.implement({
         methods: {
             create: {

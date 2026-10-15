@@ -27,7 +27,7 @@ import {
     type StackReason,
 } from "../../object/index.ts";
 import { Approval } from "./approval.ts";
-import { serveRoles } from "../access/role.ts";
+import { implementRelationship, implementRole } from "../access/role.ts";
 import { BuildStore } from "./build.ts";
 import { Failure } from "@destack/sync";
 
@@ -343,7 +343,9 @@ async function installedTypes(
 
 /** List the types stacks declare, once per table: the declarable ones, roles and relationships. */
 function declaredTypes(types: readonly ObjectType[]): readonly ObjectType[] {
-    const [role, relationship] = serveRoles();
+    // take the declarable types and the stack's roles and relationships, once per table
+    const role = implementRole();
+    const relationship = implementRelationship();
     const handled = [...types.filter((type) => type.declaration !== undefined), role, relationship];
 
     return [...new Map(handled.map((type) => [type.table, type])).values()];

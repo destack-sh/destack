@@ -49,7 +49,7 @@ async function replicateMachine(database: DatabaseConnection): Promise<void> {
 }
 
 /** Serve a machine keeping builds in its build store, the owner creating builds it runs. */
-async function serveBuilds() {
+async function implementBuild() {
     const fixture = await StackFixture.open();
     await replicateMachine(fixture.database);
     const { server } = await fixture.server({ machine: ids.machine });
@@ -73,7 +73,7 @@ async function serveBuilds() {
 
 test("run a checkout's build as its machine and read it back from the build store", async () => {
     // create the build, naming the checkout's machine its runner
-    const { fixture, runner, create } = await serveBuilds();
+    const { fixture, runner, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
 
@@ -113,7 +113,7 @@ test("run a checkout's build as its machine and read it back from the build stor
 
 test("push a succeeded build to the registry as its space's owner, refusing its runner and an unfinished build", async () => {
     // create a build and push it unfinished
-    const { fixture, owner, runner, create } = await serveBuilds();
+    const { fixture, owner, runner, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
     const unfinished = await refusal(
@@ -151,7 +151,7 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
 
 test("refuse advancing a build to anyone but its runner, and a build not running", async () => {
     // create a build and try advancing it as its creator and before it starts
-    const { owner, runner, create } = await serveBuilds();
+    const { owner, runner, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id, requestId: RequestId.create(Date.now()) };
     const asOwner = await refusal(owner.build.start(target));
@@ -170,7 +170,7 @@ test("refuse advancing a build to anyone but its runner, and a build not running
 
 test("fail a running build with the failure its runner reports, and refuse cancelling it once finished", async () => {
     // start and fail the build as its runner
-    const { owner, runner, create } = await serveBuilds();
+    const { owner, runner, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
     await runner.build.start({ ...target, requestId: RequestId.create(Date.now()) });

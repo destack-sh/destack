@@ -35,7 +35,7 @@ import { bucket } from "../object/index.ts";
 import { v7 } from "uuid";
 import { type ClaimHome, ObjectStore } from "@destack/object/server";
 import { LEASE_LIFETIME_SECONDS } from "@destack/bucket/s3";
-import { serveBuckets } from "../server/resource/bucket.ts";
+import { implementBucket } from "../server/resource/bucket.ts";
 import type { Lease } from "@destack/resource";
 import type {} from "@destack/package/import-meta";
 import { testCallKey } from "@destack/runtime/test";
@@ -165,7 +165,7 @@ export class BucketFixture implements AsyncDisposable {
             clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, this.spaceId),
             servers: serversOf([
-                serveBuckets({
+                implementBucket({
                     open: (reference) => this.#open(reference),
                     locate: async (reference, mode) => {
                         // refuse a write into the fenced bucket

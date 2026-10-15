@@ -10,7 +10,7 @@ import { ObjectStore, Stack } from "@destack/object/server";
 import { testCallKey } from "@destack/runtime/test";
 import { aligned, schema, Clock } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { serveRoles } from "../index.ts";
+import { implementRole, implementRelationship } from "../index.ts";
 
 /** The stack declaring the roles. */
 const stackId = schema
@@ -47,7 +47,7 @@ test("keep a stack's declared relationship under its identifier until it changes
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal,
-        servers: serversOf(serveRoles()),
+        servers: serversOf([implementRole(), implementRelationship()]),
         policies: [space],
         database,
         callKey: testCallKey,
@@ -59,7 +59,7 @@ test("keep a stack's declared relationship under its identifier until it changes
     const apply = (user: string) =>
         Stack.apply({
             database,
-            objects: serveRoles(),
+            objects: [implementRole(), implementRelationship()],
             policies: [space.policy],
             manager: { installationId: stackId, packageId: ids.package },
             as: spacePrincipal,

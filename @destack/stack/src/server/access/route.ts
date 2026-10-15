@@ -4,8 +4,8 @@ import { type Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Installation, installation, route } from "../../object/index.ts";
 
-/** Serve the routes a stack declares in its space. */
-export function serveRoutes() {
+/** Implement the routes a stack declares in its space. */
+export function implementRoute() {
     return declaredRoute;
 }
 

@@ -36,11 +36,6 @@ const RESTORING: Condition = {
     ],
 };
 
-/** Serve snapshots and restores. */
-export function serveSnapshots(options: TransferOptions) {
-    return [takeSnapshots(options), restoreResources(options)] as const;
-}
-
 /** Delete a space's snapshots once its move ended, as the space. */
 export async function retireSnapshots(
     transaction: Transaction,
@@ -59,8 +54,8 @@ export async function retireSnapshots(
     );
 }
 
-/** Take each pending snapshot of a resource this machine keeps into its content store. */
-function takeSnapshots(options: TransferOptions) {
+/** Implement snapshots: take each pending one into this machine's content store. */
+export function implementSnapshot(options: TransferOptions) {
     return snapshot.implement({
         controller: {
             pending: TAKING,
@@ -115,8 +110,8 @@ function takeSnapshots(options: TransferOptions) {
     });
 }
 
-/** Restore each pending restore from a snapshot its source machine takes for it. */
-function restoreResources(options: TransferOptions) {
+/** Implement restores: restore each pending one into a resource provisioned here. */
+export function implementRestore(options: TransferOptions) {
     return restore.implement({
         controller: {
             pending: RESTORING,

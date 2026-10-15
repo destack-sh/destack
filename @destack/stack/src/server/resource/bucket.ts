@@ -20,8 +20,8 @@ import {
     customerKeyHeaders,
 } from "@destack/bucket/s3";
 
-/** Serve the files of a machine's buckets: their metadata, and presigned leases on their bodies. */
-export function serveBuckets(host: BucketHost) {
+/** Implement buckets: their files' metadata, and presigned leases on their bodies. */
+export function implementBucket(host: BucketHost) {
     return bucket.implement({
         methods: {
             files: (call) => listFiles(host, call),

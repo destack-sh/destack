@@ -20,9 +20,14 @@ import type {
 import { StackError } from "../../error/index.ts";
 import { installation, relationship, role } from "../../object/index.ts";
 
-/** Serve the roles and relationships a stack declares in its space. */
-export function serveRoles() {
-    return [declaredRole, declaredRelationship] as const;
+/** Implement the roles a stack declares in its space. */
+export function implementRole() {
+    return declaredRole;
+}
+
+/** Implement the relationships a stack declares in its space. */
+export function implementRelationship() {
+    return declaredRelationship;
 }
 
 /** Roles a stack declares in its space, after every object their permissions may name. */

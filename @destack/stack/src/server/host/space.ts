@@ -19,7 +19,7 @@ import type { Scheduler } from "./scheduler.ts";
 const PLACEMENT_CONDITION = "placement";
 
 /** Control the replicas of the spaces this machine serves: place, limit and delete each. */
-export function serveSpaces(options: {
+export function implementSpace(options: {
     /** The keystore whose keys of a deleted space the machine forgets. */
     readonly keystore: IdentityKeystore;
     /** The scheduler placing each space where its tenancy asks. */
@@ -33,7 +33,7 @@ export function serveSpaces(options: {
 }
 
 /** Control each served space. */
-function control(options: Parameters<typeof serveSpaces>[0]): ObjectController<typeof space> {
+function control(options: Parameters<typeof implementSpace>[0]): ObjectController<typeof space> {
     const { scheduler, isEnforcingAllowances } = options;
 
     return {
@@ -87,7 +87,7 @@ function control(options: Parameters<typeof serveSpaces>[0]): ObjectController<t
 async function remove(
     row: Space,
     reconciliation: Pick<ObjectReconciliation<typeof space>, "database" | "store" | "now">,
-    options: Pick<Parameters<typeof serveSpaces>[0], "keystore" | "publisher">,
+    options: Pick<Parameters<typeof implementSpace>[0], "keystore" | "publisher">,
 ): Promise<void> {
     // request the deletion of the installations not deleting yet as the space itself, waiting while any remains
     const { database, store, now } = reconciliation;
