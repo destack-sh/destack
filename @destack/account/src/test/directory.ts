@@ -7,7 +7,7 @@ import { createClient, type ClientOf } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
 import { testCallKey } from "@destack/runtime/test";
-import { testEvents } from "@destack/object/test";
+import { testEvents, serversOf } from "@destack/object/test";
 import { Scope, type Uplink } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { residency } from "../object/residency.ts";
@@ -45,7 +45,7 @@ export const TestDirectory = {
             chain: async () => undefined,
             clock,
             principal: owner,
-            objects: [claim],
+            servers: serversOf([claim]),
             policies: [placement, account, residency],
             database,
             claims: { object: claim },
@@ -64,13 +64,13 @@ export const TestDirectory = {
             chain: async () => undefined,
             clock,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
-            objects: [implementPlacement(), assignment],
+            servers: serversOf([implementPlacement(), assignment]),
             database,
             callKey: testCallKey,
             events: await testEvents(database, [], clock),
             origin: { package: Package.of(accountPackage) },
         });
-        const implementation = store.implement(accountPackage, store.routed, []);
+        const implementation = store.package(accountPackage);
 
         // act as the machine in each request's header
         const audience = accountPackage.id;
@@ -122,7 +122,7 @@ export const TestDirectory = {
             chain: async () => undefined,
             clock: Clock.system,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
-            objects: [implementPlacement(), assignment, implementSpace(STACKS)],
+            servers: serversOf([implementPlacement(), assignment, implementSpace(STACKS)]),
             claims: { object: claim },
             database,
             callKey: testCallKey,

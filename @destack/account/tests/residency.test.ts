@@ -272,7 +272,7 @@ function chain(space: string, accountId: string) {
         name: "chain",
         scope: accountId,
         below: space,
-        shape: "chain",
+        publication: "chain",
         parameters: {
             local: [],
             replicated: [ACCOUNT_TYPE],
@@ -308,7 +308,7 @@ async function accounts(caller: Actor, space: string): Promise<unknown[]> {
             name: space,
             scope: Scope.universe.id,
             below: space,
-            shape: "universe",
+            publication: "universe",
             parameters: { rows: [{ type: ACCOUNT_TYPE, where: {}, isEverywhere: true }] },
         },
         { signal: controller.signal },

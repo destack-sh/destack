@@ -18,7 +18,7 @@ import { ObjectStore } from "@destack/object/server";
 import * as object from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
 import { Package } from "@destack/package";
-import { testEvents } from "@destack/object/test";
+import { testEvents, serversOf } from "@destack/object/test";
 
 import { testCallKey } from "@destack/runtime/test";
 import { SIGN_UP } from "../src/test/index.ts";
@@ -48,14 +48,14 @@ test("decide account access for its root, members, group members and installatio
             chain: async () => undefined,
             clock: Clock.system,
             principal: Scope.universe,
-            objects: [
+            servers: serversOf([
                 object.account,
                 object.organisation,
                 object.member,
                 object.group,
                 object.role,
                 object.relationship,
-            ],
+            ]),
             database,
             claims: { object: object.claim },
             callKey: testCallKey,
@@ -213,7 +213,7 @@ test("let a person's home follow on their behalf and read their contact from the
             chain: async () => undefined,
             clock: Clock.system,
             principal: Scope.universe,
-            objects: [user],
+            servers: serversOf([user]),
             database,
             callKey: testCallKey,
             events: await testEvents(database),

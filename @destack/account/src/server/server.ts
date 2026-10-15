@@ -1,5 +1,5 @@
 import { proof } from "../object/proof.ts";
-import type { ObjectExtension } from "@destack/object/server";
+import { defineServer, type PackageServer } from "@destack/object/server";
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
 import type { PlatformDeclaration } from "./platform.ts";
@@ -35,39 +35,33 @@ export interface AccountOptions {
     readonly signIn: Promise<BetterAuthAuthenticator>;
 }
 
-/** Implement the account package in the universe's store, its oauth adapter answering sign-in. */
-export function accountExtension(options: AccountOptions): ObjectExtension {
-    return {
-        package: accountPackage,
-        objects: Object.values({
-            ...accountPackage.objects,
-            user: implementUser(),
-            account: implementAccount(options.stacks),
-            organisation: implementOrganisation(),
-            member: implementMember(),
-            group: implementGroup(),
-            personalAccessToken: implementPersonalAccessToken(),
-            client: implementClient(),
-            key: implementKey(),
-            oauthClient: implementOAuthClient(),
-            oauthConsent: implementOAuthConsent(),
-            space: implementSpace(options.stacks),
-            domain: implementDomain({ resolver: options.resolver }),
-            hostname: implementHostname(),
-            machine: implementMachine(),
-            identity: implementIdentity(),
-            operation: implementOperation(),
-            residency: implementResidency(),
-            placement: implementPlacement(),
+/** Serve the account package in the universe's store, its oauth adapter answering sign-in. */
+export function accountServer(options: AccountOptions): PackageServer {
+    return defineServer(accountPackage, {
+        objects: [
+            implementUser(),
+            implementAccount(options.stacks),
+            implementOrganisation(),
+            implementMember(),
+            implementGroup(),
+            implementPersonalAccessToken(),
+            implementClient(),
+            implementKey(),
+            implementOAuthClient(),
+            implementOAuthConsent(),
+            implementSpace(options.stacks),
+            implementDomain({ resolver: options.resolver }),
+            implementHostname(),
+            implementMachine(),
+            implementIdentity(),
+            implementOperation(),
+            implementResidency(),
+            implementPlacement(),
             claim,
             proof,
-        }),
+        ],
         follows: [Allowance.universe],
-        serve: () => ({
-            adapters: {
-                oauth: async (request) => (await options.signIn).handler(request),
-            },
-            responseHeaders: { "Cache-Control": "no-store" },
-        }),
-    };
+        adapters: { oauth: async (request) => (await options.signIn).handler(request) },
+        responseHeaders: { "Cache-Control": "no-store" },
+    });
 }

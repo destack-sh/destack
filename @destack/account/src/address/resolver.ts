@@ -91,7 +91,7 @@ export class AddressResolver<View extends Pick<Snapshot, "read"> = Snapshot> {
         if (placed === undefined) {
             throw new CallError("NOT_FOUND", { message: `nothing answers for ${spaceId}` });
         }
-        const machineId = schema.identifier("machine").parse(placed.machineId);
+        const { machineId } = placed;
         const url = await this.answering(machineId, now);
 
         return {

@@ -47,7 +47,8 @@ async function create(
 ): Promise<ResultOf<typeof space, "create">> {
     // create the space with its stack, the space stack by default
     const accountId = schema.identifier("account").parse(call.scope);
-    const target = await pickMachine(call, accountId, call.requireId(), call.input.machine);
+    const spaceId = space.identifier(call.requireId());
+    const target = await pickMachine(call, accountId, spaceId, call.input.machine);
     const stack = call.input.stack ?? stacks.space;
     const created = await next(call.with({ input: { ...call.input, stack } }));
 
@@ -68,7 +69,7 @@ async function create(
 async function pickMachine(
     call: Pick<Call, "read">,
     accountId: Identifier<"account">,
-    spaceId: string,
+    spaceId: Identifier<"space">,
     machineId: Identifier<"machine"> | undefined,
 ): Promise<Identifier<"machine">> {
     // place it on the given machine the account may use

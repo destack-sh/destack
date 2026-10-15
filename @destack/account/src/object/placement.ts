@@ -24,9 +24,12 @@ const PlacementSchema = defineSchema(
 /** Where a space runs, and the machine a new space goes on. */
 export const Placement = Object.assign(PlacementSchema, {
     /** Pick the machine for a space by rendezvous hashing, or none from no machines. */
-    async pick(spaceId: string, machines: readonly string[]): Promise<string | undefined> {
+    async pick(
+        spaceId: Identifier<"space">,
+        machines: readonly Identifier<"machine">[],
+    ): Promise<Identifier<"machine"> | undefined> {
         // keep the machine whose digest with the space scores highest
-        let best: { readonly machine: string; readonly score: string } | undefined;
+        let best: { readonly machine: Identifier<"machine">; readonly score: string } | undefined;
         for (const candidate of machines) {
             const score = await Digest.of(`${spaceId}:${candidate}`);
             if (best === undefined || score > best.score) {
@@ -49,7 +52,7 @@ export const Placement = Object.assign(PlacementSchema, {
         return rows.map((row) => ({
             id: row.id,
             scope: row.scope,
-            machine: schema.identifier("machine").parse(row.machineId),
+            machine: row.machineId,
             epoch: row.epoch,
         }));
     },

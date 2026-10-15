@@ -12,7 +12,7 @@ import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
 import { Scope } from "@destack/sync";
 import { ObjectStore } from "@destack/object/server";
-import { testEvents } from "@destack/object/test";
+import { testEvents, serversOf } from "@destack/object/test";
 import { Package } from "@destack/package";
 import { DomainChallenge } from "../src/object/index.ts";
 import * as server from "../src/server/index.ts";
@@ -63,7 +63,7 @@ export class DomainFixture implements AsyncDisposable {
             chain: async () => undefined,
             clock: Clock.system,
             principal: Scope.universe,
-            objects: [server.implementDomain({ resolver }), server.implementHostname()],
+            servers: serversOf([server.implementDomain({ resolver }), server.implementHostname()]),
             policies: [account],
             database,
             claims: { object: claim },
@@ -73,7 +73,7 @@ export class DomainFixture implements AsyncDisposable {
         });
         this.server = Server.start({
             clock: Clock.system,
-            ...objects.implement(accountPackage, objects.routed, objects.controllers()),
+            ...objects.package(accountPackage),
             resources: new ResourceContext(),
             health: new Health("domain"),
             authenticate: async (request) => this.#authenticate(request),

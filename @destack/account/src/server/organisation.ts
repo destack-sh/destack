@@ -83,7 +83,7 @@ async function accept(call: CallOf<typeof organisation, "accept">): Promise<Rela
             invitationId: call.input.invitationId,
         }),
     ]);
-    const userId = relationship.subject.id;
+    const userId = schema.identifier("user").parse(relationship.subject.id);
     const role = MemberRole.parse("relation" in relationship ? relationship.relation : undefined);
 
     // refuse a user who has a seat already

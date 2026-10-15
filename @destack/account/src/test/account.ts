@@ -27,7 +27,7 @@ import { AccessFixture } from "@destack/access/test";
 import { type Keychain, type Keyring, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { claim } from "../object/claim.ts";
 import { placement } from "../object/placement.ts";
-import { ObjectExtension, type ObjectStore } from "@destack/object/server";
+import { ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import { Package, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
@@ -51,7 +51,7 @@ import { testCallKey } from "@destack/runtime/test";
 import { createClient, type ClientOf } from "@destack/runtime/client";
 import { SettingCatalog } from "@destack/setting";
 import settingPackage from "@destack/setting/package";
-import { settingExtension } from "@destack/setting/server";
+import { settingServer } from "@destack/setting/server";
 import {
     AccountAuthentication,
     BetterAuthAuthenticator,
@@ -76,7 +76,7 @@ import {
 } from "../object/index.ts";
 import { JWT_BEARER, SESSION_TOKEN_TYPE, TOKEN_EXCHANGE } from "../oauth/index.ts";
 import accountPackage, { OAUTH_PATH } from "../package.ts";
-import { accountExtension, Platform, type PlatformDeclaration } from "../server/index.ts";
+import { accountServer, Platform, type PlatformDeclaration } from "../server/index.ts";
 import { accountDatabase } from "../stack/index.ts";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
@@ -661,7 +661,7 @@ export class AccountFixture implements AsyncDisposable {
                 .findFirst({ where: { id: spaceId } }),
             `the placement of ${spaceId}`,
         );
-        const machineId = schema.identifier("machine").parse(placed.machineId);
+        const machineId = placed.machineId;
 
         return new MachineIdentity(machineId, this.cloudKeychain(machineId), this.objects.clock);
     }
@@ -1049,40 +1049,39 @@ export class AccountFixture implements AsyncDisposable {
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const events = await testEvents(database, [], clock);
         const opening = options.openRelease ?? AccountFixture.#opening(releases);
-        const { store, packages } = ObjectExtension.compose(
-            [
-                accountExtension({
+        const store = new ObjectStore({
+            servers: [
+                accountServer({
                     resolver: { txt: async () => [] },
                     stacks: options.stacks,
                     signIn: signIn.promise,
                 }),
-                settingExtension({
+                settingServer({
                     declared: SettingCatalog.cached((value) =>
                         opening(value.packageId, value.release),
                     ),
                     after: [],
                 }),
             ],
-            {
-                chain: async () => ({ kind: "follower" }),
-                principal: Scope.universe,
-                partition: Scope.universe.id,
-                policies: options.policies ?? [],
-                database,
-                claims: { object: claim },
-                clock,
-                callKey: testCallKey,
-                events,
-                origin: { package: Package.of(accountPackage) },
-                // follow the residencies' homes through a publisher that sends nothing, as no finance runs here
-                publisher: () => ({
-                    stream: async function* (_subscription, signal) {
-                        await until(signal);
-                        yield* [];
-                    },
-                }),
-            },
-        );
+            chain: async () => ({ kind: "follower" }),
+            principal: Scope.universe,
+            partition: Scope.universe.id,
+            policies: options.policies ?? [],
+            database,
+            claims: { object: claim },
+            clock,
+            callKey: testCallKey,
+            events,
+            origin: { package: Package.of(accountPackage) },
+            // follow the residencies' homes through a publisher that sends nothing, as no finance runs here
+            publisher: () => ({
+                stream: async function* (_subscription, signal) {
+                    await until(signal);
+                    yield* [];
+                },
+            }),
+        });
+        const { packages } = store;
 
         // keep the platform before the universe's identity, which its role starts
         if (platform !== undefined) {

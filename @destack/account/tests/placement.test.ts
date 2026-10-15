@@ -1,6 +1,6 @@
 import { Caller, principal } from "@destack/access";
 import { Snapshot, TABLE } from "@destack/db";
-import { Identifier, present, schema } from "@destack/schema";
+import { aligned, Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { expect, test } from "@destack/test";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -109,7 +109,7 @@ test("place spaces where they are created, keep names in them, let exactly a spa
             name: "chain",
             scope: accountId,
             below: laptop,
-            shape: "chain",
+            publication: "chain",
             parameters: {
                 local: [],
                 replicated: [
@@ -438,7 +438,7 @@ async function replicas(machine: Actor, scope: string, spaceId?: string): Promis
                 name: "chain",
                 scope,
                 below: spaceId ?? scope,
-                shape: "chain",
+                publication: "chain",
                 parameters: { local: [], replicated: [], via: [], between: [], types: [] },
             },
             { signal: controller.signal },
@@ -530,10 +530,18 @@ function refused(machine: Actor): string {
 }
 
 /** The machines a residency's spaces spread over. */
-const MACHINES = ["machine-a", "machine-b", "machine-c", "machine-d"];
+const MACHINES = [1, 2, 3, 4].map((index) =>
+    schema
+        .identifier("machine")
+        .parse(`machine-01996ab0-0000-7000-8000-${String(index).padStart(12, "0")}`),
+);
 
 /** The spaces placed in the scenario. */
-const SPACES = Array.from({ length: 200 }, (_, index) => `space-${index}`);
+const SPACES = Array.from({ length: 200 }, (_, index) =>
+    schema
+        .identifier("space")
+        .parse(`space-01996ab0-0000-7000-8000-${String(index).padStart(12, "0")}`),
+);
 
 test("pick each space's machine regardless of the machines' order, and move only the spaces of a machine that leaves", async () => {
     // pick every space's machine among the machines, and again among them reversed and without one
@@ -543,17 +551,18 @@ test("pick each space's machine regardless of the machines' order, and move only
     const reversed = await Promise.all(
         SPACES.map((space) => Placement.pick(space, MACHINES.toReversed())),
     );
-    const remaining = MACHINES.filter((machine) => machine !== "machine-b");
+    const leaving = aligned(MACHINES, 1);
+    const remaining = MACHINES.filter((machine) => machine !== leaving);
     const after = await Promise.all(SPACES.map((space) => Placement.pick(space, remaining)));
 
-    // keep every choice under another order, move exactly the spaces machine-b had, and use every machine
+    // keep every choice under another order, move exactly the spaces the leaving machine had, and use every machine
     const moved = SPACES.filter((_, index) => picked[index] !== after[index]);
-    const held = SPACES.filter((_, index) => picked[index] === "machine-b");
+    const held = SPACES.filter((_, index) => picked[index] === leaving);
     expect({
         isOrderless: reversed.every((machine, index) => machine === picked[index]),
         isMovingOnlyHeld:
             moved.length === held.length && moved.every((space) => held.includes(space)),
         used: [...new Set(picked)].toSorted((left, right) => left.localeCompare(right)),
-        none: await Placement.pick("space-0", []),
+        none: await Placement.pick(aligned(SPACES, 0), []),
     }).toEqual({ isOrderless: true, isMovingOnlyHeld: true, used: MACHINES, none: undefined });
 });

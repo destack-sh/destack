@@ -4,7 +4,8 @@ import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, Transaction, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { callTables } from "@destack/object/test";
-import { ObjectStore } from "@destack/object/server";
+import { defineServer, ObjectStore } from "@destack/object/server";
+import { PackageHandle } from "@destack/runtime";
 import { Package } from "@destack/package";
 import { Clock, Identifier, present } from "@destack/schema";
 import { reconciliation } from "@destack/runtime/test";
@@ -98,24 +99,25 @@ async function openSpace() {
         chain: async () => ({ kind: "home", parent: ids.accountId }),
         clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, ids.spaceId),
-        objects: [],
-        policies: CHAIN_TYPES,
-        follows: [
-            Follow.of(spaceShape, {
-                keys: [{ key: { scope: ids.accountId, space: ids.spaceId } }],
+        servers: [
+            defineServer(PackageHandle.of(Package.of(accountPackage), {}), {
+                follows: [
+                    Follow.of(spaceShape, {
+                        keys: [{ key: { scope: ids.accountId, space: ids.spaceId } }],
+                    }),
+                ],
             }),
         ],
+        policies: CHAIN_TYPES,
         database: spaceStorage.database,
-        subscriber: {
-            uplink: {
-                receive: () => Promise.reject(new Error("the replica receives no changes")),
-                stream: (subscription, signal) =>
-                    feed.subscribe(
-                        replica.source.buildReplica(subscription).queries,
-                        subscription.after,
-                        signal,
-                    ),
-            },
+        uplink: {
+            receive: () => Promise.reject(new Error("the replica receives no changes")),
+            stream: (subscription, signal) =>
+                feed.subscribe(
+                    replica.source.buildReplica(subscription).queries,
+                    subscription.after,
+                    signal,
+                ),
         },
         origin: { package: Package.of(accountPackage) },
     });

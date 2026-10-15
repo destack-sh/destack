@@ -6,7 +6,7 @@ import { SPACE_KEY, TokenVerifier } from "@destack/runtime/authentication";
 import { principal, universe } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { ObjectStore } from "@destack/object/server";
-import { testEvents } from "@destack/object/test";
+import { testEvents, serversOf } from "@destack/object/test";
 import { Package } from "@destack/package";
 import { testCallKey } from "@destack/runtime/test";
 import { Scope } from "@destack/sync";
@@ -21,7 +21,7 @@ import {
     KEY_SET_MILLISECONDS,
 } from "../src/identity/index.ts";
 import { identity, Identity, placement } from "../src/object/index.ts";
-import { AccountFixture, outcome, TestRegistry } from "../src/test/index.ts";
+import { AccountFixture, outcome, TestIdentityRegistry } from "../src/test/index.ts";
 
 /** Read the key of a token. */
 function kid(token: string): string | undefined {
@@ -32,7 +32,7 @@ function kid(token: string): string | undefined {
 async function openKeystore(clock: Clock) {
     const storage = await AccountFixture.storage(undefined, "sqlite");
     onTestFinished(() => storage.close());
-    const { registry, place } = await TestRegistry.open(
+    const { registry, place } = await TestIdentityRegistry.open(
         storage.database,
         clock,
         Identifier.create("machine"),
@@ -283,7 +283,7 @@ async function universeRegistry(database: DatabaseConnection, clock: Clock) {
         chain: async () => undefined,
         clock,
         principal: Scope.universe,
-        objects: [implementIdentity(), implementOperation()],
+        servers: serversOf([implementIdentity(), implementOperation()]),
         policies: [placement],
         database,
         callKey: testCallKey,

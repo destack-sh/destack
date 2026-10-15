@@ -4,7 +4,7 @@ import { Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { IdentityOperation, KeyPair } from "@destack/identity";
 import { ObjectStore } from "@destack/object/server";
-import { testEvents } from "@destack/object/test";
+import { testEvents, serversOf } from "@destack/object/test";
 import { Package } from "@destack/package";
 import { type Clock, Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -231,7 +231,7 @@ async function openRegistry(dialect: (typeof TEST_DIALECTS)[number], clock: Cloc
         chain: async () => undefined,
         clock,
         principal: Scope.universe,
-        objects: [implementIdentity(), implementOperation()],
+        servers: serversOf([implementIdentity(), implementOperation()]),
         policies: [placement, machine],
         database,
         callKey: testCallKey,

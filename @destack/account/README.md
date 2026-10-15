@@ -26,12 +26,12 @@ await accounts.residency.machines({ id: "eu" }); // [{ machine, url }]
 
 ## Universe
 
-`accountExtension` adds the account package to the universe.
+`accountServer` serves the account package in the universe's store.
 
 ```ts
-import { accountExtension } from "@destack/account/server";
+import { accountServer } from "@destack/account/server";
 
-const extension = accountExtension({ resolver: new DnsOverHttps(), stacks, signIn });
+const server = accountServer({ resolver: new DnsOverHttps(), stacks, signIn });
 ```
 
 ## Platform

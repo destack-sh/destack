@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import { ObjectStore } from "@destack/object/server";
-import { testEvents } from "@destack/object/test";
+import { testEvents, serversOf } from "@destack/object/test";
 import { Package } from "@destack/package";
 import { type Clock, Identifier } from "@destack/schema";
 import { testCallKey } from "@destack/runtime/test";
@@ -15,7 +15,7 @@ import { implementOperation } from "../server/operation.ts";
 import { TestDirectory } from "./directory.ts";
 
 /** The universe's identity registry as a test's machine serving its spaces calls it. */
-export const TestRegistry = {
+export const TestIdentityRegistry = {
     /** Serve identities over an account database to one machine, placing the spaces it serves. */
     async open(database: DatabaseConnection, clock: Clock, machineId: Identifier<"machine">) {
         // keep the machine, and let machines start and extend identities as the universe's machine role does
@@ -49,7 +49,7 @@ export const TestRegistry = {
             chain: async () => undefined,
             clock,
             principal: serving,
-            objects: [implementIdentity(), implementOperation()],
+            servers: serversOf([implementIdentity(), implementOperation()]),
             policies: [placement, machine],
             database,
             callKey: testCallKey,
