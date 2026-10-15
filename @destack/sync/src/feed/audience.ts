@@ -30,25 +30,29 @@ export interface Audience {
     /** The tables whose changes decide visibility. */
     readonly watches: readonly Watch[];
     /** Match the table rows the subscriber may have as SQL, or "memory" if `admits` decides. */
-    where(table: Table): SQL | "memory";
+    readonly where: (table: Table) => SQL | "memory";
     /** The name of what the audience decides by, alike for audiences deciding alike. */
     readonly key: string;
     /** Decide which rows of a table the subscriber may have, by index. */
-    admits(table: Table, rows: readonly Row[], position: LogPosition): Promise<ReadonlySet<number>>;
-    /** List the columns of a table the subscriber may not read on some rows. */
-    concealable(table: Table): readonly string[];
-    /** List the columns the subscriber may not read on each row. */
-    conceals(
+    readonly admits: (
         table: Table,
         rows: readonly Row[],
         position: LogPosition,
-    ): Promise<readonly (readonly string[])[]>;
+    ) => Promise<ReadonlySet<number>>;
+    /** List the columns of a table the subscriber may not read on some rows. */
+    readonly concealable: (table: Table) => readonly string[];
+    /** List the columns the subscriber may not read on each row. */
+    readonly conceals: (
+        table: Table,
+        rows: readonly Row[],
+        position: LogPosition,
+    ) => Promise<readonly (readonly string[])[]>;
     /** Read when the decisions next change on their own. */
-    until(): Promise<number | undefined>;
+    readonly until: () => Promise<number | undefined>;
     /** Decide as of now once the `until` moment passed. */
-    refresh(): Promise<void>;
+    readonly refresh: () => Promise<void>;
     /** Report whether a change may decide the visibility of rows beyond its own. */
-    decides(change: Change): Promise<boolean>;
+    readonly decides: (change: Change) => Promise<boolean>;
 }
 
 /** The tables and scopes whose changes decide what a subscriber has. */

@@ -98,9 +98,9 @@ export interface BranchSource {
     /** The SQL names of the tables keeping branches and their rows. */
     readonly tables: readonly string[];
     /** Report whether a branch is open, as the replica has it. */
-    isOpen(transaction: DatabaseConnection, branch: string): Promise<boolean>;
+    readonly isOpen: (transaction: DatabaseConnection, branch: string) => Promise<boolean>;
     /** Write a branch's rows over the replica's. */
-    apply(transaction: DatabaseConnection, branch: string): Promise<void>;
+    readonly apply: (transaction: DatabaseConnection, branch: string) => Promise<void>;
 }
 
 /** A layer of the prediction: a queued mutation, or the checked-out branch's rows. */

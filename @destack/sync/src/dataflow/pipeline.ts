@@ -263,12 +263,12 @@ export interface Context {
     /** The most rows one page of a snapshot reads. */
     readonly pageSize: number;
     /** Read the watched changes between two sequences through a reader, absent once compacted. */
-    changesThrough(
+    readonly changesThrough: (
         watches: readonly Watch[],
         after: number,
         through: number,
         reader: DatabaseConnection,
-    ): Promise<Change[] | undefined>;
+    ) => Promise<Change[] | undefined>;
 }
 
 /** A partition of a node that selected parent rows opened. */

@@ -25,7 +25,7 @@ export const TrackerChange = schema.object({
     /** The row's name: its table and key as JSON. */
     key: schema.string(),
     /** The row's values in JSON form, null once deleted. */
-    row: schema.record(schema.string(), schema.json()).nullable(),
+    row: schema.jsonObject().nullable(),
     /** The owner whose end removes the row. */
     owner: schema.string(),
 });

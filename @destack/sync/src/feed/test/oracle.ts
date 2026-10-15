@@ -1,4 +1,5 @@
 import {
+    FindOptions,
     Key,
     TABLE,
     type DatabaseConnection,
@@ -18,7 +19,7 @@ import {
     Relations,
 } from "@destack/db";
 import { type Measure } from "../../query/aggregate.ts";
-import { type QuerySelection } from "../../query/query.ts";
+import type { QuerySelection } from "../../query/query.ts";
 import { canonicalize, aligned } from "@destack/schema";
 import type { Query } from "../../query/query.ts";
 import type { ConditionAudience } from "./audience.ts";
@@ -249,11 +250,8 @@ function selectIncludes(
     evaluation: Evaluation,
 ): void {
     const table = query.table;
-    for (const [child, selection] of Object.entries(query.with ?? {})) {
-        const include = includeOf(
-            evaluation.relations.get(table, child),
-            selection === true ? {} : selection,
-        );
+    for (const [child, selection] of FindOptions.includes(query)) {
+        const include = includeOf(evaluation.relations.get(table, child), selection);
         for (const row of selected) {
             // keep the join rows of a junction include
             const reached = reach(
@@ -791,11 +789,8 @@ function tablesOf(query: Level, relations: Relations): Table[] {
     return [
         query.table,
         ...(query.on?.kind === "junction" ? [query.on.table] : []),
-        ...Object.entries(query.with ?? {}).flatMap(([child, selected]) =>
-            tablesOf(
-                includeOf(relations.get(query.table, child), selected === true ? {} : selected),
-                relations,
-            ),
+        ...FindOptions.includes(query).flatMap(([child, selected]) =>
+            tablesOf(includeOf(relations.get(query.table, child), selected), relations),
         ),
         ...measures(query).flatMap(({ via, where }) =>
             tablesOf(relationOf(query, relations, via, where), relations),

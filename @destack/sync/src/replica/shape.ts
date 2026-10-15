@@ -1,12 +1,12 @@
 import { LogPosition } from "@destack/db";
 import { defineSchema, Duration, schema } from "@destack/schema";
 import type { Mutation } from "../call/call.ts";
-import type { Subject } from "../call/subject.ts";
+import { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
 import type { Replica } from "./replica.ts";
 
 /** A shape's parameters in JSON form. */
-const PARAMETERS = schema.record(schema.string(), schema.json());
+const PARAMETERS = schema.jsonObject();
 
 /** A follower's subscription to a declared shape over a scope, from the position it reached. */
 export const Subscription = defineSchema(
@@ -19,8 +19,8 @@ export const Subscription = defineSchema(
         scope: schema.string().min(1),
         /** The scope the follower serves, whose principal the source decides for. */
         below: schema.string().min(1),
-        /** The key of the principal the source decides the rows for on the follower's behalf. */
-        subject: schema.string().min(1).exactOptional(),
+        /** The principal the source decides the rows for on the follower's behalf. */
+        subject: Subject.exactOptional(),
         /** The shape's parameters, which its declaration parses. */
         parameters: PARAMETERS,
         /** The log position the replica reached, absent before its first snapshot. */
@@ -53,7 +53,7 @@ export interface Shape {
     /** Whether the replica must have a complete snapshot before its follower serves. */
     readonly isReadinessGate: boolean;
     /** Build the replica a subscription follows. */
-    replica(subscription: Subscription): Replica;
+    readonly replica: (subscription: Subscription) => Replica;
 }
 
 /** A declared shape, with the typed subscriptions of its parameters. */
@@ -104,13 +104,13 @@ export function defineShape<Parameters extends object>(definition: {
 /** Serves a replica's subscriptions one step closer to its rows' home. */
 export interface Publisher {
     /** Stream a subscription's pages from its position, or a snapshot without one. */
-    stream(subscription: Subscription, signal: AbortSignal): AsyncIterable<Page>;
+    readonly stream: (subscription: Subscription, signal: AbortSignal) => AsyncIterable<Page>;
 }
 
 /** A publisher that also receives the changes its follower's server sends to the rows' home. */
 export interface Uplink extends Publisher {
     /** Run a mutation of the rows at their home, once however often it is delivered. */
-    receive(mutation: Mutation, signer?: Subject): Promise<void>;
+    readonly receive: (mutation: Mutation, signer?: Subject) => Promise<void>;
 }
 
 /** A publisher that also receives the changes its follower's server sends to the rows' home. */
@@ -118,11 +118,11 @@ export const Uplink = {
     /** Replicate and send through a client's replica procedures, as follower or change signer. */
     of(
         replica: (signer?: Subject) => {
-            stream(
+            readonly stream: (
                 subscription: Subscription,
                 options: { readonly signal: AbortSignal },
-            ): Promise<AsyncIterable<Page>>;
-            receive(input: { readonly mutation: Mutation }): Promise<unknown>;
+            ) => Promise<AsyncIterable<Page>>;
+            readonly receive: (input: { readonly mutation: Mutation }) => Promise<unknown>;
         },
     ): Uplink {
         return {

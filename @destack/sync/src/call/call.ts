@@ -10,7 +10,7 @@ export const Call = Object.assign(
             /** The method's name, such as create. */
             method: schema.string().min(1),
             /** The method's input, with its scope and target. */
-            input: schema.record(schema.string(), schema.json()),
+            input: schema.jsonObject(),
             /** The release of the method's package the call was made against. */
             release: Version,
         }),

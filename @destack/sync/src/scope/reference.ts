@@ -41,6 +41,28 @@ export const ObjectReference = Object.assign(objectReference, {
         return objectReference.parse({ packageId, type, scope, id });
     },
 
+    /** Spread a reference, or its absence, into the columns keeping it under a field name. */
+    columns: referenceColumns,
+
+    /** Read the reference a row keeps under a field name, refusing an absent one. */
+    at<Name extends string>(
+        name: Name,
+        row: Readonly<
+            Partial<
+                Record<`${Name}PackageId` | `${Name}Type` | `${Name}Scope` | `${Name}Id`, unknown>
+            >
+        >,
+    ): ObjectReference {
+        const columns: { readonly [Column in string]?: unknown } = row;
+
+        return objectReference.parse({
+            packageId: columns[`${name}PackageId`],
+            type: columns[`${name}Type`],
+            scope: columns[`${name}Scope`],
+            id: columns[`${name}Id`],
+        });
+    },
+
     /** Read the parent a nested row refers to, in the row's scope. */
     parent(row: {
         readonly scope: string;
@@ -56,6 +78,39 @@ export const ObjectReference = Object.assign(objectReference, {
         };
     },
 });
+
+/** The columns keeping an object reference under a field name. */
+export type ReferenceColumns<Name extends string> = Readonly<
+    Record<`${Name}PackageId`, ObjectReference["packageId"]> &
+        Record<`${Name}Type` | `${Name}Scope` | `${Name}Id`, string>
+>;
+
+/** The columns of an absent object reference under a field name. */
+export type AbsentColumns<Name extends string> = Readonly<
+    Record<`${Name}PackageId` | `${Name}Type` | `${Name}Scope` | `${Name}Id`, null>
+>;
+
+/** Spread a reference, or its absence, into the columns keeping it under a field name. */
+function referenceColumns<Name extends string, Reference extends ObjectReference | undefined>(
+    name: Name,
+    reference: Reference,
+): Reference extends ObjectReference ? ReferenceColumns<Name> : AbsentColumns<Name>;
+/**
+ * Spread a reference into the columns keeping it under a field name, typed by the signature above.
+ *
+ * NOTE #Architecture: the one stated type of reference columns, whose keys a template computes.
+ */
+function referenceColumns(
+    name: string,
+    reference: ObjectReference | undefined,
+): { readonly [Column in string]: string | null } {
+    return {
+        [`${name}PackageId`]: reference?.packageId ?? null,
+        [`${name}Type`]: reference?.type ?? null,
+        [`${name}Scope`]: reference?.scope ?? null,
+        [`${name}Id`]: reference?.id ?? null,
+    };
+}
 
 /** A package-qualified object type, and its key. */
 export const ObjectTypeReference = Object.assign(

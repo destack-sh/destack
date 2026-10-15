@@ -976,7 +976,7 @@ test.for(TEST_DIALECTS)(
         const left = new Replica({ name: "left", scope: "inbox", tables: [note] });
         const right = new Replica({ name: "right", scope: "inbox", tables: [note] });
         const chain = new Replica({ name: "chain", scope: "inbox", tables: [note] });
-        const subject = Subject.key(ALICE);
+        const subject = ALICE;
         await left.register(local, {
             subscription: inboxSubscription("left"),
             audience: "reader",

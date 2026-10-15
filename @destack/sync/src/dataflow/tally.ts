@@ -674,9 +674,9 @@ export interface Result {
     /** Whether the group has no rows. */
     readonly isEmpty: boolean;
     /** Read the measures in JSON form. */
-    values(): Record<string, Scalar>;
+    readonly values: () => Record<string, Scalar>;
     /** Read each average's sum and count of present values. */
-    averages(): Record<string, Average>;
+    readonly averages: () => Record<string, Average>;
 }
 
 /** A group's measures as one SQL count read them. */

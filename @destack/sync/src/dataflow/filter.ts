@@ -166,11 +166,11 @@ export class Filter {
 /** The groups of a query's relations, by their parent value. */
 export interface Arrangement {
     /** Read the relation measures of some rows at once. */
-    prepare(node: Node, rows: readonly Row[], run: Run): Promise<void>;
+    readonly prepare: (node: Node, rows: readonly Row[], run: Run) => Promise<void>;
     /** Read a relation's measures of the rows with a parent value. */
-    measured(
+    readonly measured: (
         relation: Node,
         value: ColumnValue | undefined,
         run: Run,
-    ): Readonly<Record<string, Scalar>>;
+    ) => Readonly<Record<string, Scalar>>;
 }

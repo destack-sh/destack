@@ -2,5 +2,14 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0d8d9-b82d-7100-8445-a0a43b3cfeb7",
     "language": "typescript",
-    "runtimes": ["browser", "bun", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "check": {
+        "expect": [
+            {
+                "files": ["src/scope/reference.ts"],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "ObjectReference.columns states the reference columns whose keys a template computes (ruling 2026-10-16)"
+            }
+        ]
+    }
 }

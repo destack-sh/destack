@@ -1,4 +1,5 @@
 import {
+    FindOptions,
     type Row,
     Key,
     TABLE,
@@ -24,7 +25,7 @@ import {
     Relations,
 } from "@destack/db";
 import { type Aggregate, type Measure } from "./aggregate.ts";
-import { type QuerySelection } from "./query.ts";
+import type { QuerySelection } from "./query.ts";
 import { canonicalize, type JsonValue } from "@destack/schema";
 import type { Query } from "./query.ts";
 
@@ -176,7 +177,7 @@ export class Node {
         readonly rollups: ReadonlySet<string>;
     } {
         // resolve the includes and each measured relation once
-        const includes = Object.entries(query.with ?? {}).map(([child, selected]) =>
+        const includes = FindOptions.includes(query).map(([child, selected]) =>
             this.#include(child, selected),
         );
         const lookups = Object.values(this.extras).flatMap((value) => Expression.lookups(value));
@@ -272,10 +273,9 @@ export class Node {
     }
 
     /** Include a named relation's rows, as every row or a selection of them. */
-    #include(child: string, selected: true | QuerySelection): Node {
+    #include(child: string, options: QuerySelection): Node {
         // join the relation's condition and the selection's
         const relation = this.schema.get(this.table, child);
-        const options = selected === true ? {} : selected;
         const where = Node.#joinedCondition(relation.where, options.where);
 
         return new Node(

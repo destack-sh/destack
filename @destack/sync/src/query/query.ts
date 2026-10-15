@@ -1,19 +1,10 @@
-import {
-    type Extras,
-    type QueryOptions,
-    type Relation,
-    Relations,
-    type Row,
-    type Table,
-} from "@destack/db";
+import { type FindOptions, type Relation, Relations, type Row, type Table } from "@destack/db";
 import type { Aggregate, AggregateRow } from "./aggregate.ts";
 
-/** What a subscriber's query selects at one level: rows with extras and includes, or aggregates. */
-export interface QuerySelection extends QueryOptions {
-    /** The values computed from each row, read like fields, by name. */
-    readonly extras?: Extras;
+/** What a subscriber's query selects at one level: a relational read, or aggregates of its rows. */
+export interface QuerySelection extends FindOptions {
     /** The related rows each selected row includes, by relation: every row, or a selection. */
-    readonly with?: Readonly<Record<string, true | QuerySelection>>;
+    readonly with?: { readonly [Name in string]?: true | QuerySelection };
     /** The aggregates kept instead of rows. */
     readonly aggregate?: Aggregate;
 }

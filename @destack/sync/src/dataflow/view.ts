@@ -568,12 +568,12 @@ export interface Cache {
     /** The shared encodings of selected rows. */
     readonly encodings: Memo<RowChange>;
     /** Read a table's row images before their first change between two sequences, by key. */
-    images(
+    readonly images: (
         table: Table,
         after: number,
         upto: number,
         reader: DatabaseConnection,
-    ): Promise<ReadonlyMap<string, Row | null>>;
+    ) => Promise<ReadonlyMap<string, Row | null>>;
 }
 
 /** One partition's ordered rows as an audience decided them, until a moment. */

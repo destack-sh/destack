@@ -13,11 +13,11 @@ export interface Upstream {
     /** The tables and scopes whose changes move the groups. */
     readonly watches: readonly Watch[];
     /** Read every group of an aggregate or relation node with rows. */
-    groups(node: Node): Promise<Group[]>;
+    readonly groups: (node: Node) => Promise<Group[]>;
     /** Read the group a change of a watched table moves. */
-    group(
+    readonly group: (
         change: Change,
-    ): { readonly query: string; readonly group: Readonly<Record<string, Scalar>> } | undefined;
+    ) => { readonly query: string; readonly group: Readonly<Record<string, Scalar>> } | undefined;
     /** Report whether the source measured an aggregate node. */
     readonly isMeasured?: (node: Node) => boolean;
 }

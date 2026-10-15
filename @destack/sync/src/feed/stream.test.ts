@@ -111,8 +111,8 @@ function settled<Value>(promise: Promise<Value>): { value: Value | undefined } {
 /** Start a source of pushed pages. */
 function pages(): {
     readonly pages: AsyncGenerator<Page>;
-    push(page: Page): void;
-    end(): void;
+    readonly push: (page: Page) => void;
+    readonly end: () => void;
 } {
     // queue pushed pages until taken
     const queued: (Page | undefined)[] = [];

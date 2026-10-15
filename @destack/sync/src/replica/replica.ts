@@ -9,6 +9,7 @@ import {
     gte,
     index,
     integer,
+    identifier,
     json,
     inArray,
     Key,
@@ -81,8 +82,22 @@ export const replica = defineTable(
         name: text("name").primaryKey(),
         /** The scope whose rows the replica keeps. */
         scope: text("scope").primaryKey(),
-        /** The subscription of the replica's last completed run, if a subscription exists. */
-        subscription: json("subscription", SubscriptionRecord),
+        /** The shape of the last completed run's subscription, absent without a subscription. */
+        shape: text("shape"),
+        /** The scope the subscription's follower serves. */
+        below: text("below"),
+        /** The package of the principal the source decides the rows for. */
+        subjectPackageId: identifier("subject_package_id", "package"),
+        /** The type of the principal decided for. */
+        subjectType: text("subject_type"),
+        /** The scope of the principal decided for. */
+        subjectScope: text("subject_scope"),
+        /** The identifier of the principal decided for. */
+        subjectId: text("subject_id"),
+        /** The relation whose members the subject set is, absent for one principal. */
+        subjectRelation: text("subject_relation"),
+        /** The subscription's parameters, which its shape parses. */
+        parameters: json("parameters", schema.jsonObject()),
         /** Whose access its source decides the rows by, absent without a subscription. */
         audience: text("audience").validate(ShapeAudience),
         /** The scopes the replica reads, nearest first, absent until its source sends them. */
@@ -386,14 +401,17 @@ export class Replica {
     /** Match the replicas a reader below a scope sees: decided for its readers, or the caller. */
     static #seen(below: string, caller: Subject | undefined): SQL {
         // match the replicas served below the scope, decided for its readers or for the calling principal
-        const isBelow = sql`${replica.subscription} ->> 'below' = ${below}`;
+        const isBelow = eq(replica.below, below);
         const isReader = eq(replica.audience, "reader");
         const isCaller =
             caller === undefined
                 ? undefined
                 : and(
                       eq(replica.audience, "caller"),
-                      sql`${replica.subscription} ->> 'subject' = ${Subject.key(caller)}`,
+                      eq(replica.subjectPackageId, caller.packageId),
+                      eq(replica.subjectType, caller.type),
+                      eq(replica.subjectScope, caller.scope),
+                      eq(replica.subjectId, caller.id),
                   );
 
         return and(isBelow, or(isReader, isCaller));
@@ -557,12 +575,13 @@ export class Replica {
         subscription: Subscription,
     ): Promise<boolean> {
         const record = await Replica.#find(database, subscription.name, subscription.scope);
+        const recorded = record === undefined ? undefined : Replica.subscriptionOf(record);
 
         return (
             record !== undefined &&
             Replica.#origin(record) !== undefined &&
-            record.subscription !== undefined &&
-            canonicalize(record.subscription) === canonicalize(Replica.#subscribed(subscription))
+            recorded !== undefined &&
+            canonicalize(recorded) === canonicalize(Replica.#subscribed(subscription))
         );
     }
 
@@ -634,7 +653,7 @@ export class Replica {
         const origins = new Map<string, Origin>();
         for (const { scope, record } of await Replica.#keeping(database, scopes)) {
             const origin = Replica.#origin(record);
-            if (origin === undefined || record.subscription?.shape !== shape) {
+            if (origin === undefined || record.shape !== shape) {
                 continue;
             }
 
@@ -712,8 +731,9 @@ export class Replica {
 
     /** Describe the replica's position, layout, queries and staged pages. */
     async inspect(database: DatabaseConnection): Promise<ReplicaInspection> {
-        // read the record, staged pages and groups
+        // read the record, its subscription, staged pages and groups
         const row = await this.#record(database);
+        const subscription = row === undefined ? undefined : Replica.subscriptionOf(row);
         const [staged] = await database
             .select({ pages: count() })
             .from(replicaPage)
@@ -736,9 +756,7 @@ export class Replica {
                 ? {}
                 : { origin: { epoch: row.originEpoch, sequence: row.originSequence } }),
             isLaidOut: row?.layout === (await this.#layout),
-            ...(row?.subscription === null || row === undefined
-                ? {}
-                : { subscription: row.subscription }),
+            ...(subscription === undefined ? {} : { subscription }),
             ...(row === undefined ? {} : { confirmedAt: row.confirmedAt }),
             staged: staged.pages,
             results: results.groups,
@@ -749,7 +767,7 @@ export class Replica {
     async subscribed(database: DatabaseConnection): Promise<SubscriptionRecord | undefined> {
         const record = await this.#record(database);
 
-        return record?.subscription ?? undefined;
+        return record === undefined ? undefined : Replica.subscriptionOf(record);
     }
 
     /** Resume a subscription from the replica. */
@@ -937,8 +955,7 @@ export class Replica {
                 .insert(replica)
                 .values({
                     ...key,
-                    subscription:
-                        subscription === undefined ? null : Replica.#subscribed(subscription),
+                    ...Replica.subscriptionColumns(subscription),
                     audience: audience ?? null,
                     tables: [...this.#replicated.keys()],
                 })
@@ -973,11 +990,13 @@ export class Replica {
 
     /** List the subscriptions of a database's replicas, leaving out replicas without one. */
     static async subscriptions(database: DatabaseConnection): Promise<SubscriptionRecord[]> {
-        const records = await database.select({ subscription: replica.subscription }).from(replica);
+        const records = await database.select().from(replica);
 
-        return records.flatMap((record) =>
-            record.subscription === null ? [] : [record.subscription],
-        );
+        return records.flatMap((record) => {
+            const subscription = Replica.subscriptionOf(record);
+
+            return subscription === undefined ? [] : [subscription];
+        });
     }
 
     /** Apply one stream of pages, staging each run until it completes. */
@@ -1134,9 +1153,7 @@ export class Replica {
         };
         const registration = {
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
-            ...(subscription === undefined
-                ? {}
-                : { subscription: Replica.#subscribed(subscription) }),
+            ...(subscription === undefined ? {} : Replica.subscriptionColumns(subscription)),
             ...(audience === undefined ? {} : { audience }),
             layout: await this.#layout,
             tables: [...this.#replicated.keys()],
@@ -1665,6 +1682,55 @@ export class Replica {
             replicaResult,
             entries.flatMap(({ row }) => (row === null ? [] : [row])),
         );
+    }
+
+    /** Write a subscription as a replica's columns, all absent without one. */
+    static subscriptionColumns(subscription: Subscription | undefined) {
+        const subject = subscription?.subject;
+
+        return {
+            shape: subscription?.shape ?? null,
+            below: subscription?.below ?? null,
+            subjectPackageId: subject?.packageId ?? null,
+            subjectType: subject?.type ?? null,
+            subjectScope: subject?.scope ?? null,
+            subjectId: subject?.id ?? null,
+            subjectRelation: subject?.relation ?? null,
+            parameters: subscription?.parameters ?? null,
+        };
+    }
+
+    /** Read the subscription a replica's columns keep, absent without one. */
+    static subscriptionOf(row: Select<typeof replica>): SubscriptionRecord | undefined {
+        // keep no subscription for a replica without a shape
+        const { shape, below, parameters } = row;
+        if (shape === null || below === null || parameters === null) {
+            return undefined;
+        }
+
+        // read the principal decided for, when one is
+        const subject =
+            row.subjectPackageId === null ||
+            row.subjectType === null ||
+            row.subjectScope === null ||
+            row.subjectId === null
+                ? undefined
+                : {
+                      packageId: row.subjectPackageId,
+                      type: row.subjectType,
+                      scope: row.subjectScope,
+                      id: row.subjectId,
+                      ...(row.subjectRelation === null ? {} : { relation: row.subjectRelation }),
+                  };
+
+        return {
+            name: row.name,
+            shape,
+            scope: row.scope,
+            below,
+            ...(subject === undefined ? {} : { subject }),
+            parameters,
+        };
     }
 
     /** Record a subscription without where it resumes. */
