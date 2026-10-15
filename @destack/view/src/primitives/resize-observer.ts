@@ -74,7 +74,7 @@ export function makeResizeObserver<Target extends Element>(
 /**
  * Observe the elements the caller adds.
  *
- * @construct every entry's target is an element the caller observed, so of the caller's type
+ * NOTE #Architecture: the stated entry targets, as solid-primitives' makeResizeObserver.
  */
 export function makeResizeObserver(
     callback: ResizeObserverCallback,
@@ -161,7 +161,7 @@ export function getElementSize(target: Element | false | undefined | null): Null
 /**
  * Measure an element.
  *
- * @construct an element always measures to numbers, so only an absent one reads null
+ * NOTE #Architecture: a present element measures to numbers, as solid-primitives' getElementSize.
  */
 export function getElementSize(target: Element | false | undefined | null): NullableSize {
     // measure nothing on the server or without an element
@@ -182,7 +182,7 @@ export function createElementSize(
 /**
  * Follow an element's sizes in a static store.
  *
- * @construct a fixed element always measures to numbers, so only an accessor's absent one is null
+ * NOTE #Architecture: a fixed element measures to numbers, as solid-primitives' createElementSize.
  */
 export function createElementSize(
     target: Accessor<Element | false | undefined | null> | Element,

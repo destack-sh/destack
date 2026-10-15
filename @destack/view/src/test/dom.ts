@@ -42,7 +42,7 @@ interface HydrationBootstrap {
     /** The resources the server streamed. */
     readonly r: Record<string, unknown>;
     /** Mark a hydration step. */
-    fe(): void;
+    readonly fe: () => void;
 }
 
 /** Render an element, or an example as its hosts render it, into a container in the document. */

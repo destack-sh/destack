@@ -24,9 +24,9 @@ export interface Blocker {
     /** Where the held navigation goes, absent while none is held. */
     readonly location: Accessor<string | number | undefined>;
     /** Let the held navigation through. */
-    proceed(): void;
+    readonly proceed: () => void;
     /** Drop the held navigation and stay. */
-    reset(): void;
+    readonly reset: () => void;
 }
 
 /** Block navigations within the page while told to, until cleanup. */

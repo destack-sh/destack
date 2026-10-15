@@ -73,7 +73,7 @@ export function createBreakpoints<Names extends Breakpoints>(
 /**
  * Follow each breakpoint's query in a static store.
  *
- * @construct the store has one boolean per breakpoint name, with `key` set to the last match
+ * NOTE #Architecture: the stated store of matches by name, as solid-primitives' createBreakpoints.
  */
 export function createBreakpoints(
     breakpoints: Breakpoints,

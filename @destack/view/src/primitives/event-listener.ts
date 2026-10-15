@@ -321,7 +321,7 @@ export function createEventSignal<
 /**
  * Hold each event the listener receives.
  *
- * @construct the accessor reads the last event of the listened types, which the event map types
+ * NOTE #Architecture: the stated events of its types, as solid-primitives' createEventSignal.
  */
 export function createEventSignal(
     target: MaybeAccessor<Many<EventTarget>>,
@@ -415,7 +415,7 @@ export function makeEventListenerStack<EventMap extends Record<string, Event>>(
 /**
  * Collect the listeners of one target.
  *
- * @construct each listener's handler takes the event its type names in the target's event map
+ * NOTE #Architecture: the stated handler events, as solid-primitives' makeEventListenerStack.
  */
 export function makeEventListenerStack(
     target: EventTarget,

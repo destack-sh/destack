@@ -173,6 +173,7 @@
         },
         {
             "files": [
+                "@destack/view/src/primitives/event-props.ts",
                 "@destack/view/src/primitives/input-mask.ts",
                 "@destack/view/src/primitives/upload.ts",
                 "@destack/view/src/primitives/video.ts"
@@ -190,6 +191,22 @@
                 "@destack/view/src/document/font.tsx"
             ],
             "rules": { "destack/prevent-abbreviations": "off" }
+        },
+        {
+            "files": [
+                "@destack/view/src/primitives/event-props.ts",
+                "@destack/view/src/primitives/intersection-observer.ts",
+                "@destack/view/src/primitives/resize-observer.ts",
+                "@destack/view/src/primitives/bounds.ts",
+                "@destack/view/src/primitives/media.ts",
+                "@destack/view/src/primitives/event-listener.ts",
+                "@destack/view/src/router/search.ts"
+            ],
+            "rules": { "destack/no-overload-cast": "off" }
+        },
+        {
+            "files": ["@destack/view/src/test/server.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
         },
         {
             "files": [

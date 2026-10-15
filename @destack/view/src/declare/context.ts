@@ -62,7 +62,7 @@ const SameOriginPath = schema.string().regex(/^\/(?:[^/\t\n\r\\][^\t\n\r\\]*)?$/
 /** What the host gives a view: where and for whom it runs. */
 export const ViewContext = defineSchema(
     schema.object({
-        /** The installation serving the view. */
+        /** The installation serving the view, absent for the machine's command palette. */
         installation: schema.string().min(1).exactOptional(),
         /** The space of the installation. */
         space: schema.string().min(1),

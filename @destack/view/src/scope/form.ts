@@ -1,6 +1,6 @@
 import { type Localization, t } from "@destack/locale";
 import { useLocale } from "../page/locale.ts";
-import type { CallInput, MutationName, ObjectType } from "@destack/object";
+import type { MethodInput, MutationName, ObjectType } from "@destack/object";
 import type { Submission } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { type Accessor, createSignal } from "../solid/reactive.ts";
@@ -16,7 +16,7 @@ export interface FormOptions<Input extends object> {
     /** The input the form starts from, such as the object's identifier and its current fields. */
     readonly values: () => Input;
     /** Call the method with the edited input, such as `objects.mutate.note.update`. */
-    readonly submit: (input: schema.Defined<Input>) => Submission<unknown>;
+    readonly submit: (input: Input) => Submission<unknown>;
     /** When the form submits, on submit by default. */
     readonly mode?: FormMode;
 }
@@ -34,9 +34,9 @@ export interface FormField<Value> {
 /** The draft input of one method call, checked by the method's own input schema. */
 export interface Form<Input extends object> {
     /** One input field. */
-    field<Name extends keyof Input & string>(name: Name): FormField<Input[Name]>;
+    readonly field: <Name extends keyof Input & string>(name: Name) => FormField<Input[Name]>;
     /** Submit the edited input when every field is kept, and answer its submission. */
-    submit(): Submission<unknown> | undefined;
+    readonly submit: () => Submission<unknown> | undefined;
     /** Why each shown value is refused, in the person's language. */
     readonly problems: Accessor<ReadonlyMap<string, string>>;
     /** Where the last submission stands. */
@@ -44,15 +44,15 @@ export interface Form<Input extends object> {
     /** Whether a field has an edited value. */
     readonly isEdited: Accessor<boolean>;
     /** Drop the edits and refusals, back to the starting input. */
-    reset(): void;
+    readonly reset: () => void;
 }
 
 /** Edit the input of one call of an object's method, after form libraries' field state. */
 export function useForm<Object extends ObjectType, Name extends MutationName<Object>>(
     object: Object,
     method: Name,
-    options: NoInfer<FormOptions<CallInput<Object, Name>>>,
-): Form<CallInput<Object, Name>> {
+    options: NoInfer<FormOptions<MethodInput<Object, Name>>>,
+): Form<MethodInput<Object, Name>> {
     return useSchemaForm(object.procedure(method).input, options);
 }
 
@@ -86,7 +86,7 @@ export function useSchemaForm<Input extends object>(
     // check the input against the schema, showing refusals of edited values until the first submit
     const check = (held: Input): boolean => {
         // refuse the issues of the form's fields, leaving the rest to the caller
-        const parsed = input.safeParse(schema.defined(held));
+        const parsed = input.safeParse(held);
         const issues = (parsed.success ? [] : parsed.error.issues)
             .filter((issue) => String(issue.path[0] ?? "") in held)
             .flatMap((issue) => closest(issue, held));
@@ -113,7 +113,7 @@ export function useSchemaForm<Input extends object>(
         submissions += 1;
         const submission = submissions;
         setStatus("pending");
-        const submitted = options.submit(schema.defined(held));
+        const submitted = options.submit(held);
         submitted.confirmed.then(
             () => {
                 if (submission === submissions) {

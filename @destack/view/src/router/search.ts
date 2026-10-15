@@ -1,5 +1,5 @@
 import { useLocation, useSearchParams } from "@solidjs/router";
-import type { schema } from "@destack/schema";
+import { mapValues, type schema } from "@destack/schema";
 import { type Accessor, createEffect, createMemo, untrack } from "solid-js";
 
 /** How setting URL state moves through history, scrolls and treats defaults. */
@@ -15,7 +15,7 @@ export interface Options {
 /** Read and write one value of the URL's query as text. */
 export interface Parser<Value> {
     /** Read a value from its text, null for text without one. */
-    parse(text: string): Value | null;
+    readonly parse: (text: string) => Value | null;
     /** Write a value as its text. */
     serialize(value: Value): string;
     /** Report whether two values are the same, which decides whether a value is its default. */
@@ -303,21 +303,11 @@ export function parseAsJson<Value>(checked: schema.Schema<Value>): ParserBuilder
 /** Make a function that writes values as a query string for links to a page's URL state. */
 export function createSerializer<Built extends Parsers>(
     parsers: Built,
-    options?: Pick<QueryStatesOptions<Built>, "urlKeys" | "clearOnDefault">,
-): Serializer<Built>;
-/**
- * Write the values over the base's query.
- *
- * @construct one argument is the values, and two are a base and the values.
- * Serializer overloads them this way.
- */
-export function createSerializer(
-    parsers: Parsers,
-    options: Pick<QueryStatesOptions<Parsers>, "urlKeys" | "clearOnDefault"> = {},
-): (
-    ...args: [Updates<Parsers> | null] | [string | URL | URLSearchParams, Updates<Parsers> | null]
-) => string {
-    return (...args) => {
+    options: Pick<QueryStatesOptions<Built>, "urlKeys" | "clearOnDefault"> = {},
+): Serializer<Built> {
+    return (
+        ...args: [Updates<Built> | null] | [string | URL | URLSearchParams, Updates<Built> | null]
+    ) => {
         // merge each written value over the base's query
         const [base, values] = args.length === 1 ? ["", args[0]] : args;
         const query = new URLSearchParams(readQuery(base));
@@ -432,8 +422,7 @@ export function useQueryState<Value>(
 /**
  * Follow one value of the URL's query under a key.
  *
- * @construct a parser with a default never reads null, and text options read text.
- * The overloads narrow the value this way.
+ * NOTE #Architecture: the stated overloads of the value, as nuqs' useQueryState.
  */
 export function useQueryState(
     key: string,
@@ -459,22 +448,9 @@ function readValues<Built extends Parsers>(
     parsers: Built,
     query: Readonly<Record<string, string | string[] | undefined>>,
     options: QueryStatesOptions<Built>,
-): Values<Built>;
-/**
- * Read each value.
- *
- * @construct each key of the parsers has the value its parser reads, as Values maps them
- */
-function readValues(
-    parsers: Parsers,
-    query: Readonly<Record<string, string | string[] | undefined>>,
-    options: QueryStatesOptions<Parsers>,
-): Readonly<Record<string, unknown>> {
-    return Object.fromEntries(
-        Object.entries(parsers).map(([key, parser]) => [
-            key,
-            parser.read(firstText(query[urlKey(key, options)])),
-        ]),
+): Values<Built> {
+    return mapValues<Built, Values<Built>>(parsers, (parser, key) =>
+        parser.read(firstText(query[urlKey(key, options)])),
     );
 }
 
@@ -538,14 +514,8 @@ function readQuery(base: string | URL | URLSearchParams): URLSearchParams {
 }
 
 /** Write null for every value, removing them all. */
-function cleared<Built extends Parsers>(parsers: Built): Updates<Built>;
-/**
- * Clear each key.
- *
- * @construct null is a valid update of every key, which is how Updates types them
- */
-function cleared(parsers: Parsers): Record<string, null> {
-    return Object.fromEntries(Object.keys(parsers).map((key) => [key, null]));
+function cleared<Built extends Parsers>(parsers: Built): Updates<Built> {
+    return mapValues<Built, Updates<Built>>(parsers, () => null);
 }
 
 /** Check whether a set value is a function of the current one. */

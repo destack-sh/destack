@@ -295,7 +295,7 @@ export function createViewportObserver(
     /**
      * Observe an element now, or once a ref receives it.
      *
-     * @construct a call with an element observes it now, and a call with a callback returns the ref
+     * NOTE #Architecture: the stated overloads of add, as solid-primitives' createViewportObserver.
      */
     function addEntry(
         target: Element | MaybeAccessor<EntryCallback>,

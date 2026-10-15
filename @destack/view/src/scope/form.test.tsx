@@ -1,5 +1,5 @@
 import { none } from "@destack/access";
-import { type CallInput, defineObject, field } from "@destack/object";
+import { type MethodInput, defineObject, field } from "@destack/object";
 import type { Submission } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -24,7 +24,7 @@ const note = defineObject({
 }).methods((method) => ({ update: method.update("write") }));
 
 /** The input of a note's update the tests edit. */
-type Rename = CallInput<typeof note, "update">;
+type Rename = MethodInput<typeof note, "update">;
 
 /** Edit a note's rename in a drawn component, settling each submission as the test says. */
 function renameForm(mode: FormMode): {

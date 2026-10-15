@@ -22,6 +22,9 @@ const SAMPLE_HOME = "space-01996ab0-0000-7000-8000-00000000e002";
 /** The account of the sample space. */
 const SAMPLE_ACCOUNT = "account-01996ab0-0000-7000-8000-00000000e003";
 
+/** The sample person. */
+const SAMPLE_USER = "user-01996ab0-0000-7000-8000-00000000e004";
+
 /** The address of the sample space's packages, which never answer. */
 const OFFLINE = { url: "https://sample.invalid", fetch: () => new Promise<Response>(() => {}) };
 
@@ -67,7 +70,7 @@ async function openSample(
         account: SAMPLE_ACCOUNT,
         home: SAMPLE_HOME,
         view: view.name,
-        user: principal.user.reference(Scope.universe.id, "sample"),
+        user: principal.user.reference(Scope.universe.id, SAMPLE_USER),
     };
 
     // open each scope the view opens objects in, and make the example's calls there

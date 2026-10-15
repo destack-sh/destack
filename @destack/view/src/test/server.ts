@@ -3,7 +3,7 @@ export function untouched<Target extends object>(): Target;
 /**
  * Make the stand-in.
  *
- * @construct a proxy that throws on every trap stands in for any object type
+ * NOTE #Architecture: a throwing proxy stands in for any node the server must not touch.
  */
 export function untouched(): object {
     return new Proxy(

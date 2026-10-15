@@ -26,27 +26,19 @@ export type DispatchArguments<
       : [eventName: Name, payload?: unknown, options?: DispatcherOptions];
 
 /** Dispatch typed custom events to a component's `on` handlers. */
-export function createEventDispatcher<Properties>(
+export function createEventDispatcher<Properties extends object>(
     properties: Properties,
 ): <Name extends keyof Handlers<Properties> & string>(
     ...args: DispatchArguments<Properties, Name>
-) => boolean;
-/**
- * Call the handler an event name selects with a custom event of the payload.
- *
- * @construct an event name selects the `on` handler of that name.
- * That handler takes the payload its type gives.
- */
-export function createEventDispatcher(
-    properties: object,
-): (eventName: string, payload?: unknown, options?: DispatcherOptions) => boolean {
+) => boolean {
     // dispatch nothing on the server
     if (isServer) {
         return () => true;
     }
 
-    return (eventName, payload, options) => {
-        // find the handler, dispatching nothing without one
+    return (...args) => {
+        // find the handler the event name selects, dispatching nothing without one
+        const [eventName, payload, options] = args;
         const handler: unknown = Reflect.get(
             properties,
             `on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`,

@@ -14,7 +14,10 @@ test("accept only endpoints that stay on the page's origin", () => {
                 space: "space-notes",
                 account: "account-notes",
                 view: "notes",
-                user: principal.user.reference(Scope.universe.id, "alice"),
+                user: principal.user.reference(
+                    Scope.universe.id,
+                    "user-01996ab0-0000-7000-8000-000000000001",
+                ),
                 release: "2026.9.0",
                 endpoint,
                 catalogs: [],

@@ -36,7 +36,7 @@ const CONTEXT: ViewContext = {
     space: "space-personal",
     account: "account-florian",
     view: "notes",
-    user: principal.user.reference(Scope.universe.id, "user-florian"),
+    user: principal.user.reference(Scope.universe.id, "user-01996ab0-0000-7000-8000-000000000001"),
 };
 
 /** The message the status shows. */
@@ -86,7 +86,7 @@ const tally = defineObject({
 }).methods(() => ({
     count: method.query({
         permission: "read",
-        target: "none",
+        target: "scope",
         output: schema.object({ notes: schema.number() }),
     }),
 }));

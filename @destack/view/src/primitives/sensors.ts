@@ -13,9 +13,9 @@ export interface GenericSensor extends EventTarget {
     /** When the last reading was taken. */
     readonly timestamp: DOMHighResTimeStamp | undefined;
     /** Start reading. */
-    start(): void;
+    readonly start: () => void;
     /** Stop reading. */
-    stop(): void;
+    readonly stop: () => void;
 }
 
 /** A Generic Sensor API constructor, such as `Magnetometer`. */

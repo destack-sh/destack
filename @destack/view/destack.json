@@ -39,8 +39,12 @@
         }
     },
     "stamps": {
-        "defineView": { "module": 1 },
-        "defineCommand": { "module": 1 }
+        "defineView": {
+            "module": 1
+        },
+        "defineCommand": {
+            "module": 1
+        }
     },
     "check": {
         "expect": [
@@ -73,6 +77,24 @@
                 "files": ["src/document/script.tsx", "src/document/font.tsx"],
                 "rules": ["destack/prevent-abbreviations"],
                 "reason": "src is the script element's attribute and the font definition's file list, whose names they keep"
+            },
+            {
+                "files": [
+                    "src/primitives/event-props.ts",
+                    "src/primitives/intersection-observer.ts",
+                    "src/primitives/resize-observer.ts",
+                    "src/primitives/bounds.ts",
+                    "src/primitives/media.ts",
+                    "src/primitives/event-listener.ts",
+                    "src/router/search.ts"
+                ],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "the primitives keep solid-primitives' signatures, which state types computed from their arguments (Florian 2026-10-15: follow the prior art)"
+            },
+            {
+                "files": ["src/test/server.ts"],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "untouched stands in for any DOM node in server tests, which prove the server never touches it"
             }
         ]
     }

@@ -15,7 +15,7 @@ export interface TextField {
     /** The current text, local predictions included, pending until the replica has it. */
     readonly text: Accessor<string>;
     /** Replace the text with a new value, as the one change between them. */
-    replace(value: string): Promise<Submission<Undo>> | undefined;
+    readonly replace: (value: string) => Promise<Submission<Undo>> | undefined;
 }
 
 /** Follow one text field of an object in the view's scope that keeps it. */

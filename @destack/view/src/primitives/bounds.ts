@@ -61,7 +61,7 @@ export function getElementBounds(element: Element | FalsyValue): NullableBounds;
 /**
  * Measure an element's rectangle.
  *
- * @construct an element always measures to numbers, so only an absent one reads null
+ * NOTE #Architecture: a present element measures to numbers, as solid-primitives' getElementBounds.
  */
 export function getElementBounds(element: Element | FalsyValue): NullableBounds {
     // measure nothing on the server or without an element

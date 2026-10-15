@@ -2,7 +2,7 @@ import { onTestFinished } from "@destack/test";
 import type { Driver } from "@destack/test";
 import type { Given, SetStep } from "@destack/package/declare";
 import type { Environment } from "../scenario/interaction.ts";
-import type { JsonValue } from "@destack/schema";
+import type { JsonObject, JsonValue } from "@destack/schema";
 import type { JSX } from "@solidjs/web";
 import { computeAccessibleName, getRole, isDisabled, isInaccessible } from "dom-accessibility-api";
 import { createSignal, flush } from "solid-js";
@@ -32,7 +32,7 @@ interface Rendered {
     /** The properties the example declares, which a set step may change. */
     readonly declared: readonly string[];
     /** Replace some of the properties. */
-    readonly set: (properties: Readonly<Record<string, JsonValue>>) => void;
+    readonly set: (properties: JsonObject) => void;
 }
 
 /** A driver that plays UI scenarios in the test DOM in process. */
@@ -185,7 +185,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
     }
 
     /** Change properties an example declares. */
-    #set(properties: Readonly<Record<string, JsonValue>>, name: string | undefined): void {
+    #set(properties: JsonObject, name: string | undefined): void {
         // find the named example, or the only one
         const examples = [...this.#examples];
         const found = name === undefined ? examples[0] : examples.find(([key]) => key === name);
