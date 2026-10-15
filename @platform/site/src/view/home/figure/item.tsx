@@ -48,8 +48,6 @@ const accents: Readonly<Record<string, string>> = {
     WorkOS: "#0ea5e9",
     Doppler: "#ec4899",
     Supabase: "#3ecf8e",
-    Dropbox: "#0061fe",
-    Elastic: "#eab308",
     Resend: "#f97316",
     Temporal: "#14b8a6",
     PostHog: "#f54e00",

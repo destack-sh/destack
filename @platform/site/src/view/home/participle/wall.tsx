@@ -17,7 +17,7 @@ import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
 import { accentOf, type Entry, type Line } from "../figure/item";
-import { ledgerSizes } from "../figure/ledger.stylex";
+import { chrome } from "../figure/chrome.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 
@@ -29,7 +29,6 @@ const apps = {
     pages: { name: "Pages", icon: "pages" },
     tasks: { name: "Tasks", icon: "tasks" },
     calendar: { name: "Calendar", icon: "calendar" },
-    files: { name: "Files", icon: "bucket" },
     tables: { name: "Tables", icon: "table" },
     canvas: { name: "Canvas", icon: "canvas" },
     workflows: { name: "Workflows", icon: "sync" },
@@ -45,7 +44,6 @@ const jobLabels: Record<Job, string> = {
     calendar: "Calendar",
     chat: "Chat",
     mail: "Mail",
-    files: "Files",
     canvas: "Whiteboard",
     workflows: "Automation",
 };
@@ -61,7 +59,6 @@ const spaceJobs: readonly Job[] = [
     "calendar",
     "chat",
     "mail",
-    "files",
     "canvas",
 ];
 
@@ -98,7 +95,6 @@ const replaced: readonly Tool[] = [
     { icon: "clickup", name: "ClickUp", tint: "#7b68ee", kind: "replace", job: "tasks" },
     { icon: "calendly", name: "Calendly", tint: "#006bff", kind: "replace", job: "calendar" },
     { icon: "caldotcom", name: "Cal.com", tint: "#292929", kind: "replace", job: "calendar" },
-    { icon: "dropbox", name: "Dropbox", tint: "#0061ff", kind: "replace", job: "files" },
     { icon: "airtable", name: "Airtable", tint: "#18bfff", kind: "replace", job: "tables" },
     { icon: "googlesheets", name: "Sheets", tint: "#34a853", kind: "replace", job: "tables" },
     { icon: "coda", name: "Coda", tint: "#f46a54", kind: "replace", job: "tables" },
@@ -110,7 +106,6 @@ const replaced: readonly Tool[] = [
     { icon: "figma", name: "FigJam", tint: "#a259ff", kind: "replace", job: "canvas" },
     { icon: "mural", name: "Mural", tint: "#ff0b47", kind: "replace", job: "canvas" },
     { icon: "lucid", name: "Lucid", tint: "#282c33", kind: "replace", job: "canvas" },
-    { icon: "box", name: "Box", tint: "#0061d5", kind: "replace", job: "files" },
     { icon: "obsidian", name: "Obsidian", tint: "#7c3aed", kind: "replace", job: "pages" },
     { icon: "word", name: "Word", tint: "#185abd", kind: "replace", job: "pages" },
     { icon: "n8n", name: "n8n", tint: "#ea4b71", kind: "replace", job: "workflows" },
@@ -160,22 +155,6 @@ const either: readonly Tool[] = [
         status: "two-way sync",
     },
     {
-        icon: "onedrive",
-        name: "OneDrive",
-        tint: "#0078d4",
-        kind: "both",
-        job: "files",
-        status: "mirrored",
-    },
-    {
-        icon: "googledrive",
-        name: "Drive",
-        tint: "#4285f4",
-        kind: "both",
-        job: "files",
-        status: "mirrored",
-    },
-    {
         icon: "slack",
         name: "Slack",
         tint: "#4a154b",
@@ -222,14 +201,6 @@ const either: readonly Tool[] = [
         kind: "both",
         job: "mail",
         status: "inbox synced",
-    },
-    {
-        icon: "icloud",
-        name: "iCloud",
-        tint: "#3693f3",
-        kind: "both",
-        job: "files",
-        status: "mirrored",
     },
 ];
 
@@ -302,11 +273,6 @@ const order: readonly string[] = [
     "Superhuman",
     "Thunderbird",
     "Proton Mail",
-    "Drive",
-    "OneDrive",
-    "Dropbox",
-    "iCloud",
-    "Box",
     "Miro",
     "FigJam",
     "Mural",
@@ -336,7 +302,7 @@ export const firstPicks: readonly string[] = [
     "Notion",
     "Calendly",
     "Linear",
-    "Dropbox",
+    "Airtable",
     "Slack",
     "Claude",
 ];
@@ -346,14 +312,12 @@ const billedUnder: Readonly<Record<string, string>> = {
     Docs: "Google Workspace",
     Sheets: "Google Workspace",
     Calendar: "Google Workspace",
-    Drive: "Google Workspace",
     Gmail: "Google Workspace",
     "Google Chat": "Google Workspace",
     Teams: "Microsoft 365",
     Outlook: "Microsoft 365",
     "Power Automate": "Microsoft 365",
     "Outlook Calendar": "Microsoft 365",
-    OneDrive: "Microsoft 365",
     Word: "Microsoft 365",
     Excel: "Microsoft 365",
 };
@@ -810,8 +774,8 @@ const styles = style.create({
         boxSizing: "border-box",
         flexBasis: "auto",
         flexGrow: 0,
-        height: ledgerSizes.head,
-        paddingBlock: "0.25rem",
+        height: chrome.strip,
+        paddingBlock: "0.375rem",
     },
     heading: {
         display: "grid",

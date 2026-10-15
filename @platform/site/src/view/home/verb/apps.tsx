@@ -309,12 +309,8 @@ function Launch(properties: { isChanged: boolean }) {
                     </span>
                 </div>
 
-                {/* the pricing draft, a document from Files */}
-                <span
-                    data-xray="Files"
-                    data-source="Files document"
-                    {...style.attrs(styles.attachment)}
-                >
+                {/* the pricing draft, attached */}
+                <span {...style.attrs(styles.attachment)}>
                     <Icon icon={fileText} />
                     <span>pricing-v3.pdf</span>
                     <span {...style.attrs(appText.meta, styles.quiet)}>2.4 MB</span>
@@ -352,7 +348,7 @@ function Tasks(properties: { isChanged: boolean }) {
                     <Icon icon={kanban} />
                     Board
                 </span>
-                <span data-xray="Search" {...style.attrs(appStyles.property)}>
+                <span data-xray="Database" {...style.attrs(appStyles.property)}>
                     <Icon icon={funnel} />
                     Due this week
                 </span>
@@ -493,9 +489,7 @@ function Chat() {
             <div {...style.attrs(styles.composer)}>
                 <span {...style.attrs(appText.body, styles.quiet)}>Message #launch</span>
                 <span {...style.attrs(styles.composerTools)}>
-                    <span data-xray="Files" {...style.attrs(styles.mark)}>
-                        <Icon icon={paperclip} />
-                    </span>
+                    <Icon icon={paperclip} />
                     <Icon icon={at} />
                     <Icon icon={smiley} />
                     <span {...style.attrs(styles.sendButton)}>
@@ -547,7 +541,7 @@ function Code() {
                     </Button>
                 </ItemActions>
             </Item>
-            <Table data-xray="Files">
+            <Table data-xray="Code">
                 <TableHeader>
                     <TableRow>
                         <TableHead colspan={3}>
@@ -836,7 +830,7 @@ function Signups(properties: { isChanged: boolean }) {
                     </>
                 }
             >
-                <span data-xray="Search" {...style.attrs(appStyles.property)}>
+                <span data-xray="Database" {...style.attrs(appStyles.property)}>
                     <Icon icon={magnifyingGlass} />
                     Search 1,840 signups
                 </span>

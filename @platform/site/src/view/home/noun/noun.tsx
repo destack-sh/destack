@@ -34,7 +34,7 @@ const noun: Form = {
     },
 };
 
-/** Show the noun at work: a docs app on ten rented services, or built on one engine. */
+/** Show the noun at work: a docs app on eight rented services, or built on one engine. */
 export function Noun(properties: { isOpen: boolean }) {
     // follow the motion the section shows
     const [section, setSection] = createSignal<HTMLElement>();
@@ -74,14 +74,14 @@ export function Noun(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={3}
                 isOpen={properties.isOpen}
-                stacked="your apps, glued to ten vendors"
+                stacked="your apps, glued to eight vendors"
                 destacked="your apps, built on one engine"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
-                    {isOpenAt(0) ? "One engine under every app" : "Ten vendors under every app"}
+                    {isOpenAt(0) ? "One engine under every app" : "Eight vendors under every app"}
                 </Label>
                 <div {...style.attrs(styles.window)}>
                     <XRay isOpenAt={isOpenAt} lit={lit()} onLight={setLit} />
@@ -104,6 +104,7 @@ export function Noun(properties: { isOpen: boolean }) {
                     </Fade>
                 </LabelRow>
                 <Bill
+                    isWindow
                     scale={{ people: 1, users: users() }}
                     scales={audiences.map((audience) => ({ people: 1, users: audience }))}
                     lines={services.map((entry) => ({
@@ -123,12 +124,12 @@ export function Noun(properties: { isOpen: boolean }) {
 /** Label the ledger by how much of the stack is rented: all of it, none of it, or some. */
 function keyOf(rented: number) {
     if (rented === services.length) {
-        return "Ten services, ten vendors";
+        return "Eight services, eight vendors";
     } else if (rented === 0) {
-        return "Ten services, one engine";
+        return "Eight services, one engine";
     }
 
-    return "Ten services, fewer vendors";
+    return "Eight services, fewer vendors";
 }
 
 /** The noun section styles. */

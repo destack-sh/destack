@@ -1,7 +1,7 @@
 import { priceOf } from "../figure/price";
 import type { Item } from "../figure/item";
 
-/** The ten services a docs app runs on, numbered as the ledger rows. */
+/** The eight services a docs app runs on, numbered as the ledger rows. */
 export const services: readonly { stacked: Item; destacked: Item }[] = [
     {
         stacked: {
@@ -48,38 +48,6 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
             mark: { app: "storage" },
             name: "Database",
             note: "one backend, always in step",
-            price: { kind: "included" },
-        },
-    },
-    {
-        stacked: {
-            label: "Files",
-            mark: { logo: "dropbox.svg" },
-            name: "Dropbox",
-            note: "files kept in their storage",
-            price: priceOf("Dropbox"),
-        },
-        destacked: {
-            label: "Files",
-            mark: { app: "bucket" },
-            name: "Files",
-            note: "files kept in your own storage",
-            price: { kind: "included" },
-        },
-    },
-    {
-        stacked: {
-            label: "Search",
-            mark: { logo: "elastic.svg" },
-            name: "Elastic",
-            note: "a second index to keep in sync",
-            price: priceOf("Elastic"),
-        },
-        destacked: {
-            label: "Search",
-            mark: { app: "search" },
-            name: "Search",
-            note: "one index, always in sync",
             price: { kind: "included" },
         },
     },
