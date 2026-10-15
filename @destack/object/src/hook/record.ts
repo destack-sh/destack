@@ -1,5 +1,6 @@
-import { Caller } from "@destack/access";
-import { Condition, OrderBy, Row, TABLE } from "@destack/db";
+import { Caller, PermissionReference } from "@destack/access";
+import { Condition, LogPosition, OrderBy, Row, Table, TABLE } from "@destack/db";
+import { SERIES_FOLDS } from "@destack/event";
 import { defineSchema, schema, type JsonValue } from "@destack/schema";
 import { errorOf } from "@destack/runtime/error";
 import * as sync from "@destack/sync";
@@ -7,7 +8,7 @@ import { Failure, ObjectReference, ObjectTypeReference, Subject } from "@destack
 import type { Call } from "../method/call.ts";
 
 /** A JSON object, such as a call's input or a row's columns. */
-const JsonObject = schema.record(schema.string(), schema.json());
+const JsonObject = schema.jsonObject();
 
 /** A listing's page in process: its rows beside its cursor and inclusions. */
 const Page = schema.looseObject({ items: schema.array(Row) });
@@ -15,8 +16,34 @@ const Page = schema.looseObject({ items: schema.array(Row) });
 /** A listing's page as JSON. */
 const EncodedPage = schema.looseObject({ items: schema.array(JsonObject) });
 
+/** The query of a hook's read of a table's rows. */
+const FIND = {
+    /** The table's SQL name. */
+    table: schema.string().min(1),
+    /** The condition. */
+    where: Condition.schema.exactOptional(),
+    /** How the rows sort, completed by their key. */
+    orderBy: OrderBy.schema.exactOptional(),
+    /** The most rows read. */
+    limit: schema.number().int().min(0).exactOptional(),
+    /** The columns read: the logged ones, or all of a type of the hook's package. */
+    columns: schema.enum(["logged", "all"]),
+};
+
 /** Calls a mutation runs as their authors, as an expansion lists them. */
 export const BranchCalls = schema.array(sync.Call.extend({ author: Subject }));
+
+/** A row a rehearsal writes or leaves changed, its columns as JSON. */
+export const RehearsedRow = schema.object({
+    /** The SQL name of the row's table. */
+    table: schema.string().min(1),
+    /** The row's key columns. */
+    key: JsonObject,
+    /** The row after, null when removed. */
+    after: JsonObject.nullable(),
+    /** The row before, null when created. */
+    before: JsonObject.nullable(),
+});
 
 /** A created object's first relationships and a new scope's owner. */
 export const CreationRecord = schema.object({
@@ -57,6 +84,8 @@ const callRecord = defineSchema(
         idempotencyKey: schema.string().min(1).exactOptional(),
         /** The calls the method's expansion ran before it in its mutation. */
         expansion: BranchCalls.exactOptional(),
+        /** The log position the call's mutation started at, absent for a query. */
+        base: LogPosition.exactOptional(),
     }),
 );
 /** A call as a sandbox runs its hook: its type, method, scope, input, target and caller. */
@@ -66,7 +95,9 @@ export type CallRecord = schema.Infer<typeof callRecord>;
 export const CallRecord = Object.assign(callRecord, {
     /** Record a call for its sandbox. */
     of(call: Call): CallRecord {
+        // read the call's fields, and the start of a served mutation
         const { object, target, prepared, id, requestId, idempotencyKey, expansion } = call;
+        const base = call.started;
 
         return {
             type: object.typeReference,
@@ -82,6 +113,7 @@ export const CallRecord = Object.assign(callRecord, {
             ...(prepared === undefined ? {} : { prepared: schema.json().parse(prepared) }),
             ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
             ...(expansion === undefined ? {} : { expansion: BranchCalls.parse(expansion) }),
+            ...(base === undefined ? {} : { base }),
         };
     },
 });
@@ -116,6 +148,8 @@ const handlerAnswer = defineSchema(
         schema.object({
             /** The failure. */
             error: Failure,
+            /** The stack the failure was thrown at, the cause of the asking side's error. */
+            stack: schema.string().exactOptional(),
         }),
     ]),
 );
@@ -129,19 +163,132 @@ export const HandlerAnswer = Object.assign(handlerAnswer, {
         try {
             return { result: await run() };
         } catch (error) {
-            return { error: Failure.of(error) };
+            const stack = error instanceof Error ? error.stack : undefined;
+
+            return { error: Failure.of(error), ...(stack === undefined ? {} : { stack }) };
         }
     },
 
     /** Read an answer's result, throwing its failure as the call error it was. */
     result(answer: HandlerAnswer): JsonValue {
+        // throw the failure, caused by an error at the answering side's stack
         if ("error" in answer) {
-            throw errorOf(answer.error);
+            const { stack } = answer;
+            const cause = Object.assign(
+                new Error(answer.error.message),
+                stack === undefined ? {} : { stack },
+            );
+            throw errorOf(answer.error, cause);
         }
 
         return answer.result;
     },
 });
+
+/** The events of some scopes a read selects: the scopes, and a condition over their keys. */
+const EventFilterRecord = schema.object({
+    /** The scopes, at least one. */
+    scopes: schema.tuple([schema.string().min(1)]).rest(schema.string().min(1)),
+    /** The condition over `id`, `time` and the keys. */
+    where: Condition.schema.exactOptional(),
+});
+
+/** A read of a package's own event type, as a hook sends it to its store. */
+export const EventRequest = schema.discriminatedUnion("verb", [
+    schema.object({
+        /** Read a page of events in time order. */
+        verb: schema.literal("query"),
+        /** The selected events. */
+        filter: EventFilterRecord,
+        /** Where the page starts and ends, and its order. */
+        page: schema.object({
+            /** The previous page's last event. */
+            after: schema
+                .object({ time: schema.number(), id: schema.string().min(1) })
+                .exactOptional(),
+            /** The most events read. */
+            limit: schema.number().int().min(1).exactOptional(),
+            /** The order in time. */
+            order: schema.enum(["ascending", "descending"]).exactOptional(),
+        }),
+    }),
+    schema.object({
+        /** Read one event by its identity. */
+        verb: schema.literal("get"),
+        /** The scopes the event may be in. */
+        scopes: schema.tuple([schema.string().min(1)]).rest(schema.string().min(1)),
+        /** The event's identity. */
+        id: schema.string().min(1),
+    }),
+    schema.object({
+        /** Read the events appended after a log sequence, in the order they were committed. */
+        verb: schema.literal("changes"),
+        /** The selected events. */
+        filter: EventFilterRecord,
+        /** The log sequence the read starts after. */
+        after: schema.number().int().min(0),
+        /** The most log entries read. */
+        limit: schema.number().int().min(1).exactOptional(),
+    }),
+    schema.object({
+        /** Fold events into a series per group of key values. */
+        verb: schema.literal("series"),
+        /** The folded events. */
+        filter: EventFilterRecord,
+        /** The measured key, fold, grouping keys and step. */
+        series: schema.object({
+            /** The key folded. */
+            measure: schema.string().min(1).exactOptional(),
+            /** The fold. */
+            fold: schema.enum(SERIES_FOLDS),
+            /** The keys whose values each get a series of their own. */
+            group: schema.array(schema.string().min(1)).exactOptional(),
+            /** The width of each step, in milliseconds. */
+            step: schema.number().exactOptional(),
+        }),
+    }),
+]);
+/** A read of a package's own event type, as a hook sends it to its store. */
+export type EventRequest = schema.Infer<typeof EventRequest>;
+
+/** A folded series as JSON: its group's values and its steps. */
+export const SeriesRecord = schema.object({
+    /** The value of each grouping key. */
+    group: schema.record(
+        schema.string(),
+        schema.union([schema.string(), schema.number(), schema.null()]),
+    ),
+    /** The steps with events. */
+    steps: schema.array(
+        schema.object({
+            /** The step's start, in Unix microseconds. */
+            start: schema.number(),
+            /** The folded value. */
+            value: schema.number(),
+            /** The events folded. */
+            events: schema.number().int(),
+        }),
+    ),
+});
+
+/** A page of the subjects of a type with a permission on an object, as a hook asks for it. */
+export const LookupRequest = schema.object({
+    /** The permission. */
+    permission: PermissionReference,
+    /** The object. */
+    object: ObjectReference,
+    /** The type of the subjects listed. */
+    type: ObjectTypeReference,
+    /** Where the page starts and how many subjects it lists. */
+    page: schema.object({
+        /** The key of the previous page's last subject. */
+        after: schema.string().min(1).exactOptional(),
+        /** The most subjects listed. */
+        limit: schema.number().int().min(1),
+    }),
+});
+/** A page of the subjects of a type with a permission on an object, as a hook asks for it. */
+export type LookupRequest = schema.Infer<typeof LookupRequest>;
 
 /** A hook's request to its store in its mutation's session. */
 export const SessionRequest = defineSchema(
@@ -161,24 +308,64 @@ export const SessionRequest = defineSchema(
                 mutates: schema.boolean(),
             }),
             schema.object({
-                /** Read one row by its key, absent unless the hook's caller may read it. */
-                kind: schema.literal("row"),
-                /** The table's SQL name. */
-                table: schema.string().min(1),
-                /** The row's key columns as JSON. */
-                key: JsonObject,
+                /** Read the first row meeting a query, as the hook's package. */
+                kind: schema.literal("findFirst"),
+                ...FIND,
             }),
             schema.object({
-                /** Read the rows meeting a condition that the hook's caller may read. */
-                kind: schema.literal("rows"),
-                /** The table's SQL name. */
+                /** Read the rows meeting a query, as the hook's package. */
+                kind: schema.literal("findMany"),
+                ...FIND,
+            }),
+            schema.object({
+                /** Read events of a type of the hook's package. */
+                kind: schema.literal("events"),
+                /** The event type's table SQL name. */
                 table: schema.string().min(1),
-                /** The condition. */
-                where: Condition.schema,
-                /** How the rows sort, completed by their key. */
-                orderBy: OrderBy.schema.exactOptional(),
-                /** The most rows read. */
-                limit: schema.number().int().min(0).exactOptional(),
+                /** The read. */
+                read: EventRequest,
+            }),
+            schema.object({
+                /** Decide whether the hook's caller has a permission on an object. */
+                kind: schema.literal("check"),
+                /** The permission. */
+                permission: PermissionReference,
+                /** The object. */
+                object: ObjectReference,
+            }),
+            schema.object({
+                /** Require the hook's caller to have a permission on an object. */
+                kind: schema.literal("require"),
+                /** The permission. */
+                permission: PermissionReference,
+                /** The object. */
+                object: ObjectReference,
+            }),
+            schema.object({
+                /** Run calls as their authors over some rows and undo them. */
+                kind: schema.literal("rehearse"),
+                /** The rows written first. */
+                over: schema.array(RehearsedRow),
+                /** The calls run as their authors. */
+                calls: BranchCalls,
+            }),
+            schema.object({
+                /** List a page of the subjects of a type with a permission on an object. */
+                kind: schema.literal("lookup"),
+                /** The lookup. */
+                lookup: LookupRequest,
+            }),
+            schema.object({
+                /** Send a call to run for the hook's caller once the mutation commits. */
+                kind: schema.literal("send"),
+                /** The call. */
+                call: sync.Call,
+                /** When it runs in UTC epoch milliseconds, at once if absent. */
+                at: schema.number().exactOptional(),
+            }),
+            schema.object({
+                /** Take the position of the mutation's next derived identifier. */
+                kind: schema.literal("position"),
             }),
             schema.object({
                 /** Run the behaviour the hook wraps with the call's input. */
@@ -216,7 +403,6 @@ export const HookResult = {
     decode(call: Call, value: JsonValue): unknown {
         // read a value as it is
         const { method, object } = call;
-        const table = object.table[TABLE];
         if (method.result === "value") {
             return value;
         }
@@ -224,9 +410,9 @@ export const HookResult = {
         else if (method.result === "page") {
             const { items, ...page } = EncodedPage.parse(value);
 
-            return { ...page, items: items.map((row) => table.decode(row)) };
+            return { ...page, items: items.map((row) => Table.decode(object.table, row)) };
         }
 
-        return table.decode(JsonObject.parse(value));
+        return Table.decode(object.table, JsonObject.parse(value));
     },
 };

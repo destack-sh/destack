@@ -19,12 +19,14 @@ import {
     type Snapshot,
     type SQL,
     type Transaction,
+    type RelationalQueryBuilder,
+    combine,
+    textEnum,
 } from "@destack/db";
 import { canonicalize, defineSchema, Identifier, Instant, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import type { ObjectReader } from "../method/reader.ts";
 import { CallError } from "@destack/runtime/error";
-import { ObjectKey, ObjectType, type IdentityOf, type ObjectIndex } from "../object/object.ts";
+import { ObjectKey, ObjectType, type ObjectIndex } from "../object/object.ts";
 
 /** How long a reservation waits for its write to commit: a minute, above any write. */
 export const RESERVATION_MILLISECONDS = 60_000;
@@ -71,8 +73,16 @@ export type ClaimRefusal = schema.Infer<typeof ClaimRefusal>;
 /** The lookup of the objects active names resolve to. */
 export interface ClaimLookup {
     /** Find the object an active name resolves to, none for a free or reserved name. */
-    owner(index: string, key: string): Promise<ClaimOwner | undefined>;
+    readonly owner: (index: string, key: string) => Promise<ClaimOwner | undefined>;
 }
+
+/** The lookups of the objects active names resolve to. */
+export const ClaimLookup = {
+    /** Look names up in a reader of the claims. */
+    of(claims: RelationalQueryBuilder<typeof claimTable>): ClaimLookup {
+        return { owner: (named, key) => Claim.owner(claims, { index: named, key }) };
+    },
+};
 
 /** A name an object claims in a unique index across databases, with the keying verbs. */
 export const Claim = Object.assign(claim, {
@@ -98,7 +108,7 @@ export const Claim = Object.assign(claim, {
         }
         const within = declared.across() instanceof ObjectType ? scope : Scope.universe.id;
         if (within === undefined) {
-            throw new TypeError(`index ${name} of ${type.name} keys values within a scope`);
+            throw new TypeError(`index ${name} of ${type.name} needs a scope`);
         }
 
         return { index: Claim.index(type, name), key: canonicalize([within, ...values]) };
@@ -129,7 +139,7 @@ export const Claim = Object.assign(claim, {
             }
 
             // key the values within the scope the index is unique across
-            const within = await enclosingScope(type, declared.across, scope, snapshot);
+            const within = await Claim.enclosingScope(type, declared.across, scope, snapshot);
             claims.push({
                 index: Claim.index(type, name),
                 key: canonicalize([within, ...values]),
@@ -143,20 +153,18 @@ export const Claim = Object.assign(claim, {
     },
 
     /** Look up a type's object claiming values in an index, with the scope of the name. */
-    async lookup<Type extends ObjectType>(
-        type: Type,
+    async lookup(
+        type: ObjectType,
         claims: ClaimLookup,
         name: string,
         values: readonly unknown[],
         scope?: string,
-    ): Promise<{ readonly scope: string; readonly id: Identifier<IdentityOf<Type>> } | undefined> {
+    ): Promise<{ readonly scope: string; readonly id: string } | undefined> {
         // find the owner of the keyed values
         const keyed = Claim.key(type, name, values, scope);
         const found = await claims.owner(keyed.index, keyed.key);
 
-        return found === undefined
-            ? undefined
-            : { scope: found.owner, id: type.identifier(found.objectId) };
+        return found === undefined ? undefined : { scope: found.owner, id: found.objectId };
     },
 
     /** Reserve an object's names until its write commits, returning the names others own. */
@@ -191,7 +199,7 @@ export const Claim = Object.assign(claim, {
         // refuse the existing names other objects own
         return existing.length === 0
             ? []
-            : ClaimKey.refused(existing, await owners(database, existing));
+            : ClaimKey.refused(existing, await Claim.owners(database, existing));
     },
 
     /** Settle a committed write's names and release the names its object dropped. */
@@ -203,8 +211,8 @@ export const Claim = Object.assign(claim, {
         // settle the request's pending names and the names the object claimed already
         Claimant.require(claimant);
         const settled = or(ne(claimTable.state, "pending"), eq(claimTable.requestId, requestId));
-        await settle(database, claimant, settled);
-        await drop(database, claimant);
+        await Claim.settle(database, claimant, settled);
+        await Claim.drop(database, claimant);
     },
 
     /** Release an object's names a request with a failed write reserved. */
@@ -229,7 +237,7 @@ export const Claim = Object.assign(claim, {
     async replace(database: DatabaseConnection, claimant: Claimant): Promise<Claim[]> {
         // refuse the names other objects own before writing any
         Claimant.require(claimant);
-        const found = await owners(database, claimant.claims);
+        const found = await Claim.owners(database, claimant.claims);
         const refused = ClaimKey.refused(claimant.claims, found);
         if (refused.length > 0) {
             return refused;
@@ -256,57 +264,62 @@ export const Claim = Object.assign(claim, {
                       .returning({ index: claimTable.index, key: claimTable.key });
         const lost = ClaimKey.missing(fresh, inserted);
         if (lost.length > 0) {
-            return ClaimKey.refused(lost, await owners(database, lost));
+            return ClaimKey.refused(lost, await Claim.owners(database, lost));
         }
 
         // take over every reservation of the object and release the names it dropped
-        await settle(database, claimant, undefined);
-        await drop(database, claimant);
+        await Claim.settle(database, claimant, undefined);
+        await Claim.drop(database, claimant);
 
         return [];
     },
 
     /** Find the object an active name resolves to, none for a free or reserved name. */
     async owner(
-        claims: ClaimReader,
+        claims: RelationalQueryBuilder<typeof claimTable>,
         name: Pick<Claim, "index" | "key">,
     ): Promise<ClaimOwner | undefined> {
-        const [found] = await claims.rows({ index: name.index, key: name.key, state: "active" });
+        const found = await claims.findFirst({
+            where: { index: name.index, key: name.key, state: "active" },
+        });
 
         return found === undefined ? undefined : { objectId: found.objectId, owner: found.owner };
     },
 
     /** List the keys of one index some object claims, active or reserved, in one read. */
     async claimed(
-        claims: ClaimReader,
+        claims: RelationalQueryBuilder<typeof claimTable>,
         names: { readonly index: string; readonly keys: readonly string[] },
     ): Promise<ReadonlySet<string>> {
-        const rows = await claims.rows({ index: names.index, key: { in: [...names.keys] } });
+        const rows = await claims.findMany({
+            where: { index: names.index, key: { in: [...names.keys] } },
+        });
 
         return new Set(rows.map((row) => row.key));
     },
 
-    /** List the expired reservations of some indexes a condition keeps, and the next deadline. */
+    /** List the expired reservations of some indexes a reader keeps, and the next deadline. */
     async expired(
-        claims: ClaimReader,
+        claims: RelationalQueryBuilder<typeof claimTable>,
         indexes: readonly string[],
         now: number,
-        kept: ClaimCondition = {},
+        keep: (rows: readonly ClaimRow[]) => Promise<readonly ClaimRow[]> = async (rows) => rows,
     ): Promise<Expiry> {
-        // read the expired reservations of the indexes, a chain's worth at a time
-        const reserved: ClaimCondition = {
-            AND: [{ state: "pending", index: { in: [...indexes] } }, kept],
-        };
-        const expired = await claims.rows(
-            { AND: [reserved, { expiresAt: { lte: now } }] },
-            { orderBy: { expiresAt: "asc" }, limit: CHAIN_TERMS },
+        // read the expired reservations of the indexes a chain's worth at a time, kept for the reader
+        const reserved: ClaimCondition = { state: "pending", index: { in: [...indexes] } };
+        const expired = await keep(
+            await claims.findMany({
+                where: { AND: [reserved, { expiresAt: { lte: now } }] },
+                orderBy: { expiresAt: "asc" },
+                limit: CHAIN_TERMS,
+            }),
         );
 
         // find the next deadline
-        const [next] = await claims.rows(
-            { AND: [reserved, { expiresAt: { gt: now } }] },
-            { orderBy: { expiresAt: "asc" }, limit: 1 },
-        );
+        const next = await claims.findFirst({
+            where: { AND: [reserved, { expiresAt: { gt: now } }] },
+            orderBy: { expiresAt: "asc" },
+        });
         const found = expired.map((row) => ({
             index: row.index,
             key: row.key,
@@ -319,12 +332,115 @@ export const Claim = Object.assign(claim, {
             ? { claims: found }
             : { claims: found, next: present(next.expiresAt, "a pending claim's expiry") };
     },
+
+    /** Read the objects owning some names, by claim key. */
+    async owners(
+        database: DatabaseConnection,
+        claims: readonly Claim[],
+    ): Promise<Map<string, string>> {
+        // read nothing for no names
+        if (claims.length === 0) {
+            return new Map();
+        }
+
+        // read the owners of the names in one read
+        const rows = await database
+            .select({ index: claimTable.index, key: claimTable.key, objectId: claimTable.objectId })
+            .from(claimTable)
+            .where(
+                combine(
+                    claims.map((entry) =>
+                        and(eq(claimTable.index, entry.index), eq(claimTable.key, entry.key)),
+                    ),
+                    "OR",
+                ),
+            );
+
+        return new Map(rows.map((row) => [ClaimKey.of(row), row.objectId]));
+    },
+
+    /** Settle an object's names in its state, only those a condition keeps when given. */
+    async settle(
+        database: DatabaseConnection,
+        object: Claimant,
+        settling: SQL | undefined,
+    ): Promise<void> {
+        await database
+            .update(claimTable)
+            .set({ state: object.state, requestId: null, expiresAt: null })
+            .where(
+                and(
+                    inArray(claimTable.index, [...object.indexes]),
+                    eq(claimTable.objectId, object.objectId),
+                    settling,
+                    eq(claimTable.owner, object.owner),
+                ),
+            );
+    },
+
+    /** Release the names an object no longer claims. */
+    async drop(database: DatabaseConnection, object: Claimant): Promise<void> {
+        // skip a type without indexes
+        if (object.indexes.length === 0) {
+            return;
+        }
+
+        // delete the object's names other than those it claims
+        await database
+            .delete(claimTable)
+            .where(
+                and(
+                    inArray(claimTable.index, [...object.indexes]),
+                    eq(claimTable.objectId, object.objectId),
+                    eq(claimTable.owner, object.owner),
+                    ...object.claims.map((entry) =>
+                        or(ne(claimTable.index, entry.index), ne(claimTable.key, entry.key)),
+                    ),
+                ),
+            );
+    },
+
+    /** Find the scope an index is unique across, from the scope an object lives in. */
+    async enclosingScope(
+        type: ObjectType,
+        across: ObjectIndex["across"],
+        scope: string,
+        snapshot: Snapshot,
+    ): Promise<string> {
+        // key universe-wide indexes by the universe, and indexes across the object's own scope by it
+        const enclosingType = across();
+        if (!(enclosingType instanceof ObjectType)) {
+            return Scope.universe.id;
+        } else if (enclosingType.same(type.ancestors[0])) {
+            return scope;
+        }
+
+        // find the enclosing scope of the declared type
+        const { packageId, name } = enclosingType.policy.definition;
+        const chain = await Scope.chain(snapshot, scope);
+        const enclosing = chain.find(
+            (link) => link.object.packageId === packageId && link.object.type === name,
+        );
+        if (enclosing === undefined) {
+            throw new CallError("PRECONDITION_FAILED", {
+                message: `scope ${scope} has no enclosing ${name}`,
+            });
+        }
+
+        return enclosing.object.id;
+    },
+
+    /** Decide whether a row has a value in a column its type may lack, such as a deletion. */
+    isSet(row: Row, column: string): boolean {
+        return row[column] !== undefined && row[column] !== null;
+    },
 });
-/** A reader of the claims a database keeps, a call's or a store's own. */
-export type ClaimReader = ObjectReader<typeof claimTable>;
 
 /** A condition over the claims a database keeps. */
 export type ClaimCondition = Condition<RowImage<typeof claimTable>>;
+
+/** A claim row as a database keeps it. */
+export type ClaimRow = RowImage<typeof claimTable>;
 
 /** A name an object claims in a unique index across databases. */
 export type Claim = schema.Infer<typeof claim>;
@@ -353,13 +469,13 @@ export const Claimant = Object.assign(claimant, {
         row: Row | undefined,
         snapshot: Snapshot,
     ): Promise<Claimant> {
-        const isGone = row === undefined || isSet(row, "purgedAt");
+        const isGone = row === undefined || Claim.isSet(row, "purgedAt");
 
         return {
             indexes: Object.keys(type.indexes).map((name) => Claim.index(type, name)),
             ...object,
             claims: isGone ? [] : await Claim.list(type, row, snapshot),
-            state: row !== undefined && isSet(row, "deletionRequestedAt") ? "trashed" : "active",
+            state: row !== undefined && Claim.isSet(row, "deletedAt") ? "trashed" : "active",
         };
     },
 
@@ -396,7 +512,7 @@ export const Claimant = Object.assign(claimant, {
         );
         if (stranger !== undefined) {
             throw new CallError("BAD_REQUEST", {
-                message: `claim ${stranger.index} is no name of ${claimed.objectId} in ${claimed.owner}`,
+                message: `claim ${stranger.index} is not a name of ${claimed.objectId} in ${claimed.owner}`,
             });
         }
     },
@@ -435,7 +551,7 @@ export const claimTable = defineTable(
         /** The scope owning the name. */
         owner: text("owner").notNull(),
         /** Whether the claim is pending, active or trashed. */
-        state: text("state", { enum: CLAIM_STATES }).notNull(),
+        state: textEnum("state", CLAIM_STATES).notNull(),
         /** The request whose write reserved the name, null once the write committed. */
         requestId: text("request_id"),
         /** The pending write's deadline in UTC epoch milliseconds, null once committed. */
@@ -496,104 +612,3 @@ const ClaimKey = {
         });
     },
 };
-
-/** Read the objects owning some names, by claim key. */
-async function owners(
-    database: DatabaseConnection,
-    claims: readonly Claim[],
-): Promise<Map<string, string>> {
-    // read nothing for no names
-    if (claims.length === 0) {
-        return new Map();
-    }
-
-    // read the owners of the names in one read
-    const rows = await database
-        .select({ index: claimTable.index, key: claimTable.key, objectId: claimTable.objectId })
-        .from(claimTable)
-        .where(
-            or(
-                ...claims.map((entry) =>
-                    and(eq(claimTable.index, entry.index), eq(claimTable.key, entry.key)),
-                ),
-            ),
-        );
-
-    return new Map(rows.map((row) => [ClaimKey.of(row), row.objectId]));
-}
-
-/** Settle an object's names in its state, only those a condition keeps when given. */
-async function settle(
-    database: DatabaseConnection,
-    object: Claimant,
-    settling: SQL | undefined,
-): Promise<void> {
-    await database
-        .update(claimTable)
-        .set({ state: object.state, requestId: null, expiresAt: null })
-        .where(
-            and(
-                settling,
-                inArray(claimTable.index, [...object.indexes]),
-                eq(claimTable.objectId, object.objectId),
-                eq(claimTable.owner, object.owner),
-            ),
-        );
-}
-
-/** Release the names an object no longer claims. */
-async function drop(database: DatabaseConnection, object: Claimant): Promise<void> {
-    // skip a type without indexes
-    if (object.indexes.length === 0) {
-        return;
-    }
-
-    // delete the object's names other than those it claims
-    await database
-        .delete(claimTable)
-        .where(
-            and(
-                inArray(claimTable.index, [...object.indexes]),
-                eq(claimTable.objectId, object.objectId),
-                eq(claimTable.owner, object.owner),
-                ...object.claims.map((entry) =>
-                    or(ne(claimTable.index, entry.index), ne(claimTable.key, entry.key)),
-                ),
-            ),
-        );
-}
-
-/** Find the scope an index is unique across, from the scope an object lives in. */
-async function enclosingScope(
-    type: ObjectType,
-    across: ObjectIndex["across"],
-    scope: string,
-    snapshot: Snapshot,
-): Promise<string> {
-    // key universe-wide indexes by the universe, and indexes across the object's own scope by it
-    const enclosingType = across();
-    if (!(enclosingType instanceof ObjectType)) {
-        return Scope.universe.id;
-    } else if (enclosingType.same(type.ancestors[0])) {
-        return scope;
-    }
-
-    // find the enclosing scope of the declared type
-    const { packageId, name } = enclosingType.policy.definition;
-    const chain = await Scope.chain(snapshot, scope);
-    const enclosing = chain.find(
-        (link) => link.object.packageId === packageId && link.object.type === name,
-    );
-    if (enclosing === undefined) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `scope ${scope} has no enclosing ${name}`,
-        });
-    }
-
-    return enclosing.object.id;
-}
-
-/** Decide whether a row has a value in a column its type may lack, such as a deletion's time. */
-function isSet(row: Row, column: string): boolean {
-    return row[column] !== undefined && row[column] !== null;
-}

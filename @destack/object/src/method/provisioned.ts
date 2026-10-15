@@ -1,11 +1,13 @@
 import { Risk } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
+import { ObjectReference } from "@destack/sync";
 import { DesiredState } from "../trait/desired.ts";
-import type { MethodBuilder } from "./method.ts";
-import { method } from "./record.ts";
+
+import { MethodBuilder } from "./record.ts";
 import type { ProvisionedTable } from "../trait/provisioned.ts";
+import { Execution } from "./execution.ts";
 /** The method declarations of provisioned resources. */
-export const provisionedMethod: MethodBuilder<ProvisionedTable<unknown>> = method;
+export const provisionedMethod = new MethodBuilder<ProvisionedTable<unknown>>();
 
 /** Make an installation the owner of a retained resource it declares again, or release it. */
 export const adopt = provisionedMethod
@@ -14,14 +16,19 @@ export const adopt = provisionedMethod
         isInternal: true,
         input: schema.object({
             /** The installation owning the resource, absent to release it. */
-            owner: schema.string().min(1).nullable(),
+            owner: ObjectReference.nullable(),
         }),
     })
-    .handle((call) => call.update({ owner: call.input.owner, deletionRequestedAt: null }));
+    .handle((call) =>
+        call.update({
+            ...ObjectReference.columns("owner", call.input.owner ?? undefined),
+            deletedAt: null,
+        }),
+    );
 
 /** Write the digests of the desired states and the approval threshold of the owner of intent. */
-export const specify = provisionedMethod
-    .mutation({
+export const specify = Execution.handle(
+    provisionedMethod.mutation({
         permission: "declare",
         isInternal: true,
         input: schema.object({
@@ -32,12 +39,12 @@ export const specify = provisionedMethod
             /** The least risk of a plan that waits for approval. */
             approval: Risk,
         }),
-    })
-    .handle(async (call) => {
+    }),
+    async (call, execution) => {
         // require a kept state of each digest
         const { states, drainingStates } = call.input;
         const needed = [...new Set([...states, ...drainingStates])];
-        await DesiredState.read(call.requireTransaction(), call.scope, needed);
+        await DesiredState.read(Execution.snapshot(execution), call.scope, needed);
 
         // write the digests and drop the states no resource of the scope needs any more
         const target = call.requireTarget();
@@ -46,8 +53,9 @@ export const specify = provisionedMethod
             (digest) => !needed.includes(digest),
         );
         if (left.length > 0) {
-            await DesiredState.drop(call, left);
+            await DesiredState.drop(call, execution, left);
         }
 
         return updated;
-    });
+    },
+);

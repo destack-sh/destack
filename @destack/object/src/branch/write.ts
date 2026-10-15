@@ -4,8 +4,8 @@ import {
     TABLE,
     type DatabaseConnection,
     type Row,
-    type Table,
     type Overlay,
+    Table,
 } from "@destack/db";
 import { found, present, schema, type JsonObject } from "@destack/schema";
 import type { ObjectType } from "../object/index.ts";
@@ -14,9 +14,9 @@ import type { ObjectType } from "../object/index.ts";
 const STORED_CHANGE = schema.looseObject({
     id: schema.string(),
     table: schema.string(),
-    key: schema.record(schema.string(), schema.json()),
-    after: schema.record(schema.string(), schema.json()).nullish(),
-    before: schema.record(schema.string(), schema.json()).nullish(),
+    key: schema.jsonObject(),
+    after: schema.jsonObject().nullish(),
+    before: schema.jsonObject().nullish(),
 });
 
 /** A write a branch makes to one row over the main line, encoded for storage. */
@@ -82,9 +82,9 @@ export const BranchWrite = {
             if (entry.after === null) {
                 await database
                     .delete(table)
-                    .where(Key.match(table, table[TABLE].decode(entry.key)));
+                    .where(Key.match(table, Table.decode(table, entry.key)));
             } else {
-                await database.upsert(table, [table[TABLE].decode(entry.after)]);
+                await database.upsert(table, [Table.decode(table, entry.after)]);
             }
         }
     },
@@ -97,8 +97,8 @@ export const BranchWrite = {
             const keyed = byTable.get(entry.table) ?? new Map<string, Row | null>();
             byTable.set(entry.table, keyed);
             keyed.set(
-                Key.name(table, table[TABLE].decode(entry.key)),
-                entry.after === null ? null : table[TABLE].decode(entry.after),
+                Key.name(table, Table.decode(table, entry.key)),
+                entry.after === null ? null : Table.decode(table, entry.after),
             );
         }
 
@@ -109,10 +109,10 @@ export const BranchWrite = {
     change(entry: BranchWrite, object: ObjectType): BranchChange | undefined {
         // decode both sides
         const table = object.table;
-        const before = entry.before === null ? undefined : table[TABLE].decode(entry.before);
-        const after = entry.after === null ? undefined : table[TABLE].decode(entry.after);
+        const before = entry.before === null ? undefined : Table.decode(table, entry.before);
+        const after = entry.after === null ? undefined : Table.decode(table, entry.after);
 
-        // keep the written fields that differ, skipping derived changes alone
+        // keep the written fields that differ, skipping changes that are only derived
         const fields = object.written.filter(
             (name) => JSON.stringify(before?.[name]) !== JSON.stringify(after?.[name]),
         );
@@ -121,7 +121,7 @@ export const BranchWrite = {
         }
 
         // read the object's identifier from its key
-        const id = table[TABLE].decode(entry.key)["id"];
+        const id = Table.decode(table, entry.key)["id"];
         if (typeof id !== "string") {
             throw new TypeError(`branch row key of ${entry.table} has no string id`);
         }
@@ -129,26 +129,26 @@ export const BranchWrite = {
         return {
             object,
             id,
-            change: changeOf(before, after),
+            change: BranchWrite.readChange(before, after),
             ...(before === undefined ? {} : { before }),
             ...(after === undefined ? {} : { after }),
             fields,
         };
     },
-};
 
-/** Tell whether a branch creates, removes or updates an object from its rows on both sides. */
-function changeOf(before: Row | undefined, after: Row | undefined): BranchChange["change"] {
-    // create an object missing on the main line
-    if (before === undefined) {
-        return "created";
-    }
-    // remove an object missing on the branch
-    else if (after === undefined) {
-        return "removed";
-    }
-    // update an object on both sides
-    else {
-        return "updated";
-    }
-}
+    /** Tell whether a branch creates, removes or updates an object from its rows on both sides. */
+    readChange(before: Row | undefined, after: Row | undefined): BranchChange["change"] {
+        // create an object missing on the main line
+        if (before === undefined) {
+            return "created";
+        }
+        // remove an object missing on the branch
+        else if (after === undefined) {
+            return "removed";
+        }
+        // update an object on both sides
+        else {
+            return "updated";
+        }
+    },
+};

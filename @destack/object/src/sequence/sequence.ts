@@ -93,7 +93,7 @@ export class Sequence {
     }
 
     /** Translate an edit into text changes at offsets. */
-    changesOf(edit: SequenceEdit): TextChange[] {
+    translate(edit: SequenceEdit): TextChange[] {
         // insert at the offset after the anchor
         if ("insert" in edit) {
             const from = edit.after === undefined ? 0 : this.#after(edit.after);
@@ -270,7 +270,7 @@ export class Sequence {
         );
         if (restored !== undefined && restored.length !== deleted) {
             throw new RangeError(
-                `sequence restores ${restored.length} characters into ${deleted} deleted ones`,
+                `sequence cannot restore ${restored.length} characters into ${deleted} deleted ones`,
             );
         }
 

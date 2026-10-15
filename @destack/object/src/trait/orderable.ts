@@ -19,7 +19,7 @@ export interface Ordering {
 export type OrderedFieldsOf<Declared> = Declared extends OrderableDefinition
     ? {
           /** The object's place among its siblings. */
-          readonly position: ReturnType<typeof positionField>;
+          readonly position: ReturnType<typeof Orderable.positionField>;
       }
     : {};
 
@@ -38,11 +38,11 @@ export const Orderable = {
         const declared = definition.fields ?? {};
         if (Object.hasOwn(declared, "position")) {
             throw new TypeError(
-                `object ${definition.name} declares field position, which its ordering adds`,
+                `object ${definition.name} cannot declare field position: its ordering adds it`,
             );
         }
 
-        return { ...definition, fields: { ...declared, position: positionField() } };
+        return { ...definition, fields: { ...declared, position: Orderable.positionField() } };
     },
 
     /** Resolve a definition's ordering to the sibling properties, absent if unordered. */
@@ -59,7 +59,7 @@ export const Orderable = {
         if (orderable !== true) {
             if (!Object.hasOwn(definition.fields ?? {}, orderable.within)) {
                 throw new TypeError(
-                    `object ${definition.name} orders within ${orderable.within}, which it does not declare`,
+                    `object ${definition.name} orders within ${orderable.within}, but does not declare it`,
                 );
             }
 
@@ -94,12 +94,34 @@ export const Orderable = {
         );
         const [last] = await call
             .read(object.table)
-            .rows({ ...siblings, scope }, { orderBy: { position: "desc" }, limit: 1 });
+            .findMany({ where: { ...siblings, scope }, orderBy: { position: "desc" }, limit: 1 });
 
         return FractionalIndex.place(
             typeof last?.["position"] === "string" ? last["position"] : undefined,
             undefined,
         );
+    },
+
+    /** Index the siblings in order within the objects' scope. */
+    order(
+        options: Ordering,
+        table: string,
+        columns: Readonly<Record<string, Column>>,
+    ): TableConstraint {
+        // index the scope, the sibling columns, then the position
+        const scope = columns["scope"];
+        const position = present(columns["position"], "the position column");
+        const within = options.within.map((name) =>
+            present(columns[name], `the column of ${name}`),
+        );
+        const [first, ...rest] = [...(scope === undefined ? [] : [scope]), ...within, position];
+
+        return index(`${table}_order`).on(present(first, "the first ordered column"), ...rest);
+    },
+
+    /** The field keeping an object's place among its siblings. */
+    positionField() {
+        return field.fractionalIndex().default(FractionalIndex.between(undefined, undefined));
     },
 };
 
@@ -108,26 +130,6 @@ export const orderable: Trait<Ordering> = {
     key: "orderable",
     options: (definition) => Orderable.of(definition),
     columns: () => ({}),
-    constraints: (options, table, columns) => [order(options, table, columns)],
+    constraints: (options, table, columns) => [Orderable.order(options, table, columns)],
     methods: () => ({}),
 };
-
-/** Index the siblings in order within the objects' scope. */
-function order(
-    options: Ordering,
-    table: string,
-    columns: Readonly<Record<string, Column>>,
-): TableConstraint {
-    // index the scope, the sibling columns, then the position
-    const scope = columns["scope"];
-    const position = present(columns["position"], "the position column");
-    const within = options.within.map((name) => present(columns[name], `the column of ${name}`));
-    const [first, ...rest] = [...(scope === undefined ? [] : [scope]), ...within, position];
-
-    return index(`${table}_order`).on(present(first, "the first ordered column"), ...rest);
-}
-
-/** The field keeping an object's place among its siblings. */
-function positionField() {
-    return field.fractionalIndex().default(FractionalIndex.between(undefined, undefined));
-}

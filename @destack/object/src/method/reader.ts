@@ -1,79 +1,45 @@
-import {
-    type Condition,
-    type Key,
-    Transaction,
-    Order,
-    type OrderBy,
-    type RowImage,
-    Snapshot,
-    type Table,
-} from "@destack/db";
+import type { RelationalQueryBuilder, Select, Table } from "@destack/db";
+import type { Decision, PermissionReference } from "@destack/access";
+import type { JsonValue } from "@destack/schema";
+import type * as sync from "@destack/sync";
+import type { EventRequest, LookupRequest } from "../hook/record.ts";
+import type { BranchCall } from "../branch/branch.ts";
+import type { BranchWrite } from "../branch/write.ts";
 
-/** How a read of several rows orders and bounds them. */
-export interface ReadOptions<Read> {
-    /** How the rows sort, completed by their key. */
-    readonly orderBy?: OrderBy<Read>;
-    /** The most rows read. */
-    readonly limit?: number;
-}
+/** The columns a read returns: the logged ones, or every one with the sensitive ones. */
+export type ReadColumns = "logged" | "all";
 
-/** A hook's reads of its store's tables in its mutation's session, as the mutation sees them. */
-export interface SessionReader {
-    /** Read one row's logged columns by its key, null when absent. */
-    row<Definition extends Table>(
+/** A hook's session with its store in its mutation: reads, decisions, sends and positions. */
+export interface Session {
+    /** Read a table's logged columns in the mutation. */
+    readonly read: <Definition extends Table>(
         table: Definition,
-        key: Key<Definition>,
-    ): Promise<RowImage<Definition> | null>;
-    /** Read the logged columns of the rows meeting a condition, ordered and bounded as asked. */
-    rows<Definition extends Table>(
+    ) => RelationalQueryBuilder<Definition>;
+    /** Read the whole rows of a type of the hook's own package in the mutation. */
+    readonly reveal: <Definition extends Table>(
         table: Definition,
-        where: Condition<RowImage<NoInfer<Definition>>>,
-        options: ReadOptions<RowImage<NoInfer<Definition>>>,
-    ): Promise<RowImage<Definition>[]>;
-}
-
-/** A handler's reads of one table's logged columns in its call's view. */
-export class ObjectReader<Definition extends Table> {
-    /** The table read. */
-    readonly table: Definition;
-    /** The transaction, snapshot or session the reads see. */
-    readonly #view: Transaction | Snapshot | SessionReader;
-
-    /** Read a table in a transaction, a snapshot or a hook's session. */
-    constructor(table: Definition, view: Transaction | Snapshot | SessionReader) {
-        this.table = table;
-        this.#view = view;
-    }
-
-    /** Read one row by its key, null when absent. */
-    row(key: Key<Definition>): Promise<RowImage<Definition> | null> {
-        return this.#view instanceof Transaction
-            ? this.#view.image(this.table, key)
-            : this.#view.row(this.table, key);
-    }
-
-    /** Read the rows meeting a condition, every row without one, ordered and bounded as asked. */
-    async rows(
-        where: Condition<RowImage<NoInfer<Definition>>> = {},
-        options: ReadOptions<RowImage<NoInfer<Definition>>> = {},
-    ): Promise<RowImage<Definition>[]> {
-        // read through the transaction or the session, which order and bound themselves
-        if (this.#view instanceof Transaction) {
-            return this.#view.images(this.table, where, options);
-        } else if (!(this.#view instanceof Snapshot)) {
-            return this.#view.rows(this.table, where, options);
-        }
-
-        // order and bound a snapshot's rows in memory
-        const rows = await this.#view.rows(this.table, where);
-        const order = Order.complete(Order.of(options.orderBy ?? {}), this.table);
-        const sorted = rows.toSorted((left, right) => Order.rows(order, left, right));
-
-        return options.limit === undefined ? sorted : sorted.slice(0, options.limit);
-    }
-
-    /** Count the rows meeting a condition. */
-    async count(where: Condition<RowImage<NoInfer<Definition>>> = {}): Promise<number> {
-        return (await this.rows(where)).length;
-    }
+    ) => RelationalQueryBuilder<Definition, Select<Definition>>;
+    /** Read events of a type of the hook's package, answered as JSON. */
+    readonly events: (table: Table, read: EventRequest) => Promise<JsonValue>;
+    /** Decide whether the hook's caller has a permission on an object. */
+    readonly check: (
+        permission: PermissionReference,
+        target: sync.ObjectReference,
+    ) => Promise<Decision>;
+    /** Require the hook's caller to have a permission on an object. */
+    readonly require: (
+        permission: PermissionReference,
+        target: sync.ObjectReference,
+    ) => Promise<void>;
+    /** List a page of the subjects of a type with a permission on an object. */
+    readonly lookup: (request: LookupRequest) => Promise<readonly sync.Subject[]>;
+    /** Run calls as their authors over some rows and undo them, answering the rows they change. */
+    readonly rehearse: (
+        over: readonly BranchWrite[],
+        calls: readonly BranchCall[],
+    ) => Promise<readonly BranchWrite[]>;
+    /** Send a call to run for the hook's caller once the mutation commits. */
+    readonly send: (request: { readonly call: sync.Call; readonly at?: number }) => Promise<void>;
+    /** Take the position of the mutation's next derived identifier. */
+    readonly takePosition: () => Promise<number>;
 }

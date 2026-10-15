@@ -2,7 +2,7 @@ import { Duration } from "@destack/schema";
 import { TABLE, Condition } from "@destack/db";
 import type { ObjectType } from "../object/object.ts";
 import { expiry } from "../method/expiring.ts";
-import { traitPermissions, type Trait } from "./trait.ts";
+import { derivePermissions, type Trait } from "./trait.ts";
 
 /** A rule expiring matching objects a window after a time field. */
 export interface ExpiryRule {
@@ -16,25 +16,27 @@ export interface ExpiryRule {
 
 /** Objects their server removes once a rule's window passes. */
 export const expiring: Trait<readonly ExpiryRule[]> & {
-    /** Copy an expiring object type with the rules its host sets. */
-    after<Self extends ObjectType>(object: Self, rules: readonly ExpiryRule[]): Self;
+    /** Replicate an expiring object type with the rules its host sets. */
+    readonly after: <Self extends ObjectType>(object: Self, rules: readonly ExpiryRule[]) => Self;
+    /** Require at least one valid rule. */
+    readonly requireRules: (object: ObjectType, rules: readonly ExpiryRule[]) => void;
 } = {
     key: "expiring",
     storages: ["durable"],
     options: (definition) => definition.expiring,
     columns: () => ({}),
     constraints: () => [],
-    policy: (_options, _object, permissions) => traitPermissions(permissions, ["expire"]),
+    policy: (_options, _object, permissions) => derivePermissions(permissions, ["expire"]),
     methods: () => ({ expire: expiry }),
-    validate: (rules, object) => requireRules(object, rules),
+    validate: (rules, object) => expiring.requireRules(object, rules),
     after(object, rules) {
         // require an expiring type
         if (object.lifecycle.expiring === undefined) {
             throw new TypeError(`object ${object.name} does not expire`);
         }
 
-        // copy the type with the rules
-        requireRules(object, rules);
+        // replicate the type with the rules
+        expiring.requireRules(object, rules);
 
         return object.with({
             definition: {
@@ -44,21 +46,21 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
             },
         });
     },
-};
-
-/** Require at least one valid rule. */
-function requireRules(object: ObjectType, rules: readonly ExpiryRule[]): void {
-    // refuse an object expiring by no rule
-    if (rules.length === 0) {
-        throw new TypeError(`object ${object.name} expires by no rule`);
-    }
-
-    // refuse invalid windows and unknown fields
-    const columns = object.table[TABLE].columns;
-    for (const rule of rules) {
-        Duration.require(rule.after, `expiry window of ${object.name}`);
-        if (!Object.hasOwn(columns, rule.from)) {
-            throw new TypeError(`object ${object.name} expires from unknown field ${rule.from}`);
+    requireRules(object: ObjectType, rules: readonly ExpiryRule[]): void {
+        // refuse an object expiring by no rule
+        if (rules.length === 0) {
+            throw new TypeError(`object ${object.name} has no expiry rule`);
         }
-    }
-}
+
+        // refuse invalid windows and unknown fields
+        const columns = object.table[TABLE].columns;
+        for (const rule of rules) {
+            Duration.require(rule.after, `expiry window of ${object.name}`);
+            if (!Object.hasOwn(columns, rule.from)) {
+                throw new TypeError(
+                    `object ${object.name} expires from unknown field ${rule.from}`,
+                );
+            }
+        }
+    },
+};

@@ -1,8 +1,17 @@
 import { schema } from "@destack/schema";
-import type { MethodBuilder } from "../method/method.ts";
-import { method } from "../method/record.ts";
+
+import { MethodBuilder } from "../method/record.ts";
 import type { ObjectOf } from "../object/object.ts";
-import { Claim, Claimant, ClaimOwner, ClaimRefusal, type claimTable, Expiry } from "./claim.ts";
+import { Execution } from "../method/execution.ts";
+import {
+    Claim,
+    Claimant,
+    ClaimOwner,
+    ClaimRefusal,
+    type ClaimRow,
+    claimTable,
+    Expiry,
+} from "./claim.ts";
 
 /** The request whose write reserved an object's names. */
 const ReservedBy = schema.object({
@@ -11,60 +20,110 @@ const ReservedBy = schema.object({
 });
 
 /** The method declarations of a claim type. */
-const claimMethod: MethodBuilder<typeof claimTable> = method;
+const claimMethod = new MethodBuilder<typeof claimTable>();
 
 /** The methods of a claim type, which stores call to keep their indexed objects' names. */
 export const claimMethods = {
     /** Reserve an object's names until its write commits. */
-    reserve: claimMethod.mutation({
-        permission: "claim",
-        target: "none",
-        input: Claimant.extend(ReservedBy.shape),
-        output: ClaimRefusal,
-    }),
+    reserve: Execution.handle(
+        claimMethod.mutation({
+            permission: "claim",
+            target: "scope",
+            input: Claimant.extend(ReservedBy.shape),
+            output: ClaimRefusal,
+        }),
+        async (call, execution) => {
+            // reserve the free names in the store's transaction
+            const { request, ...claimant } = call.input;
+            const { database } = Execution.store(execution, call).transaction;
+
+            return { refused: await Claim.reserve(database, claimant, request, call.now) };
+        },
+    ),
 
     /** Settle an object's names once its write committed, releasing those it dropped. */
-    confirm: claimMethod.mutation({
-        permission: "claim",
-        target: "none",
-        input: Claimant.extend(ReservedBy.shape),
-        output: schema.object({}),
-    }),
+    confirm: Execution.handle(
+        claimMethod.mutation({
+            permission: "claim",
+            target: "scope",
+            input: Claimant.extend(ReservedBy.shape),
+            output: schema.object({}),
+        }),
+        async (call, execution) => {
+            // settle the names the committed write keeps
+            const { request, ...claimant } = call.input;
+            const { database } = Execution.store(execution, call).transaction;
+            await Claim.confirm(database, claimant, request);
+
+            return {};
+        },
+    ),
 
     /** Release an object's names a failed write reserved. */
-    release: claimMethod.mutation({
-        permission: "claim",
-        target: "none",
-        input: Claimant.pick({ objectId: true, owner: true }).extend(ReservedBy.shape),
-        output: schema.object({}),
-    }),
+    release: Execution.handle(
+        claimMethod.mutation({
+            permission: "claim",
+            target: "scope",
+            input: Claimant.pick({ objectId: true, owner: true }).extend(ReservedBy.shape),
+            output: schema.object({}),
+        }),
+        async (call, execution) => {
+            // release the names the failed write reserved
+            const { request, ...object } = call.input;
+            const { database } = Execution.store(execution, call).transaction;
+            await Claim.release(database, object, request);
+
+            return {};
+        },
+    ),
 
     /** Replace an object's names after a write that reserved none. */
-    replace: claimMethod.mutation({
-        permission: "claim",
-        target: "none",
-        input: Claimant,
-        output: ClaimRefusal,
-    }),
+    replace: Execution.handle(
+        claimMethod.mutation({
+            permission: "claim",
+            target: "scope",
+            input: Claimant,
+            output: ClaimRefusal,
+        }),
+        async (call, execution) => {
+            // replace the names, refusing those others claim
+            const { database } = Execution.store(execution, call).transaction;
+
+            return { refused: await Claim.replace(database, call.input) };
+        },
+    ),
 
     /** Find the object an active name resolves to. */
-    owner: claimMethod.query({
-        permission: "resolve",
-        target: "none",
-        input: Claim.pick({ index: true, key: true }),
-        output: ClaimOwner.nullable(),
-    }),
+    owner: Execution.handle(
+        claimMethod.query({
+            permission: "resolve",
+            target: "scope",
+            input: Claim.pick({ index: true, key: true }),
+            output: ClaimOwner.nullable(),
+        }),
+        async (call) => (await Claim.owner(call.read(claimTable), call.input)) ?? null,
+    ),
 
     /** List the expired reservations of some indexes the caller claims names in. */
-    expired: claimMethod.query({
-        permission: "resolve",
-        target: "none",
-        input: schema.object({
-            /** The indexes. */
-            indexes: schema.array(schema.string().min(1)),
+    expired: Execution.handle(
+        claimMethod.query({
+            permission: "resolve",
+            target: "scope",
+            input: schema.object({
+                /** The indexes. */
+                indexes: schema.array(schema.string().min(1)),
+            }),
+            output: Expiry,
         }),
-        output: Expiry,
-    }),
+        async (call, execution) => {
+            // keep the reservations the caller may claim names in
+            const { authorization } = Execution.store(execution, call);
+            const keep = (rows: readonly ClaimRow[]) =>
+                authorization.keep(rows, call.object.permission("claim"));
+
+            return Claim.expired(call.read(claimTable), call.input.indexes, call.now, keep);
+        },
+    ),
 };
 
 /** A claim type: a universe object type over the claim table with the claim methods. */

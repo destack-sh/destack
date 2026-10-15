@@ -58,14 +58,14 @@ export const attachments: Trait<readonly Attachment[]> = {
             else if (permissions.includes(receive)) {
                 if (attachment.by !== receive) {
                     throw new TypeError(
-                        `object ${object.name} declares permission ${receive}, so it attaches ${plural} by ${receive}`,
+                        `object ${object.name} declares permission ${receive}, so it must attach ${plural} by ${receive}`,
                     );
                 }
             }
             // refuse a second attachment deriving the same permission
             else if (Object.hasOwn(attaching, receive)) {
                 throw new TypeError(
-                    `object ${object.name} already derives permission ${receive}, which attaching ${plural} derives`,
+                    `object ${object.name} already derives permission ${receive}, which attaching ${plural} also derives`,
                 );
             }
             // derive the receive permission

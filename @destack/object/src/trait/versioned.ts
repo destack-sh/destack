@@ -1,6 +1,8 @@
-import { present } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { type ColumnBuilder, integer, unique } from "@destack/db";
 import type { FieldColumn } from "../field/field.ts";
+import type { Call } from "../method/call.ts";
+import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
 /** The options of versioned objects. */
@@ -12,7 +14,10 @@ export type VersionBuilderMap<Versions> = Versions extends VersionsDefinition
     : {};
 
 /** Immutable versions of a parent, numbered within it. */
-export const versioned: Trait<VersionsDefinition> = {
+export const versioned: Trait<VersionsDefinition> & {
+    /** Read the number following a parent's latest version. */
+    readonly next: (object: ObjectType, parentId: string, call: Call) => Promise<number>;
+} = {
     key: "versioned",
     storages: ["durable"],
     options: (definition) => definition.versioned,
@@ -36,5 +41,13 @@ export const versioned: Trait<VersionsDefinition> = {
         if (definition.methods && "update" in definition.methods) {
             throw new TypeError(`versions of ${object.name} are immutable and cannot be updated`);
         }
+    },
+    async next(object: ObjectType, parentId: string, call: Call): Promise<number> {
+        // read the parent's highest number and count on from it
+        const [latest] = await call
+            .read(object.table)
+            .findMany({ where: { parentId }, orderBy: { number: "desc" }, limit: 1 });
+
+        return latest === undefined ? 1 : schema.number().parse(latest["number"]) + 1;
     },
 };

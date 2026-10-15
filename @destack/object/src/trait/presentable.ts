@@ -84,18 +84,18 @@ export type PresentationFieldsOf<Presenting> = Presenting extends PresentableDef
           ? {}
           : {
                 /** The object's icon. */
-                readonly icon: ReturnType<typeof iconField>;
+                readonly icon: ReturnType<typeof Presentable.iconField>;
             }) &
           (Presenting extends { readonly color: false }
               ? {}
               : {
                     /** The object's accent. */
-                    readonly color: ReturnType<typeof colorField>;
+                    readonly color: ReturnType<typeof Presentable.colorField>;
                 }) &
           (Presenting extends { readonly cover: FileBucket }
               ? {
                     /** The object's cover image. */
-                    readonly cover: ReturnType<typeof coverField>;
+                    readonly cover: ReturnType<typeof Presentable.coverField>;
                 }
               : {})
     : {};
@@ -143,7 +143,7 @@ export const Presentation = Object.assign(PresentationSchema, {
 
 /** Objects shown by title, subtitle, icon, accent and cover in pickers, mentions and titles. */
 export const Presentable = {
-    /** Add a presented definition's icon, accent and cover fields, refusing its own copies. */
+    /** Add a presented definition's icon, accent and cover fields, refusing its own replicas. */
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, "fields"> {
@@ -159,15 +159,20 @@ export const Presentable = {
             options.icon === false ||
             typeof options.icon === "string"
                 ? {}
-                : { icon: options.icon === true ? chosenIconField() : iconField() }),
-            ...(options.color === false ? {} : { color: colorField() }),
-            ...(options.cover === undefined ? {} : { cover: coverField() }),
+                : {
+                      icon:
+                          options.icon === true
+                              ? Presentable.chosenIconField()
+                              : Presentable.iconField(),
+                  }),
+            ...(options.color === false ? {} : { color: Presentable.colorField() }),
+            ...(options.cover === undefined ? {} : { cover: Presentable.coverField() }),
         };
         const declared = definition.fields ?? {};
         const taken = Object.keys(added).find((name) => Object.hasOwn(declared, name));
         if (taken !== undefined) {
             throw new TypeError(
-                `object ${definition.name} declares field ${taken}, which its presentation adds`,
+                `object ${definition.name} cannot declare field ${taken}: its presentation adds it`,
             );
         }
 
@@ -188,9 +193,9 @@ export const Presentable = {
         const fields = definition.fields ?? {};
         const title = options.title ?? TITLE_FIELDS.find((name) => Object.hasOwn(fields, name));
         for (const named of [title, options.subtitle]) {
-            if (named !== undefined && !isText(fields[named])) {
+            if (named !== undefined && !Presentable.isText(fields[named])) {
                 throw new TypeError(
-                    `object ${definition.name} presents ${named}, which is no string field`,
+                    `object ${definition.name} presents ${named}, which is not a string field`,
                 );
             }
         }
@@ -229,29 +234,31 @@ export const Presentable = {
 
         return { icon: true, color: true, ...options };
     },
+
+    /** Decide whether a field keeps text a title shows. */
+    isText(declared: Field | undefined): boolean {
+        return (
+            declared?.type === "string" || declared?.type === "text" || declared?.type === "enum"
+        );
+    },
+
+    /** The field keeping an object's icon: an emoji, an icon set's icon or an image. */
+    iconField() {
+        return field.json(Icon).optional();
+    },
+
+    /** The field keeping an object's icon chosen from an emoji or an icon set, without images. */
+    chosenIconField() {
+        return field.json<Icon>(schema.union([...ChosenIcon])).optional();
+    },
+
+    /** The field keeping an object's accent. */
+    colorField() {
+        return field.enum(ACCENTS).optional();
+    },
+
+    /** The field keeping an object's cover. */
+    coverField() {
+        return field.json(Cover).optional();
+    },
 };
-
-/** Decide whether a field keeps text a title shows. */
-function isText(declared: Field | undefined): boolean {
-    return declared?.type === "string" || declared?.type === "text" || declared?.type === "enum";
-}
-
-/** The field keeping an object's icon: an emoji, an icon set's icon or an image. */
-function iconField() {
-    return field.json(Icon).optional();
-}
-
-/** The field keeping an object's icon chosen from an emoji or an icon set, without images. */
-function chosenIconField() {
-    return field.json<Icon>(schema.union([...ChosenIcon])).optional();
-}
-
-/** The field keeping an object's accent. */
-function colorField() {
-    return field.enum(ACCENTS).optional();
-}
-
-/** The field keeping an object's cover. */
-function coverField() {
-    return field.json(Cover).optional();
-}

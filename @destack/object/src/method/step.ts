@@ -43,7 +43,7 @@ export const Step = {
         // read the object's identifier
         const id = step.after?.["id"] ?? step.input["id"];
         if (id === undefined) {
-            throw new TypeError(`${step.object.name}.${step.name} names no object`);
+            throw new TypeError(`${step.object.name}.${step.name} has no object`);
         }
 
         return Step.reference(step, id);
@@ -55,7 +55,7 @@ export const Step = {
         const { field } = step.object.route;
         const scope = field === undefined ? undefined : step.input[field];
         if (field !== undefined && scope === undefined) {
-            throw new TypeError(`${step.object.name}.${step.name} names no scope`);
+            throw new TypeError(`${step.object.name}.${step.name} has no scope`);
         }
 
         return field === undefined || scope === undefined ? { id } : { [field]: scope, id };

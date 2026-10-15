@@ -1,11 +1,11 @@
-import { accessRelationship, principal } from "@destack/access";
+import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { defineMethod, type Method } from "./method.ts";
-import { method } from "./record.ts";
 import { Call } from "./call.ts";
 
 import { CONSUMER } from "../trait/bindable.ts";
+import { Execution } from "./execution.ts";
 /** The input binding an installation: the installation and all objects bound to it in scope. */
 const BindInput = schema.object({
     /** The bound installation. */
@@ -25,25 +25,25 @@ export const bind: Method<{
     permission: "bind",
     mutates: true,
     isInternal: true,
-    target: false,
+    target: "scope",
     result: "value",
     procedure: (_name, shapes) => ({
         route: { method: "POST", path: "/bind" },
         input: shapes.scope.extend(BindInput.shape),
         output: schema.object({}),
     }),
-    handler: async (call: Call) => {
+    handler: async (call: Call, execution: Execution) => {
         // require an installation or a machine bound
         const { consumer, ids } = BindInput.parse(call.input);
         if (!principal.installation.is(consumer) && !principal.machine.is(consumer)) {
             throw new TypeError(
-                `${consumer.id} is no installation or machine binding ${call.object.name}`,
+                `${consumer.id} is not an installation or machine binding ${call.object.name}`,
             );
         }
 
         // keep exactly its consumer relationships on the type's objects in the scope
         const { packageId } = call.object.policy.definition;
-        await call.requireAuthorization().keepRelationships(
+        await Execution.store(execution, call).authorization.keepRelationships(
             {
                 scope: call.scope,
                 objects: [{ packageId, type: call.object.name }],
@@ -62,7 +62,7 @@ export const bind: Method<{
 });
 
 /** The input binding or releasing one consumer of an object. */
-const ConsumerInput = schema.object({
+export const ConsumerInput = schema.object({
     /** The consumer: an installation or a machine. */
     consumer: Subject,
 });
@@ -74,38 +74,3 @@ export type ConsumerMethod<Permission extends string> = Method<{
     input: typeof ConsumerInput;
     mutates: true;
 }>;
-
-/** Declare the method binding or releasing one consumer's object, keeping its other objects. */
-export function consumerMethod<const Permission extends string>(
-    permission: Permission,
-    action: "bind" | "release",
-): ConsumerMethod<Permission> {
-    const inverse = action === "bind" ? "releaseConsumer" : "bindConsumer";
-    const handled = method
-        .mutation({ permission, input: ConsumerInput, inverse })
-        .handle(async (call) => {
-            // read the consumer's objects of the type in the scope
-            const { consumer } = call.input;
-            const { packageId } = call.object.policy.definition;
-            const rows = await call.read(accessRelationship).rows({
-                scope: call.scope,
-                packageId,
-                type: call.object.name,
-                relation: CONSUMER,
-                subjectPackageId: consumer.packageId,
-                subjectType: consumer.type,
-                subjectScope: consumer.scope,
-                subjectId: consumer.id,
-            });
-
-            // bind exactly them with the target added or removed, as the store's own work binds
-            const id = call.requireId();
-            const kept = rows.map((row) => row.objectId).filter((each) => each !== id);
-            const ids = action === "bind" ? [...kept, id] : kept;
-            await call.mutate(call.caller, [Call.record(call.object, "bind", { consumer, ids })]);
-
-            return call.target;
-        });
-
-    return { ...handled, isPredicted: false };
-}

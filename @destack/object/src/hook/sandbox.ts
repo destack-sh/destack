@@ -1,17 +1,20 @@
-import { Caller, principal } from "@destack/access";
+import { Caller, Decision, principal } from "@destack/access";
 import { DatabaseError, type Row, TABLE } from "@destack/db";
+import type { EventKeyShape } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import type { InstallationContext } from "@destack/runtime/workload";
-import type { ObjectReference, Subject } from "@destack/sync";
+import type { ServerContext } from "@destack/runtime/workload";
+import { type ObjectReference, Subject } from "@destack/sync";
 import type { InstalledDeclaration } from "../inspect/object.ts";
 import type { Call, PhasedHandler } from "../method/call.ts";
 import { PHASES, type Phase } from "../method/method.ts";
 import type { ObjectType } from "../object/object.ts";
+import type { EventView } from "../query/event.ts";
 import {
     BranchCalls,
     CallRecord,
     CreationRecord,
+    type EventRequest,
     HandlerAnswer,
     type HandlerRequest,
     HookResult,
@@ -24,7 +27,7 @@ interface Session {
     readonly call: Call;
     /** Run the behaviour the hook wraps, absent outside a handle phase. */
     readonly next?: (call?: Call) => Promise<unknown>;
-    /** The race a request of the session lost, which the hook's failure carries back. */
+    /** The race a request of the session lost, returned with the hook's failure. */
     lost?: DatabaseError;
 }
 
@@ -32,9 +35,9 @@ interface Session {
 const SANDBOXED: readonly Phase[] = PHASES.filter((phase) => phase !== "settle");
 
 /** An installation's object hooks, run in its sandbox and answered in their sessions. */
-export class SandboxHooks {
-    /** The installation the sandbox runs as. */
-    readonly installation: InstallationContext;
+export class HookSandbox {
+    /** The server context of the installation the sandbox runs as. */
+    readonly server: ServerContext;
     /** The declarations of the installation's followed build, its object types among them. */
     readonly declarations: readonly InstalledDeclaration[];
     /** Send a request to run a hook to the sandbox. */
@@ -46,23 +49,23 @@ export class SandboxHooks {
 
     /** Run an installation's hooks in its sandbox. */
     constructor(options: {
-        /** The installation the sandbox runs as. */
-        readonly installation: InstallationContext;
+        /** The server context of the installation the sandbox runs as. */
+        readonly server: ServerContext;
         /** The declarations of the installation's followed build. */
         readonly declarations: readonly InstalledDeclaration[];
         /** Send a request to run a hook to the sandbox. */
-        send(request: HandlerRequest): Promise<HandlerAnswer>;
+        readonly send: (request: HandlerRequest) => Promise<HandlerAnswer>;
     }) {
-        this.installation = options.installation;
+        this.server = options.server;
         this.declarations = options.declarations;
         this.#send = (request) => options.send(request);
     }
 
     /** The installation's principal, the subject of calls run as the installation. */
     get subject(): Subject {
-        const { scope, id } = this.installation;
+        const { space, installation } = this.server;
 
-        return principal.installation.reference(scope, id);
+        return principal.installation.reference(space, installation);
     }
 
     /** Serve a type as the installation, its methods' listed phases run in the sandbox. */
@@ -105,7 +108,7 @@ export class SandboxHooks {
 
     /** Answer a hook's request in its session. */
     async #answer(session: Session, asked: SessionRequest["request"]): Promise<JsonValue> {
-        // run a call as the hook's caller or as the installation, reaching public methods and the package's own internal ones
+        // run a call as the hook's caller or as the installation, allowing the package's internal methods
         const { call } = session;
         if (asked.kind === "call") {
             const caller = asked.as === "caller" ? call.caller : Caller.of(this.subject, call.now);
@@ -113,30 +116,69 @@ export class SandboxHooks {
                 caller,
                 asked.call,
                 asked.mutates,
-                this.installation.build.manifest.package.id,
+                this.server.build.manifest.package.id,
             );
 
             return schema.json().parse(result ?? null);
         }
-        // read one row of a type the installation serves, absent when the caller may not read it
-        else if (asked.kind === "row") {
+        // read the first row or the rows of a type the installation serves, as the package
+        else if (asked.kind === "findFirst" || asked.kind === "findMany") {
             const type = this.#type(asked.table);
-            const table = type.table[TABLE];
-            const row = await call.read(type).row(table.decode(asked.key));
-            const [readable] = row === null ? [] : await SandboxHooks.#readable(call, type, [row]);
-
-            return readable === undefined ? null : table.encode(readable);
-        }
-        // read the rows of a type the installation serves that the caller may read
-        else if (asked.kind === "rows") {
-            const type = this.#type(asked.table);
-            const rows = await call.read(type).rows(asked.where, {
+            const reader = asked.columns === "all" ? call.reveal(type) : call.read(type);
+            const query = {
+                ...(asked.where === undefined ? {} : { where: asked.where }),
                 ...(asked.orderBy === undefined ? {} : { orderBy: asked.orderBy }),
                 ...(asked.limit === undefined ? {} : { limit: asked.limit }),
-            });
-            const readable = await SandboxHooks.#readable(call, type, rows);
+            };
+            const encode = (row: Row) => type.table[TABLE].encode(row);
+            if (asked.kind === "findFirst") {
+                const row = await reader.findFirst(query);
 
-            return readable.map((row) => type.table[TABLE].encode(row));
+                return row === undefined ? null : encode(row);
+            }
+
+            return (await reader.findMany(query)).map(encode);
+        }
+        // read events of a type the installation serves
+        else if (asked.kind === "events") {
+            return HookSandbox.#events(
+                call.events(this.#type(asked.table).eventKind()),
+                asked.read,
+            );
+        }
+        // list the subjects with a permission on an object
+        else if (asked.kind === "lookup") {
+            const { permission, object, type, page } = asked.lookup;
+            const subjects = await call.lookup(permission, object, { type, page });
+
+            return subjects.map((subject) => Subject.parse(subject));
+        }
+        // rehearse calls over rows
+        else if (asked.kind === "rehearse") {
+            return schema.json().parse(await call.rehearse(asked.over, asked.calls));
+        }
+        // decide a permission of the hook's caller
+        else if (asked.kind === "check") {
+            return Decision.parse(await call.check(asked.permission, asked.object));
+        }
+        // require a permission of the hook's caller
+        else if (asked.kind === "require") {
+            await call.require(asked.permission, asked.object);
+
+            return null;
+        }
+        // send a call once the mutation commits
+        else if (asked.kind === "send") {
+            await call.send({
+                call: asked.call,
+                ...(asked.at === undefined ? {} : { at: asked.at }),
+            });
+
+            return null;
+        }
+        // take the transaction's next position
+        else if (asked.kind === "position") {
+            return call.takePosition();
         }
         // run the behaviour a handle phase wraps with the hook's input
         else if (session.next !== undefined) {
@@ -144,8 +186,37 @@ export class SandboxHooks {
         }
         // refuse it outside a handle phase
         else {
-            throw new TypeError(`${call.object.name}.${call.name} wraps nothing outside handle`);
+            throw new TypeError(
+                `${call.object.name}.${call.name} has nothing to wrap outside a handle phase`,
+            );
         }
+    }
+
+    /** Answer a hook's read of events as JSON. */
+    static async #events(
+        view: EventView<EventKeyShape, JsonValue>,
+        read: EventRequest,
+    ): Promise<JsonValue> {
+        // read a page, keeping its cursor where one follows
+        if (read.verb === "query") {
+            const { events, cursor } = await view.query(read.filter, read.page);
+
+            return schema.json().parse({ events, ...(cursor === undefined ? {} : { cursor }) });
+        }
+        // read one event, null when absent
+        else if (read.verb === "get") {
+            const event = await view.get(read);
+
+            return event === undefined ? null : schema.json().parse(event);
+        }
+        // read the events appended after a sequence
+        else if (read.verb === "changes") {
+            const { events, sequence } = await view.changes(read.filter, read.after, read.limit);
+
+            return schema.json().parse({ events, sequence });
+        }
+
+        return schema.json().parse(await view.series(read.filter, read.series));
     }
 
     /** Find a type the installation serves by its table, refusing any other. */
@@ -153,30 +224,11 @@ export class SandboxHooks {
         const type = this.#types.get(name);
         if (type === undefined) {
             throw new CallError("FORBIDDEN", {
-                message: `hooks read the tables of the types their installation serves, not ${name}`,
+                message: `hooks cannot read ${name}: only the tables of the types their installation serves`,
             });
         }
 
         return type;
-    }
-
-    /** Keep the rows the hook's caller may read, as the call's authorization decides them. */
-    static async #readable<Read extends Row>(
-        call: Call,
-        type: ObjectType,
-        rows: readonly Read[],
-    ): Promise<Read[]> {
-        // refuse a type nobody reads
-        const reading = type.reading;
-        if (reading === undefined) {
-            throw new CallError("FORBIDDEN", { message: `no caller reads ${type.plural}` });
-        }
-
-        // keep the rows the caller may read in the call's scope
-        const authorization = call.requireAuthorization();
-        const { permitted } = await authorization.admitRows(type, reading, call.scope, rows);
-
-        return rows.filter((_row, index) => permitted.has(index));
     }
 
     /** Build a method's handler running its listed phases in the sandbox. */
@@ -184,7 +236,9 @@ export class SandboxHooks {
         // refuse a phase the sandbox does not run
         const unknown = phases.find((phase) => !SANDBOXED.some((each) => each === phase));
         if (unknown !== undefined) {
-            throw new TypeError(`${type.name}.${name} has no phase ${unknown} a sandbox runs`);
+            throw new TypeError(
+                `${type.name}.${name} has phase ${unknown}, which a sandbox does not run`,
+            );
         }
 
         // send each listed phase to the sandbox

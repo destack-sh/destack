@@ -10,17 +10,9 @@ import {
     type TargetShape,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
-import { traitPermissions, type Gated, type Trait } from "./trait.ts";
+import { type Gated, derivePermissions, type Trait } from "./trait.ts";
 
 import { adopt, apply, detach } from "../method/declarable.ts";
-/** Decide whether a declaration still manages a record. */
-export function isManaging(row: Row | undefined): boolean {
-    return (
-        row?.["managerInstallationId"] !== undefined &&
-        row["managerInstallationId"] !== null &&
-        row["detachedAt"] === null
-    );
-}
 
 /** Declare the columns identifying a record's managing declaration. */
 export function managedColumns() {
@@ -73,7 +65,10 @@ export type AdoptableMethodMap<Gate> = [Gate] extends [string]
     : {};
 
 /** Records that stacks declare, managed by their declaration until detached. */
-export const declarable: Trait<DeclarableDefinition> = {
+export const declarable: Trait<DeclarableDefinition> & {
+    /** Decide whether a declaration still manages a record. */
+    readonly isManaging: (row: Row | undefined) => boolean;
+} = {
     key: "declarable",
     storages: ["durable"],
     options: (definition) => definition.declarable,
@@ -85,8 +80,15 @@ export const declarable: Trait<DeclarableDefinition> = {
             managerName: present(columns["managerName"], "the manager name column"),
             detachedAt: present(columns["detachedAt"], "the detachment column"),
         }),
-    policy: (_options, _object, permissions) => traitPermissions(permissions, ["declare"]),
+    policy: (_options, _object, permissions) => derivePermissions(permissions, ["declare"]),
     methods: () => ({ apply }),
+    isManaging(row: Row | undefined): boolean {
+        return (
+            row?.["managerInstallationId"] !== undefined &&
+            row["managerInstallationId"] !== null &&
+            row["detachedAt"] === null
+        );
+    },
 };
 
 /** Declared records detached for direct editing, and direct records a declaration adopts. */
@@ -105,7 +107,7 @@ export const adoptable: Trait<Gated> & {
     validate: (_options, object, definition) => {
         // require records a stack declares
         if (definition.declarable === undefined) {
-            throw new TypeError(`object ${object.name} takes adoptable but is not declarable`);
+            throw new TypeError(`object ${object.name} is adoptable but not declarable`);
         }
     },
     detach: (permission) => detach(permission),

@@ -1,8 +1,8 @@
-export { BATCH_LIMIT, method } from "./record.ts";
+export { BATCH_LIMIT, method, MethodBuilder, type MethodTarget } from "./record.ts";
 export {
     defineMethod,
     Method,
-    type MethodBuilder,
+    type MethodDeclaration,
     type MethodDefinition,
     type MethodKind,
     type MethodSource,
@@ -18,9 +18,9 @@ export {
     type HandleFunction,
     type PhasedHandler,
     type OutboxCall,
-    type PreparedCallOf,
     type ResultOf,
     type ObjectCall,
+    type MutationCall,
     type ResultsOf,
 } from "./call.ts";
 export {

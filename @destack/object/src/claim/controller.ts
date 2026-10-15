@@ -10,7 +10,7 @@ import {
 import { Clock, found } from "@destack/schema";
 import type { Controller } from "@destack/runtime/control";
 import { ObjectKey, ObjectType } from "../object/object.ts";
-import { type Claimer, type ClaimHome, Reservation } from "./reservation.ts";
+import { type ClaimHome, Reservation } from "./reservation.ts";
 import { Claimant, Claim } from "./claim.ts";
 
 /** The one key the controller reconciles: every expired reservation. */
@@ -30,26 +30,17 @@ export class ClaimController implements Controller {
     readonly #objects: readonly ObjectType[];
     /** The store's clock, which reservations expire by. */
     readonly #clock: Clock;
-    /** Read the principal claiming a type's names. */
-    readonly #claimer: (object: ObjectType) => Claimer;
-
-    /** Finish the reservations of some object types' indexes, each as its claimer. */
+    /** Finish the reservations of some object types' indexes. */
     constructor(
         claims: ClaimHome,
         database: DatabaseConnection,
         objects: readonly ObjectType[],
-        options: {
-            /** The store's clock. */
-            readonly clock: Clock;
-            /** Read the principal claiming a type's names. */
-            readonly claimer: (object: ObjectType) => Claimer;
-        },
+        clock: Clock,
     ) {
         // keep the indexed types and watch their tables
         this.#claims = claims;
         this.#database = database;
-        this.#clock = options.clock;
-        this.#claimer = options.claimer;
+        this.#clock = clock;
         this.#objects = objects.filter((object) => Object.keys(object.indexes).length > 0);
         this.watches = this.#objects.map((object) => object.table);
     }
@@ -105,10 +96,9 @@ export class ClaimController implements Controller {
                 );
             }
 
-            // replace their names as the type's claimer, refusing names other objects own
+            // replace their names, refusing names other objects claim
             await Reservation.replace(this.#claims, this.#database, claimants, this.#objects, {
                 now,
-                claimer: this.#claimer(object),
             });
         }
 

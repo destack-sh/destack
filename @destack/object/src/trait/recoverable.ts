@@ -1,7 +1,6 @@
 import { Duration, type schema } from "@destack/schema";
-import { type ColumnBuilder, integer, text } from "@destack/db";
+import { type ColumnBuilder, identifier, integer, text } from "@destack/db";
 import type { FieldColumn } from "../field/field.ts";
-import type { Call } from "../method/call.ts";
 import type { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import {
@@ -11,11 +10,10 @@ import {
     type RowSchema,
     type TargetShape,
 } from "../method/procedure.ts";
-import type { ObjectOf, ObjectType } from "../object/object.ts";
+import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
-import { discard, restoration } from "../method/recoverable.ts";
-import type { TraitTable } from "../object/table.ts";
+import { RecoverableMethod } from "../method/recoverable.ts";
 /** The options of recoverable deletion. */
 export type RecoverableDefinition<Permissions extends string = string> = {
     /** How long deleted objects stay restorable. */
@@ -30,16 +28,14 @@ export type RecoverableDefinition<Permissions extends string = string> = {
     readonly prepared?: schema.Schema;
 };
 
-/** The columns recording the deletion request and the purge of a kept record's content. */
+/** The columns recording the deletion and the purge of a kept record's content. */
 export type DeletionBuilderMap<Deletion> = Deletion extends RecoverableDefinition
-    ? {
-          deletionRequestedAt: ColumnBuilder<FieldColumn<number, false, false>>;
-          deletedBy: ColumnBuilder<FieldColumn<string, false, false>>;
-      } & (Deletion extends {
-          readonly keep: "record";
-      }
-          ? { purgedAt: ColumnBuilder<FieldColumn<number, false, false>> }
-          : {})
+    ? ReturnType<typeof deletionColumns> &
+          (Deletion extends {
+              readonly keep: "record";
+          }
+              ? { purgedAt: ColumnBuilder<FieldColumn<number, false, false>> }
+              : {})
     : {};
 
 /** The methods recoverable deletion derives. */
@@ -79,21 +75,24 @@ type PurgePrepared<Deletion extends RecoverableDefinition> = Deletion extends {
     ? Prepared
     : never;
 
-/** Declare the time a record's deletion was requested. */
+/** Declare the time a record was deleted and who deleted it. */
 export function deletionColumns() {
     return {
-        /** The time deletion was requested, null otherwise. */
-        deletionRequestedAt: integer("deletion_requested_at"),
-        /** The subject key of the caller that requested deletion, absent otherwise. */
-        deletedBy: text("deleted_by"),
+        /** The time the record was deleted, null otherwise. */
+        deletedAt: integer("deleted_at"),
+        /** The package of the subject that deleted the record, null otherwise. */
+        deletedByPackageId: identifier("deleted_by_package_id", "package"),
+        /** The type of the subject that deleted the record. */
+        deletedByType: text("deleted_by_type"),
+        /** The scope of the subject that deleted the record. */
+        deletedByScope: text("deleted_by_scope"),
+        /** The identifier of the subject that deleted the record. */
+        deletedById: text("deleted_by_id"),
     };
 }
 
 /** Objects deleted to a trash, restorable within a window and purged after it. */
-export const recoverable: Trait<RecoverableDefinition> & {
-    /** Copy a recoverable object type with the recovery window its host sets. */
-    within<Self extends ObjectType>(object: Self, within: Duration): Self;
-} = {
+export const recoverable: Trait<RecoverableDefinition> = {
     key: "recoverable",
     storages: ["durable"],
     options: (definition) => definition.recoverable,
@@ -109,76 +108,27 @@ export const recoverable: Trait<RecoverableDefinition> & {
     constraints: () => [],
     methods: (options) => ({
         delete: method.delete(options.by),
-        restore: restoration("restore", options.by, options),
-        purge: restoration("purge", options.purge ?? options.by, options),
-        ...(options.keep === "record" ? { discard: discard(options.purge ?? options.by) } : {}),
+        restore: RecoverableMethod.restoration("restore", options.by, options),
+        purge: RecoverableMethod.restoration("purge", options.purge ?? options.by, options),
+        ...(options.keep === "record"
+            ? { discard: RecoverableMethod.discard(options.purge ?? options.by) }
+            : {}),
     }),
     validate: (options, object, definition) => {
         // refuse controlled objects
         if (definition.controlled !== undefined) {
             throw new TypeError(
-                `object ${object.name} is controlled, so its controller finishes its deletion`,
+                `object ${object.name} cannot be recoverable: its controller finishes its deletion`,
             );
         }
 
         // validate the window and keep
         Duration.require(options.within, `recovery window of ${object.name}`);
         if (options.keep !== undefined && options.keep !== "record") {
-            throw new TypeError(`purges of ${object.name} keep the record or nothing`);
+            throw new TypeError(`purges of ${object.name} must keep the record or nothing`);
         }
-    },
-    within(object, within) {
-        // require a recoverable type and a window
-        const declared = object.lifecycle.recoverable;
-        if (declared === undefined) {
-            throw new TypeError(`object ${object.name} is not recoverable`);
-        }
-        Duration.require(within, `recovery window of ${object.name}`);
-
-        // copy the type with the window
-        const options: RecoverableDefinition = { ...declared, within };
-
-        return object.with({
-            definition: {
-                ...object.definition,
-                recoverable: options,
-                source: { ...object.source, recoverable: options },
-            },
-        });
     },
 };
-
-/** Read a call as its object's kept table types it, absent if purging the whole record. */
-export function keptCall(
-    call: Call<TraitTable<{ readonly recoverable: RecoverableDefinition }>>,
-):
-    | Call<
-          TraitTable<{ readonly recoverable: RecoverableDefinition & { readonly keep: "record" } }>
-      >
-    | undefined;
-/**
- * Read a call as its object's kept table types it, by the trait's option.
- *
- * @construct defineObject derives the purge column for every object whose recovery keeps it.
- */
-export function keptCall(
-    call: Call<TraitTable<{ readonly recoverable: RecoverableDefinition }>>,
-): Call | undefined {
-    return call.object.lifecycle.recoverable?.keep === "record" ? call : undefined;
-}
-
-/** Read an object type as its recoverable table types it, absent for a type without the trait. */
-export function recoverableType(
-    object: ObjectType,
-): ObjectOf<{ table: TraitTable<{ readonly recoverable: RecoverableDefinition }> }> | undefined;
-/**
- * Read an object type as its recoverable table types it, by the trait's option.
- *
- * @construct defineObject derives deletion columns for every `recoverable` object's table.
- */
-export function recoverableType(object: ObjectType): ObjectType | undefined {
-    return object.lifecycle.recoverable === undefined ? undefined : object;
-}
 
 /** The procedures recoverable deletion derives besides deleting. */
 export type RecoverableProcedures<Object extends ObjectType> = {

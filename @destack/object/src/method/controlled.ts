@@ -1,19 +1,19 @@
-import { TABLE } from "@destack/db";
+import { Table } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
 import { Digest, schema } from "@destack/schema";
-import type { MethodBuilder } from "./method.ts";
-import { method } from "./record.ts";
 
-import { Observation, observeCondition } from "../object/condition.ts";
+import { MethodBuilder } from "./record.ts";
+
+import { Observation, StatusCondition } from "../object/condition.ts";
 
 import type { TraitTable } from "../object/table.ts";
 /** The method declarations of controlled objects. */
-export const controlledMethod: MethodBuilder<TraitTable<{ readonly controlled: true }>> = method;
+export const controlledMethod = new MethodBuilder<TraitTable<{ readonly controlled: true }>>();
 
 /** The method declarations of controlled objects whose risky plans wait for approval. */
-export const approvalMethod: MethodBuilder<
+export const approvalMethod = new MethodBuilder<
     TraitTable<{ readonly controlled: { readonly approval: true } }>
-> = method;
+>();
 
 /** Record a controller's observation of its target at its generation. */
 export const observe = controlledMethod
@@ -25,13 +25,17 @@ export const observe = controlledMethod
         const merged = Object.fromEntries(
             Object.entries(conditions).map(([name, condition]) => [
                 name,
-                observeCondition(current[name], { ...condition, observedGeneration }, call.now),
+                StatusCondition.observe(
+                    current[name],
+                    { ...condition, observedGeneration },
+                    call.now,
+                ),
             ]),
         );
 
         // write the observed state
         return call.updateStatus({
-            ...call.object.table[TABLE].decode(fields ?? {}),
+            ...Table.decode(call.object.table, fields ?? {}),
             observedGeneration,
             conditions: { ...current, ...merged },
         });
@@ -45,7 +49,7 @@ export const finalize = controlledMethod
     })
     .handle(async (call) => {
         // require a requested deletion
-        if (call.target.deletionRequestedAt === null) {
+        if (call.target.deletedAt === null) {
             throw new CallError("CONFLICT", {
                 message: `${call.object.name} is not being deleted`,
             });

@@ -193,13 +193,13 @@ export const Provisioned = {
         // require the scope types the resources live in
         const scope = definition.scope;
         if (scope === undefined || scope === Scope.universe.id) {
-            throw new TypeError(`resources ${definition.name} live in scope types`);
+            throw new TypeError(`resources ${definition.name} must live in scope types`);
         }
 
         // require the declaration the kind implies
         if (definition.declarable !== undefined) {
             throw new TypeError(
-                `resources ${definition.name} take their declaration from their kind`,
+                `resources ${definition.name} cannot be declarable: their kind provides the declaration`,
             );
         }
 
@@ -207,7 +207,7 @@ export const Provisioned = {
         const permissions = definition.permissions ?? {};
         if (ObjectPermissions.isList(permissions)) {
             throw new TypeError(
-                `resources ${definition.name} declare their permissions as expressions`,
+                `resources ${definition.name} must declare their permissions as expressions`,
             );
         }
 
@@ -299,7 +299,10 @@ function resourceMethods() {
                 "spec",
                 "placement",
                 "retention",
-                "owner",
+                "ownerPackageId",
+                "ownerType",
+                "ownerScope",
+                "ownerId",
                 "origin",
                 "connection",
                 "provider",

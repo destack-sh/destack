@@ -5,7 +5,7 @@ import { Sequence, TextChange, type Annotation, type Element, type SequenceEdit 
 /** The edits each seeded run makes. */
 const EDITS = 400;
 
-/** One party editing a copy: the server's sequence it last saw and its edits not yet pushed. */
+/** One party editing a replica: the server's sequence it last saw and its edits not yet pushed. */
 interface Party {
     /** The party's site, prefixing its runs. */
     readonly site: string;
@@ -24,7 +24,7 @@ function random(seed: { value: number }): number {
     return seed.value / 2_147_483_648;
 }
 
-/** Pick a random insertion or deletion on a party's copy. */
+/** Pick a random insertion or deletion on a party's replica. */
 function edit(
     sequence: Sequence,
     seed: { value: number },
@@ -65,8 +65,8 @@ function visible(sequence: Sequence): string[] {
     );
 }
 
-/** Read a party's copy: the server's sequence it saw with its pending edits over it. */
-function copy(party: Party): Sequence {
+/** Read a party's replica: the server's sequence it saw with its pending edits over it. */
+function replica(party: Party): Sequence {
     return party.pending.reduce((sequence, next) => sequence.apply(next), party.seen);
 }
 
@@ -81,7 +81,7 @@ function at(offset: number): Element {
 }
 
 test.for([3, 17, 91])(
-    "converge every party's predicted copy on the server's order of their edits (seed %i)",
+    "converge every party's predicted replica on the server's order of their edits (seed %i)",
     (value) => {
         const seed = { value };
         const sites = ["a", "b", "c"];
@@ -101,7 +101,7 @@ test.for([3, 17, 91])(
             const draw = random(seed);
             if (draw < 0.7) {
                 party.counter += 1;
-                party.pending.push(edit(copy(party), seed, party.site, party.counter));
+                party.pending.push(edit(replica(party), seed, party.site, party.counter));
             } else if (draw < 0.9) {
                 server = party.pending.reduce((sequence, next) => sequence.apply(next), server);
                 party.pending = [];
@@ -111,17 +111,17 @@ test.for([3, 17, 91])(
             }
         }
 
-        // push what is left and follow, finding every copy equal to the server's
+        // push what is left and follow, finding every replica equal to the server's
         for (const party of parties) {
             server = party.pending.reduce((sequence, next) => sequence.apply(next), server);
             party.pending = [];
         }
-        const copies = parties.map((party) => {
+        const replicas = parties.map((party) => {
             party.seen = server;
 
-            return copy(party).text();
+            return replica(party).text();
         });
-        expect(copies).toEqual(sites.map(() => server.text()));
+        expect(replicas).toEqual(sites.map(() => server.text()));
     },
 );
 
@@ -254,7 +254,7 @@ test.for([7, 41])(
             // apply a remote edit as offset changes
             if (step % 2 === 0 || editor.length === 0) {
                 const remote = edit(sequence, seed, "remote", step);
-                for (const change of sequence.changesOf(remote)) {
+                for (const change of sequence.translate(remote)) {
                     editor = editor.slice(0, change.from) + change.insert + editor.slice(change.to);
                 }
                 applied.push({ edit: remote, before: sequence });
@@ -278,7 +278,7 @@ test.for([7, 41])(
         // undo everything, the editor following each inverse through its offset changes
         for (const { edit: undone, before } of applied.toReversed()) {
             for (const inverse of Sequence.inverse(undone, before)) {
-                for (const change of sequence.changesOf(inverse)) {
+                for (const change of sequence.translate(inverse)) {
                     editor = editor.slice(0, change.from) + change.insert + editor.slice(change.to);
                 }
                 sequence = sequence.apply(inverse);
@@ -328,7 +328,7 @@ test("keep a deletion's length alone, and restore exactly the characters it remo
         deleted.apply({
             restore: { from: { run: "a.1", offset: 1 }, to: { run: "a.1", offset: 3 }, text: "bc" },
         }),
-    ).toThrow(new RangeError("sequence restores 2 characters into 3 deleted ones"));
+    ).toThrow(new RangeError("sequence cannot restore 2 characters into 3 deleted ones"));
 });
 
 test("find the one replacement between two texts, keeping their common start and end", () => {

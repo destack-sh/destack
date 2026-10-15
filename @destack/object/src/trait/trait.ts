@@ -1,5 +1,6 @@
 import {
     none,
+    self,
     type AccessExpression,
     type Policy,
     type RelationInput,
@@ -30,6 +31,8 @@ export interface TraitObject {
     readonly storage: ObjectStorage;
     /** The objects' natural key, absent for generated identifiers. */
     readonly key: schema.Schema<string> | undefined;
+    /** Whether each object represents a principal, which acts on its own row. */
+    readonly isPrincipal: boolean;
 }
 
 /** The table options a trait adds. */
@@ -75,9 +78,9 @@ export interface Trait<Options> {
     /** The storages whose types take the trait, every storage when absent. */
     readonly storages?: readonly ObjectStorage[];
     /** Read the trait's options from an object definition. */
-    options(
+    readonly options: (
         definition: ObjectDefinition<unknown, string, Readonly<Record<string, Method>>>,
-    ): Options | undefined;
+    ) => Options | undefined;
     /** Add the columns an object with the trait has. */
     columns(options: Options, object: TraitObject): Record<string, ColumnBuilder>;
     /** Constrain the object's derived columns. */
@@ -98,12 +101,17 @@ export interface Trait<Options> {
     validate?(options: Options, object: ObjectType, definition: ObjectDefinition): void;
 }
 
-/** Derive the undeclared permissions a trait's methods require, granted only by roles. */
-export function traitPermissions(
+/** Derive the undeclared permissions a trait's methods require, granted by roles and to selves. */
+export function derivePermissions(
     declared: readonly string[],
     derived: readonly string[],
+    selves: readonly string[] = [],
 ): TraitPolicy {
     const undeclared = derived.filter((name) => !declared.includes(name));
 
-    return { permissions: Object.fromEntries(undeclared.map((name) => [name, none()])) };
+    return {
+        permissions: Object.fromEntries(
+            undeclared.map((name) => [name, selves.includes(name) ? self() : none()]),
+        ),
+    };
 }

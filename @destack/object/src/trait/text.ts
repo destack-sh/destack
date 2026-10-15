@@ -1,15 +1,17 @@
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
+import { Step } from "../method/step.ts";
 import type { TextField } from "../field/field.ts";
-import { type Method } from "../method/method.ts";
+import { defineMethod, type Method } from "../method/method.ts";
 import type { Procedure, ReplayShape, TargetShape } from "../method/procedure.ts";
 import type { ObjectType, TextFieldName } from "../object/object.ts";
-import { SequenceEdit } from "../sequence/index.ts";
+import { Element, SequenceEdit } from "../sequence/index.ts";
 import { permission } from "@destack/access";
-import { Undo, TEXT_READ } from "../text/chunk.ts";
+import { Chunk, Containment, Undo, TEXT_READ } from "../text/chunk.ts";
 import { chunk } from "../text/table.ts";
 import type { Trait } from "./trait.ts";
+import { Execution } from "../method/execution.ts";
 
-import { edit } from "../method/text.ts";
 /** The text fields of an object and the permission editing them. */
 export interface TextDefinition {
     /** The text fields, by name. */
@@ -32,9 +34,15 @@ export type TextMethodMap<Fields> = {
               output: typeof Undo;
               mutates: true;
           }>;
+          readonly contains: Method<{
+              kind: "contains";
+              permission: string;
+              output: typeof Containment;
+              mutates: false;
+          }>;
       };
 
-/** The procedure of the edit method. */
+/** The procedures of the edit and contains methods. */
 export type TextProcedures<Object extends ObjectType> = {
     edit: Procedure<
         schema.Object<
@@ -46,25 +54,49 @@ export type TextProcedures<Object extends ObjectType> = {
         >,
         typeof Undo
     >;
+    contains: Procedure<
+        schema.Object<
+            TargetShape<Object> & {
+                field: schema.Schema<TextFieldName<Object["fields"]>>;
+                elements: schema.Schema<Element[]>;
+            }
+        >,
+        typeof Containment
+    >;
 };
 
 /** Text fields kept in chunks and changed only by edits. */
-export const text: Trait<TextDefinition> = {
+export const text: Trait<TextDefinition> & {
+    /** Edit one text field of an object. */
+    readonly edit: (
+        required: string,
+        fields: readonly [string, ...string[]],
+    ) => Method<{ kind: "edit"; permission: string; output: typeof Undo; mutates: true }>;
+    /** Decide whether one text field of an object has some elements, as its text readers may. */
+    readonly contains: (
+        fields: readonly [string, ...string[]],
+    ) => Method<{
+        kind: "contains";
+        permission: string;
+        output: typeof Containment;
+        mutates: false;
+    }>;
+} = {
     options: (definition) => {
         // collect the text fields and the update and reading permissions
         const [first, ...others] = Object.entries(definition.fields ?? {})
             .filter(([, declared]) => declared.type === "text")
             .map(([name]) => name);
         const methods = Object.values(definition.methods ?? {});
-        const permissionOf = (kind: string) =>
+        const readPermission = (kind: string) =>
             methods.find((declared) => declared.kind === kind)?.permission ?? undefined;
 
         return first === undefined
             ? undefined
             : {
                   fields: [first, ...others],
-                  permission: permissionOf("update"),
-                  reading: permissionOf("list") ?? permissionOf("get"),
+                  permission: readPermission("update"),
+                  reading: readPermission("list") ?? readPermission("get"),
               };
     },
     columns: () => ({}),
@@ -84,7 +116,7 @@ export const text: Trait<TextDefinition> = {
         // derive the text permission from the reading one
         if (permissions.includes(TEXT_READ)) {
             throw new TypeError(
-                `object ${object.name} declares permission ${TEXT_READ}, which its text fields derive`,
+                `object ${object.name} cannot declare permission ${TEXT_READ}: its text fields derive it`,
             );
         }
 
@@ -93,16 +125,21 @@ export const text: Trait<TextDefinition> = {
             : { permissions: { [TEXT_READ]: permission(options.reading) } };
     },
     methods: (options): Record<string, Method> =>
-        options.permission === undefined ? {} : { edit: edit(options.permission, options.fields) },
+        options.permission === undefined
+            ? {}
+            : {
+                  edit: text.edit(options.permission, options.fields),
+                  contains: text.contains(options.fields),
+              },
     validate: (options, object) => {
         // require durable objects with an update permission
         if (object.storage === "ephemeral") {
             throw new TypeError(`ephemeral object ${object.name} has no text`);
         } else if (options.permission === undefined) {
-            throw new TypeError(`object ${object.name} holds text but no update method to edit it`);
+            throw new TypeError(`object ${object.name} has text but no update method to edit it`);
         } else if (options.reading === undefined) {
             throw new TypeError(
-                `object ${object.name} has text but no get or list method reads it`,
+                `object ${object.name} has text but no get or list method to read it`,
             );
         }
 
@@ -111,9 +148,114 @@ export const text: Trait<TextDefinition> = {
             const written = declared.fields?.find((field) => options.fields.includes(field));
             if (written !== undefined) {
                 throw new TypeError(
-                    `method ${name} of ${object.name} writes text field ${written}, which only edit changes`,
+                    `method ${name} of ${object.name} cannot write text field ${written}: only edit changes it`,
                 );
             }
         }
+    },
+    edit(
+        required: string,
+        fields: readonly [string, ...string[]],
+    ): Method<{ kind: "edit"; permission: string; output: typeof Undo; mutates: true }> {
+        return defineMethod<{
+            kind: "edit";
+            permission: string;
+            output: typeof Undo;
+            mutates: true;
+        }>({
+            kind: "edit",
+            permission: required,
+            mutates: true,
+            target: "object",
+            result: "value",
+            procedure: (_name, shapes) => ({
+                route: { method: "POST", path: "/{id}/edit" },
+                input: shapes.target.extend({
+                    ...shapes.replay,
+                    field: schema.enum(fields),
+                    edits: schema.array(SequenceEdit).min(1),
+                }),
+                output: Undo,
+            }),
+            handler: (call, execution) => Chunk.edit(call, execution),
+            inverse: (step) => {
+                // apply the recorded inverse edits
+                if (step.result === undefined) {
+                    return undefined;
+                }
+                const result = Undo.parse(step.result);
+
+                return result.inverse.length === 0
+                    ? []
+                    : [
+                          Step.record(step, step.name, {
+                              ...Step.target(step),
+                              field: schema.string().parse(step.input["field"]),
+                              edits: result.inverse,
+                          }),
+                      ];
+            },
+            async execute(call, execution) {
+                // require the field's write permission when it guards writes
+                const field = schema.string().parse(call.input["field"]);
+                const guard = present(
+                    call.object.fields[field],
+                    `the text field ${field} of ${call.object.name}`,
+                ).access?.write;
+                if (!call.isPredicted && guard !== undefined) {
+                    const decision = await call.check(
+                        call.object.permission(guard),
+                        call.reference(),
+                    );
+                    if (!decision.isAllowed) {
+                        throw new CallError("FORBIDDEN", {
+                            message: `field ${field} is not writable`,
+                        });
+                    }
+                }
+
+                return this.handler(call, execution);
+            },
+        });
+    },
+    contains(fields: readonly [string, ...string[]]): Method<{
+        kind: "contains";
+        permission: string;
+        output: typeof Containment;
+        mutates: false;
+    }> {
+        return defineMethod<{
+            kind: "contains";
+            permission: string;
+            output: typeof Containment;
+            mutates: false;
+        }>({
+            kind: "contains",
+            permission: TEXT_READ,
+            mutates: false,
+            target: "object",
+            result: "value",
+            procedure: (_name, shapes) => ({
+                route: { method: "POST", path: "/{id}/contains" },
+                input: shapes.target.extend({
+                    field: schema.enum(fields),
+                    elements: schema.array(Element).min(1),
+                }),
+                output: Containment,
+            }),
+            handler: async (call, execution) => {
+                // look the elements up among the field's runs in the call's view
+                const field = schema.string().parse(call.input["field"]);
+                const elements = schema.array(Element).parse(call.input["elements"]);
+                const isContained = await Chunk.contains(
+                    Execution.snapshot(execution),
+                    call.reference(),
+                    field,
+                    elements,
+                );
+
+                return { isContained };
+            },
+        });
     },
 };

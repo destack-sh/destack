@@ -5,7 +5,8 @@ import type { Call } from "../method/call.ts";
 import { ObjectType } from "../object/object.ts";
 import { method } from "../method/record.ts";
 import { EventLog } from "../query/event.ts";
-import { traitPermissions, type Trait } from "./trait.ts";
+import { derivePermissions, type Trait } from "./trait.ts";
+import { Execution, type StoreExecution } from "../method/execution.ts";
 
 /** The most keys a series groups by: four keys of a few values each stay a readable chart. */
 const MAX_GROUP_KEYS = 4;
@@ -44,7 +45,7 @@ export const SeriesResult = defineSchema(
                     schema.string(),
                     schema.union([schema.string(), schema.number()]).nullable(),
                 ),
-                /** The steps holding events. */
+                /** The steps with events. */
                 steps: schema.array(
                     schema.object({
                         /** The step's start, in Unix microseconds. */
@@ -61,15 +62,16 @@ export const SeriesResult = defineSchema(
 );
 
 /** Fold the events a condition selects by keys the caller may read, per step and group. */
-const seriesMethod = method
-    .query({
+const seriesMethod = Execution.handle(
+    method.query({
         permission: "read",
-        target: "none",
-        selected: (input) => selectedKeys(SeriesQuery.parse(input).where),
+        target: "scope",
+        selected: (input) => series.selectedKeys(SeriesQuery.parse(input).where),
         input: SeriesQuery,
         output: SeriesResult,
-    })
-    .handle(fold);
+    }),
+    (call, execution) => series.fold(call, Execution.store(execution, call)),
+);
 
 /** The series method an events type derives, none for another storage. */
 export type SeriesMethodMap<Storage> = Storage extends "events"
@@ -77,56 +79,59 @@ export type SeriesMethodMap<Storage> = Storage extends "events"
     : {};
 
 /** Events types, folded into series over time by the readers of the keys a fold selects. */
-export const series: Trait<{}> = {
+export const series: Trait<{}> & {
+    /** Fold the scope's events in the range per step and group, which reveals no single event. */
+    readonly fold: (
+        call: Call,
+        execution: StoreExecution,
+    ) => Promise<schema.Infer<typeof SeriesResult>>;
+    /** Read the key values a series condition requires at its top level. */
+    readonly selectedKeys: (where: JsonCondition | undefined) => Row;
+} = {
     options: (definition) =>
         ObjectType.storageKind(definition.storage) === "events" ? {} : undefined,
     columns: () => ({}),
     constraints: () => [],
-    policy: (_options, _object, permissions) => traitPermissions(permissions, ["read"]),
+    policy: (_options, _object, permissions) => derivePermissions(permissions, ["read"]),
     methods: () => ({ series: seriesMethod }),
-};
+    async fold(call: Call, execution: StoreExecution): Promise<schema.Infer<typeof SeriesResult>> {
+        // select the range's events the condition selects
+        const kind = call.object.eventKind();
+        const {
+            where,
+            fold: folding,
+            measure,
+            group,
+            step,
+            from,
+            before,
+        } = SeriesQuery.parse(call.input);
+        const range = { time: { gte: from, lt: before } };
+        const filter = {
+            scopes: await EventLog.scopes(call, Execution.snapshot(execution).database),
+            where: { AND: [range, ...(where === undefined ? [] : [where])] },
+        };
 
-/** Fold the scope's events in the range per step and group, which reveals no single event. */
-async function fold(call: Call): Promise<schema.Infer<typeof SeriesResult>> {
-    // select the range's events the condition selects
-    const kind = call.object.eventKind();
-    const {
-        where,
-        fold: folding,
-        measure,
-        group,
-        step,
-        from,
-        before,
-    } = SeriesQuery.parse(call.input);
-    const range = { time: { gte: from, lt: before } };
-    const filter = {
-        scopes: await EventLog.scopes(call),
-        where: { AND: [range, ...(where === undefined ? [] : [where])] },
-    };
-
-    // fold them per step and group
-    const folded = await call
-        .requireStore()
-        .requireEvents()
-        .series(kind, filter, {
+        // fold them per step and group
+        const folded = await execution.store.events.series(kind, filter, {
             fold: folding,
             group,
             ...(measure === undefined ? {} : { measure }),
             ...(step === undefined ? {} : { step }),
         });
 
-    return { series: folded.map((each) => ({ group: { ...each.group }, steps: [...each.steps] })) };
-}
-
-/** Read the key values a series condition requires at its top level. */
-function selectedKeys(where: JsonCondition | undefined): Row {
-    return Object.fromEntries(
-        Condition.conjuncts(where).flatMap((condition) =>
-            Object.entries(condition).filter(
-                ([name, value]) =>
-                    name !== "AND" && (typeof value === "string" || typeof value === "number"),
+        return {
+            series: folded.map((each) => ({ group: { ...each.group }, steps: [...each.steps] })),
+        };
+    },
+    selectedKeys(where: JsonCondition | undefined): Row {
+        return Object.fromEntries(
+            Condition.conjuncts(where).flatMap((condition) =>
+                Object.entries(condition).filter(
+                    ([name, value]) =>
+                        name !== "AND" && (typeof value === "string" || typeof value === "number"),
+                ),
             ),
-        ),
-    );
-}
+        );
+    },
+};

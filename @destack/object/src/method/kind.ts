@@ -27,6 +27,7 @@ export const METHOD_KINDS = [
     "bind",
     "revert",
     "edit",
+    "contains",
 ] as const;
 /** The kind of a method. */
 export type MethodKind = (typeof METHOD_KINDS)[number];
@@ -42,6 +43,7 @@ export type TargetKind =
     | "move"
     | "transition"
     | "edit"
+    | "contains"
     | "detach"
     | "adopt"
     | "revert";

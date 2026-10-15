@@ -1,5 +1,5 @@
 import { ObjectReference } from "@destack/sync";
-import { validated } from "../field/field.ts";
+import { Field } from "../field/field.ts";
 import { defineSchema, type Identifier, present, schema } from "@destack/schema";
 import { type ColumnBuilder, identifier, index, TABLE, text } from "@destack/db";
 import type { PackageId } from "@destack/package";
@@ -17,7 +17,7 @@ import { idColumn } from "../field/field.ts";
 import type { FieldColumn } from "../field/field.ts";
 import type { Trait } from "./trait.ts";
 
-import { move } from "../method/nested.ts";
+import { NestedMethod } from "../method/nested.ts";
 /** The parent a tree node refers to, null for a root. */
 export const PARENT = schema.string().nullable();
 
@@ -102,7 +102,7 @@ export const nested: Trait<NestedDefinition> = {
         const column = (
             keyed === undefined
                 ? identifier("parent_id", owner?.identity ?? object.identity)
-                : validated("parent_id", keyed)
+                : Field.validated("parent_id", keyed)
         ).references(() => idColumn(owner?.table ?? object.table()), {
             onDelete: options.delete === "restrict" ? "no action" : "cascade",
         });
@@ -163,12 +163,12 @@ export const nested: Trait<NestedDefinition> = {
         };
     },
     methods: (options): Record<string, Method> =>
-        options.move === undefined ? {} : { move: move(options.move, options) },
+        options.move === undefined ? {} : { move: NestedMethod.move(options.move, options) },
     validate: (options, object) => {
         // require ephemeral objects to attach to any type
         if (object.storage === "ephemeral" && options.in !== "any") {
             throw new TypeError(
-                `ephemeral object ${object.name} attaches to its parent as an attachment of any type`,
+                `ephemeral object ${object.name} must attach to a parent of any type`,
             );
         }
 

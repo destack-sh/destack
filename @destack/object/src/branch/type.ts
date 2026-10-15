@@ -1,17 +1,19 @@
 import type { Method } from "../method/method.ts";
-import { TABLE, type Row, type Table, Condition } from "@destack/db";
+import { TABLE, LogPosition, type Row, Snapshot, type Table, Condition } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { Call, CallCode } from "../method/index.ts";
 import type { ObjectController } from "../object/controller.ts";
+import { Branch } from "./branch.ts";
 import { ObjectKey, type ObjectType } from "../object/index.ts";
 
-/** The columns of every branch type's rows: identifier, state and the branch's row tables. */
+/** The columns of every branch type's rows: identifier, state, row tables and build position. */
 const BRANCH_RECORD = schema.looseObject({
     id: schema.string(),
     state: schema.string(),
     tables: schema.array(schema.string()),
+    built: LogPosition,
 });
 
 /** A branch as its row records it. */
@@ -66,7 +68,7 @@ export class BranchType {
         scope: string,
     ): ReturnType<typeof Call.resolve> {
         // resolve the call in the branch's scope, refusing one in another scope or of an unknown method
-        const type = Call.typeOf(objects, entry);
+        const type = Call.findType(objects, entry);
         const field =
             type !== undefined && Object.hasOwn(type.methods, entry.method)
                 ? type.route.field
@@ -74,24 +76,24 @@ export class BranchType {
         const named = field === undefined ? undefined : entry.input[field];
         if (named !== undefined && named !== scope) {
             throw new CallError("BAD_REQUEST", {
-                message: `${sync.Call.label(entry)} acts in another scope than its branch`,
+                message: `${sync.Call.label(entry)} is in another scope than its branch`,
             });
         }
         const input = field === undefined ? entry.input : { ...entry.input, [field]: scope };
         const resolved = Call.resolve(objects, { ...entry, input }, true, CallCode.client);
 
-        // refuse ephemeral objects and branch bookkeeping, whose writes no branch keeps
-        if (resolved.object.storage === "ephemeral" || this.keeps(resolved.object)) {
+        // refuse ephemeral objects and branch bookkeeping
+        if (resolved.object.storage === "ephemeral" || this.has(resolved.object)) {
             throw new CallError("BAD_REQUEST", {
-                message: `branches keep no calls of ${resolved.object.name}`,
+                message: `branches cannot store calls of ${resolved.object.name}`,
             });
         }
 
         return resolved;
     }
 
-    /** Report whether an object type keeps branches, whose calls stay on the main line. */
-    keeps(object: ObjectType): boolean {
+    /** Report whether an object type is a branch type, whose calls stay on the main line. */
+    has(object: ObjectType): boolean {
         return [this.object, this.call, this.change].some((type) => type.same(object));
     }
 
@@ -99,7 +101,7 @@ export class BranchType {
     tables(objects: readonly ObjectType[]): ReadonlyMap<string, Table> {
         return new Map(
             objects
-                .filter((object) => object.storage === "durable" && !this.keeps(object))
+                .filter((object) => object.storage === "durable" && !this.has(object))
                 .map((object) => [object.table[TABLE].sqlName, object.table]),
         );
     }
@@ -113,7 +115,7 @@ export class BranchType {
             watches: [...this.tables(objects).values()].map((table) => ({
                 table,
                 keys: async (row, database) => {
-                    // select the open branches of the row's scope reaching its table
+                    // select the open branches of the row's scope that touch its table
                     const open = await database
                         .select()
                         .from(branches)
@@ -138,15 +140,27 @@ export class BranchType {
                 },
             })),
             reconcile: async (reconciliation) => {
-                await reconciliation.mutate(
-                    reconciliation.rows.map((row) =>
-                        Call.record(
-                            this.object,
-                            "rebuild",
-                            this.object.target(ObjectKey.parse(row)),
+                // rebuild the open branches whose rows the main line moved under
+                const { database } = reconciliation;
+                const stale = [];
+                for (const row of reconciliation.rows) {
+                    const state = BranchType.record(row);
+                    const opened = new Branch(this, Snapshot.live(database), state.id);
+                    if (await opened.isStale(database, objects, state)) {
+                        stale.push(row);
+                    }
+                }
+                if (stale.length > 0) {
+                    await reconciliation.mutate(
+                        stale.map((row) =>
+                            Call.record(
+                                this.object,
+                                "rebuild",
+                                this.object.target(ObjectKey.parse(row)),
+                            ),
                         ),
-                    ),
-                );
+                    );
+                }
 
                 return undefined;
             },

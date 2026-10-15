@@ -1,15 +1,18 @@
-import { Caller, principal } from "@destack/access";
-import { Condition, OrderBy, type RowImage, TABLE, type Table } from "@destack/db";
+import { Caller, Decision, principal } from "@destack/access";
+import { Condition, Key, OrderBy, RelationalQueryBuilder, TABLE, Table } from "@destack/db";
 import { JsonValue, present, schema } from "@destack/schema";
-import type { HookHandler, InstallationContext } from "@destack/runtime/workload";
+import type { HookHandler, ServerContext } from "@destack/runtime/workload";
+import { Subject } from "@destack/sync";
 import { Call } from "../method/call.ts";
-import type { SessionReader } from "../method/reader.ts";
+import type { Session } from "../method/reader.ts";
 import { ObjectType } from "../object/object.ts";
 import {
+    BranchCalls,
     type CallRecord,
     HandlerAnswer,
     HandlerRequest,
     HookResult,
+    RehearsedRow,
     type SessionRequest,
 } from "./record.ts";
 
@@ -19,24 +22,24 @@ export class HookServer implements HookHandler {
     readonly types: readonly ObjectType[];
     /** Send a hook's request to the store in its mutation's session. */
     readonly #session: (request: SessionRequest) => Promise<HandlerAnswer>;
-    /** The installation the sandbox runs as. */
-    readonly #installation: InstallationContext;
+    /** The server context of the installation the sandbox runs as. */
+    readonly #server: ServerContext;
 
     /** Run the hooks of the types packages route, reaching the store through a session. */
     constructor(options: {
         /** The packages whose routed types' hooks the server runs. */
         readonly packages: readonly { readonly objects: Readonly<Record<string, unknown>> }[];
         /** Send a hook's request to the store in its mutation's session. */
-        session(request: SessionRequest): Promise<HandlerAnswer>;
-        /** The installation the sandbox runs as. */
-        readonly installation: InstallationContext;
+        readonly session: (request: SessionRequest) => Promise<HandlerAnswer>;
+        /** The server context of the installation the sandbox runs as. */
+        readonly server: ServerContext;
     }) {
         this.types = options.packages
             .flatMap((served) => Object.values(served.objects))
             .filter((routed) => routed instanceof ObjectType)
             .filter((type) => Object.keys(type.hooks).length > 0);
         this.#session = (request) => options.session(request);
-        this.#installation = options.installation;
+        this.#server = options.server;
     }
 
     /** Answer a request to run a hook over HTTP. */
@@ -92,10 +95,10 @@ export class HookServer implements HookHandler {
     /** Rebuild a recorded call in the sandbox, its calls and reads sent to the store. */
     #call(record: CallRecord, mutation: string): Call {
         // find the type and its method
-        const object = Call.typeOf(this.types, record);
+        const object = Call.findType(this.types, record);
         if (object === undefined) {
             throw new TypeError(
-                `this sandbox runs no hooks of ${record.type.packageId}/${record.type.type}`,
+                `this sandbox does not run hooks of ${record.type.packageId}/${record.type.type}`,
             );
         }
         const method = object.method(record.method);
@@ -109,26 +112,25 @@ export class HookServer implements HookHandler {
             chain: record.chain,
             input: record.input,
             ...(record.id === undefined ? {} : { id: record.id }),
-            ...(record.target === undefined
-                ? {}
-                : { target: object.table[TABLE].decode(record.target) }),
+            target:
+                record.target === undefined ? undefined : Table.decode(object.table, record.target),
             caller: record.caller,
             now: record.now,
             location: {
                 kind: "sandbox",
-                session: this.#reader(mutation),
-                installation: this.#installation,
+                session: this.#open(mutation),
+                server: this.#server,
+                ...(record.base === undefined ? {} : { base: record.base }),
             },
             objects: this.types,
             ...(record.requestId === undefined ? {} : { requestId: record.requestId }),
-            ...(record.prepared === undefined
-                ? {}
-                : {
-                      prepared: present(
+            prepared:
+                record.prepared === undefined
+                    ? undefined
+                    : present(
                           method.prepared,
                           `the prepared work of ${object.name}.${record.method}`,
                       ).parse(record.prepared),
-                  }),
             ...(record.idempotencyKey === undefined
                 ? {}
                 : { idempotencyKey: record.idempotencyKey }),
@@ -137,7 +139,7 @@ export class HookServer implements HookHandler {
                 this.#request(mutation, {
                     kind: "call",
                     as: this.#as(record, caller),
-                    call: Call.wire(entry),
+                    call: entry,
                     mutates,
                 }),
         });
@@ -145,42 +147,104 @@ export class HookServer implements HookHandler {
         return call;
     }
 
-    /** Read the store's tables in a mutation's session. */
-    #reader(mutation: string): SessionReader {
-        return {
-            row: async (table, key) => {
-                const encoded = table[TABLE].encode(key);
-                const row = await this.#request(mutation, {
-                    kind: "row",
-                    table: table[TABLE].sqlName,
-                    key: encoded,
-                });
-
-                return row === null ? null : HookServer.#decode(table, row);
+    /** Query a table in a mutation, decoding its rows as the store answers them. */
+    #query<Definition extends Table, Read>(
+        mutation: string,
+        table: Definition,
+        columns: "logged" | "all",
+        decode: (row: JsonValue) => Read,
+    ): RelationalQueryBuilder<Definition, Read> {
+        // ask the store for the rows of a query
+        const ask = async (
+            kind: "findFirst" | "findMany",
+            query: {
+                readonly where?: unknown;
+                readonly orderBy?: unknown;
+                readonly limit?: number;
             },
-            rows: async (table, where, options) => {
-                const rows = await this.#request(mutation, {
-                    kind: "rows",
-                    table: table[TABLE].sqlName,
-                    where: Condition.schema.parse(where),
-                    ...(options.orderBy === undefined
-                        ? {}
-                        : { orderBy: OrderBy.schema.parse(options.orderBy) }),
-                    ...(options.limit === undefined ? {} : { limit: options.limit }),
-                });
+        ) =>
+            this.#request(mutation, {
+                kind,
+                table: table[TABLE].sqlName,
+                ...(query.where === undefined
+                    ? {}
+                    : { where: Condition.schema.parse(query.where) }),
+                ...(query.orderBy === undefined
+                    ? {}
+                    : { orderBy: OrderBy.schema.parse(query.orderBy) }),
+                ...(query.limit === undefined ? {} : { limit: query.limit }),
+                columns,
+            });
 
-                return schema
+        return new RelationalQueryBuilder(
+            table,
+            async (query) =>
+                schema
                     .array(schema.json())
-                    .parse(rows)
-                    .map((row) => HookServer.#decode(table, row));
+                    .parse(await ask("findMany", query))
+                    .map((row) => decode(row)),
+            async (key) => {
+                const row = schema
+                    .json()
+                    .nullable()
+                    .parse(await ask("findFirst", { where: Key.where(table, key) }));
+
+                return row === null ? null : decode(row);
             },
+        );
+    }
+
+    /** Reach the store in a mutation's session: its reads, decisions, sends and positions. */
+    #open(mutation: string): Session {
+        return {
+            read: (table) =>
+                this.#query(mutation, table, "logged", (row) =>
+                    Table.image(table, Table.decode(table, JsonValue.object(row))),
+                ),
+            reveal: (table) =>
+                this.#query(mutation, table, "all", (row) =>
+                    Table.complete(table, Table.decode(table, JsonValue.object(row))),
+                ),
+            events: (table, read) =>
+                this.#request(mutation, { kind: "events", table: table[TABLE].sqlName, read }),
+            check: async (permission, object) =>
+                Decision.parse(
+                    await this.#request(mutation, { kind: "check", permission, object }),
+                ),
+            require: async (permission, object) => {
+                await this.#request(mutation, { kind: "require", permission, object });
+            },
+            rehearse: async (over, calls) =>
+                schema.array(RehearsedRow).parse(
+                    await this.#request(mutation, {
+                        kind: "rehearse",
+                        over: [...over],
+                        calls: BranchCalls.parse(calls),
+                    }),
+                ),
+            lookup: async (lookup) =>
+                schema
+                    .array(Subject)
+                    .parse(await this.#request(mutation, { kind: "lookup", lookup })),
+            send: async (request) => {
+                await this.#request(mutation, {
+                    kind: "send",
+                    call: request.call,
+                    ...(request.at === undefined ? {} : { at: request.at }),
+                });
+            },
+            takePosition: async () =>
+                schema
+                    .number()
+                    .int()
+                    .parse(await this.#request(mutation, { kind: "position" })),
         };
     }
 
     /** Read whom a hook's call runs as: the hook's own caller, or its installation. */
     #as(record: CallRecord, caller: Caller): "caller" | "installation" {
         // run as the hook's own caller
-        const installation = this.#installation;
+        const server = this.#server;
         if (Caller.key(caller) === Caller.key(record.caller)) {
             return "caller";
         }
@@ -188,33 +252,19 @@ export class HookServer implements HookHandler {
         else if (
             caller.subject !== undefined &&
             principal.installation.is(caller.subject) &&
-            caller.subject.id === installation.id &&
-            caller.subject.scope === installation.scope
+            caller.subject.id === server.installation &&
+            caller.subject.scope === server.space
         ) {
             return "installation";
         }
         // refuse any other caller
         else {
-            throw new TypeError("a hook calls as its call's caller or as its installation");
+            throw new TypeError("a hook must call as its call's caller or as its installation");
         }
     }
 
     /** Send a request to the store in a mutation's session, throwing its failure. */
     async #request(mutation: string, request: SessionRequest["request"]): Promise<JsonValue> {
         return HandlerAnswer.result(await this.#session({ mutation, request }));
-    }
-
-    /** Read the logged columns of a row the store sent as JSON. */
-    static #decode<Definition extends Table>(
-        table: Definition,
-        row: JsonValue,
-    ): RowImage<Definition>;
-    /**
-     * Read a row's logged columns, as the store encoded them.
-     *
-     * @construct the store encodes a row's logged columns of this table, which decoding rebuilds.
-     */
-    static #decode(table: Table, row: JsonValue): unknown {
-        return table[TABLE].decode(JsonValue.object(row));
     }
 }

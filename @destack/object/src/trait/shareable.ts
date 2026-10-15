@@ -30,7 +30,7 @@ import {
 } from "../object/object.ts";
 import type { Gated, Erasure, Trait } from "./trait.ts";
 
-import { sharingMethods } from "../method/shareable.ts";
+import { ShareableMethod } from "../method/shareable.ts";
 /** The roles, lowest first: viewing, commenting, editing and owning. */
 const ROLES = ["viewer", "commenter", "editor", "owner"] as const;
 
@@ -162,7 +162,7 @@ export type RolePermissionsOf<Sharing> = [Sharing] extends [Gated]
       ? RolePermission
       : never;
 
-/** The owner field the roles add to objects that are no scopes, none otherwise. */
+/** The owner field the roles add to objects that are not scopes, none otherwise. */
 export type RoleFieldsOf<Sharing, IsScope> = [RolePermissionsOf<Sharing>] extends [never]
     ? {}
     : IsScope extends true
@@ -199,11 +199,11 @@ export const Roles = {
             return definition;
         }
 
-        // refuse permission names alone
+        // refuse bare permission names
         const permissions = definition.permissions ?? {};
         if (ObjectPermissions.isList(permissions)) {
             throw new TypeError(
-                `object ${definition.name} shares through the roles, so it declares its permissions as expressions`,
+                `object ${definition.name} shares through roles, so it must declare its permissions as expressions`,
             );
         }
         const declared = permissions;
@@ -220,7 +220,7 @@ export const Roles = {
         ];
         if (taken.length > 0) {
             throw new TypeError(
-                `object ${definition.name} shares through the roles, which define ${taken.join(", ")}`,
+                `object ${definition.name} shares through roles and cannot declare ${taken.join(", ")}`,
             );
         }
 
@@ -318,15 +318,16 @@ export const shareable: Trait<SharingGate> = {
     key: "shareable",
     storages: ["durable"],
     options: (definition) => {
+        // derive no sharing methods for a partitioned scope, shared through its relationships
         const grant = Roles.gate(definition);
 
-        return grant === undefined
+        return grant === undefined || definition.partition === true
             ? undefined
             : { grant, read: definition.shareable?.read ?? "read" };
     },
     columns: () => ({}),
     constraints: () => [],
-    methods: (options) => sharingMethods(options),
+    methods: (options) => ShareableMethod.methods(options),
 };
 
 /** The procedures sharing derives. */

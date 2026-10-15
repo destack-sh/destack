@@ -1,7 +1,19 @@
 import type { ObjectStore } from "../server/store.ts";
-import { type DatabaseConnection, defineTable, integer, json, text } from "@destack/db";
+import { Caller } from "@destack/access";
+import {
+    type DatabaseConnection,
+    defineTable,
+    integer,
+    json,
+    Snapshot,
+    type Table,
+    type RelationalQueryBuilder,
+    text,
+} from "@destack/db";
 import { schema } from "@destack/schema";
+import { RequestId } from "@destack/runtime/request";
 import type { ObjectType } from "../object/object.ts";
+import type { ObjectCall, ResultsOf } from "./call.ts";
 
 /** The calls whose external work settles once. */
 export const settlement = defineTable(
@@ -72,15 +84,33 @@ export class SettlementCall {
         this.store = fields.store;
     }
 
-    /** Read the store settling the call. */
-    requireStore(): ObjectStore {
-        return this.store;
+    /** Read a table's rows in the store's live rows. */
+    read<Read extends Table>(table: Read): RelationalQueryBuilder<Read> {
+        return Snapshot.live(this.database).read(table);
+    }
+
+    /** The store's principal acting as itself, such as its space or installation. */
+    get self(): Caller {
+        return Caller.of(this.store.principal, this.now);
+    }
+
+    /** Read through a method as a caller, in its own transaction. */
+    query<Result>(caller: Caller, call: ObjectCall<Result>): Promise<Result> {
+        return this.store.query(caller, call);
+    }
+
+    /** Run calls as a caller in one request of their own, committed apart from the settlement. */
+    mutate<const Calls extends readonly ObjectCall[]>(
+        caller: Caller,
+        calls: Calls,
+    ): Promise<ResultsOf<Calls>> {
+        return this.store.mutate(caller, { id: RequestId.create(this.now), calls });
     }
 
     /** Read the object the call acted on or created, failing for a call without one. */
     requireId(): string {
         if (this.id === undefined) {
-            throw new TypeError(`${this.object.name}.${this.name} settles no object`);
+            throw new TypeError(`${this.object.name}.${this.name} has no object to settle`);
         }
 
         return this.id;

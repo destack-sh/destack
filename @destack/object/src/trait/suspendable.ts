@@ -1,7 +1,8 @@
 import { type Method } from "../method/method.ts";
+import { method } from "../method/record.ts";
 import type { Gated, Trait } from "./trait.ts";
+import { Execution } from "../method/execution.ts";
 
-import { change } from "../method/suspendable.ts";
 /** The methods suspendable scope objects take. */
 export type SuspendableMethodMap<Suspend> = [Suspend] extends [string]
     ? {
@@ -13,13 +14,19 @@ export type SuspendableMethodMap<Suspend> = [Suspend] extends [string]
 /** Scope objects that can be suspended. */
 export const suspendable: Trait<Gated> & {
     /** Declare the method suspending a scope object. */
-    suspend<const Permission extends string>(
+    readonly suspend: <const Permission extends string>(
         permission: Permission,
-    ): Method<{ kind: "custom"; permission: Permission; mutates: true }>;
+    ) => Method<{ kind: "custom"; permission: Permission; mutates: true }>;
     /** Declare the method resuming a suspended scope object. */
-    resume<const Permission extends string>(
+    readonly resume: <const Permission extends string>(
         permission: Permission,
-    ): Method<{ kind: "custom"; permission: Permission; mutates: true }>;
+    ) => Method<{ kind: "custom"; permission: Permission; mutates: true }>;
+    /** Declare the method suspending or resuming a scope object on the server. */
+    readonly change: <const Permission extends string>(
+        permission: Permission,
+        action: "suspend" | "resume",
+        inverse: "suspend" | "resume",
+    ) => Method<{ kind: "custom"; permission: Permission; mutates: true }>;
 } = {
     key: "suspendable",
     storages: ["durable"],
@@ -33,9 +40,19 @@ export const suspendable: Trait<Gated> & {
     validate: (_options, object, definition) => {
         // require a scope type
         if (definition.isScope !== true) {
-            throw new TypeError(`object ${object.name} is suspendable but no scope`);
+            throw new TypeError(`object ${object.name} is suspendable but not a scope`);
         }
     },
-    suspend: (permission) => change(permission, "suspend", "resume"),
-    resume: (permission) => change(permission, "resume", "suspend"),
+    suspend: (permission) => suspendable.change(permission, "suspend", "resume"),
+    resume: (permission) => suspendable.change(permission, "resume", "suspend"),
+    change(permission, action, inverse) {
+        return Execution.handle(
+            method.mutation({ permission, inverse, isPredicted: false }),
+            async (call, execution) => {
+                await Execution.store(execution, call).authorization[action](call.reference());
+
+                return call.target;
+            },
+        );
+    },
 };

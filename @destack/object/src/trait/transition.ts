@@ -1,16 +1,20 @@
+import { Table } from "@destack/db";
 import { schema } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
+import { Step } from "../method/step.ts";
+import { Casing } from "../object/name.ts";
 import type { StateField, StateMachine } from "../field/field.ts";
-import { type Method } from "../method/method.ts";
+import { defineMethod, type Method } from "../method/method.ts";
 import {
     type Procedure,
     type ReplayShape,
+    type RequiredShape,
     type RowSchema,
     type TargetShape,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
-import { transitionMethod } from "../method/transition.ts";
 /** The state fields of an object and the machines they follow, by field name. */
 export type StateFields = readonly (readonly [string, StateMachine])[];
 
@@ -21,17 +25,41 @@ type TransitionName<Fields> = {
         : never;
 }[keyof Fields];
 
+/** The transition of an object's state fields under a name. */
+type TransitionOf<Fields, Name> = {
+    [Property in keyof Fields]: Fields[Property] extends StateField<infer Machine>
+        ? Name extends keyof Machine["transitions"]
+            ? Machine["transitions"][Name]
+            : never
+        : never;
+}[keyof Fields];
+
+/** The fields a transition writes beside its state. */
+type TransitionFields<Transition> = Transition extends {
+    readonly fields: readonly (infer Field extends string)[];
+}
+    ? Field
+    : never;
+
 /** The methods the transitions of an object's state fields derive. */
 export type TransitionMethodMap<Fields> = {
     readonly [Name in TransitionName<Fields>]: Method<{
         kind: "transition";
         permission: string;
         mutates: true;
+        fields: TransitionFields<TransitionOf<Fields, Name>>;
     }>;
 };
 
 /** Transitions of state fields. */
-export const transitions: Trait<StateFields> = {
+export const transitions: Trait<StateFields> & {
+    /** Change one state field through one transition. */
+    readonly method: (
+        field: string,
+        name: string,
+        transition: StateMachine["transitions"][string],
+    ) => Method;
+} = {
     options: (definition) => {
         // collect the fields following a machine
         const fields = Object.entries(definition.fields ?? {}).flatMap(([name, declared]) =>
@@ -52,18 +80,84 @@ export const transitions: Trait<StateFields> = {
                         `transition ${name} is declared by more than one state field`,
                     );
                 }
-                methods[name] = transitionMethod(field, name, transition);
+                methods[name] = transitions.method(field, name, transition);
             }
         }
 
         return methods;
     },
+    method(field: string, name: string, transition: StateMachine["transitions"][string]): Method {
+        return defineMethod<{ kind: "transition" }>({
+            kind: "transition",
+            permission: transition.permission,
+            mutates: true,
+            ...(transition.fields === undefined ? {} : { fields: transition.fields }),
+            transition: { field, from: transition.from, to: transition.to },
+            inverse: (step) => {
+                // find the transition leading back
+                const left = step.before?.[field];
+                const back = Object.entries(step.object.methods).find(
+                    ([, declared]) =>
+                        declared.transition?.field === field &&
+                        declared.transition.to === left &&
+                        declared.transition.from.includes(transition.to),
+                );
+
+                return back === undefined
+                    ? undefined
+                    : [Step.record(step, back[0], Step.target(step))];
+            },
+            target: "object",
+            result: "object",
+            procedure: (method, shapes) => ({
+                route: { method: "POST", path: `/{id}/${Casing.kebab(method)}` },
+                input: shapes.target.extend({
+                    ...shapes.replay,
+                    ...(transition.fields === undefined ? {} : shapes.required(transition.fields)),
+                }),
+                output: shapes.row,
+            }),
+            handler: (given) => {
+                // write the state with the fields the transition records
+                const call = given;
+                const written = Object.fromEntries(
+                    (transition.fields ?? []).flatMap((recorded) => {
+                        const value = call.input[recorded];
+
+                        return value === undefined ? [] : [[recorded, value]];
+                    }),
+                );
+
+                return call.update(
+                    Table.values(call.object.table, {
+                        ...Table.decode(call.object.table, written),
+                        [field]: transition.to,
+                    }),
+                );
+            },
+            async execute(call, execution) {
+                // refuse transitions from any other state
+                const state = schema.string().parse(call.requireTarget()[field]);
+                if (!transition.from.includes(state)) {
+                    throw new CallError("CONFLICT", {
+                        message: `${call.object.name} cannot ${name} while ${field} is ${state}`,
+                    });
+                }
+
+                return this.handler(call, execution);
+            },
+        });
+    },
 };
 
-/** The procedures transitions derive. */
-export type TransitionProcedures<Object extends ObjectType> = {
+/** The procedures transitions derive, taking the fields a transition records. */
+export type TransitionProcedures<Object extends ObjectType, Declared extends Method = Method> = {
     transition: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object>>,
+        schema.Object<
+            TargetShape<Object> &
+                ReplayShape<Object> &
+                RequiredShape<Object, NonNullable<Declared["fields"]>[number] & string>
+        >,
         RowSchema<Object>
     >;
 };

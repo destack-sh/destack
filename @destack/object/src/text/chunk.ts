@@ -1,16 +1,16 @@
 import { included, type ObjectReference, type Item, type Query } from "@destack/sync";
 import { through } from "@destack/access";
-import { TABLE, type Transaction, type Snapshot } from "@destack/db";
+import { type Transaction, type Snapshot, Table } from "@destack/db";
 import { schema, canonicalize, Identifier, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { FractionalIndex } from "../field/fractional-index.ts";
-import { ObjectReader } from "../method/reader.ts";
 import type { Call } from "../method/call.ts";
 import { method } from "../method/record.ts";
 import { ObjectType, type ObjectSource } from "../object/object.ts";
 import { INTRINSIC } from "../object/intrinsic.ts";
 import { Run, Sequence, SequenceEdit, type Element } from "../sequence/index.ts";
 import { chunk, chunkRun } from "./table.ts";
+import { Execution } from "../method/execution.ts";
 
 /** The most characters per chunk: a keystroke syncs one ~1 KiB row, 1 MB is ~2,000 rows. */
 export const CHUNK_CHARACTERS = 512;
@@ -20,12 +20,6 @@ const LAST_SPACE = /\s(?=\S*$)/u;
 
 /** The characters left in each chunk after a split: three quarters, with room to type. */
 const FILL_CHARACTERS = (CHUNK_CHARACTERS * 3) / 4;
-
-/** The rows presented before, by the read row, which a dataflow keeps while it is unchanged. */
-const PRESENTED_ROWS = new WeakMap<object, Item>();
-
-/** The lists presented before, by read list, which a dataflow keeps while rows are unchanged. */
-const PRESENTED_LISTS = new WeakMap<object, readonly Item[]>();
 
 /** The owner permission whose holders read its text. */
 export const TEXT_READ = "text";
@@ -55,6 +49,12 @@ const INCLUDED_CHUNKS = schema.array(INCLUDED_CHUNK);
 /** The columns identifying one text field of one owner. */
 type Parent = Pick<Chunk, "scope" | "parentPackageId" | "parentType" | "parentId" | "field">;
 
+/** Whether a text field has every element a query asks about. */
+export const Containment = schema.object({
+    /** Whether the field has every element. */
+    isContained: schema.boolean(),
+});
+
 /** The result of an edit: the edits undoing it. */
 export const Undo = schema.object({
     /** The edits undoing the edit, in order. */
@@ -75,7 +75,7 @@ export const Chunk = {
                 owner.scopes.every((scope, index) => scope.same(first.scopes[index])),
         );
         if (!isOneScope) {
-            throw new TypeError("objects with text live in one kind of scope per database");
+            throw new TypeError("objects with text must live in one kind of scope per database");
         }
 
         // declare chunks read through their owner, kept in the chunk table text owns
@@ -119,7 +119,7 @@ export const Chunk = {
 
     /** Report whether an owner's text field contains every element. */
     async contains(
-        view: Transaction | Snapshot,
+        view: Pick<Snapshot, "read">,
         owner: ObjectReference,
         field: string,
         elements: readonly Element[],
@@ -131,9 +131,11 @@ export const Chunk = {
             parentId: owner.id,
             field,
         };
-        const runs = await new ObjectReader(chunkRun, view).rows({
-            ...parent,
-            run: { in: elements.map((element) => element.run) },
+        const runs = await view.read(chunkRun).findMany({
+            where: {
+                ...parent,
+                run: { in: elements.map((element) => element.run) },
+            },
         });
 
         return elements.every((element) =>
@@ -157,12 +159,17 @@ export const Chunk = {
         const rows =
             ids.length === 0
                 ? []
-                : await transaction.images(chunk, {
-                      scope,
-                      parentPackageId: owner.policy.definition.packageId,
-                      parentType: owner.name,
-                      parentId: { in: [...ids] },
-                  });
+                : await transaction
+                      .view()
+                      .read(chunk)
+                      .findMany({
+                          where: {
+                              scope,
+                              parentPackageId: owner.policy.definition.packageId,
+                              parentType: owner.name,
+                              parentId: { in: [...ids] },
+                          },
+                      });
 
         return new Map(
             ids.map((id) => [
@@ -189,35 +196,16 @@ export const Chunk = {
             owner.text.map((field) => [
                 field,
                 new Sequence(
-                    ordered(rows.filter((row) => row.field === field)).flatMap((row) => row.runs),
+                    ChunkLayout.ordered(rows.filter((row) => row.field === field)).flatMap(
+                        (row) => row.runs,
+                    ),
                 ).text(),
             ]),
         );
     },
 
-    /** Replace each row's chunks by its texts, reusing presented rows and lists if unchanged. */
-    present(rows: readonly Item[], query: Query, objects: readonly ObjectType[]): readonly Item[] {
-        // take a list presented before
-        const known = PRESENTED_LISTS.get(rows);
-        if (known !== undefined) {
-            return known;
-        }
-
-        // present each row once
-        const owner = objects.find((object) => object.table === query.table);
-        const listed = rows.map((row) => {
-            const presented = PRESENTED_ROWS.get(row) ?? presentRow(row, query, objects, owner);
-            PRESENTED_ROWS.set(row, presented);
-
-            return presented;
-        });
-        PRESENTED_LISTS.set(rows, listed);
-
-        return listed;
-    },
-
     /** Apply a call's edits to one text field, writing the changed chunks. */
-    async edit(call: Call): Promise<Undo> {
+    async edit(call: Call, execution: Execution): Promise<Undo> {
         // read the chunks the edits touch
         const { field, edits } = EDIT_INPUT.parse(call.input);
         const owner = call.object;
@@ -228,20 +216,89 @@ export const Chunk = {
             parentId: present(call.id, `the edited ${owner.name}'s identifier`),
             field,
         };
-        const rows = call.isPredicted
-            ? await read(call, parent, undefined)
-            : await touched(call, parent, edits);
+        const rows =
+            execution.kind === "client"
+                ? await ChunkLayout.read(call, parent, undefined)
+                : await ChunkLayout.touched(call, parent, edits);
 
         // apply each edit, inverting it against the text before
-        const { sequence, inverse } = applyEdits(rows, edits, field);
+        const { sequence, inverse } = ChunkLayout.applyEdits(rows, edits, field);
 
         // cut the runs back into the chunks and write and index them
-        const chunks = await recut(call, parent, rows, sequence.runs);
-        await writeChunks(call, chunks);
+        const chunks = await ChunkLayout.recut(call, parent, rows, sequence.runs);
+        await ChunkLayout.writeChunks(call, execution, chunks);
 
         return { inverse };
     },
 };
+
+/** Rows with their chunks replaced by texts, each row and list presented once while unchanged. */
+export class TextPresenter {
+    /** The presented rows, by the read row they present. */
+    readonly #rows: WeakMap<object, Item>;
+    /** The presented lists, by the read list they present. */
+    readonly #lists: WeakMap<object, readonly Item[]>;
+
+    /** Present nothing yet. */
+    constructor() {
+        this.#rows = new WeakMap();
+        this.#lists = new WeakMap();
+    }
+
+    /** Replace each row's chunks by its texts, reusing presented rows and lists if unchanged. */
+    present(rows: readonly Item[], query: Query, objects: readonly ObjectType[]): readonly Item[] {
+        // take a list presented before
+        const known = this.#lists.get(rows);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // present each row once
+        const owner = objects.find((object) => object.table === query.table);
+        const listed = rows.map((row) => {
+            const presented = this.#rows.get(row) ?? this.#row(row, query, objects, owner);
+            this.#rows.set(row, presented);
+
+            return presented;
+        });
+        this.#lists.set(rows, listed);
+
+        return listed;
+    }
+
+    /** Present one item's includes and texts. */
+    #row(
+        item: Item,
+        query: Query,
+        objects: readonly ObjectType[],
+        owner: ObjectType | undefined,
+    ): Item {
+        // present each include's items, leaving out the chunks
+        const presented = Object.fromEntries(
+            Object.entries(item.with).flatMap(([name, items]) =>
+                name === CHUNKS
+                    ? []
+                    : [[name, this.present(items, included(query, name).query, objects)]],
+            ),
+        );
+
+        // assemble a text owner's texts from the chunks its query includes
+        const row =
+            owner === undefined || owner.text.length === 0
+                ? item.row
+                : {
+                      ...item.row,
+                      ...Chunk.text(
+                          owner,
+                          present(item.with[CHUNKS], `the chunks of ${owner.name}`).map((entry) =>
+                              INCLUDED_CHUNK.parse(entry.row),
+                          ),
+                      ),
+                  };
+
+        return { row, with: presented, measures: item.measures };
+    }
+}
 
 /** The chunks an edit changes and creates, with the changed ones whose run ranges moved. */
 interface ChunkChange {
@@ -253,454 +310,449 @@ interface ChunkChange {
     readonly created: Chunk[];
 }
 
-/** Read a text field's chunks in position order, within positions when given. */
-async function read(
-    call: Call,
-    parent: Parent,
-    within: { readonly from: string; readonly to: string } | undefined,
-): Promise<Chunk[]> {
-    const rows = await call.read(chunk).rows({
-        ...parent,
-        ...(within === undefined ? {} : { position: { gte: within.from, lte: within.to } }),
-    });
-
-    return ordered(rows);
-}
-
-/** Read the contiguous chunks containing the elements some edits refer to. */
-async function touched(
-    call: Call,
-    parent: Parent,
-    edits: readonly SequenceEdit[],
-): Promise<Chunk[]> {
-    // find the chunks containing the referenced elements and any run the edits insert
-    const { named, inserted, isAtStart } = editedElements(edits);
-    const found =
-        named.length === 0 && inserted.size === 0
-            ? []
-            : await containing(call, parent, named, inserted);
-    requireContained(found, named, inserted, parent.field);
-
-    // add the field's first chunk for an insertion at the start
-    const positions = found.map((entry) => entry.position);
-    if (isAtStart) {
-        positions.push(...(await firstPosition(call, parent)));
-    }
-
-    // read the range from the first touched chunk to the last
-    const sorted = positions.toSorted();
-    const [from] = sorted;
-    const to = sorted.at(-1);
-
-    return from === undefined || to === undefined ? [] : read(call, parent, { from, to });
-}
-
-/** Collect the elements some edits refer to, without inserted runs, and any start insertion. */
-function editedElements(edits: readonly SequenceEdit[]): {
-    readonly named: Element[];
-    readonly inserted: Set<string>;
-    readonly isAtStart: boolean;
-} {
-    // walk the edits in order
-    const inserted = new Set<string>();
-    const named: Element[] = [];
-    let isAtStart = false;
-    for (const edit of edits) {
-        // collect the elements of runs inserted before
-        const elements = namedElements(edit);
-        named.push(...elements.filter((element) => !inserted.has(element.run)));
-
-        // remember the inserted run
-        if ("insert" in edit) {
-            isAtStart ||= edit.after === undefined;
-            inserted.add(edit.run);
-        }
-    }
-
-    return { named, inserted, isAtStart };
-}
-
-/** Read the indexed runs containing some elements, and any run of some inserted ones. */
-async function containing(
-    call: Call,
-    parent: Parent,
-    named: readonly Element[],
-    inserted: ReadonlySet<string>,
-) {
-    // read the runs containing the named elements and the inserted runs
-    const runs = await call.read(chunkRun).rows({
-        ...parent,
-        OR: [
-            ...named.map((element) => ({
-                run: element.run,
-                start: { lte: element.offset },
-                end: { gt: element.offset },
-            })),
-            ...(inserted.size === 0 ? [] : [{ run: { in: [...inserted] } }]),
-        ],
-    });
-
-    // place each run at its chunk's position
-    const chunks = await call.read(chunk).rows({ id: { in: runs.map((entry) => entry.chunk) } });
-    const positions = new Map(chunks.map((row) => [row.id, row.position]));
-
-    return runs.map((entry) => ({
-        run: entry.run,
-        start: entry.start,
-        end: entry.end,
-        position: present(positions.get(entry.chunk), `the chunk of run ${entry.run}`),
-    }));
-}
-
-/** Refuse a run the text already contains and an element no chunk contains. */
-function requireContained(
-    found: readonly { readonly run: string; readonly start: number; readonly end: number }[],
-    named: readonly Element[],
-    inserted: ReadonlySet<string>,
-    field: string,
-): void {
-    // refuse a run the text already contains
-    const duplicate = found.find((entry) => inserted.has(entry.run));
-    if (duplicate !== undefined) {
-        throw new CallError("BAD_REQUEST", {
-            message: `${field} already holds run ${duplicate.run}`,
-        });
-    }
-
-    // refuse an element no chunk contains
-    const missing = named.find(
-        (element) =>
-            !found.some(
-                (entry) =>
-                    entry.run === element.run &&
-                    entry.start <= element.offset &&
-                    element.offset < entry.end,
-            ),
-    );
-    if (missing !== undefined) {
-        throw new CallError("BAD_REQUEST", {
-            message: `no chunk holds element ${missing.run}:${missing.offset}`,
-        });
-    }
-}
-
-/** Read the position of a text field's first chunk, none for an empty field. */
-async function firstPosition(call: Call, parent: Parent): Promise<string[]> {
-    const [first] = await call
-        .read(chunk)
-        .rows({ ...parent }, { orderBy: { position: "asc" }, limit: 1 });
-
-    return first === undefined ? [] : [first.position];
-}
-
-/** Apply edits to a text's runs, collecting the edits inverting them in reverse order. */
-function applyEdits(
-    rows: readonly Chunk[],
-    edits: readonly SequenceEdit[],
-    field: string,
-): { readonly sequence: Sequence; readonly inverse: SequenceEdit[] } {
-    // start from the text before
-    let sequence = new Sequence(rows.flatMap((row) => row.runs));
-    const inverses: SequenceEdit[][] = [];
-    for (const edit of edits) {
-        // refuse inserting a run the text holds
-        if ("insert" in edit && sequence.runs.some((piece) => piece.run === edit.run)) {
-            throw new CallError("BAD_REQUEST", {
-                message: `${field} already holds run ${edit.run}`,
-            });
-        }
-
-        // apply the edit after inverting it against the text before
-        try {
-            inverses.unshift(Sequence.inverse(edit, sequence));
-            sequence = sequence.apply(edit);
-        } catch (error) {
-            if (error instanceof RangeError) {
-                throw new CallError("BAD_REQUEST", { message: error.message });
-            }
-            throw error;
-        }
-    }
-
-    return { sequence, inverse: inverses.flat() };
-}
-
-/** Cut edited runs back into a field's chunks, splitting full ones into new chunks between them. */
-async function recut(
-    call: Call,
-    parent: Parent,
-    rows: readonly Chunk[],
-    edited: readonly Run[],
-): Promise<ChunkChange> {
-    // cut at the boundaries of the chunks after the first
-    const parts = cut(edited, rows.slice(1).map(start));
-    const chunks: ChunkChange = { changed: [], reranged: [], created: [] };
-    for (const [index, part] of parts.entries()) {
-        // keep a changed chunk's first group, noting one whose ranges the server reindexes
-        const current = rows[index];
-        const [first, ...rest] = fill(part);
-        if (current !== undefined && canonicalize(first) !== canonicalize(current.runs)) {
-            const row = { ...current, runs: first, text: new Sequence(first).text() };
-            chunks.changed.push(row);
-            if (
-                !call.isPredicted &&
-                canonicalize(ranges(first)) !== canonicalize(ranges(current.runs))
-            ) {
-                chunks.reranged.push(row);
-            }
-        }
-
-        // place new chunks between this one and the next
-        const groups = current === undefined ? [first, ...rest] : rest;
-        let before = current?.position;
-        const isLast = index + 1 >= rows.length && !call.isPredicted;
-        let after: string | undefined;
-        if (groups.length > 0) {
-            after = isLast
-                ? await next(call, parent, current?.position)
-                : rows[index + 1]?.position;
-        }
-        for (const runs of groups) {
-            before = FractionalIndex.between(before, after);
-            chunks.created.push({
+/** The layout of a text in chunks: cutting, filling, recutting and reindexing them. */
+const ChunkLayout = {
+    /** Read a text field's chunks in position order, within positions when given. */
+    async read(
+        call: Call,
+        parent: Parent,
+        within: { readonly from: string; readonly to: string } | undefined,
+    ): Promise<Chunk[]> {
+        const rows = await call.read(chunk).findMany({
+            where: {
                 ...parent,
-                id: Identifier.create("chunk"),
-                position: before,
-                runs,
-                text: new Sequence(runs).text(),
+                ...(within === undefined ? {} : { position: { gte: within.from, lte: within.to } }),
+            },
+        });
+
+        return ChunkLayout.ordered(rows);
+    },
+
+    /** Read the contiguous chunks containing the elements some edits refer to. */
+    async touched(call: Call, parent: Parent, edits: readonly SequenceEdit[]): Promise<Chunk[]> {
+        // find the chunks containing the referenced elements and any run the edits insert
+        const { named, inserted, isAtStart } = ChunkLayout.editedElements(edits);
+        const found =
+            named.length === 0 && inserted.size === 0
+                ? []
+                : await ChunkLayout.containing(call, parent, named, inserted);
+        ChunkLayout.requireContained(found, named, inserted, parent.field);
+
+        // add the field's first chunk for an insertion at the start
+        const positions = found.map((entry) => entry.position);
+        if (isAtStart) {
+            positions.push(...(await ChunkLayout.firstPosition(call, parent)));
+        }
+
+        // read the range from the first touched chunk to the last
+        const sorted = positions.toSorted();
+        const [from] = sorted;
+        const to = sorted.at(-1);
+
+        return from === undefined || to === undefined
+            ? []
+            : ChunkLayout.read(call, parent, { from, to });
+    },
+
+    /** Collect the elements some edits refer to, without inserted runs, and any start insertion. */
+    editedElements(edits: readonly SequenceEdit[]): {
+        readonly named: Element[];
+        readonly inserted: Set<string>;
+        readonly isAtStart: boolean;
+    } {
+        // walk the edits in order
+        const inserted = new Set<string>();
+        const named: Element[] = [];
+        let isAtStart = false;
+        for (const edit of edits) {
+            // collect the elements of runs inserted before
+            const elements = ChunkLayout.namedElements(edit);
+            named.push(...elements.filter((element) => !inserted.has(element.run)));
+
+            // remember the inserted run
+            if ("insert" in edit) {
+                isAtStart ||= edit.after === undefined;
+                inserted.add(edit.run);
+            }
+        }
+
+        return { named, inserted, isAtStart };
+    },
+
+    /** Read the indexed runs containing some elements, and any run of some inserted ones. */
+    async containing(
+        call: Call,
+        parent: Parent,
+        named: readonly Element[],
+        inserted: ReadonlySet<string>,
+    ) {
+        // read the runs containing the named elements and the inserted runs
+        const runs = await call.read(chunkRun).findMany({
+            where: {
+                ...parent,
+                OR: [
+                    ...named.map((element) => ({
+                        run: element.run,
+                        start: { lte: element.offset },
+                        end: { gt: element.offset },
+                    })),
+                    ...(inserted.size === 0 ? [] : [{ run: { in: [...inserted] } }]),
+                ],
+            },
+        });
+
+        // place each run at its chunk's position
+        const chunks = await call
+            .read(chunk)
+            .findMany({ where: { id: { in: runs.map((entry) => entry.chunk) } } });
+        const positions = new Map(chunks.map((row) => [row.id, row.position]));
+
+        return runs.map((entry) => ({
+            run: entry.run,
+            start: entry.start,
+            end: entry.end,
+            position: present(positions.get(entry.chunk), `the chunk of run ${entry.run}`),
+        }));
+    },
+
+    /** Refuse a run the text already contains and an element no chunk contains. */
+    requireContained(
+        found: readonly { readonly run: string; readonly start: number; readonly end: number }[],
+        named: readonly Element[],
+        inserted: ReadonlySet<string>,
+        field: string,
+    ): void {
+        // refuse a run the text already contains
+        const duplicate = found.find((entry) => inserted.has(entry.run));
+        if (duplicate !== undefined) {
+            throw new CallError("BAD_REQUEST", {
+                message: `${field} already has run ${duplicate.run}`,
             });
         }
-    }
 
-    return chunks;
-}
+        // refuse an element no chunk contains
+        const missing = named.find(
+            (element) =>
+                !found.some(
+                    (entry) =>
+                        entry.run === element.run &&
+                        entry.start <= element.offset &&
+                        element.offset < entry.end,
+                ),
+        );
+        if (missing !== undefined) {
+            throw new CallError("BAD_REQUEST", {
+                message: `no chunk has element ${missing.run}:${missing.offset}`,
+            });
+        }
+    },
 
-/** Write the changed and new chunks, and index their runs on the server. */
-async function writeChunks(call: Call, chunks: ChunkChange): Promise<void> {
-    // read the changed chunks at once
-    const changed = chunks.changed.map((row) => row.id);
-    const before = new Map(
-        (changed.length === 0 ? [] : await call.read(chunk).rows({ id: { in: changed } })).map(
-            (row) => [row.id, row],
-        ),
-    );
+    /** Read the position of a text field's first chunk, none for an empty field. */
+    async firstPosition(call: Call, parent: Parent): Promise<string[]> {
+        const [first] = await call
+            .read(chunk)
+            .findMany({ where: { ...parent }, orderBy: { position: "asc" }, limit: 1 });
 
-    // write the changed and new chunks together
-    await call.write(
-        ...chunks.changed.map((row) => {
-            const current = present(before.get(row.id), `the chunk ${row.id}`);
+        return first === undefined ? [] : [first.position];
+    },
 
-            return { table: chunk, before: current, after: { ...current, ...row } };
-        }),
-        ...chunks.created.map((row) => ({
-            table: chunk,
-            before: null,
-            after: chunk[TABLE].complete(row),
-        })),
-    );
+    /** Apply edits to a text's runs, collecting the edits inverting them in reverse order. */
+    applyEdits(
+        rows: readonly Chunk[],
+        edits: readonly SequenceEdit[],
+        field: string,
+    ): { readonly sequence: Sequence; readonly inverse: SequenceEdit[] } {
+        // start from the text before
+        let sequence = new Sequence(rows.flatMap((row) => row.runs));
+        const inverses: SequenceEdit[][] = [];
+        for (const edit of edits) {
+            // refuse inserting a run the text already has
+            if ("insert" in edit && sequence.runs.some((piece) => piece.run === edit.run)) {
+                throw new CallError("BAD_REQUEST", {
+                    message: `${field} already has run ${edit.run}`,
+                });
+            }
 
-    // index the runs of changed and new chunks on the server
-    if (!call.isPredicted) {
-        await reindex(call, [...chunks.reranged, ...chunks.created]);
-    }
-}
+            // apply the edit after inverting it against the text before
+            try {
+                inverses.unshift(Sequence.inverse(edit, sequence));
+                sequence = sequence.apply(edit);
+            } catch (error) {
+                if (error instanceof RangeError) {
+                    throw new CallError("BAD_REQUEST", { message: error.message });
+                }
+                throw error;
+            }
+        }
 
-/** Read the position of the chunk after one, absent after the last. */
-async function next(
-    call: Call,
-    parent: Parent,
-    position: string | undefined,
-): Promise<string | undefined> {
-    // take the first chunk after the position
-    if (position === undefined) {
-        return undefined;
-    }
-    const [after] = await call
-        .read(chunk)
-        .rows(
-            { ...parent, position: { gt: position } },
-            { orderBy: { position: "asc" }, limit: 1 },
+        return { sequence, inverse: inverses.flat() };
+    },
+
+    /** Cut edited runs back into a field's chunks, splitting full ones into new chunks. */
+    async recut(
+        call: Call,
+        parent: Parent,
+        rows: readonly Chunk[],
+        edited: readonly Run[],
+    ): Promise<ChunkChange> {
+        // cut at the boundaries of the chunks after the first
+        const parts = ChunkLayout.cut(
+            edited,
+            rows.slice(1).map((row) => ChunkLayout.start(row)),
+        );
+        const chunks: ChunkChange = { changed: [], reranged: [], created: [] };
+        for (const [index, part] of parts.entries()) {
+            // keep a changed chunk's first group, noting one whose ranges the server reindexes
+            const current = rows[index];
+            const [first, ...rest] = ChunkLayout.fill(part);
+            if (current !== undefined && canonicalize(first) !== canonicalize(current.runs)) {
+                const row = { ...current, runs: first, text: new Sequence(first).text() };
+                chunks.changed.push(row);
+                if (
+                    !call.isPredicted &&
+                    canonicalize(ChunkLayout.ranges(first)) !==
+                        canonicalize(ChunkLayout.ranges(current.runs))
+                ) {
+                    chunks.reranged.push(row);
+                }
+            }
+
+            // place new chunks between this one and the next
+            const groups = current === undefined ? [first, ...rest] : rest;
+            let before = current?.position;
+            const isLast = index + 1 >= rows.length && !call.isPredicted;
+            let after: string | undefined;
+            if (groups.length > 0) {
+                after = isLast
+                    ? await ChunkLayout.next(call, parent, current?.position)
+                    : rows[index + 1]?.position;
+            }
+            for (const runs of groups) {
+                before = FractionalIndex.between(before, after);
+                chunks.created.push({
+                    ...parent,
+                    id: Identifier.create("chunk"),
+                    position: before,
+                    runs,
+                    text: new Sequence(runs).text(),
+                });
+            }
+        }
+
+        return chunks;
+    },
+
+    /** Write the changed and new chunks, and index their runs on the server. */
+    async writeChunks(call: Call, execution: Execution, chunks: ChunkChange): Promise<void> {
+        // read the changed chunks at once
+        const changed = chunks.changed.map((row) => row.id);
+        const before = new Map(
+            (changed.length === 0
+                ? []
+                : await call.read(chunk).findMany({ where: { id: { in: changed } } })
+            ).map((row) => [row.id, row]),
         );
 
-    return after?.position;
-}
+        // write the changed and new chunks together
+        await Execution.write(
+            execution,
+            call,
+            ...chunks.changed.map((row) => {
+                const current = present(before.get(row.id), `the chunk ${row.id}`);
 
-/** Replace the index rows of some chunks with their runs' ranges. */
-async function reindex(call: Call, rows: readonly Chunk[]): Promise<void> {
-    // read the chunks' old ranges
-    if (rows.length === 0) {
-        return;
-    }
-    const old = await call.read(chunkRun).rows({ chunk: { in: rows.map((row) => row.id) } });
-
-    // replace them with their current ranges together
-    await call.write(
-        ...old.map((range) => ({ table: chunkRun, before: range, after: null })),
-        ...rows.flatMap((row) =>
-            ranges(row.runs).map((range) => ({
-                table: chunkRun,
+                return { table: chunk, before: current, after: { ...current, ...row } };
+            }),
+            ...chunks.created.map((row) => ({
+                table: chunk,
                 before: null,
-                after: chunkRun[TABLE].complete({
-                    chunk: row.id,
-                    scope: row.scope,
-                    parentPackageId: row.parentPackageId,
-                    parentType: row.parentType,
-                    parentId: row.parentId,
-                    field: row.field,
-                    ...range,
-                }),
+                after: Table.complete(chunk, row),
             })),
-        ),
-    );
-}
+        );
 
-/** List the element ranges of runs, merging continued pieces of one run. */
-function ranges(runs: readonly Run[]): { run: string; start: number; end: number }[] {
-    const merged: { run: string; start: number; end: number }[] = [];
-    for (const piece of runs) {
-        // extend the previous range when the piece continues it
-        const previous = merged.at(-1);
-        const end = piece.start + Sequence.length(piece);
-        if (previous !== undefined && previous.run === piece.run && previous.end === piece.start) {
-            previous.end = end;
-        } else {
-            merged.push({ run: piece.run, start: piece.start, end });
+        // index the runs of changed and new chunks on the server
+        if (execution.kind === "store") {
+            await ChunkLayout.reindex(call, execution, [...chunks.reranged, ...chunks.created]);
         }
-    }
+    },
 
-    return merged;
-}
+    /** Read the position of the chunk after one, absent after the last. */
+    async next(
+        call: Call,
+        parent: Parent,
+        position: string | undefined,
+    ): Promise<string | undefined> {
+        // take the first chunk after the position
+        if (position === undefined) {
+            return undefined;
+        }
+        const [after] = await call.read(chunk).findMany({
+            where: { ...parent, position: { gt: position } },
+            orderBy: { position: "asc" },
+            limit: 1,
+        });
 
-/** Order chunks by position, as binary collations sort them. */
-function ordered<Row extends Pick<Chunk, "position">>(rows: readonly Row[]): Row[] {
-    return rows.toSorted((left, right) => (left.position < right.position ? -1 : 1));
-}
+        return after?.position;
+    },
 
-/** Split runs into sections starting at each boundary element. */
-function cut(runs: readonly Run[], boundaries: readonly Element[]): Run[][] {
-    // walk the pieces toward the next boundary
-    let part: Run[] = [];
-    const parts = [part];
-    let reached = 0;
-    for (let piece of runs) {
-        // start a section at each boundary in the piece
-        for (
-            let boundary = boundaries[reached];
-            boundary !== undefined && contains(piece, boundary);
-            boundary = boundaries[reached]
-        ) {
-            const [head, tail] = Sequence.split(piece, boundary.offset - piece.start);
-            if (tail !== undefined) {
-                part.push(head);
-                piece = tail;
+    /** Replace the index rows of some chunks with their runs' ranges. */
+    async reindex(call: Call, execution: Execution, rows: readonly Chunk[]): Promise<void> {
+        // read the chunks' old ranges
+        if (rows.length === 0) {
+            return;
+        }
+        const old = await call
+            .read(chunkRun)
+            .findMany({ where: { chunk: { in: rows.map((row) => row.id) } } });
+
+        // replace them with their current ranges together
+        await Execution.write(
+            execution,
+            call,
+            ...old.map((range) => ({ table: chunkRun, before: range, after: null })),
+            ...rows.flatMap((row) =>
+                ChunkLayout.ranges(row.runs).map((range) => ({
+                    table: chunkRun,
+                    before: null,
+                    after: Table.complete(chunkRun, {
+                        chunk: row.id,
+                        scope: row.scope,
+                        parentPackageId: row.parentPackageId,
+                        parentType: row.parentType,
+                        parentId: row.parentId,
+                        field: row.field,
+                        ...range,
+                    }),
+                })),
+            ),
+        );
+    },
+
+    /** List the element ranges of runs, merging continued pieces of one run. */
+    ranges(runs: readonly Run[]): { run: string; start: number; end: number }[] {
+        const merged: { run: string; start: number; end: number }[] = [];
+        for (const piece of runs) {
+            // extend the previous range when the piece continues it
+            const previous = merged.at(-1);
+            const end = piece.start + Sequence.length(piece);
+            if (
+                previous !== undefined &&
+                previous.run === piece.run &&
+                previous.end === piece.start
+            ) {
+                previous.end = end;
+            } else {
+                merged.push({ run: piece.run, start: piece.start, end });
             }
-            part = [];
-            parts.push(part);
-            reached += 1;
         }
-        part.push(piece);
-    }
 
-    return parts;
-}
+        return merged;
+    },
 
-/** Split a section's runs into even groups of at most a chunk's characters. */
-function fill(runs: readonly Run[]): [Run[], ...Run[][]] {
-    // keep a text that fits one chunk whole, and split a longer one evenly into partly full chunks
-    const total = runs.reduce((sum, piece) => sum + characters(piece), 0);
-    const count = total <= CHUNK_CHARACTERS ? 1 : Math.ceil(total / FILL_CHARACTERS);
-    const capacity = Math.ceil(total / count);
+    /** Order chunks by position, as binary collations sort them. */
+    ordered<Row extends Pick<Chunk, "position">>(rows: readonly Row[]): Row[] {
+        return rows.toSorted((left, right) => (left.position < right.position ? -1 : 1));
+    },
 
-    // fill each group, splitting a piece at a group's end
-    let group: Run[] = [];
-    const groups: [Run[], ...Run[][]] = [group];
-    let filled = 0;
-    for (let piece of runs) {
-        while (characters(piece) > capacity - filled) {
-            const room = wordEnd(piece, capacity - filled);
-            if (room > 0) {
-                const [head, tail] = Sequence.split(piece, room);
-                group.push(head);
-                piece = present(tail, "the tail of a piece split before its end");
+    /** Split runs into sections starting at each boundary element. */
+    cut(runs: readonly Run[], boundaries: readonly Element[]): Run[][] {
+        // walk the pieces toward the next boundary
+        let part: Run[] = [];
+        const parts = [part];
+        let reached = 0;
+        for (let piece of runs) {
+            // start a section at each boundary in the piece
+            for (
+                let boundary = boundaries[reached];
+                boundary !== undefined && ChunkLayout.contains(piece, boundary);
+                boundary = boundaries[reached]
+            ) {
+                const [head, tail] = Sequence.split(piece, boundary.offset - piece.start);
+                if (tail !== undefined) {
+                    part.push(head);
+                    piece = tail;
+                }
+                part = [];
+                parts.push(part);
+                reached += 1;
             }
-            group = [];
-            groups.push(group);
-            filled = 0;
+            part.push(piece);
         }
-        group.push(piece);
-        filled += characters(piece);
-    }
 
-    return groups;
-}
+        return parts;
+    },
 
-/** Find where a group ends in a piece's room: after a space in its second half, else at its end. */
-function wordEnd(piece: Run, room: number): number {
-    const text = typeof piece.text === "string" ? piece.text.slice(0, room) : "";
-    const space = text.search(LAST_SPACE);
+    /** Split a section's runs into even groups of at most a chunk's characters. */
+    fill(runs: readonly Run[]): [Run[], ...Run[][]] {
+        // keep a text that fits one chunk whole, and split a longer one evenly into partly full chunks
+        const total = runs.reduce((sum, piece) => sum + ChunkLayout.characters(piece), 0);
+        const count = total <= CHUNK_CHARACTERS ? 1 : Math.ceil(total / FILL_CHARACTERS);
+        const capacity = Math.ceil(total / count);
 
-    return space >= room / 2 ? space + 1 : room;
-}
+        // fill each group, splitting a piece at a group's end
+        let group: Run[] = [];
+        const groups: [Run[], ...Run[][]] = [group];
+        let filled = 0;
+        for (let piece of runs) {
+            while (ChunkLayout.characters(piece) > capacity - filled) {
+                const room = ChunkLayout.wordEnd(piece, capacity - filled);
+                if (room > 0) {
+                    const [head, tail] = Sequence.split(piece, room);
+                    group.push(head);
+                    piece = present(tail, "the tail of a piece split before its end");
+                }
+                group = [];
+                groups.push(group);
+                filled = 0;
+            }
+            group.push(piece);
+            filled += ChunkLayout.characters(piece);
+        }
 
-/** Count the characters a piece stores. */
-function characters(piece: Run): number {
-    return typeof piece.text === "string" ? piece.text.length : 0;
-}
+        return groups;
+    },
 
-/** Decide whether a piece contains an element. */
-function contains(piece: Run, element: Element): boolean {
-    return (
-        piece.run === element.run &&
-        element.offset >= piece.start &&
-        element.offset < piece.start + Sequence.length(piece)
-    );
-}
+    /** Find where a group ends in a piece's room, after a space in its second half. */
+    wordEnd(piece: Run, room: number): number {
+        const text = typeof piece.text === "string" ? piece.text.slice(0, room) : "";
+        const space = text.search(LAST_SPACE);
 
-/** Present one item's includes and texts. */
-function presentRow(
-    item: Item,
-    query: Query,
-    objects: readonly ObjectType[],
-    owner: ObjectType | undefined,
-): Item {
-    // present each include's items, leaving out the chunks
-    const presented = Object.fromEntries(
-        Object.entries(item.with).flatMap(([name, items]) =>
-            name === CHUNKS
-                ? []
-                : [[name, Chunk.present(items, included(query, name).query, objects)]],
-        ),
-    );
+        return space >= room / 2 ? space + 1 : room;
+    },
 
-    // assemble the owner's texts from the chunks
-    const chunks = (item.with[CHUNKS] ?? []).map((entry) => INCLUDED_CHUNK.parse(entry.row));
-    const row =
-        owner === undefined || owner.text.length === 0
-            ? item.row
-            : { ...item.row, ...Chunk.text(owner, chunks) };
+    /** Count the characters a piece stores. */
+    characters(piece: Run): number {
+        return typeof piece.text === "string" ? piece.text.length : 0;
+    },
 
-    return { row, with: presented, measures: item.measures };
-}
+    /** Decide whether a piece contains an element. */
+    contains(piece: Run, element: Element): boolean {
+        return (
+            piece.run === element.run &&
+            element.offset >= piece.start &&
+            element.offset < piece.start + Sequence.length(piece)
+        );
+    },
 
-/** Read the element a chunk starts at, the boundary of its section. */
-function start(row: Chunk): Element {
-    const first = present(row.runs[0], `the first run of chunk ${row.id}`);
+    /** Read the element a chunk starts at, the boundary of its section. */
+    start(row: Chunk): Element {
+        const first = present(row.runs[0], `the first run of chunk ${row.id}`);
 
-    return { run: first.run, offset: first.start };
-}
+        return { run: first.run, offset: first.start };
+    },
 
-/** List the elements an edit refers to: an insertion's anchor, or a deletion's ends. */
-function namedElements(edit: SequenceEdit): Element[] {
-    // take an insertion's anchor
-    if ("insert" in edit) {
-        return edit.after === undefined ? [] : [edit.after];
-    }
-    // take a deletion's ends
-    else if ("delete" in edit) {
-        return [edit.delete.from, edit.delete.to];
-    }
-    // take a restoration's ends
-    else {
-        return [edit.restore.from, edit.restore.to];
-    }
-}
+    /** List the elements an edit refers to: an insertion's anchor, or a deletion's ends. */
+    namedElements(edit: SequenceEdit): Element[] {
+        // take an insertion's anchor
+        if ("insert" in edit) {
+            return edit.after === undefined ? [] : [edit.after];
+        }
+        // take a deletion's ends
+        else if ("delete" in edit) {
+            return [edit.delete.from, edit.delete.to];
+        }
+        // take a restoration's ends
+        else {
+            return [edit.restore.from, edit.restore.to];
+        }
+    },
+};

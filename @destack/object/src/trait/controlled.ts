@@ -1,7 +1,7 @@
-import { check, integer, json, text } from "@destack/db";
+import { check, integer, json, text, type Check, textEnum } from "@destack/db";
 import { Plan, RISKS } from "@destack/resource";
 import { deletionColumns } from "./recoverable.ts";
-import { traitPermissions, type Trait } from "./trait.ts";
+import { derivePermissions, type Trait } from "./trait.ts";
 
 import { approvePlan, finalize, observe } from "../method/controlled.ts";
 import { ConditionMap } from "../object/condition.ts";
@@ -40,7 +40,7 @@ export function controlledColumns() {
 export function approvalColumns() {
     return {
         /** The least plan risk that waits for approval, absent until the owner sets it. */
-        approval: text("approval", { enum: RISKS }),
+        approval: textEnum("approval", RISKS),
         /** The plan waiting for approval, absent once applied. */
         plan: json("plan", Plan),
         /** The digest of the accepted plan, applied once the controller plans it again. */
@@ -49,7 +49,10 @@ export function approvalColumns() {
 }
 
 /** Records a controller reconciles. */
-export const controlled: Trait<ControlledDefinition> = {
+export const controlled: Trait<ControlledDefinition> & {
+    /** Require valid revisions and generations, and refuse observations of future generations. */
+    readonly checks: (name: string) => Check[];
+} = {
     key: "controlled",
     storages: ["durable"],
     options: (definition) => definition.controlled,
@@ -58,19 +61,22 @@ export const controlled: Trait<ControlledDefinition> = {
         ...deletionColumns(),
         ...(options === true ? {} : approvalColumns()),
     }),
-    constraints: (_options, table) => controlledChecks(table),
-    policy: (options, _object, permissions) =>
-        traitPermissions(permissions, ["control", ...(options === true ? [] : ["approve"])]),
+    constraints: (_options, table) => controlled.checks(table),
+    // let an object representing a principal control itself, and only roles approve its plans
+    policy: (options, object, permissions) =>
+        derivePermissions(
+            permissions,
+            ["control", ...(options === true ? [] : ["approve"])],
+            object.isPrincipal ? ["control"] : [],
+        ),
     methods: (options) => ({ observe, finalize, ...(options === true ? {} : { approvePlan }) }),
+    checks(name: string): Check[] {
+        return [
+            check(`${name}_revision`, { revision: { gte: 1 } }),
+            check(`${name}_generation`, { generation: { gte: 1 } }),
+            check(`${name}_observed_generation`, {
+                observedGeneration: { gte: 0, lte: { field: "generation" } },
+            }),
+        ];
+    },
 };
-
-/** Require valid revisions and generations, and refuse observations of future generations. */
-function controlledChecks(name: string) {
-    return [
-        check(`${name}_revision`, { revision: { gte: 1 } }),
-        check(`${name}_generation`, { generation: { gte: 1 } }),
-        check(`${name}_observed_generation`, {
-            observedGeneration: { gte: 0, lte: { field: "generation" } },
-        }),
-    ];
-}

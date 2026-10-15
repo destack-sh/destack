@@ -5,10 +5,8 @@ import { errorOf, CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import type * as sync from "@destack/sync";
 import type { ObjectStore } from "../server/store.ts";
-import { Call } from "../method/call.ts";
 import type { ObjectType } from "../object/object.ts";
 import { Claim, type Claimant, ClaimRefusal, claimTable, Expiry } from "./claim.ts";
-import { ObjectReader } from "../method/reader.ts";
 import type { ClaimType } from "./method.ts";
 import type { PushResult } from "../replica/replica.ts";
 
@@ -20,46 +18,36 @@ export interface Signer {
     readonly database: DatabaseConnection;
 }
 
-/** The principal claiming a write's names: the store itself, or an installation it serves. */
-export type Claimer =
-    | {
-          /** The store claims as its own principal. */
-          readonly kind: "store";
-      }
-    | {
-          /** An installation the store serves claims as itself. */
-          readonly kind: "installation";
-          /** The installation signing its claims. */
-          readonly signer: Signer;
-      };
-
-/** A store serving object types elsewhere, called as a write's claimer. */
+/** A store serving object types elsewhere, called as the claiming store. */
 export interface RemoteStore {
     /** Run a mutation's calls there in one transaction, answering their results in order. */
-    mutate(mutation: sync.Mutation, claimer: Claimer): Promise<readonly unknown[]>;
+    readonly mutate: (mutation: sync.Mutation) => Promise<readonly unknown[]>;
     /** Run a reading call there as the calling store. */
-    query(call: sync.Call): Promise<unknown>;
+    readonly query: (call: sync.Call) => Promise<unknown>;
 }
 
 /** The replica procedures of a store elsewhere, as a client calls them. */
 export interface ReplicaClient {
     /** Push mutations to a scope, answering each one's outcome. */
-    push(input: {
+    readonly push: (input: {
         readonly scope: string;
         readonly mutations: sync.Mutation[];
-    }): Promise<Pick<PushResult, "outcomes">>;
+    }) => Promise<Pick<PushResult, "outcomes">>;
     /** Run a reading call in a scope. */
-    call(input: { readonly scope: string; readonly call: sync.Call }): Promise<unknown>;
+    readonly call: (input: {
+        readonly scope: string;
+        readonly call: sync.Call;
+    }) => Promise<unknown>;
 }
 
 /** The stores elsewhere a store calls. */
 export const RemoteStore = {
-    /** Call a store elsewhere in one scope through its replica procedures, as a claimer. */
-    of(replica: (claimer: Claimer) => ReplicaClient, scope: string): RemoteStore {
+    /** Call a store elsewhere in one scope through its replica procedures. */
+    of(replica: ReplicaClient, scope: string): RemoteStore {
         return {
-            mutate: async (mutation, claimer) => {
-                // push the mutation alone, and throw its failure
-                const { outcomes } = await replica(claimer).push({ scope, mutations: [mutation] });
+            mutate: async (mutation) => {
+                // push the mutation on its own, and throw its failure
+                const { outcomes } = await replica.push({ scope, mutations: [mutation] });
                 const { outcome } = present(outcomes[0], "the pushed mutation's outcome");
                 if (!("value" in outcome)) {
                     throw errorOf(outcome.error);
@@ -67,7 +55,7 @@ export const RemoteStore = {
 
                 return schema.array(schema.json()).parse(outcome.value);
             },
-            query: (call) => replica({ kind: "store" }).call({ scope, call }),
+            query: (call) => replica.call({ scope, call }),
         };
     },
 
@@ -76,16 +64,10 @@ export const RemoteStore = {
         store: Pick<ObjectStore, "mutate" | "query" | "clock">,
         principal: sync.Subject,
     ): RemoteStore {
-        // run calls as the claiming installation, else as the principal
-        const callerOf = (claimer: Claimer) =>
-            Caller.of(
-                claimer.kind === "store" ? principal : claimer.signer.subject,
-                store.clock.now(),
-            );
-
+        // run calls as the principal
         return {
-            mutate: (mutation, claimer) => store.mutate(callerOf(claimer), mutation),
-            query: (call) => store.query(callerOf({ kind: "store" }), call),
+            mutate: (mutation) => store.mutate(Caller.of(principal, store.clock.now()), mutation),
+            query: (call) => store.query(Caller.of(principal, store.clock.now()), call),
         };
     },
 };
@@ -101,23 +83,21 @@ export interface ClaimHome {
 /** The names a write reserved, and how its commit and outcome settle them. */
 export interface Reservation {
     /** Write the names in the committing transaction where the store keeps the claims itself. */
-    commit(committing: DatabaseConnection): Promise<void>;
+    readonly commit: (committing: DatabaseConnection) => Promise<void>;
 
     /** Settle the reserved names once the write committed. */
-    confirm(): Promise<void>;
+    readonly confirm: () => Promise<void>;
 
     /** Release the reserved names once the write failed. */
-    release(): Promise<void>;
+    readonly release: () => Promise<void>;
 }
 
-/** A write's claim request: its identifier, its time and its claimer. */
+/** A write's claim request: its identifier and its time. */
 interface ClaimRequest {
     /** The write's request, which keeps its reservations. */
     readonly id: string;
     /** The write's time, in UTC epoch milliseconds. */
     readonly now: number;
-    /** The principal claiming the names. */
-    readonly claimer: Claimer;
 }
 
 /** The reservations of writes claiming names. */
@@ -131,17 +111,17 @@ export const Reservation = {
     ): Promise<Reservation> {
         // claim in the committing transaction of the store serving the claim type, else at its home now
         return claims.home === undefined
-            ? local(claimants, types)
-            : remote(claims.object, claims.home, claimants, types, request);
+            ? Reservation.local(claimants, types)
+            : Reservation.remote(claims.object, claims.home, claimants, types, request);
     },
 
-    /** Replace objects' names after unreserved writes, as their claimer, refusing taken names. */
+    /** Replace objects' names after unreserved writes, refusing taken names. */
     async replace(
         claims: ClaimHome,
         database: DatabaseConnection,
         claimants: readonly Claimant[],
         types: readonly ObjectType[],
-        request: { readonly now: number; readonly claimer: Claimer },
+        request: { readonly now: number },
     ): Promise<void> {
         // replace in the store's own database, else at the claim type's home
         const refused: Claim[] = [];
@@ -150,11 +130,9 @@ export const Reservation = {
                 refused.push(...(await Claim.replace(database, claimant)));
             }
         } else if (claimants.length > 0) {
-            const calls = claimants.map((claimant) =>
-                Call.wire(claims.object.call("replace", claimant)),
-            );
+            const calls = claimants.map((claimant) => claims.object.call("replace", claimant));
             const mutation = { id: RequestId.create(request.now), calls };
-            const results = await claims.home.mutate(mutation, request.claimer);
+            const results = await claims.home.mutate(mutation);
             refused.push(...results.flatMap((result) => ClaimRefusal.parse(result).refused));
         }
 
@@ -170,11 +148,9 @@ export const Reservation = {
         now: number,
     ): Promise<Expiry> {
         return claims.home === undefined
-            ? Claim.expired(new ObjectReader(claimTable, Snapshot.live(database)), indexes, now)
+            ? Claim.expired(Snapshot.live(database).read(claimTable), indexes, now)
             : Expiry.parse(
-                  await claims.home.query(
-                      Call.wire(claims.object.call("expired", { indexes: [...indexes] })),
-                  ),
+                  await claims.home.query(claims.object.call("expired", { indexes: [...indexes] })),
               );
     },
 
@@ -192,85 +168,76 @@ export const Reservation = {
             });
         }
     },
-};
 
-/** Claim the names in the committing transaction of the store serving the claim type. */
-function local(claimants: readonly Claimant[], types: readonly ObjectType[]): Reservation {
-    return {
-        commit: async (committing) => {
-            // replace each object's names at once, refusing names other objects own
-            const refused: Claim[] = [];
-            for (const claimant of claimants) {
-                refused.push(...(await Claim.replace(committing, claimant)));
-            }
-            Reservation.refuse(types, refused);
-        },
-        confirm: async () => {},
-        release: async () => {},
-    };
-}
+    /** Claim the names in the committing transaction of the store serving the claim type. */
+    local(claimants: readonly Claimant[], types: readonly ObjectType[]): Reservation {
+        return {
+            commit: async (committing) => {
+                // replace each object's names at once, refusing names other objects claim
+                const refused: Claim[] = [];
+                for (const claimant of claimants) {
+                    refused.push(...(await Claim.replace(committing, claimant)));
+                }
+                Reservation.refuse(types, refused);
+            },
+            confirm: async () => {},
+            release: async () => {},
+        };
+    },
 
-/** Reserve the names at the claim type's home as their claimer until the write commits. */
-async function remote(
-    claim: ClaimType,
-    home: RemoteStore,
-    claimants: readonly Claimant[],
-    types: readonly ObjectType[],
-    request: ClaimRequest,
-): Promise<Reservation> {
-    // reserve the claiming objects' names in one request
-    const { id, now, claimer } = request;
-    const claiming = claimants.filter((claimant) => claimant.claims.length > 0);
-    const results =
-        claiming.length === 0
-            ? []
-            : await home.mutate(
-                  {
+    /** Reserve the names at the claim type's home until the write commits. */
+    async remote(
+        claim: ClaimType,
+        home: RemoteStore,
+        claimants: readonly Claimant[],
+        types: readonly ObjectType[],
+        request: ClaimRequest,
+    ): Promise<Reservation> {
+        // reserve the claiming objects' names in one request
+        const { id, now } = request;
+        const claiming = claimants.filter((claimant) => claimant.claims.length > 0);
+        const results =
+            claiming.length === 0
+                ? []
+                : await home.mutate({
                       id: RequestId.create(now),
                       calls: claiming.map((claimant) =>
-                          Call.wire(claim.call("reserve", { ...claimant, request: id })),
+                          claim.call("reserve", { ...claimant, request: id }),
                       ),
-                  },
-                  claimer,
-              );
-    const refused = results.flatMap((result) => ClaimRefusal.parse(result).refused);
+                  });
+        const refused = results.flatMap((result) => ClaimRefusal.parse(result).refused);
 
-    // confirm every object's names once the write commits, and release the reserved ones once it fails
-    const reservation: Reservation = {
-        commit: async () => {},
-        confirm: async () => {
-            if (claimants.length > 0) {
-                await home.mutate(
-                    {
+        // confirm the reserved names on commit, and release them on failure
+        const reservation: Reservation = {
+            commit: async () => {},
+            confirm: async () => {
+                if (claimants.length > 0) {
+                    await home.mutate({
                         id: RequestId.create(now),
                         calls: claimants.map((claimant) =>
-                            Call.wire(claim.call("confirm", { ...claimant, request: id })),
+                            claim.call("confirm", { ...claimant, request: id }),
                         ),
-                    },
-                    claimer,
-                );
-            }
-        },
-        release: async () => {
-            if (claiming.length > 0) {
-                await home.mutate(
-                    {
+                    });
+                }
+            },
+            release: async () => {
+                if (claiming.length > 0) {
+                    await home.mutate({
                         id: RequestId.create(now),
                         calls: claiming.map(({ objectId, owner }) =>
-                            Call.wire(claim.call("release", { objectId, owner, request: id })),
+                            claim.call("release", { objectId, owner, request: id }),
                         ),
-                    },
-                    claimer,
-                );
-            }
-        },
-    };
+                    });
+                }
+            },
+        };
 
-    // release the reserved names and refuse the write once other objects own some
-    if (refused.length > 0) {
-        await reservation.release();
-        Reservation.refuse(types, refused);
-    }
+        // release the reserved names and refuse the write once other objects claim some
+        if (refused.length > 0) {
+            await reservation.release();
+            Reservation.refuse(types, refused);
+        }
 
-    return reservation;
-}
+        return reservation;
+    },
+};
