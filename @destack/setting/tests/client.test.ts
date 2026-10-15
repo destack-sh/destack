@@ -1,5 +1,5 @@
 import { space } from "./fixture/space.ts";
-import { principal } from "@destack/access";
+import { Caller, principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ACCESS_PUBLICATION } from "@destack/object";
@@ -373,8 +373,7 @@ function serve(storage: Storage, scope: string): Server {
         drainTimeout: 100,
         authorizeMachine: async () => {},
         authenticate: async () => ({
-            subject: storage.subject,
-            subjects: [storage.subject],
+            caller: Caller.of(storage.subject),
             credential: {
                 kind: "session",
                 id: "test-session",

@@ -83,7 +83,7 @@ export class Storage {
         scope: string,
         input: JsonObject,
     ): Promise<unknown> {
-        const caller = subjectContext(this.subject, scope).caller();
+        const caller = subjectContext(this.subject, scope).access();
         const call = Call.record(object, name, { scope, ...input });
 
         return object.method(name).mutates
@@ -102,7 +102,7 @@ export class Storage {
         // act in the call's scope
         const context = subjectContext(this.subject, input.scope);
         const call = object.call(name, input);
-        const caller = context.caller();
+        const caller = context.access();
 
         // read through a query, or write through a one-call mutation
         return object.method(name).mutates
