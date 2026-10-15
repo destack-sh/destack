@@ -1,11 +1,9 @@
-import type { ObjectStore, ObjectExtension } from "@destack/object/server";
-import updatePackage from "../package.ts";
+import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import type { Controller } from "@destack/runtime/control";
 import { CallError } from "@destack/runtime/error";
 import type { Distribution } from "../distribution/index.ts";
 import { distribution } from "../object/index.ts";
-import { Caller } from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 
 /** How often the distribution stages its channel's latest release: daily, Sparkle's default. */
@@ -16,28 +14,7 @@ export interface DistributionHost {
     /** The installed distribution. */
     readonly distribution: Distribution;
     /** Hand activation to a process that outlives the machine. */
-    activate(): void;
-}
-
-/** Serve a machine's distribution in the machine's scope, staging and activating its releases. */
-export function implementDistributions(options: {
-    /** The machine, the scope of its distribution. */
-    readonly machine: Identifier<"machine">;
-    /** The installed distribution, absent for a development build. */
-    readonly host?: DistributionHost;
-}): ObjectExtension {
-    const { host } = options;
-
-    return {
-        package: updatePackage,
-        objects: [serveDistributions(host)],
-        serve: (store) => ({
-            controllers:
-                host === undefined
-                    ? []
-                    : [new DistributionController(store, options.machine, host)],
-        }),
-    };
+    readonly activate: () => void;
 }
 
 /** Stage releases through the installed distribution, and hand activation to the host. */
@@ -55,12 +32,12 @@ export function serveDistributions(host: DistributionHost | undefined) {
                         staged: staged?.release.version ?? null,
                     };
                 },
-                handle: (call) =>
-                    call.update({
-                        installed: call.prepared.installed,
-                        staged: call.prepared.staged,
-                        status: call.prepared.staged === null ? "current" : "staged",
-                        checkedAt: call.now,
+                handle: (context) =>
+                    context.update({
+                        installed: context.prepared.installed,
+                        staged: context.prepared.staged,
+                        status: context.prepared.staged === null ? "current" : "staged",
+                        checkedAt: context.now,
                     }),
             },
             activate: {
@@ -75,7 +52,8 @@ export function serveDistributions(host: DistributionHost | undefined) {
 
                     return staged.release.version;
                 },
-                handle: (call) => call.update({ staged: call.prepared, status: "activating" }),
+                handle: (context) =>
+                    context.update({ staged: context.prepared, status: "activating" }),
                 settle: async (_call, settled) => {
                     // restart into it once the activation is recorded
                     if (settled.status === "committed") {
@@ -92,7 +70,7 @@ export class DistributionController implements Controller {
     /** The controller's name in reports. */
     readonly name = "distribution";
     /** The store keeping the distribution row. */
-    readonly #store: Pick<ObjectStore, "database" | "principal" | "mutate">;
+    readonly #store: Pick<ObjectStore, "database" | "self" | "mutate">;
     /** This machine, the scope of its distribution. */
     readonly #machineId: Identifier<"machine">;
     /** The installed distribution. */
@@ -100,7 +78,7 @@ export class DistributionController implements Controller {
 
     /** Control the distribution of a machine. */
     constructor(
-        store: Pick<ObjectStore, "database" | "principal" | "mutate">,
+        store: Pick<ObjectStore, "database" | "self" | "mutate">,
         machineId: Identifier<"machine">,
         host: DistributionHost,
     ) {
@@ -127,7 +105,7 @@ export class DistributionController implements Controller {
         const [recorded] =
             found === undefined
                 ? await this.#store.mutate(
-                      Caller.of(this.#store.principal, now),
+                      this.#store.self,
                       {
                           id: RequestId.create(now),
                           calls: [
@@ -149,7 +127,7 @@ export class DistributionController implements Controller {
 
         // stage the latest release
         await this.#store.mutate(
-            Caller.of(this.#store.principal, now),
+            this.#store.self,
             {
                 id: RequestId.create(now),
                 calls: [distribution.call("stage", distribution.target(recorded))],
