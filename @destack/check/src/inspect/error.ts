@@ -34,11 +34,11 @@ export interface ErrorInspector {
     /** The existing compiler snapshot. */
     project: Project;
     /** Resolve a compiler symbol into its exact package. */
-    reference(symbol: Symbol): Promise<SymbolReference>;
+    readonly reference: (symbol: Symbol) => Promise<SymbolReference>;
     /** Describe a compiler type. */
-    type(type: Type, location: Node): Promise<TypeDescription>;
+    readonly type: (type: Type, location: Node) => Promise<TypeDescription>;
     /** Locate an expression in its source package. */
-    range(node: Node): SourceRange;
+    readonly range: (node: Node) => SourceRange;
 }
 
 /** A callable body's root and the nodes it runs, without nested callable bodies. */

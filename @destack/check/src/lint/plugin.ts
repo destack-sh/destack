@@ -6,6 +6,7 @@ import { deterministicHandler } from "./deterministic-handler.ts";
 import { errorMessageStyle } from "./error-message-style.ts";
 import { exactOptional } from "./exact-optional.ts";
 import { jsdocSentence } from "./jsdoc-sentence.ts";
+import { methodSignatureStyle } from "./method-signature-style.ts";
 import { noClassName } from "./no-class-name.ts";
 import { noImportAlias } from "./no-import-alias.ts";
 import { noIndexLogic } from "./no-index-logic.ts";
@@ -44,6 +45,7 @@ export const rules = {
     "error-message-style": errorMessageStyle,
     "exact-optional": exactOptional,
     "jsdoc-sentence": jsdocSentence,
+    "method-signature-style": methodSignatureStyle,
     "no-class-name": noClassName,
     "no-import-alias": noImportAlias,
     "no-index-logic": noIndexLogic,

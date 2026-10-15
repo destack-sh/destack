@@ -282,6 +282,34 @@ tester.run("exact-optional", rules["exact-optional"], {
     ],
 });
 
+tester.run("method-signature-style", rules["method-signature-style"], {
+    valid: [
+        {
+            code: "interface Handler { readonly handle: (call: Call) => Promise<void>; }",
+            filename: SOURCE,
+        },
+        { code: "type Reader = { readonly read: (key: string) => string };", filename: SOURCE },
+        { code: "interface Named { get name(): string; }", filename: SOURCE },
+        { code: "interface Codec<Value> { encode(value: Value): string; }", filename: SOURCE },
+        {
+            code: "type Codec<Value> = { encode(value: readonly Value[]): string };",
+            filename: SOURCE,
+        },
+    ],
+    invalid: [
+        {
+            code: "interface Handler { handle(call: Call): Promise<void>; }",
+            filename: SOURCE,
+            errors: [{ messageId: "method", data: { name: "handle" } }],
+        },
+        {
+            code: "type Reader = { read(key: string): string };",
+            filename: SOURCE,
+            errors: [{ messageId: "method", data: { name: "read" } }],
+        },
+    ],
+});
+
 tester.run("no-import-alias", rules["no-import-alias"], {
     valid: [
         'import { note } from "./note.ts";',
