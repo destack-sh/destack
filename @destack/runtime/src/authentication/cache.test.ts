@@ -34,3 +34,29 @@ test("reuse an exchanged token for its key until 80% of its life passed, and exc
         "token-4",
     ]);
 });
+
+test("exchange anew after a step-up instead of reusing the lower-assurance token", async () => {
+    // exchange a token living for hours for a plain call, counting the exchanges
+    const cache = new TokenCache();
+    let issued = 0;
+    const exchange = async () => ({ accessToken: `token-${++issued}`, expiresAt: 10_000_000 });
+    const plain = await cache.token("space", 0, exchange);
+
+    // exchange again for a call asking a second factor, then reuse that token for it and for a plain call
+    const stepUp = { assurance: 2, maxAge: 900_000 };
+    const elevated = await cache.token("space", 1000, exchange, stepUp);
+    const reused = [
+        await cache.token("space", 2000, exchange, stepUp),
+        await cache.token("space", 3000, exchange),
+    ];
+
+    // exchange anew once the elevation is older than the step-up allows
+    const aged = await cache.token("space", 1000 + 900_001, exchange, stepUp);
+    expect([plain, elevated, ...reused, aged]).toEqual([
+        "token-1",
+        "token-2",
+        "token-2",
+        "token-2",
+        "token-3",
+    ]);
+});

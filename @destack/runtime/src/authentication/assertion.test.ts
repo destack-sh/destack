@@ -1,12 +1,12 @@
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { TestDatabase } from "@destack/db/test";
+import { expect, refusal, test } from "@destack/test";
 import { KEY_ASSURANCE, principal } from "@destack/access";
 import { PublicKey } from "@destack/identity";
 import { PackageId } from "@destack/package";
 import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { SignJWT } from "jose";
-import { Assertion, AssertionVerifier, proofReplay, type AssertionKey } from "./assertion.ts";
+import { Assertion, AssertionVerifier, type AssertionKey } from "./assertion.ts";
+import { CallError } from "../error/index.ts";
 import { MACHINE_KEY } from "./token.ts";
 
 /** The package serving the token endpoint. */
@@ -23,9 +23,6 @@ async function generate(): Promise<CryptoKeyPair> {
 }
 
 test("authenticate a machine by its assertion once, refusing replayed, expired, forged and foreign ones", async () => {
-    const storage = await TestDatabase.create("sqlite", [proofReplay], { isMigrated: true });
-    onTestFinished(() => storage.close());
-
     // publish a machine's key, and verify assertions against it
     const pair = await generate();
     const forger = await generate();
@@ -38,7 +35,7 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
         endpoint,
         audience,
         keys: async (id) => (id === key.id ? key : undefined),
-        database: storage.database,
+        spend: spending(),
     });
     const now = Date.now();
     const signed = await Assertion.sign(pair.privateKey, key, endpoint, now);
@@ -95,9 +92,6 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
 });
 
 test("authenticate an installation within its space", async () => {
-    const storage = await TestDatabase.create("sqlite", [proofReplay], { isMigrated: true });
-    onTestFinished(() => storage.close());
-
     // publish an installation's key and verify its assertion
     const pair = await generate();
     const key: AssertionKey = {
@@ -109,7 +103,7 @@ test("authenticate an installation within its space", async () => {
         endpoint,
         audience,
         keys: async () => key,
-        database: storage.database,
+        spend: spending(),
     });
     const now = Date.now();
     const caller = await verifier.verify(
@@ -126,9 +120,6 @@ test("authenticate an installation within its space", async () => {
 });
 
 test("authenticate a space and its installation by the space's key, refusing a subject the key cannot assert", async () => {
-    const storage = await TestDatabase.create("sqlite", [proofReplay], { isMigrated: true });
-    onTestFinished(() => storage.close());
-
     // publish a space's key, found under the issuer its assertions claim
     const pair = await generate();
     const spaceId = Identifier.create("space");
@@ -141,7 +132,7 @@ test("authenticate a space and its installation by the space's key, refusing a s
         endpoint,
         audience,
         keys: async (id, issuer) => (id === key.id && issuer === spaceId ? key : undefined),
-        database: storage.database,
+        spend: spending(),
     });
 
     // assert an installation of the space, the space itself, and a machine
@@ -167,3 +158,16 @@ test("authenticate a space and its installation by the space's key, refusing a s
         refused: ["UNAUTHORIZED", "assertion subject is outside its key's authority"],
     });
 });
+
+/** Spend digests once in memory, refusing a digest spent before as the proof store does. */
+function spending(): (digest: string) => Promise<void> {
+    const spent = new Set<string>();
+
+    return async (digest) => {
+        // refuse a digest spent before, and keep this one
+        if (spent.has(digest)) {
+            throw new CallError("CONFLICT", { message: "proof was used before" });
+        }
+        spent.add(digest);
+    };
+}

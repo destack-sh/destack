@@ -1,13 +1,3 @@
-import {
-    defineTable,
-    index,
-    integer,
-    lte,
-    TABLE,
-    text,
-    Transaction,
-    type DatabaseConnection,
-} from "@destack/db";
 import { PublicKey } from "@destack/identity";
 import type { PackageId } from "@destack/package";
 import { Digest, schema } from "@destack/schema";
@@ -19,7 +9,7 @@ import {
     principal,
 } from "@destack/access";
 import { decodeJwt, decodeProtectedHeader, errors, jwtVerify, SignJWT } from "jose";
-import { CallError } from "../error/index.ts";
+import { CallError, isCallError } from "../error/index.ts";
 import { Bearer } from "./bearer.ts";
 import { INSTALLATION_KEY, MACHINE_KEY, SPACE_KEY } from "./token.ts";
 
@@ -31,20 +21,6 @@ export const ASSERTION_LIFETIME_MILLISECONDS = 300_000;
 
 /** How long a signed assertion lives by default: a minute, one request and its retries. */
 const SIGNED_LIFETIME_MILLISECONDS = 60_000;
-
-/** A spent key proof or assertion, kept until it expires to refuse its replay. */
-export const proofReplay = defineTable(
-    "proof_replay",
-    {
-        /** The digest of the signing key's identifier and the proof's identifier. */
-        id: text("id").primaryKey(),
-        /** The earliest safe deletion time in epoch milliseconds. */
-        expiresAt: integer("expires_at").notNull(),
-    },
-    {
-        constraints: (replay) => [index("proof_replay_expiry").on(replay.expiresAt)],
-    },
-);
 
 /** A principal's published key that signs its assertions. */
 export interface AssertionKey {
@@ -140,9 +116,17 @@ export class AssertionVerifier {
             });
         }
 
-        // spend it once, and answer the key's principal
+        // spend it once under its key, refusing one spent before, and answer the key's principal
         const expiresAt = exp * 1000;
-        await spend(this.options.database, key, jti, expiresAt, now);
+        const digest = await Digest.of(JSON.stringify([key.id, jti]));
+        await this.options.spend(digest, expiresAt, now).catch((error: unknown) => {
+            throw isCallError(error) && error.code === "CONFLICT"
+                ? new CallError("UNAUTHORIZED", {
+                      message: "assertion was used before",
+                      cause: error,
+                  })
+                : error;
+        });
 
         return asserted(key, sub, this.options.audience, now, expiresAt);
     }
@@ -156,37 +140,8 @@ export interface AssertionVerifierOptions {
     readonly audience: PackageId;
     /** Read an issuer's standing key an assertion's header refers to, absent for none. */
     readonly keys: (id: string, issuer: string, now: number) => Promise<AssertionKey | undefined>;
-    /** The database keeping spent assertions. */
-    readonly database: DatabaseConnection;
-}
-
-/** Spend an assertion's identifier under its key, refusing one spent before (RFC 7523 3). */
-async function spend(
-    database: DatabaseConnection,
-    key: AssertionKey,
-    id: string,
-    expiresAt: number,
-    now: number,
-): Promise<void> {
-    const digest = await Digest.of(JSON.stringify([key.id, id]));
-    await Transaction.run(database, async (transaction) => {
-        // refuse the key's repeated use of the identifier
-        if ((await transaction.row(proofReplay, { id: digest })) !== null) {
-            throw new CallError("UNAUTHORIZED", { message: "assertion was used before" });
-        }
-
-        // record the use until the assertion expires
-        await transaction.write({
-            table: proofReplay,
-            before: null,
-            after: proofReplay[TABLE].complete({ id: digest, expiresAt }),
-        });
-
-        // forget the uses of expired proofs once the transaction commits
-        transaction.record(async (committing) => {
-            await committing.delete(proofReplay).where(lte(proofReplay.expiresAt, now));
-        });
-    });
+    /** Spend an assertion's digest once until it expires, refusing a repeat as a conflict. */
+    readonly spend: (digest: Digest, expiresAt: number, now: number) => Promise<void>;
 }
 
 /** Describe an assertion's principal as the caller it authenticated until it expires. */
