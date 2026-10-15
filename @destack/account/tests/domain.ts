@@ -1,27 +1,24 @@
-import { directoryTables } from "@destack/directory";
-import { principal } from "@destack/access";
-import { copyOwner, copyScope } from "@destack/access/test";
-import { account, domain, user } from "../src/object/index.ts";
-import { accountTables } from "../src/stack/index.ts";
+import { type Caller, principal } from "@destack/access";
+import { AccessFixture } from "@destack/access/test";
+import { Account, account, claim, user } from "../src/object/index.ts";
 import type { DatabaseConnection, Dialect } from "@destack/db";
+import type { EventStore } from "@destack/event";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
-import { identifier } from "@destack/schema";
-import { Authentication } from "@destack/service/authentication";
-import { createClient } from "@destack/service/client";
-import { ServiceError } from "@destack/service/error";
-import { Health } from "@destack/service/health";
-import { Server } from "@destack/service/server";
+import { Clock, Identifier } from "@destack/schema";
+import { createClient } from "@destack/runtime/client";
+import { CallError } from "@destack/runtime/error";
+import { Health } from "@destack/runtime/health";
+import { Server } from "@destack/runtime/server";
 import { Scope } from "@destack/sync";
-import { v7 } from "uuid";
-import { defineService } from "@destack/service";
-import { ObjectServer } from "@destack/object/server";
+import { ObjectStore } from "@destack/object/server";
+import { testEvents } from "@destack/object/test";
+import { Package } from "@destack/package";
 import { DomainChallenge } from "../src/object/index.ts";
-import { DomainVerifier } from "../src/server/index.ts";
-import { testCallKey } from "@destack/service/test";
-
-/** The service serving accounts' domains to the fixture's callers, as the account service serves them. */
-export const domainService = defineService("domains", { objects: { domain } });
+import * as server from "../src/server/index.ts";
+import { testCallKey } from "@destack/runtime/test";
+import accountPackage from "../src/package.ts";
+import { AccountFixture, SIGN_UP } from "../src/test/index.ts";
 
 /** The time scenarios run at: 2026-10-01 00:00 UTC. */
 export const NOW = Date.UTC(2026, 9, 1);
@@ -32,28 +29,28 @@ const USER_HEADER = "x-user";
 /** Two accounts with an owner each and a stranger, calling domains over a stand-in DNS. */
 export class DomainFixture implements AsyncDisposable {
     /** The owner of the first account. */
-    readonly ownerId = identifier("user").parse(`user-${v7()}`);
+    readonly ownerId = Identifier.create("user");
     /** The owner of the second account. */
-    readonly rivalId = identifier("user").parse(`user-${v7()}`);
+    readonly rivalId = Identifier.create("user");
     /** A user of neither account. */
-    readonly strangerId = identifier("user").parse(`user-${v7()}`);
+    readonly strangerId = Identifier.create("user");
     /** The first account. */
-    readonly accountId = identifier("account").parse(`account-${v7()}`);
+    readonly accountId = Identifier.create("account");
     /** The second account. */
-    readonly otherId = identifier("account").parse(`account-${v7()}`);
-    /** A hostname of the scenario's own, apart from other scenarios in the database. */
-    readonly hostname = `notes-${crypto.randomUUID().slice(0, 8)}.example.com`;
-    /** The global database. */
+    readonly otherId = Identifier.create("account");
+    /** A domain of the scenario, apart from other scenarios in the database. */
+    readonly name = `acme-${crypto.randomUUID().slice(0, 8)}.example.com`;
+    /** The account database. */
     readonly database: DatabaseConnection;
     /** The TXT records the stand-in DNS answers, by name. */
     readonly records = new Map<string, string[]>();
     /** The names the stand-in DNS was asked for, in order. */
     readonly lookups: string[] = [];
-    /** The hosted domain service. */
+    /** The hosted domains and hostnames. */
     readonly server: Server;
 
-    /** Serve the domain service over a global database. */
-    private constructor(database: DatabaseConnection) {
+    /** Serve the domains and hostnames over an account database with its event log. */
+    private constructor(database: DatabaseConnection, events: EventStore) {
         this.database = database;
         const resolver = {
             txt: async (name: string) => {
@@ -62,28 +59,32 @@ export class DomainFixture implements AsyncDisposable {
                 return this.records.get(name) ?? [];
             },
         };
-        const objects = new ObjectServer({
-            objects: { domain: new DomainVerifier(resolver).handle() },
+        const objects = new ObjectStore({
+            chain: async () => undefined,
+            clock: Clock.system,
+            principal: Scope.universe,
+            objects: [server.implementDomain({ resolver }), server.implementHostname()],
             policies: [account],
             database,
+            claims: { object: claim },
             callKey: testCallKey,
-            origin: { package: domain.package, service: domainService.name },
-            history: { ingest: async (batch) => batch.calls.length },
+            events,
+            origin: { package: Package.of(accountPackage) },
         });
         this.server = Server.start({
-            ...objects.implement(domainService),
-            audience: domainService.package.id,
+            clock: Clock.system,
+            ...objects.implement(accountPackage, objects.routed, objects.controllers()),
             resources: new ResourceContext(),
             health: new Health("domain"),
             authenticate: async (request) => this.#authenticate(request),
-            authorizeHost: async () => {},
+            authorizeMachine: async () => {},
             drainTimeout: 1000,
         });
     }
 
-    /** Connect to the domain service as a user. */
+    /** Connect to the domains and hostnames as a user. */
     client(userId: string) {
-        return createClient(domainService, {
+        return createClient(accountPackage, {
             url: "https://domain.test",
             headers: { [USER_HEADER]: userId },
             fetch: (request) => this.server.fetch(request),
@@ -91,26 +92,25 @@ export class DomainFixture implements AsyncDisposable {
     }
 
     /** Publish the challenge record of a claim, beside the records the name has. */
-    publish(domain: { readonly id: string; readonly hostname: string }): void {
-        const challenge = DomainChallenge.of(domain);
+    publish(claimed: { readonly scope: string; readonly name: string }): void {
+        const challenge = DomainChallenge.of(claimed);
         const published = this.records.get(challenge.name) ?? [];
         this.records.set(challenge.name, [...published, challenge.value]);
     }
 
-    /** Open the migrated global database of each dialect for a file's scenarios. */
+    /** Open the migrated account database of each dialect for a file's scenarios. */
     static async databases(): Promise<Map<Dialect, TestDatabase>> {
         const opened = new Map<Dialect, TestDatabase>();
         for (const dialect of TEST_DIALECTS) {
-            const tables = [...accountTables, ...directoryTables];
-            opened.set(dialect, await TestDatabase.create(dialect, tables, { isMigrated: true }));
+            opened.set(dialect, await AccountFixture.storage(undefined, dialect));
         }
 
         return opened;
     }
 
-    /** Record the users and the two accounts, each owned by its user, and serve the domains. */
+    /** Record the users and their two accounts, and serve the domains under a test's allowances. */
     static async open(database: DatabaseConnection): Promise<DomainFixture> {
-        const fixture = new DomainFixture(database);
+        const fixture = new DomainFixture(database, await testEvents(database));
         try {
             await fixture.#provision();
 
@@ -123,17 +123,22 @@ export class DomainFixture implements AsyncDisposable {
 
     /** Record the users, and each account below its owner with an owner role. */
     async #provision(): Promise<void> {
-        // record the users as the access copy has them
+        // record the users as the access replica has them
         const record = { createdAt: 1, updatedAt: 1 };
         for (const userId of [this.ownerId, this.rivalId, this.strangerId]) {
             const person = principal.user.reference(Scope.universe.id, userId);
-            await this.database
-                .insert(user.table)
-                .values({ ...record, id: userId, name: userId, email: `${userId}@example.test` });
-            await copyScope(this.database, person);
+            await this.database.insert(user.table).values({
+                ...record,
+                ...SIGN_UP,
+                id: userId,
+                homeId: Account.home(Account.personal(userId)),
+                name: userId,
+                email: `${userId}@example.test`,
+            });
+            await new AccessFixture(this.database).replicateScope(person);
         }
 
-        // record each account below its owner, and let the owner own it
+        // record each account below its owner
         for (const [accountId, ownerId] of [
             [this.accountId, this.ownerId],
             [this.otherId, this.rivalId],
@@ -144,42 +149,42 @@ export class DomainFixture implements AsyncDisposable {
                 id: accountId,
                 handle,
                 name: handle,
-                defaultResidency: "eu",
+                residencyId: "eu",
                 scope: ownerId,
             });
             const scope = account.reference(ownerId, accountId);
-            await copyScope(this.database, scope);
-            await copyOwner(
-                this.database,
-                scope,
-                principal.user.reference(Scope.universe.id, ownerId),
-            );
+            const access = new AccessFixture(this.database);
+            await access.replicateScope(scope);
+            await access.bindOwner(scope, principal.user.reference(Scope.universe.id, ownerId));
         }
     }
 
-    /** Authenticate the user a request's header carries. */
-    #authenticate(request: Request): Authentication {
+    /** Authenticate the user in a request's header. */
+    #authenticate(request: Request): Caller {
         // require a user header
         const userId = request.headers.get(USER_HEADER);
         if (userId === null) {
-            throw new ServiceError("UNAUTHORIZED", { message: "missing user header" });
+            throw new CallError("UNAUTHORIZED", { message: "missing user header" });
         }
 
         // represent the user alone
         const subject = principal.user.reference(Scope.universe.id, userId);
         const now = Date.now();
 
-        return new Authentication({
-            credential: { kind: "fixture", id: "fixture-1" },
-            audience: domainService.package.id,
-            verifiedAt: now,
-            expiresAt: now + 60_000,
+        return {
             subject,
             subjects: [subject],
-        });
+            credential: {
+                kind: "fixture",
+                id: "fixture-1",
+                audience: accountPackage.id,
+                verifiedAt: now,
+                expiresAt: now + 60_000,
+            },
+        };
     }
 
-    /** Drain the domain service after a scenario. */
+    /** Drain the server after a scenario. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.server.close();
     }

@@ -1,394 +1,330 @@
-import { session } from "../src/object/authentication.ts";
-import { Subject } from "@destack/sync";
-import { journal, AuditCaller } from "@destack/audit";
-import { account } from "../src/object/account.ts";
-import { expect, test } from "@destack/test";
-import { RequestId } from "@destack/service/request";
-import { eq, isNotNull } from "@destack/db";
-import { accountPackage } from "../src/audit/index.ts";
-import { AccountFixture, claims, outcome, type Person } from "./fixture.ts";
-import { identifier } from "@destack/schema";
+import { session } from "../src/object/session.ts";
+import { Subject, ObjectReference } from "@destack/sync";
+import { Account, account } from "../src/object/account.ts";
+import { expect, refusal, test } from "@destack/test";
+import { RequestId } from "@destack/runtime/request";
+import { eq, Snapshot } from "@destack/db";
+import accountPackage from "../src/package.ts";
+import { SESSION_TOKEN_TYPE } from "../src/oauth/index.ts";
+import { placement } from "../src/object/placement.ts";
+import { AccountFixture, ids, type Person, SIGN_UP, outcome } from "../src/test/index.ts";
+import { claims } from "./fixture.ts";
+import { aligned, Identifier, schema } from "@destack/schema";
+import { principal } from "@destack/access";
 
-/** Commit authorized account changes, idempotent responses, and audit events through HTTP. */
-test("administer accounts with sessions and transactional audit", async () => {
+test("create a person's shared accounts beside their personal one, refuse a second personal one, hide them from others, and refuse exchanging a revoked session", async () => {
     await using fixture = await AccountFixture.open();
-    const database = fixture.opened.database;
-    const owner = await fixture.signIn("owner@example.com");
+    const database = fixture.storage.database;
+    const owner = await fixture.person("owner@example.com");
     const client = owner.client;
 
-    // rename the user and choose a residency once, replaying the same request
+    // rename the user
     const person = await client.user.get({ id: owner.id });
-    const profile = {
+    const renamed = await client.user.update({
         id: owner.id,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         revision: person.revision,
         name: "Florian",
-        residency: "eu" as const,
-    };
-    const renamed = await client.user.update(profile);
-    expect(renamed).toEqual({
-        ...person,
-        name: "Florian",
-        residency: "eu",
-        revision: 2,
-        updatedAt: renamed.updatedAt,
-        updatedBy: Subject.key(owner.subject),
     });
-    expect(await client.user.update(profile)).toEqual(renamed);
 
-    // create two independently rooted accounts and paginate their stable identifiers
+    // create a shared account beside the personal one, and refuse a second personal one
     const creation = {
         scope: owner.id,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         handle: "florian",
         name: "Personal",
-        defaultResidency: "eu" as const,
-        kind: "personal" as const,
+        residencyId: "eu" as const,
+        kind: "shared" as const,
     };
-    const first = await client.account.create(creation);
-    expect(first).toEqual({
-        id: first.id,
-        createdAt: first.createdAt,
-        createdBy: Subject.key(owner.subject),
-        updatedAt: first.createdAt,
-        updatedBy: Subject.key(owner.subject),
-        deletedBy: null,
-        revision: 1,
-        tags: {},
-        handle: "florian",
-        name: "Personal",
-        defaultResidency: "eu",
-        kind: "personal",
-        packagePolicyId: null,
-        packagePolicyRegion: null,
-        networkPolicyId: null,
-        networkPolicyRegion: null,
-        deletionRequestedAt: null,
-        scope: owner.id,
-    });
-    expect(await client.account.create(creation)).toEqual(first);
-    const second = await client.account.create({
-        ...creation,
-        requestId: RequestId.create(),
-        handle: "work",
-        kind: "shared",
-    });
-    const page = await client.account.list({ scope: owner.id, limit: 1 });
-    expect(page.items).toEqual([first]);
-    expect(await client.account.list({ scope: owner.id, limit: 1, cursor: page.cursor! })).toEqual({
-        items: [second],
-        cursor: null,
+    const shared = await client.account.create(creation);
+    const personal = await outcome(
+        client.account.create({
+            ...creation,
+            requestId: RequestId.create(Date.now()),
+            handle: "second",
+            kind: "personal",
+        }),
+    );
+    const { items } = await client.account.list({ scope: owner.id, limit: 10 });
+    expect({
+        name: renamed.name,
+        shared,
+        personal,
+        listed: items.map((item) => [item.handle, item.kind]),
+    }).toEqual({
+        name: "Florian",
+        shared: {
+            id: shared.id,
+            createdAt: shared.createdAt,
+            ...ObjectReference.columns("createdBy", owner.subject),
+            updatedAt: shared.createdAt,
+            ...ObjectReference.columns("updatedBy", owner.subject),
+            ...ObjectReference.columns("deletedBy", undefined),
+            revision: 1,
+            tags: {},
+            handle: "florian",
+            name: "Personal",
+            residencyId: "eu",
+            kind: "shared",
+            deletedAt: null,
+            scope: owner.id,
+        },
+        personal: "CONFLICT: another account has the same scope",
+        listed: [
+            [owner.handle, "personal"],
+            ["florian", "shared"],
+        ],
     });
 
-    // replay the same mutation, and reject stale revisions, mismatched request contents and taken handles
+    // show the owner's public profile to another signed-in user, and hide their accounts
     const update = {
         scope: owner.id,
-        requestId: RequestId.create(),
-        id: first.id,
-        revision: first.revision,
+        requestId: RequestId.create(Date.now()),
+        id: shared.id,
+        revision: shared.revision,
         name: "Home",
     };
-    const changed = await client.account.update(update);
-    expect(changed).toEqual({ ...first, name: "Home", revision: 2, updatedAt: changed.updatedAt });
-    expect(await client.account.update(update)).toEqual(changed);
-    const failures = await Promise.all(
-        [
-            client.account.update({ ...update, name: "Wrong" }),
-            client.account.update({ ...update, requestId: RequestId.create() }),
-            client.account.create({ ...creation, requestId: RequestId.create() }),
-        ].map((attempt) => outcome(attempt)),
-    );
-    expect(failures).toEqual([
-        "CONFLICT: request identifier has already been used",
-        "CONFLICT: account revision has changed",
-        "CONFLICT: a record with the same unique key exists",
-    ]);
-    expect(await client.account.get({ scope: owner.id, id: first.id })).toEqual(changed);
-
-    // hide the owner and their accounts from another signed-in user, who creates none in the owner's scope
-    const outsider = await fixture.signIn("other@example.com");
+    const outsider = await fixture.person("other@example.com");
     const hidden = await Promise.all(
         [
             outsider.client.user.get({ id: owner.id }),
-            outsider.client.account.list({ scope: owner.id, limit: 10 }),
-            outsider.client.account.get({ scope: owner.id, id: first.id }),
+            outsider.client.account.get({ scope: owner.id, id: shared.id }),
             outsider.client.account.update(update),
             outsider.client.account.create({
                 ...creation,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 handle: "intruder",
-                kind: "shared",
             }),
         ].map((attempt) => outcome(attempt)),
     );
-    expect(hidden).toEqual([
-        `NOT_FOUND: no user ${owner.id}`,
-        `NOT_FOUND: no scope ${owner.id}`,
-        `NOT_FOUND: no scope ${owner.id}`,
-        `NOT_FOUND: no scope ${owner.id}`,
-        `NOT_FOUND: no scope ${owner.id}`,
-    ]);
+    const listed = await outsider.client.account.list({ scope: owner.id, limit: 10 });
+    expect({ hidden, listed: listed.items }).toEqual({
+        hidden: [
+            "executed",
+            `NOT_FOUND: no account ${shared.id}`,
+            `NOT_FOUND: no account ${shared.id}`,
+            "NOT_FOUND: account not found",
+        ],
+        listed: [],
+    });
 
-    // journal each request's executed calls and final failures for retries, leaving refusals to decide again
-    const entries = await database
-        .select({ call: journal.call })
-        .from(journal)
-        .where(isNotNull(journal.request));
-    expect(
-        entries
-            .map(({ call }) =>
-                call.execution.outcome!.kind === "success"
-                    ? "executed"
-                    : call.execution.outcome!.error.code,
-            )
-            .sort(),
-    ).toEqual(["CONFLICT", "CONFLICT", "executed", "executed", "executed", "executed"]);
-    const calls = await fixture.delivered();
-    const actor = { type: "subject", subject: owner.subject };
-    const success = { kind: "success" };
-    const duplicate = {
-        kind: "failure",
-        error: {
-            code: "CONFLICT",
-            status: 409,
-            message: "a record with the same unique key exists",
-        },
-    };
-    const stale = {
-        kind: "failure",
-        error: { code: "CONFLICT", status: 409, message: "account revision has changed" },
-    };
-    const audited = calls
-        .filter((call) => ["user.update", "account.create", "account.update"].includes(call.method))
-        .map((call) => ({
-            method: call.method,
-            scope: call.execution.context.scope,
-            actor: AuditCaller.actor(call.execution.context.caller),
-            details: call.execution.details,
-            outcome: call.execution.outcome,
-        }));
-
-    // order the concurrent failures by method and outcome
-    const key = (call: (typeof audited)[number]) => `${call.method} ${call.outcome!.kind}`;
-    expect(audited.toSorted((left, right) => key(left).localeCompare(key(right)))).toEqual([
-        { method: "account.create", scope: owner.id, actor, details: {}, outcome: duplicate },
-        { method: "account.create", scope: owner.id, actor, details: {}, outcome: success },
-        { method: "account.create", scope: owner.id, actor, details: {}, outcome: success },
-        { method: "account.update", scope: owner.id, actor, details: {}, outcome: stale },
-        { method: "account.update", scope: owner.id, actor, details: {}, outcome: success },
-        { method: "user.update", scope: "universe", actor, details: {}, outcome: success },
-    ]);
-
-    // revoke the session before a replay and preserve the previously committed account
+    // refuse exchanging the owner's session once it is revoked
     await database
         .update(session.table)
         .set({ revokedAt: Date.now() })
         .where(eq(session.table.userId, owner.id));
-    await expect(
-        client.account.update({ ...update, requestId: RequestId.create() }),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "the person is not signed in" });
     expect(
-        await database
-            .select({ name: account.table.name, revision: account.table.revision })
-            .from(account.table)
-            .where(eq(account.table.id, first.id)),
-    ).toEqual([{ name: "Home", revision: 2 }]);
+        await outcome(
+            fixture.exchangeToken(owner.session, SESSION_TOKEN_TYPE, {
+                audience: accountPackage.id,
+            }),
+        ),
+    ).toBe("BAD_REQUEST: invalid_grant: session is no longer authorized");
 });
 
-/** Act as another user only with authority it lent or as an elevated administrator of its account. */
+/** Act as another user only with authority it lent or as an elevated administrator. */
 test("exchange tokens acting as a user through lent authority or account administration", async () => {
     await using fixture = await AccountFixture.open();
-    const administrator = await fixture.signIn("administrator@example.com");
-    const member = await fixture.signIn("member@example.com");
-    const helper = await fixture.signIn("helper@example.com");
+    const administrator = await fixture.person("administrator@example.com");
+    const member = await fixture.person("member@example.com");
+    const assistant = await fixture.person("assistant@example.com");
 
-    // create an account with a space, and make the member belong to it
+    // create an account with a space and make the member belong to it
     const { accountId, spaceId } = await fixture.createSpace(administrator);
     await administrator.client.account.grant({
         scope: administrator.id,
         id: accountId,
-        requestId: RequestId.create(),
-        relation: "member",
+        requestId: RequestId.create(Date.now()),
+        relation: "editor",
         subject: member.subject,
     });
 
     // read who a token represents and who acts in it
-    const exchange = async (acting: Person) => {
-        const token = await acting.client.authentication.exchange({
+    const exchange = async (acting: Person, space = spaceId) => {
+        const token = await fixture.exchangeToken(acting.session, SESSION_TOKEN_TYPE, {
             audience: accountPackage.id,
-            spaceId,
-            subject: member.subject,
+            space,
+            subject: Subject.key(member.subject),
         });
-        const caller = claims(token.accessToken);
+        const claimed = claims(token.accessToken);
 
-        return [caller.subject, caller.delegates];
+        return [claimed.caller.subject, claimed.act];
     };
-    const acting = (who: Person) => [member.subject, [{ subject: who.subject, authority: "full" }]];
+    const acting = (who: Person) => [member.subject, [who.subject]];
 
     // let the administrator act as the member only once elevated
-    await expect(exchange(administrator)).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "acting as another user is not allowed",
-    });
-    await fixture.elevate(administrator);
+    const refused = "BAD_REQUEST: invalid_grant: acting as another user is not allowed";
+    expect(await outcome(exchange(administrator))).toBe(refused);
+    await fixture.elevate(administrator.id);
     expect(await exchange(administrator)).toEqual(acting(administrator));
 
-    // let the helper act as the member only with lent authority and elevation
-    await expect(exchange(helper)).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "acting as another user is not allowed",
-    });
+    // refuse the administrator acting as the member in another account's space
+    const elsewhere = await fixture.createSpace(administrator);
+    expect(await outcome(exchange(administrator, elsewhere.spaceId))).toBe(refused);
+
+    // let the assistant act as the member only with lent authority and elevation
+    expect(await outcome(exchange(assistant))).toBe(refused);
     const lending = {
         id: member.id,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         relation: "delegate",
-        subject: helper.subject,
+        subject: assistant.subject,
         expiresAt: Date.now() + 60_000,
     };
-    await expect(member.client.user.grant(lending)).rejects.toMatchObject({
-        code: "INSUFFICIENT_AUTHENTICATION",
-        message: "authenticate again at the required assurance",
-    });
-    await fixture.elevate(member);
+    expect(await outcome(member.client.user.grant(lending))).toBe(
+        "INSUFFICIENT_AUTHENTICATION: authentication assurance is too low: authenticate again",
+    );
+    await fixture.elevate(member.id);
     const lent = await member.client.user.grant(lending);
-    await fixture.elevate(helper);
-    expect(await exchange(helper)).toEqual(acting(helper));
+    await fixture.elevate(assistant.id);
+    expect(await exchange(assistant)).toEqual(acting(assistant));
     await member.client.user.revoke({
         id: member.id,
-        requestId: RequestId.create(),
-        relationshipId: identifier("relationship").parse(lent.id),
+        requestId: RequestId.create(Date.now()),
+        relationshipId: schema.identifier("relationship").parse(lent.id),
     });
-    await expect(exchange(helper)).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "acting as another user is not allowed",
-    });
+    expect(await outcome(exchange(assistant))).toBe(refused);
 });
 
-/** Verify exchanged tokens only in the verifying account's spaces, describing an impersonation as the represented user. */
-test("verify tokens in the account's spaces, as the user an impersonation represents", async () => {
+/** Describe an impersonation in a space as the member, with its memberships and the acting user. */
+test("exchange a token acting as a member in the account's space, naming the member's memberships and the acting administrator", async () => {
     await using fixture = await AccountFixture.open();
-    const administrator = await fixture.signIn("administrator@example.com");
-    const member = await fixture.signIn("member@example.com");
+    const administrator = await fixture.person("administrator@example.com");
+    const member = await fixture.person("member@example.com");
 
-    // create an account with a space, a space of another account, and make the member belong to the first
+    // create an account's space and make the member belong to it
     const { accountId, spaceId } = await fixture.createSpace(administrator);
-    const elsewhere = await fixture.createSpace(administrator);
     await administrator.client.account.grant({
         scope: administrator.id,
         id: accountId,
-        requestId: RequestId.create(),
-        relation: "member",
+        requestId: RequestId.create(Date.now()),
+        relation: "editor",
         subject: member.subject,
     });
-    await fixture.elevate(administrator);
+    await fixture.elevate(administrator.id);
 
-    // verify the administrator's token acting as the member, as the member with the administrator acting
-    const acting = await administrator.client.authentication.exchange({
+    // exchange the administrator's session for a token acting as the member in the space
+    const acting = await fixture.exchangeToken(administrator.session, SESSION_TOKEN_TYPE, {
         audience: accountPackage.id,
-        spaceId,
-        subject: member.subject,
+        space: spaceId,
+        subject: Subject.key(member.subject),
     });
-    const verified = await administrator.client.authentication.verify({
-        accountId,
-        audience: accountPackage.id,
-        spaceId,
-        token: acting.accessToken,
-    });
-    const [signedIn] = await fixture.opened.database
+    const sessions = await fixture.storage.database
         .select({ id: session.table.id, authenticatedAt: session.table.authenticatedAt })
         .from(session.table)
         .where(eq(session.table.userId, administrator.id));
+    const signedIn = aligned(sessions, 0);
 
-    // take the verification time from the answer, since the service reads its own clock
-    expect(verified).toEqual({
-        scope: spaceId,
-        audience: accountPackage.id,
-        verifiedAt: verified.verifiedAt,
-        expiresAt: acting.expiresAt,
-        credential: { kind: "session", id: signedIn!.id },
-        subject: member.subject,
-        subjects: [
-            member.subject,
-            { ...account.reference(administrator.id, accountId), relation: "member" },
-        ],
-        assurance: { level: 2, authenticatedAt: signedIn!.authenticatedAt },
-        delegates: [{ subject: administrator.subject, authority: "full" }],
+    // name the member, their memberships, the administrator's assurance and the administrator acting
+    const claimed = claims(acting.accessToken);
+    expect([claimed.space, claimed.act, claimed.caller]).toEqual([
+        spaceId,
+        [administrator.subject],
+        {
+            subject: member.subject,
+            subjects: [
+                member.subject,
+                { ...account.reference(administrator.id, accountId), relation: "editor" },
+                { ...account.reference(administrator.id, accountId), relation: "member" },
+            ],
+            assurance: { level: 2, authenticatedAt: signedIn.authenticatedAt },
+            credential: { kind: "session", id: signedIn.id },
+        },
+    ]);
+});
+
+test("resolve the paying account: an organisation's payer for it and its accounts, and a person's account itself", async () => {
+    await using fixture = await AccountFixture.open();
+    const founder = await fixture.person("founder@example.com");
+
+    // create an organisation paying through its own account, with a second account in it
+    const acme = await founder.client.organisation.create({
+        requestId: RequestId.create(Date.now()),
+        name: "Acme",
+        handle: "acme-pays",
+        residencyId: "us",
+    });
+    const second = await founder.client.account.create({
+        scope: acme.id,
+        requestId: RequestId.create(Date.now()),
+        handle: "acme-second",
+        name: "Acme",
+        kind: "shared",
     });
 
-    // refuse verifying a token for a space of another account
-    const outside = await administrator.client.authentication.exchange({
-        audience: accountPackage.id,
-        spaceId: elsewhere.spaceId,
-    });
-    await expect(
-        administrator.client.authentication.verify({
-            accountId,
-            audience: accountPackage.id,
-            spaceId: elsewhere.spaceId,
-            token: outside.accessToken,
-        }),
-    ).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: `${elsewhere.spaceId} is not a space of ${accountId}`,
-    });
+    // charge the organisation and both its accounts to its payer, and the person's account to itself
+    const snapshot = Snapshot.live(fixture.database);
+    expect([
+        await Account.payer(snapshot, acme.id),
+        await Account.payer(snapshot, second.id),
+        await Account.payer(snapshot, acme.payer),
+        await Account.payer(snapshot, founder.account),
+    ]).toEqual([acme.payer, acme.payer, acme.payer, founder.account]);
 });
 
 /** Root an organisation's accounts at its owners, with the organisation's residency. */
-test("create accounts in an organisation, administered by its owners", async () => {
+test("create accounts in an organisation, administered by its owner members", async () => {
     await using fixture = await AccountFixture.open();
-    const founder = await fixture.signIn("founder@example.com");
-    const partner = await fixture.signIn("partner@example.com");
+    const founder = await fixture.person("founder@example.com");
+    const partner = await fixture.person("partner@example.com");
 
-    // create an organisation and an account in it
+    // create an organisation with its own account, and another account in it
     const acme = await founder.client.organisation.create({
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         name: "Acme",
-        residency: "us",
+        handle: "acme-inc",
+        residencyId: "us",
     });
     const created = await founder.client.account.create({
         scope: acme.id,
-        requestId: RequestId.create(),
-        handle: "acme",
+        requestId: RequestId.create(Date.now()),
+        handle: "initech",
         name: "Acme",
         kind: "shared",
     });
     expect(created).toEqual({
         id: created.id,
         createdAt: created.createdAt,
-        createdBy: Subject.key(founder.subject),
+        ...ObjectReference.columns("createdBy", founder.subject),
         updatedAt: created.createdAt,
-        updatedBy: Subject.key(founder.subject),
-        deletedBy: null,
+        ...ObjectReference.columns("updatedBy", founder.subject),
+        ...ObjectReference.columns("deletedBy", undefined),
         revision: 1,
         tags: {},
-        handle: "acme",
+        handle: "initech",
         name: "Acme",
-        defaultResidency: "us",
+        residencyId: "us",
         kind: "shared",
-        packagePolicyId: null,
-        packagePolicyRegion: null,
-        networkPolicyId: null,
-        networkPolicyRegion: null,
-        deletionRequestedAt: null,
+        deletedAt: null,
         scope: acme.id,
     });
 
-    // hide the account from the partner until the founder makes the partner an owner
+    // hide the account from the partner until the partner has an owner seat
     const rename = (person: Person) =>
         person.client.account.update({
             scope: acme.id,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: created.revision,
             name: "Acme Inc",
         });
     expect(await outcome(rename(partner))).toBe(`NOT_FOUND: no scope ${acme.id}`);
-    await fixture.elevate(founder);
-    await founder.client.organisation.grant({
+    await fixture.elevate(founder.id);
+    await founder.client.organisation.update({
         id: acme.id,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
+        payer: created.id,
+    });
+    const invitation = await founder.client.organisation.invite({
+        id: acme.id,
+        requestId: RequestId.create(Date.now()),
         relation: "owner",
         subject: partner.subject,
+    });
+    await partner.client.organisation.accept({
+        id: acme.id,
+        invitationId: invitation.id,
+        requestId: RequestId.create(Date.now()),
     });
     const renamed = await rename(partner);
     expect(renamed).toEqual({
@@ -396,6 +332,89 @@ test("create accounts in an organisation, administered by its owners", async () 
         name: "Acme Inc",
         revision: 2,
         updatedAt: renamed.updatedAt,
-        updatedBy: Subject.key(partner.subject),
+        ...ObjectReference.columns("updatedBy", partner.subject),
     });
+});
+
+test("create a person's home with their personal account at sign-up, placed on a cloud machine of their residency, which a machine reads", async () => {
+    await using fixture = await AccountFixture.open();
+    const owner = await fixture.person("owner@example.com");
+    const { machine } = await fixture.createSpace(owner);
+
+    // read the home as a machine and find it placed on the residency's cloud machine
+    const read = await machine.client.user.home({ id: owner.id });
+    const placed = await Snapshot.live(fixture.database)
+        .read(placement.table)
+        .findFirst({ where: { id: read } });
+    expect([
+        read,
+        placed && {
+            id: placed.id,
+            scope: placed.scope,
+            machineId: placed.machineId,
+            epoch: placed.epoch,
+            targetId: placed.targetId,
+            transferId: placed.transferId,
+        },
+    ]).toEqual([
+        Account.home(owner.account),
+        {
+            id: Account.home(owner.account),
+            scope: owner.account,
+            machineId: ids.machine,
+            epoch: 1,
+            targetId: null,
+            transferId: null,
+        },
+    ]);
+});
+
+test("show a person's public profile with their locale to anyone signed in, and their private fields to themselves alone", async () => {
+    await using fixture = await AccountFixture.open();
+    const owner = await fixture.person("owner@example.com");
+    const stranger = await fixture.person("stranger@example.com");
+
+    // read the owner as themselves and as a stranger
+    const own = await owner.client.user.get({ id: owner.id });
+    const shown = await stranger.client.user.get({ id: owner.id });
+    expect({
+        own: [own.name, own.email, own.locale],
+        shown: [shown.name, shown.email, shown.locale, shown.timeZone],
+    }).toEqual({
+        own: ["owner@example.com", "owner@example.com", SIGN_UP.locale],
+        shown: ["owner@example.com", undefined, SIGN_UP.locale, undefined],
+    });
+});
+
+test("refuse a person's contact to another home's installations and to other people", async () => {
+    await using fixture = await AccountFixture.open();
+    const owner = await fixture.person("owner@example.com");
+    const other = await fixture.person("other@example.com");
+
+    // act as an installation of the other person's home
+    const stranger = fixture.installation(
+        principal.installation.reference(
+            Account.home(other.account),
+            Identifier.create("installation"),
+        ),
+    );
+
+    // refuse the contact to another home's installation and to the other person
+    expect({
+        stranger: await refusal(stranger.user.contact({ id: owner.id })),
+        other: await refusal(other.client.user.contact({ id: owner.id })),
+    }).toEqual({
+        stranger: ["FORBIDDEN", "permission denied: contact"],
+        other: ["FORBIDDEN", "permission denied: contact"],
+    });
+});
+
+test("let the machine serving an account read its spaces, whose rows its replicas follow", async () => {
+    await using fixture = await AccountFixture.open();
+    const owner = await fixture.person("owner@example.com");
+    const { accountId, spaceId, machine } = await fixture.personalHome(owner);
+
+    // read the home as the cloud machine serving it
+    const read = await machine.client.space.get({ accountId, id: spaceId });
+    expect([read.id, read.scope]).toEqual([spaceId, accountId]);
 });

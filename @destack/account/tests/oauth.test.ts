@@ -1,34 +1,94 @@
 import { eq } from "@destack/db";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 import { expect, test } from "@destack/test";
-import { Credential } from "../src/object/credential.ts";
+import { Credential } from "../src/credential/credential.ts";
 import { user } from "../src/object/user.ts";
-import { session } from "../src/object/authentication.ts";
-import { identifier } from "@destack/schema";
-import { deviceAuthorization } from "../src/stack/authentication/device.ts";
-import { Browser } from "./browser.ts";
-import { AccountFixture, outcome, type Person } from "./fixture.ts";
-import { Digest } from "../src/object/digest.ts";
+import { client } from "../src/object/client.ts";
+import { aligned, Identifier, present, schema } from "@destack/schema";
+import { deviceAuthorization } from "../src/stack/db.ts";
+import { outcome } from "../src/test/index.ts";
+import { AccountFixture, ISSUER, type Person } from "../src/test/index.ts";
+import {
+    at,
+    claims,
+    DeviceGrant,
+    KeySet,
+    locationOf,
+    Redirect,
+    Refusal,
+    Tokens,
+} from "./fixture.ts";
+import { JWKS_PATH } from "../src/authentication/path.ts";
+import { EMAIL_CODE, JWT_BEARER, TOKEN_EXCHANGE } from "../src/oauth/index.ts";
+import { verification } from "../src/stack/index.ts";
+import { Pkce } from "@destack/runtime/authentication";
+import { PackageId } from "@destack/package";
+import accountPackage from "../src/package.ts";
 
-/** The fixture's origin, the provider's issuer. */
-const ORIGIN = "http://localhost:3210";
+/** The claims of an ID token the tests read. */
+const IdClaims = schema.looseObject({
+    /** The issuer. */
+    iss: schema.string(),
+    /** The user. */
+    sub: schema.string(),
+    /** The client. */
+    aud: schema.string(),
+    /** The nonce the client sent. */
+    nonce: schema.string().exactOptional(),
+});
+/** The claims of an ID token the tests read. */
+type IdClaims = schema.Infer<typeof IdClaims>;
+
+/** The header of a JSON Web Token, with its signing key's identifier. */
+const TokenHeader = schema.looseObject({
+    /** The signing key's identifier. */
+    kid: schema.string(),
+});
+
+/** The provider metadata the tests read (OpenID Connect Discovery). */
+const Discovery = schema.looseObject({
+    /** The issuer. */
+    issuer: schema.string(),
+    /** The authorization endpoint. */
+    authorization_endpoint: schema.string(),
+    /** The token endpoint. */
+    token_endpoint: schema.string(),
+    /** The user info endpoint. */
+    userinfo_endpoint: schema.string(),
+    /** The published signing keys. */
+    jwks_uri: schema.string(),
+    /** The device authorization endpoint. */
+    device_authorization_endpoint: schema.string(),
+    /** The supported grant types. */
+    grant_types_supported: schema.array(schema.string()),
+    /** The supported PKCE challenge methods. */
+    code_challenge_methods_supported: schema.array(schema.string()),
+    /** The supported claims. */
+    claims_supported: schema.array(schema.string()),
+});
+
+/** The three dot-separated parts of a JSON Web Token: header, claims and signature. */
+const TokenParts = schema.tuple([schema.string(), schema.string(), schema.string()]);
 
 /** The page the application receives codes at. */
 const REDIRECT = "https://notes.test/callback";
 
+/** The account package as an OAuth resource, the audience of a device's tokens. */
+const ACCOUNT_RESOURCE = PackageId.resource(accountPackage.id);
+
 /** The device authorization grant (RFC 8628). */
 const DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code";
 
-/** Sign a user in to another application: discover the provider, authorize with PKCE, consent, redeem the code, read the user's claims, refresh, and end it all by revoking the consent. */
+/** Sign a user in to another application, then revoke the consent. */
 test("sign in to another application through the authorization code flow with PKCE", async () => {
     await using fixture = await AccountFixture.open();
-    const owner = await fixture.signIn("ada@example.com");
+    const owner = await fixture.signInWithLink("ada@example.com", "ada");
     await chooseProfile(owner);
 
     // register a public client
-    const client = await owner.client.oauthClient.create({
+    const registered = await owner.client.oauthClient.create({
         scope: owner.id,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         name: "Notes",
         redirectUris: [REDIRECT],
         tokenEndpointAuthMethod: "none",
@@ -36,7 +96,9 @@ test("sign in to another application through the authorization code flow with PK
     });
 
     // discover the provider at its issuer
-    const discovered = await (await provider(fixture, "/.well-known/openid-configuration")).json();
+    const discovered = Discovery.parse(
+        await (await provider(fixture, "/.well-known/openid-configuration")).json(),
+    );
     expect({
         issuer: discovered.issuer,
         authorization: discovered.authorization_endpoint,
@@ -48,13 +110,20 @@ test("sign in to another application through the authorization code flow with PK
         challenges: discovered.code_challenge_methods_supported,
         claims: discovered.claims_supported,
     }).toEqual({
-        issuer: ORIGIN,
-        authorization: `${ORIGIN}/auth/oauth2/authorize`,
-        token: `${ORIGIN}/auth/oauth2/token`,
-        userinfo: `${ORIGIN}/auth/oauth2/userinfo`,
-        keys: `${ORIGIN}/auth/jwks`,
-        device: `${ORIGIN}/auth/device/code`,
-        grants: ["authorization_code", "refresh_token", DEVICE_CODE],
+        issuer: ISSUER,
+        authorization: `${ISSUER}/oauth2/authorize`,
+        token: `${ISSUER}/oauth2/token`,
+        userinfo: `${ISSUER}/oauth2/userinfo`,
+        keys: `${ISSUER}${JWKS_PATH}`,
+        device: `${ISSUER}/device/code`,
+        grants: [
+            "authorization_code",
+            "refresh_token",
+            JWT_BEARER,
+            TOKEN_EXCHANGE,
+            EMAIL_CODE,
+            DEVICE_CODE,
+        ],
         challenges: ["S256"],
         claims: [
             "sub",
@@ -84,7 +153,7 @@ test("sign in to another application through the authorization code flow with PK
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
     const query = new URLSearchParams({
         response_type: "code",
-        client_id: client.clientId,
+        client_id: registered.clientId,
         redirect_uri: REDIRECT,
         scope: "openid profile email offline_access",
         state: "state-1",
@@ -95,36 +164,37 @@ test("sign in to another application through the authorization code flow with PK
         }),
         code_challenge_method: "S256",
     });
-    const authorized = await owner.browser.fetch(`/auth/oauth2/authorize?${query}`);
-    const consentPage = new URL(authorized.headers.get("location")!);
+    const authorized = await owner.browser.fetch(`/oauth2/authorize?${query}`);
+    const consentPage = new URL(locationOf(authorized));
     expect([authorized.status, `${consentPage.origin}${consentPage.pathname}`]).toEqual([
         302,
-        `${ORIGIN}/consent`,
+        `${ISSUER}/consent`,
     ]);
 
     // consent and return the user to the application with a code for its state from this issuer
-    const consented = await owner.browser.fetch("/auth/oauth2/consent", {
+    const consented = await owner.browser.fetch("/oauth2/consent", {
         accept: true,
         oauth_query: consentPage.search.slice(1),
     });
-    const callback = new URL((await consented.json()).url);
+    const callback = new URL(Redirect.parse(await consented.json()).url);
     expect({
         page: `${callback.origin}${callback.pathname}`,
         state: callback.searchParams.get("state"),
         issuer: callback.searchParams.get("iss"),
-    }).toEqual({ page: REDIRECT, state: "state-1", issuer: ORIGIN });
+    }).toEqual({ page: REDIRECT, state: "state-1", issuer: ISSUER });
 
     // redeem the code with its verifier
     const redeem = (code: string, codeVerifier = verifier) =>
-        provider(fixture, "/auth/oauth2/token", {
+        provider(fixture, "/oauth2/token", {
             grant_type: "authorization_code",
             code,
             redirect_uri: REDIRECT,
-            client_id: client.clientId,
+            client_id: registered.clientId,
             code_verifier: codeVerifier,
         });
-    const redeemed = await redeem(callback.searchParams.get("code")!);
-    const tokens = await redeemed.json();
+    const code = present(callback.searchParams.get("code"), "the authorization code");
+    const redeemed = await redeem(code);
+    const tokens = Tokens.parse(await redeemed.json());
     expect([redeemed.status, tokens.token_type, tokens.scope]).toEqual([
         200,
         "Bearer",
@@ -132,21 +202,23 @@ test("sign in to another application through the authorization code flow with PK
     ]);
 
     // verify the ID token for this client and nonce with the published keys
-    const identity = await verifyToken(fixture, tokens.id_token);
+    const identity = await verifyToken(fixture, present(tokens.id_token, "the ID token"));
     expect({
         iss: identity.iss,
         sub: identity.sub,
         aud: identity.aud,
         nonce: identity.nonce,
-    }).toEqual({ iss: ORIGIN, sub: owner.id, aud: client.clientId, nonce: "nonce-1" });
+    }).toEqual({ iss: ISSUER, sub: owner.id, aud: registered.clientId, nonce: "nonce-1" });
 
-    // read the user's claims, with the handle, locale and time zone as OpenID Connect claims
+    // read the user's claims
     const userinfo = async (accessToken: string) => {
-        const response = await provider(fixture, "/auth/oauth2/userinfo", undefined, {
+        const response = await provider(fixture, "/oauth2/userinfo", undefined, {
             authorization: `Bearer ${accessToken}`,
         });
 
-        return [response.status, await response.json()];
+        const body: unknown = await response.json();
+
+        return [response.status, body];
     };
     expect(await userinfo(tokens.access_token)).toEqual([
         200,
@@ -156,140 +228,209 @@ test("sign in to another application through the authorization code flow with PK
             email: "ada@example.com",
             email_verified: true,
             preferred_username: "ada",
-            locale: "de-AT",
-            zoneinfo: "Europe/Vienna",
+            locale: "en-GB",
+            zoneinfo: "Europe/London",
         },
     ]);
 
     // refuse a replayed code and end the tokens it issued
-    const replayed = await redeem(callback.searchParams.get("code")!);
+    const replayed = await redeem(code);
     expect([
         replayed.status,
-        (await replayed.json()).error,
+        Refusal.parse(await replayed.json()).error,
         (await userinfo(tokens.access_token))[0],
     ]).toEqual([400, "invalid_grant", 401]);
 
     // authorize again without consent and refuse a code without its verifier
     const authorize = async () => {
-        const response = await owner.browser.fetch(`/auth/oauth2/authorize?${query}`);
+        const response = await owner.browser.fetch(`/oauth2/authorize?${query}`);
 
-        return new URL(response.headers.get("location")!);
+        return new URL(locationOf(response));
     };
     const remembered = await authorize();
-    const forged = await redeem(remembered.searchParams.get("code")!, "forged".repeat(8));
+    const forged = await redeem(
+        present(remembered.searchParams.get("code"), "the authorization code"),
+        "forged".repeat(8),
+    );
     expect([
         `${remembered.origin}${remembered.pathname}`,
         forged.status,
-        (await forged.json()).error,
+        Refusal.parse(await forged.json()).error,
     ]).toEqual([REDIRECT, 401, "invalid_request"]);
 
     // refresh the tokens of another authorization
     const refresh = (token: string) =>
-        provider(fixture, "/auth/oauth2/token", {
+        provider(fixture, "/oauth2/token", {
             grant_type: "refresh_token",
             refresh_token: token,
-            client_id: client.clientId,
+            client_id: registered.clientId,
         });
-    const fresh = await (await redeem((await authorize()).searchParams.get("code")!)).json();
-    const refreshed = await refresh(fresh.refresh_token);
-    const renewed = await refreshed.json();
+    const another = present((await authorize()).searchParams.get("code"), "the authorization code");
+    const fresh = Tokens.parse(await (await redeem(another)).json());
+    const refreshed = await refresh(present(fresh.refresh_token, "the refresh token"));
+    const renewed = Tokens.parse(await refreshed.json());
     expect(refreshed.status).toBe(200);
 
     // revoke the consent to end the client's tokens
     const { items: consents } = await owner.client.oauthConsent.list({ userId: owner.id });
     expect(consents.map(({ clientId, scopes }) => ({ clientId, scopes }))).toEqual([
-        { clientId: client.clientId, scopes: ["openid", "profile", "email", "offline_access"] },
+        { clientId: registered.clientId, scopes: ["openid", "profile", "email", "offline_access"] },
     ]);
     await owner.client.oauthConsent.revoke({
         userId: owner.id,
-        id: consents[0]!.id,
-        requestId: RequestId.create(),
-        revision: consents[0]!.revision,
+        id: aligned(consents, 0).id,
+        requestId: RequestId.create(Date.now()),
     });
-    const ended = await refresh(renewed.refresh_token);
+    const ended = await refresh(present(renewed.refresh_token, "the renewed refresh token"));
     expect([
         ended.status,
-        (await ended.json()).error,
+        Refusal.parse(await ended.json()).error,
         (await userinfo(renewed.access_token))[0],
     ]).toEqual([400, "invalid_grant", 401]);
 });
 
-/** Sign a device in to a confidential application through the device authorization flow, authenticating the client by its secret. */
+test("refuse a refresh token issued before a revoked consent was granted again", async () => {
+    await using fixture = await AccountFixture.open();
+    const owner = await fixture.signInWithLink("ada@example.com", "ada");
+
+    // register a public client and authorize it with PKCE, consenting once
+    const registered = await owner.client.oauthClient.create({
+        scope: owner.id,
+        requestId: RequestId.create(Date.now()),
+        name: "Notes",
+        redirectUris: [REDIRECT],
+        tokenEndpointAuthMethod: "none",
+        grantTypes: ["authorization_code", "refresh_token"],
+    });
+    const verifier = Pkce.verifier();
+    const query = new URLSearchParams({
+        response_type: "code",
+        client_id: registered.clientId,
+        redirect_uri: REDIRECT,
+        scope: "openid profile email offline_access",
+        state: "state-1",
+        nonce: "nonce-1",
+        code_challenge: await Pkce.challenge(verifier),
+        code_challenge_method: "S256",
+    });
+    const grant = async (): Promise<string> => {
+        // consent on the page the authorization sends the person to, and redeem the code
+        const authorized = await owner.browser.fetch(`/oauth2/authorize?${query}`);
+        const consentPage = new URL(locationOf(authorized));
+        const consented = await owner.browser.fetch("/oauth2/consent", {
+            accept: true,
+            oauth_query: consentPage.search.slice(1),
+        });
+        const callback = new URL(Redirect.parse(await consented.json()).url);
+        const redeemed = await provider(fixture, "/oauth2/token", {
+            grant_type: "authorization_code",
+            code: present(callback.searchParams.get("code"), "the authorization code"),
+            redirect_uri: REDIRECT,
+            client_id: registered.clientId,
+            code_verifier: verifier,
+        });
+
+        return present(Tokens.parse(await redeemed.json()).refresh_token, "the refresh token");
+    };
+    const refresh = async (token: string) => {
+        const response = await provider(fixture, "/oauth2/token", {
+            grant_type: "refresh_token",
+            refresh_token: token,
+            client_id: registered.clientId,
+        });
+        await response.text();
+
+        return response.status;
+    };
+    const before = await grant();
+
+    // revoke the consent, then grant it again
+    const { items } = await owner.client.oauthConsent.list({ userId: owner.id });
+    const consent = aligned(items, 0);
+    await owner.client.oauthConsent.revoke({
+        userId: owner.id,
+        id: consent.id,
+        requestId: RequestId.create(Date.now()),
+    });
+    const after = await grant();
+
+    // refuse the token issued before the second grant, and refresh the one issued after it
+    expect([await refresh(before), await refresh(after)]).toEqual([400, 200]);
+});
+
+/** Sign a device in to a confidential application through the device authorization flow. */
 test("sign a device in to a confidential application through the device authorization flow", async () => {
     await using fixture = await AccountFixture.open();
-    const owner = await fixture.signIn("ada@example.com");
+    const owner = await fixture.signInWithLink("ada@example.com");
 
     // register a confidential client in an account from a secret only its registrar knows
     const { accountId } = await fixture.createSpace(owner);
     const secret = await Credential.create("oauth-client");
-    const client = await owner.client.oauthClient.create({
+    const registered = await owner.client.oauthClient.create({
         scope: accountId,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         name: "Television",
         redirectUris: [REDIRECT],
         tokenEndpointAuthMethod: "client_secret_post",
         clientSecret: secret.digest,
         grantTypes: [DEVICE_CODE, "refresh_token"],
     });
-    expect([Object.hasOwn(client, "clientSecret"), client.userId]).toEqual([false, owner.id]);
+    expect([Object.hasOwn(registered, "clientSecret"), registered.userId]).toEqual([
+        false,
+        owner.id,
+    ]);
 
     // request a device code as the client for the user to approve in the browser
-    const credentials = { client_id: client.clientId, client_secret: secret.secret };
-    const requested = await provider(fixture, "/auth/device/code", {
+    const credentials = { client_id: registered.clientId, client_secret: secret.secret };
+    const requested = await provider(fixture, "/device/code", {
         ...credentials,
         scope: "openid profile offline_access",
     });
-    const grant = await requested.json();
-    const reviewed = await owner.browser.fetch(`/auth/device?user_code=${grant.user_code}`);
-    const approved = await owner.browser.fetch("/auth/device/approve", {
+    const grant = DeviceGrant.parse(await requested.json());
+    const reviewed = await owner.browser.fetch(`/device?user_code=${grant.user_code}`);
+    const approved = await owner.browser.fetch("/device/approve", {
         userCode: grant.user_code,
     });
     expect([requested.status, reviewed.status, approved.status]).toEqual([200, 200, 200]);
     expect(
-        await fixture.opened.database
+        await fixture.storage.database
             .select({
                 oauthClientId: deviceAuthorization.oauthClientId,
                 status: deviceAuthorization.status,
             })
             .from(deviceAuthorization)
             .where(eq(deviceAuthorization.deviceCode, grant.device_code)),
-    ).toEqual([{ oauthClientId: client.clientId, status: "approved" }]);
+    ).toEqual([{ oauthClientId: registered.clientId, status: "approved" }]);
 
-    // refuse the code at the native endpoint and without the client's secret, then issue tokens
+    // refuse the code without the client's secret
     const exchange = (fields: Record<string, string>) =>
-        provider(fixture, "/auth/oauth2/token", {
+        provider(fixture, "/oauth2/token", {
             grant_type: DEVICE_CODE,
             device_code: grant.device_code,
             ...fields,
         });
-    const native = await fixture.browser().fetch("/auth/device/token", {
-        grant_type: DEVICE_CODE,
-        device_code: grant.device_code,
-        client_id: "destack-daemon",
-    });
     const unauthenticated = await exchange({ ...credentials, client_secret: "dst_ocs_wrong" });
     const issued = await exchange(credentials);
-    const tokens = await issued.json();
+    const tokens = Tokens.parse(await issued.json());
     expect([
-        [native.status, (await native.json()).error],
-        [unauthenticated.status, (await unauthenticated.json()).error],
+        [unauthenticated.status, Refusal.parse(await unauthenticated.json()).error],
         [issued.status, tokens.scope],
     ]).toEqual([
-        [400, "invalid_grant"],
         [400, "invalid_client"],
         [200, "openid profile offline_access"],
     ]);
-    expect((await verifyToken(fixture, tokens.id_token)).aud).toBe(client.clientId);
+    const verified = await verifyToken(fixture, present(tokens.id_token, "the ID token"));
+    expect(verified.aud).toBe(registered.clientId);
 
     // refuse further tokens once the user is suspended
-    await fixture.opened.database
+    await fixture.storage.database
         .update(user.table)
         .set({ suspendedAt: Date.now() })
         .where(eq(user.table.id, owner.id));
-    const suspended = await provider(fixture, "/auth/oauth2/token", {
+    const suspended = await provider(fixture, "/oauth2/token", {
         ...credentials,
         grant_type: "refresh_token",
-        refresh_token: tokens.refresh_token,
+        refresh_token: present(tokens.refresh_token, "the refresh token"),
     });
     expect([suspended.status, await suspended.json()]).toEqual([
         401,
@@ -297,123 +438,221 @@ test("sign a device in to a confidential application through the device authoriz
     ]);
 });
 
-/** Sign a native client in through the browser once the person allows it: a loopback redirect with PKCE, redeemed once for a session. */
-test("sign a native client in through the browser once the person allows it, with a loopback redirect and PKCE", async () => {
+/** Sign a device in as a new client through the browser once the person allows it, with PKCE. */
+test("sign a device in as a new client through the browser once the person allows it, with a loopback redirect and PKCE", async () => {
     await using fixture = await AccountFixture.open();
-    const owner = await fixture.signIn("ada@example.com");
+    const owner = await fixture.signInWithLink("ada@example.com");
     const signedOut = fixture.browser();
 
-    // authorize with a challenge on the loopback, sending a signed-out browser to sign in first
+    // authorize a fresh client with a challenge on the loopback
+    const clientId = Identifier.create("client");
     const verifier = "v".repeat(43);
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
     const redirect = "http://127.0.0.1:53682/callback";
     const query = new URLSearchParams({
         response_type: "code",
-        client_id: "destack-daemon",
+        client_id: clientId,
         redirect_uri: redirect,
+        scope: "openid profile email offline_access",
+        resource: ACCOUNT_RESOURCE,
         state: "state-1",
-        code_challenge: new Uint8Array(digest).toBase64({
-            alphabet: "base64url",
-            omitPadding: true,
-        }),
+        code_challenge: await Pkce.challenge(verifier),
         code_challenge_method: "S256",
     });
-    const authorize = (browser: Browser, parameters = query) =>
-        browser.fetch(`/auth/native/authorize?${parameters}`);
-    const decide = async (browser: Browser, action: "approve" | "deny") => {
-        const asked = new URL((await authorize(browser)).headers.get("location")!);
-
-        return browser.fetch(`${asked.pathname}${asked.search}`, new URLSearchParams({ action }));
-    };
-    const [away, foreign, asked] = [
-        await authorize(signedOut),
-        await authorize(
-            owner.browser,
-            new URLSearchParams({
-                ...Object.fromEntries(query),
-                redirect_uri: "https://evil.test/",
-            }),
-        ),
-        await authorize(owner.browser),
-    ];
-    const signIn = new URL(away.headers.get("location")!);
-    const consent = new URL(asked.headers.get("location")!);
+    const away = await signedOut.fetch(`/oauth2/authorize?${query}`);
+    const asked = await owner.browser.fetch(`/oauth2/authorize?${query}`);
+    const signIn = new URL(locationOf(away));
+    const consentPage = new URL(locationOf(asked));
     expect({
         away: [away.status, `${signIn.origin}${signIn.pathname}`],
-        callbackURL: signIn.searchParams.get("callbackURL"),
-        foreign: foreign.status,
-        asked: [asked.status, consent.origin, consent.searchParams.get("flow")],
-        code: consent.searchParams.get("code"),
+        asked: [asked.status, `${consentPage.origin}${consentPage.pathname}`],
     }).toEqual({
-        away: [302, `${ORIGIN}/sign-in`],
-        callbackURL: `${ORIGIN}/auth/native/authorize?${query}`,
-        foreign: 400,
-        asked: [302, ORIGIN, "native"],
-        code: null,
+        away: [302, `${ISSUER}/sign-in`],
+        asked: [302, `${ISSUER}/consent`],
     });
 
-    // return a denial to the client, and a code once the person allows it
-    const denied = new URL((await decide(owner.browser, "deny")).headers.get("location")!);
-    const approved = await decide(owner.browser, "approve");
-    const callback = new URL(approved.headers.get("location")!);
+    // return a denial to the client, then a code once the person allows it
+    const decide = async (action: "approve" | "deny") => {
+        const decided = await owner.browser.fetch(
+            `/consent${consentPage.search}`,
+            new URLSearchParams({ action }),
+        );
+
+        return new URL(locationOf(decided));
+    };
+    const denied = await decide("deny");
+    const approved = await decide("approve");
     expect({
         denied: [`${denied.origin}${denied.pathname}`, denied.searchParams.get("error")],
-        approved: [approved.status, `${callback.origin}${callback.pathname}`],
-        state: callback.searchParams.get("state"),
-        issuer: callback.searchParams.get("iss"),
+        approved: [`${approved.origin}${approved.pathname}`, approved.searchParams.get("state")],
+        issuer: approved.searchParams.get("iss"),
     }).toEqual({
         denied: [redirect, "access_denied"],
-        approved: [303, redirect],
-        state: "state-1",
-        issuer: ORIGIN,
+        approved: [redirect, "state-1"],
+        issuer: ISSUER,
     });
 
-    // refuse and spend the code without its verifier, then redeem a fresh one for a session
+    // refuse and spend a code without its verifier, redeem a fresh one, and refuse it replayed
     const redeem = (code: string, codeVerifier = verifier) =>
-        provider(fixture, "/auth/native/token", {
+        provider(fixture, "/oauth2/token", {
             grant_type: "authorization_code",
             code,
             redirect_uri: redirect,
-            client_id: "destack-daemon",
+            client_id: clientId,
             code_verifier: codeVerifier,
+            resource: ACCOUNT_RESOURCE,
         });
-    const forged = await redeem(callback.searchParams.get("code")!, "f".repeat(43));
-    const spent = await redeem(callback.searchParams.get("code")!);
-    const fresh = new URL((await decide(owner.browser, "approve")).headers.get("location")!);
-    const redeemed = await redeem(fresh.searchParams.get("code")!);
-    const replayed = await redeem(fresh.searchParams.get("code")!);
-    const tokens = await redeemed.json();
+    const code = present(approved.searchParams.get("code"), "the authorization code");
+    const forged = await redeem(code, "f".repeat(43));
+    const fresh = present((await decide("approve")).searchParams.get("code"), "the fresh code");
+    const redeemed = await redeem(fresh);
+    const replayed = await redeem(fresh);
+    const tokens = Tokens.parse(await redeemed.json());
     expect([
-        [forged.status, (await forged.json()).error],
-        [spent.status, (await spent.json()).error],
+        [forged.status, Refusal.parse(await forged.json()).error],
         [redeemed.status, tokens.token_type],
-        [replayed.status, (await replayed.json()).error],
+        [replayed.status, Refusal.parse(await replayed.json()).error],
     ]).toEqual([
-        [400, "invalid_grant"],
-        [400, "invalid_grant"],
+        [401, "invalid_request"],
         [200, "Bearer"],
         [400, "invalid_grant"],
     ]);
 
-    // act as the user with the session, recorded as a native sign-in
-    const native = fixture.connect(() => ({ authorization: `Bearer ${tokens.access_token}` }));
-    const { subject, credential } = await native.authentication.current();
-    const [created] = await fixture.opened.database
-        .select({ method: session.table.authenticationMethod })
-        .from(session.table)
-        .where(eq(session.table.id, identifier("session").parse(credential.id)));
-    expect([subject.id, credential.kind, created!.method]).toEqual([owner.id, "session", "device"]);
+    // act as the person through the new client, registered as theirs at consent
+    const { sub, client_id: holder, caller } = claims(tokens.access_token);
+    const [registered] = await fixture.storage.database
+        .select({ id: client.table.id, scope: client.table.scope })
+        .from(client.table)
+        .where(eq(client.table.id, clientId));
+    expect([sub, holder, caller.credential.kind, registered]).toEqual([
+        owner.id,
+        clientId,
+        "session",
+        { id: clientId, scope: owner.id },
+    ]);
+});
+
+/** Carry the assurance of the session that approved a device's client in its tokens. */
+test("carry the second factor of the session approving a device's client in its tokens, and send a person asked to sign in again to the sign-in page", async () => {
+    await using fixture = await AccountFixture.open();
+    const owner = await fixture.signInWithLink("ada@example.com");
+    await fixture.elevate(owner.id);
+
+    // authorize a fresh client, and once more asking the person to sign in again
+    const clientId = Identifier.create("client");
+    const verifier = "s".repeat(43);
+    const redirect = "http://127.0.0.1:53682/callback";
+    const query = new URLSearchParams({
+        response_type: "code",
+        client_id: clientId,
+        redirect_uri: redirect,
+        scope: "openid offline_access",
+        resource: ACCOUNT_RESOURCE,
+        state: "state-2",
+        code_challenge: await Pkce.challenge(verifier),
+        code_challenge_method: "S256",
+    });
+    const asked = new URL(locationOf(await owner.browser.fetch(`/oauth2/authorize?${query}`)));
+    const again = new URLSearchParams({
+        ...Object.fromEntries(query),
+        prompt: "login",
+        max_age: "60",
+    });
+    const reauthenticate = new URL(
+        locationOf(await owner.browser.fetch(`/oauth2/authorize?${again}`)),
+    );
+
+    // consent and redeem the code for tokens carrying the session's second factor
+    const consented = await owner.browser.fetch(
+        `/consent${asked.search}`,
+        new URLSearchParams({ action: "approve" }),
+    );
+    const callback = new URL(locationOf(consented));
+    const redeemed = await provider(fixture, "/oauth2/token", {
+        grant_type: "authorization_code",
+        code: present(callback.searchParams.get("code"), "the authorization code"),
+        redirect_uri: redirect,
+        client_id: clientId,
+        code_verifier: verifier,
+        resource: ACCOUNT_RESOURCE,
+    });
+    const { caller } = claims(Tokens.parse(await redeemed.json()).access_token);
+    expect({
+        reauthenticate: `${reauthenticate.origin}${reauthenticate.pathname}`,
+        assurance: caller.assurance,
+    }).toEqual({
+        reauthenticate: `${ISSUER}/sign-in`,
+        assurance: { level: 2, authenticatedAt: caller.assurance?.authenticatedAt },
+    });
+});
+
+/** Exchange a mailed code for a person's tokens on a device's new client at the token endpoint. */
+test("sign a person in with a mailed code at the token endpoint as a new client, and refuse a wrong, a spent or an expired code", async () => {
+    await using fixture = await AccountFixture.open();
+    const owner = await fixture.person("ada@example.com");
+    const browser = fixture.browser();
+
+    // mail a code, and exchange it for the person's tokens on a new client
+    const clientId = Identifier.create("client");
+    const send = () =>
+        browser.fetch("/email-otp/send-verification-otp", {
+            email: "ada@example.com",
+            type: "sign-in",
+        });
+    const redeem = (code: string) =>
+        provider(fixture, "/oauth2/token", {
+            grant_type: EMAIL_CODE,
+            email: "ada@example.com",
+            code,
+            client_id: clientId,
+            resource: ACCOUNT_RESOURCE,
+        });
+    await send();
+    const { otp } = at(await fixture.codes(), -1);
+    const wrong = await redeem(otp === "000000" ? "111111" : "000000");
+    const redeemed = await redeem(otp);
+    const spent = await redeem(otp);
+    const tokens = Tokens.parse(await redeemed.json());
+    const { sub, client_id: holder, caller } = claims(tokens.access_token);
+    const [registered] = await fixture.storage.database
+        .select({ id: client.table.id, scope: client.table.scope })
+        .from(client.table)
+        .where(eq(client.table.id, clientId));
+    expect({
+        wrong: [wrong.status, Refusal.parse(await wrong.json()).error],
+        redeemed: [redeemed.status, tokens.scope, tokens.refresh_token !== undefined],
+        token: [sub, holder, caller.credential, caller.assurance?.level],
+        registered,
+        spent: [spent.status, Refusal.parse(await spent.json()).error],
+    }).toEqual({
+        wrong: [400, "invalid_grant"],
+        redeemed: [200, "openid profile offline_access", true],
+        token: [owner.id, clientId, { kind: "client", id: clientId }, 1],
+        registered: { id: clientId, scope: owner.id },
+        spent: [400, "invalid_grant"],
+    });
+
+    // refuse a code past its expiry
+    await send();
+    await fixture.storage.database
+        .update(verification)
+        .set({ expiresAt: Date.now() - 1 })
+        .where(eq(verification.identifier, "sign-in-otp-ada@example.com"));
+    const expired = await redeem(at(await fixture.codes(), -1).otp);
+    expect([expired.status, Refusal.parse(await expired.json())]).toEqual([
+        400,
+        { error: "invalid_grant", error_description: "the code is wrong or expired" },
+    ]);
 });
 
 /** Rename and disable a registered client, refuse authorizing it while disabled, and delete it. */
 test("update, disable and delete an oauth client", async () => {
     await using fixture = await AccountFixture.open();
-    const owner = await fixture.signIn("ada@example.com");
+    const owner = await fixture.signInWithLink("ada@example.com");
 
-    // register a public client, then rename and disable it
-    const client = await owner.client.oauthClient.create({
+    // register, rename and disable a public client
+    const registered = await owner.client.oauthClient.create({
         scope: owner.id,
-        requestId: RequestId.create(),
+        requestId: RequestId.create(Date.now()),
         name: "Notes",
         redirectUris: [REDIRECT],
         tokenEndpointAuthMethod: "none",
@@ -421,14 +660,14 @@ test("update, disable and delete an oauth client", async () => {
     });
     const updated = await owner.client.oauthClient.update({
         scope: owner.id,
-        id: client.id,
-        requestId: RequestId.create(),
-        revision: client.revision,
+        id: registered.id,
+        requestId: RequestId.create(Date.now()),
+        revision: registered.revision,
         name: "Notebook",
         disabled: true,
     });
     expect(updated).toEqual({
-        ...client,
+        ...registered,
         name: "Notebook",
         disabled: true,
         revision: 2,
@@ -438,101 +677,91 @@ test("update, disable and delete an oauth client", async () => {
     // refuse authorizing the disabled client
     const query = new URLSearchParams({
         response_type: "code",
-        client_id: client.clientId,
+        client_id: registered.clientId,
         redirect_uri: REDIRECT,
         scope: "openid",
         state: "state-1",
-        code_challenge: await Digest.base64url("verifier".repeat(8)),
+        code_challenge: await Pkce.challenge("verifier".repeat(8)),
         code_challenge_method: "S256",
     });
-    const refused = await owner.browser.fetch(`/auth/oauth2/authorize?${query}`);
+    const refused = await owner.browser.fetch(`/oauth2/authorize?${query}`);
     expect([refused.status, refused.headers.get("location"), await refused.text()]).toEqual([
         302,
-        `${ORIGIN}/auth/error?error=client_disabled&error_description=client+is+disabled`,
+        `${ISSUER}/error?error=client_disabled&error_description=client+is+disabled`,
         "",
     ]);
 
-    // delete the client, after which it is gone
+    // delete the client
     const deleted = await owner.client.oauthClient.delete({
         scope: owner.id,
-        id: client.id,
-        requestId: RequestId.create(),
+        id: registered.id,
+        requestId: RequestId.create(Date.now()),
         revision: updated.revision,
     });
     expect(deleted).toEqual({});
-    expect(await outcome(owner.client.oauthClient.get({ scope: owner.id, id: client.id }))).toBe(
-        `NOT_FOUND: no oauth-client ${client.id}`,
-    );
+    expect(
+        await outcome(owner.client.oauthClient.get({ scope: owner.id, id: registered.id })),
+    ).toBe(`NOT_FOUND: no oauth-client ${registered.id}`);
 });
 
-/** Choose a person's handle, locale and time zone and refuse an unknown zone. */
+/** Choose a person's locale and time zone and refuse an unknown zone. */
 async function chooseProfile(person: Person): Promise<void> {
-    // claim the handle with the personal account, after choosing a residency
-    const chosen = await person.client.user.get({ id: person.id });
-    await person.client.user.update({
-        id: person.id,
-        requestId: RequestId.create(),
-        revision: chosen.revision,
-        residency: "eu",
-    });
-    await person.client.account.create({
-        scope: person.id,
-        requestId: RequestId.create(),
-        handle: "ada",
-        name: "Ada",
-        defaultResidency: "eu",
-        kind: "personal",
-    });
-
-    // set the locale and time zone
+    // change the time zone and the locale
     const current = await person.client.user.get({ id: person.id });
-    const change = { id: person.id, revision: current.revision, locale: "de-AT" };
-    await expect(
-        person.client.user.update({
-            ...change,
-            requestId: RequestId.create(),
-            timeZone: "Mars/Olympus",
-        }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "unknown time zone Mars/Olympus" });
+    const change = { id: person.id, revision: current.revision };
+    expect(
+        await outcome(
+            person.client.user.update({
+                ...change,
+                requestId: RequestId.create(Date.now()),
+                timeZone: "Mars/Olympus",
+            }),
+        ),
+    ).toBe("BAD_REQUEST: unknown time zone Mars/Olympus");
     await person.client.user.update({
         ...change,
-        requestId: RequestId.create(),
-        timeZone: "Europe/Vienna",
+        requestId: RequestId.create(Date.now()),
+        timeZone: "Europe/London",
+        locale: "en-GB",
     });
 }
 
-/** Send a request to the provider as another application does: a form post, or a read with its headers. */
+/** Decode one base64url part of a JSON Web Token as JSON. */
+function decode(part: string): unknown {
+    return JSON.parse(
+        new TextDecoder().decode(Uint8Array.fromBase64(part, { alphabet: "base64url" })),
+    );
+}
+
+/** Send a request to the provider as another application does: a form post or a read. */
 function provider(
     fixture: AccountFixture,
     path: string,
     form?: Record<string, string>,
     headers: Record<string, string> = {},
 ): Promise<Response> {
-    return fixture.server.fetch(
-        new Request(new URL(path, ORIGIN), {
+    return fixture.fetch(
+        new Request(`${ISSUER}${path}`, {
             method: form === undefined ? "GET" : "POST",
             headers:
                 form === undefined
                     ? headers
                     : { ...headers, "content-type": "application/x-www-form-urlencoded" },
-            body: form === undefined ? undefined : new URLSearchParams(form),
+            ...(form === undefined ? {} : { body: new URLSearchParams(form) }),
         }),
     );
 }
 
-/** Verify an ES256 JSON Web Token with the key the provider publishes under its identifier, returning its claims. */
-async function verifyToken(
-    fixture: AccountFixture,
-    token: string,
-): Promise<Record<string, unknown>> {
+/** Verify an ES256 JSON Web Token with the provider's published key, returning its claims. */
+async function verifyToken(fixture: AccountFixture, token: string): Promise<IdClaims> {
     // find the published key with the header's key identifier
-    const [header, claims, signature] = token.split(".") as [string, string, string];
-    const decode = (part: string) =>
-        JSON.parse(
-            new TextDecoder().decode(Uint8Array.fromBase64(part, { alphabet: "base64url" })),
-        );
-    const { keys } = await (await provider(fixture, "/auth/jwks")).json();
-    const key = keys.find((entry: { kid: string }) => entry.kid === decode(header).kid);
+    const [header, payload, signature] = TokenParts.parse(token.split("."));
+    const { kid } = TokenHeader.parse(decode(header));
+    const { keys } = KeySet.parse(await (await provider(fixture, JWKS_PATH)).json());
+    const key = present(
+        keys.find((entry) => entry.kid === kid),
+        "the published signing key",
+    );
 
     // check the signature over the header and claims
     const imported = await crypto.subtle.importKey(
@@ -546,9 +775,9 @@ async function verifyToken(
         { name: "ECDSA", hash: "SHA-256" },
         imported,
         Uint8Array.fromBase64(signature, { alphabet: "base64url" }),
-        new TextEncoder().encode(`${header}.${claims}`),
+        new TextEncoder().encode(`${header}.${payload}`),
     );
     expect(isSigned).toBe(true);
 
-    return decode(claims);
+    return IdClaims.parse(decode(payload));
 }
