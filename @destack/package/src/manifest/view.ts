@@ -41,7 +41,7 @@ export const ViewDescription = Object.assign(
                 /** The emitted chunk mounting the view. */
                 entrypoint: PackagePath,
                 /** The permissions the view requests by scope, as a `PermissionRequest`. */
-                permissions: schema.record(schema.string(), schema.json()),
+                permissions: schema.jsonObject(),
                 /** The browser features the view may use, as its package declares them. */
                 capabilities: Capabilities,
                 /** The object types the view presents, so opening an object picks its view. */

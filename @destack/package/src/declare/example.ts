@@ -6,7 +6,7 @@ import { Moniker } from "../graph/moniker.ts";
 import type { Declaration } from "./declaration.ts";
 
 /** The schema of the property values an example sets, each a JSON value a control can change. */
-const Properties = schema.record(schema.string(), schema.json());
+const Properties = schema.jsonObject();
 
 /** The property values an example sets: some of a function's properties, or JSON values. */
 export type PropertiesOf<Of> = Of extends (properties: infer Properties) => unknown
@@ -161,7 +161,7 @@ export const ExampleDescription = defineSchema(
         /** One sentence saying what the example shows. */
         description: schema.string().min(1),
         /** The property values the example sets, by property. */
-        properties: schema.record(schema.string(), schema.json()),
+        properties: schema.jsonObject(),
         /** The controls of the properties the declaration's package declares, by property. */
         controls: schema.array(Control),
         /** The calls bringing objects into the example's state, by scope and type moniker. */
@@ -174,7 +174,7 @@ export const ExampleDescription = defineSchema(
                     /** The method. */
                     method: schema.string().min(1),
                     /** The method's input. */
-                    input: schema.record(schema.string(), schema.json()),
+                    input: schema.jsonObject(),
                 }),
             ),
         ),

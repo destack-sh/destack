@@ -20,7 +20,7 @@ export const DeclarationDescription = defineSchema(
         /** The declaring module and source position. */
         source: SourceLocation,
         /** The description validated by its domain inspector. */
-        description: schema.record(schema.string(), schema.json()),
+        description: schema.jsonObject(),
         /** The declaration's terms, such as `object/note/relation/editor`, with digests. */
         vocabulary: schema.record(schema.string(), Digest).exactOptional(),
         /** The symbols its kind derives with their relationships, if any. */

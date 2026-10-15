@@ -1,4 +1,4 @@
-import { defineSchema, schema, type JsonValue } from "@destack/schema";
+import { defineSchema, schema, type JsonObject } from "@destack/schema";
 import { DeclarationName, Package, PackageId } from "../definition/package.ts";
 
 /** A declared thing of a package with a name: a resource, secret, service, setting and so on. */
@@ -10,12 +10,12 @@ export interface Declaration {
 }
 
 /** The state a resource declaration requires of its resource. */
-export type ResourceState = Readonly<Record<string, JsonValue>>;
+export type ResourceState = JsonObject;
 
 /** A resource a package requires, described by the state it must have. */
 export interface ResourceRequirement extends Declaration {
     /** Describe the state the resource must have. */
-    state(): ResourceState;
+    readonly state: () => ResourceState;
 }
 
 /** The schema of a declaration qualified by its declaring package. */

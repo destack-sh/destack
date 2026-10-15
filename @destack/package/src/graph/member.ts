@@ -48,7 +48,7 @@ export const MemberSymbol = defineSchema(
                 /** The member's name within its kind. */
                 name: schema.string().min(1),
                 /** The member's description. */
-                description: schema.record(schema.string(), schema.json()),
+                description: schema.jsonObject(),
             })
             .exactOptional(),
         /** The relationships from the symbol to the declarations they name. */

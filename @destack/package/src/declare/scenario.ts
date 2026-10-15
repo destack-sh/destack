@@ -24,7 +24,7 @@ export const SetStep = defineSchema(
         /** Change properties an example declares. */
         action: schema.literal("set"),
         /** The new values, by property. */
-        properties: schema.record(schema.string(), schema.json()),
+        properties: schema.jsonObject(),
         /** The example by name, the scenario's only example when absent. */
         example: DeclarationName.exactOptional(),
     }),
@@ -167,13 +167,13 @@ function thenOf<Observe extends schema.Schema>(observation: Observe) {
             /** The observations by name. */
             observe,
             /** The values expected after each step, by observation name. */
-            each: schema.array(schema.record(schema.string(), schema.json())),
+            each: schema.array(schema.jsonObject()),
         }),
         schema.object({
             /** The observations by name. */
             observe,
             /** The values expected after the last step, by observation name. */
-            end: schema.record(schema.string(), schema.json()),
+            end: schema.jsonObject(),
         }),
     ]);
 }

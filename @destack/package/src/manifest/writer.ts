@@ -20,7 +20,7 @@ const MEDIA_TYPES: Readonly<Record<string, string>> = {
 /** Where a build writer keeps file bytes: a build directory, or memory. */
 export interface BuildStorage {
     /** Keep a file's bytes at a package path. */
-    write(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void>;
+    readonly write: (path: string, bytes: Uint8Array<ArrayBuffer>) => Promise<void>;
 }
 
 /** What a build's manifest records beside its files. */
