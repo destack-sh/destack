@@ -1,6 +1,6 @@
 import { DeclarationName, ModuleMetadata, PACKAGE, Package, PackageError } from "@destack/package";
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
-import { Version } from "@destack/schema";
+import { mapValues, Version } from "@destack/schema";
 import { AdapterPath } from "../runtime/description.ts";
 import type { ProcedureRouter } from "../runtime/runtime.ts";
 import type { Policy } from "@destack/access";
@@ -53,16 +53,22 @@ export interface PackageHandle<Input extends PackageInput = PackageInput> extend
     /** The procedures its objects derive, by route name. */
     readonly router: PackageRoutes<Input>;
     /** The object types the package serves, by route name. */
-    readonly objects: NonNullable<Input["objects"]>;
+    readonly objects: Declared<Input["objects"]>;
     /** The views the package offers, by name. */
-    readonly views: NonNullable<Input["views"]>;
+    readonly views: Declared<Input["views"]>;
     /** The adapters of protocols others define, by name. */
-    readonly adapters: NonNullable<Input["adapters"]>;
+    readonly adapters: Declared<Input["adapters"]>;
     /** The resources the package uses, by name. */
-    readonly resources: NonNullable<Input["resources"]>;
+    readonly resources: Declared<Input["resources"]>;
     /** The secrets the package reads, by name. */
-    readonly secrets: NonNullable<Input["secrets"]>;
+    readonly secrets: Declared<Input["secrets"]>;
 }
+
+/** The declarations of one kind a package lists, none when it leaves the kind out. */
+type Declared<Listed> = (Listed extends Readonly<Record<string, unknown>>
+    ? Listed
+    : Readonly<Record<string, never>>) &
+    object;
 
 /** The router a package's objects derive. */
 export type PackageRoutes<Input extends PackageInput> = Extract<
@@ -78,13 +84,7 @@ export type PackageRoutes<Input extends PackageInput> = Extract<
 export function definePackage<const Input extends PackageInput>(
     input: Input,
     module?: ModuleMetadata,
-): PackageHandle<Input>;
-/**
- * Declare the handle of the package the module belongs to.
- *
- * @construct PackageHandle.of routes each object under its route name, as PackageRoutes maps it.
- */
-export function definePackage(input: PackageInput, module?: ModuleMetadata): unknown {
+): PackageHandle<Input> {
     return PackageHandle.of(
         Package.parse(ModuleMetadata.require(module, "definePackage").package),
         input,
@@ -94,7 +94,7 @@ export function definePackage(input: PackageInput, module?: ModuleMetadata): unk
 /** The handles packages declare, and the ones hosts rebuild from installed descriptions. */
 export const PackageHandle = {
     /** Build a package's handle from its identity and what it declares. */
-    of(owner: Package, input: PackageInput): PackageHandle {
+    of<const Input extends PackageInput>(owner: Package, input: Input): PackageHandle<Input> {
         // read what the package declares, each kind it leaves out empty
         const { objects = {}, views = {}, adapters = {}, resources = {}, secrets = {} } = input;
 
@@ -131,12 +131,21 @@ export const PackageHandle = {
             [PACKAGE]: owner,
             ...owner,
             ...(input.since === undefined ? {} : { since: Version.parse(input.since) }),
-            router: routeObjects(owner, objects),
-            objects,
-            views,
-            adapters,
-            resources,
-            secrets,
+            router: mapValues<Record<string, unknown>, PackageRoutes<Input>>(
+                routeObjects(owner, objects),
+                (procedures) => procedures,
+            ),
+            objects: mapValues<typeof objects, Declared<Input["objects"]>>(objects, (each) => each),
+            views: mapValues<typeof views, Declared<Input["views"]>>(views, (each) => each),
+            adapters: mapValues<typeof adapters, Declared<Input["adapters"]>>(
+                adapters,
+                (each) => each,
+            ),
+            resources: mapValues<typeof resources, Declared<Input["resources"]>>(
+                resources,
+                (each) => each,
+            ),
+            secrets: mapValues<typeof secrets, Declared<Input["secrets"]>>(secrets, (each) => each),
         });
     },
 };

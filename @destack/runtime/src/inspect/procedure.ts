@@ -1,4 +1,4 @@
-import { schema, toJsonSchema, type JsonValue } from "@destack/schema";
+import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { type AnySchema, getEventIteratorSchemaDetails, isContractProcedure } from "@orpc/contract";
 import type { ProcedureRouter } from "../runtime/index.ts";
 import { PayloadDescription, ProcedureDescription } from "../runtime/description.ts";
@@ -133,5 +133,5 @@ function describeSchema(validator: AnySchema): Record<string, JsonValue> {
         throw new TypeError("expected a Destack schema");
     }
 
-    return toJsonSchema(validator);
+    return JsonValue.object(toJsonSchema(validator));
 }

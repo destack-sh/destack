@@ -11,7 +11,7 @@ import {
 } from "@orpc/server";
 import type { ProcedureRouter } from "../runtime/index.ts";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { schema, toJsonSchema, Version, type JsonSchema } from "@destack/schema";
+import { mapValues, schema, toJsonSchema, Version, type JsonSchema } from "@destack/schema";
 import { Expression } from "@destack/db";
 import type { PackageHandle } from "../declare/package.ts";
 import { VERSION_HEADER } from "../request/request.ts";
@@ -38,15 +38,8 @@ const schemaConverter: ConditionalSchemaConverter = {
 };
 
 /** Read a Destack JSON Schema as oRPC's declaration of the same draft 2020-12 document. */
-function toOpenApiSchema(description: JsonSchema): JSONSchema;
-/**
- * Pass the document through unchanged.
- *
- * @construct Zod and oRPC declare the same JSON Schema draft 2020-12 document.
- * They differ only in how they type `$defs`.
- */
-function toOpenApiSchema(description: JsonSchema): unknown {
-    return description;
+function toOpenApiSchema(description: JsonSchema): Exclude<JSONSchema, boolean> {
+    return mapValues<JsonSchema, Exclude<JSONSchema, boolean>>(description, (entry) => entry);
 }
 
 /** Implement a package's procedures. */
