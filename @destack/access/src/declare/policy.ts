@@ -13,11 +13,11 @@ import { PolicyDescription } from "./description.ts";
 import type { Elevation } from "../context/elevation.ts";
 
 /** The policy of one type of object, with typed references to its permissions and relations. */
-export class Policy<Name extends string = string> {
+export class Policy<Name extends string = string, Kind extends string = string> {
     /** The declaring package, supplied by the module transform. */
     readonly package: Package;
     /** The package-local object type name. */
-    readonly name: string;
+    readonly name: Kind;
     /** The immutable serializable definition. */
     readonly definition: PolicyDescription;
     /** The other policies the relations reference as subjects. */
@@ -35,7 +35,7 @@ export class Policy<Name extends string = string> {
     }
 
     /** Qualify the declared subject types by package and freeze a copy of the rules. */
-    constructor(owner: Package, input: PolicyInput<Name>) {
+    constructor(owner: Package, input: PolicyInput<Name, Kind>) {
         // qualify the relations and require each to accept a subject type
         const relations = Policy.#qualifyRelations(owner, input);
         Policy.#requireSubjectTypes(relations);
@@ -332,7 +332,10 @@ export interface RelationInput {
 }
 
 /** A policy as declared: a type of objects, of scopes, or of scopes each a partition. */
-export type PolicyInput<Name extends string> = PolicyFields<Name> &
+export type PolicyInput<Name extends string, Kind extends string = string> = PolicyFields<
+    Name,
+    Kind
+> &
     (
         | {
               /** Whether the type's objects contain others: no. */
@@ -349,9 +352,9 @@ export type PolicyInput<Name extends string> = PolicyFields<Name> &
     );
 
 /** The fields of a declared policy beside whether its objects are scopes. */
-interface PolicyFields<Name extends string> {
+interface PolicyFields<Name extends string, Kind extends string> {
     /** The declaration-local object type name. */
-    readonly name: string;
+    readonly name: Kind;
     /** Required object attributes used by permission expressions. */
     readonly attributes?: Readonly<Record<string, AttributeType>>;
     /** Required request attributes used by permission expressions. */

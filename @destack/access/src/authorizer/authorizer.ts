@@ -45,7 +45,7 @@ import { accessRelationship, type RelationshipRow } from "../relationship/table.
 import { Relationship } from "../relationship/relationship.ts";
 import type { Creation } from "./authorization.ts";
 import { accessRole } from "../role/table.ts";
-import { accessTables, CHAIN_SHAPE, decisionTables } from "../replica/replica.ts";
+import { accessTables, CHAIN_PUBLICATION, decisionTables } from "../replica/replica.ts";
 import { earliest, Access } from "./access.ts";
 import { Compiler } from "./compiler.ts";
 import { TupleCondition } from "./condition.ts";
@@ -59,8 +59,8 @@ const WILDCARD = "*";
 /** How long an unheard access replica lasts before refusal: three 10-second beats, in ms. */
 const LAG_MILLISECONDS = 30_000;
 
-/** The name of the shape replicating the universe's rows a scope reads. */
-export const UNIVERSE_SHAPE = "universe";
+/** The name of the publication replicating the universe's rows a scope reads. */
+export const UNIVERSE_PUBLICATION = "universe";
 
 /** The parameters of a chain replica. */
 export const ChainParameters = schema.object({
@@ -920,32 +920,36 @@ export class Authorizer {
 
     /** Build the chain replica's name for the scope below, one record per follower. */
     static chainReplica(below: string): string {
-        return `${CHAIN_SHAPE}:${below}`;
+        return `${CHAIN_PUBLICATION}:${below}`;
     }
 
     /** Build the replica name of the outside chains a scope below reads. */
     static viaReplica(below: string): string {
-        return `${CHAIN_SHAPE}:${below}:via`;
+        return `${CHAIN_PUBLICATION}:${below}:via`;
     }
 
     /** Request a scope's chain replica: access rows, inherited rows and own object. */
     static chainSubscription(
-        request: Omit<Subscription, "shape" | "parameters" | "after"> & {
+        request: Omit<Subscription, "publication" | "parameters" | "after"> & {
             readonly parameters: ChainParameters;
         },
     ): Subscription {
-        return { ...request, shape: CHAIN_SHAPE, parameters: Authorizer.#json(request.parameters) };
+        return {
+            ...request,
+            publication: CHAIN_PUBLICATION,
+            parameters: Authorizer.#json(request.parameters),
+        };
     }
 
     /** Request the universe's rows a scope reads, decided for their reader. */
     static universeSubscription(
-        request: Omit<Subscription, "shape" | "parameters" | "after"> & {
+        request: Omit<Subscription, "publication" | "parameters" | "after"> & {
             readonly parameters: UniverseParameters;
         },
     ): Subscription {
         return {
             ...request,
-            shape: UNIVERSE_SHAPE,
+            publication: UNIVERSE_PUBLICATION,
             parameters: Authorizer.#json(request.parameters),
         };
     }

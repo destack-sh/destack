@@ -6,7 +6,7 @@ import {
     AccessError,
     accessTables,
     accessRelationship,
-    CHAIN_SHAPE,
+    CHAIN_PUBLICATION,
     Authorization,
     Authorizer,
     principal,
@@ -153,7 +153,7 @@ test("relay an account's access through the space's database into an app's, and 
     // relay the revocation: carol reads nothing, and the app's replica reflects the account's own position
     await relay();
     expect(await readable(carol)).toEqual([]);
-    const origins = await Replica.origins(app.database, CHAIN_SHAPE, ["account-1"]);
+    const origins = await Replica.origins(app.database, CHAIN_PUBLICATION, ["account-1"]);
     expect(origins.get("account-1")?.position).toEqual(revoked);
 
     // refuse writing the account's access in the app's replica

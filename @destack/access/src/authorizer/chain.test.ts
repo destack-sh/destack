@@ -9,7 +9,7 @@ import {
     accessTables,
     Authorization,
     Authorizer,
-    CHAIN_SHAPE,
+    CHAIN_PUBLICATION,
 } from "../index.ts";
 import {
     account,
@@ -239,7 +239,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
     );
     expect(both).toEqual({
         name: Authorizer.chainReplica("placement"),
-        shape: CHAIN_SHAPE,
+        publication: CHAIN_PUBLICATION,
         scope: "universe",
         below: "placement",
         parameters: {
@@ -273,7 +273,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
     await followChain(app.database, app.authorizer, both, feed);
     const head = await home.database.log.position();
     const scopes = ["account-1", "account-2", "universe"];
-    const origins = await Replica.origins(app.database, CHAIN_SHAPE, scopes);
+    const origins = await Replica.origins(app.database, CHAIN_PUBLICATION, scopes);
     expect([
         await replicated(app.database),
         [...origins.keys()].toSorted(),
@@ -294,7 +294,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
     const kept = await replicated(home.database);
     expect([
         await replicated(app.database),
-        [...(await Replica.origins(app.database, CHAIN_SHAPE, scopes)).keys()].toSorted(),
+        [...(await Replica.origins(app.database, CHAIN_PUBLICATION, scopes)).keys()].toSorted(),
     ]).toEqual([
         {
             scopes: kept.scopes.filter(isOutsideSecond),

@@ -7,8 +7,8 @@ import { accessRole, accessRolePermission } from "../role/table.ts";
 import { accessInvitation } from "../invitation/table.ts";
 import { accessGrant } from "../grant/table.ts";
 
-/** The name of the shape replicating a scope's chain. */
-export const CHAIN_SHAPE = "chain";
+/** The name of the publication replicating a scope's chain. */
+export const CHAIN_PUBLICATION = "chain";
 
 /** The access tables decisions read, parents first. */
 export const decisionTables: readonly Table[] = [

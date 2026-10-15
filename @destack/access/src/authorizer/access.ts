@@ -16,7 +16,7 @@ import type { RelationshipRow, RoleBinding } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { Role } from "../role/role.ts";
 import { RoleGrant } from "../role/closure.ts";
-import { CHAIN_SHAPE } from "../replica/replica.ts";
+import { CHAIN_PUBLICATION } from "../replica/replica.ts";
 import { Authority } from "./authority.ts";
 import { TupleCondition, type ConditionContext } from "./condition.ts";
 import type { Gate } from "./decision.ts";
@@ -649,7 +649,7 @@ export class Access {
         lag: number,
         now: number,
     ): Promise<void> {
-        for (const [scope, origin] of await Replica.origins(database, CHAIN_SHAPE, chain)) {
+        for (const [scope, origin] of await Replica.origins(database, CHAIN_PUBLICATION, chain)) {
             if (now - origin.confirmedAt > lag) {
                 throw new AccessError(
                     "STALE",
