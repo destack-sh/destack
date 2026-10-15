@@ -1,3 +1,4 @@
+import type { Call } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, eq, isNotNull } from "@destack/db";
@@ -5,7 +6,7 @@ import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import { expect, refusal, single, test } from "@destack/test";
 import { Duration, Identifier } from "@destack/schema";
-import { AuditCall, call, type ObjectCall } from "@destack/object";
+import { CallEvent, call } from "@destack/object";
 import { SecretReading } from "../secret/secret.ts";
 import { binding, installation } from "@destack/stack/object";
 import { Scope } from "@destack/sync";
@@ -206,7 +207,7 @@ test.each(TEST_DIALECTS)(
             .select({ data: events.data })
             .from(events)
             .orderBy(asc(events.time), asc(events.id));
-        const calls = rows.map((row) => AuditCall.parse(row.data));
+        const calls = rows.map((row) => CallEvent.parse(row.data));
         const actions = calls.filter(
             (ended) =>
                 ended.execution.context.package.id === VAULT.id &&
@@ -458,7 +459,7 @@ test("put a consumer's secret as one live version through its vault, read it as 
     const stranger = principal.machine.reference(Scope.universe.id, OTHER_MACHINE);
     const target = vault.target({ scope: fixture.spaceId, id: fixture.vaultId });
     const id = secret.generateId();
-    const write = (mutation: ObjectCall) =>
+    const write = (mutation: Call) =>
         objects.mutate(objects.self, {
             id: RequestId.create(Date.now()),
             calls: [mutation],

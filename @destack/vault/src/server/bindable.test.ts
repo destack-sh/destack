@@ -1,5 +1,5 @@
 import { eq, Snapshot } from "@destack/db";
-import type { Call } from "@destack/object";
+import type { MethodContext } from "@destack/object";
 import { Package } from "@destack/package";
 import { schema, Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -32,7 +32,7 @@ const generated: ResourceNeed = {
 /** Run a function with a call of the fixture's vault, as the stack runs bindables in its calls. */
 async function within<Result>(
     fixture: VaultFixture,
-    run: (call: Call) => Promise<Result>,
+    run: (context: MethodContext) => Promise<Result>,
 ): Promise<Result> {
     // run the function inside an update of the vault
     const results: { readonly result: Result }[] = [];

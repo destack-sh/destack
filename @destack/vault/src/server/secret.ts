@@ -40,8 +40,8 @@ export function implementSecret(): typeof secret {
         methods: {
             create: {
                 // relate the installation writing the secret as its custodian, acting itself or as a delegate
-                creation: (call) => {
-                    const writer = Caller.principal(call.caller);
+                creation: (context) => {
+                    const writer = Caller.principal(context.caller);
                     const isInstallation =
                         writer !== undefined && principal.installation.is(writer);
 

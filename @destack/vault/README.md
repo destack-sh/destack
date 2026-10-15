@@ -1,8 +1,6 @@
 # @destack/vault
 
-`@destack/vault` keeps a space's secrets in vaults as numbered versions, staged and promoted as AWS Secrets Manager does.
-Each value is sealed at rest under the space's key and bound to its secret and version.
-Bound consumers read their version; the account's owners reveal a value after a fresh step-up; every read is audited with its version.
+`@destack/vault` keeps a space's secrets in vaults as versions sealed at rest, staged and promoted as AWS Secrets Manager does.
 
 ```ts
 await client.version.create({ scope, parentId: secret.id, value, requestId });

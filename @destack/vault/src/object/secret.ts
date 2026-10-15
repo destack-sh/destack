@@ -2,7 +2,7 @@ import { none, permission, principal, relation, through, union } from "@destack/
 import { account, organisation, space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
 import { type RowImage, type Select, type Snapshot } from "@destack/db";
-import { type Call, defineObject, field, type ObjectType } from "@destack/object";
+import { type MethodContext, defineObject, field, type ObjectType } from "@destack/object";
 import { type Duration, type Identifier, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Binding } from "@destack/stack/object";
@@ -210,8 +210,11 @@ export type SecretVersion = Select<typeof secretVersion.table>;
 /** Find, check and read secret versions. */
 export const SecretVersion = {
     /** Read the secret owning a version, refusing an unknown one. */
-    async owner(call: Call, id: Identifier<"secret">): Promise<RowImage<typeof secret.table>> {
-        const row = await call.read(secret).findFirst({ where: { id } });
+    async owner(
+        context: MethodContext,
+        id: Identifier<"secret">,
+    ): Promise<RowImage<typeof secret.table>> {
+        const row = await context.read(secret).findFirst({ where: { id } });
         if (row === undefined) {
             throw new CallError("NOT_FOUND", { message: "secret not found" });
         }
@@ -223,7 +226,7 @@ export const SecretVersion = {
     async read(
         target: RowImage<typeof secret.table>,
         version: number | undefined,
-        call: Call,
+        context: MethodContext,
     ): Promise<SecretReading> {
         // refuse a secret without a selected version
         const number = version ?? target.currentVersion;
@@ -232,26 +235,26 @@ export const SecretVersion = {
         }
 
         // let software bound to the secret, its vault or the selected version read it
-        const selected = await SecretVersion.find(call, target.id, number);
-        const consumes = await call.check(
+        const selected = await SecretVersion.find(context, target.id, number);
+        const consumes = await context.check(
             secret.permission("consume"),
-            secret.reference(call.scope, target.id),
+            secret.reference(context.scope, target.id),
         );
         const isConsumer =
             consumes.isAllowed ||
             (selected !== undefined &&
                 (
-                    await call.check(
+                    await context.check(
                         secretVersion.permission("read"),
-                        secretVersion.reference(call.scope, selected.id),
+                        secretVersion.reference(context.scope, selected.id),
                     )
                 ).isAllowed);
 
         // require anyone else to reveal through the secret, challenging for a step-up
         if (!isConsumer) {
-            await call.require(
+            await context.require(
                 secret.permission("reveal"),
-                secret.reference(call.scope, target.id),
+                secret.reference(context.scope, target.id),
             );
         }
         // answer a missing version only to those revealing the secret
@@ -261,7 +264,7 @@ export const SecretVersion = {
 
         return {
             version: selected.number,
-            value: SecretVersion.requireReadable(selected, call.now),
+            value: SecretVersion.requireReadable(selected, context.now),
         };
     },
 
@@ -283,11 +286,11 @@ export const SecretVersion = {
 
     /** Find one numbered version of a secret, absent when it has none. */
     async find(
-        call: Pick<Call, "reveal">,
+        context: Pick<MethodContext, "reveal">,
         secretId: Select<typeof secret.table>["id"],
         version: number,
     ): Promise<SecretVersion | undefined> {
-        const [row] = await call.reveal(secretVersion).findMany({
+        const [row] = await context.reveal(secretVersion).findMany({
             where: {
                 parentId: secretId,
                 number: version,
