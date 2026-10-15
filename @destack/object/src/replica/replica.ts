@@ -98,26 +98,26 @@ export const ObjectQuery: schema.Schema<ObjectQuery> = schema.object({
     ...QueryShape,
 });
 
-/** The shape of a scope's durable objects a caller follows. */
-export const QUERIES_SHAPE = "queries";
+/** The publication of a scope's durable objects a caller follows. */
+export const QUERIES_PUBLICATION = "queries";
 
-/** The shape of a scope's ephemeral objects a client follows. */
-export const EPHEMERAL_SHAPE = "ephemeral";
+/** The publication of a scope's ephemeral objects a client follows. */
+export const EPHEMERAL_PUBLICATION = "ephemeral";
 
-/** The shape of a scope's external objects a caller follows. */
-export const EXTERNAL_SHAPE = "external";
+/** The publication of a scope's external objects a caller follows. */
+export const EXTERNAL_PUBLICATION = "external";
 
-/** The shape of the access rows a caller's own checks read in a scope's chain. */
-export const ACCESS_SHAPE = "access";
+/** The publication of the access rows a caller's own checks read in a scope's chain. */
+export const ACCESS_PUBLICATION = "access";
 
-/** The parameters of a scope's durable objects shape: named queries, else all listed types. */
+/** The parameters of the durable objects publication: named queries, else every listed type. */
 export const QueriesParameters = defineSchema(
     schema.object({ queries: schema.record(schema.string(), ObjectQuery).exactOptional() }),
 );
-/** The parameters of the shape of a scope's durable objects. */
+/** The parameters of the durable objects publication. */
 export type QueriesParameters = schema.Infer<typeof QueriesParameters>;
 
-/** The parameters of a scope's ephemeral objects shape: queries, and the rows' writer. */
+/** The parameters of the ephemeral objects publication: queries, and the rows' writer. */
 export const EphemeralParameters = defineSchema(
     schema.object({
         queries: schema.record(schema.string(), ObjectQuery).exactOptional(),

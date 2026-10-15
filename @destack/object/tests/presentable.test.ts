@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -10,7 +10,7 @@ import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The space containing the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c1");
@@ -56,14 +56,14 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [board],
+        servers: serversOf([board]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
         origin: { package: board.package },
     });
     const created = await store
-        .mutate(userContext("user-1", spaceId).caller(), {
+        .mutate(userContext(users.frank, spaceId).caller(), {
             id: RequestId.create(Date.now()),
             calls: [
                 board.call("create", {

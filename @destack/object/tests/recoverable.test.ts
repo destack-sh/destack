@@ -1,7 +1,7 @@
 import { type Change, eq, defineDatabase } from "@destack/db";
 import { ObjectReference } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, refusal, onTestFinished, test, TestClock } from "@destack/test";
 import { principal, relation } from "@destack/access";
 
@@ -12,7 +12,7 @@ import { defineObject, field, type CallableName, type ObjectType } from "../src/
 import { ObjectStore, RecoverableController } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the credentials. */
@@ -70,7 +70,7 @@ test.each(TEST_DIALECTS)(
             new ObjectStore({
                 chain: async () => undefined,
                 principal: spacePrincipal(spaceId),
-                objects: [object],
+                servers: serversOf([object]),
                 database,
                 callKey: testCallKey,
                 events,
@@ -79,7 +79,7 @@ test.each(TEST_DIALECTS)(
                 },
                 clock,
             });
-        let context = userContext("user-1", spaceId);
+        let context = userContext(users.frank, spaceId);
         const execute = <Object extends typeof credential, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
@@ -87,7 +87,7 @@ test.each(TEST_DIALECTS)(
         ) => request(serve(object), object, name, spaceId, input, context);
         // restore within the declared window
         const created = await execute(handled, "create", {
-            custodianId: "user-2",
+            custodianId: users.grace,
             value: "hunter2",
         });
         await execute(handled, "delete", { id: created.id, revision: created.revision });
@@ -95,7 +95,7 @@ test.each(TEST_DIALECTS)(
         expect(restored.deletedAt).toBeNull();
 
         // refuse restoring past the declared window
-        const lapsed = await execute(handled, "create", { custodianId: "user-2", value: "old" });
+        const lapsed = await execute(handled, "create", { custodianId: users.grace, value: "old" });
         await execute(handled, "delete", { id: lapsed.id, revision: lapsed.revision });
         await database
             .update(credential.table)
@@ -114,7 +114,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // refuse a record-keeping purge without a handler destroying the content
-        context = userContext("user-2", spaceId);
+        context = userContext(users.grace, spaceId);
         await expect(execute(credential, "purge", { id: created.id })).rejects.toThrow(
             new TypeError(
                 "object credential keeps purged records, so a purge handler of its own destroys their content",
@@ -133,9 +133,15 @@ test.each(TEST_DIALECTS)(
             value: null,
             revision: 5,
             updatedAt: clock.now(),
-            ...ObjectReference.columns("updatedBy", principal.user.reference("universe", "user-2")),
+            ...ObjectReference.columns(
+                "updatedBy",
+                principal.user.reference("universe", users.grace),
+            ),
             deletedAt: clock.now(),
-            ...ObjectReference.columns("deletedBy", principal.user.reference("universe", "user-1")),
+            ...ObjectReference.columns(
+                "deletedBy",
+                principal.user.reference("universe", users.frank),
+            ),
             purgedAt: clock.now(),
         });
 
@@ -144,7 +150,7 @@ test.each(TEST_DIALECTS)(
             "CONFLICT",
             "credential is purged",
         ]);
-        context = userContext("user-1", spaceId);
+        context = userContext(users.frank, spaceId);
         expect(await refusal(execute(handled, "restore", { id: created.id }))).toEqual([
             "CONFLICT",
             "credential is purged",
@@ -168,7 +174,10 @@ test.each(TEST_DIALECTS)(
 
         // look again and purge after the next window ends
         const controller = new RecoverableController(store);
-        const pending = await execute(handled, "create", { custodianId: "user-2", value: "later" });
+        const pending = await execute(handled, "create", {
+            custodianId: users.grace,
+            value: "later",
+        });
         await execute(handled, "delete", { id: pending.id, revision: pending.revision });
         const window = 60_000;
         const delay = present(

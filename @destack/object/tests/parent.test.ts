@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, principal } from "@destack/access";
@@ -24,7 +25,7 @@ test.each(TEST_DIALECTS)(
         const commentId = schema.identifier("comment").parse(`comment-${v7()}`);
         await database
             .insert(task.table)
-            .values({ ...record, id: taskId, ownerId: "alice", title: "Plan" });
+            .values({ ...record, id: taskId, ownerId: users.owner, title: "Plan" });
         await database
             .insert(comment.table)
             .values({ ...record, id: commentId, parentId: taskId, text: "Looks good" });
@@ -38,7 +39,7 @@ test.each(TEST_DIALECTS)(
                     subjectPackageId: principal.user.definition.packageId,
                     subjectType: principal.user.name,
                     subjectScope: "universe",
-                    subjectId: "bob",
+                    subjectId: users.bob,
                 }),
             ),
         );

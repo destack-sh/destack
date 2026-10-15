@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { Transaction } from "@destack/db";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Scope } from "@destack/sync";
@@ -10,7 +11,7 @@ import { testCallKey } from "@destack/runtime/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -46,12 +47,12 @@ test("send a client's writes on to the machine serving a moved scope", async () 
         database: storage.database,
         objects: { notebook, note },
         scope: spaceId,
-        caller: principal.user.reference("universe", "alice"),
-        endpoint: source.endpoint("alice"),
+        caller: principal.user.reference("universe", users.alice),
+        endpoint: source.endpoint(users.alice),
         reconnect: (machine) => {
             machines.push(machine);
 
-            return target.endpoint("alice");
+            return target.endpoint(users.alice);
         },
     });
     const stopping = new AbortController();
@@ -84,7 +85,7 @@ test("admit the calls of moving permissions in a fenced scope and refuse every o
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [pin],
+        servers: serversOf([pin]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),

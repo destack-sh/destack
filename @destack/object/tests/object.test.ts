@@ -2,17 +2,17 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { type DatabaseConnection, eq } from "@destack/db";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { schema, type JsonObject, Clock } from "@destack/schema";
 import { v7 } from "uuid";
-import { defineObject, field } from "../src/index.ts";
+import { defineObject, field, Intrinsic } from "../src/index.ts";
 import { contained, Manager, principal, relation, through, union } from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import { ObjectStore, Stack } from "../src/server/index.ts";
-import { label, note, objectDatabase, task } from "./schema.ts";
+import { comment, label, note, objectDatabase, task } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { request } from "./fixture/request.ts";
 
 /** The space the declared objects live in. */
@@ -35,7 +35,7 @@ async function serve(database: DatabaseConnection): Promise<ObjectStore> {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [label, note, task],
+        servers: serversOf([label, note, task]),
         policies: [space],
         database,
         callKey: testCallKey,
@@ -286,7 +286,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [card],
+            servers: serversOf([card]),
             database,
             callKey: testCallKey,
             events: await testEvents(database),
@@ -294,7 +294,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // write two cards directly as alice, and hand them over as her
-        const context = userContext("alice", spaceId);
+        const context = userContext(users.alice, spaceId);
         const create = (title: string) =>
             store
                 .mutate(context.caller(), {
@@ -412,4 +412,14 @@ test("refuse two methods answering one route, which a router would send to one o
             retitle: method.update("write", { fields: ["title"] }),
         })),
     ).toThrow(new TypeError("object memo methods update and retitle both answer PATCH /{id}"));
+});
+
+test("manage a declarable type over its own or a foreign table, and leave an undeclared type unmanaged", () => {
+    // declare roles over access's role table, as a stack declares its roles
+    const role = defineObject({
+        ...Intrinsic.role.definition(space),
+        declarable: { schema: schema.object({ description: schema.string() }) },
+    }).methods(Intrinsic.role.methods);
+
+    expect([card.isManaged(), role.isManaged(), comment.isManaged()]).toEqual([true, true, false]);
 });

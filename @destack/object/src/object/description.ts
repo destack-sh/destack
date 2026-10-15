@@ -1,6 +1,6 @@
 import { INTRINSIC_POLICIES, Policy, PolicySubject } from "@destack/access";
 import { DeclarationName, Package, PackageId } from "@destack/package";
-import { ResourceDeclaration, ResourceKind } from "@destack/resource";
+import { NO_STATE, ResourceDeclaration, ResourceKind } from "@destack/resource";
 import {
     defineSchema,
     fromJsonSchema,
@@ -59,8 +59,8 @@ const DescribedKind = schema.object({
     name: DeclarationName,
     /** The schema of a declaration's specification. */
     spec: DescribedSchema,
-    /** The schema of the desired state its providers reconcile, never for a kind without one. */
-    state: DescribedSchema,
+    /** The schema of the desired state its providers reconcile, null for a kind without one. */
+    state: DescribedSchema.nullable(),
 });
 
 /** A bucket as a description keeps it: its package, name and specification. */
@@ -376,17 +376,14 @@ const DescribedValue = {
     },
 
     /** Describe a resource kind: its package, name and JSON Schemas. */
-    encodeKind(kind: {
-        readonly package: Package;
-        readonly name: string;
-        readonly spec: schema.Schema;
-        readonly state: schema.Schema;
-    }): JsonObject {
+    encodeKind(
+        kind: Pick<ResourceKind, "package" | "name" | "spec" | "state" | "isStateful">,
+    ): JsonObject {
         return {
             package: DescribedValue.readPackage(kind.package),
             name: kind.name,
             spec: JsonValue.object(toJsonSchema(kind.spec)),
-            state: JsonValue.object(toJsonSchema(kind.state)),
+            state: kind.isStateful ? JsonValue.object(toJsonSchema(kind.state)) : null,
         };
     },
 
@@ -394,7 +391,12 @@ const DescribedValue = {
     decodeKind(described: schema.Infer<typeof DescribedKind>): ResourceKind {
         const { package: owner, name, spec, state } = described;
 
-        return new ResourceKind(owner, name, fromJsonSchema(spec), fromJsonSchema(state));
+        return new ResourceKind(
+            owner,
+            name,
+            fromJsonSchema(spec),
+            state === null ? NO_STATE : fromJsonSchema(state),
+        );
     },
 
     /** Describe a bucket as data: its package, name and specification. */

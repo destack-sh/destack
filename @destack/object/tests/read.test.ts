@@ -1,11 +1,12 @@
+import { users } from "./fixture/user.ts";
 import { expect, test } from "@destack/test";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { notebook } from "./fixture/note.ts";
 
 test("read through methods that change nothing on the server, and refuse mutations there", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
-    const alice = connect("alice");
-    const device = await Device.open("alice", endpoint("alice"));
+    const alice = connect(users.alice);
+    const device = await Device.open(users.alice, endpoint(users.alice));
     device.online();
 
     // read a confirmed notebook as the server has it

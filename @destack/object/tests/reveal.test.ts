@@ -10,9 +10,9 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The package of the types reading the holders from outside their package. */
 const OUTSIDE = Package.parse({
@@ -96,14 +96,14 @@ test("reveal a type's sensitive field to its own package's handler, and withhold
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [holder, peeker],
+        servers: serversOf([holder, peeker]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
         origin: { package: holder.package },
     });
     await openSpace(storage.database, spaceId);
-    const caller = userContext("alice", spaceId).caller();
+    const caller = userContext(users.alice, spaceId).caller();
 
     // create a holder with a token
     const [created] = await store.mutate(caller, {

@@ -1,5 +1,5 @@
 import { reconciliation, subjectContext, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ControlLoop, controllerLease } from "@destack/runtime/control";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
@@ -27,7 +27,7 @@ import * as sync from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, defineShape, field, Follow, Shape } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
 
 /** How long a replica may take to reach its home or relist: 5 s, far above its milliseconds. */
@@ -135,8 +135,8 @@ test.each(TEST_DIALECTS)(
         });
 
         // insert an account owned by alice, a member role carol has through the account, and its empty space at home
-        const alice = principal.user.reference("universe", "alice");
-        const carol = principal.user.reference("universe", "carol");
+        const alice = principal.user.reference("universe", users.alice);
+        const carol = principal.user.reference("universe", users.carol);
         const accountObject = account.reference(Scope.universe.id, accountId);
         const access = new AccessFixture(home.database);
         await access.replicateScope(accountObject);
@@ -175,18 +175,16 @@ test.each(TEST_DIALECTS)(
             chain: async () => ({ kind: "follower" }),
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [document],
+            servers: serversOf([document]),
             database: installed.database,
-            subscriber: {
-                uplink: {
-                    receive: refuseChanges,
-                    stream: (subscription, signal) =>
-                        feed.subscribe(
-                            store.source.buildReplica(subscription).queries,
-                            subscription.after,
-                            signal,
-                        ),
-                },
+            uplink: {
+                receive: refuseChanges,
+                stream: (subscription, signal) =>
+                    feed.subscribe(
+                        store.source.buildReplica(subscription).queries,
+                        subscription.after,
+                        signal,
+                    ),
             },
             callKey: testCallKey,
             events: await testEvents(installed.database),
@@ -224,7 +222,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // create through tokens whose grants give the space, another one or everything, and list as alice
-        const create = async (user: string, title: string, restricted?: string) => {
+        const create = async (user: Identifier<"user">, title: string, restricted?: string) => {
             // limit the caller's token to one scope by its grant when asked
             const context = userContext(
                 user,
@@ -257,14 +255,14 @@ test.each(TEST_DIALECTS)(
             return refused === "done" ? (await created).title : refused;
         };
         const outcomes = [
-            await create("alice", "Plan", spaceId),
-            await create("alice", "Elsewhere", otherSpaceId),
-            await create("dave", "Leak", spaceId),
-            await create("dave", "Leak"),
-            await create("carol", "Budget"),
+            await create(users.alice, "Plan", spaceId),
+            await create(users.alice, "Elsewhere", otherSpaceId),
+            await create(users.dave, "Leak", spaceId),
+            await create(users.dave, "Leak"),
+            await create(users.carol, "Budget"),
         ];
         const listed = await store.query(
-            userContext("alice", spaceId).caller(),
+            userContext(users.alice, spaceId).caller(),
             document.call("list", { spaceId }),
         );
 
@@ -316,15 +314,16 @@ test("drop a replica once its source refuses its follow and no follow names it a
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [document],
+        servers: serversOf([document], {
+            follows: [
+                Follow.of(documentShape, {
+                    rows: () => document.query(),
+                    key: async () =>
+                        requested.has(otherSpaceId) ? { key: { scope: otherSpaceId } } : undefined,
+                }),
+            ],
+        }),
         database: machine.database,
-        follows: [
-            Follow.of(documentShape, {
-                rows: () => document.query(),
-                key: async () =>
-                    requested.has(otherSpaceId) ? { key: { scope: otherSpaceId } } : undefined,
-            }),
-        ],
         publisher: (scope) => ({
             stream: async function* (subscription, signal) {
                 const { signal: closed } = closing(scope);
@@ -388,19 +387,17 @@ test("follow replicates as a server without methods, journal or call key", async
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [],
+        servers: serversOf([]),
         policies: [document],
         database: follower.database,
-        subscriber: {
-            uplink: {
-                receive: refuseChanges,
-                stream: (subscription, signal) =>
-                    feed.subscribe(
-                        store.source.buildReplica(subscription).queries,
-                        subscription.after,
-                        signal,
-                    ),
-            },
+        uplink: {
+            receive: refuseChanges,
+            stream: (subscription, signal) =>
+                feed.subscribe(
+                    store.source.buildReplica(subscription).queries,
+                    subscription.after,
+                    signal,
+                ),
         },
         origin: { package: document.package },
     });
@@ -453,7 +450,7 @@ test("replicate the chains of an installation's two served spaces in one replica
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [space],
+        servers: serversOf([space]),
         policies: [document],
         database: home.database,
         callKey: testCallKey,
@@ -474,15 +471,13 @@ test("replicate the chains of an installation's two served spaces in one replica
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [document],
+        servers: serversOf([document]),
         policies: [space],
         database: installed.database,
-        subscriber: {
-            uplink: {
-                receive: refuseChanges,
-                stream: (asked, signal) =>
-                    source.source.replicate(asked, asked.after, follower, signal),
-            },
+        uplink: {
+            receive: refuseChanges,
+            stream: (asked, signal) =>
+                source.source.replicate(asked, asked.after, follower, signal),
         },
         callKey: testCallKey,
         events: await testEvents(installed.database),
@@ -553,7 +548,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [space],
+        servers: serversOf([space]),
         policies: [document],
         database: home.database,
         callKey: testCallKey,
@@ -620,7 +615,7 @@ test("decide a via chain for the subject whose follow brought its rows", async (
         scope: spaceId,
         ...sync.Replica.subscriptionColumns({
             name,
-            shape: "queries",
+            publication: "queries",
             scope: spaceId,
             below: followingSpaceId,
             parameters: {},
@@ -641,10 +636,10 @@ test("decide a via chain for the subject whose follow brought its rows", async (
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        objects: [document],
+        servers: serversOf([document]),
         policies: [space],
         database,
-        subscriber: { uplink: { receive: refuseChanges, stream: async function* () {} } },
+        uplink: { receive: refuseChanges, stream: async function* () {} },
         callKey: testCallKey,
         events: await testEvents(database),
         origin: { package: document.package },
@@ -711,10 +706,9 @@ test("serve a store whose on-behalf follow is refused, without gating its readin
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        objects: [document],
+        servers: serversOf([document], { follows: [follow] }),
         policies: [space],
         database,
-        follows: [follow],
         publisher: () => ({
             stream: async function* () {
                 yield* [];
@@ -775,7 +769,7 @@ test("replicate a scoped table an installation's database declares beside its fo
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [space, document],
+        servers: serversOf([space, document]),
         database: home.database,
         callKey: testCallKey,
         events: await testEvents(home.database),
@@ -799,15 +793,13 @@ test("replicate a scoped table an installation's database declares beside its fo
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: subject,
-        objects: [comment],
+        servers: serversOf([comment]),
         policies: [space, document],
         database: installed.database,
-        subscriber: {
-            uplink: {
-                receive: refuseChanges,
-                stream: (asked, signal) =>
-                    source.source.replicate(asked, asked.after, follower, signal),
-            },
+        uplink: {
+            receive: refuseChanges,
+            stream: (asked, signal) =>
+                source.source.replicate(asked, asked.after, follower, signal),
         },
         callKey: testCallKey,
         events: await testEvents(installed.database),
@@ -907,7 +899,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [account],
+        servers: serversOf([account]),
         database: home.database,
         callKey: testCallKey,
         events: await testEvents(home.database),
@@ -918,15 +910,13 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        objects: [annotation],
+        servers: serversOf([annotation]),
         policies: [account],
         database: installed.database,
-        subscriber: {
-            uplink: {
-                receive: refuseChanges,
-                stream: (asked, signal) =>
-                    source.source.replicate(asked, asked.after, follower, signal),
-            },
+        uplink: {
+            receive: refuseChanges,
+            stream: (asked, signal) =>
+                source.source.replicate(asked, asked.after, follower, signal),
         },
         callKey: testCallKey,
         events: await testEvents(installed.database),
@@ -988,7 +978,7 @@ test("replicate the chain of an account another replica brought first, once the 
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [account],
+        servers: serversOf([account]),
         database: home.database,
         callKey: testCallKey,
         events: await testEvents(home.database),
@@ -1020,10 +1010,10 @@ test("replicate the chain of an account another replica brought first, once the 
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        objects: [annotation],
+        servers: serversOf([annotation]),
         policies: [account],
         database: installed.database,
-        subscriber: { uplink: publisher },
+        uplink: publisher,
         callKey: testCallKey,
         events: await testEvents(installed.database),
         origin: { package: annotation.package },

@@ -4,12 +4,12 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { chunk, CHUNK_CHARACTERS, defineObject, field, Sequence } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The space keeping the documents. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d3");
@@ -51,13 +51,13 @@ test.for(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [document],
+            servers: serversOf([document]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
             origin: { package: document.package },
         });
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
 
         // write a long body whose first and last words land in different chunks, and a short one
         const [physics, notes] = await store.mutate(context.caller(), {

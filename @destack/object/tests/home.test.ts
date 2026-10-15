@@ -1,5 +1,5 @@
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessTables, Authorizer, none, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -15,7 +15,7 @@ import { ObjectClient } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { serveObjects } from "./fixture/device.ts";
 import { spacePrincipal, unmoved } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** How long a commit may take to reach a replica: 5 s, far above the milliseconds it takes. */
 const REPLICA_MILLISECONDS = 5000;
@@ -89,7 +89,7 @@ async function serveHomes() {
     onTestFinished(async () => {
         await Promise.all([homeStorage.close(), replicateStorage.close()]);
     });
-    const alice = principal.user.reference(Scope.universe.id, "alice");
+    const alice = principal.user.reference(Scope.universe.id, users.alice);
     const fixture = new AccessFixture(homeStorage.database);
     await fixture.replicateScope(person.reference(Scope.universe.id, personId), "own");
     await fixture.replicateScope(room.reference(personId, roomId));
@@ -106,7 +106,7 @@ async function serveHomes() {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(personId),
-        objects: [preference],
+        servers: serversOf([preference]),
         policies: [person, room],
         database: homeStorage.database,
         callKey: testCallKey,
@@ -126,19 +126,17 @@ async function serveHomes() {
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(roomId),
-        objects: [preference],
+        servers: serversOf([preference]),
         policies: [person, room],
         database: replicateStorage.database,
-        subscriber: {
-            uplink: {
-                receive: refuseChanges,
-                stream: (subscription, signal) =>
-                    feed.subscribe(
-                        replica.source.buildReplica(subscription).queries,
-                        subscription.after,
-                        signal,
-                    ),
-            },
+        uplink: {
+            receive: refuseChanges,
+            stream: (subscription, signal) =>
+                feed.subscribe(
+                    replica.source.buildReplica(subscription).queries,
+                    subscription.after,
+                    signal,
+                ),
         },
         callKey: testCallKey,
         events: await testEvents(replicateStorage.database),
@@ -154,7 +152,7 @@ async function serveHomes() {
     ) =>
         ({
             url: "https://objects.test",
-            headers: { authorization: "Bearer alice" },
+            headers: { authorization: `Bearer ${users.alice}` },
             fetch: (request: Request) => {
                 writes.push(`${name} ${new URL(request.url).pathname}`);
 
@@ -215,7 +213,7 @@ async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
         database: storage.database,
         objects: { preference },
         scope: roomId,
-        caller: principal.user.reference(Scope.universe.id, "alice"),
+        caller: principal.user.reference(Scope.universe.id, users.alice),
         endpoint: served.replicateEndpoint,
         reconnect: unmoved,
         homes: () => served.homeEndpoint,
@@ -240,7 +238,7 @@ async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
 
 /** Write alice's theme at her person's home, answering its identifier. */
 async function setTheme(home: ObjectStore, value: string): Promise<string> {
-    const [created] = await home.mutate(userContext("alice", personId).caller(), {
+    const [created] = await home.mutate(userContext(users.alice, personId).caller(), {
         id: RequestId.create(Date.now()),
         calls: [preference.call("create", { scope: personId, name: "theme", value })],
     });

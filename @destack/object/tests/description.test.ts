@@ -227,7 +227,7 @@ test("describe fields and methods as the calls written, types by reference, kind
                     package: box.package,
                     name: "box",
                     spec: toJsonSchema(BoxKind.spec),
-                    state: toJsonSchema(BoxKind.state),
+                    state: null,
                 },
             },
         },

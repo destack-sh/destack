@@ -10,8 +10,8 @@ import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
-import { userContext } from "./fixture/user.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the chores. */
@@ -51,7 +51,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [chore],
+            servers: serversOf([chore]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
@@ -59,7 +59,7 @@ test.each(TEST_DIALECTS)(
                 package: chore.package,
             },
         });
-        let context = userContext("user-1", spaceId);
+        let context = userContext(users.frank, spaceId);
         const call = <Name extends CallableName<typeof chore>>(
             name: Name,
             input: NoInfer<RequestInput<typeof chore, Name>>,
@@ -73,15 +73,15 @@ test.each(TEST_DIALECTS)(
                 context,
             );
 
-        // insert two home chores and one work chore of user-1, and one home chore of user-2
+        // insert two home chores and one work chore of frank, and one home chore of grace
         await call("create", { list: "home", done: false });
         await call("create", { list: "home", done: false });
         await call("create", { list: "work", done: false });
-        context = userContext("user-2", spaceId);
+        context = userContext(users.grace, spaceId);
         await call("create", { list: "home", done: false });
 
-        // finish user-1's home list and leave the work chore and user-2's chore
-        context = userContext("user-1", spaceId);
+        // finish frank's home list and leave the work chore and grace's chore
+        context = userContext(users.frank, spaceId);
         const finished = await call("finish", { where: { list: "home" }, done: true });
         const rows = await storage.database
             .select({
@@ -92,10 +92,10 @@ test.each(TEST_DIALECTS)(
             })
             .from(chore.table);
         const summary = rows
-            .map((row) => `${row.owner} ${row.list} ${String(row.done)} ${row.revision}`)
+            .map((row) => `${userName(row.owner)} ${row.list} ${String(row.done)} ${row.revision}`)
             .toSorted();
 
-        // claim user-1's unassigned home chores, leaving none
+        // claim frank's unassigned home chores, leaving none
         const claimed = await call("claim", {
             where: { list: "home", assignee: null },
             assignee: "carol",
@@ -107,12 +107,7 @@ test.each(TEST_DIALECTS)(
         expect([claimed, again]).toEqual([{ count: 2 }, { count: 0 }]);
         expect([finished, summary]).toEqual([
             { count: 2 },
-            [
-                "user-1 home true 2",
-                "user-1 home true 2",
-                "user-1 work false 1",
-                "user-2 home false 1",
-            ],
+            ["frank home true 2", "frank home true 2", "frank work false 1", "grace home false 1"],
         ]);
     },
 );

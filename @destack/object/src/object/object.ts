@@ -27,6 +27,7 @@ import {
     Key,
     type Row,
     type RowImage,
+    type Select,
     sql,
     type SQL,
     TABLE,
@@ -50,7 +51,7 @@ import { CallError } from "@destack/runtime/error";
 import type { AuditAction } from "../audit/action.ts";
 import { ModuleMetadata, type Package } from "@destack/package";
 import { type Delivery, EventKind, EventReader, EventTable } from "@destack/event";
-import { Field, type ObjectFields, type ReferenceOf, type TextField } from "../field/field.ts";
+import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "../field/field.ts";
 import { Call, type Handler, type TypesOf, type ObjectCall } from "../method/call.ts";
 import { Method, type MethodKind, type Phase } from "../method/method.ts";
 import { MethodBuilder } from "../method/record.ts";
@@ -208,6 +209,9 @@ const SHARING_KINDS: ReadonlySet<MethodKind> = new Set([
 
 /** The columns every event has beside its keys: scope, identity, time and data. */
 const EVENT_COLUMN_NAMES = ["scope", "id", "time", "data"] as const;
+
+/** A column every event has beside its keys. */
+type EventColumn = (typeof EVENT_COLUMN_NAMES)[number];
 
 /** The columns every event has beside its keys, as a set. */
 const EVENT_COLUMNS: ReadonlySet<string> = new Set(EVENT_COLUMN_NAMES);
@@ -492,6 +496,7 @@ type ObjectTypeDefinition<Configuration extends ObjectConfiguration> = ObjectDef
     readonly sensitive: readonly string[];
     readonly text: readonly string[];
     readonly source: ObjectSource;
+    readonly events: Configuration["events"];
 };
 
 /** A definition as a type keeps it: expanded by traits, lists present, built members apart. */
@@ -585,6 +590,8 @@ export interface ObjectConfiguration {
     readonly scope: string;
     /** Where the objects live. */
     readonly storage: ObjectStorage;
+    /** The event log's kind of an events type, undefined for every other storage. */
+    readonly events: EventKind | undefined;
     /** The fields, by name, whose signatures say which are guarded, written, sensitive or text. */
     readonly fields: Readonly<Record<string, Field>>;
     /** The parent type's identity, "self" for a tree, "any" for attachments, undefined for none. */
@@ -648,7 +655,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The schema of the objects' identifiers: natural key, or generated typed identifiers. */
     readonly idSchema: schema.Schema<string>;
     /** The event log's kind of an events type, none for another storage. */
-    private readonly events: EventKind | undefined;
+    private readonly events: Configuration["events"];
     /** The schemas, procedures and mapping derived from the definition, built lazily. */
     private derived: Derived = ObjectType.#underived();
 
@@ -686,8 +693,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.permissions = assembly.permissions;
         this.policy = assembly.policy;
 
-        // build the event log's kind, list the tables, then require valid members and traits
-        this.events = this.#eventKind();
+        // keep the event log's kind, list the tables, then require valid members and traits
+        this.events = definition.events;
         this.tables = this.#databaseTables();
         this.#requireValid(definition);
     }
@@ -916,7 +923,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** Generate a new object's identifier, refusing a type with a natural key. */
-    generateId(): Identifier<string> {
+    generateId(): Identifier<Configuration["identity"]> {
         this.requireGenerated();
 
         return Identifier.create(this.identity);
@@ -1097,8 +1104,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** Read the event log's kind of an events type. */
-    eventKind(): EventKind {
-        return present(this.events, `the event kind of ${this.name}, which is no events type`);
+    eventKind(): NonNullable<Configuration["events"]> {
+        return present<NonNullable<Configuration["events"]>>(
+            this.events,
+            `the event kind of ${this.name}, which is no events type`,
+        );
     }
 
     /** The procedures of the object's methods. */
@@ -1510,9 +1520,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.lifecycle.recoverable?.keep === "record";
     }
 
-    /** Decide whether stacks declare the type's records, which its declarable trait adds. */
+    /** Decide whether stacks declare the type's records, as its declarable option says. */
     isManaged(): this is ObjectOf<{ table: ManagedTable }> {
-        return this.traits.some((applied) => applied.trait === declarable);
+        return this.definition.declarable !== undefined;
     }
 
     /** Implement the type: attach method handlers, its controller and its stack handler. */
@@ -1670,6 +1680,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             guarded,
             sensitive,
             text: texts,
+            events: ObjectType.#eventKind(owner, definition),
         });
     }
 
@@ -1968,29 +1979,36 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** Build the event log's kind of an events type, none for another storage. */
-    #eventKind(): EventKind | undefined {
+    static #eventKind(
+        owner: Package,
+        definition: Pick<ObjectDefinition, "name" | "storage" | "fields"> & {
+            readonly table: Table;
+        },
+    ): EventKind | undefined {
         // keep no kind for another storage, and require the event columns
-        const written = this.source.storage;
-        const { table } = this;
+        const { name, table, fields = {} } = definition;
+        const written = definition.storage;
         if (typeof written !== "object") {
             return undefined;
         } else if (!EventTable.is(table)) {
-            throw new TypeError(`events object ${this.name} lacks the event columns`);
+            throw new TypeError(`events object ${name} lacks the event columns`);
         }
 
         // read the keys from the key columns' JSON forms
         const keys = Object.fromEntries(
             Object.entries(table[TABLE].columns)
-                .filter(([name]) => !EVENT_COLUMNS.has(name))
-                .map(([name, { definition }]) => [
-                    name,
-                    definition.nullable ? schema.nullable(definition.json) : definition.json,
+                .filter(([column]) => !EVENT_COLUMNS.has(column))
+                .map(([column, builder]) => [
+                    column,
+                    builder.definition.nullable
+                        ? schema.nullable(builder.definition.json)
+                        : builder.definition.json,
                 ]),
         );
 
         return new EventKind({
-            package: this.package,
-            name: this.name,
+            package: owner,
+            name,
             table,
             keys: schema.object(keys),
             data: table.data.definition.json,
@@ -2005,15 +2023,19 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             ...(written.isLocked === undefined ? {} : { isLocked: written.isLocked }),
             ...(written.subject === undefined
                 ? {}
-                : { subject: this.#subjectKeys(written.subject) }),
+                : { subject: ObjectType.#subjectKeys(name, fields, written.subject) }),
             ...(written.distribution === undefined ? {} : { distribution: written.distribution }),
         });
     }
 
     /** List the key columns naming an event's person: a reference's columns, else a text field. */
-    #subjectKeys(property: string): readonly string[] {
+    static #subjectKeys(
+        name: string,
+        fields: Readonly<Record<string, Field>>,
+        property: string,
+    ): readonly string[] {
         // take an object or principal reference's columns, an identifier reference's, or a text field
-        const field = this.fields[`${property}Id`] ?? this.fields[property];
+        const field = fields[`${property}Id`] ?? fields[property];
         if (field?.reference === "object") {
             const { packageId, type, scope, id } = Field.columnsOf(property);
 
@@ -2024,7 +2046,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return [property];
         }
 
-        throw new TypeError(`events object ${this.name} has no person field ${property}`);
+        throw new TypeError(`events object ${name} has no person field ${property}`);
     }
 
     /** Refuse durable-only declarations, writes and work on ephemeral, external, local objects. */
@@ -2388,6 +2410,7 @@ export interface IntrinsicDraft<Definition extends ObjectShape> {
         readonly parent: undefined;
         readonly attachments: never;
         readonly storage: "durable";
+        readonly events: undefined;
         readonly declared: StackDeclarationOf<Definition>;
     }>;
 }
@@ -2482,7 +2505,7 @@ type DefinedTraits<Definition> = DefinitionTraits<Definition> &
     ProvisionedTraitsOf<Option<Definition, "provisioned">>;
 
 /** The fields a definition's objects have: its own, and those its sharing, kind and traits add. */
-type DefinedFields<Definition extends ObjectShape> = ObjectFields<
+type DefinedFields<Definition extends ObjectShape> = FieldsByColumn<
     NonNullable<Definition["fields"]> &
         RoleFieldsOf<Option<Definition, "shareable">, Option<Definition, "isScope", false>> &
         ProvisionedFieldsOf<Option<Definition, "provisioned">> &
@@ -2519,9 +2542,20 @@ type DefinedTable<Definition extends ObjectShape> = ObjectTable<
 
 /** The columns a definition's constraints name. */
 type DefinedColumn<Definition extends ObjectShape> = ConstraintColumn<
-    ObjectFields<NonNullable<Definition["fields"]>>,
+    FieldsByColumn<NonNullable<Definition["fields"]>>,
     StorageKind<Option<Definition, "storage", "durable">>
 >;
+
+/** The query keys of an events type's table: a schema per column beside the event columns. */
+type EventShapeOf<Definition extends Table> = {
+    readonly [Key in Exclude<keyof Select<Definition> & string, EventColumn>]: schema.Schema<
+        Select<Definition>[Key]
+    >;
+};
+
+/** The data of an events type's table, any JSON for a table without a typed data column. */
+type EventDataOf<Definition extends Table> =
+    Select<Definition> extends { readonly data: infer Data extends JsonValue } ? Data : JsonValue;
 
 /** The object type a definition declares with its methods. */
 export type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
@@ -2535,7 +2569,7 @@ export type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
         ProvisionedMethodsOf<Option<Definition, "provisioned">> &
         SeriesMethodMap<StorageKind<Option<Definition, "storage", "durable">>> &
         TraitMethods<
-            ObjectFields<NonNullable<Definition["fields"]>>,
+            FieldsByColumn<NonNullable<Definition["fields"]>>,
             DefinedTraits<Definition> & {
                 readonly shareable: Option<Definition, "partition"> extends true
                     ? undefined
@@ -2556,6 +2590,9 @@ export type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
         : undefined;
     readonly attachments: IdentityOf<Option<Definition, "attachments", []>[number]["object"]>;
     readonly storage: StorageKind<Option<Definition, "storage", "durable">>;
+    readonly events: StorageKind<Option<Definition, "storage", "durable">> extends "events"
+        ? EventKind<EventShapeOf<DefinedTable<Definition>>, EventDataOf<DefinedTable<Definition>>>
+        : undefined;
     readonly declared: StackDeclarationOf<DefinedTraits<Definition>>;
 }>;
 

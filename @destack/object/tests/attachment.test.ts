@@ -1,4 +1,4 @@
-import { present, schema, Clock } from "@destack/schema";
+import { present, schema, Clock, type Identifier } from "@destack/schema";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { asc, eq, type Dialect, defineDatabase } from "@destack/db";
@@ -16,9 +16,9 @@ import {
 import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the objects. */
@@ -139,7 +139,7 @@ test("map the types attached to served objects, which the database keeps beside 
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [photo],
+        servers: serversOf([photo]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -186,15 +186,15 @@ test.for(TEST_DIALECTS)(
         expect(
             await refusal(call(remark, "create", { ...host(article, missing), text: "Nope" })),
         ).toEqual(["NOT_FOUND", `no article ${missing}`]);
-        as("bob");
+        as(users.bob);
         expect(
             await refusal(call(remark, "create", { ...host(article, draft.id), text: "Nope" })),
         ).toEqual(["NOT_FOUND", `no article ${draft.id}`]);
-        as("alice");
+        as(users.alice);
 
         // include each article's remarks, and only its own, sharing identifiers with no photo
         const pages = store.source.relayed(
-            store.source.queriesShape.subscription({
+            store.source.queriesPublication.subscription({
                 name: "objects",
                 scope: spaceId,
                 below: spaceId,
@@ -257,33 +257,33 @@ test.for(TEST_DIALECTS)(
         const shared = await call(board, "grant", {
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
         const mine = await call(favourite, "create", host(board, plans.id));
         expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
             "CONFLICT",
             "another favourite has the same parent and reader",
         ]);
-        as("bob");
+        as(users.bob);
         const theirs = await call(favourite, "create", host(board, plans.id));
 
         // show each reader only their own mark, and refuse one to a reader of nothing
         const listed = async () => (await call(favourite, "list", {})).items.map((item) => item.id);
         expect(await listed()).toEqual([theirs.id]);
-        as("alice");
+        as(users.alice);
         expect(await listed()).toEqual([mine.id]);
-        as("carol");
+        as(users.carol);
         expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
             "NOT_FOUND",
             `no board ${plans.id}`,
         ]);
 
         // hide a mark from a reader who lost the board, and delete the marks with the board
-        as("alice");
+        as(users.alice);
         await call(board, "revoke", { id: plans.id, relationshipId: shared.id });
-        as("bob");
+        as(users.bob);
         expect(await listed()).toEqual([]);
-        as("alice");
+        as(users.alice);
         await call(board, "delete", { id: plans.id });
         expect(await listed()).toEqual([]);
     },
@@ -309,7 +309,7 @@ test.for(TEST_DIALECTS)(
         const draft = await call(article, "create", {});
         await call(counted, "create", { ...host(article, draft.id), text: "Tighten the intro" });
         const mine = await call(counted, "count", host(article, draft.id));
-        as("bob");
+        as(users.bob);
         const theirs = await refusal(call(counted, "count", host(article, draft.id)));
         expect([mine, theirs]).toEqual([{ count: 1 }, ["FORBIDDEN", "permission denied: read"]]);
     },
@@ -334,7 +334,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: Object.values(objects),
+        servers: serversOf(Object.values(objects)),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -344,8 +344,9 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
-    const sign = (caller: string) => userContext(caller, spaceId, { signal: controller.signal });
-    let context = sign("alice");
+    const sign = (caller: Identifier<"user">) =>
+        userContext(caller, spaceId, { signal: controller.signal });
+    let context = sign(users.alice);
 
     return {
         storage,
@@ -368,7 +369,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         host: (object: ObjectType, id: string) => ({
             parent: { packageId: object.policy.definition.packageId, type: object.name, id },
         }),
-        as: (caller: string) => {
+        as: (caller: Identifier<"user">) => {
             context = sign(caller);
         },
     };

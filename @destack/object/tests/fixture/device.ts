@@ -1,12 +1,12 @@
 import { bearerUser } from "./user.ts";
-import { ObjectExtension, defineServer } from "../../src/server/index.ts";
+import { defineServer, ObjectStore } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, Clock, aligned } from "@destack/schema";
+import { schema, Clock, aligned, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { Server, type PackageImplementation } from "@destack/runtime/server";
@@ -34,7 +34,8 @@ export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) 
     // serve the notes over HTTP to bearer-identified users
     const served = serveObjects(
         aligned(
-            ObjectExtension.compose([defineServer(notesPackage, {}).extension(undefined)], {
+            new ObjectStore({
+                servers: [defineServer(notesPackage, {})],
                 chain: async () => undefined,
                 origin: { package: Package.of(notesPackage) },
                 principal: spacePrincipal(spaceId),
@@ -48,7 +49,7 @@ export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) 
         spaceId,
     );
 
-    const connect = (user: string) => createClient(notesPackage, served.endpoint(user));
+    const connect = (user: Identifier<"user">) => createClient(notesPackage, served.endpoint(user));
 
     return { connect, endpoint: served.endpoint, server: served.server, database };
 }
@@ -69,7 +70,7 @@ export function serveObjects(implementation: PackageImplementation, scope: strin
     onTestFinished(() => server.close());
 
     // reach the server as a user
-    const endpoint = (user: string): ClientOptions => ({
+    const endpoint = (user: Identifier<"user">): ClientOptions => ({
         url: "https://objects.test",
         headers: { authorization: `Bearer ${user}` },
         fetch: (request: Request) => server.fetch(request),
@@ -99,7 +100,7 @@ export class Device {
 
     /** Open a user's device on a new local database file, offline until it goes online. */
     static async open(
-        user: string,
+        user: Identifier<"user">,
         endpoint: ClientOptions,
         queried: readonly (typeof notebook | typeof note)[] = [notebook, note],
         options: {

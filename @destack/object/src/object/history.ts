@@ -1,7 +1,7 @@
 import { through } from "@destack/access";
 import { LogPosition } from "@destack/db";
 import { schema } from "@destack/schema";
-import { field, type ObjectFields } from "../field/field.ts";
+import { field, type FieldsByColumn } from "../field/field.ts";
 import type { MethodBuilder } from "../method/record.ts";
 import type { ObjectTable } from "./table.ts";
 import type { ObjectScope } from "./object.ts";
@@ -26,7 +26,7 @@ const activityFields = {
 export type ActivityTable = ObjectTable<
     "activity",
     ObjectScope,
-    ObjectFields<typeof activityFields>,
+    FieldsByColumn<typeof activityFields>,
     { readonly nested: { readonly in: "any"; readonly receive: "activity" } }
 >;
 

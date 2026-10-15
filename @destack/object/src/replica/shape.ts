@@ -2,7 +2,7 @@ import { type DatabaseConnection, eq, type Snapshot, sql } from "@destack/db";
 import { schema } from "@destack/schema";
 import { replica, Subject, type Subscription } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
-import { QUERIES_SHAPE, type ObjectQuery } from "./replica.ts";
+import { QUERIES_PUBLICATION, type ObjectQuery } from "./replica.ts";
 
 /** A shape's key: the scope whose rows it reads, and the parameters its queries take. */
 export type ShapeKey<Parameters extends object> = {
@@ -128,7 +128,7 @@ export const Shape = {
 
         return {
             name: Shape.replicaName(shape, key),
-            shape: QUERIES_SHAPE,
+            publication: QUERIES_PUBLICATION,
             scope,
             below,
             ...(subject === undefined ? {} : { subject }),

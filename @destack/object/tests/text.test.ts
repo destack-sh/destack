@@ -1,4 +1,4 @@
-import { bearerUser } from "./fixture/user.ts";
+import { bearerUser, users } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
 import { type DatabaseConnection, type Dialect, defineDatabase, Snapshot } from "@destack/db";
@@ -12,13 +12,13 @@ import { RequestId } from "@destack/runtime/request";
 import { Server } from "@destack/runtime/server";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
 import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
-import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
-import { aligned, Clock } from "@destack/schema";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { aligned, Clock, type Identifier } from "@destack/schema";
 
 /** The space with the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
@@ -65,7 +65,8 @@ async function serveDocuments(dialect: Dialect) {
     const server = Server.start({
         clock: Clock.system,
         ...aligned(
-            ObjectExtension.compose([defineServer(documentsPackage, {}).extension(undefined)], {
+            new ObjectStore({
+                servers: [defineServer(documentsPackage, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(documentsPackage) },
@@ -84,18 +85,18 @@ async function serveDocuments(dialect: Dialect) {
         authenticate: bearerUser(documentsPackage.id, spaceId),
     });
     onTestFinished(() => server.close());
-    const endpoint = (name: string): ClientOptions => ({
+    const endpoint = (name: Identifier<"user">): ClientOptions => ({
         url: "https://documents.test",
         headers: { authorization: `Bearer ${name}` },
         fetch: (request: Request) => server.fetch(request),
     });
-    const connect = (name: string) => createClient(documentsPackage, endpoint(name));
+    const connect = (name: Identifier<"user">) => createClient(documentsPackage, endpoint(name));
 
     return { connect, endpoint, database };
 }
 
 /** Open a user's client of the space on a new local database, following every document. */
-async function openClient(name: string, endpoint: ClientOptions) {
+async function openClient(name: Identifier<"user">, endpoint: ClientOptions) {
     // create the local database and follow the documents
     const tables = ObjectClient.tables({ document });
     const storage = await TestDatabase.create("sqlite", tables, { storage: "file" });
@@ -148,8 +149,8 @@ test.for(TEST_DIALECTS)(
     "edit a text through chunk splits, read it assembled, undo exactly and guard it on %s",
     async (dialect) => {
         const { connect: connectAs, database } = await serveDocuments(dialect);
-        const alice = connectAs("alice");
-        const bob = connectAs("bob");
+        const alice = connectAs(users.alice);
+        const bob = connectAs(users.bob);
         const created = await alice.document.create({
             spaceId,
             requestId: RequestId.create(Date.now()),
@@ -295,7 +296,7 @@ test.for(TEST_DIALECTS)(
             id: created.id,
             requestId: RequestId.create(Date.now()),
             relation: "editor",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
         expect(await listed()).toEqual([text]);
     },
@@ -305,9 +306,9 @@ test.for(TEST_DIALECTS)(
     "predict edits on two clients, converge after push, undo one exactly and hide chunks from others on %s",
     async (dialect) => {
         const { endpoint } = await serveDocuments(dialect);
-        const alice = await openClient("alice", endpoint("alice"));
-        const bob = await openClient("bob", endpoint("bob"));
-        const carol = await openClient("carol", endpoint("carol"));
+        const alice = await openClient(users.alice, endpoint(users.alice));
+        const bob = await openClient(users.bob, endpoint(users.bob));
+        const carol = await openClient(users.carol, endpoint(users.carol));
 
         // create a shared document with a first line
         const created = alice.client.mutate(document).create({ title: "Plan" });
@@ -318,7 +319,7 @@ test.for(TEST_DIALECTS)(
         await alice.client.mutate(document).grant({
             id,
             relation: "editor",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         }).confirmed;
         await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
 
@@ -356,8 +357,8 @@ test.for(TEST_DIALECTS)(
     "type into a live text by offsets, one change after another, and converge on the server on %s",
     async (dialect) => {
         const { endpoint } = await serveDocuments(dialect);
-        const alice = await openClient("alice", endpoint("alice"));
-        const bob = await openClient("bob", endpoint("bob"));
+        const alice = await openClient(users.alice, endpoint(users.alice));
+        const bob = await openClient(users.bob, endpoint(users.bob));
 
         // create a document shared with bob and follow its body as a sequence
         const created = alice.client.mutate(document).create({ title: "Plan" });
@@ -366,7 +367,7 @@ test.for(TEST_DIALECTS)(
         await alice.client.mutate(document).grant({
             id,
             relation: "editor",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         }).confirmed;
         const text = LiveText.open(alice.client, document, id, "body");
         await text.ready;
@@ -399,13 +400,13 @@ test("tell whether a document's body has the elements a reader asks about", asyn
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [document],
+        servers: serversOf([document]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
         origin: { package: document.package },
     });
-    const caller = userContext("user-1", spaceId).caller();
+    const caller = userContext(users.frank, spaceId).caller();
     const [created] = await store.mutate(caller, {
         id: RequestId.create(Date.now()),
         calls: [document.call("create", { spaceId })],

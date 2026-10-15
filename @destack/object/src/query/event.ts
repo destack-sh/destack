@@ -140,6 +140,12 @@ export const EventLog = {
     },
 };
 
+/** An event of an events object type, keyed and shaped as its kind keeps it. */
+export type EventOf<Type extends { readonly eventKind: () => EventKind }> =
+    ReturnType<Type["eventKind"]> extends EventKind<infer Shape, infer Data>
+        ? Event<Shape, Data>
+        : never;
+
 /** A package's reads of its own event kind: pages in time order, single events and series. */
 export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
     /** The event kind read. */

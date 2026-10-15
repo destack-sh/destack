@@ -2,15 +2,15 @@ import { Caller, none, principal, relation, through } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { EventTime } from "@destack/event";
-import { schema, Clock } from "@destack/schema";
+import { schema, Clock, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, EventView, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The space the visits happen in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e1");
@@ -101,7 +101,7 @@ test.for(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [visit],
+            servers: serversOf([visit]),
             database: storage.database,
             callKey: testCallKey,
             events,
@@ -109,7 +109,12 @@ test.for(TEST_DIALECTS)(
         });
 
         // record two visits of alice a minute apart and one of bob, as the space itself
-        const visited = (id: string, visitor: string, title: string, minute: number) => ({
+        const visited = (
+            id: string,
+            visitor: Identifier<"user">,
+            title: string,
+            minute: number,
+        ) => ({
             id,
             time: START + minute * MINUTE,
             visitorId: visitor,
@@ -123,16 +128,16 @@ test.for(TEST_DIALECTS)(
                 visit.call("record", {
                     spaceId,
                     items: [
-                        visited("visit-1", "alice", "home", 0),
-                        visited("visit-2", "alice", "about", 1),
-                        visited("visit-3", "bob", "home", 0),
+                        visited("visit-1", users.alice, "home", 0),
+                        visited("visit-2", users.alice, "about", 1),
+                        visited("visit-3", users.bob, "home", 0),
                     ],
                 }),
             ],
         });
 
         // list, get and fold as alice
-        const alice = userContext("alice", spaceId).caller();
+        const alice = userContext(users.alice, spaceId).caller();
         const get = async (id: string) =>
             (await store.query(alice, visit.call("get", { spaceId, id }))).page;
         const fold = (where: object) =>
@@ -156,9 +161,9 @@ test.for(TEST_DIALECTS)(
             ).items.map((item) => item.id),
             own: await get("visit-2"),
             other: await refusal(get("visit-3")),
-            folded: await fold({ visitorId: "alice" }),
+            folded: await fold({ visitorId: users.alice }),
             unfiltered: await refusal(fold({})),
-            foreign: await refusal(fold({ visitorId: "bob" })),
+            foreign: await refusal(fold({ visitorId: users.bob })),
         }).toEqual({
             recorded: [{ ids: ["visit-1", "visit-2", "visit-3"] }],
             listed: ["visit-1", "visit-2"],
@@ -198,7 +203,7 @@ test("append a visitor's own visit publicly, refusing another's, and read visits
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [visit, page],
+        servers: serversOf([visit, page]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database, [visit.eventKind()]),
@@ -206,9 +211,9 @@ test("append a visitor's own visit publicly, refusing another's, and read visits
     });
 
     // append alice's visit as alice, and refuse bob appending one in her name
-    const alice = userContext("alice", spaceId).caller();
-    const bob = userContext("bob", spaceId).caller();
-    const visited = (visitor: string, id: string) =>
+    const alice = userContext(users.alice, spaceId).caller();
+    const bob = userContext(users.bob, spaceId).caller();
+    const visited = (visitor: Identifier<"user">, id: string) =>
         visit.call("visit", {
             spaceId,
             id,
@@ -220,12 +225,12 @@ test("append a visitor's own visit publicly, refusing another's, and read visits
         });
     await store.mutate(alice, {
         id: RequestId.create(Date.now()),
-        calls: [visited("alice", "visit-1")],
+        calls: [visited(users.alice, "visit-1")],
     });
     const refused = await refusal(
         store.mutate(bob, {
             id: RequestId.create(Date.now()),
-            calls: [visited("alice", "visit-2")],
+            calls: [visited(users.alice, "visit-2")],
         }),
     );
 
@@ -255,7 +260,7 @@ test("read the events a space appended after a log sequence, in commit order", a
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [visit],
+        servers: serversOf([visit]),
         database: storage.database,
         callKey: testCallKey,
         events,
@@ -270,7 +275,7 @@ test("read the events a space appended after a log sequence, in commit order", a
                     items: ids.map((id, minute) => ({
                         id,
                         time: START + minute * MINUTE,
-                        visitorId: "alice",
+                        visitorId: users.alice,
                         page: "home",
                         duration: 1000,
                         data: { referrer: null },

@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -5,7 +6,7 @@ import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, Identifier, schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { Scope, type Subject } from "@destack/sync";
 import { defineObject, Intrinsic } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
@@ -20,11 +21,11 @@ const relationship = defineObject(Intrinsic.relationship.definition(space)).meth
 );
 
 /** Alice, who owns the space. */
-const alice = principal.user.reference(Scope.universe.id, "alice");
+const alice = principal.user.reference(Scope.universe.id, users.alice);
 /** Bob, who reads the space. */
-const bob = principal.user.reference(Scope.universe.id, "bob");
+const bob = principal.user.reference(Scope.universe.id, users.bob);
 /** Carol, who has no access. */
-const carol = principal.user.reference(Scope.universe.id, "carol");
+const carol = principal.user.reference(Scope.universe.id, users.carol);
 
 test("check the caller's own access under its grant, and another subject's for grantors alone", async () => {
     const storage = await TestDatabase.create(
@@ -54,7 +55,7 @@ test("check the caller's own access under its grant, and another subject's for g
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
-        objects: [relationship],
+        servers: serversOf([relationship]),
         policies: [space],
         database: storage.database,
         callKey: testCallKey,
@@ -63,12 +64,12 @@ test("check the caller's own access under its grant, and another subject's for g
     });
 
     // check as alice, as bob, and as a token acting for alice under a grant to read the space
-    const token = principal.personalAccessToken.reference("alice", "token-alice");
+    const token = principal.personalAccessToken.reference(users.alice, "token-alice");
     const delegated = {
         delegates: [token],
         grant: {
             id: Identifier.create("grant"),
-            scope: "alice",
+            scope: users.alice,
             permissions: [{ ...space.permission("read"), scope: SPACE_ID }],
         },
     };

@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { Clock } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
@@ -5,7 +6,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 
 import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { testEvents } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { RequestId } from "@destack/runtime/request";
 import type { RequestContext } from "@destack/runtime/server";
 import { ObjectStore } from "../src/server/index.ts";
@@ -27,7 +28,7 @@ test.for(TEST_DIALECTS)(
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
         const pages = west.source.relayed(
-            west.source.queriesShape.subscription({
+            west.source.queriesPublication.subscription({
                 name: "objects",
                 scope: spaceId,
                 below: spaceId,
@@ -69,7 +70,7 @@ async function serve(database: DatabaseConnection) {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [notebook, note],
+        servers: serversOf([notebook, note]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -81,5 +82,5 @@ async function serve(database: DatabaseConnection) {
 
 /** Build alice's request context in the space, ending with the signal. */
 function context(signal: AbortSignal): RequestContext {
-    return subjectContext(principal.user.reference("universe", "alice"), spaceId, { signal });
+    return subjectContext(principal.user.reference("universe", users.alice), spaceId, { signal });
 }

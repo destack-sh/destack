@@ -7,15 +7,15 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema, Clock } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
 import { testServerContext } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import type { Uplink } from "@destack/sync";
 import { testCallKey } from "@destack/runtime/test";
 import { defineObject, field } from "../src/index.ts";
 import { ShareableMethod } from "../src/method/shareable.ts";
-import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request } from "./fixture/request.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The space whose partition the cards live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000a1");
@@ -75,7 +75,7 @@ test.each(TEST_DIALECTS)(
                 chain: async () => undefined,
                 clock: Clock.system,
                 principal: spacePrincipal(spaceId),
-                objects: [card],
+                servers: serversOf([card]),
                 database: storage.database,
                 callKey: testCallKey,
                 events,
@@ -83,7 +83,7 @@ test.each(TEST_DIALECTS)(
                 ...(partition === undefined ? {} : { partition }),
             });
         const create = (store: ObjectStore) =>
-            request(store, card, "create", spaceId, {}, userContext("user-1", spaceId));
+            request(store, card, "create", spaceId, {}, userContext(users.frank, spaceId));
 
         // serve the space's partition, any partition, and refuse another partition's store
         const own = await create(serve(spaceId));
@@ -117,27 +117,25 @@ test.each(TEST_DIALECTS)(
         const machine = idle("machine");
         const root = idle("root");
         const subscriptions = async (partition: string) => {
-            const { store } = ObjectExtension.compose(
-                [defineServer(roomsPackage, {}).extension(undefined)],
-                {
-                    chain: async () => ({ kind: "follower" }),
-                    clock: Clock.system,
-                    origin: { package: Package.of(roomsPackage) },
-                    callKey: testCallKey,
-                    events: await testEvents(storage.database),
-                    database: storage.database,
-                    server: {
-                        ...(await testServerContext(Package.of(roomsPackage), spaceId)),
-                        partition,
-                        publisher: machine,
-                        publisherAt: (address, packageId) => {
-                            reached.push(`${address} ${packageId}`);
+            const store = new ObjectStore({
+                servers: [defineServer(roomsPackage, {})],
+                chain: async () => ({ kind: "follower" }),
+                clock: Clock.system,
+                origin: { package: Package.of(roomsPackage) },
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+                server: {
+                    ...(await testServerContext(Package.of(roomsPackage), spaceId)),
+                    partition,
+                    publisher: machine,
+                    publisherAt: (address, packageId) => {
+                        reached.push(`${address} ${packageId}`);
 
-                            return root;
-                        },
+                        return root;
                     },
                 },
-            );
+            });
             const listed = present(store.subscriber?.subscriptions, "the store's subscriptions");
             const entries = await listed();
 

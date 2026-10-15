@@ -8,8 +8,8 @@ export { bindable, CONSUMER } from "./bindable.ts";
 export {
     Provisioned,
     type ProvisionedDefinition,
-    type ProvisionedObject,
-    type ProvisionedRecord,
+    type ResourceType,
+    type ResourceRow,
 } from "./provisioned.ts";
 export { DesiredState, desiredState } from "./desired.ts";
 export { tracked, type TrackedDefinition } from "./tracked.ts";

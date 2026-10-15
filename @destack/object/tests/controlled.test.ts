@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test, TestClock } from "@destack/test";
 import { none, principal, relation, Caller } from "@destack/access";
@@ -11,7 +12,7 @@ import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 
 /** The space with the machines. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
@@ -54,7 +55,7 @@ test.each(TEST_DIALECTS)(
         const store = new ObjectStore({
             chain: async () => undefined,
             principal: spacePrincipal(spaceId),
-            objects: [machine],
+            servers: serversOf([machine]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
@@ -80,7 +81,7 @@ test.each(TEST_DIALECTS)(
             calls: [
                 machine.call("provision", {
                     ...machine.target({ scope: spaceId, id: MACHINE }),
-                    ownerId: "global:user-1",
+                    ownerId: users.frank,
                     size: "small",
                 }),
             ],
@@ -136,7 +137,7 @@ test.each(TEST_DIALECTS)(
             calls: [
                 machine.call("provision", {
                     ...machine.in(spaceId),
-                    ownerId: "global:user-1",
+                    ownerId: users.frank,
                     size: "large",
                 }),
             ],
@@ -202,7 +203,7 @@ test("answer a repeated system request from the journal, provisioning once, and 
     const store = new ObjectStore({
         chain: async () => undefined,
         principal: spacePrincipal(spaceId),
-        objects: [machine],
+        servers: serversOf([machine]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -223,7 +224,7 @@ test("answer a repeated system request from the journal, provisioning once, and 
             calls: [
                 machine.call("provision", {
                     ...machine.in(spaceId),
-                    ownerId: "global:user-1",
+                    ownerId: users.frank,
                     size,
                 }),
             ],
@@ -265,7 +266,7 @@ test("let an object representing a principal control its own row, and refuse it 
     const store = new ObjectStore({
         chain: async () => undefined,
         principal: spacePrincipal(spaceId),
-        objects: [agent],
+        servers: serversOf([agent]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),

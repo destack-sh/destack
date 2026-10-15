@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineDatabase, eq, type DatabaseConnection } from "@destack/db";
@@ -8,7 +9,7 @@ import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
-import { ObjectExtension, defineServer } from "../src/server/index.ts";
+import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { found, Clock, aligned } from "@destack/schema";
 import { Device, serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
@@ -240,8 +241,8 @@ test.each(TEST_DIALECTS)(
     "undo and redo a party's mutations, restoring only what no one changed since, across a restart, on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
-        const alice = connect("alice");
-        const device = await Device.open("alice", endpoint("alice"));
+        const alice = connect(users.alice);
+        const device = await Device.open(users.alice, endpoint(users.alice));
         device.online();
         // create a note, retitle it and write its text, both confirmed
         const created = device.client.mutate(note).create({ title: "Draft" });
@@ -292,8 +293,8 @@ test.each(TEST_DIALECTS)(
             database: await device.storage.connect(ObjectClient.tables({ notebook, note })),
             objects: { notebook, note },
             scope: spaceId,
-            caller: principal.user.reference("universe", "alice"),
-            endpoint: endpoint("alice"),
+            caller: principal.user.reference("universe", users.alice),
+            endpoint: endpoint(users.alice),
             reconnect: unmoved,
             origin: device.client.origin,
             isMigrated: true,
@@ -332,7 +333,8 @@ test("undo an update of an exact integer, restoring its value on the device and 
     const tallies = definePackage({ objects: { tally } });
     const served = serveObjects(
         aligned(
-            ObjectExtension.compose([defineServer(tallies, {}).extension(undefined)], {
+            new ObjectStore({
+                servers: [defineServer(tallies, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(tallies) },
@@ -356,8 +358,8 @@ test("undo an update of an exact integer, restoring its value on the device and 
         database: local.database,
         objects: { tally },
         scope: spaceId,
-        caller: principal.user.reference("universe", "alice"),
-        endpoint: served.endpoint("alice"),
+        caller: principal.user.reference("universe", users.alice),
+        endpoint: served.endpoint(users.alice),
         reconnect: unmoved,
     });
     client.queryType(tally).findMany().subscribe();
@@ -403,7 +405,8 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     const stamps = definePackage({ objects: { stamp } });
     const served = serveObjects(
         aligned(
-            ObjectExtension.compose([defineServer(stamps, {}).extension(undefined)], {
+            new ObjectStore({
+                servers: [defineServer(stamps, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(stamps) },
@@ -427,8 +430,8 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         database: local.database,
         objects: { stamp },
         scope: spaceId,
-        caller: principal.user.reference("universe", "alice"),
-        endpoint: served.endpoint("alice"),
+        caller: principal.user.reference("universe", users.alice),
+        endpoint: served.endpoint(users.alice),
         reconnect: unmoved,
     });
     client.queryType(stamp).findMany().subscribe();

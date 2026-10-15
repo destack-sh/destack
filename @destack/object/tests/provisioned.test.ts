@@ -1,6 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 
 import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
@@ -17,9 +17,15 @@ import {
     defineObject,
     DesiredState,
     desiredState,
-    type ProvisionedRecord,
+    type ResourceRow,
 } from "../src/index.ts";
-import { DRAINING, ObjectExtension, ObjectStore } from "../src/server/index.ts";
+import {
+    defineServer,
+    DRAINING,
+    ObjectStore,
+    type ServedPackage,
+    type ServerDefinition,
+} from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { RequestId } from "@destack/runtime/request";
@@ -182,13 +188,13 @@ async function serve(boxes: Boxes) {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [box, link],
+        servers: serversOf([box, link], { providers: [boxes.provider(), links] }),
+        machine: machineId,
         database,
         claims: await serveClaims(universe.database, Clock.system),
         callKey: testCallKey,
         events: await testEvents(database),
         origin: { package: box.package },
-        provisioned: { providers: [boxes.provider(), links], machine: machineId },
     });
 
     // reconcile one resource as its kind's control loop does
@@ -543,14 +549,14 @@ test("name a resource after another kind's resource in its space, refusing a sec
 });
 
 /** Read a box's ready reason and draining status. */
-function conditions(row: { readonly conditions: ProvisionedRecord["conditions"] }) {
+function conditions(row: { readonly conditions: ResourceRow["conditions"] }) {
     return [row.conditions["ready"]?.reason, row.conditions[DRAINING]?.status] as const;
 }
 
-test("route another package's provisioned type to the extension whose provider provisions it, refusing one without", () => {
-    // host the boxes in an extension of another package, with and without their provider
+test("route another package's provisioned type to the package whose provider provisions it, refusing one without", async () => {
+    // host the boxes in another package, with and without their provider
     const host = definePackage(
-        {},
+        { objects: { box } },
         {
             package: Package.parse({
                 id: "package-01996ab0-0000-7000-8000-000000000057",
@@ -559,17 +565,27 @@ test("route another package's provisioned type to the extension whose provider p
             }),
         },
     );
-    const provider = new Boxes().provider();
-    const routed = ObjectExtension.routes(
-        [{ package: host, objects: [box], providers: [provider] }],
-        () => false,
-    );
+    const storage = await TestDatabase.create("sqlite", boxDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const events = await testEvents(storage.database);
+    const hostPackage: ServedPackage = host;
+    const serveHost = (definition: ServerDefinition) =>
+        new ObjectStore({
+            servers: [defineServer(hostPackage, definition)],
+            machine: machineId,
+            chain: async () => undefined,
+            clock: Clock.system,
+            principal: spacePrincipal(spaceId),
+            database: storage.database,
+            callKey: testCallKey,
+            events,
+            origin: { package: host },
+        });
 
-    // implement the boxes in the providing extension alone
-    expect(
-        [...routed.values()].map((route) => [route.type.name, route.extension.package.id]),
-    ).toEqual([["box", host.id]]);
-    expect(() => ObjectExtension.routes([{ package: host, objects: [box] }], () => false)).toThrow(
+    // implement the boxes in the providing package alone
+    const hosting = serveHost({ providers: [new Boxes().provider()] });
+    expect(Object.keys(hosting.package(host).router)).toEqual(["replica", "box"]);
+    expect(() => serveHost({})).toThrow(
         new TypeError(
             `package @example/host routes box objects of ${box.package.id}, but nothing here implements or replicates them`,
         ),

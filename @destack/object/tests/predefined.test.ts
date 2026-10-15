@@ -7,7 +7,7 @@ import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { defineObject, field, Intrinsic, type ObjectCall } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 
 /** The space the tiers live in. */
@@ -55,7 +55,7 @@ test("keep a type's predefined rows in its table, and refuse every call writing 
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [tier],
+        servers: serversOf([tier]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),

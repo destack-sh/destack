@@ -67,12 +67,12 @@ import { BatchItem } from "../method/record.ts";
 
 import type { CallableName, CallInput, CallOutput, MutationName } from "../method/procedure.ts";
 import {
-    ACCESS_SHAPE,
-    EPHEMERAL_SHAPE,
-    EXTERNAL_SHAPE,
+    ACCESS_PUBLICATION,
+    EPHEMERAL_PUBLICATION,
+    EXTERNAL_PUBLICATION,
     ObjectQuery,
     PUSH_MUTATIONS,
-    QUERIES_SHAPE,
+    QUERIES_PUBLICATION,
     replicaProcedures,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
@@ -1033,7 +1033,7 @@ export class ObjectClient<
         return [
             {
                 replica: this.replica,
-                shape: QUERIES_SHAPE,
+                publication: QUERIES_PUBLICATION,
                 parameters: async () => ({ queries: await this.#subscribed("durable") }),
                 prediction: this.prediction,
             },
@@ -1042,7 +1042,7 @@ export class ObjectClient<
                 : [
                       {
                           replica: this.ephemeral,
-                          shape: EPHEMERAL_SHAPE,
+                          publication: EPHEMERAL_PUBLICATION,
                           parameters: async () => ({
                               queries: await this.#subscribed("ephemeral"),
                               writerId: this.writerId,
@@ -1054,13 +1054,13 @@ export class ObjectClient<
                 : [
                       {
                           replica: this.external,
-                          shape: EXTERNAL_SHAPE,
+                          publication: EXTERNAL_PUBLICATION,
                           parameters: async () => ({
                               queries: await this.#subscribed("external"),
                           }),
                       },
                   ]),
-            { replica: this.access, shape: ACCESS_SHAPE, parameters: async () => ({}) },
+            { replica: this.access, publication: ACCESS_PUBLICATION, parameters: async () => ({}) },
         ];
     }
 
@@ -1147,7 +1147,7 @@ export class ObjectClient<
         );
     }
 
-    /** Follow a replica's shape from where the replica is, applying each page it streams. */
+    /** Follow a replica's publication from where the replica is, applying each page it streams. */
     async #followPages(
         follow: ClientFollow,
         parameters: JsonObject,
@@ -1155,11 +1155,11 @@ export class ObjectClient<
         stream: AbortSignal,
         onPage: () => void,
     ): Promise<void> {
-        // stream the replica's shape from where the replica is
+        // stream the replica's publication from where the replica is
         const { replica, prediction } = follow;
         const followed: sync.Subscription = {
             name: replica.name,
-            shape: follow.shape,
+            publication: follow.publication,
             scope: this.scope,
             below: this.scope,
             parameters,
@@ -2629,12 +2629,12 @@ const subscription = defineTable("subscription", {
     keep: integer("keep"),
 });
 
-/** A replica the client follows: replica, shape and parameters, and the prediction it rebases. */
+/** A replica the client follows with its publication, parameters and the prediction it rebases. */
 interface ClientFollow {
     /** The local replica. */
     readonly replica: sync.Replica;
-    /** The followed shape. */
-    readonly shape: string;
+    /** The followed publication. */
+    readonly publication: string;
     /** Read the current subscription parameters: followed queries and the ephemeral writer. */
     readonly parameters: () => Promise<{
         readonly queries?: Readonly<Record<string, ObjectQuery>>;

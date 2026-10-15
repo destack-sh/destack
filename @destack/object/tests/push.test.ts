@@ -1,11 +1,12 @@
+import { users } from "./fixture/user.ts";
 import { expect, test } from "@destack/test";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 
 test("push an outbox longer than one push carries, confirming every mutation across pushes", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
-    const alice = connect("alice");
-    const device = await Device.open("alice", endpoint("alice"), undefined, {
+    const alice = connect(users.alice);
+    const device = await Device.open(users.alice, endpoint(users.alice), undefined, {
         push: { mutations: 3 },
     });
 

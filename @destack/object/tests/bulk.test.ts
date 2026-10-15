@@ -6,17 +6,17 @@ import { principal, relation } from "@destack/access";
 import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/runtime";
-import { schema, Clock, aligned } from "@destack/schema";
+import { schema, Clock, aligned, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { ObjectReference } from "@destack/sync";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { serveObjects } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal, unmoved } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the labels. */
@@ -55,7 +55,7 @@ async function serveLabels(dialect: (typeof TEST_DIALECTS)[number]) {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [label],
+        servers: serversOf([label]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -64,7 +64,7 @@ async function serveLabels(dialect: (typeof TEST_DIALECTS)[number]) {
 
     // call as a user, and read every label as name, color, owner and trash state
     const call = <Name extends CallableName<typeof label>>(
-        user: string,
+        user: Identifier<"user">,
         name: Name,
         input: NoInfer<RequestInput<typeof label, Name>>,
     ) =>
@@ -79,7 +79,7 @@ async function serveLabels(dialect: (typeof TEST_DIALECTS)[number]) {
     const read = async () =>
         (await rows(storage.database)).map(
             (row) =>
-                `${row.ownerId} ${row.name} ${row.color} ${row.deletedAt === null ? "kept" : "trashed"}`,
+                `${userName(row.ownerId)} ${row.name} ${row.color} ${row.deletedAt === null ? "kept" : "trashed"}`,
         );
 
     return { storage, store, call, read };
@@ -97,7 +97,7 @@ test.each(TEST_DIALECTS)(
 
         // create three labels, one under a chosen identifier
         const chosen = label.generateId();
-        const created = await call("user-1", "createMany", {
+        const created = await call(users.frank, "createMany", {
             items: [
                 { name: "urgent", color: "red" },
                 { id: chosen, name: "later", color: "blue" },
@@ -116,12 +116,12 @@ test.each(TEST_DIALECTS)(
         ]);
         const urgent = aligned(created.ids, 0);
         const done = aligned(created.ids, 2);
-        const author = principal.user.reference("universe", "user-1");
+        const author = principal.user.reference("universe", users.frank);
         expect(created.ids[1]).toBe(chosen);
         expect(written).toEqual([
-            [done, "done", "green", "user-1", 1, author],
-            [chosen, "later", "blue", "user-1", 1, author],
-            [urgent, "urgent", "red", "user-1", 1, author],
+            [done, "done", "green", users.frank, 1, author],
+            [chosen, "later", "blue", users.frank, 1, author],
+            [urgent, "urgent", "red", users.frank, 1, author],
         ]);
     },
 );
@@ -130,12 +130,12 @@ test.each(TEST_DIALECTS)(
     "refuse the whole batch for a taken unique name or an invalid item, naming the item, on %s",
     async (dialect) => {
         const { call, read } = await serveLabels(dialect);
-        await call("user-1", "create", { name: "urgent", color: "red" });
+        await call(users.frank, "create", { name: "urgent", color: "red" });
 
         // refuse a name another label has, one the batch takes twice, and an empty name
         const refusals = [
             await refusal(
-                call("user-1", "createMany", {
+                call(users.frank, "createMany", {
                     items: [
                         { name: "later", color: "blue" },
                         { name: "urgent", color: "red" },
@@ -143,7 +143,7 @@ test.each(TEST_DIALECTS)(
                 }),
             ),
             await refusal(
-                call("user-1", "createMany", {
+                call(users.frank, "createMany", {
                     items: [
                         { name: "later", color: "blue" },
                         { name: "done", color: "green" },
@@ -152,7 +152,7 @@ test.each(TEST_DIALECTS)(
                 }),
             ),
             await refusal(
-                call("user-1", "createMany", {
+                call(users.frank, "createMany", {
                     items: [
                         { name: "later", color: "blue" },
                         { name: "", color: "green" },
@@ -171,7 +171,7 @@ test.each(TEST_DIALECTS)(
                     "invalid input: items.1.name: too small: expected string to have >=1 characters",
                 ],
             ],
-            ["user-1 urgent red kept"],
+            ["frank urgent red kept"],
         ]);
     },
 );
@@ -181,28 +181,28 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const { call, read } = await serveLabels(dialect);
 
-        // create two red and one blue label of user-1, and a red one of user-2
-        await call("user-1", "createMany", {
+        // create two red and one blue label of frank, and a red one of grace
+        await call(users.frank, "createMany", {
             items: [
                 { name: "urgent", color: "red" },
                 { name: "late", color: "red" },
                 { name: "later", color: "blue" },
             ],
         });
-        await call("user-2", "create", { name: "alarm", color: "red" });
+        await call(users.grace, "create", { name: "alarm", color: "red" });
 
-        // trash user-1's red labels once, finding none the second time
+        // trash frank's red labels once, finding none the second time
         const deleted = [
-            await call("user-1", "deleteMany", { where: { color: "red" } }),
-            await call("user-1", "deleteMany", { where: { color: "red" } }),
+            await call(users.frank, "deleteMany", { where: { color: "red" } }),
+            await call(users.frank, "deleteMany", { where: { color: "red" } }),
         ];
         expect([deleted, await read()]).toEqual([
             [{ count: 2 }, { count: 0 }],
             [
-                "user-2 alarm red kept",
-                "user-1 late red trashed",
-                "user-1 later blue kept",
-                "user-1 urgent red trashed",
+                "grace alarm red kept",
+                "frank late red trashed",
+                "frank later blue kept",
+                "frank urgent red trashed",
             ],
         ]);
     },
@@ -214,7 +214,8 @@ test("undo a bulk creation by deleting each created object on the device and the
     const labels = definePackage({ objects: { label } });
     const served = serveObjects(
         aligned(
-            ObjectExtension.compose([defineServer(labels, {}).extension(undefined)], {
+            new ObjectStore({
+                servers: [defineServer(labels, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(labels) },
@@ -238,8 +239,8 @@ test("undo a bulk creation by deleting each created object on the device and the
         database: local.database,
         objects: { label },
         scope: spaceId,
-        caller: principal.user.reference("universe", "alice"),
-        endpoint: served.endpoint("alice"),
+        caller: principal.user.reference("universe", users.alice),
+        endpoint: served.endpoint(users.alice),
         reconnect: unmoved,
     });
     client.queryType(label).findMany().subscribe();
@@ -291,7 +292,7 @@ test("undo a bulk creation by deleting each created object on the device and the
 test.each(TEST_DIALECTS)(
     "run a sent createMany once though it arrives twice, replaying its request, on %s",
     async (dialect) => {
-        // deliver the same sent mutation twice as user-1
+        // deliver the same sent mutation twice as frank
         const { store, read } = await serveLabels(dialect);
         const sent = {
             id: RequestId.create(Date.now()),
@@ -305,11 +306,11 @@ test.each(TEST_DIALECTS)(
                 }),
             ],
         };
-        const user = principal.user.reference("universe", "user-1");
+        const user = principal.user.reference("universe", users.frank);
         await store.receive(sent, user);
         await store.receive(sent, user);
 
-        expect(await read()).toEqual(["user-1 blue blue kept", "user-1 red red kept"]);
+        expect(await read()).toEqual(["frank blue blue kept", "frank red red kept"]);
     },
 );
 
@@ -335,12 +336,12 @@ test.each(TEST_DIALECTS)(
             return state.statements - before;
         };
         const statements = {
-            createOne: await counted(() => call("user-1", "createMany", { items: items(1) })),
+            createOne: await counted(() => call(users.frank, "createMany", { items: items(1) })),
             createThousand: await counted(() =>
-                call("user-1", "createMany", { items: items(1000) }),
+                call(users.frank, "createMany", { items: items(1000) }),
             ),
             trashThousand: await counted(() =>
-                call("user-1", "deleteMany", { where: { color: "color-1000" } }),
+                call(users.frank, "deleteMany", { where: { color: "color-1000" } }),
             ),
         };
 
@@ -358,7 +359,7 @@ test.each(TEST_DIALECTS)(
     "update listed objects at their revisions in one call, and refuse the whole batch for one stale revision or one the caller may not change, on %s",
     async (dialect) => {
         const { storage, call, read } = await serveLabels(dialect);
-        const { ids } = await call("user-1", "createMany", {
+        const { ids } = await call(users.frank, "createMany", {
             items: [
                 { name: "urgent", color: "red" },
                 { name: "later", color: "blue" },
@@ -366,12 +367,12 @@ test.each(TEST_DIALECTS)(
         });
         const urgent = aligned(ids, 0);
         const later = aligned(ids, 1);
-        const { ids: alarms } = await call("user-2", "createMany", {
+        const { ids: alarms } = await call(users.grace, "createMany", {
             items: [{ name: "alarm", color: "red" }],
         });
 
         // recolor both labels at their first revision, then refuse one stale revision and another's label
-        const updated = await call("user-1", "recolor", {
+        const updated = await call(users.frank, "recolor", {
             items: [
                 { id: urgent, revision: 1, color: "green" },
                 { id: later, revision: 1, color: "green" },
@@ -379,7 +380,7 @@ test.each(TEST_DIALECTS)(
         });
         const refusals = [
             await refusal(
-                call("user-1", "recolor", {
+                call(users.frank, "recolor", {
                     items: [
                         { id: urgent, revision: 2, color: "white" },
                         { id: later, revision: 1, color: "white" },
@@ -387,7 +388,7 @@ test.each(TEST_DIALECTS)(
                 }),
             ),
             await refusal(
-                call("user-1", "recolor", {
+                call(users.frank, "recolor", {
                     items: [
                         { id: urgent, revision: 2, color: "white" },
                         { id: aligned(alarms, 0), revision: 1, color: "white" },
@@ -404,11 +405,7 @@ test.each(TEST_DIALECTS)(
                 ["CONFLICT", "label revision has changed"],
                 ["NOT_FOUND", "label not found"],
             ],
-            labels: [
-                "user-2 alarm red kept",
-                "user-1 later green kept",
-                "user-1 urgent green kept",
-            ],
+            labels: ["grace alarm red kept", "frank later green kept", "frank urgent green kept"],
             revisions: [
                 ["alarm", 1],
                 ["later", 2],

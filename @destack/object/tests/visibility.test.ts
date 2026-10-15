@@ -17,9 +17,9 @@ import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 
 /** A private space nobody reads. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -83,7 +83,7 @@ test.each(TEST_DIALECTS)(
                     id: schema.identifier("relationship").parse(`relationship-${v7()}`),
                     object: document.reference(spaceId, shared),
                     relation: "reader",
-                    subject: principal.user.reference("universe", "alice"),
+                    subject: principal.user.reference("universe", users.alice),
                     createdAt: now,
                     expiresAt: null,
                 },
@@ -96,7 +96,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [document],
+            servers: serversOf([document]),
             database,
             callKey: testCallKey,
             events: await testEvents(database),
@@ -104,7 +104,7 @@ test.each(TEST_DIALECTS)(
                 package: document.package,
             },
         });
-        let context = userContext("alice", spaceId);
+        let context = userContext(users.alice, spaceId);
         const attempts = () =>
             Promise.all([
                 outcome(
@@ -137,7 +137,7 @@ test.each(TEST_DIALECTS)(
         expect(read).toEqual([{ id: shared, title: "Plan" }, ["Plan"], "NOT_FOUND", "FORBIDDEN"]);
 
         // find nothing at all for a stranger: no document, and no scope to list or write in
-        context = userContext("bob", spaceId);
+        context = userContext(users.bob, spaceId);
         expect(await attempts()).toEqual(["NOT_FOUND", "NOT_FOUND", "NOT_FOUND", "NOT_FOUND"]);
 
         // answer a stranger's listing of the space exactly as a listing of a space nobody created
@@ -150,7 +150,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // show a delegate granted no reading what alice sees, asking her for the grant it lacks
-        context = userContext("alice", spaceId, {
+        context = userContext(users.alice, spaceId, {
             delegates: [principal.installation.reference(spaceId, `installation-${v7()}`)],
             grant: {
                 id: Identifier.create("grant"),
@@ -196,7 +196,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [document, desk],
+            servers: serversOf([document, desk]),
             database,
             callKey: testCallKey,
             events: await testEvents(database),
@@ -204,7 +204,7 @@ test.each(TEST_DIALECTS)(
                 package: document.package,
             },
         });
-        const context = userContext("alice", undefined);
+        const context = userContext(users.alice, undefined);
 
         // list the room's desks and find no documents there
         const desks = await store.query(context.caller(), desk.call("list", { roomId }));

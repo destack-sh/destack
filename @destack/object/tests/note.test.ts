@@ -1,3 +1,4 @@
+import { users, userName } from "./fixture/user.ts";
 import { expect, test } from "@destack/test";
 import { journal } from "../src/index.ts";
 import { eq } from "@destack/db";
@@ -19,8 +20,8 @@ test.each(TEST_DIALECTS)(
     "keep notes private until shared, move them between notebooks and sync them on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
-        const alice = connect("alice");
-        const bob = connect("bob");
+        const alice = connect(users.alice);
+        const bob = connect(users.bob);
 
         // keep a notebook's notes and a loose note private to their owner
         const research = await alice.notebook.create({
@@ -47,7 +48,7 @@ test.each(TEST_DIALECTS)(
             id: research.id,
             requestId: RequestId.create(Date.now()),
             relation: "editor",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
         const titles = async () =>
             (await bob.note.list({ spaceId })).items.map((item) => item.title).toSorted();
@@ -113,7 +114,7 @@ test.each(TEST_DIALECTS)(
                 id: loose.id,
                 requestId: RequestId.create(Date.now()),
                 relation: "viewer",
-                subject: principal.user.reference("universe", "bob"),
+                subject: principal.user.reference("universe", users.bob),
             }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "note is in the trash" });
 
@@ -133,14 +134,14 @@ test.each(TEST_DIALECTS)(
         expect(await titles()).toEqual(["Ideas", "Sources"]);
 
         // follow the notes on bob's device and write into the shared notebook, predicted at once
-        const device = await Device.open("bob", endpoint("bob"));
+        const device = await Device.open(users.bob, endpoint(users.bob));
         device.online();
         await expect.poll(() => device.titles()).toEqual(["Ideas", "Sources"]);
         const questions = device.client
             .mutate(note)
             .create({ parentId: research.id, title: "Questions" });
         expect(ObjectReference.at("owner", await questions.predicted)).toEqual(
-            principal.user.reference("universe", "bob"),
+            principal.user.reference("universe", users.bob),
         );
         expect(await device.titles()).toEqual(["Ideas", "Questions", "Sources"]);
         await questions.confirmed;
@@ -155,10 +156,10 @@ test.each(TEST_DIALECTS)(
     "queue notes offline, write batches atomically, drop rejected predictions and rebase on %s",
     async (dialect) => {
         const { connect, endpoint, database } = await serveNotes(dialect);
-        const alice = connect("alice");
+        const alice = connect(users.alice);
 
         // queue a notebook and its first note in one offline mutation
-        const device = await Device.open("alice", endpoint("alice"));
+        const device = await Device.open(users.alice, endpoint(users.alice));
         const travel = device.client.mutation(async (mutation) => {
             const book = await mutation.call(notebook).create({ name: "Travel" });
             const first = await mutation.call(note).create({ parentId: book.id, title: "Packing" });
@@ -178,8 +179,8 @@ test.each(TEST_DIALECTS)(
             database: reconnected,
             objects: { notebook, note },
             scope: spaceId,
-            caller: principal.user.reference("universe", "alice"),
-            endpoint: endpoint("alice"),
+            caller: principal.user.reference("universe", users.alice),
+            endpoint: endpoint(users.alice),
             reconnect: unmoved,
         });
         expect(await restarted.prediction.pending(restarted.database)).toEqual(queued);
@@ -241,13 +242,13 @@ test.each(TEST_DIALECTS)(
         expect([stored.title, stored.text]).toEqual(["Luggage", "passport, charger"]);
 
         // refuse a batch the server forbids as a whole, and revert both of its predictions
-        const bob = await Device.open("bob", endpoint("bob"));
+        const bob = await Device.open(users.bob, endpoint(users.bob));
         await alice.notebook.grant({
             spaceId,
             id: book.id,
             requestId: RequestId.create(Date.now()),
             relation: "viewer",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
         bob.online();
         await expect.poll(() => bob.titles()).toEqual(["Luggage"]);
@@ -294,7 +295,7 @@ test.each(TEST_DIALECTS)(
     "keep only the queries a device subscribes to, with their includes, as rows move between them on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
-        const alice = connect("alice");
+        const alice = connect(users.alice);
 
         // file notes into two notebooks
         const notebookNamed = (name: string) =>
@@ -312,7 +313,7 @@ test.each(TEST_DIALECTS)(
         const plan = await noteIn(work.id, "Plan");
 
         // keep the travel notes and the notebook they belong to, nothing of work
-        const device = await Device.open("alice", endpoint("alice"), []);
+        const device = await Device.open(users.alice, endpoint(users.alice), []);
         const travelNotes = device.client.query.note
             .findMany({ where: { parentId: travel.id }, with: { parent: true } })
             .subscribe();
@@ -369,7 +370,7 @@ test.each(TEST_DIALECTS)(
     "count a notebook's notes outside the trash, predicted on a device before the server confirms on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
-        const alice = connect("alice");
+        const alice = connect(users.alice);
         const travel = await alice.notebook.create({
             spaceId,
             requestId: RequestId.create(Date.now()),
@@ -378,7 +379,7 @@ test.each(TEST_DIALECTS)(
         expect(travel.noteCount).toBe(0);
 
         // predict the count of a note created offline, before the server has it
-        const device = await Device.open("alice", endpoint("alice"));
+        const device = await Device.open(users.alice, endpoint(users.alice));
         device.follow();
         await expect
             .poll(async () =>
@@ -417,7 +418,7 @@ test.each(TEST_DIALECTS)(
 
 test("share one browser database between tabs, handing it over when the owning tab closes", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
-    const alice = connect("alice");
+    const alice = connect(users.alice);
 
     // share one channel, worker and lock queue between tabs
     const join = channelHub<Message>();
@@ -465,9 +466,9 @@ test("share one browser database between tabs, handing it over when the owning t
             name: "notes",
             objects: { notebook, note },
             scope: spaceId,
-            caller: principal.user.reference("universe", "alice"),
+            caller: principal.user.reference("universe", users.alice),
             client: principal.client.reference("universe", "client-browser"),
-            endpoint: endpoint("alice"),
+            endpoint: endpoint(users.alice),
             reconnect: unmoved,
             host: host(),
             report: (error) => {
@@ -514,7 +515,7 @@ test("share one browser database between tabs, handing it over when the owning t
 
 test("decide checks on a device from its replica of the caller's access rows, and follow a grant and its revocation into them", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
-    const alice = connect("alice");
+    const alice = connect(users.alice);
 
     // keep a notebook alice owns, which bob's device cannot read yet
     const research = await alice.notebook.create({
@@ -522,7 +523,7 @@ test("decide checks on a device from its replica of the caller's access rows, an
         requestId: RequestId.create(Date.now()),
         name: "Research",
     });
-    const device = await Device.open("bob", endpoint("bob"));
+    const device = await Device.open(users.bob, endpoint(users.bob));
     device.online();
     const checks = async () => [
         await device.client.check(notebook, research.id, "read"),
@@ -537,7 +538,7 @@ test("decide checks on a device from its replica of the caller's access rows, an
         id: research.id,
         requestId: RequestId.create(Date.now()),
         relation: "editor",
-        subject: principal.user.reference("universe", "bob"),
+        subject: principal.user.reference("universe", users.bob),
     });
     await expect.poll(checks).toEqual([true, true, false]);
 
@@ -554,10 +555,10 @@ test("decide checks on a device from its replica of the caller's access rows, an
 
 test("show a notebook's relationships to everyone who reads it, and to no one else", async () => {
     const { connect } = await serveNotes("sqlite");
-    const alice = connect("alice");
-    const bob = connect("bob");
-    const carol = connect("carol");
-    const dave = connect("dave");
+    const alice = connect(users.alice);
+    const bob = connect(users.bob);
+    const carol = connect(users.carol);
+    const dave = connect(users.dave);
 
     // share alice's notebook with bob as editor and carol as viewer
     const research = await alice.notebook.create({
@@ -566,8 +567,8 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
         name: "Research",
     });
     for (const [user, relation] of [
-        ["bob", "editor"],
-        ["carol", "viewer"],
+        [users.bob, "editor"],
+        [users.carol, "viewer"],
     ] as const) {
         await alice.notebook.grant({
             spaceId,
@@ -581,7 +582,10 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
     // list the same relationships for each reader, and refuse a stranger
     const listed = async (caller: typeof alice) =>
         (await caller.notebook.relationships({ spaceId, id: research.id })).items
-            .map((item) => `${"relation" in item ? item.relation : item.role}:${item.subject.id}`)
+            .map(
+                (item) =>
+                    `${"relation" in item ? item.relation : item.role}:${userName(item.subject.id)}`,
+            )
             .toSorted();
     expect([await listed(alice), await listed(bob), await listed(carol)]).toEqual([
         ["editor:bob", "viewer:carol"],

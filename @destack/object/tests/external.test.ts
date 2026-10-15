@@ -1,15 +1,16 @@
+import { users } from "./fixture/user.ts";
 import { Package } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
-import { schema, Clock, aligned } from "@destack/schema";
+import { schema, Clock, aligned, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { testEvents } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { definePackage } from "@destack/runtime";
 import { serveObjects } from "./fixture/device.ts";
@@ -37,7 +38,7 @@ test("read external objects named by their key from the database their files ope
     onTestFinished(() => durable.close());
     const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     await openSpace(durable.database, spaceId);
-    const context = (user: string) =>
+    const context = (user: Identifier<"user">) =>
         subjectContext(principal.user.reference("universe", user), spaceId);
 
     // open each scope's entries from files, here one database built per scope
@@ -52,10 +53,8 @@ test("read external objects named by their key from the database their files ope
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [notebook, entry],
-        database: durable.database,
-        external: [
-            {
+        servers: serversOf([notebook, entry], {
+            external: {
                 objects: [entry],
                 open: async (scope): Promise<DatabaseConnection> => {
                     opened.push(scope);
@@ -63,13 +62,14 @@ test("read external objects named by their key from the database their files ope
                     return files.database;
                 },
             },
-        ],
+        }),
+        database: durable.database,
         callKey: testCallKey,
         events: await testEvents(durable.database),
         origin: { package: entry.package },
     });
     const travel = await store
-        .mutate(context("alice").caller(), {
+        .mutate(context(users.alice).caller(), {
             id: RequestId.create(Date.now()),
             calls: [notebook.call("create", { spaceId, name: "Travel" })],
         })
@@ -85,8 +85,14 @@ test("read external objects named by their key from the database their files ope
     });
 
     // read the entry through its notebook's read permission
-    const read = await store.query(context("alice").caller(), entry.call("get", { spaceId, id }));
-    const listed = await store.query(context("alice").caller(), entry.call("list", { spaceId }));
+    const read = await store.query(
+        context(users.alice).caller(),
+        entry.call("get", { spaceId, id }),
+    );
+    const listed = await store.query(
+        context(users.alice).caller(),
+        entry.call("list", { spaceId }),
+    );
     expect([read.term, listed.items.map((row) => row.term), opened]).toEqual([
         "Vienna",
         ["Vienna"],
@@ -97,23 +103,20 @@ test("read external objects named by their key from the database their files ope
     const notebooks = definePackage({ objects: { notebook, entry } });
     const served = serveObjects(
         aligned(
-            ObjectExtension.compose(
-                [
-                    {
-                        ...defineServer(notebooks, {}).extension(undefined),
+            new ObjectStore({
+                servers: [
+                    defineServer(notebooks, {
                         external: { objects: [entry], open: async () => files.database },
-                    },
+                    }),
                 ],
-                {
-                    chain: async () => undefined,
-                    clock: Clock.system,
-                    origin: { package: Package.of(notebooks) },
-                    principal: spacePrincipal(spaceId),
-                    database: durable.database,
-                    callKey: testCallKey,
-                    events: await testEvents(durable.database),
-                },
-            ).packages,
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(notebooks) },
+                principal: spacePrincipal(spaceId),
+                database: durable.database,
+                callKey: testCallKey,
+                events: await testEvents(durable.database),
+            }).packages,
             0,
         ),
         spaceId,
@@ -125,8 +128,8 @@ test("read external objects named by their key from the database their files ope
         database: local.database,
         objects: { notebook, entry },
         scope: spaceId,
-        caller: principal.user.reference("universe", "alice"),
-        endpoint: served.endpoint("alice"),
+        caller: principal.user.reference("universe", users.alice),
+        endpoint: served.endpoint(users.alice),
         reconnect: unmoved,
     });
     const stopping = new AbortController();

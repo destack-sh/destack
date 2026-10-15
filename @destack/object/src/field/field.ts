@@ -274,8 +274,8 @@ export type ReferenceKind = "none" | "identifier" | "object";
 /** The column suffixes of an object reference beside its identifier. */
 const REFERENCE_PARTS = ["PackageId", "Type", "Scope"] as const;
 
-/** The fields as an object keeps them, each reference under its relation's columns. */
-export type ObjectFields<Fields> = {
+/** The fields keyed by column, each reference expanded into its columns. */
+export type FieldsByColumn<Fields> = {
     readonly [
         Key in keyof Fields & string as Fields[Key] extends Field<infer Configuration>
             ? Configuration["reference"] extends "identifier" | "object"
@@ -875,11 +875,12 @@ export type ReferenceOf<Target extends ObjectType> = Table extends Target["table
       : IdentifierOf<Target>;
 
 /** The value a reference keeps: a principal's identifier, else an object's identifier or key. */
-type ReferenceValue<Target> = Target extends Policy
-    ? string
-    : Target extends ObjectType
-      ? ReferenceOf<Target>
-      : never;
+type ReferenceValue<Target> =
+    Target extends Policy<string, infer Kind>
+        ? Identifier<Kind>
+        : Target extends ObjectType
+          ? ReferenceOf<Target>
+          : never;
 
 /** Reference an object in the same space by identifier, or a principal of a global kind. */
 function reference<const Target extends ObjectType | Policy>(
@@ -904,7 +905,7 @@ function reference<const Target extends ObjectType | Policy>(
             // keep a principal's global identifier, else key the object's identifier to its table
             const given: ObjectType | Policy | (() => ObjectType | Policy) = target;
             if (given instanceof Policy) {
-                return text(name).validate(schema.string().min(1));
+                return text(name).validate(schema.identifier(given.name));
             }
             const resolve = ReferenceTarget.object(given);
 

@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
@@ -9,7 +10,7 @@ import { unmoved } from "./fixture/space.ts";
 
 test("push again after transient failures, waiting twice as long after each", async () => {
     const { endpoint, server } = await serveNotes("sqlite");
-    const alice = endpoint("alice");
+    const alice = endpoint(users.alice);
 
     // fail the first two pushes as a broken network does, recording each start
     const attempts: number[] = [];
@@ -33,7 +34,7 @@ test("push again after transient failures, waiting twice as long after each", as
         database: storage.database,
         objects: { notebook, note },
         scope: spaceId,
-        caller: principal.user.reference("universe", "alice"),
+        caller: principal.user.reference("universe", users.alice),
         endpoint: { ...alice, fetch },
         reconnect: unmoved,
         retry: { initialInterval: 20 },

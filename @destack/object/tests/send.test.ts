@@ -1,5 +1,5 @@
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessTables, principal, relation, Caller } from "@destack/access";
 
@@ -13,10 +13,11 @@ import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import type { RunDelivery, RunRequest } from "@destack/runtime/trigger";
 import { defineObject, defineShape, field, Follow } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
+import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { PackageHandle } from "@destack/runtime";
 import { until } from "@destack/runtime/timer";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { createRouterClient } from "@destack/runtime/server";
 
 /** The space with the accounts. */
@@ -93,7 +94,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [member],
+            servers: serversOf([member]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
@@ -116,7 +117,7 @@ test.each(TEST_DIALECTS)(
                 },
             },
         });
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
         const signUp = (name: string) =>
             store
                 .mutate(context.caller(), {
@@ -148,7 +149,7 @@ test.each(TEST_DIALECTS)(
                 [
                     {
                         call: member.calls().welcome({ id: "member-1", name: "Ada" }),
-                        exchange: { subject: principal.user.reference("universe", "user-1") },
+                        exchange: { subject: principal.user.reference("universe", users.frank) },
                     },
                     "string",
                 ],
@@ -172,14 +173,14 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [note],
+            servers: serversOf([note]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
             origin: { package: note.package },
         });
         const written = await home
-            .mutate(userContext("ada", spaceId).caller(), {
+            .mutate(userContext(users.ada, spaceId).caller(), {
                 id: RequestId.create(Date.now()),
                 calls: [note.call("create", { spaceId, title: "Ada's" })],
             })
@@ -191,7 +192,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => ({ kind: "follower" }),
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [],
+            servers: serversOf([]),
             policies: [note],
             database: replicas.database,
             origin: { package: note.package },
@@ -201,15 +202,13 @@ test.each(TEST_DIALECTS)(
                 }
                 reports.push(error.message);
             },
-            subscriber: {
-                uplink: {
-                    stream: async function* (_subscription, signal) {
-                        await until(signal);
-                        yield* [];
-                    },
-                    receive: (mutation) =>
-                        home.receiveFrom(mutation, userContext("bob", spaceId).caller()),
+            uplink: {
+                stream: async function* (_subscription, signal) {
+                    await until(signal);
+                    yield* [];
                 },
+                receive: (mutation) =>
+                    home.receiveFrom(mutation, userContext(users.bob, spaceId).caller()),
             },
         });
 
@@ -236,8 +235,8 @@ test.each(TEST_DIALECTS)(
             .orderBy(asc(note.table.title));
         expect({ notes, reports }).toEqual({
             notes: [
-                { owner: "ada", title: "Ada's" },
-                { owner: "bob", title: "Bob's" },
+                { owner: users.ada, title: "Ada's" },
+                { owner: users.bob, title: "Bob's" },
             ],
             reports: ["a sent call was refused permanently"],
         });
@@ -265,7 +264,7 @@ test("refuse a pushed mutation of replicated rows, alone or beside kept rows, wh
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [member],
+        servers: serversOf([member]),
         policies: [note],
         database: replicas.database,
         callKey: testCallKey,
@@ -277,7 +276,7 @@ test("refuse a pushed mutation of replicated rows, alone or beside kept rows, wh
     const create = note.calls().create({ title: "Bob's" });
     const join = member.calls().create({ name: "Bob" });
     const pushed = await createRouterClient(follower.router(), {
-        context: userContext("bob", spaceId),
+        context: userContext(users.bob, spaceId),
     }).replica.push({
         scope: spaceId,
         mutations: [
@@ -312,7 +311,7 @@ test("send a change of replicated rows to the publisher of the replica keeping t
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [note],
+        servers: serversOf([note]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -329,27 +328,28 @@ test("send a change of replicated rows to the publisher of the replica keeping t
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [],
+        servers: [
+            defineServer(PackageHandle.of(note.package, {}), {
+                follows: [Follow.of(noteShape, { keys: [{ key: { scope: spaceId } }] })],
+            }),
+        ],
         database: replicas.database,
         origin: { package: note.package },
-        follows: [Follow.of(noteShape, { keys: [{ key: { scope: spaceId } }] })],
         publisher: () => ({
             stream: async function* (_subscription, signal) {
                 await until(signal);
                 yield* [];
             },
             receive: (mutation: Mutation) =>
-                home.receiveFrom(mutation, userContext("bob", spaceId).caller()),
+                home.receiveFrom(mutation, userContext(users.bob, spaceId).caller()),
         }),
-        subscriber: {
-            uplink: {
-                stream: async function* (_subscription, signal) {
-                    await until(signal);
-                    yield* [];
-                },
-                receive: async (mutation) => {
-                    refused.push(mutation.id);
-                },
+        uplink: {
+            stream: async function* (_subscription, signal) {
+                await until(signal);
+                yield* [];
+            },
+            receive: async (mutation) => {
+                refused.push(mutation.id);
             },
         },
     });
@@ -367,7 +367,10 @@ test("send a change of replicated rows to the publisher of the replica keeping t
         .select({ owner: note.table.ownerId, title: note.table.title })
         .from(note.table);
 
-    expect({ notes, refused }).toEqual({ notes: [{ owner: "bob", title: "Bob's" }], refused: [] });
+    expect({ notes, refused }).toEqual({
+        notes: [{ owner: users.bob, title: "Bob's" }],
+        refused: [],
+    });
 });
 
 test("refuse an in-process change of replicated rows, and send it toward their home for the caller's subject under its grant", async () => {
@@ -386,24 +389,22 @@ test("refuse an in-process change of replicated rows, and send it toward their h
         chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [note],
+        servers: serversOf([note]),
         database: replicas.database,
         callKey: testCallKey,
         events: await testEvents(replicas.database),
         origin: { package: note.package },
-        subscriber: {
-            uplink: {
-                stream: async function* (_subscription, signal) {
-                    await until(signal);
-                    yield* [];
-                },
-                receive: async () => {},
+        uplink: {
+            stream: async function* (_subscription, signal) {
+                await until(signal);
+                yield* [];
             },
+            receive: async () => {},
         },
     });
 
     // refuse writing a note through the replica as an installation acting for a person under a grant
-    const person = principal.user.reference("universe", "user-1");
+    const person = principal.user.reference("universe", users.frank);
     const grant = { id: Identifier.create("grant"), scope: person.id, permissions: [] };
     const caller: Caller = {
         ...Caller.of(person, Date.now()),

@@ -3,7 +3,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { Page } from "@destack/sync";
-import { schema, Clock } from "@destack/schema";
+import { schema, Clock, type Identifier } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
@@ -12,8 +12,8 @@ import { comment, folder, objectDatabase, task, taskVersion, team } from "./sche
 import { principal } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { testEvents } from "../src/test/index.ts";
-import { userContext } from "./fixture/user.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
 /** How long a short grant lasts, in milliseconds. */
@@ -35,7 +35,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         await database.insert(task.table).values({
             id,
             scope: spaceId,
-            ownerId: "user-1",
+            ownerId: users.frank,
             title,
             estimate: 5,
             createdAt: Date.now(),
@@ -52,7 +52,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [task, team, comment, taskVersion, folder],
+        servers: serversOf([task, team, comment, taskVersion, folder]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -62,12 +62,12 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
-    const context = userContext("user-2", spaceId, { signal: controller.signal });
+    const context = userContext(users.grace, spaceId, { signal: controller.signal });
     const execute = async <
         Object extends typeof task | typeof team,
         Name extends CallableName<Object>,
     >(
-        caller: string,
+        caller: Identifier<"user">,
         object: Object,
         name: Name,
         input: NoInfer<RequestInput<Object, Name>>,
@@ -75,7 +75,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         return request(store, object, name, spaceId, input, userContext(caller, spaceId));
     };
     const pages = store.source.relayed(
-        store.source.queriesShape.subscription({
+        store.source.queriesPublication.subscription({
             name: "objects",
             scope: spaceId,
             below: spaceId,
@@ -114,8 +114,8 @@ test.each(TEST_DIALECTS)(
         const { database, execute, next, first, second } = await serveTasks(dialect);
 
         // select the task a grant relates the caller to
-        const viewer = principal.user.reference("universe", "user-2");
-        const shared = await execute("user-1", task, "grant", {
+        const viewer = principal.user.reference("universe", users.grace);
+        const shared = await execute(users.frank, task, "grant", {
             id: first,
             requestId: RequestId.create(Date.now()),
             relation: "viewer",
@@ -124,13 +124,13 @@ test.each(TEST_DIALECTS)(
         expect(await next()).toEqual([[false, "insert", "First", undefined]]);
 
         // send changes of visible tasks, never of invisible ones
-        await execute("user-1", task, "update", {
+        await execute(users.frank, task, "update", {
             id: second,
             requestId: RequestId.create(Date.now()),
             revision: 1,
             title: "Hidden",
         });
-        await execute("user-1", task, "update", {
+        await execute(users.frank, task, "update", {
             id: first,
             requestId: RequestId.create(Date.now()),
             revision: 1,
@@ -141,17 +141,17 @@ test.each(TEST_DIALECTS)(
         // select the task once ownership moves to the caller, and drop it when ownership leaves
         await database
             .update(task.table)
-            .set({ ownerId: "user-2" })
+            .set({ ownerId: users.grace })
             .where(eq(task.table.id, second));
         expect(await next()).toEqual([[false, "insert", "Hidden", 5]]);
         await database
             .update(task.table)
-            .set({ ownerId: "user-1" })
+            .set({ ownerId: users.frank })
             .where(eq(task.table.id, second));
         expect(await next()).toEqual([[false, "delete", undefined, undefined]]);
 
         // leave the task once the grant is revoked
-        await execute("user-1", task, "revoke", {
+        await execute(users.frank, task, "revoke", {
             id: first,
             requestId: RequestId.create(Date.now()),
             relationshipId: shared.id,
@@ -170,11 +170,11 @@ test.each(TEST_DIALECTS)(
         await database.insert(team.table).values({
             id: teamId,
             scope: spaceId,
-            ownerId: "user-1",
+            ownerId: users.frank,
             createdAt: Date.now(),
             updatedAt: Date.now(),
         });
-        await execute("user-1", task, "grant", {
+        await execute(users.frank, task, "grant", {
             id: first,
             requestId: RequestId.create(Date.now()),
             relation: "viewer",
@@ -182,11 +182,11 @@ test.each(TEST_DIALECTS)(
         });
 
         // select the task once the caller joins the team, only a relationship on the team
-        await execute("user-1", team, "grant", {
+        await execute(users.frank, team, "grant", {
             id: teamId,
             requestId: RequestId.create(Date.now()),
             relation: "member",
-            subject: principal.user.reference("universe", "user-2"),
+            subject: principal.user.reference("universe", users.grace),
         });
         expect(await next()).toEqual([[false, "insert", "First", undefined]]);
     },
@@ -198,11 +198,11 @@ test.each(TEST_DIALECTS)(
         const { execute, next, first } = await serveTasks(dialect);
 
         // select a task through a grant that expires shortly
-        await execute("user-1", task, "grant", {
+        await execute(users.frank, task, "grant", {
             id: first,
             requestId: RequestId.create(Date.now()),
             relation: "viewer",
-            subject: principal.user.reference("universe", "user-2"),
+            subject: principal.user.reference("universe", users.grace),
             expiresAt: Date.now() + GRANT_MILLISECONDS,
         });
         expect(await next()).toEqual([[false, "insert", "First", undefined]]);

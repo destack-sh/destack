@@ -6,7 +6,7 @@ import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { defineObject, field, type ObjectCall } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 
 /** The space the articles live in. */
@@ -68,7 +68,7 @@ test("record a transition's declared fields with its state, refusing a call with
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
-        objects: [article],
+        servers: serversOf([article]),
         policies: [space],
         database,
         callKey: testCallKey,

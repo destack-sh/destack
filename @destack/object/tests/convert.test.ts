@@ -10,8 +10,8 @@ import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
-import { userContext } from "./fixture/user.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** Cards whose `title` became `name`. */
 const card = defineObject({
@@ -46,7 +46,7 @@ test.for(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [card],
+            servers: serversOf([card]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
@@ -54,7 +54,7 @@ test.for(TEST_DIALECTS)(
                 package: card.package,
             },
         });
-        const context = userContext("alice", spaceId);
+        const context = userContext(users.alice, spaceId);
 
         // create and rename a card through calls of the release before the rename
         const [result] = await store.mutate(context.caller(), {

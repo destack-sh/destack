@@ -11,9 +11,9 @@ import { ObjectClient } from "./client.ts";
 import type { ObjectType } from "../object/object.ts";
 import { Call } from "../method/call.ts";
 import {
-    EXTERNAL_SHAPE,
+    EXTERNAL_PUBLICATION,
     ObjectQuery,
-    QUERIES_SHAPE,
+    QUERIES_PUBLICATION,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 
@@ -201,7 +201,7 @@ export class DynamicObjectClient {
         const replica = new sync.Replica({ name, scope, tables: [table] });
         const subscription: sync.Subscription = {
             name,
-            shape: object.storage === "external" ? EXTERNAL_SHAPE : QUERIES_SHAPE,
+            publication: object.storage === "external" ? EXTERNAL_PUBLICATION : QUERIES_PUBLICATION,
             scope,
             below: scope,
             parameters: { queries: { [name]: schema.json().parse(followed) } },

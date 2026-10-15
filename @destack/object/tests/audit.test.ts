@@ -3,12 +3,12 @@ import { principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema, Clock } from "@destack/schema";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { v7 } from "uuid";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
 
 /** The space keeping the lockers. */
@@ -42,7 +42,7 @@ test("name the version a read disclosed in its recorded call, apart from its val
         .values({
             id: schema.identifier("locker").parse(`locker-${v7()}`),
             scope: SPACE_ID,
-            ownerId: "owner",
+            ownerId: users.owner,
             version: 3,
             createdAt: 1,
             updatedAt: 1,
@@ -59,7 +59,7 @@ test("name the version a read disclosed in its recorded call, apart from its val
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
-        objects: [handled],
+        servers: serversOf([handled]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -67,7 +67,7 @@ test("name the version a read disclosed in its recorded call, apart from its val
             package: locker.package,
         },
     });
-    const context = userContext("owner", SPACE_ID);
+    const context = userContext(users.owner, SPACE_ID);
     const { id } = present(row, "the inserted locker");
 
     // record the version in the result, never the value

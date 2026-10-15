@@ -9,8 +9,8 @@ import { ObjectStore } from "../src/server/index.ts";
 import { objectDatabase, task, taskVersion } from "./schema.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { testEvents } from "../src/test/index.ts";
-import { userContext } from "./fixture/user.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the objects. */
@@ -27,7 +27,7 @@ test.each(TEST_DIALECTS)(
         await database.insert(task.table).values({
             id: taskId,
             scope: spaceId,
-            ownerId: "user-1",
+            ownerId: users.frank,
             title: "Plan",
             createdAt: Date.now(),
             updatedAt: Date.now(),
@@ -38,7 +38,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [task, taskVersion],
+            servers: serversOf([task, taskVersion]),
             database,
             callKey: testCallKey,
             events: await testEvents(database),
@@ -46,7 +46,7 @@ test.each(TEST_DIALECTS)(
                 package: task.package,
             },
         });
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
         const execute = <Name extends CallableName<typeof taskVersion>>(
             name: Name,
             input: NoInfer<RequestInput<typeof taskVersion, Name>>,

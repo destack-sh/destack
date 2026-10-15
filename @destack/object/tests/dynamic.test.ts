@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TABLE } from "@destack/db";
@@ -32,7 +33,7 @@ test.for(TEST_DIALECTS)(
     "call and list objects by their descriptions, refusing input their methods' schemas reject on %s",
     async (dialect) => {
         const { endpoint } = await serveNotes(dialect);
-        const client = await reachNotes(endpoint("alice"));
+        const client = await reachNotes(endpoint(users.alice));
 
         // create a notebook and a note by name, the note pushed as a mutation of one call
         const book = Identified.parse(await client.call("notebook", "create", { name: "Travel" }));
@@ -72,7 +73,7 @@ test.for(TEST_DIALECTS)(
     "watch the rows a query selects through a replica of their table, after every change on %s",
     async (dialect) => {
         const { endpoint } = await serveNotes(dialect);
-        const client = await reachNotes(endpoint("alice"));
+        const client = await reachNotes(endpoint(users.alice));
         const book = Identified.parse(await client.call("notebook", "create", { name: "Travel" }));
         await client.call("note", "create", { parentId: book.id, title: "Tickets" });
 
@@ -114,7 +115,7 @@ test.for(TEST_DIALECTS)(
     "describe the served types with the types they refer to, declare them from those descriptions alone, and refuse a type the store does not know on %s",
     async (dialect) => {
         const { endpoint } = await serveNotes(dialect);
-        const client = await reachNotes(endpoint("alice"));
+        const client = await reachNotes(endpoint(users.alice));
 
         // describe every served type through the store, then declare each from the descriptions
         const declared = ObjectType.ofAll(await client.describe(), []);

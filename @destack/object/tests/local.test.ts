@@ -9,11 +9,11 @@ import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
 import { Identifier, Clock, aligned } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
 import { client, defineObject, field } from "../src/index.ts";
-import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { spacePrincipal } from "./fixture/space.ts";
 import { draft, panel, sticky, user } from "./fixture/local.ts";
@@ -75,7 +75,7 @@ test("keep a user's local objects from another user on the same client, and the 
     const objects = { notebook, note, draft, panel };
     const storage = await TestDatabase.create("sqlite", []);
     await ObjectClient.migrate(storage.database, objects);
-    const openClient = (person: string, device: string) =>
+    const openClient = (person: Identifier<"user">, device: string) =>
         ObjectClient.open({
             clock: Clock.system,
             database: storage.database,
@@ -119,18 +119,16 @@ test("refuse to serve local objects at another principal's store, and refuse loc
     expect([
         failure(() =>
             aligned(
-                ObjectExtension.compose(
-                    [defineServer(definePackage({ objects: { draft } }), {}).extension(undefined)],
-                    {
-                        chain: async () => undefined,
-                        clock: Clock.system,
-                        origin: { package: draft.package },
-                        principal: spacePrincipal(spaceId),
-                        callKey: testCallKey,
-                        events,
-                        database,
-                    },
-                ).packages,
+                new ObjectStore({
+                    servers: [defineServer(definePackage({ objects: { draft } }), {})],
+                    chain: async () => undefined,
+                    clock: Clock.system,
+                    origin: { package: draft.package },
+                    principal: spacePrincipal(spaceId),
+                    callKey: testCallKey,
+                    events,
+                    database,
+                }).packages,
                 0,
             ),
         ),
@@ -199,7 +197,7 @@ test("serve a client's local objects at its own store to the people signed in on
         chain: async () => undefined,
         clock: Clock.system,
         principal: principal.client.reference(Scope.universe.id, laptop.id),
-        objects: [sticky],
+        servers: serversOf([sticky]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),

@@ -1,5 +1,6 @@
+import { users } from "./fixture/user.ts";
 import type { Page } from "@destack/sync";
-import { present, schema, Clock } from "@destack/schema";
+import { present, schema, Clock, type Identifier } from "@destack/schema";
 import { type Dialect, defineDatabase, Expression } from "@destack/db";
 import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
@@ -16,7 +17,7 @@ import {
     type CallableName,
     type ObjectType,
 } from "../src/index.ts";
-import { EphemeralStorage, ObjectStore } from "../src/server/index.ts";
+import { defineServer, EphemeralStorage, ObjectStore } from "../src/server/index.ts";
 import { type LiveQuery, ObjectClient } from "../src/client/index.ts";
 import type { ClientOptions } from "@destack/runtime/client";
 import { definePackage } from "@destack/runtime/declare";
@@ -89,31 +90,31 @@ test.for(TEST_DIALECTS)(
         const { east, west } = await serveBoards(dialect);
 
         // let the owner share a board and be present on it
-        const plans = await east.call("alice", board, "create", {
+        const plans = await east.call(users.alice, board, "create", {
             requestId: RequestId.create(Date.now()),
         });
-        const shared = await east.call("alice", board, "grant", {
+        const shared = await east.call(users.alice, board, "grant", {
             requestId: RequestId.create(Date.now()),
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
         // follow every durable type of the space next to the ephemeral one
         const durable = east.store.source.relayed(
-            east.store.source.queriesShape.subscription({
+            east.store.source.queriesPublication.subscription({
                 name: "objects",
                 scope: spaceId,
                 below: spaceId,
                 parameters: {},
             }),
-            context("alice").context,
+            context(users.alice).context,
         );
         expect((await nextPage(durable)).complete).toBe(true);
         await durable.return(undefined);
 
-        const alice = east.follow("alice", "writer-a");
+        const alice = east.follow(users.alice, "writer-a");
         expect(await alice.rows()).toEqual([]);
-        const mine = await east.call("alice", presence, "create", {
+        const mine = await east.call(users.alice, presence, "create", {
             writerId: "writer-a",
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
             activity: "editing",
@@ -124,7 +125,7 @@ test.for(TEST_DIALECTS)(
         expect(mine.writerId).toBe("writer-a");
         expect(
             await refusal(
-                east.call("alice", presence, "create", {
+                east.call(users.alice, presence, "create", {
                     writerId: "writer-a",
                     parent: {
                         packageId: board.policy.definition.packageId,
@@ -137,18 +138,18 @@ test.for(TEST_DIALECTS)(
         ).toEqual(["CONFLICT", "another presence has the same parent and writerId"]);
 
         // show the owner's moving cursor to the viewer on the other instance
-        const bob = west.follow("bob", "writer-b");
-        expect(await bob.rows()).toEqual([["alice", "editing", 0]]);
-        await east.call("alice", presence, "update", {
+        const bob = west.follow(users.bob, "writer-b");
+        expect(await bob.rows()).toEqual([[users.alice, "editing", 0]]);
+        await east.call(users.alice, presence, "update", {
             writerId: "writer-a",
             id: mine.id,
             cursor: 12,
         });
-        expect(await bob.rows()).toEqual([["alice", "editing", 12]]);
+        expect(await bob.rows()).toEqual([[users.alice, "editing", 12]]);
 
         // find no board for a stranger's presence, and show the stranger nobody
         await expect(
-            west.call("carol", presence, "create", {
+            west.call(users.carol, presence, "create", {
                 writerId: "writer-c",
                 parent: {
                     packageId: board.policy.definition.packageId,
@@ -158,26 +159,28 @@ test.for(TEST_DIALECTS)(
                 activity: "viewing",
             }),
         ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no board ${plans.id}` });
-        const carol = west.follow("carol", "writer-c");
+        const carol = west.follow(users.carol, "writer-c");
         expect(await carol.rows()).toEqual([]);
 
         // remove the owner's presence everywhere after its linger
-        expect(await west.follow("bob", "writer-a").rows()).toEqual([["alice", "editing", 12]]);
+        expect(await west.follow(users.bob, "writer-a").rows()).toEqual([
+            [users.alice, "editing", 12],
+        ]);
         alice.close();
         expect(await bob.rows()).toEqual([]);
 
         // hide the board's presence from the viewer once the owner revokes it
-        expect(await east.follow("alice", "writer-d").rows()).toEqual([]);
+        expect(await east.follow(users.alice, "writer-d").rows()).toEqual([]);
         vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
         onTestFinished(() => {
             vi.useRealTimers();
         });
-        const viewing = await west.call("alice", presence, "create", {
+        const viewing = await west.call(users.alice, presence, "create", {
             writerId: "writer-d",
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
             activity: "viewing",
         });
-        expect(await bob.rows()).toEqual([["alice", "viewing", null]]);
+        expect(await bob.rows()).toEqual([[users.alice, "viewing", null]]);
 
         // keep the row past its linger while the writer streams on the other instance
         await vi.advanceTimersByTimeAsync(150);
@@ -187,7 +190,7 @@ test.for(TEST_DIALECTS)(
                 .database.select({ id: presence.table.id })
                 .from(presence.table),
         ).toEqual([{ id: viewing.id }]);
-        await east.call("alice", board, "revoke", {
+        await east.call(users.alice, board, "revoke", {
             requestId: RequestId.create(Date.now()),
             id: plans.id,
             relationshipId: shared.id,
@@ -202,14 +205,14 @@ test.for(TEST_DIALECTS)(
         const { east } = await serveBoards(dialect);
 
         // let the owner share a board, both users editing on it
-        const plans = await east.call("alice", board, "create", {
+        const plans = await east.call(users.alice, board, "create", {
             requestId: RequestId.create(Date.now()),
         });
-        await east.call("alice", board, "grant", {
+        await east.call(users.alice, board, "grant", {
             requestId: RequestId.create(Date.now()),
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
         const parent = {
             packageId: board.policy.definition.packageId,
@@ -217,8 +220,8 @@ test.for(TEST_DIALECTS)(
             id: plans.id,
         };
         for (const [as, writerId] of [
-            ["alice", "writer-a"],
-            ["bob", "writer-b"],
+            [users.alice, "writer-a"],
+            [users.bob, "writer-b"],
         ] as const) {
             // keep each writer streaming past the linger
             await east.follow(as, writerId).rows();
@@ -226,7 +229,7 @@ test.for(TEST_DIALECTS)(
         }
 
         // idle only the viewer's own editing presences
-        const idled = await east.call("bob", presence, "idle", {
+        const idled = await east.call(users.bob, presence, "idle", {
             writerId: "writer-b",
             where: { activity: "editing" },
             activity: "idle",
@@ -254,19 +257,19 @@ test.for(TEST_DIALECTS)(
     "write and follow presence through object clients of both instances on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", {
+        const plans = await east.call(users.alice, board, "create", {
             requestId: RequestId.create(Date.now()),
         });
-        await east.call("alice", board, "grant", {
+        await east.call(users.alice, board, "grant", {
             requestId: RequestId.create(Date.now()),
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
 
         // follow the owner's presence from the other instance
-        const alice = await openClient(east, "alice");
-        const bob = await openClient(west, "bob");
+        const alice = await openClient(east, users.alice);
+        const bob = await openClient(west, users.bob);
         await alice.client.query.presence.findMany().subscribe().ready;
         const seen = bob.client.query.presence.findMany().subscribe();
         await alice.client.mutate(presence).create({
@@ -276,7 +279,7 @@ test.for(TEST_DIALECTS)(
         }).confirmed;
         await reach(seen, (rows) => rows.length === 1);
         expect((await seen.read()).map((row) => [row["memberId"], row["cursor"]])).toEqual([
-            ["alice", 3],
+            [users.alice, 3],
         ]);
 
         // deliver her reaction to the board's readers on the other instance
@@ -297,24 +300,24 @@ test.for(TEST_DIALECTS)(
     "deliver an object's events to a reader granted it while already following on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", {
+        const plans = await east.call(users.alice, board, "create", {
             requestId: RequestId.create(Date.now()),
         });
 
         // listen for the board's events as bob before he may read it
-        const alice = await openClient(east, "alice");
-        const bob = await openClient(west, "bob");
+        const alice = await openClient(east, users.alice);
+        const bob = await openClient(west, users.bob);
         const boards = bob.client.query.board.findMany().subscribe();
         const listening = new AbortController();
         onTestFinished(() => listening.abort());
         const received = bob.client.broadcasts(board, plans.id, listening.signal).next();
 
         // grant him the board and deliver her reaction once his replica has it
-        await east.call("alice", board, "grant", {
+        await east.call(users.alice, board, "grant", {
             requestId: RequestId.create(Date.now()),
             id: plans.id,
             relation: "viewer",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
         await reach(boards, (rows) => rows.length === 1);
         await alice.client.broadcast(board, plans.id, { reaction: "👋" });
@@ -326,29 +329,29 @@ test.for(TEST_DIALECTS)(
     "include live presence with durable profiles, and count live viewers per board, across storages on %s",
     async (dialect) => {
         const { east, west } = await serveBoards(dialect);
-        const plans = await east.call("alice", board, "create", {
+        const plans = await east.call(users.alice, board, "create", {
             requestId: RequestId.create(Date.now()),
         });
-        const notes = await east.call("alice", board, "create", {
+        const notes = await east.call(users.alice, board, "create", {
             requestId: RequestId.create(Date.now()),
         });
         for (const shared of [plans, notes]) {
-            await east.call("alice", board, "grant", {
+            await east.call(users.alice, board, "grant", {
                 requestId: RequestId.create(Date.now()),
                 id: shared.id,
                 relation: "viewer",
-                subject: principal.user.reference("universe", "bob"),
+                subject: principal.user.reference("universe", users.bob),
             });
         }
-        const card = await east.call("alice", profile, "create", {
+        const card = await east.call(users.alice, profile, "create", {
             requestId: RequestId.create(Date.now()),
             parentId: plans.id,
             name: "Alice",
         });
 
         // show the viewer each board with the presence on it and the profile each presence refers to
-        const alice = await openClient(east, "alice");
-        const bob = await openClient(west, "bob");
+        const alice = await openClient(east, users.alice);
+        const bob = await openClient(west, users.bob);
         await alice.client.query.presence.findMany().subscribe().ready;
         await alice.client.mutate(presence).create({
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
@@ -451,7 +454,7 @@ async function serveBoards(dialect: Dialect) {
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [presence, board, profile],
+            servers: [defineServer(boardsPackage, {})],
             database: durable,
             ephemeral,
             callKey: testCallKey,
@@ -461,10 +464,7 @@ async function serveBoards(dialect: Dialect) {
             },
         });
 
-        const served = serveObjects(
-            store.implement(boardsPackage, store.routed, store.controllers()),
-            spaceId,
-        );
+        const served = serveObjects(store.package(boardsPackage), spaceId);
 
         return {
             store,
@@ -472,17 +472,17 @@ async function serveBoards(dialect: Dialect) {
             endpoint: served.endpoint,
             /** Call a method as a user. */
             call: async <Object extends ObjectType, Name extends CallableName<Object>>(
-                as: string,
+                as: Identifier<"user">,
                 object: Object,
                 name: Name,
                 input: NoInfer<RequestInput<Object, Name>>,
             ) => request(store, object, name, spaceId, input, context(as).context),
             /** Follow the space's presence as a user's client. */
-            follow: (as: string, writerId: string) => {
+            follow: (as: Identifier<"user">, writerId: string) => {
                 // read the pages in the background into the rows received, waking whoever waits for the next
                 const { context: followed, controller } = context(as);
                 const pages = store.source.relayed(
-                    store.source.ephemeralShape.subscription({
+                    store.source.ephemeralPublication.subscription({
                         name: "ephemeral",
                         scope: spaceId,
                         below: spaceId,
@@ -548,7 +548,7 @@ async function serveBoards(dialect: Dialect) {
 }
 
 /** Build a user's request context with its own cancellation. */
-function context(as: string) {
+function context(as: Identifier<"user">) {
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
 
@@ -562,8 +562,8 @@ function context(as: string) {
 
 /** Open a user's client of the boards over one instance. */
 async function openClient(
-    instance: { readonly endpoint: (user: string) => ClientOptions },
-    as: string,
+    instance: { readonly endpoint: (user: Identifier<"user">) => ClientOptions },
+    as: Identifier<"user">,
 ) {
     // keep the boards and presence in a local database
     const storage = await TestDatabase.create(

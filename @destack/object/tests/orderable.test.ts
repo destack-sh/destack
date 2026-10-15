@@ -4,12 +4,12 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, field, FractionalIndex } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The space keeping the items and cards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d1");
@@ -62,7 +62,7 @@ async function serve(dialect: (typeof TEST_DIALECTS)[number]) {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [item, card],
+        servers: serversOf([item, card]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -74,7 +74,7 @@ test.for(TEST_DIALECTS)(
     "append %s objects after their last sibling under each parent, list them in order and move one between two others",
     async (dialect) => {
         const store = await serve(dialect);
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
         const create = (name: string, parentId?: string) =>
             store
                 .mutate(context.caller(), {
@@ -131,7 +131,7 @@ test.for(TEST_DIALECTS)(
     "append %s objects after the last one holding the same value of their ordering field",
     async (dialect) => {
         const store = await serve(dialect);
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
         const create = (name: string, status: "todo" | "done") =>
             store
                 .mutate(context.caller(), {

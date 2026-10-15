@@ -5,7 +5,7 @@ import { TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -13,7 +13,7 @@ import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
 
 /** An API key a caller hands a method, which nothing derived from the call keeps. */
@@ -62,7 +62,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [holder],
+        servers: serversOf([holder]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -76,7 +76,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     const invalid = "pk-refused-0123456789";
     const create = (key: string) =>
         store
-            .mutate(userContext("alice", spaceId).caller(), {
+            .mutate(userContext(users.alice, spaceId).caller(), {
                 id: RequestId.create(Date.now()),
                 calls: [holder.call("create", { spaceId, label: "deploy", key, token })],
             })

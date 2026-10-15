@@ -11,10 +11,10 @@ import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users, userName } from "./fixture/user.ts";
 import { reportError } from "@destack/runtime/server";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { createRouterClient } from "@destack/runtime/server";
 
@@ -74,13 +74,13 @@ const shelf = defineObject({
         }),
         lend: method.mutation({
             permission: "write",
-            input: schema.object({ borrower: schema.string() }),
+            input: schema.object({ borrower: schema.identifier("user") }),
             output: schema.object({ slip: schema.string() }),
         }),
         misfile: method.mutation({ permission: "write" }),
         forge: method.mutation({
             permission: "write",
-            input: schema.object({ borrower: schema.string() }),
+            input: schema.object({ borrower: schema.identifier("user") }),
         }),
     }))
     .implement({
@@ -160,7 +160,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [book, shelf, slip],
+            servers: serversOf([book, shelf, slip]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
@@ -168,7 +168,7 @@ test.each(TEST_DIALECTS)(
                 package: book.package,
             },
         });
-        let context = userContext("user-1", spaceId);
+        let context = userContext(users.frank, spaceId);
         const call = <Object extends typeof book | typeof shelf, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
@@ -187,11 +187,11 @@ test.each(TEST_DIALECTS)(
         const home = await call(shelf, "create", { name: "home" });
         await call(book, "create", { shelf: "home" });
         await call(book, "create", { shelf: "home" });
-        context = userContext("user-2", spaceId);
+        context = userContext(users.grace, spaceId);
         const foreign = await call(book, "create", { shelf: "home" });
 
         // tidy user-1's writable books on the shelf, auditing both calls
-        context = userContext("user-1", spaceId);
+        context = userContext(users.frank, spaceId);
         const before = (await auditedActions(storage.database, "caller")).length;
         const tidied = await call(shelf, "tidy", { id: home.id });
         const auditedTidy = (await auditedActions(storage.database, "caller")).slice(before);
@@ -205,11 +205,13 @@ test.each(TEST_DIALECTS)(
         const rows = await storage.database
             .select({ owner: book.table.ownerId, isTidy: book.table.isTidy })
             .from(book.table);
-        const summary = rows.map((row) => `${row.owner} ${String(row.isTidy)}`).toSorted();
+        const summary = rows
+            .map((row) => `${userName(row.owner)} ${String(row.isTidy)}`)
+            .toSorted();
         expect([tidied, auditedTidy, summary]).toEqual([
             { count: 2 },
             ["book.tidy", "shelf.tidy"],
-            ["user-1 true", "user-1 true", "user-2 false"],
+            ["frank true", "frank true", "grace false"],
         ]);
     },
 );
@@ -224,7 +226,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [
+            servers: serversOf([
                 book,
                 shelf,
                 // mark issued slips on the server when the base type is invoked
@@ -238,7 +240,7 @@ test.each(TEST_DIALECTS)(
                             ),
                     },
                 }),
-            ],
+            ]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
@@ -246,7 +248,7 @@ test.each(TEST_DIALECTS)(
                 package: book.package,
             },
         });
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
         const run = <Object extends typeof shelf | typeof slip, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
@@ -263,8 +265,8 @@ test.each(TEST_DIALECTS)(
 
         // lend a book to user-2, issuing and closing a slip user-1 may not write, and refuse user-1 issuing one
         const home = await run(shelf, "create", { name: "home" });
-        const lent = await run(shelf, "lend", { id: home.id, borrower: "user-2" });
-        const forged = await refusal(run(shelf, "forge", { id: home.id, borrower: "user-2" }));
+        const lent = await run(shelf, "lend", { id: home.id, borrower: users.grace });
+        const forged = await refusal(run(shelf, "forge", { id: home.id, borrower: users.grace }));
         const rows = await storage.database
             .select({
                 id: slip.table.id,
@@ -286,7 +288,7 @@ test.each(TEST_DIALECTS)(
                             type: slip.typeReference,
                             method: "issue",
                             release: slip.package.version,
-                            input: { borrower: "user-1", shelf: "home" },
+                            input: { borrower: users.frank, shelf: "home" },
                         },
                     ],
                 },
@@ -294,7 +296,7 @@ test.each(TEST_DIALECTS)(
         });
         // hide the space's methods from the routes and from pushes, routing only the slips' reads
         expect([rows, forged, Object.keys(slip.procedures), (await pushed).outcomes]).toEqual([
-            [{ id: lent.slip, borrower: "user-2", shelf: "home!", isReturned: true }],
+            [{ id: lent.slip, borrower: users.grace, shelf: "home!", isReturned: true }],
             ["NOT_FOUND", "slip not found"],
             ["get", "list"],
             [
@@ -323,13 +325,13 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [book, shelf, slip],
+            servers: serversOf([book, shelf, slip]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
             origin: { package: book.package },
         });
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
         const home = await store
             .mutate(context.caller(), {
                 id: RequestId.create(Date.now()),

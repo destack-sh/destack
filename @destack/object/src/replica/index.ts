@@ -1,8 +1,8 @@
 export {
-    ACCESS_SHAPE,
-    EPHEMERAL_SHAPE,
+    ACCESS_PUBLICATION,
+    EPHEMERAL_PUBLICATION,
     EphemeralParameters,
-    QUERIES_SHAPE,
+    QUERIES_PUBLICATION,
     QueriesParameters,
     ObjectQuery,
     replicaProcedures,

@@ -3,7 +3,7 @@ import { expect, onTestFinished, refusal, test, TestClock } from "@destack/test"
 import { principal, relation, through, union } from "@destack/access";
 import { defineDatabase, type LogPosition } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { schema, Clock, type Identifier } from "@destack/schema";
 
 import {
     defineObject,
@@ -15,9 +15,9 @@ import {
 import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the pages. */
@@ -73,15 +73,15 @@ test.for(TEST_DIALECTS)(
         await call(page, "grant", {
             id: created.id,
             relation: "editor",
-            subject: principal.user.reference("universe", "bob"),
+            subject: principal.user.reference("universe", users.bob),
         });
         await call(page, "update", { id: created.id, body: "outline" });
 
         // write it as bob and as alice again once her session ended
-        as("bob");
+        as(users.bob);
         at(2 * MINUTE);
         await call(page, "update", { id: created.id, title: "Roadmap" });
-        as("alice");
+        as(users.alice);
         at(30 * MINUTE);
         await call(page, "update", { id: created.id, body: "final" });
 
@@ -100,21 +100,21 @@ test.for(TEST_DIALECTS)(
             })),
         ).toEqual([
             {
-                caller: principal.user.reference("universe", "alice"),
+                caller: principal.user.reference("universe", users.alice),
                 startedAt: 0,
                 endedAt: 1 * MINUTE,
                 fields: ["ownerId", "title", "body"],
                 changes: 3,
             },
             {
-                caller: principal.user.reference("universe", "bob"),
+                caller: principal.user.reference("universe", users.bob),
                 startedAt: 2 * MINUTE,
                 endedAt: 2 * MINUTE,
                 fields: ["title"],
                 changes: 1,
             },
             {
-                caller: principal.user.reference("universe", "alice"),
+                caller: principal.user.reference("universe", users.alice),
                 startedAt: 30 * MINUTE,
                 endedAt: 30 * MINUTE,
                 fields: ["body"],
@@ -142,21 +142,21 @@ test.for(TEST_DIALECTS)(
         const listed = async (position: LogPosition) =>
             (await call(page, "list", { at: position })).items.map((item) => item.title);
         const aliceListed = await listed(beforeGrant);
-        as("bob");
+        as(users.bob);
         const bobListed = await listed(beforeGrant);
         expect([aliceListed, bobListed]).toEqual([["Plan"], []]);
 
         // find nothing for bob before he was granted the page, nor for carol ever
         expect(await refusal(read(beforeGrant))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
         expect(await read(third.from)).toEqual(["Roadmap", "outline"]);
-        as("carol");
+        as(users.carol);
         expect(await refusal(read(third.from))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
 
         // name a checkpoint and read the page at it
-        as("alice");
+        as(users.alice);
         const named = await call(checkpoint, "create", { ...host, title: "Final" });
         expect([ObjectReference.at("createdBy", named), await read(named.position)]).toEqual([
-            principal.user.reference("universe", "alice"),
+            principal.user.reference("universe", users.alice),
             ["Roadmap", "final"],
         ]);
 
@@ -206,7 +206,7 @@ test("refuse serving history that reads through an object keeping none", async (
                 chain: async () => undefined,
                 clock: Clock.system,
                 principal: spacePrincipal(spaceId),
-                objects: [activity, folder, sheet],
+                servers: serversOf([activity, folder, sheet]),
                 database: storage.database,
                 callKey: testCallKey,
                 events,
@@ -231,12 +231,12 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
     await openSpace(storage.database, spaceId);
 
     // decide every call as the current user at the current time
-    let current = "alice";
+    let current = users.alice;
     const clock = new TestClock(0);
     const store = new ObjectStore({
         chain: async () => undefined,
         principal: spacePrincipal(spaceId),
-        objects,
+        servers: serversOf(objects),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -257,7 +257,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
             name: Name,
             input: NoInfer<RequestInput<Object, Name>>,
         ) => request(store, object, name, spaceId, input, context),
-        as: (caller: string) => {
+        as: (caller: Identifier<"user">) => {
             current = caller;
             context = sign();
         },

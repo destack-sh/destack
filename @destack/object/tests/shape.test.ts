@@ -8,7 +8,7 @@ import { Scope, type Publisher } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineShape, type Follow } from "../src/index.ts";
-import { ObjectExtension, defineServer } from "../src/server/index.ts";
+import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
@@ -59,27 +59,25 @@ test("subscribe to a fixed key and to one key per row the follower keeps, each t
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const publishers = new Map<string, Publisher>();
-    const { store } = ObjectExtension.compose(
-        [defineServer(pagesPackage, { follows: [plans, icons] }).extension(undefined)],
-        {
-            chain: async () => ({ kind: "follower" }),
-            clock: Clock.system,
-            origin: { package: Package.of(pagesPackage) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            database: storage.database,
-            publisher: (scope) => {
-                // keep one publisher per scope
-                const publisher = publishers.get(scope) ?? {
-                    stream: () => (async function* () {})(),
-                };
-                publishers.set(scope, publisher);
+    const store = new ObjectStore({
+        servers: [defineServer(pagesPackage, { follows: [plans, icons] })],
+        chain: async () => ({ kind: "follower" }),
+        clock: Clock.system,
+        origin: { package: Package.of(pagesPackage) },
+        principal: spacePrincipal(spaceId),
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        database: storage.database,
+        publisher: (scope) => {
+            // keep one publisher per scope
+            const publisher = publishers.get(scope) ?? {
+                stream: () => (async function* () {})(),
+            };
+            publishers.set(scope, publisher);
 
-                return publisher;
-            },
+            return publisher;
         },
-    );
+    });
     const subscriber = present(store.subscriber, "the store's subscriber");
 
     // create a page with an icon, list the subscriptions, then add a page of another icon
@@ -93,7 +91,7 @@ test("subscribe to a fixed key and to one key per row the follower keeps, each t
     const listed = async () =>
         (await subscriber.subscriptions()).map(({ subscription, publisher }) => ({
             name: subscription.name,
-            shape: subscription.shape,
+            publication: subscription.publication,
             scope: subscription.scope,
             below: subscription.below,
             parameters: subscription.parameters,
@@ -106,7 +104,7 @@ test("subscribe to a fixed key and to one key per row the follower keeps, each t
     // name each replica by its shape, scope and parameters, with the shape's queries as parameters
     const plan = {
         name: `titled:${Scope.universe.id}:Plan`,
-        shape: "queries",
+        publication: "queries",
         scope: Scope.universe.id,
         below: spaceId,
         parameters: { queries: { "0:page": { object: "page", where: { title: "Plan" } } } },
@@ -114,7 +112,7 @@ test("subscribe to a fixed key and to one key per row the follower keeps, each t
     };
     const icon = (glyph: string) => ({
         name: `iconed:${spaceId}:${glyph}`,
-        shape: "queries",
+        publication: "queries",
         scope: spaceId,
         below: spaceId,
         parameters: { queries: { "0:page": { object: "page", where: { icon: glyph } } } },
@@ -123,7 +121,7 @@ test("subscribe to a fixed key and to one key per row the follower keeps, each t
     // follow the store's own chain beside the follows, every link from the space's own publisher
     const chain = (scope: string) => ({
         name: `chain:${spaceId}`,
-        shape: "chain",
+        publication: "chain",
         scope,
         below: spaceId,
         parameters: {

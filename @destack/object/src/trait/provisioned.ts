@@ -11,7 +11,7 @@ import {
 import { Digest, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
-import { field } from "../field/field.ts";
+import { field, type FieldsByColumn } from "../field/field.ts";
 import { method } from "../method/record.ts";
 import {
     ObjectPermissions,
@@ -97,7 +97,7 @@ function resourceFields(kind: ResourceKind) {
         /** The actual provider location, absent before provisioning. */
         location: field.string().optional(),
         /** The machine keeping the resource, absent before provisioning. */
-        machineId: field.string(schema.identifier("machine")).optional(),
+        machine: field.reference(principal.machine).optional(),
         /** What deletion does to stored content: destroy it, keep it a while, or keep it. */
         retention: field.json(ResourceRetention).default("forever"),
         /** The application installation owning it, absent for stack resources and after release. */
@@ -107,7 +107,7 @@ function resourceFields(kind: ResourceKind) {
 
 /** Read the schema of a kind's desired states by digest, none for a stateless kind. */
 function desiredStates(kind: ResourceKind) {
-    return kind.state === undefined ? schema.array(Digest).max(0) : schema.array(Digest);
+    return kind.isStateful ? schema.array(Digest) : schema.array(Digest).max(0);
 }
 
 /** The fields a definition provisioned as a kind's resources takes, none otherwise. */
@@ -121,16 +121,16 @@ export type ProvisionedFieldsOf<Provisioning> = Provisioning extends {
     : {};
 
 /** The table of a kind's resources in a scope type, as code generic over kinds reads it. */
-export type ProvisionedTable<Scope> = ObjectTable<
+export type ResourceTable<Scope> = ObjectTable<
     string,
     ScopeIdentityOf<Scope>,
-    ProvisionedFieldsOf<ProvisionedDefinition>,
+    FieldsByColumn<ProvisionedFieldsOf<ProvisionedDefinition>>,
     ProvisionedTraitsOf<ProvisionedDefinition>
 >;
 
-/** A kind's resources in a scope type, as code generic over kinds reads them. */
-export type ProvisionedObject<Scope> =
-    ProvisionedTable<Scope> extends infer Definition extends Table
+/** The object type of a kind's resources in a scope type, as code generic over kinds reads it. */
+export type ResourceType<Scope> =
+    ResourceTable<Scope> extends infer Definition extends Table
         ? ObjectOf<{
               table: Definition;
               scope: Extract<ScopeIdentityOf<Scope>, string>;
@@ -139,8 +139,8 @@ export type ProvisionedObject<Scope> =
           }>
         : never;
 
-/** A kind's resource in its space, as code generic over kinds reads it. */
-export type ProvisionedRecord = Select<ProvisionedTable<"space">>;
+/** The row of a kind's resource in its space, as code generic over kinds reads it. */
+export type ResourceRow = Select<ResourceTable<"space">>;
 
 /** The permission every resource takes, none for other objects. */
 export type ProvisionedPermissionOf<Provisioning> = [Provisioning] extends [undefined]
@@ -281,7 +281,7 @@ export const Provisioned = {
     },
 
     /** Decide whether an object type is a kind's resources. */
-    is(object: ObjectType): object is ProvisionedObject<"space"> {
+    is(object: ObjectType): object is ResourceType<"space"> {
         return object.provisioned !== undefined;
     },
 };

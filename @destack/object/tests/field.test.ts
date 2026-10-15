@@ -8,10 +8,10 @@ import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request } from "./fixture/request.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The space keeping the pins. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -67,13 +67,13 @@ test("keep a pin's target as its label's reference columns, refuse a note, and l
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [label, note, pin],
+        servers: serversOf([label, note, pin]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
         origin: { package: pin.package },
     });
-    const context = userContext("user-1", spaceId);
+    const context = userContext(users.frank, spaceId);
     const create = (target: ObjectReference) =>
         request(
             store,

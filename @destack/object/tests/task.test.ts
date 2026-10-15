@@ -1,11 +1,11 @@
 import { ObjectReference } from "@destack/sync";
-import { bearerUser } from "./fixture/user.ts";
-import { ObjectExtension, defineServer } from "../src/server/index.ts";
+import { bearerUser, users } from "./fixture/user.ts";
+import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, Clock, aligned } from "@destack/schema";
+import { schema, Clock, aligned, type Identifier } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
@@ -34,7 +34,8 @@ test.each(TEST_DIALECTS)(
         const server = Server.start({
             clock: Clock.system,
             ...aligned(
-                ObjectExtension.compose([defineServer(tasksPackage, {}).extension(undefined)], {
+                new ObjectStore({
+                    servers: [defineServer(tasksPackage, {})],
                     chain: async () => undefined,
                     clock: Clock.system,
                     origin: { package: Package.of(tasksPackage) },
@@ -53,16 +54,16 @@ test.each(TEST_DIALECTS)(
             authenticate: bearerUser(tasksPackage.id, spaceId),
         });
         onTestFinished(() => server.close());
-        const as = (caller: string) =>
+        const as = (caller: Identifier<"user">) =>
             createClient(tasksPackage, {
                 url: "https://tasks.test",
                 headers: { authorization: `Bearer ${caller}` },
                 fetch: (request: Request) => server.fetch(request),
             });
-        const alice = as("alice");
-        const bob = as("bob");
-        const carol = as("carol");
-        const dave = as("dave");
+        const alice = as(users.alice);
+        const bob = as(users.bob);
+        const carol = as(users.carol);
+        const dave = as(users.dave);
 
         // let the owner create a project and a budgeted task assigned to another user
         const launch = await alice.project.create({
@@ -70,19 +71,19 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(Date.now()),
             name: "Launch",
         });
-        expect(launch.ownerId).toBe("alice");
+        expect(launch.ownerId).toBe(users.alice);
         const announce = await alice.task.create({
             spaceId,
             requestId: RequestId.create(Date.now()),
             parentId: launch.id,
             title: "Write the announcement",
-            assigneeId: "bob",
+            assigneeId: users.bob,
             priority: "high",
             budget: 500,
             due: 1_790_000_000_000,
         });
         expect([announce.authorId, announce.status, announce.budget, announce.due]).toEqual([
-            "alice",
+            users.alice,
             "open",
             500,
             1_790_000_000_000,
@@ -111,7 +112,7 @@ test.each(TEST_DIALECTS)(
             spaceId,
             id: launch.id,
             requestId: RequestId.create(Date.now()),
-            relationship: { relation: "member", subject: person("carol") },
+            relationship: { relation: "member", subject: person(users.carol) },
             purpose: "help with the launch",
         });
         expect(
@@ -159,7 +160,7 @@ test.each(TEST_DIALECTS)(
             (await carol.comment.list({ spaceId, where: { parentId: announce.id } })).items.map(
                 (item) => [item.authorId, item.text],
             ),
-        ).toEqual([["bob", "Draft is ready"]]);
+        ).toEqual([[users.bob, "Draft is ready"]]);
         await bob.task.complete({
             spaceId,
             id: announce.id,
@@ -214,18 +215,16 @@ test("serve a handled type in place of the package's own", async () => {
         },
     });
     const served = aligned(
-        ObjectExtension.compose(
-            [defineServer(tasksPackage, { objects: [frozen] }).extension(undefined)],
-            {
-                chain: async () => undefined,
-                clock: Clock.system,
-                origin: { package: Package.of(tasksPackage) },
-                principal: spacePrincipal(spaceId),
-                callKey: testCallKey,
-                events: await testEvents(storage.database),
-                database: storage.database,
-            },
-        ).packages,
+        new ObjectStore({
+            servers: [defineServer(tasksPackage, { objects: [frozen] })],
+            chain: async () => undefined,
+            clock: Clock.system,
+            origin: { package: Package.of(tasksPackage) },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            events: await testEvents(storage.database),
+            database: storage.database,
+        }).packages,
         0,
     );
     const server = Server.start({
@@ -241,7 +240,7 @@ test("serve a handled type in place of the package's own", async () => {
     onTestFinished(() => server.close());
     const alice = createClient(tasksPackage, {
         url: "https://tasks.test",
-        headers: { authorization: "Bearer alice" },
+        headers: { authorization: `Bearer ${users.alice}` },
         fetch: (request: Request) => server.fetch(request),
     });
     await expect(
@@ -250,7 +249,7 @@ test("serve a handled type in place of the package's own", async () => {
 });
 
 /** Reference a user principal by identifier. */
-function person(id: string) {
+function person(id: Identifier<"user">) {
     return principal.user.reference("universe", id);
 }
 

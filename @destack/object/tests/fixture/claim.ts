@@ -3,7 +3,7 @@ import { AccessFixture } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import type { Clock } from "@destack/schema";
 import { testCallKey } from "@destack/runtime/test";
-import { testEvents } from "../../src/test/index.ts";
+import { testEvents, serversOf } from "../../src/test/index.ts";
 import { Scope } from "@destack/sync";
 import { type ClaimHome, ObjectStore, RemoteStore } from "../../src/server/index.ts";
 import { claimMethods, claimTable, defineObject, INTRINSIC } from "../../src/index.ts";
@@ -37,7 +37,7 @@ export async function serveClaims(database: DatabaseConnection, clock: Clock): P
         chain: async () => undefined,
         clock,
         principal: owner,
-        objects: [claim],
+        servers: serversOf([claim]),
         database,
         claims: { object: claim },
         callKey: testCallKey,

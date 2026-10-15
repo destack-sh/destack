@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { expect, test } from "@destack/test";
 import { RequestContext } from "@destack/runtime/server";
 import { ResourceContext } from "@destack/resource/context";
@@ -15,7 +16,7 @@ test("persist verified caller identities with their delegates and grant, record 
         // use the same identifier in two scopes
         const origin = { package: documentRename.package, scope: "universe" };
         const now = Date.now();
-        const represented = principal.user.reference("universe", "person");
+        const represented = principal.user.reference("universe", users.person);
         const grantId = Identifier.create("grant");
         const actor = principal.installation.reference("space-example", "agent");
         const deploymentId = schema

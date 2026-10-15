@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
@@ -13,7 +13,7 @@ import { defineObject, field } from "../src/index.ts";
 import { ExpiringController, ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The space containing the alerts. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -57,7 +57,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [alert],
+            servers: serversOf([alert]),
             database,
             callKey: testCallKey,
             events: await testEvents(database),
@@ -65,7 +65,7 @@ test.each(TEST_DIALECTS)(
                 package: alert.package,
             },
         });
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
         const create = async (
             title: string,
             times: { createdAt: number; readAt: number | null },
@@ -121,7 +121,7 @@ test("leave the expired rows a database replicates to the deletes their home sen
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [alert],
+        servers: serversOf([alert]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -131,7 +131,7 @@ test("leave the expired rows a database replicates to the deletes their home sen
     await database.insert(alert.table).values({
         id: alert.identifier(`alert-${v7()}`),
         scope: spaceId,
-        ownerId: "user-1",
+        ownerId: users.frank,
         title: "Replicated",
         createdAt: now - 400 * DAY,
         updatedAt: now - 400 * DAY,

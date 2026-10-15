@@ -1,18 +1,18 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { none, principal, relation, Caller } from "@destack/access";
 
 import { Scope } from "@destack/sync";
 import { asc, eq, defineDatabase, type Change } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, present, Clock } from "@destack/schema";
+import { schema, present, Clock, type Identifier } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
 
 /** The space with the reminders. */
@@ -73,7 +73,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [reminder],
+            servers: serversOf([reminder]),
             database,
             callKey: testCallKey,
             events: await testEvents(database),
@@ -87,7 +87,7 @@ test.each(TEST_DIALECTS)(
         );
 
         // insert two due reminders about tea, one later about tea, and one sent about lunch
-        const context = userContext("user-1", spaceId);
+        const context = userContext(users.frank, spaceId);
         const now = Date.now();
         const create = async (topic: string, dueAt: number) =>
             store
@@ -160,7 +160,7 @@ test("select a changed pending object's own key beside the keys a watch of its o
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [queued],
+        servers: serversOf([queued]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -172,7 +172,7 @@ test("select a changed pending object's own key beside the keys a watch of its o
     );
     await openSpace(storage.database, spaceId);
     const created = await store
-        .mutate(userContext("user-1", spaceId).caller(), {
+        .mutate(userContext(users.frank, spaceId).caller(), {
             id: RequestId.create(Date.now()),
             calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: 1 })],
         })
@@ -205,7 +205,7 @@ test("run a controller's calls as the space, audited as the space with the contr
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [reminder],
+        servers: serversOf([reminder]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -216,9 +216,9 @@ test("run a controller's calls as the space, audited as the space with the contr
         "the reminder controller",
     );
 
-    // send a due reminder of user-1 through the controller
+    // send a due reminder of frank through the controller
     const due = await store
-        .mutate(userContext("user-1", spaceId).caller(), {
+        .mutate(userContext(users.frank, spaceId).caller(), {
             id: RequestId.create(Date.now()),
             calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: Date.now() - 1000 })],
         })
@@ -228,7 +228,7 @@ test("run a controller's calls as the space, audited as the space with the contr
 
     // refuse the send to its owner, who reads it, and conceal it from another user
     const [row] = await database.select().from(reminder.table);
-    const send = (as: string) =>
+    const send = (as: Identifier<"user">) =>
         refusal(
             store.mutate(Caller.of(principal.user.reference(Scope.universe.id, as), Date.now()), {
                 id: RequestId.create(Date.now()),
@@ -239,8 +239,8 @@ test("run a controller's calls as the space, audited as the space with the contr
     // record the send as the space and the controller, and refuse both users
     expect([
         sends.map((call) => [call.execution.context.caller, call.execution.context.component]),
-        await send("user-1"),
-        await send("user-2"),
+        await send(users.frank),
+        await send(users.grace),
     ]).toEqual([
         [[{ subject: spacePrincipal(spaceId) }, "reminder"]],
         ["FORBIDDEN", "permission denied: send"],

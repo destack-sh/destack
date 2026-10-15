@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { AccessError, Caller, none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, TABLE } from "@destack/db";
@@ -17,10 +18,10 @@ import {
     Subject,
 } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { defineObject, defineShape, field, QUERIES_SHAPE, Shape } from "../src/index.ts";
-import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
+import { defineObject, defineShape, field, QUERIES_PUBLICATION, Shape } from "../src/index.ts";
+import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { definePackage } from "@destack/runtime";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 
@@ -73,13 +74,13 @@ test("list and follow the mentions a home keeps as replicas of another space, fr
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [mention],
+        servers: serversOf([mention]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
         origin: { package: mention.package },
     });
-    const alice = principal.user.reference("universe", "alice");
+    const alice = principal.user.reference("universe", users.alice);
     const [created] = await store.mutate(Caller.of(spacePrincipal(other), Date.now()), {
         id: RequestId.create(Date.now()),
         calls: [
@@ -105,7 +106,7 @@ test("list and follow the mentions a home keeps as replicas of another space, fr
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const pages = store.source.relayed(
-        store.source.queriesShape.subscription({
+        store.source.queriesPublication.subscription({
             name: "objects",
             scope: spaceId,
             below: spaceId,
@@ -122,7 +123,7 @@ test("list and follow the mentions a home keeps as replicas of another space, fr
             scope: other,
             ...Replica.subscriptionColumns({
                 name: "mentions",
-                shape: QUERIES_SHAPE,
+                publication: QUERIES_PUBLICATION,
                 scope: other,
                 below: spaceId,
                 subject: alice,
@@ -179,7 +180,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [mention, person],
+        servers: serversOf([mention, person]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -245,7 +246,7 @@ test("admit a home's follow on its person's behalf with a token bound to the fol
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [mention, person],
+        servers: serversOf([mention, person]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -326,7 +327,7 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [mention, person],
+        servers: serversOf([mention, person]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -366,7 +367,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [mention],
+        servers: serversOf([mention]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -379,7 +380,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     const pages = store.source.relayed(
         {
             name: `chain:${spaceId}`,
-            shape: store.source.chainShape.name,
+            publication: store.source.chainPublication.name,
             scope: spaceId,
             below: spaceId,
             parameters: { local: [], replicated: [], types: [] },
@@ -435,7 +436,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     onTestFinished(() => storage.close());
     const { database } = storage;
     const realmId = Identifier.create("realm");
-    const owner = principal.user.reference(Scope.universe.id, "owner");
+    const owner = principal.user.reference(Scope.universe.id, users.owner);
     const access = new AccessFixture(database);
     await access.replicateScope(realm.reference(Scope.universe.id, realmId), "own");
     await access.bindOwner(realm.reference(Scope.universe.id, realmId), owner);
@@ -448,18 +449,16 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     });
 
     // serve the notes, which make the enclosing realm known
-    const { store } = ObjectExtension.compose(
-        [{ package: definePackage({ objects: { note } }), objects: [note] }],
-        {
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(realmId),
-            database,
-            callKey: testCallKey,
-            events: await testEvents(database),
-            origin: { package: note.package },
-        },
-    );
+    const store = new ObjectStore({
+        servers: [defineServer(definePackage({ objects: { note } }), {})],
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(realmId),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: { package: note.package },
+    });
 
     // answer the realm's query as its owner, and refuse renaming it, which its home does
     const caller = subjectContext(owner, realmId).caller();

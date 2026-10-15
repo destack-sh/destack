@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { expect, test, TestClock } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
@@ -57,7 +58,7 @@ type Fired = Extract<RunRequest, { readonly triggerName: string }>;
 
 test("build a call of an object's method, leaving the scope to the one it is pushed to", async () => {
     const { connect } = await serveNotes("sqlite");
-    const alice = connect("alice");
+    const alice = connect(users.alice);
     const { id } = await alice.notebook.create({
         spaceId,
         name: "Travel",
@@ -88,7 +89,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         // keep two notes before the trigger starts, one of them untitled
         const { connect, database } = await serveNotes(dialect);
-        const alice = connect("alice");
+        const alice = connect(users.alice);
         const first = await alice.note.create({
             spaceId,
             title: "Packing",
@@ -161,7 +162,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         // follow the titled notes from now on, keeping each change the trigger builds a call of
         const { connect, database } = await serveNotes(dialect);
-        const alice = connect("alice");
+        const alice = connect(users.alice);
         const seen: [string, string | null, string | null][] = [];
         const trigger = changeTrigger(
             defineTrigger({
@@ -228,7 +229,7 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         // follow every note from now on, a minute of lag, failing to build a call of an untitled note
         const { connect, database } = await serveNotes(dialect);
-        const alice = connect("alice");
+        const alice = connect(users.alice);
         const lagging = changeTrigger(
             defineTrigger({
                 name: "lagging",

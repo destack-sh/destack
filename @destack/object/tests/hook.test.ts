@@ -23,11 +23,11 @@ import {
     HookSandbox,
     SessionRequest,
 } from "../src/index.ts";
-import { ObjectExtension, type ObjectStore, defineServer } from "../src/server/index.ts";
+import { defineServer, ObjectStore, type PackageServer } from "../src/server/index.ts";
 import type { InstalledDeclaration } from "../src/inspect/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** Cards their owner remarks on. */
 const card = defineObject({
@@ -153,7 +153,8 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
     hooks.sandbox = sandbox;
 
     // serve the cards as the build describes them, their routed hooks run in the sandbox
-    const { store } = ObjectExtension.compose([], {
+    const store = new ObjectStore({
+        servers: [],
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
@@ -225,7 +226,7 @@ function summary(answer: HandlerAnswer): JsonValue {
 }
 
 /** Run a call of a card method as a user, alice by default, answering the card. */
-async function run(store: ObjectStore, call: ObjectCall, user = "alice") {
+async function run(store: ObjectStore, call: ObjectCall, user = users.alice) {
     const [result] = await store.mutate(userContext(user, spaceId).caller(), {
         id: RequestId.create(Date.now()),
         calls: [call],
@@ -275,7 +276,7 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
         card.call("remark", { spaceId, id: created.id, text: "ship it" }),
     );
     const stored = await store.query(
-        userContext("alice", spaceId).caller(),
+        userContext(users.alice, spaceId).caller(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -377,7 +378,7 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
     await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
     const stored = await store.query(
-        userContext("alice", spaceId).caller(),
+        userContext(users.alice, spaceId).caller(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -442,12 +443,12 @@ test("read every card of the package in a hook, and read as the caller through a
     );
 
     // create bob's card and alice's, then remark on alice's as alice
-    const hidden = await run(store, card.call("create", { spaceId, name: "Secret" }), "bob");
+    const hidden = await run(store, card.call("create", { spaceId, name: "Secret" }), users.bob);
     other.id = hidden.id;
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
     await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
     const stored = await store.query(
-        userContext("alice", spaceId).caller(),
+        userContext(users.alice, spaceId).caller(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -485,7 +486,7 @@ test("call an internal method of the hook's own package in its session", async (
         card.call("remark", { spaceId, id: created.id, text: "ship it" }),
     );
     const stored = await store.query(
-        userContext("alice", spaceId).caller(),
+        userContext(users.alice, spaceId).caller(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -599,7 +600,7 @@ test("read the rows of a type the installation serves without hooks", async () =
     );
 
     // write a note and a card as alice, then remark on the card
-    const caller = userContext("alice", spaceId).caller();
+    const caller = userContext(users.alice, spaceId).caller();
     await store.mutate(caller, {
         id: RequestId.create(Date.now()),
         calls: [note.call("create", { spaceId, text: "ship it" })],
@@ -635,10 +636,11 @@ test("refuse serving the cards of two installations of one package from one stor
         "installation-01996ab0-0000-7000-8000-0000000000d2",
     ];
 
-    // compose a store serving both
+    // serve both from one store
     const events = await testEvents(storage.database);
-    const compose = () =>
-        ObjectExtension.compose([], {
+    const serve = () =>
+        new ObjectStore({
+            servers: [],
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
@@ -650,7 +652,7 @@ test("refuse serving the cards of two installations of one package from one stor
             sandboxes: [sandbox(first), sandbox(second)],
         });
 
-    expect(compose).toThrow(
+    expect(serve).toThrow(
         new TypeError(
             `installation ${first} and installation ${second} both implement card objects of ${card.package.id}`,
         ),
@@ -684,8 +686,9 @@ test("route the platform's cards from an installed package to their one implemen
         send: () => Promise.reject(new TypeError("the board has no hooks")),
     });
     const events = await testEvents(storage.database);
-    const compose = (extensions: readonly ObjectExtension[]) =>
-        ObjectExtension.compose(extensions, {
+    const serve = (servers: readonly PackageServer[]) =>
+        new ObjectStore({
+            servers,
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
@@ -698,11 +701,11 @@ test("route the platform's cards from an installed package to their one implemen
         });
 
     // serve the cards once, as the platform's, under both packages
-    const { store, packages } = compose([defineServer(cards, {}).extension(undefined)]);
+    const store = serve([defineServer(cards, {})]);
     expect({
-        routed: store.routed.map((type) => type.typeReference),
+        routed: store.objects.map((type) => type.typeReference),
         installed: store.readServer(card)?.installation,
-        routes: packages.map((served) => Object.keys(served.router)),
+        routes: store.packages.map((served) => Object.keys(served.router)),
     }).toEqual({
         routed: [{ packageId: card.package.id, type: "card" }],
         installed: undefined,
@@ -713,7 +716,7 @@ test("route the platform's cards from an installed package to their one implemen
     });
 
     // refuse the board's route of cards without the platform's implementation
-    expect(() => compose([])).toThrow(
+    expect(() => serve([])).toThrow(
         new TypeError(
             `installation ${context.installation} routes card objects of ${card.package.id}, but nothing here implements or replicates them`,
         ),
@@ -739,28 +742,26 @@ test("serve the cards of the platform and of an installed package from one store
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
 
-    // compose a store serving the platform's cards and the installation's
-    const { store, packages } = ObjectExtension.compose(
-        [defineServer(cards, {}).extension(undefined)],
-        {
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            database: storage.database,
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            origin: { package: card.package },
-            policies: [space],
-            sandboxes: [sandbox],
-        },
-    );
+    // serve the platform's cards and the installation's from one store
+    const store = new ObjectStore({
+        servers: [defineServer(cards, {})],
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: card.package },
+        policies: [space],
+        sandboxes: [sandbox],
+    });
 
     // serve both types, each package routing its own under the card route
-    expect(store.routed.map((type) => type.typeReference)).toEqual([
+    expect(store.objects.map((type) => type.typeReference)).toEqual([
         { packageId: card.package.id, type: "card" },
         { packageId: OTHER_PACKAGE, type: "card" },
     ]);
-    expect(packages.map((served) => Object.keys(served.router))).toEqual([
+    expect(store.packages.map((served) => Object.keys(served.router))).toEqual([
         ["replica", "card"],
         ["replica", "card"],
     ]);
@@ -785,7 +786,8 @@ test("describe the platform's and an installed package's types from one store, d
         declarations: declared(cards).map((entry) => moved(entry, installed.id)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
-    const { store } = ObjectExtension.compose([defineServer(photos, {}).extension(undefined)], {
+    const store = new ObjectStore({
+        servers: [defineServer(photos, {})],
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),

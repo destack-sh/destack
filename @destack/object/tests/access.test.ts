@@ -1,3 +1,4 @@
+import { users, userName } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessGrant, Authorization, Policy, principal } from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
@@ -5,7 +6,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 
 import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { RequestId } from "@destack/runtime/request";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, field, Intrinsic } from "../src/index.ts";
@@ -35,7 +36,7 @@ test.for(TEST_DIALECTS)(
         const database = storage.database;
 
         // reference the owner and the space it owns
-        const owner = principal.user.reference("universe", "owner");
+        const owner = principal.user.reference("universe", users.owner);
         const object = space.reference("universe", SPACE_ID);
 
         // serve the space's roles and relationships to the owner
@@ -43,7 +44,7 @@ test.for(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(SPACE_ID),
-            objects: [role, relationship],
+            servers: serversOf([role, relationship]),
             policies: [space],
             database,
             callKey: testCallKey,
@@ -64,13 +65,17 @@ test.for(TEST_DIALECTS)(
         await creating.commit();
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
-        const context = subjectContext(principal.user.reference("universe", "owner"), SPACE_ID, {
-            signal: controller.signal,
-        });
+        const context = subjectContext(
+            principal.user.reference("universe", users.owner),
+            SPACE_ID,
+            {
+                signal: controller.signal,
+            },
+        );
 
         // keep the owner role and its binding from the snapshot
         const pages = store.source.relayed(
-            store.source.queriesShape.subscription({
+            store.source.queriesPublication.subscription({
                 name: "objects",
                 scope: SPACE_ID,
                 below: SPACE_ID,
@@ -98,7 +103,7 @@ test.for(TEST_DIALECTS)(
             return page.changes.map((change) => [
                 change.table,
                 change.operation,
-                change.row["name"] ?? change.row["subjectId"],
+                change.row["name"] ?? userName(schema.string().parse(change.row["subjectId"])),
             ]);
         };
         expect(await next()).toEqual([["destack__access__relationship", "insert", "owner"]]);
@@ -123,7 +128,7 @@ test.for(TEST_DIALECTS)(
         await authorization.grant({
             object,
             role: reviewer.id,
-            subject: principal.user.reference("universe", "member"),
+            subject: principal.user.reference("universe", users.member),
         });
         await granting.commit();
         expect(await next()).toEqual([["destack__access__relationship", "insert", "member"]]);
@@ -154,7 +159,7 @@ test("authorize an object type that the objects and the policies list several ti
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
-        objects: [role, relationship],
+        servers: serversOf([role, relationship]),
         policies: [space, role, role],
         database: storage.database,
         callKey: testCallKey,
@@ -197,7 +202,7 @@ test("delete the grants of a token as the token is deleted", async () => {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
-        objects: [token],
+        servers: serversOf([token]),
         policies: [space],
         database,
         callKey: testCallKey,
@@ -207,7 +212,7 @@ test("delete the grants of a token as the token is deleted", async () => {
     await database
         .insert(space.table)
         .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
-    const owner = principal.user.reference("universe", "owner");
+    const owner = principal.user.reference("universe", users.owner);
     const creating = await Transaction.open(database);
     await new Authorization(store.authorizer, creating, () => ({
         subjects: [owner],
@@ -226,7 +231,7 @@ test("delete the grants of a token as the token is deleted", async () => {
         SPACE_ID,
         schema.looseObject({ id: schema.string() }).parse(created).id,
     );
-    const other = principal.user.reference("universe", "other");
+    const other = principal.user.reference("universe", users.other);
     const grant = (id: string, to: Subject) => ({
         id: schema.identifier("grant").parse(id),
         scope: "universe",

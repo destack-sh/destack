@@ -9,7 +9,12 @@ import { Server } from "@destack/runtime/server";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
 import { v7 } from "uuid";
-import { type AdapterFetch, ObjectExtension, defineServer } from "../src/server/index.ts";
+import {
+    type AdapterFetch,
+    defineServer,
+    ObjectStore,
+    type ServedPackage,
+} from "../src/server/index.ts";
 import { page, pageDatabase } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { bearerUser } from "./fixture/user.ts";
@@ -30,31 +35,32 @@ const feed: AdapterFetch = async (request) => {
     return Response.json({ path: url.pathname, query: url.search });
 };
 
-/** Compose the pages over a space's database, answering the adapters the serve hook supplies. */
-async function compose(serve: NonNullable<ObjectExtension["serve"]>) {
+/** The pages as any served package, whose adapters any answers may claim to answer. */
+const served: ServedPackage = pages;
+
+/** Serve the pages over a space's database, answering the given adapters. */
+async function servePages(adapters: Readonly<Record<string, AdapterFetch>>) {
     const storage = await TestDatabase.create("sqlite", pageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const events = await testEvents(storage.database);
 
     return () =>
-        ObjectExtension.compose(
-            [{ ...defineServer(pages, { adapters: { feed } }).extension(undefined), serve }],
-            {
-                chain: async () => undefined,
-                clock: Clock.system,
-                origin: { package: Package.of(pages) },
-                principal: spacePrincipal(spaceId),
-                callKey: testCallKey,
-                events,
-                database: storage.database,
-            },
-        );
+        new ObjectStore({
+            servers: [defineServer(served, { adapters })],
+            chain: async () => undefined,
+            clock: Clock.system,
+            origin: { package: Package.of(pages) },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            events,
+            database: storage.database,
+        });
 }
 
 test("answer each request at or below an adapter's path by its fetch, below the adapter's path", async () => {
     // serve the pages with their feed
-    const composed = await compose(() => ({ adapters: { feed } }));
+    const composed = await servePages({ feed });
     const server = Server.start({
         clock: Clock.system,
         ...aligned(composed().packages, 0),
@@ -84,9 +90,9 @@ test("answer each request at or below an adapter's path by its fetch, below the 
 });
 
 test("refuse a package's unanswered adapter and an answer of no declared adapter", async () => {
-    // compose the pages with each wrong answer
-    const unanswered = await compose(() => ({}));
-    const stray = await compose(() => ({ adapters: { feed, atom: feed } }));
+    // serve the pages with each wrong answer
+    const unanswered = await servePages({});
+    const stray = await servePages({ feed, atom: feed });
 
     expect(unanswered).toThrow(new TypeError(`package ${pages.name} does not answer adapter feed`));
     expect(stray).toThrow(new TypeError(`package ${pages.name} does not declare adapter atom`));

@@ -1,12 +1,12 @@
 import type { CallableName } from "../src/index.ts";
 import { ObjectReference, Subject } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { testEvents } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { CallError } from "@destack/runtime/error";
 import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { aligned, present, schema, toJsonSchema, Clock } from "@destack/schema";
+import { aligned, present, schema, toJsonSchema, Clock, type Identifier } from "@destack/schema";
 import { AuditTarget } from "../src/index.ts";
 
 import { RequestId } from "@destack/runtime/request";
@@ -26,7 +26,7 @@ import {
 } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
-import { userContext } from "./fixture/user.ts";
+import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the tasks. */
@@ -192,7 +192,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // hide the task from another user, and refuse them changes without revealing it
-        act("user-2");
+        act(users.grace);
         expect((await execute("list", {})).items).toEqual([]);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
@@ -206,7 +206,7 @@ test.each(TEST_DIALECTS)(
                 title: "Taken",
             }),
         ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
-        act("user-1");
+        act(users.frank);
 
         // update at the observed revision and reject a stale one
         const updated = await execute("update", {
@@ -253,7 +253,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // share the task with another user as a viewer, list it, and revoke it again
-        const viewer = principal.user.reference("universe", "user-2");
+        const viewer = principal.user.reference("universe", users.grace);
         const shared = await execute("grant", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
@@ -278,38 +278,38 @@ test.each(TEST_DIALECTS)(
             ],
             cursor: null,
         });
-        act("user-2");
+        act(users.grace);
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
         await expect(
             execute("grant", {
                 id: created.id,
                 requestId: RequestId.create(Date.now()),
                 relation: "viewer",
-                subject: { ...viewer, id: "user-3" },
+                subject: { ...viewer, id: users.ivan },
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: write" });
-        act("user-1");
+        act(users.frank);
         await execute("revoke", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
             relationshipId: shared.id,
         });
-        act("user-2");
+        act(users.grace);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "NOT_FOUND",
             message: `no task ${created.id}`,
         });
-        act("user-1");
+        act(users.frank);
 
         // challenge a viewer for step-up authentication and admit them after
         await execute("grant", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
             relation: "viewer",
-            subject: { ...viewer, id: "user-3" },
+            subject: { ...viewer, id: users.ivan },
             conditions: { assurance: 2 },
         });
-        act("user-3");
+        act(users.ivan);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "INSUFFICIENT_AUTHENTICATION",
             message: "authentication assurance is too low: authenticate again",
@@ -320,11 +320,11 @@ test.each(TEST_DIALECTS)(
         step(1);
 
         // let a user without access ask for it, and apply it once the owner accepts
-        act("user-4");
+        act(users.heidi);
         const asked = await execute("invite", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
-            relationship: { relation: "viewer", subject: { ...viewer, id: "user-4" } },
+            relationship: { relation: "viewer", subject: { ...viewer, id: users.heidi } },
             purpose: "follow the plan",
         });
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
@@ -338,7 +338,7 @@ test.each(TEST_DIALECTS)(
                 invitationId: asked.id,
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: write" });
-        act("user-1");
+        act(users.frank);
         expect(await execute("invitations", { id: created.id })).toEqual({
             items: [
                 {
@@ -352,9 +352,9 @@ test.each(TEST_DIALECTS)(
                         },
                         relation: "viewer",
                         expiresAt: null,
-                        subject: { ...viewer, id: "user-4" },
+                        subject: { ...viewer, id: users.heidi },
                     },
-                    inviter: { ...viewer, id: "user-4" },
+                    inviter: { ...viewer, id: users.heidi },
                     purpose: "follow the plan",
                     status: "pending",
                     createdAt: clock.now(),
@@ -368,9 +368,9 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(Date.now()),
             invitationId: asked.id,
         });
-        act("user-4");
+        act(users.heidi);
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
-        act("user-1");
+        act(users.frank);
 
         // challenge an agent whose grant gives too little, and admit what it gives
         const agent = principal.installation.reference(spaceId, "assistant");
@@ -422,7 +422,7 @@ test.each(TEST_DIALECTS)(
             title: "Ship the plan",
             estimate: 3,
         });
-        const viewer = principal.user.reference("universe", "user-4");
+        const viewer = principal.user.reference("universe", users.heidi);
         await execute("grant", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
@@ -431,20 +431,20 @@ test.each(TEST_DIALECTS)(
         });
 
         // hide the guarded estimate and refuse setting it
-        act("user-4");
+        act(users.heidi);
         const viewed = await execute("get", { id: created.id });
         expect([viewed.title, "estimate" in viewed]).toEqual(["Ship the plan", false]);
         expect((await execute("list", {})).items.map((item) => "estimate" in item)).toEqual([
             false,
         ]);
-        act("user-1");
+        act(users.frank);
         await execute("grant", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
             relation: "editor",
-            subject: { ...viewer, id: "user-5" },
+            subject: { ...viewer, id: users.judy },
         });
-        act("user-5");
+        act(users.judy);
         const edited = await execute("update", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
@@ -461,7 +461,7 @@ test.each(TEST_DIALECTS)(
                 estimate: 8,
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "field estimate is not writable" });
-        act("user-1");
+        act(users.frank);
 
         // complete the task once and refuse a second and a guarded completion
         const completed = await execute("complete", {
@@ -615,7 +615,7 @@ test("page an object's invitations a full hundred at a time", async () => {
                         subject: principal.user.reference("universe", id),
                         expiresAt: null,
                     },
-                    inviter: principal.user.reference("universe", "user-1"),
+                    inviter: principal.user.reference("universe", users.frank),
                     status: "pending",
                     createdAt: 1,
                     expiresAt: Date.now() + 60_000,
@@ -706,7 +706,7 @@ test("prepare external work after the access check, settle it after commit, comp
         chain: async () => undefined,
         clock,
         principal: spacePrincipal(spaceId),
-        objects: [handled, comment, taskVersion, folder],
+        servers: serversOf([handled, comment, taskVersion, folder]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -714,7 +714,7 @@ test("prepare external work after the access check, settle it after commit, comp
             package: task.package,
         },
     });
-    let context = userContext("user-1", spaceId);
+    let context = userContext(users.frank, spaceId);
     const execute = <Name extends CallableName<typeof handled>>(
         name: Name,
         input: NoInfer<RequestInput<typeof handled, Name>>,
@@ -726,14 +726,14 @@ test("prepare external work after the access check, settle it after commit, comp
     const reservation = `reservation-${created.id}`;
 
     // refuse a caller without the permission before any external work
-    context = userContext("user-2", spaceId);
+    context = userContext(users.grace, spaceId);
     await expect(
         execute("export", { requestId: RequestId.create(Date.now()), id: created.id }),
     ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
     expect(external).toEqual([]);
 
     // release the prepared work and leave the task unchanged when the transaction fails
-    context = userContext("user-1", spaceId);
+    context = userContext(users.frank, spaceId);
     isFailing = true;
     await expect(
         execute("export", { requestId: RequestId.create(Date.now()), id: created.id }),
@@ -745,7 +745,7 @@ test("prepare external work after the access check, settle it after commit, comp
     external.length = 0;
     const exported = { requestId: RequestId.create(Date.now()), id: created.id };
     const archived = await execute("export", exported);
-    const author = principal.user.reference("universe", "user-1");
+    const author = principal.user.reference("universe", users.frank);
     expect(archived).toEqual({
         id: created.id,
         createdAt: clock.now(),
@@ -761,7 +761,7 @@ test("prepare external work after the access check, settle it after commit, comp
         managerPackageId: null,
         managerName: null,
         detachedAt: null,
-        ownerId: "user-1",
+        ownerId: users.frank,
         title: `Plan (${reservation})`,
         archived: true,
         estimate: null,
@@ -801,7 +801,7 @@ test("prepare external work after the access check, settle it after commit, comp
     external.length = 0;
     const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
     await expect(
-        store.mutate(userContext("user-1", undefined).caller(), {
+        store.mutate(userContext(users.frank, undefined).caller(), {
             id: RequestId.create(Date.now()),
             calls: [
                 Call.record(handled, "export", { spaceId, id: other.id }),
@@ -849,13 +849,13 @@ test("run a prepare and a settle phase's calls as the store in requests of their
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [handled, comment, taskVersion, folder],
+        servers: serversOf([handled, comment, taskVersion, folder]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
         origin: { package: task.package },
     });
-    const context = userContext("user-1", spaceId);
+    const context = userContext(users.frank, spaceId);
     const execute = <Name extends CallableName<typeof handled>>(
         name: Name,
         input: NoInfer<RequestInput<typeof handled, Name>>,
@@ -921,7 +921,7 @@ test("authorize a creation before its external work, and settle committed work t
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [task, comment, taskVersion, copies, folder],
+        servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -930,7 +930,7 @@ test("authorize a creation before its external work, and settle committed work t
         },
         report: (error) => reported.push(error),
     });
-    let context = userContext("user-1", spaceId);
+    let context = userContext(users.frank, spaceId);
     const created = await store
         .mutate(context.caller(), {
             id: RequestId.create(Date.now()),
@@ -939,7 +939,7 @@ test("authorize a creation before its external work, and settle committed work t
         .then(([written]) => written);
 
     // refuse a caller who may not write the task before any external work
-    context = userContext("user-2", spaceId);
+    context = userContext(users.grace, spaceId);
     const version = { spaceId, parentId: created.id, title: "Draft" };
     await expect(
         store
@@ -952,7 +952,7 @@ test("authorize a creation before its external work, and settle committed work t
     expect(external).toEqual([]);
 
     // commit and keep the settlement despite a failed confirmation
-    context = userContext("user-1", spaceId);
+    context = userContext(users.frank, spaceId);
     const drafted = await store
         .mutate(context.caller(), {
             id: RequestId.create(Date.now()),
@@ -1004,14 +1004,14 @@ test("name a system creation's prepared work by the fresh identifier it creates 
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [task, comment, taskVersion, copies, folder],
+        servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
         origin: { package: task.package },
     });
     const created = await store
-        .mutate(userContext("user-1", spaceId).caller(), {
+        .mutate(userContext(users.frank, spaceId).caller(), {
             id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
@@ -1069,7 +1069,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [task, comment, taskVersion, copies, folder],
+        servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -1077,7 +1077,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
             package: task.package,
         },
     });
-    const context = userContext("user-1", spaceId);
+    const context = userContext(users.frank, spaceId);
     const created = await store
         .mutate(context.caller(), {
             id: RequestId.create(Date.now()),
@@ -1155,7 +1155,7 @@ test("create the same identifiers and draw the same numbers from the same reques
     const [creation, drawing] = [RequestId.create(Date.now()), RequestId.create(Date.now())];
     const run = async () => {
         const { store } = await serveTasks("sqlite");
-        const caller = Caller.of(principal.user.reference("universe", "user-1"), Date.now());
+        const caller = Caller.of(principal.user.reference("universe", users.frank), Date.now());
         const created = await store.mutate(caller, {
             id: creation,
             calls: [
@@ -1248,7 +1248,7 @@ async function serveTasks(dialect: Dialect) {
     const handled = handleArchive();
 
     // decide as the current user at the current assurance, through the current delegate
-    let current = "user-1";
+    let current = users.frank;
     let level = 1;
     let agent: Subject | undefined;
     let granted: GrantPermission[] = [];
@@ -1270,7 +1270,7 @@ async function serveTasks(dialect: Dialect) {
         chain: async () => undefined,
         clock,
         principal: spacePrincipal(spaceId),
-        objects: [handled, comment, taskVersion, handleDraw()],
+        servers: serversOf([handled, comment, taskVersion, handleDraw()]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -1295,7 +1295,7 @@ async function serveTasks(dialect: Dialect) {
             input: NoInfer<RequestInput<typeof handled, Name>>,
         ) => request(store, handled, name, spaceId, input, context),
         /** Act as a user. */
-        act: (user: string) => {
+        act: (user: Identifier<"user">) => {
             current = user;
             context = sign();
         },
@@ -1348,7 +1348,7 @@ test("carry a key of the call's place in its request, the same for every retry o
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [task, comment, taskVersion, copies, folder],
+        servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -1356,7 +1356,7 @@ test("carry a key of the call's place in its request, the same for every retry o
             package: task.package,
         },
     });
-    const context = userContext("user-1", spaceId);
+    const context = userContext(users.frank, spaceId);
     const created = await store
         .mutate(context.caller(), {
             id: RequestId.create(Date.now()),
@@ -1417,7 +1417,7 @@ test("settle each call's prepared work once under its own key in its request", a
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [task, comment, taskVersion, copies, folder],
+        servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -1425,7 +1425,7 @@ test("settle each call's prepared work once under its own key in its request", a
             package: task.package,
         },
     });
-    const context = userContext("user-1", spaceId);
+    const context = userContext(users.frank, spaceId);
     const created = await store
         .mutate(context.caller(), {
             id: RequestId.create(Date.now()),

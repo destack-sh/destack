@@ -9,8 +9,8 @@ import { type CallInput, defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
-import { userContext } from "./fixture/user.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { userContext, users } from "./fixture/user.ts";
 
 /** The public space containing the handles. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -53,7 +53,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            objects: [handle],
+            servers: serversOf([handle]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
@@ -62,7 +62,7 @@ test.each(TEST_DIALECTS)(
             },
         });
         const create = (
-            user: string,
+            user: Identifier<"user">,
             input: { readonly holderId: string; readonly name: string; readonly id?: string },
             scope = spaceId,
         ) => {
@@ -79,25 +79,25 @@ test.each(TEST_DIALECTS)(
         };
 
         // take a name and an identifier as alice
-        const taken = await create("alice", { holderId: "alice", name: "notes" });
+        const taken = await create(users.alice, { holderId: users.alice, name: "notes" });
 
         // tell bob of the taken name and identifier only for a handle he may create
-        expect(await refusal(create("bob", { holderId: "bob", name: "notes" }))).toEqual([
+        expect(await refusal(create(users.bob, { holderId: users.bob, name: "notes" }))).toEqual([
             "CONFLICT",
             "another handle has the same scope and name",
         ]);
         await expect(
-            create("bob", { holderId: "bob", name: "tasks", id: taken.id }),
+            create(users.bob, { holderId: users.bob, name: "tasks", id: taken.id }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "handle identifier is taken" });
 
         // find nothing for a handle bob may not create, taken or free
         const refusals: unknown[] = [];
         for (const input of [
-            { holderId: "alice", name: "notes" },
-            { holderId: "alice", name: "tasks", id: taken.id },
-            { holderId: "alice", name: "tasks" },
+            { holderId: users.alice, name: "notes" },
+            { holderId: users.alice, name: "tasks", id: taken.id },
+            { holderId: users.alice, name: "tasks" },
         ]) {
-            refusals.push(await refusal(create("bob", input)));
+            refusals.push(await refusal(create(users.bob, input)));
         }
         expect(refusals).toEqual([
             ["NOT_FOUND", "handle not found"],
@@ -107,20 +107,28 @@ test.each(TEST_DIALECTS)(
 
         // challenge bob before a conflict, and find nothing for alice's handle
         level = 1;
-        await expect(create("bob", { holderId: "bob", name: "notes" })).rejects.toMatchObject({
+        await expect(
+            create(users.bob, { holderId: users.bob, name: "notes" }),
+        ).rejects.toMatchObject({
             code: "INSUFFICIENT_AUTHENTICATION",
             stepUp: RECENT,
         });
-        await expect(create("bob", { holderId: "alice", name: "notes" })).rejects.toMatchObject({
+        await expect(
+            create(users.bob, { holderId: users.alice, name: "notes" }),
+        ).rejects.toMatchObject({
             code: "NOT_FOUND",
             message: "handle not found",
         });
         level = 2;
 
         // create a handle in a space the caller cannot read, as its permission admits
-        const admitted = await create("alice", { holderId: "alice", name: "notes" }, privateId);
+        const admitted = await create(
+            users.alice,
+            { holderId: users.alice, name: "notes" },
+            privateId,
+        );
         expect({ holderId: admitted.holderId, name: admitted.name }).toEqual({
-            holderId: "alice",
+            holderId: users.alice,
             name: "notes",
         });
     },
@@ -148,7 +156,7 @@ test("create an object the caller has the permission on only as the creator its 
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [team],
+        servers: serversOf([team]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -156,7 +164,7 @@ test("create an object the caller has the permission on only as the creator its 
             package: team.package,
         },
     });
-    const context = userContext("alice", spaceId);
+    const context = userContext(users.alice, spaceId);
 
     // create a team as its owner and read it as that owner
     const created = await store
@@ -179,7 +187,7 @@ test("run only the one method a one-method grant reaches, refusing every other m
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [team],
+        servers: serversOf([team]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -188,11 +196,11 @@ test("run only the one method a one-method grant reaches, refusing every other m
 
     // create through a token granted only the create method, then read
     const grantId = Identifier.create("grant");
-    const granted = userContext("alice", spaceId, {
-        delegates: [principal.personalAccessToken.reference("alice", "token-alice")],
+    const granted = userContext(users.alice, spaceId, {
+        delegates: [principal.personalAccessToken.reference(users.alice, "token-alice")],
         grant: {
             id: grantId,
-            scope: "alice",
+            scope: users.alice,
             permissions: [
                 { ...team.permission("update"), scope: spaceId, method: "create" },
                 { ...team.permission("read"), scope: spaceId, method: "create" },
@@ -268,7 +276,7 @@ test("create each variant of a sum type from its own fields beside the shared on
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [contact],
+        servers: serversOf([contact]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -276,7 +284,7 @@ test("create each variant of a sum type from its own fields beside the shared on
     });
     const create = (input: CallInput<typeof contact, "create">) =>
         store
-            .mutate(userContext("alice", spaceId).caller(), {
+            .mutate(userContext(users.alice, spaceId).caller(), {
                 id: RequestId.create(Date.now()),
                 calls: [contact.call("create", { spaceId, ...input })],
             })
@@ -294,7 +302,7 @@ test("create each variant of a sum type from its own fields beside the shared on
     // refuse an email contact with a phone's number
     const mixed = await refusal(
         store
-            .mutate(userContext("alice", spaceId).caller(), {
+            .mutate(userContext(users.alice, spaceId).caller(), {
                 id: RequestId.create(Date.now()),
                 calls: [
                     {
@@ -349,7 +357,7 @@ test("create an object without a field its creation fills, keeping the field the
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [
+        servers: serversOf([
             ticket.implement({
                 methods: {
                     create: (call, next) =>
@@ -360,7 +368,7 @@ test("create an object without a field its creation fills, keeping the field the
                         ),
                 },
             }),
-        ],
+        ]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
@@ -406,18 +414,20 @@ test("create an object under a natural key the creator chooses, refusing a taken
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        objects: [channel],
+        servers: serversOf([channel]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
         origin: { package: channel.package },
     });
-    const context = userContext("alice", spaceId);
+    const context = userContext(users.alice, spaceId);
     const create = (name: string) =>
         store
             .mutate(context.caller(), {
                 id: RequestId.create(Date.now()),
-                calls: [channel.call("create", { spaceId, id: "core", holderId: "alice", name })],
+                calls: [
+                    channel.call("create", { spaceId, id: "core", holderId: users.alice, name }),
+                ],
             })
             .then(([written]) => written.id);
 

@@ -4,10 +4,10 @@ import { ObjectReference } from "@destack/sync";
 import { DesiredState } from "../trait/desired.ts";
 
 import { MethodBuilder } from "./record.ts";
-import type { ProvisionedTable } from "../trait/provisioned.ts";
+import type { ResourceTable } from "../trait/provisioned.ts";
 import { Execution } from "./execution.ts";
 /** The method declarations of provisioned resources. */
-export const provisionedMethod = new MethodBuilder<ProvisionedTable<unknown>>();
+export const provisionedMethod = new MethodBuilder<ResourceTable<unknown>>();
 
 /** Make an installation the owner of a retained resource it declares again, or release it. */
 export const adopt = provisionedMethod

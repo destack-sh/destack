@@ -1,5 +1,4 @@
-import { bearerUser } from "./fixture/user.ts";
-import { ObjectExtension, defineServer } from "../src/server/index.ts";
+import { bearerUser, users } from "./fixture/user.ts";
 import { outbox } from "@destack/runtime/outbox";
 import { Scope } from "@destack/sync";
 import {
@@ -10,7 +9,7 @@ import {
     type Row,
     type RelationalQueryBuilder,
 } from "@destack/db";
-import { ClaimController, type ClaimHome } from "../src/server/index.ts";
+import { ClaimController, type ClaimHome, defineServer, ObjectStore } from "../src/server/index.ts";
 import {
     Claim,
     type ClaimLookup,
@@ -158,7 +157,7 @@ test.each(TEST_DIALECTS)(
         const after = (await east.database.log.position()).sequence;
         const row = {
             scope: east.spaceId,
-            ownerId: "carol",
+            ownerId: users.carol,
             handle: "carol",
             createdAt: now,
             updatedAt: now,
@@ -301,7 +300,8 @@ async function serveProfiles(dialect: Dialect, claims: ClaimHome) {
     const server = Server.start({
         clock: Clock.system,
         ...aligned(
-            ObjectExtension.compose([defineServer(profilesPackage, {}).extension(undefined)], {
+            new ObjectStore({
+                servers: [defineServer(profilesPackage, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(profilesPackage) },
@@ -321,14 +321,19 @@ async function serveProfiles(dialect: Dialect, claims: ClaimHome) {
         authenticate: bearerUser(profilesPackage.id, spaceId),
     });
     onTestFinished(() => server.close());
-    const connect = (user: string) =>
+    const connect = (user: Identifier<"user">) =>
         createClient(profilesPackage, {
             url: "https://profiles.test",
             headers: { authorization: `Bearer ${user}` },
             fetch: (request: Request) => server.fetch(request),
         });
 
-    return { spaceId, database: storage.database, alice: connect("alice"), bob: connect("bob") };
+    return {
+        spaceId,
+        database: storage.database,
+        alice: connect(users.alice),
+        bob: connect(users.bob),
+    };
 }
 
 test.each(TEST_DIALECTS)(

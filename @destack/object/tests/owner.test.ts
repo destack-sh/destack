@@ -6,7 +6,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { type CallableName, Claim, claimTable, defineObject, field } from "../src/index.ts";
 import { Scope } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
@@ -156,7 +156,7 @@ test.each(TEST_DIALECTS)(
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(homeId),
-            objects: [asset],
+            servers: serversOf([asset]),
             database: storage.database,
             callKey: testCallKey,
             events: await testEvents(storage.database),
@@ -226,7 +226,7 @@ test("admit an owner to its owned objects in a private home it cannot see, and r
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(homeId),
-        objects: [asset, sticker],
+        servers: serversOf([asset, sticker]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),

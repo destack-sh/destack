@@ -1,3 +1,4 @@
+import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Authorization, principal } from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
@@ -5,7 +6,7 @@ import { TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { RequestId } from "@destack/runtime/request";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
@@ -42,7 +43,7 @@ test("start a feed's reader at its creating commit and release it at its deletio
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
-        objects: [feed],
+        servers: serversOf([feed]),
         policies: [space],
         database,
         callKey: testCallKey,
@@ -52,7 +53,7 @@ test("start a feed's reader at its creating commit and release it at its deletio
     await database
         .insert(space.table)
         .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
-    const owner = principal.user.reference("universe", "owner");
+    const owner = principal.user.reference("universe", users.owner);
     const creating = await Transaction.open(database);
     await new Authorization(store.authorizer, creating, () => ({
         subjects: [owner],

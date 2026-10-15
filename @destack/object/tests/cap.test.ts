@@ -1,6 +1,5 @@
+import { users } from "./fixture/user.ts";
 import { ResourceContext } from "@destack/resource/context";
-import { principal } from "@destack/access";
-import { ObjectTypeReference } from "@destack/sync";
 import { Clock } from "@destack/schema";
 import { Transaction } from "@destack/db";
 import { MemoryBuild } from "@destack/package/test";
@@ -12,7 +11,7 @@ import { testCallKey, testKeys } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
 import type { ServerContext } from "@destack/runtime/workload";
 import { Scope } from "@destack/sync";
-import { ObjectStore } from "../src/server/index.ts";
+import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { serveObjects, spaceId } from "./fixture/device.ts";
 import { notebook, note, notesDatabase, notesPackage } from "./fixture/note.ts";
 import { openSpace } from "./fixture/space.ts";
@@ -64,22 +63,16 @@ async function serveInstalledNotes() {
     const store = new ObjectStore({
         chain: async () => undefined,
         clock: Clock.system,
-        principal: principal.installation.reference(server.space, server.installation),
-        objects: [notebook, note],
+        server,
+        servers: [defineServer(notesPackage, { objects: [notebook, note] })],
         database,
         callKey: testCallKey,
         events: await testEvents(database),
         origin: { package: note.package },
-        installed: new Map(
-            [notebook, note].map((type) => [ObjectTypeReference.key(type.typeReference), server]),
-        ),
     });
-    const served = serveObjects(
-        store.implement(notesPackage, store.routed, store.controllers()),
-        spaceId,
-    );
+    const served = serveObjects(store.package(notesPackage), spaceId);
 
-    return { database, alice: createClient(notesPackage, served.endpoint("alice")) };
+    return { database, alice: createClient(notesPackage, served.endpoint(users.alice)) };
 }
 
 test("refuse an installation's writes in a space whose storage is capped, keeping reads and deletes, until the cap lifts", async () => {
